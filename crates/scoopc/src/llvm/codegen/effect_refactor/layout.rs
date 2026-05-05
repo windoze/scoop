@@ -314,10 +314,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &frame_layouts,
         )?;
 
-        let callable_carrier_target_layouts =
-            this.publish_callable_carrier_entry_shells(&callable_layouts, &step_layouts)?;
-
         let dynamic_invoke_layouts = this.materialize_dynamic_invoke_layouts(&step_layouts)?;
+        let callable_carrier_target_layouts = this.publish_callable_carrier_entry_shells(
+            &callable_layouts,
+            &step_layouts,
+            &dynamic_invoke_layouts,
+        )?;
         let (
             call_boundary_operand_layouts,
             perform_boundary_operand_layouts,
@@ -433,6 +435,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 case.case_tag(),
                 RefactorStepCaseLayout::new(
                     case.case_tag(),
+                    case.concrete_op_key().clone(),
+                    case.payload_tuple_ty(),
                     case_tag_name,
                     RefactorStepVariantLayout::new(
                         tag_value,
@@ -1583,26 +1587,30 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let mut resume_boundary_sites = BTreeSet::new();
         let mut handle_binder_routes = BTreeSet::new();
-        let underlying_wrapper_route = entry.wrapper_projection().and_then(|projection| {
-            let route = projection.underlying_route();
-            if route.continuation_schema() == entry.continuation_schema() {
-                return None;
-            }
-            let route_owner = surface_resume_publication_owner_identity(route.publication())?;
-            let mut saw_owner_publication = false;
-            for publication in entry.publications() {
-                let Some(publication_owner) =
-                    surface_resume_publication_owner_identity(publication)
-                else {
-                    continue;
-                };
-                saw_owner_publication = true;
-                if publication_owner != route_owner {
-                    return Some(route);
+        let underlying_wrapper_route = if method_targets.is_empty() {
+            entry.wrapper_projection().and_then(|projection| {
+                let route = projection.underlying_route();
+                if route.continuation_schema() == entry.continuation_schema() {
+                    return None;
                 }
-            }
-            (!saw_owner_publication).then_some(route)
-        });
+                let route_owner = surface_resume_publication_owner_identity(route.publication())?;
+                let mut saw_owner_publication = false;
+                for publication in entry.publications() {
+                    let Some(publication_owner) =
+                        surface_resume_publication_owner_identity(publication)
+                    else {
+                        continue;
+                    };
+                    saw_owner_publication = true;
+                    if publication_owner != route_owner {
+                        return Some(route);
+                    }
+                }
+                (!saw_owner_publication).then_some(route)
+            })
+        } else {
+            None
+        };
 
         if let Some(route) = underlying_wrapper_route {
             match route.publication() {
@@ -2248,6 +2256,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        dynamic_invoke_layouts: &BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
     ) -> Result<
         HashMap<(RefactorCallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
         LlvmEmitError,
@@ -2314,6 +2326,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .collect::<BTreeSet<_>>();
 
         let mut carrier_layouts = HashMap::new();
+        let dynamic_dispatch_targets =
+            self.dynamic_dispatch_carrier_targets(dynamic_invoke_layouts)?;
         for callable_fqn in plain_closure_targets {
             self.publish_plain_carrier_fallback_target(
                 RefactorCallableCarrierKind::ClosureObject,
@@ -2341,18 +2355,32 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             )?;
         }
         for impl_fqn in class_vtable_targets {
+            let return_step_schema = dynamic_dispatch_targets
+                .get(&(
+                    RefactorCallableCarrierKind::ClassVtable,
+                    impl_fqn.to_string(),
+                ))
+                .copied();
             self.publish_dispatch_carrier_entry_shell(
                 RefactorCallableCarrierKind::ClassVtable,
                 impl_fqn,
+                return_step_schema,
                 callable_layouts,
                 step_layouts,
                 &mut carrier_layouts,
             )?;
         }
         for impl_fqn in interface_itable_targets {
+            let return_step_schema = dynamic_dispatch_targets
+                .get(&(
+                    RefactorCallableCarrierKind::InterfaceItable,
+                    impl_fqn.to_string(),
+                ))
+                .copied();
             self.publish_dispatch_carrier_entry_shell(
                 RefactorCallableCarrierKind::InterfaceItable,
                 impl_fqn,
+                return_step_schema,
                 callable_layouts,
                 step_layouts,
                 &mut carrier_layouts,
@@ -2377,6 +2405,42 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 .register_refactor_plain_callable_carrier_fallback(kind, &alias)?;
         }
         Ok(())
+    }
+
+    fn dynamic_dispatch_carrier_targets(
+        &self,
+        dynamic_invoke_layouts: &BTreeMap<
+            (StepSchemaId, crate::mir::SiteId),
+            RefactorDynamicInvokeLayout<'ctx>,
+        >,
+    ) -> Result<HashMap<(RefactorCallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
+        let mut targets = HashMap::<(RefactorCallableCarrierKind, String), StepSchemaId>::new();
+        for layout in dynamic_invoke_layouts.values() {
+            let kind = match layout.carrier() {
+                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(_) => {
+                    RefactorCallableCarrierKind::ClassVtable
+                }
+                RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
+                    RefactorCallableCarrierKind::InterfaceItable
+                }
+                RefactorDynamicInvokeCarrierLayout::ClosureObject(_) => continue,
+            };
+            for fqn in layout.candidate_targets() {
+                let key = (kind, fqn.clone());
+                if let Some(existing) = targets.insert(key.clone(), layout.return_step_schema())
+                    && existing != layout.return_step_schema()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 {} `{}` 需要多个 dynamic carrier return schema：s{} 与 s{}",
+                        kind.label(),
+                        fqn,
+                        existing.as_u32(),
+                        layout.return_step_schema().as_u32(),
+                    )));
+                }
+            }
+        }
+        Ok(targets)
     }
 
     fn publish_closure_carrier_entry_shell(
@@ -2419,6 +2483,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             RefactorCallableCarrierKind::ClosureObject,
             callable_fqn,
             callable_layout,
+            callable_layout.step_schema(),
             &symbol_name,
             carrier_layouts,
         )?;
@@ -2427,6 +2492,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 RefactorCallableCarrierKind::ClosureObject,
                 &alias,
                 callable_layout,
+                callable_layout.step_schema(),
                 &symbol_name,
                 carrier_layouts,
             )?;
@@ -2438,6 +2504,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         kind: RefactorCallableCarrierKind,
         impl_fqn: &str,
+        return_step_schema: Option<StepSchemaId>,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         carrier_layouts: &mut HashMap<
@@ -2447,14 +2514,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let callable_layout =
             self.callable_layout_for_carrier_target(callable_layouts, kind, impl_fqn)?;
+        let return_step_schema = return_step_schema.unwrap_or(callable_layout.step_schema());
         let step_ty = step_layouts
-            .get(&callable_layout.step_schema())
+            .get(&return_step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
                     "refactor LLVM ABI materialization 缺少 {} `{}` target 的 step layout {}",
                     kind.label(),
                     impl_fqn,
-                    callable_layout.step_schema().as_u32(),
+                    return_step_schema.as_u32(),
                 ))
             })?
             .llvm_ty();
@@ -2477,6 +2545,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             kind,
             impl_fqn,
             callable_layout,
+            return_step_schema,
             &symbol_name,
             carrier_layouts,
         )?;
@@ -2488,6 +2557,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         kind: RefactorCallableCarrierKind,
         callable_fqn: &str,
         callable_layout: &RefactorCallableLayout<'ctx>,
+        return_step_schema: StepSchemaId,
         symbol_name: &str,
         carrier_layouts: &mut HashMap<
             (RefactorCallableCarrierKind, String),
@@ -2501,7 +2571,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let published = RefactorCallableCarrierTargetLayout::new(
             callable_fqn.to_string(),
             callable_layout.body_version_key().clone(),
-            callable_layout.step_schema(),
+            return_step_schema,
             symbol_name.to_string(),
         );
         if let Some(existing) = carrier_layouts.get(&key) {
@@ -4387,6 +4457,17 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let llvm_ty = step_ty.fn_type(&params, false);
 
+        let candidate_targets = match facts.target() {
+            crate::effect_facts::CallSiteTarget::CandidateSet(targets) => targets
+                .iter()
+                .map(|target| target.template.fqn.clone())
+                .collect::<Vec<_>>(),
+            crate::effect_facts::CallSiteTarget::KnownInstance(target) => {
+                vec![target.template.fqn.clone()]
+            }
+            crate::effect_facts::CallSiteTarget::DynamicFallback => Vec::new(),
+        };
+
         Ok(RefactorDynamicInvokeLayout::new(
             owner_step_schema,
             site_id,
@@ -4397,6 +4478,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             args_abi,
             facts.callee_schema(),
             carrier,
+            candidate_targets,
         ))
     }
 

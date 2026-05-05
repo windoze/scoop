@@ -3952,6 +3952,7 @@ fn local_decl_ty(
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn operand_source_with_expected_ty(
     root_fqn: &str,
     site_id: SiteId,

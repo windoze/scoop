@@ -7,7 +7,7 @@
 //! - 先覆盖 dump/调试路径需要的最小闭环：standalone direct-call fixed-point、nested closure family
 //!   的 FQN/fn_ptr 重写，以及 per-instance cache。
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -443,6 +443,8 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     );
     let known_receiver_subclasses =
         crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+    let direct_subclasses =
+        collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
     let class_vtables = lowered_hir.class_vtables.clone();
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
@@ -470,6 +472,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 callable_body_infos,
                 callable_signatures,
                 known_receiver_subclasses,
+                direct_subclasses,
                 class_vtables,
                 interfaces,
                 class_itables,
@@ -538,6 +541,7 @@ struct MaterializerConstructionInputs<'a> {
     callable_body_infos: Vec<CallableBodyInfo>,
     callable_signatures: Vec<CallableSignatureInfo>,
     known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    direct_subclasses: HashMap<String, BTreeSet<String>>,
     class_vtables: crate::vtable::ClassVtableIndex,
     interfaces: crate::itable::InterfaceIndex,
     class_itables: crate::itable::ClassItableIndex,
@@ -612,6 +616,20 @@ fn collect_request_root_fun_keys(
         }
     }
 
+    out
+}
+
+fn collect_direct_subclasses_from_supertypes(
+    direct_supertypes: &crate::hir::DirectSupertypesIndex,
+) -> HashMap<String, BTreeSet<String>> {
+    let mut out = HashMap::<String, BTreeSet<String>>::new();
+    for (child, supers) in direct_supertypes {
+        for super_fqn in supers {
+            out.entry(super_fqn.clone())
+                .or_default()
+                .insert(child.clone());
+        }
+    }
     out
 }
 
@@ -2319,6 +2337,7 @@ struct MirInstanceMaterializer {
     builtins: BuiltinTypes,
     opt_level: OptLevel,
     known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    direct_subclasses: HashMap<String, BTreeSet<String>>,
     class_vtables: crate::vtable::ClassVtableIndex,
     interfaces: crate::itable::InterfaceIndex,
     class_itables: crate::itable::ClassItableIndex,
@@ -2371,6 +2390,31 @@ struct DirectCallInferenceInput<'a> {
     substitution: &'a InstanceSubstitution,
 }
 
+fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty) else {
+        return None;
+    };
+    Some(nominal.fqn.as_str())
+}
+
+fn collect_interface_slot_targets(
+    entries: &[crate::itable::ClassItableEntry],
+    owner_fqn: &str,
+    slot_index: usize,
+    targets: &mut BTreeSet<String>,
+) {
+    for entry in entries {
+        if entry.interface_fqn != owner_fqn {
+            continue;
+        }
+        if let Some(fqn) = entry.method_impl_fqns.get(slot_index)
+            && !fqn.is_empty()
+        {
+            targets.insert(fqn.clone());
+        }
+    }
+}
+
 impl MirInstanceMaterializer {
     fn new(
         generic_file: File,
@@ -2387,6 +2431,7 @@ impl MirInstanceMaterializer {
             callable_body_infos,
             callable_signatures,
             known_receiver_subclasses,
+            direct_subclasses,
             class_vtables,
             interfaces,
             class_itables,
@@ -2621,6 +2666,7 @@ impl MirInstanceMaterializer {
             builtins,
             opt_level,
             known_receiver_subclasses,
+            direct_subclasses,
             class_vtables,
             interfaces,
             class_itables,
@@ -2955,6 +3001,53 @@ impl MirInstanceMaterializer {
                     self.scan_reachable_non_generic_fun(&reachable_callee, out)?;
                 }
             }
+            Rvalue::Call {
+                kind: CallKind::Virtual { dispatch, .. },
+                args,
+                ..
+            } => {
+                self.reachable_request_call_sites
+                    .insert((scan.template_source_path.to_path_buf(), scan.span));
+                let receiver_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    dispatch.receiver_ty,
+                    scan.substitution,
+                );
+                let candidates = self.virtual_dispatch_candidate_fqns(
+                    receiver_ty,
+                    &dispatch.member_name,
+                    args.len(),
+                );
+                self.scan_reachable_dispatch_candidates(
+                    scan.template_source_path,
+                    &candidates,
+                    out,
+                )?;
+            }
+            Rvalue::Call {
+                kind: CallKind::Interface { dispatch, .. },
+                args,
+                ..
+            } => {
+                self.reachable_request_call_sites
+                    .insert((scan.template_source_path.to_path_buf(), scan.span));
+                let receiver_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    dispatch.receiver_ty,
+                    scan.substitution,
+                );
+                let candidates = self.interface_dispatch_candidate_fqns(
+                    receiver_ty,
+                    &dispatch.owner_fqn,
+                    &dispatch.member_name,
+                    args.len(),
+                );
+                self.scan_reachable_dispatch_candidates(
+                    scan.template_source_path,
+                    &candidates,
+                    out,
+                )?;
+            }
             Rvalue::MakeClosure { fn_ptr, .. } => {
                 if let Some(reachable_closure) =
                     self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, fn_ptr)
@@ -3007,6 +3100,104 @@ impl MirInstanceMaterializer {
         for dep_fqn in refs {
             self.scan_reachable_top_level_immutable_value(&dep_fqn);
         }
+    }
+
+    fn scan_reachable_dispatch_candidates(
+        &mut self,
+        default_source_path: &Path,
+        candidate_fqns: &[String],
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        for candidate_fqn in candidate_fqns {
+            if let Some(reachable_fun) =
+                self.resolve_non_generic_fun_body_by_fqn(default_source_path, candidate_fqn)
+            {
+                self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn virtual_dispatch_candidate_fqns(
+        &self,
+        receiver_ty: TypeId,
+        member_name: &str,
+        explicit_arg_count: usize,
+    ) -> Vec<String> {
+        let Some(receiver_fqn) = nominal_type_fqn(&self.types, receiver_ty) else {
+            return Vec::new();
+        };
+        let mut targets = BTreeSet::new();
+        for class_fqn in self.descendants_and_self(receiver_fqn) {
+            if let Some(slot) = self
+                .class_vtables
+                .get(class_fqn.as_str())
+                .and_then(|slots| {
+                    slots.iter().find(|slot| {
+                        slot.name == member_name && slot.params_len == explicit_arg_count as u32
+                    })
+                })
+            {
+                targets.insert(slot.impl_member_fqn.clone());
+            } else if class_fqn == receiver_fqn {
+                targets.insert(format!("{class_fqn}.{member_name}"));
+            }
+        }
+        targets.into_iter().collect()
+    }
+
+    fn interface_dispatch_candidate_fqns(
+        &self,
+        receiver_ty: TypeId,
+        owner_fqn: &str,
+        member_name: &str,
+        explicit_arg_count: usize,
+    ) -> Vec<String> {
+        let Some(interface) = self.interfaces.get(owner_fqn) else {
+            return Vec::new();
+        };
+        let mut matching_slots = interface.method_slots.iter().filter(|slot| {
+            slot.name == member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let Some(slot) = matching_slots.next() else {
+            return Vec::new();
+        };
+        if matching_slots.next().is_some() {
+            return Vec::new();
+        }
+
+        let mut targets = BTreeSet::new();
+        if let Some(receiver_fqn) = nominal_type_fqn(&self.types, receiver_ty)
+            && let Some(entries) = self.class_itables.get(receiver_fqn)
+        {
+            collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
+        }
+        if targets.is_empty() {
+            for entries in self.class_itables.values() {
+                collect_interface_slot_targets(
+                    entries,
+                    owner_fqn,
+                    slot.slot as usize,
+                    &mut targets,
+                );
+            }
+        }
+        targets.into_iter().collect()
+    }
+
+    fn descendants_and_self(&self, root: &str) -> BTreeSet<String> {
+        let mut seen = BTreeSet::from([root.to_string()]);
+        let mut stack = vec![root.to_string()];
+        while let Some(current) = stack.pop() {
+            if let Some(children) = self.direct_subclasses.get(&current) {
+                for child in children {
+                    if seen.insert(child.clone()) {
+                        stack.push(child.clone());
+                    }
+                }
+            }
+        }
+        seen
     }
 
     fn resolve_non_generic_fun_body_by_fqn(
@@ -5382,6 +5573,8 @@ fun main(): Int {
         );
         let known_receiver_subclasses =
             crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        let direct_subclasses =
+            collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
         let class_vtables = lowered_hir.class_vtables.clone();
         let interfaces = lowered_hir.interfaces.clone();
         let class_itables = lowered_hir.class_itables.clone();
@@ -5408,6 +5601,7 @@ fun main(): Int {
                 callable_body_infos,
                 callable_signatures,
                 known_receiver_subclasses,
+                direct_subclasses,
                 class_vtables,
                 interfaces,
                 class_itables,
@@ -6401,6 +6595,8 @@ fun main() {
             .collect::<Vec<_>>();
         let known_receiver_subclasses =
             crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        let direct_subclasses =
+            collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
         let class_vtables = lowered_hir.class_vtables.clone();
         let interfaces = lowered_hir.interfaces.clone();
         let class_itables = lowered_hir.class_itables.clone();
@@ -6425,6 +6621,7 @@ fun main() {
                 callable_body_infos,
                 callable_signatures,
                 known_receiver_subclasses,
+                direct_subclasses,
                 class_vtables,
                 interfaces,
                 class_itables,

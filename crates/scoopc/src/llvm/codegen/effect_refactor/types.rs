@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use inkwell::types::{BasicTypeEnum, FunctionType, StructType};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallTargetMode, CaseTag, ContinuationSchemaId, StepSchemaId,
+    CallSiteEffectFacts, CallTargetMode, CaseTag, ConcreteOpKey, ContinuationSchemaId, StepSchemaId,
 };
 use crate::effect_lowered::ir::{
     BoundaryId, ContinuationObjectId, FrameSlotId, LateLoweredBodyVersionKey,
@@ -280,6 +280,8 @@ impl<'ctx> RefactorStepVariantLayout<'ctx> {
 /// `Step_F` 中某个 canonical outward case 的 LLVM 布局。
 pub(super) struct RefactorStepCaseLayout<'ctx> {
     case_tag: CaseTag,
+    concrete_op_key: ConcreteOpKey,
+    payload_tuple_ty: TypeId,
     tag_constant_name: String,
     variant: RefactorStepVariantLayout<'ctx>,
 }
@@ -287,11 +289,15 @@ pub(super) struct RefactorStepCaseLayout<'ctx> {
 impl<'ctx> RefactorStepCaseLayout<'ctx> {
     pub(super) fn new(
         case_tag: CaseTag,
+        concrete_op_key: ConcreteOpKey,
+        payload_tuple_ty: TypeId,
         tag_constant_name: String,
         variant: RefactorStepVariantLayout<'ctx>,
     ) -> Self {
         Self {
             case_tag,
+            concrete_op_key,
+            payload_tuple_ty,
             tag_constant_name,
             variant,
         }
@@ -299,6 +305,14 @@ impl<'ctx> RefactorStepCaseLayout<'ctx> {
 
     pub(super) fn case_tag(&self) -> CaseTag {
         self.case_tag
+    }
+
+    pub(super) fn concrete_op_key(&self) -> &ConcreteOpKey {
+        &self.concrete_op_key
+    }
+
+    pub(super) fn payload_tuple_ty(&self) -> TypeId {
+        self.payload_tuple_ty
     }
 
     pub(super) fn tag_constant_name(&self) -> &str {
@@ -697,6 +711,7 @@ pub(super) struct RefactorDynamicInvokeLayout<'ctx> {
     args_abi: RefactorAbiValue<'ctx>,
     return_step_schema: StepSchemaId,
     carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+    candidate_targets: Vec<String>,
 }
 
 impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
@@ -711,6 +726,7 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
         args_abi: RefactorAbiValue<'ctx>,
         return_step_schema: StepSchemaId,
         carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+        candidate_targets: Vec<String>,
     ) -> Self {
         Self {
             owner_step_schema,
@@ -722,6 +738,7 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
             args_abi,
             return_step_schema,
             carrier,
+            candidate_targets,
         }
     }
 
@@ -759,6 +776,10 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
 
     pub(super) fn carrier(&self) -> &RefactorDynamicInvokeCarrierLayout<'ctx> {
         &self.carrier
+    }
+
+    pub(super) fn candidate_targets(&self) -> &[String] {
+        &self.candidate_targets
     }
 }
 

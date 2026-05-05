@@ -179,6 +179,7 @@ struct TaskTransportResumeCandidate<'a, 'ctx> {
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Defines all refactor ABI function bodies published by the P5/P6 handoff.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn codegen_refactor_program_bodies(
         &mut self,
         program: &'a LateLoweredProgram,
@@ -220,7 +221,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 abi,
             )?;
         }
-        for interface in program.resume_packings() {
+        for interface in abi_program.resume_packings() {
             let packing = abi
                 .resume_packing_layout(interface.interface_id())
                 .ok_or_else(|| {
@@ -238,7 +239,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ))
                 })?;
                 if !resume_packing_method_is_reachable(
-                    program,
+                    abi_program,
                     interface.interface_id(),
                     method.case_tag(),
                 ) {
@@ -249,7 +250,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     continue;
                 }
-                let callable = program
+                let callable = abi_program
                 .callables()
                 .iter()
                     .find(|callable| callable.body_step_schema() == Some(method.out_step_schema()))
@@ -260,9 +261,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )))?;
                 let mut child = self.fresh_child_codegen();
                 child.codegen_refactor_resume_method(
-                    program,
-                    source_types,
-                    pass_view,
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
                     abi,
                     callable,
                     method_layout.symbol_name(),
@@ -279,20 +280,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "refactor body lowering 缺少 continuation schema k{} 的 surface-resume layout",
                     entry.continuation_schema().as_u32()
                 )))?;
-            let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
-            if let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(target) =
-                dispatch.target()
-            {
-                let mut child = self.fresh_child_codegen();
-                child.codegen_refactor_surface_resume_owner_trampoline(
-                    program,
-                    source_types,
-                    pass_view,
-                    abi,
-                    surface,
-                    target,
-                )?;
-            }
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_surface_resume(program, abi, surface)?;
         }
@@ -321,6 +308,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_surface_resume(abi_program, abi, surface)?;
+        }
+        for callable in program.callables() {
+            if !callable.has_control_body() {
+                continue;
+            }
+            for boundary in callable.boundary_map().entries() {
+                let compositions = match boundary.lowering() {
+                    Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                        lowering.continuation_compositions()
+                    }
+                    Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                        lowering.continuation_compositions()
+                    }
+                    _ => continue,
+                };
+                for composition in compositions {
+                    let continuation_schema = composition
+                        .callee_continuation_contract()
+                        .continuation_schema();
+                    let surface = abi.surface_resume_layout(continuation_schema).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor body lowering 缺少 dynamic continuation schema k{} 的 surface-resume layout",
+                            continuation_schema.as_u32()
+                        ))
+                    })?;
+                    let Some(function) = self.module.get_function(surface.symbol_name()) else {
+                        continue;
+                    };
+                    if function.count_basic_blocks() > 0 {
+                        continue;
+                    }
+                    let mut child = self.fresh_child_codegen();
+                    child.codegen_refactor_dynamic_surface_resume_adapter(program, abi, surface)?;
+                }
+            }
         }
         Ok(())
     }
@@ -906,14 +928,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &RefactorAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let target_layout = abi.callable_layout_by_version_key(target.body_version_key())?;
-        if target_layout.step_schema() != target.step_schema() {
-            return Err(frontend_error(format!(
-                "refactor carrier shell `{}` target step schema 漂移：layout=s{} target=s{}",
-                target.symbol_name(),
-                target_layout.step_schema().as_u32(),
-                target.step_schema().as_u32(),
-            )));
-        }
         let function = self.refactor_function(target.symbol_name())?;
         if function.count_basic_blocks() > 0 {
             return Ok(());
@@ -954,8 +968,151 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 target.symbol_name()
             ))
         })?;
-        self.builder.build_return(Some(&step))?;
+        let returned_step = if target.step_schema() == target_layout.step_schema() {
+            step
+        } else {
+            self.project_refactor_step_to_schema(
+                abi,
+                step,
+                target_layout.step_schema(),
+                target.step_schema(),
+            )?
+        };
+        self.builder.build_return(Some(&returned_step))?;
         Ok(())
+    }
+
+    fn project_refactor_step_to_schema(
+        &mut self,
+        abi: &RefactorAbiQuery<'ctx>,
+        owner_step: BasicValueEnum<'ctx>,
+        owner_step_schema: StepSchemaId,
+        wrapper_step_schema: StepSchemaId,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let owner_layout = abi.step_layout(owner_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor carrier projection 缺少 owner step schema s{} layout",
+                owner_step_schema.as_u32()
+            ))
+        })?;
+        let wrapper_layout = abi.step_layout(wrapper_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor carrier projection 缺少 wrapper step schema s{} layout",
+                wrapper_step_schema.as_u32()
+            ))
+        })?;
+        let tag = self.refactor_extract_step_tag(owner_layout, owner_step)?;
+        let function = self.current_function()?;
+        let complete_bb = self
+            .context
+            .append_basic_block(function, "refactor_carrier_project_complete");
+        let dispatch_bb = self
+            .context
+            .append_basic_block(function, "refactor_carrier_project_dispatch");
+        let unmatched_bb = self
+            .context
+            .append_basic_block(function, "refactor_carrier_project_unmatched");
+        let done_bb = self
+            .context
+            .append_basic_block(function, "refactor_carrier_project_done");
+        let is_complete = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            tag,
+            self.context.i32_type().const_int(STEP_TAG_COMPLETE, false),
+            "refactor_carrier_project_is_complete",
+        )?;
+        self.builder
+            .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
+
+        self.builder.position_at_end(dispatch_bb);
+        let mut case_targets = Vec::new();
+        for wrapper_case in wrapper_layout.cases() {
+            let Some(owner_case) = owner_layout.cases().iter().find(|owner_case| {
+                owner_case.1.concrete_op_key() == wrapper_case.1.concrete_op_key()
+                    && owner_case.1.payload_tuple_ty() == wrapper_case.1.payload_tuple_ty()
+            }) else {
+                continue;
+            };
+            let bb = self.context.append_basic_block(
+                function,
+                &format!(
+                    "refactor_carrier_project_case{}",
+                    wrapper_case.1.case_tag().as_u32()
+                ),
+            );
+            case_targets.push((
+                self.context
+                    .i32_type()
+                    .const_int(owner_case.1.variant().tag_value() as u64, false),
+                bb,
+                owner_case.1.case_tag(),
+                wrapper_case.1.case_tag(),
+            ));
+        }
+        let switch_cases = case_targets
+            .iter()
+            .map(|(tag, bb, _, _)| (*tag, *bb))
+            .collect::<Vec<_>>();
+        self.builder
+            .build_switch(tag, unmatched_bb, &switch_cases)?;
+
+        let phi_ty = wrapper_layout.llvm_ty();
+        self.builder.position_at_end(complete_bb);
+        let complete_payload = self.refactor_extract_step_payload(
+            owner_layout,
+            owner_step,
+            owner_layout.complete_variant(),
+            "refactor_carrier_project_complete_payload",
+        )?;
+        let complete_step = self.refactor_build_step_complete(wrapper_layout, complete_payload)?;
+        self.builder.build_unconditional_branch(done_bb)?;
+        let complete_incoming = self.builder.get_insert_block().ok_or_else(|| {
+            frontend_error("refactor carrier projection complete block missing".to_string())
+        })?;
+
+        let mut incomings = vec![(complete_step, complete_incoming)];
+        for (_, bb, owner_case_tag, wrapper_case_tag) in case_targets {
+            self.builder.position_at_end(bb);
+            let owner_case = owner_layout.case_layout(owner_case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor carrier projection 缺少 owner case c{}",
+                    owner_case_tag.as_u32()
+                ))
+            })?;
+            let wrapper_case = wrapper_layout
+                .case_layout(wrapper_case_tag)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor carrier projection 缺少 wrapper case c{}",
+                        wrapper_case_tag.as_u32()
+                    ))
+                })?;
+            let (payload, continuation) = self.refactor_extract_step_case_parts(
+                owner_layout,
+                owner_step,
+                owner_case,
+                "refactor_carrier_project_case_payload",
+            )?;
+            let projected =
+                self.refactor_build_step_case(wrapper_layout, wrapper_case, payload, continuation)?;
+            self.builder.build_unconditional_branch(done_bb)?;
+            let incoming_bb = self.builder.get_insert_block().ok_or_else(|| {
+                frontend_error("refactor carrier projection case block missing".to_string())
+            })?;
+            incomings.push((projected, incoming_bb));
+        }
+
+        self.builder.position_at_end(unmatched_bb);
+        self.builder.build_unreachable()?;
+
+        self.builder.position_at_end(done_bb);
+        let phi = self
+            .builder
+            .build_phi(phi_ty, "refactor_carrier_projected_step")?;
+        for (value, bb) in &incomings {
+            phi.add_incoming(&[(value, *bb)]);
+        }
+        Ok(phi.as_basic_value())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1409,6 +1566,199 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
         self.builder.build_return(Some(&owner_step))?;
         Ok(())
+    }
+
+    fn codegen_refactor_dynamic_surface_resume_adapter(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        abi: &RefactorAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.refactor_function(surface.symbol_name())?;
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let wrapper_step = program
+            .step_type(surface.return_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor dynamic surface resume k{} 缺少 wrapper step schema s{}",
+                    surface.continuation_schema().as_u32(),
+                    surface.return_step_schema().as_u32()
+                ))
+            })?;
+        let wrapper_case = wrapper_step
+            .cases()
+            .iter()
+            .find(|case| {
+                case.continuation_contract().continuation_schema() == surface.continuation_schema()
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor dynamic surface resume k{} 无法在 wrapper step s{} 中找到对应 case",
+                    surface.continuation_schema().as_u32(),
+                    wrapper_step.step_schema().as_u32()
+                ))
+            })?;
+
+        let mut candidates = Vec::new();
+        for callable in program.callables() {
+            if !callable.has_control_body() || callable.step_schema() == wrapper_step.step_schema()
+            {
+                continue;
+            }
+            let Some(owner_step) = program.step_type(callable.step_schema()) else {
+                continue;
+            };
+            let Some(owner_case) = owner_step.cases().iter().find(|case| {
+                case.concrete_op_key() == wrapper_case.concrete_op_key()
+                    && case.payload_tuple_ty() == wrapper_case.payload_tuple_ty()
+            }) else {
+                continue;
+            };
+            let Some(continuation_layout) = abi.continuation_layout(callable.continuation_object())
+            else {
+                continue;
+            };
+            let Some(owner_surface) =
+                abi.surface_resume_layout(owner_case.continuation_contract().continuation_schema())
+            else {
+                continue;
+            };
+            candidates.push((callable, continuation_layout, owner_surface));
+        }
+        if candidates.is_empty() {
+            return Ok(());
+        }
+
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        let cont = function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor dynamic surface resume `{}` 缺少 continuation 参数",
+                surface.symbol_name()
+            ))
+        })?;
+        let cont_ptr = cont.into_pointer_value();
+        let payload = if surface.param_count() > 1 {
+            Some(function.get_nth_param(1).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor dynamic surface resume `{}` 缺少 payload 参数",
+                    surface.symbol_name()
+                ))
+            })?)
+        } else {
+            None
+        };
+        let current_desc = self.load_gc_object_type_desc(cont_ptr, "dynamic_surface_cont_desc")?;
+        let word_ty = self.context.i64_type();
+        let current_desc_int = self.builder.build_ptr_to_int(
+            current_desc,
+            word_ty,
+            "dynamic_surface_cont_desc_int",
+        )?;
+        let first_check = self
+            .context
+            .append_basic_block(function, "dynamic_surface_check0");
+        self.builder.build_unconditional_branch(first_check)?;
+
+        let mut check_bb = first_check;
+        for (index, (callable, continuation_layout, owner_surface)) in
+            candidates.into_iter().enumerate()
+        {
+            let next_bb = self
+                .context
+                .append_basic_block(function, &format!("dynamic_surface_check{}", index + 1));
+            let hit_bb = self.context.append_basic_block(
+                function,
+                &format!("dynamic_surface_hit_s{}", callable.step_schema().as_u32()),
+            );
+            self.builder.position_at_end(check_bb);
+            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+                crate::span::Span::new(0, 0),
+                continuation_layout.llvm_ty(),
+                continuation_layout.layout_anchor_name(),
+            )?;
+            let type_desc_i8 = self.builder.build_pointer_cast(
+                type_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "dynamic_surface_target_desc",
+            )?;
+            let target_desc_int = self.builder.build_ptr_to_int(
+                type_desc_i8,
+                word_ty,
+                "dynamic_surface_target_desc_int",
+            )?;
+            let is_match = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_desc_int,
+                target_desc_int,
+                "dynamic_surface_desc_match",
+            )?;
+            self.builder
+                .build_conditional_branch(is_match, hit_bb, next_bb)?;
+
+            self.builder.position_at_end(hit_bb);
+            let owner_fun = self.refactor_function(owner_surface.symbol_name())?;
+            let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::from([cont_ptr.into()]);
+            if owner_surface.param_count() > 1 {
+                args.push(
+                    payload
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor dynamic surface resume `{}` target `{}` 需要 payload",
+                                surface.symbol_name(),
+                                owner_surface.symbol_name()
+                            ))
+                        })?
+                        .into(),
+                );
+            }
+            let call = self.build_call_preserving_gc_local_roots(
+                crate::span::Span::new(0, 0),
+                owner_fun,
+                &args,
+                "dynamic_surface_owner_resume",
+            )?;
+            let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor dynamic surface resume `{}` target `{}` 未返回 Step_F",
+                    surface.symbol_name(),
+                    owner_surface.symbol_name()
+                ))
+            })?;
+            let projected = self.project_refactor_step_to_schema(
+                abi,
+                owner_step,
+                callable.step_schema(),
+                surface.return_step_schema(),
+            )?;
+            self.builder.build_return(Some(&projected))?;
+            check_bb = next_bb;
+        }
+
+        self.builder.position_at_end(check_bb);
+        self.builder.build_unreachable()?;
+        Ok(())
+    }
+
+    fn load_gc_object_type_desc(
+        &mut self,
+        obj: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let header_ty = self.llvm_gc_object_header_type();
+        let header_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let header_ptr =
+            self.builder
+                .build_pointer_cast(obj, header_ptr_ty, &format!("{name}_hdr"))?;
+        let type_desc_ptr =
+            self.builder
+                .build_struct_gep(header_ty, header_ptr, 1, &format!("{name}_gep"))?;
+        Ok(self
+            .builder
+            .build_load(self.llvm_i8_ptr_type(), type_desc_ptr, name)?
+            .into_pointer_value())
     }
 
     fn codegen_refactor_surface_resume_owner_trampoline(
@@ -3545,6 +3895,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn bind_direct_tuple_param_from_components(
         &mut self,
         entry_symbol: &str,

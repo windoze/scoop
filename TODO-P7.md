@@ -598,7 +598,7 @@
   - 新增定向覆盖：`effect_lowered::frame::tests::refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`，锁定被 routed handle arm 读取的 source local 必须进入 continuation frame。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_frame_lifting_captures_locals_used_by_routed_handle_arm`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02Za：闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞
+## [DONE] P7-T02Za：闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞
 
 - 参考：
   - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z
@@ -638,7 +638,11 @@
   - `P7-T02Z` 可以继续处理剩余 run-pass 阻塞。
 - 依赖：P7-T02Y
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-06：完成 dynamic dispatch ABI/schema identity drift 修复。refactor LLVM body emission 现在只用 ABI-visibility late-lowered program 生成 resume packing method 与 surface-resume owner dispatch，避免把 body program 的 raw `ResumeInterfaceId` / `StepSchemaId` 误用于 ABI layout 查询；主 body program 仍只负责自身 callable body lowering，不再混用两套 program id 空间。
+  - EntryMain MIR materialization 现在会在可达扫描中保留 source-level `Virtual` / `Interface` dispatch 的 candidate callable bodies，单候选 interface dispatch 仍保持 dynamic dispatch carrier contract，不降级成 direct call；vtable/itable carrier shell 会把 concrete owner callable `Step` 投影到 published canonical dynamic call-surface `Step`，确保 dynamic invoke return schema 与 call boundary contract 一致。
+  - 补齐 dynamic call-surface continuation resume adapter：当 projected dynamic `Step` 携带 owner continuation object 时，shared surface resume 会按 continuation object type descriptor 选择 owner surface-resume entry，再把 owner `Step` 投影回 wrapper `Step`，避免 `k8` 等 synthetic dynamic continuation schema 只停留为未定义声明。
+  - 新增 `default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli`，覆盖默认 refactor run 下 virtual/interface hidden suspend helper 的 stdout；既有 member/object-property hidden suspend fixtures 保持通过。未引入 legacy fallback、direct-call 降级、fixture 特判或 raw schema id 偶然映射。
+  - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli -- --nocapture`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 

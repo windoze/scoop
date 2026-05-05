@@ -144,6 +144,33 @@ fn default_refactor_runs_async_await_task_resume_payload_cli() {
 }
 
 #[test]
+fn default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli() {
+    for (fixture, expected_stdout) in [
+        (
+            "tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop",
+            "helper_before\nderived\n42\ndone\n",
+        ),
+        (
+            "tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop",
+            "helper_before\nimpl\n53\ndone\n",
+        ),
+    ] {
+        let fixture = workspace_path(fixture);
+        let output = run_scoop([
+            OsStr::new("run"),
+            OsStr::new("--no-incremental"),
+            fixture.as_os_str(),
+        ]);
+
+        assert!(
+            output.status.success(),
+            "default refactor dynamic dispatch hidden suspend fixture should run: {output:?}"
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), expected_stdout);
+    }
+}
+
+#[test]
 fn default_pipeline_matches_explicit_refactor_test_fixtures_cli() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
 
