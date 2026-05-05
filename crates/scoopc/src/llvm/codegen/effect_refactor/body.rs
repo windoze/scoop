@@ -557,6 +557,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
         let mut slots = self.create_mir_local_slots(body, source_types)?;
+        if let Ok(source_id) =
+            self.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)
+        {
+            self.current_source_id = source_id;
+        }
         if let Some(hir_fun) = hir_fun {
             self.bind_mir_params(
                 hir_fun,
@@ -1429,6 +1434,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ))
         })?;
         let slots = codegen.create_mir_local_slots(body, source_types)?;
+        if let Ok(source_id) =
+            codegen.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)
+        {
+            codegen.current_source_id = source_id;
+        }
         let used_locals = super::super::mir_body::collect_mir_local_uses(body);
         let frame_root_slot =
             codegen.create_refactor_gc_root_slot(mir_fun.span, "refactor_frame_root")?;

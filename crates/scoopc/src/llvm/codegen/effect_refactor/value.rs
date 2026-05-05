@@ -164,6 +164,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                             rvalue,
                         )),
                     })?;
+                let value_ty = value.ty;
                 let _ = self
                     .codegen
                     .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)
@@ -171,10 +172,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         frontend_error(format!(
                             "refactor pure assignment local{} store failed: value_ty={:?} target_ty={:?}: {err}",
                             target.as_u32(),
-                            value.ty,
+                            value_ty,
                             slot.cg_ty,
                         ))
                     })?;
+                if value_ty == CgTy::Never
+                    && self
+                        .codegen
+                        .builder
+                        .get_insert_block()
+                        .is_some_and(|bb| bb.get_terminator().is_none())
+                {
+                    self.codegen.builder.build_unreachable()?;
+                }
                 Ok(())
             }
             mir::StatementKind::StoreMember {

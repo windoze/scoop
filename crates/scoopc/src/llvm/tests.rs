@@ -4832,6 +4832,33 @@ fun main(): Int {
 }
 
 #[test]
+fn task_step_o0_build_fixture_uses_concrete_task_state_member_layout() {
+    let source = SourceFile::new_virtual(
+        "<mem>/task_atomic_claim_no_mutex_llvm.scoop",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop"
+        )),
+    );
+
+    let session = Session::new().unwrap();
+    let context = Context::create();
+    let module =
+        build_minimal_main_module_with_opt_level(&session, &source, &context, OptLevel::O0)
+            .unwrap();
+    let ir = module.print_to_string().to_string();
+
+    assert!(
+        ir.contains("cmpxchg ptr addrspace(1)"),
+        "O0 refactor lowering must preserve the atomic task claim path\n{ir}"
+    );
+    assert!(
+        ir.contains("store atomic i64 0, ptr addrspace(1)"),
+        "O0 refactor lowering must preserve task claim release publication\n{ir}"
+    );
+}
+
+#[test]
 fn refactor_class_ctor_uses_concrete_generic_instance_layout() {
     let source = SourceFile::new_virtual(
         "<mem>/generic_class_instance_layout.scoop",

@@ -326,6 +326,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(hir_fun) = self.fun_index.get(owner_fqn).copied() {
                 return self.source_id_for_path(hir_fun.source_path.as_path(), span);
             }
+            if let Some((template_fqn, _)) = owner_fqn.split_once("::<")
+                && let Some(hir_fun) = self.fun_index.get(template_fqn).copied()
+            {
+                return self.source_id_for_path(hir_fun.source_path.as_path(), span);
+            }
             let Some((parent, _)) = owner_fqn.rsplit_once(".$lambda") else {
                 break;
             };
@@ -727,13 +732,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<Vec<MirLocalSlot<'ctx>>, LlvmEmitError> {
         body.locals
             .iter()
-            .map(|local| {
-                let cg_ty = self.cg_ty_of_mir_type(mir_types, local.ty).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR local type",
-                        at: local.span.into(),
-                    },
-                )?;
+            .enumerate()
+            .map(|(idx, local)| {
+                let local_id = crate::mir::LocalId::from_raw(idx as u32);
+                let cg_ty = self.mir_local_storage_cg_ty(body, mir_types, local_id, local)?;
                 let ptr = self.create_entry_alloca(
                     local.span,
                     local.name.as_deref().unwrap_or("mir_local"),
@@ -742,6 +744,131 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(MirLocalSlot { cg_ty, ptr })
             })
             .collect()
+    }
+
+    fn mir_local_storage_cg_ty(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        local_id: crate::mir::LocalId,
+        local: &crate::mir::LocalDecl,
+    ) -> Result<CgTy, LlvmEmitError> {
+        let local_cg = self.cg_ty_of_mir_type(mir_types, local.ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR local type",
+                at: local.span.into(),
+            },
+        )?;
+        let mut member_field_cg = None;
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local_id {
+                    continue;
+                }
+                let crate::mir::Rvalue::MemberAccess { receiver, member } = value else {
+                    continue;
+                };
+                if !matches!(
+                    member.resolved,
+                    Some(crate::mir::MemberTarget::Value { .. })
+                ) {
+                    continue;
+                }
+                let field = self.raw_materialized_mir_member_field_contract(
+                    stmt.span, body, mir_types, receiver, member,
+                )?;
+                if let Some(previous) = member_field_cg {
+                    if !self.cg_ty_layout_equivalent(previous, field.field_cg) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "pass MIR local member field type drift",
+                            at: stmt.span.into(),
+                        });
+                    }
+                } else {
+                    member_field_cg = Some(field.field_cg);
+                }
+            }
+        }
+        if let Some(field_cg) = member_field_cg
+            && (matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
+                || self.mir_type_contains_param(mir_types, local.ty)
+                || self.cg_ty_layout_equivalent(local_cg, field_cg))
+        {
+            return Ok(field_cg);
+        }
+        Ok(local_cg)
+    }
+
+    fn cg_ty_layout_equivalent(&self, lhs: CgTy, rhs: CgTy) -> bool {
+        if lhs == rhs {
+            return true;
+        }
+        match (lhs, rhs) {
+            (CgTy::Tuple(lhs), CgTy::Tuple(rhs))
+            | (CgTy::Struct(lhs), CgTy::Struct(rhs))
+            | (CgTy::Enum(lhs), CgTy::Enum(rhs)) => {
+                self.types.display(lhs).to_string() == self.types.display(rhs).to_string()
+            }
+            _ => false,
+        }
+    }
+
+    fn describe_cg_ty(&self, cg_ty: CgTy) -> String {
+        match cg_ty {
+            CgTy::Tuple(ty) | CgTy::Struct(ty) | CgTy::Enum(ty) => {
+                format!("{cg_ty:?} {}", self.types.display(ty))
+            }
+            _ => format!("{cg_ty:?}"),
+        }
+    }
+
+    fn mir_type_contains_param(&self, types: &TypeStore, ty: TypeId) -> bool {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match types.kind(id) {
+                TypeKind::Param(_) => return true,
+                TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    stack.extend(nominal.args.iter().copied());
+                    if let Some(eff) = &nominal.eff {
+                        stack.extend(eff.terms.iter().copied());
+                    }
+                }
+                TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                    if let Some(receiver) = fun.receiver {
+                        stack.push(receiver);
+                    }
+                    stack.extend(fun.params.iter().copied());
+                    stack.push(fun.return_ty);
+                    stack.extend(fun.effects.terms.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Union(union)) => {
+                    stack.extend(union.variants.iter().copied());
+                }
+                TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+                TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                    stack.extend(elements.iter().copied());
+                }
+                TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+                | TypeKind::Value(
+                    ValueTypeKind::Unit
+                    | ValueTypeKind::Nothing
+                    | ValueTypeKind::Bool
+                    | ValueTypeKind::Char
+                    | ValueTypeKind::Float64
+                    | ValueTypeKind::Float32
+                    | ValueTypeKind::Int
+                    | ValueTypeKind::UInt
+                    | ValueTypeKind::IntN(_)
+                    | ValueTypeKind::UIntN(_),
+                ) => {}
+            }
+        }
+        false
     }
 
     fn raw_materialized_mir_body_is_supported(
@@ -2558,11 +2685,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let place = self.codegen_mir_member_place(span, receiver, member, mir_ctx, false)?;
-        if place.field_cg != target_cg {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member access result type drift",
-                at: span.into(),
-            });
+        let same_layout = self.cg_ty_layout_equivalent(place.field_cg, target_cg);
+        if !same_layout {
+            return Err(frontend_error(format!(
+                "pass MIR member access result type drift: field={} target={}",
+                self.describe_cg_ty(place.field_cg),
+                self.describe_cg_ty(target_cg),
+            )));
         }
         if place.field_cg == CgTy::Unit {
             return self.coerce_value(span, CgValue::unit(), target_cg);
@@ -2577,6 +2706,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             inst.set_alignment(alignment)?;
         }
         let value = self.cg_value_from_loaded(span, place.field_cg, loaded)?;
+        if place.field_cg != target_cg {
+            return Ok(CgValue {
+                ty: target_cg,
+                value: value.value,
+            });
+        }
         self.coerce_value(span, value, target_cg)
     }
 
