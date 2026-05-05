@@ -11,7 +11,7 @@ use std::collections::HashSet;
 
 use inkwell::types::{BasicTypeEnum, FunctionType};
 use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue};
-use inkwell::{AddressSpace, IntPredicate};
+use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 
 use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValueSource};
 use crate::llvm::LlvmEmitError;
@@ -110,9 +110,50 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
+                if let mir::Rvalue::UnresolvedName { .. } = rvalue
+                    && self
+                        .body
+                        .locals
+                        .get(target.as_u32() as usize)
+                        .is_some_and(|local| {
+                            matches!(
+                                self.source_types.kind(local.ty),
+                                TypeKind::Ref(RefTypeKind::Function(_))
+                            )
+                        })
+                {
+                    return Ok(());
+                }
                 let slot = self
                     .codegen
                     .mir_local_slot(stmt.span, self.slots, *target)?;
+                if let mir::Rvalue::TopLevelRef(_) = rvalue
+                    && self
+                        .body
+                        .locals
+                        .get(target.as_u32() as usize)
+                        .is_some_and(|local| {
+                            matches!(
+                                self.source_types.kind(local.ty),
+                                TypeKind::Ref(RefTypeKind::Function(_))
+                            )
+                        })
+                {
+                    return Ok(());
+                }
+                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn }) = rvalue
+                    && !self.codegen.object_inits.contains_key(fqn)
+                    && !self.codegen.top_level_consts.contains_key(fqn)
+                    && !self.codegen.top_level_immutable_values.contains_key(fqn)
+                    && !self.codegen.top_level_vars.contains_key(fqn)
+                {
+                    return Ok(());
+                }
+                if let mir::Rvalue::UnresolvedName { .. } = rvalue
+                    && !matches!(slot.cg_ty, CgTy::Enum(_))
+                {
+                    return Ok(());
+                }
                 let value = self
                     .lower_effect_neutral_rvalue(stmt.span, rvalue, slot.cg_ty, Some(*target))
                     .map_err(|err| match err {
@@ -181,10 +222,43 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 int_ty,
             ));
         }
+        if let mir::Rvalue::UnresolvedName { name } = value
+            && let Some(source_ty) = target_local
+                .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+                .map(|local| local.ty)
+        {
+            return self.codegen.codegen_mir_unresolved_name_with_source_ty(
+                span,
+                name,
+                self.source_types,
+                source_ty,
+                target_cg,
+            );
+        }
+        if let mir::Rvalue::Call {
+            kind: mir::CallKind::FunValue { callee },
+            args,
+            ..
+        } = value
+            && let Some(target_ty) = target_local
+                .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+                .map(|local| local.ty)
+            && let Some(variant_name) = self.unresolved_fun_value_callee_name(callee)
+        {
+            return self.codegen.codegen_mir_enum_variant_ctor_call(
+                span,
+                target_ty,
+                &variant_name,
+                args,
+                self.body,
+                self.source_types,
+                self.slots,
+            );
+        }
 
         match value {
             mir::Rvalue::Call { kind, args, .. } => {
-                self.lower_refactor_pure_direct_call(span, kind, args, target_cg)
+                self.lower_refactor_pure_direct_call(span, kind, args, target_cg, target_local)
             }
             mir::Rvalue::MakeClosure { env, fn_ptr } => {
                 let env_cg = self
@@ -485,6 +559,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         kind: &mir::CallKind,
         args: &[mir::CallArg],
         target_cg: super::super::types::CgTy,
+        target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if let mir::CallKind::Interface { receiver, dispatch } = kind
             && dispatch.owner_fqn == "scoop.core.ToString"
@@ -512,6 +587,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             let value = self.codegen.coerce_value(span, value, receiver_cg)?;
             let string = self.refactor_core_print_to_string(span, value)?;
             return self.codegen.coerce_value(span, string, target_cg);
+        }
+        if let mir::CallKind::FunValue { callee } = kind
+            && let Some(callee_fqn) = self.resolved_fun_value_callee_fqn(callee)
+        {
+            match callee_fqn {
+                "scoop.core.GC.handleNew" => {
+                    return self.codegen.codegen_mir_sysroot_gc_handle_new(
+                        span,
+                        args,
+                        self.slots,
+                        Some(target_cg),
+                    );
+                }
+                "scoop.core.GC.handleDrop" => {
+                    return self
+                        .codegen
+                        .codegen_mir_sysroot_gc_handle_drop(span, args, self.slots);
+                }
+                _ => {}
+            }
         }
         let callee_fqn = match kind {
             mir::CallKind::Direct { callee_fqn } => callee_fqn,
@@ -559,6 +654,21 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return Ok(CgValue::unit());
         }
+        if let Some(value) = self.lower_refactor_task_transport_intrinsic(
+            span,
+            callee_fqn,
+            args,
+            target_cg,
+            target_local,
+        )? {
+            return Ok(value);
+        }
+        if let Some(value) = self.lower_refactor_atomic_int_intrinsic(span, callee_fqn, args)? {
+            return Ok(value);
+        }
+        if callee_fqn == "scoop.core.panic" {
+            return self.lower_refactor_panic_call(span, args);
+        }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
             let value = self
                 .codegen
@@ -582,6 +692,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             });
         }
         if self
+            .abi
+            .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
+            .is_some()
+        {
+            return self
+                .codegen
+                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots);
+        }
+        if self
             .codegen
             .known_fun_body_may_outward_effect(callee_fqn, sig_fun.ty)
         {
@@ -592,16 +711,6 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if let Some(value) = self.lower_refactor_core_print_call(span, callee_fqn, args)? {
             return Ok(value);
-        }
-
-        if self
-            .abi
-            .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
-            .is_some()
-        {
-            return self
-                .codegen
-                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots);
         }
 
         let layout = self.abi.callable_layout_by_root_fqn(callee_fqn)?;
@@ -753,6 +862,378 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "refactor_thread_spawn_join_resume",
         )?;
         Ok(Some(CgValue::unit()))
+    }
+
+    fn lower_refactor_atomic_int_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let atomic_word = super::super::types::IntTy {
+            bits: self.codegen.host.word_bit_width(),
+            signed: true,
+        };
+        match callee_fqn {
+            "scoop.unsafe.__atomicIntStore" => {
+                if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntStore arg contract",
+                        at: span.into(),
+                    });
+                }
+                let (ptr, int_ty) = self.atomic_int_lvalue_ptr(&args[0].value, args[0].span)?;
+                if int_ty != atomic_word {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntStore target width",
+                        at: args[0].span.into(),
+                    });
+                }
+                let value = self.codegen.codegen_mir_operand_expected(
+                    args[1].span,
+                    &args[1].value,
+                    self.slots,
+                    Some(CgTy::Int(atomic_word)),
+                )?;
+                let value =
+                    self.codegen
+                        .coerce_value(args[1].span, value, CgTy::Int(atomic_word))?;
+                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicIntStore value",
+                    at: args[1].span.into(),
+                })?;
+                let raw = self.codegen.cast_int(raw, from, atomic_word)?;
+                let inst = self.codegen.builder.build_store(ptr, raw)?;
+                inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
+                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntStore set ordering",
+                        at: span.into(),
+                    })?;
+                Ok(Some(CgValue::unit()))
+            }
+            "scoop.unsafe.__atomicIntCompareExchange" => {
+                if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntCompareExchange arg contract",
+                        at: span.into(),
+                    });
+                }
+                let (ptr, int_ty) = self.atomic_int_lvalue_ptr(&args[0].value, args[0].span)?;
+                if int_ty != atomic_word {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntCompareExchange target width",
+                        at: args[0].span.into(),
+                    });
+                }
+                let expected =
+                    self.atomic_int_operand(args[1].span, &args[1].value, atomic_word)?;
+                let desired = self.atomic_int_operand(args[2].span, &args[2].value, atomic_word)?;
+                let cx = self.codegen.builder.build_cmpxchg(
+                    ptr,
+                    expected,
+                    desired,
+                    AtomicOrdering::SequentiallyConsistent,
+                    AtomicOrdering::SequentiallyConsistent,
+                )?;
+                let success = self
+                    .codegen
+                    .builder
+                    .build_extract_value(cx, 1, "cmpxchg_success")?;
+                let BasicValueEnum::IntValue(ok) = success else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicIntCompareExchange success type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue::bool(ok)))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn lower_refactor_panic_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor panic arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let message = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let message = self.codegen.coerce_value(arg.span, message, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(message_ptr)) = message.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor panic message value",
+                at: arg.span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_panic();
+        let _ = self.codegen.build_call_preserving_gc_local_roots(
+            arg.span,
+            runtime,
+            &[message_ptr.into()],
+            "refactor_rt_panic",
+        )?;
+        Ok(CgValue::never())
+    }
+
+    fn atomic_int_operand(
+        &mut self,
+        span: Span,
+        operand: &mir::Operand,
+        atomic_word: super::super::types::IntTy,
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen.codegen_mir_operand_expected(
+            span,
+            operand,
+            self.slots,
+            Some(CgTy::Int(atomic_word)),
+        )?;
+        let value = self
+            .codegen
+            .coerce_value(span, value, CgTy::Int(atomic_word))?;
+        let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor atomicInt operand",
+            at: span.into(),
+        })?;
+        self.codegen.cast_int(raw, from, atomic_word)
+    }
+
+    fn atomic_int_lvalue_ptr(
+        &mut self,
+        operand: &mir::Operand,
+        span: Span,
+    ) -> Result<
+        (
+            inkwell::values::PointerValue<'ctx>,
+            super::super::types::IntTy,
+        ),
+        LlvmEmitError,
+    > {
+        let mir::Operand::Local(local) = operand else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt target operand",
+                at: span.into(),
+            });
+        };
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if target != local {
+                    continue;
+                }
+                let mir::Rvalue::MemberAccess { receiver, member } = value else {
+                    continue;
+                };
+                let (ptr, field_cg) = self.codegen.codegen_mir_member_lvalue_ptr(
+                    stmt.span,
+                    receiver,
+                    member,
+                    self.body,
+                    self.source_types,
+                    self.slots,
+                    true,
+                )?;
+                let CgTy::Int(int_ty) = field_cg else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicInt target type",
+                        at: span.into(),
+                    });
+                };
+                return Ok((ptr, int_ty));
+            }
+        }
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor atomicInt target place",
+            at: span.into(),
+        })
+    }
+
+    fn lower_refactor_task_transport_intrinsic(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+        target_local: Option<LocalId>,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let base_fqn = callee_fqn.split("::<").next().unwrap_or(callee_fqn);
+        if !matches!(
+            base_fqn,
+            "scoop.core.__task_transport_pack" | "scoop.core.__task_transport_unpack"
+        ) {
+            return Ok(None);
+        }
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor task transport intrinsic arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        match base_fqn {
+            "scoop.core.__task_transport_pack" => {
+                let carrier_ty = self.target_local_source_ty(target_local, span)?;
+                let carrier_codegen_ty = self
+                    .codegen
+                    .equivalent_codegen_type_id(self.source_types, carrier_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport pack carrier codegen type",
+                        at: span.into(),
+                    })?;
+                if !self.codegen.is_task_transport_tuple_ty(carrier_codegen_ty) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport pack carrier type",
+                        at: span.into(),
+                    });
+                }
+                let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+                let value_cg = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, value_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport pack arg type",
+                        at: arg.span.into(),
+                    })?;
+                let value = self.codegen.codegen_mir_operand_expected(
+                    arg.span,
+                    &arg.value,
+                    self.slots,
+                    Some(value_cg),
+                )?;
+                let value = self.codegen.coerce_value(arg.span, value, value_cg)?;
+                let (word, gc_ref) = self
+                    .codegen
+                    .encode_effect_transport_value(arg.span, value)?;
+                let packed = self.codegen.build_task_transport_tuple_value(
+                    span,
+                    carrier_codegen_ty,
+                    word,
+                    gc_ref,
+                )?;
+                Ok(Some(self.codegen.coerce_value(span, packed, target_cg)?))
+            }
+            "scoop.core.__task_transport_unpack" => {
+                let carrier_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
+                let carrier_codegen_ty = self
+                    .codegen
+                    .equivalent_codegen_type_id(self.source_types, carrier_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport unpack carrier codegen type",
+                        at: arg.span.into(),
+                    })?;
+                if !self.codegen.is_task_transport_tuple_ty(carrier_codegen_ty) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport unpack carrier type",
+                        at: arg.span.into(),
+                    });
+                }
+                let carrier_cg = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, carrier_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor task transport unpack carrier type",
+                        at: arg.span.into(),
+                    })?;
+                let carrier = self.codegen.codegen_mir_operand_expected(
+                    arg.span,
+                    &arg.value,
+                    self.slots,
+                    Some(carrier_cg),
+                )?;
+                let carrier = self.codegen.coerce_value(arg.span, carrier, carrier_cg)?;
+                let (word, gc_ref) = self
+                    .codegen
+                    .split_task_transport_tuple_value(arg.span, carrier)?;
+                Ok(Some(self.codegen.decode_effect_transport_value(
+                    span, word, gc_ref, target_cg,
+                )?))
+            }
+            _ => unreachable!("filtered above"),
+        }
+    }
+
+    fn target_local_source_ty(
+        &self,
+        target_local: Option<LocalId>,
+        span: Span,
+    ) -> Result<TypeId, LlvmEmitError> {
+        target_local
+            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
+            .map(|local| local.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor task transport target local type",
+                at: span.into(),
+            })
+    }
+
+    fn required_operand_source_ty(
+        &self,
+        operand: &mir::Operand,
+        span: Span,
+    ) -> Result<TypeId, LlvmEmitError> {
+        self.operand_source_ty(operand)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor task transport operand source type",
+                at: span.into(),
+            })
+    }
+
+    fn resolved_fun_value_callee_fqn(&self, callee: &mir::Operand) -> Option<&str> {
+        let mir::Operand::Local(callee_local) = callee else {
+            return None;
+        };
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if target != callee_local {
+                    continue;
+                }
+                let mir::Rvalue::MemberAccess { member, .. } = value else {
+                    continue;
+                };
+                match member.resolved.as_ref()? {
+                    mir::MemberTarget::Fun { fqn } | mir::MemberTarget::ExtensionFun { fqn } => {
+                        return Some(fqn.as_str());
+                    }
+                    mir::MemberTarget::Value { .. } | mir::MemberTarget::ExtensionValue { .. } => {}
+                }
+            }
+        }
+        None
+    }
+
+    fn unresolved_fun_value_callee_name(&self, callee: &mir::Operand) -> Option<String> {
+        let mir::Operand::Local(callee_local) = callee else {
+            return None;
+        };
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if target != callee_local {
+                    continue;
+                }
+                if let mir::Rvalue::UnresolvedName { name } = value {
+                    return Some(name.clone());
+                }
+            }
+        }
+        None
     }
 
     fn lower_refactor_core_print_call(

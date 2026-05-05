@@ -294,6 +294,7 @@ impl BlockCallableProvenance {
             | Rvalue::ClassCtor { .. }
             | Rvalue::Call { .. }
             | Rvalue::MakeTuple { .. }
+            | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }
             | Rvalue::CaptureBoxGet { .. }
@@ -575,7 +576,10 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
             matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
         }
         Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
-        Rvalue::MakeTuple { .. } | Rvalue::TupleGet { .. } | Rvalue::MakeClosure { .. } => true,
+        Rvalue::MakeTuple { .. }
+        | Rvalue::InterpolatedString { .. }
+        | Rvalue::TupleGet { .. }
+        | Rvalue::MakeClosure { .. } => true,
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
@@ -619,6 +623,7 @@ fn rvalue_is_inlineable(
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
         | Rvalue::CaptureBoxGet { .. }
@@ -752,6 +757,13 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::MakeTuple { elements } => {
             for element in elements {
                 collect_operand_use(element, out);
+            }
+        }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::InterpolatedStringPart::Expr { value, .. } = part {
+                    collect_operand_use(value, out);
+                }
             }
         }
         Rvalue::CaptureBoxSet { box_operand, value } => {
@@ -999,6 +1011,7 @@ fn remap_rvalue(
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
         | Rvalue::CaptureBoxGet { .. }

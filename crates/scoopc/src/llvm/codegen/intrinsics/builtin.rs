@@ -1744,7 +1744,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_i64_hash_value(widened)
     }
 
-    fn codegen_char_to_string_value(
+    pub(in crate::llvm::codegen) fn codegen_char_to_string_value(
         &mut self,
         span: crate::span::Span,
         codepoint: IntValue<'ctx>,

@@ -517,13 +517,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (return_bb, return_alloca) =
             self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
         if plain.local_effect_control().is_some() {
-            let hir_fun = hir_fun.ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor plain closure `{}` 的 local effect/control path 缺少 HIR function shell；需要先发布 closure control-body handoff",
-                    callable.root_fqn(),
-                ))
-            })?;
-            RefactorCallableEmitter::new(
+            let emitter = RefactorCallableEmitter::new(
                 self,
                 program,
                 source_types,
@@ -534,12 +528,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 function,
                 None,
                 RefactorHandleCompletionMode::ContinueToExit,
-            )?
-            .emit_plain_direct(
-                hir_fun,
-                u32::from(uses_hidden_sret),
-                declared_return_cg,
             )?;
+            if let Some(hir_fun) = hir_fun {
+                emitter.emit_plain_direct(
+                    hir_fun,
+                    u32::from(uses_hidden_sret),
+                    declared_return_cg,
+                )?;
+            } else if is_materialized_closure {
+                emitter.emit_plain_direct_mir_params(
+                    u32::from(uses_hidden_sret),
+                    declared_return_cg,
+                )?;
+            } else {
+                return Err(frontend_error(format!(
+                    "refactor plain callable `{}` 的 local effect/control path 缺少 HIR function shell",
+                    callable.root_fqn(),
+                )));
+            }
             self.emit_function_return_block(
                 mir_fun.span,
                 declared_return_cg,
@@ -2635,6 +2641,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.return_mode = RefactorCallableReturnMode::Plain { declared_return_cg };
         self.codegen.bind_mir_params(
             hir_fun,
+            self.mir_fun,
+            self.function,
+            param_offset,
+            &mut self.slots,
+        )?;
+        self.initialize_new_frame()?;
+        let entry_state = self.callable.state_graph().entry_state();
+        self.branch_to_state(entry_state)?;
+        self.emit_states()
+    }
+
+    fn emit_plain_direct_mir_params(
+        mut self,
+        param_offset: u32,
+        declared_return_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        self.return_mode = RefactorCallableReturnMode::Plain { declared_return_cg };
+        self.codegen.bind_mir_params_without_hir(
             self.mir_fun,
             self.function,
             param_offset,

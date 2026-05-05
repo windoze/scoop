@@ -34,6 +34,12 @@ struct MirStoreMemberSupport<'m> {
     continuation_route: &'m crate::mir::StoredContinuationRoutePublication,
 }
 
+#[derive(Clone, Copy)]
+struct MirInterpolatedSegment<'ctx> {
+    ptr: PointerValue<'ctx>,
+    len: inkwell::values::IntValue<'ctx>,
+}
+
 enum PlainDispatchTarget<'h> {
     Virtual {
         slot: u32,
@@ -894,6 +900,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Rvalue::MakeTuple { elements } => self
                 .raw_materialized_mir_make_tuple_is_supported(body, mir_types, elements, target_cg),
+            crate::mir::Rvalue::InterpolatedString { parts, .. } => self
+                .raw_materialized_mir_interpolated_string_is_supported(
+                    body, mir_types, parts, target_cg,
+                ),
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.raw_materialized_mir_tuple_get_is_supported(body, mir_types, tuple, *index)
             }
@@ -950,8 +960,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             && self.raw_materialized_mir_operand_is_supported(&arg.value)
                     })
             }
-            crate::mir::Rvalue::UnresolvedName { .. }
-            | crate::mir::Rvalue::TypeCheck { .. }
+            crate::mir::Rvalue::UnresolvedName { .. } => matches!(target_cg, Some(CgTy::Enum(_))),
+            crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::Todo(_) => false,
         }
@@ -974,6 +984,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.raw_materialized_mir_member_field_contract(span, body, mir_types, receiver, member)
             .is_ok_and(|field| field.field_cg == target_cg)
+    }
+
+    fn raw_materialized_mir_interpolated_string_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        parts: &[crate::mir::InterpolatedStringPart],
+        target_cg: Option<CgTy>,
+    ) -> bool {
+        if target_cg != Some(CgTy::String) {
+            return false;
+        }
+        parts.iter().all(|part| match part {
+            crate::mir::InterpolatedStringPart::Text { .. } => true,
+            crate::mir::InterpolatedStringPart::Expr { value, ty, .. } => {
+                if !self.raw_materialized_mir_operand_is_supported(value) {
+                    return false;
+                }
+                matches!(
+                    self.cg_ty_of_mir_type(mir_types, *ty),
+                    Some(CgTy::String | CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_))
+                ) && self.mir_operand_cg_ty(body, mir_types, value).is_some()
+            }
+        })
     }
 
     fn raw_materialized_mir_store_member_is_supported(
@@ -1693,6 +1727,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    pub(super) fn bind_mir_params_without_hir(
+        &mut self,
+        mir_fun: &crate::mir::FunDecl,
+        llvm_fun: FunctionValue<'ctx>,
+        param_offset: u32,
+        slots: &mut [MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, param) in mir_fun.params.iter().enumerate() {
+            let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR param local",
+                    at: param.span.into(),
+                },
+            )?;
+            let init = if slot.cg_ty == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.cg_value_from_llvm_param(
+                    param.span,
+                    llvm_fun,
+                    idx as u32 + param_offset,
+                    slot.cg_ty,
+                    "missing refactor plain MIR llvm param",
+                )?
+            };
+            let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
+        }
+        Ok(())
+    }
+
     pub(super) fn codegen_mir_statement(
         &mut self,
         stmt: &crate::mir::Statement,
@@ -1888,6 +1952,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::MakeTuple { elements } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
             }
+            crate::mir::Rvalue::InterpolatedString { raw, parts } => {
+                self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
+            }
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
@@ -1946,8 +2013,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::ClassCtor { class_fqn, args } => {
                 self.codegen_mir_class_ctor_call(span, class_fqn, args, slots)
             }
-            crate::mir::Rvalue::UnresolvedName { .. }
-            | crate::mir::Rvalue::TypeCheck { .. }
+            crate::mir::Rvalue::UnresolvedName { name } => {
+                self.codegen_unresolved_ident(span, name, Some(target_cg))
+            }
+            crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR rvalue",
@@ -2013,6 +2082,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::MakeTuple { elements } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
             }
+            crate::mir::Rvalue::InterpolatedString { raw, parts } => {
+                self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
+            }
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
@@ -2071,14 +2143,351 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "refactor value primitive boundary payload requires published contract",
                 at: span.into(),
             }),
+            crate::mir::Rvalue::UnresolvedName { name } => {
+                self.codegen_unresolved_ident(span, name, Some(target_cg))
+            }
             crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast {
                 op: ast::CastOp::AsQ,
                 ..
             }
-            | crate::mir::Rvalue::UnresolvedName { .. }
             | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor value primitive rvalue",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_mir_interpolated_string(
+        &mut self,
+        span: crate::span::Span,
+        raw: bool,
+        parts: &[crate::mir::InterpolatedStringPart],
+        _body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let i64_ty = self.context.i64_type();
+        let i8_ty = self.context.i8_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let mut segments = Vec::new();
+        let mut total_len = i64_ty.const_zero();
+
+        for part in parts {
+            let segment = match part {
+                crate::mir::InterpolatedStringPart::Text { span: text_span } => {
+                    let text = self.current_source_slice(*text_span)?;
+                    let bytes = parse_f_string_text_bytes(raw, text).map_err(|_| {
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "invalid MIR interpolated string text",
+                            at: (*text_span).into(),
+                        }
+                    })?;
+                    let gv = self.get_or_create_global_bytes(*text_span, &bytes);
+                    let ptr = self.builder.build_pointer_cast(
+                        gv.as_pointer_value(),
+                        i8_ptr_ty,
+                        "mir_fstr_text_ptr",
+                    )?;
+                    MirInterpolatedSegment {
+                        ptr,
+                        len: i64_ty.const_int(bytes.len() as u64, false),
+                    }
+                }
+                crate::mir::InterpolatedStringPart::Expr {
+                    span: expr_span,
+                    value,
+                    ty,
+                } => {
+                    let value_cg = self.cg_ty_of_mir_type(mir_types, *ty).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "MIR interpolated string expr type",
+                            at: (*expr_span).into(),
+                        },
+                    )?;
+                    let v = self.codegen_mir_operand_expected(
+                        *expr_span,
+                        value,
+                        slots,
+                        Some(value_cg),
+                    )?;
+                    let v = self.coerce_value(*expr_span, v, value_cg)?;
+                    self.codegen_mir_interpolated_expr_segment(*expr_span, *ty, v, mir_types)?
+                }
+            };
+            total_len = self
+                .builder
+                .build_int_add(total_len, segment.len, "mir_fstr_total_len")?;
+            segments.push(segment);
+        }
+
+        let is_zero = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            total_len,
+            i64_ty.const_zero(),
+            "mir_fstr_total_is_zero",
+        )?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let malloc_bb = self.context.append_basic_block(func, "mir_fstr_malloc");
+        let done_bb = self.context.append_basic_block(func, "mir_fstr_done");
+        self.builder
+            .build_conditional_branch(is_zero, done_bb, malloc_bb)?;
+
+        self.builder.position_at_end(malloc_bb);
+        let malloc = self.declare_libc_malloc();
+        let call = self
+            .builder
+            .build_call(malloc, &[total_len.into()], "mir_fstr_malloc")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(buf) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return type",
+                at: span.into(),
+            });
+        };
+
+        let mut cursor = i64_ty.const_zero();
+        for (idx, seg) in segments.iter().enumerate() {
+            let dst = unsafe {
+                self.builder.build_in_bounds_gep(
+                    i8_ty,
+                    buf,
+                    &[cursor],
+                    &format!("mir_fstr_dst_{idx}"),
+                )?
+            };
+            let _ = self.builder.build_memcpy(dst, 1, seg.ptr, 1, seg.len)?;
+            cursor = self
+                .builder
+                .build_int_add(cursor, seg.len, "mir_fstr_cursor")?;
+        }
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        self.builder.position_at_end(done_bb);
+        let buf_phi = self.builder.build_phi(i8_ptr_ty, "mir_fstr_buf")?;
+        let buf_null: BasicValueEnum<'ctx> = i8_ptr_ty.const_null().into();
+        let buf_value: BasicValueEnum<'ctx> = buf.into();
+        buf_phi.add_incoming(&[(&buf_null, insert_block), (&buf_value, malloc_bb)]);
+        let buf_ptr = buf_phi.as_basic_value().into_pointer_value();
+
+        let obj_size = self.target_data.get_store_size(&scoop_str_ty);
+        let size_v = i64_ty.const_int(obj_size, false);
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        let str_desc_i8 = self.builder.build_pointer_cast(
+            str_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "mir_fstr_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[str_desc_i8.into(), size_v.into()],
+            "rt_alloc_mir_fstr",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return type",
+                at: span.into(),
+            });
+        };
+
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let str_ptr = self
+            .builder
+            .build_pointer_cast(raw_ptr, str_ptr_ty, "mir_fstr_obj_ptr")?;
+        let len_ptr =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_ptr, 1, "mir_fstr_len_gep")?;
+        let data_ptr =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_ptr, 2, "mir_fstr_data_gep")?;
+        let _ = self.builder.build_store(len_ptr, total_len)?;
+        let _ = self.builder.build_store(data_ptr, buf_ptr)?;
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
+    }
+
+    pub(super) fn codegen_mir_unresolved_name_with_source_ty(
+        &mut self,
+        span: crate::span::Span,
+        name: &str,
+        source_types: &TypeStore,
+        source_ty: TypeId,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let source_cg = self.cg_ty_of_mir_type(source_types, source_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR unresolved name source type",
+                at: span.into(),
+            },
+        )?;
+        let value = self.codegen_unresolved_ident(span, name, Some(source_cg))?;
+        self.coerce_value(span, value, target_cg)
+    }
+
+    fn codegen_mir_interpolated_expr_segment(
+        &mut self,
+        span: crate::span::Span,
+        source_ty: TypeId,
+        v: CgValue<'ctx>,
+        mir_types: &TypeStore,
+    ) -> Result<MirInterpolatedSegment<'ctx>, LlvmEmitError> {
+        let i64_ty = self.context.i64_type();
+        match v.ty {
+            CgTy::String => {
+                let coerced = self.coerce_value(span, v, CgTy::String)?;
+                let Some(BasicValueEnum::PointerValue(str_obj_ptr)) = coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation expr value",
+                        at: span.into(),
+                    });
+                };
+                let (len, ptr) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+                Ok(MirInterpolatedSegment { ptr, len })
+            }
+            CgTy::Bool => {
+                let Some(BasicValueEnum::IntValue(bool_val)) = v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation bool expr value",
+                        at: span.into(),
+                    });
+                };
+                let bool_as_i64 =
+                    self.builder
+                        .build_int_z_extend(bool_val, i64_ty, "mir_fstr_bool_zext")?;
+                let rt_bool = self.declare_runtime_bool_to_string();
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_bool,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string_for_mir_fstr",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation bool return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_obj_ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation bool return type",
+                        at: span.into(),
+                    });
+                };
+                let (len, ptr) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+                Ok(MirInterpolatedSegment { ptr, len })
+            }
+            CgTy::Float64 | CgTy::Float32 => {
+                let str_v = self.codegen_float_to_string_value(span, span, v)?;
+                let Some(BasicValueEnum::PointerValue(str_obj_ptr)) = str_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation float return type",
+                        at: span.into(),
+                    });
+                };
+                let (len, ptr) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+                Ok(MirInterpolatedSegment { ptr, len })
+            }
+            CgTy::Int(from_ty)
+                if matches!(
+                    mir_types.kind(source_ty),
+                    TypeKind::Value(ValueTypeKind::Char)
+                ) =>
+            {
+                let Some(BasicValueEnum::IntValue(codepoint)) = v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation char expr value",
+                        at: span.into(),
+                    });
+                };
+                let codepoint = self.cast_int(
+                    codepoint,
+                    from_ty,
+                    IntTy {
+                        bits: 32,
+                        signed: false,
+                    },
+                )?;
+                let str_obj_ptr = self.codegen_char_to_string_value(span, codepoint)?;
+                let (len, ptr) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+                Ok(MirInterpolatedSegment { ptr, len })
+            }
+            CgTy::Int(from_ty) => {
+                if from_ty.bits > 64 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "integer width for MIR string interpolation",
+                        at: span.into(),
+                    });
+                }
+                let (raw_int, _) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "MIR integer interpolation expr value",
+                    at: span.into(),
+                })?;
+                let to_ty = IntTy {
+                    bits: 64,
+                    signed: from_ty.signed,
+                };
+                let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
+                let cap = i64_ty.const_int(64, false);
+                let buf = self.builder.build_array_alloca(
+                    self.context.i8_type(),
+                    cap,
+                    "mir_fstr_int_buf",
+                )?;
+                let fmt_name = if from_ty.signed {
+                    "scoop_format_i64"
+                } else {
+                    "scoop_format_u64"
+                };
+                let fmt_fun = self.declare_runtime_format_int(fmt_name);
+                let call_site = self.builder.build_call(
+                    fmt_fun,
+                    &[int64.into(), buf.into(), cap.into()],
+                    "mir_fstr_fmt_int",
+                )?;
+                let len = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR string interpolation int length",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(MirInterpolatedSegment { ptr: buf, len })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR string interpolation expr type",
                 at: span.into(),
             }),
         }
@@ -2116,7 +2525,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn codegen_mir_enum_variant_ctor_call(
+    pub(super) fn codegen_mir_enum_variant_ctor_call(
         &mut self,
         span: crate::span::Span,
         enum_ty: TypeId,
@@ -2348,6 +2757,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(super) fn codegen_mir_member_lvalue_ptr(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        member: &crate::mir::MemberAccessMetadata,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        require_writable: bool,
+    ) -> Result<(PointerValue<'ctx>, CgTy), LlvmEmitError> {
+        let place = self.codegen_mir_member_place(
+            span,
+            receiver,
+            member,
+            MirBodyCodegenCtx {
+                body,
+                mir_types,
+                slots,
+            },
+            require_writable,
+        )?;
+        Ok((place.ptr, place.field_cg))
+    }
+
     fn codegen_mir_effect_instance_key(
         &self,
         span: crate::span::Span,
@@ -2513,6 +2946,226 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Operand::Const(value) => self.codegen_mir_const(span, value, expected),
         }
+    }
+
+    pub(super) fn codegen_mir_sysroot_gc_handle_new(
+        &mut self,
+        span: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew arg contract",
+                at: span.into(),
+            });
+        }
+        let Some(CgTy::Struct(handle_ty)) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew call without expected handle type",
+                at: span.into(),
+            });
+        };
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", span)?;
+        let CgTy::Int(field_int_ty) = field_cg_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew raw field type",
+                at: span.into(),
+            });
+        };
+
+        let arg = &args[0];
+        let obj_v =
+            self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(CgTy::Ref))?;
+        let obj_ref = self.coerce_value(arg.span, obj_v, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(obj_ptr)) = obj_ref.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew arg value",
+                at: arg.span.into(),
+            });
+        };
+
+        let rt_handle_new = self.declare_runtime_gc_handle_new();
+        let call =
+            self.builder
+                .build_call(rt_handle_new, &[obj_ptr.into()], "mir_gc_handle_new")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(handle_i64) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleNew return type",
+                at: span.into(),
+            });
+        };
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            handle_i64,
+            self.context.i64_type().const_zero(),
+            "mir_gc_handle_new_ok",
+        )?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_new_ok_bb");
+        let err_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_new_err_bb");
+        let cont_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_new_cont_bb");
+        self.builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+        self.builder.position_at_end(ok_bb);
+        let handle_word = self.cast_int(
+            handle_i64,
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+            field_int_ty,
+        )?;
+        let llvm_struct_ty = self.llvm_struct_type(span, handle_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        agg = self.builder.build_insert_value(
+            agg,
+            handle_word.as_basic_value_enum(),
+            field_idx,
+            "mir_gc_handle_raw",
+        )?;
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue {
+            ty: CgTy::Struct(handle_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    pub(super) fn codegen_mir_sysroot_gc_handle_drop(
+        &mut self,
+        span: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let handle_v = self.codegen_mir_operand(arg.span, &arg.value, slots)?;
+        let CgTy::Struct(handle_ty) = handle_v.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop arg type",
+                at: arg.span.into(),
+            });
+        };
+        let Some(BasicValueEnum::StructValue(struct_v)) = handle_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop arg value",
+                at: arg.span.into(),
+            });
+        };
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", arg.span)?;
+        let extracted =
+            self.builder
+                .build_extract_value(struct_v, field_idx, "mir_gc_handle_raw")?;
+        let field_v = self.cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
+        let CgTy::Int(field_int_ty) = field_cg_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop raw field type",
+                at: arg.span.into(),
+            });
+        };
+        let Some(BasicValueEnum::IntValue(handle_word)) = field_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop raw value",
+                at: arg.span.into(),
+            });
+        };
+        let handle_i64 = self.cast_int(
+            handle_word,
+            field_int_ty,
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+        )?;
+        let rt_handle_drop = self.declare_runtime_gc_handle_drop();
+        let call =
+            self.builder
+                .build_call(rt_handle_drop, &[handle_i64.into()], "mir_gc_handle_drop")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(ok_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleDrop return type",
+                at: span.into(),
+            });
+        };
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "mir_gc_handle_drop_ok",
+        )?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_drop_ok_bb");
+        let err_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_drop_err_bb");
+        let cont_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_drop_cont_bb");
+        self.builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+        self.builder.position_at_end(ok_bb);
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue::unit())
     }
 
     fn codegen_mir_const(
@@ -4581,6 +5234,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Refactor callable carriers publish their own dynamic entry shell; do
             // not define the legacy lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
+        } else if let Some(plain_entry) = self.module.get_function(fn_ptr) {
+            plain_entry.as_global_value().as_pointer_value()
         } else {
             self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?
                 .as_global_value()
@@ -5827,6 +6482,13 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         crate::mir::Rvalue::MakeTuple { elements } => {
             for element in elements {
                 collect_mir_operand_use(element, out);
+            }
+        }
+        crate::mir::Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::mir::InterpolatedStringPart::Expr { value, .. } = part {
+                    collect_mir_operand_use(value, out);
+                }
             }
         }
         crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {

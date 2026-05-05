@@ -24,11 +24,11 @@ use crate::ty::{
 
 use super::{
     BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
-    HandleMetadata, HandlerArm, HandlerArmKind, Item, LocalDecl, LocalId, LocalSourceKind,
-    MemberAccessMetadata, MemberTarget, MirValidationError, Operand, Param, Pattern,
-    PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId, Statement,
-    StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute, Terminator,
-    TerminatorKind, TopLevelRef, UnwindAction,
+    HandleMetadata, HandlerArm, HandlerArmKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
+    LocalSourceKind, MemberAccessMetadata, MemberTarget, MirValidationError, Operand, Param,
+    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId,
+    Statement, StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
+    Terminator, TerminatorKind, TopLevelRef, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -1307,8 +1307,8 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::TupleLit { elements } => {
                 self.lower_tuple_lit_expr(expr.span, expr.ty, elements)
             }
-            hir::ExprKind::InterpolatedString { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "interpolated string lowering pending")
+            hir::ExprKind::InterpolatedString { raw, parts } => {
+                self.lower_interpolated_string_expr(expr.span, expr.ty, *raw, parts)
             }
             hir::ExprKind::Unary {
                 op, expr: operand, ..
@@ -1396,6 +1396,44 @@ impl<'a> FnLowering<'a> {
             lowered.push(Operand::Local(local));
         }
         self.assign(span, result, Rvalue::MakeTuple { elements: lowered });
+        result
+    }
+
+    fn lower_interpolated_string_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        raw: bool,
+        parts: &[hir::InterpolatedStringPart],
+    ) -> LocalId {
+        let result = self.push_temp_local(span, ty);
+        let mut lowered = Vec::with_capacity(parts.len());
+        for part in parts {
+            match part {
+                hir::InterpolatedStringPart::Text { span } => {
+                    lowered.push(InterpolatedStringPart::Text { span: *span });
+                }
+                hir::InterpolatedStringPart::Expr { expr } => {
+                    let local = self.lower_expr_to_local(expr);
+                    if self.current_is_terminated() {
+                        return result;
+                    }
+                    lowered.push(InterpolatedStringPart::Expr {
+                        span: expr.span,
+                        value: Operand::Local(local),
+                        ty: expr.ty,
+                    });
+                }
+            }
+        }
+        self.assign(
+            span,
+            result,
+            Rvalue::InterpolatedString {
+                raw,
+                parts: lowered,
+            },
+        );
         result
     }
 
@@ -1850,7 +1888,7 @@ impl<'a> FnLowering<'a> {
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
             && matches!(
                 self.types.kind(ty),
-                TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
+                TypeKind::Value(ValueTypeKind::Option(_) | ValueTypeKind::Nominal(_))
             )
         {
             let Some(args) = self.lower_call_args(args) else {

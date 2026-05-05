@@ -899,6 +899,13 @@ fn collect_rvalue_uses(
                 collect_operand_use(element, defs, uses_before_def, read_states, state_id);
             }
         }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::mir::InterpolatedStringPart::Expr { value, .. } = part {
+                    collect_operand_use(value, defs, uses_before_def, read_states, state_id);
+                }
+            }
+        }
         Rvalue::CaptureBoxSet { box_operand, value } => {
             collect_operand_use(box_operand, defs, uses_before_def, read_states, state_id);
             collect_operand_use(value, defs, uses_before_def, read_states, state_id);

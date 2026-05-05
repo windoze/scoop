@@ -671,6 +671,19 @@ pub struct CallArg {
     pub value: Operand,
 }
 
+/// 插值字符串在 MIR 上保留的 ANF 片段。
+#[derive(Debug, Clone)]
+pub enum InterpolatedStringPart {
+    Text {
+        span: Span,
+    },
+    Expr {
+        span: Span,
+        value: Operand,
+        ty: TypeId,
+    },
+}
+
 /// `perform` payload 在 MIR 上的一个已排序参数槽位。
 ///
 /// 说明：
@@ -884,6 +897,11 @@ pub enum Rvalue {
     MakeTuple {
         elements: Vec<Operand>,
     },
+    /// 运行期插值字符串构造。表达式片段已按 ANF 先求值为 operand。
+    InterpolatedString {
+        raw: bool,
+        parts: Vec<InterpolatedStringPart>,
+    },
     /// 读取 tuple 的某个字段：`tuple[index]`（按捕获顺序索引）。
     TupleGet {
         tuple: Operand,
@@ -1094,6 +1112,7 @@ impl Rvalue {
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
             | Rvalue::MakeTuple { .. }
+            | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }
             | Rvalue::CaptureBoxGet { .. }

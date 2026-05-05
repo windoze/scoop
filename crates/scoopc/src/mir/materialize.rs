@@ -3643,6 +3643,18 @@ impl MirInstanceMaterializer {
                     *element = self.rewrite_operand(element.clone());
                 }
             }
+            Rvalue::InterpolatedString { parts, .. } => {
+                for part in parts.iter_mut() {
+                    if let super::InterpolatedStringPart::Expr { value, ty, .. } = part {
+                        *value = self.rewrite_operand(value.clone());
+                        *ty = substitute_type_and_effect_params(
+                            &mut self.types,
+                            *ty,
+                            ctx.substitution,
+                        );
+                    }
+                }
+            }
             Rvalue::TupleGet { tuple, .. } => *tuple = self.rewrite_operand(tuple.clone()),
             Rvalue::CaptureBoxNew { value } => *value = self.rewrite_operand(value.clone()),
             Rvalue::CaptureBoxGet { box_operand } => {

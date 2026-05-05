@@ -491,6 +491,13 @@ fn observe_rvalue(
                 observe_operand(element, OperandUsage::Escape, state, param_use_summaries);
             }
         }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::InterpolatedStringPart::Expr { value, .. } = part {
+                    observe_operand(value, OperandUsage::Value, state, param_use_summaries);
+                }
+            }
+        }
         Rvalue::CaptureBoxNew { value } => {
             *may_allocate_closure = true;
             observe_operand(value, OperandUsage::Escape, state, param_use_summaries);
@@ -628,6 +635,7 @@ fn rvalue_provenance(
         | Rvalue::ClassCtor { .. }
         | Rvalue::Call { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
         | Rvalue::CaptureBoxGet { .. }
@@ -789,6 +797,7 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         Rvalue::EnumVariant { args, .. } => 2 + args.len() as u32,
         Rvalue::ClassCtor { args, .. } => 4 + args.len() as u32,
         Rvalue::MakeTuple { elements } => 2 + elements.len() as u32,
+        Rvalue::InterpolatedString { parts, .. } => 3 + parts.len() as u32,
         Rvalue::CaptureBoxNew { .. } | Rvalue::CaptureBoxSet { .. } => 4,
         Rvalue::MakeClosure { .. } => 5,
         Rvalue::Todo(_) => 3,

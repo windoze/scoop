@@ -289,6 +289,42 @@
   - 搜索结论：指定全仓搜索 `rg -e "--effect-pipeline refactor|--effect-pipeline legacy|fallback.*legacy|retry.*legacy|default.*legacy" . --glob '!target/**'` 命中主要来自历史 TODO/完成记录、P6 handoff 文档、当前 P7 任务说明、显式 compare/rollback 测试、诊断和 hidden-fallback 守护文本；限定实现范围 `crates tools tests` 后仅剩 `dump-effect-facts` / `dump-effect-lowered` legacy unsupported 诊断、`mir_refactor` fixture 诊断、以及 `build.rs` hidden-fallback 断言文本，未发现 hidden fallback 实现路径。
   - 验证通过：`cargo fmt --all`；`cargo test -p scoop --no-default-features cli`；`cargo test -p scoop --no-default-features dump_effect`；`cargo test -p scoop --test p7_default_pipeline`；`cargo test -p scoop legacy_frames`；`cargo test -p scoop no_hidden_legacy_fallback`；`cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline refactor dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_default_build.ll`；`cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_explicit_refactor_build.ll`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline refactor test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- --effect-pipeline legacy dump-mir tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；上述 `rg` 搜索；`rg -e "--effect-pipeline refactor|--effect-pipeline legacy|fallback.*legacy|retry.*legacy|default.*legacy" crates tools tests --glob '!target/**'`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02T：发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P7
+  - [`TODO-P5.md`](./TODO-P5.md) P5-T04 / P5-T05 / P5-T08
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T05a / P6-T06
+- 背景：
+  - 执行 P7-T02S 时，`tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 已越过原始 `HandleDispatch` completion payload source 缺口，以及后续暴露的 generic resume surface ABI、resume-boundary wrapper projection、plain local-effect closure、enum ctor、task transport、atomic 与 panic lowering 缺口；
+  - 当前默认 refactor build 停在 `scoop.core.Task<T>` constructor：`refactor pure assignment ... ClassCtor { class_fqn: "scoop.core.Task" ... } ... class field type`；
+  - 根因是 refactor class ctor 仍按未实例化 generic class declaration field layout 取 LLVM payload，而不是消费 canonical materialized `Task<Int>` / `Task<(Int, Any)>` instance layout handoff。
+
+- 必须实现的内容：
+  1. 为 generic class instance 发布 canonical field/layout handoff。
+     - 至少覆盖 `Task<T>` 这类 class field 含 `T` / `__TaskState<T>` 的实例；
+     - layout key 必须稳定绑定到 materialized `InstanceKey` / concrete type args，而不是只按 raw class FQN 查询 declaration layout。
+  2. 让 refactor LLVM class ctor lowering 消费该 concrete instance layout。
+     - `Task<Int>` 与 `Task<(Int, Any)>` constructor 必须按 concrete field ABI 存储 `__claim` 与 `__state`；
+     - 不得把 `T` 临时擦成 `Any`、不得回 legacy class ctor lowering、不得按 fixture 名字特判。
+  3. 保持 GC/type descriptor 与 field trace bitmap 语义正确。
+     - concrete field 中含 GC ref / enum / tuple carrier 时，descriptor 与 root tracing 不能退化；
+     - 不得通过禁用 root/trace 检查绕过 moving-GC 语义。
+  4. 增加或更新定向测试，覆盖 generic class ctor 使用 concrete field layout 的路径。
+
+- 验证：
+  - `cargo test -p scoopc --lib effect_lowered llvm::codegen::effect_refactor llvm::tests`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`
+  - 修复后继续恢复 P7-T02S 的完整定向 fixture 验证。
+
+- 完成条件：
+  - `Task<Int>` / `Task<(Int, Any)>` constructor 在默认 refactor LLVM path 下不再触发未实例化 generic field layout；
+  - `task_atomic_claim_no_mutex_llvm.scoop` 可继续推进到 P7-T02S 原验证矩阵；
+  - 没有引入 legacy fallback、fixture 特判或 generic erasure workaround。
+- 依赖：P7-T02R
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T02S：修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞
 
 - 参考：
@@ -330,9 +366,9 @@
 - 完成条件：
   - 上述 build fixture 在默认 refactor 主线下保持原 fixture 形状通过；
   - 未引入 hidden legacy fallback 或 fixture 降级。
-- 依赖：P7-T02R
+- 依赖：P7-T02T
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-05：本轮已部分修复 P7-T02S 的直接缺口：f-string MIR `Todo` 改为显式 `InterpolatedString` rvalue 并接入 refactor value lowering；`extern_enter_native_no_statepoint_writeback.scoop` 已越过 f-string / `GC.handleNew` / `GC.handleDrop` lowering，当前仅剩 root-load IR 子串需随 refactor 命名更新；default / neg Int8 / UInt8 integer overflow fixtures 已恢复 `scoop::llvm::invalid_literal`；`task_atomic_claim_no_mutex_llvm.scoop` 已越过原始 non-`Unit` handle arm completion payload source 缺口，并补齐后续暴露的 generic resume surface ABI、resume-boundary wrapper complete projection、plain local-effect closure、enum ctor、task transport、atomic 与 panic lowering。但该 fixture 继续暴露 `Task<T>` generic class constructor/layout handoff 缺口，已新增 prerequisite `P7-T02T`；本任务保持未完成。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

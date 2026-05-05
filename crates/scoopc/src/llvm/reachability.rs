@@ -538,6 +538,7 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
             | mir::Rvalue::MakeTuple { .. }
+            | mir::Rvalue::InterpolatedString { .. }
             | mir::Rvalue::TupleGet { .. }
             | mir::Rvalue::MakeClosure { .. }
             | mir::Rvalue::EnumVariant { .. }
@@ -676,6 +677,13 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::MakeTuple { elements } => {
                 for element in elements {
                     self.scan_mir_operand(element);
+                }
+            }
+            mir::Rvalue::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let mir::InterpolatedStringPart::Expr { value, .. } = part {
+                        self.scan_mir_operand(value);
+                    }
                 }
             }
             mir::Rvalue::CaptureBoxSet { box_operand, value } => {

@@ -427,6 +427,13 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(element, out);
             }
         }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::InterpolatedStringPart::Expr { value, .. } = part {
+                    collect_operand_use(value, out);
+                }
+            }
+        }
         Rvalue::CaptureBoxSet { box_operand, value } => {
             collect_operand_use(box_operand, out);
             collect_operand_use(value, out);

@@ -551,9 +551,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 "__scoop_refactor_resume__{stem}__case{}",
                 method.case_tag().as_u32()
             );
-            let payload_layout = self.source_value_layout(method.resume_tuple_ty())?;
-            let payload_abi = *payload_layout.abi();
-            let _answer_layout = self.source_value_layout(method.answer_ty())?;
+            let payload_abi = self.resume_surface_abi_value(method.resume_tuple_ty())?;
+            let _answer_abi = self.resume_surface_abi_value(method.answer_ty())?;
             let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
                 vec![self.codegen.llvm_gc_i8_ptr_type().into()];
             if !payload_abi.is_elided() {
@@ -726,9 +725,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             "__scoop_refactor_surface_resume__k{}",
             continuation_schema.as_u32()
         );
-        let payload_layout = self.source_value_layout(resume_tuple_ty)?;
-        let payload_abi = *payload_layout.abi();
-        let _answer_layout = self.source_value_layout(answer_ty)?;
+        let payload_abi = self.resume_surface_abi_value(resume_tuple_ty)?;
+        let _answer_abi = self.resume_surface_abi_value(answer_ty)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
             vec![self.codegen.llvm_gc_i8_ptr_type().into()];
         if !payload_abi.is_elided() {
@@ -1944,14 +1942,53 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         underlying_route: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
         wrapper_answer_ty: TypeId,
     ) -> Result<Option<LateLoweredCompletionPayloadSource>, LlvmEmitError> {
-        let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-            site_id,
-            arm_ordinal,
-            handled_case,
-            ..
-        } = underlying_route.publication()
-        else {
-            return Ok(None);
+        let (site_id, arm_ordinal, handled_case) = match underlying_route.publication() {
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                site_id,
+                arm_ordinal,
+                handled_case,
+                ..
+            } => (site_id, arm_ordinal, handled_case),
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { site_id, .. } => {
+                return owner_callable
+                .boundary_map()
+                .entries()
+                .iter()
+                .find_map(|boundary| {
+                    let crate::effect_lowered::ir::LateLoweredBoundarySource::Site {
+                        site_id: boundary_site,
+                        kind: BoundarySiteKind::Resume,
+                    } = boundary.source()
+                    else {
+                        return None;
+                    };
+                    if boundary_site != *site_id {
+                        return None;
+                    }
+                    let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering()
+                    else {
+                        return None;
+                    };
+                    (lowering.dispatch().complete().answer_ty() == wrapper_answer_ty).then(|| {
+                        LateLoweredCompletionPayloadSource::operand(
+                            LateLoweredOperandSource::new_local(
+                                lowering.result_local(),
+                                wrapper_answer_ty,
+                                None,
+                            ),
+                        )
+                    })
+                })
+                .map(Some)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 resume boundary site{} 的 completion payload source",
+                        entry.continuation_schema().as_u32(),
+                        site_id.as_u32(),
+                    ))
+                });
+            }
+            _ => return Ok(None),
         };
         let source = owner_callable
             .state_graph()
@@ -5325,6 +5362,23 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         };
         self.source_value_layouts.insert(ty, layout.clone());
         Ok(layout)
+    }
+
+    fn resume_surface_abi_value(
+        &mut self,
+        ty: TypeId,
+    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+        if matches!(self.source_types.kind(ty), TypeKind::Param(_)) {
+            // Generic effect operations are represented at the effect-family resume surface before
+            // an operation type parameter has a single concrete instantiation. That shared resume
+            // slot uses the erased managed carrier; ordinary source values and callable invoke
+            // arguments still fail fast on bare type params via `source_value_layout`.
+            return Ok(RefactorAbiValue::new(
+                self.codegen.llvm_gc_i8_ptr_type().into(),
+                false,
+            ));
+        }
+        self.source_value_layout(ty).map(|layout| *layout.abi())
     }
 
     fn wrap_source_value_layout_error(&self, ty: TypeId, err: LlvmEmitError) -> LlvmEmitError {

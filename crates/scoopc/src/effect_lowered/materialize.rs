@@ -1572,39 +1572,40 @@ fn handle_completion_payload_source_from_state(
                     ),
                 )
             })?;
-        let stmt_index = slice.end_statement_index().saturating_sub(1) as usize;
-        let stmt = block.stmts.get(stmt_index).ok_or_else(|| {
-            invalid_handle_dispatch_contract(
-                root_fqn,
-                site_id,
-                format!(
-                    "{context} 引用了不存在的 bb{} stmt{}",
-                    slice.block_id().as_u32(),
-                    stmt_index
-                ),
-            )
-        })?;
-        let StatementKind::Assign { target, .. } = &stmt.kind else {
-            continue;
-        };
-        let local = body.locals.get(target.as_u32() as usize).ok_or_else(|| {
-            invalid_handle_dispatch_contract(
-                root_fqn,
-                site_id,
-                format!("{context} 引用了不存在的 local{}", target.as_u32()),
-            )
-        })?;
-        if local.ty != complete_ty {
-            skipped_type_mismatches.push(format!(
-                "local{}:t{}",
-                target.as_u32(),
-                local.ty.as_u32()
+        for stmt_index in (slice.start_statement_index()..slice.end_statement_index()).rev() {
+            let stmt = block.stmts.get(stmt_index as usize).ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "{context} 引用了不存在的 bb{} stmt{}",
+                        slice.block_id().as_u32(),
+                        stmt_index
+                    ),
+                )
+            })?;
+            let StatementKind::Assign { target, .. } = &stmt.kind else {
+                continue;
+            };
+            let local = body.locals.get(target.as_u32() as usize).ok_or_else(|| {
+                invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!("{context} 引用了不存在的 local{}", target.as_u32()),
+                )
+            })?;
+            if local.ty != complete_ty {
+                skipped_type_mismatches.push(format!(
+                    "local{}:t{}",
+                    target.as_u32(),
+                    local.ty.as_u32()
+                ));
+                continue;
+            }
+            return Ok(LateLoweredCompletionPayloadSource::operand(
+                LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
             ));
-            continue;
         }
-        return Ok(LateLoweredCompletionPayloadSource::operand(
-            LateLoweredOperandSource::new_local(*target, complete_ty, Some(stmt.span)),
-        ));
     }
 
     let skipped = if skipped_type_mismatches.is_empty() {
@@ -2776,6 +2777,7 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
         | Rvalue::Call { .. }
         | Rvalue::MakeClosure { .. }
         | Rvalue::MakeTuple { .. }
+        | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxNew { .. }
         | Rvalue::CaptureBoxGet { .. }

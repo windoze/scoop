@@ -1503,6 +1503,7 @@ fn build_surface_resume_wrapper_projection(
             lowering.dispatch().complete().answer_ty(),
             build_surface_resume_wrapper_complete_payload_source(
                 callable,
+                lowering,
                 underlying_route,
                 owner_step.complete_ty(),
                 lowering.dispatch().complete().answer_ty(),
@@ -1537,6 +1538,7 @@ fn same_surface_resume_wrapper_projection_shape(
 
 fn build_surface_resume_wrapper_complete_payload_source(
     callable: &LateLoweredCallable,
+    lowering: &LateLoweredResumeBoundaryLowering,
     underlying_route: &LateLoweredContinuationRoute,
     owner_answer_ty: TypeId,
     wrapper_answer_ty: TypeId,
@@ -1551,6 +1553,21 @@ fn build_surface_resume_wrapper_complete_payload_source(
     {
         return Some(
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(source.clone()),
+        );
+    }
+    if matches!(
+        underlying_route.publication(),
+        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+    ) && lowering.dispatch().complete().answer_ty() == wrapper_answer_ty
+    {
+        return Some(
+            LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(
+                LateLoweredCompletionPayloadSource::operand(LateLoweredOperandSource::new_local(
+                    lowering.result_local(),
+                    wrapper_answer_ty,
+                    None,
+                )),
+            ),
         );
     }
     None

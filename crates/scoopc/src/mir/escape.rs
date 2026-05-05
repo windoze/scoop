@@ -403,6 +403,13 @@ fn analyze_rvalue_uses(
                 mark_operand_use(element, OperandUse::Escaping, aliases, facts);
             }
         }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::InterpolatedStringPart::Expr { value, .. } = part {
+                    mark_operand_use(value, OperandUse::Escaping, aliases, facts);
+                }
+            }
+        }
         Rvalue::CaptureBoxSet { box_operand, value } => {
             mark_operand_use(box_operand, OperandUse::Escaping, aliases, facts);
             mark_operand_use(value, OperandUse::Escaping, aliases, facts);
