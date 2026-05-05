@@ -405,6 +405,22 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
             );
         }
+        if let mir::Rvalue::Use(mir::Operand::Local(source_local)) = value
+            && let Some((env, fn_ptr)) = self.local_make_closure_source(*source_local)
+            && let Some(adapter) =
+                self.maybe_build_effect_typed_plain_closure_adapter(span, target_local, &fn_ptr)?
+        {
+            let env_cg = self
+                .codegen
+                .mir_operand_cg_ty(self.body, self.source_types, &env)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor effect-typed closure coercion env type",
+                    at: span.into(),
+                })?;
+            return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
+                span, &env, &fn_ptr, env_cg, target_cg, self.slots, adapter,
+            );
+        }
 
         match value {
             mir::Rvalue::Call { kind, args, .. } => {
@@ -468,6 +484,23 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 target_cg,
             ),
         }
+    }
+
+    fn local_make_closure_source(&self, local: LocalId) -> Option<(mir::Operand, String)> {
+        self.body.blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                if *target != local {
+                    return None;
+                }
+                let mir::Rvalue::MakeClosure { env, fn_ptr } = value else {
+                    return None;
+                };
+                Some((env.clone(), fn_ptr.clone()))
+            })
+        })
     }
 
     fn local_is_only_static_member_namespace_receiver(&self, local: LocalId) -> bool {

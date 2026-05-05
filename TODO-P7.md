@@ -644,7 +644,7 @@
   - 新增 `default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli`，覆盖默认 refactor run 下 virtual/interface hidden suspend helper 的 stdout；既有 member/object-property hidden suspend fixtures 保持通过。未引入 legacy fallback、direct-call 降级、fixture 特判或 raw schema id 偶然映射。
   - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_interface_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli -- --nocapture`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02Zb：闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞
+## [DONE] P7-T02Zb：闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞
 
 - 参考：
   - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z / P7-T03
@@ -683,7 +683,11 @@
   - 未引入 hidden legacy fallback、fixture 降级、backend projection skip 或 callable-value 特判。
 - 依赖：P7-T02Za
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-06：完成 higher-order returned function-value 的 handled effect 投影修复。P4 facts builder 现在会先查询真实 callable surface contract，再把确实没有 callable contract 的 top-level function value 归入 dynamic fallback，避免 `scoop.core.toString` 这类 body-less extension call 因同 body 中存在 `TopLevelRef` 被误判为继承当前 StepSchema 全 case，从而把已处理的 `Ask.ask` 重新泄漏到 handler arm / `main`。
+  - 2026-05-06：refactor LLVM value lowering 补齐 plain closure -> effect-typed function value 的 `Use(Local)` coercion：当 `when` / LUB / 显式 function type 标注把 pure lambda 存入 `() -> ... / Ask` 这类 effect-typed local 时，会复用原 closure env 并安装 effect-step adapter，而不是继续让 closure object 指向 plain ABI entry。`choose(mode)()` 的 `Pure` 分支因此通过 canonical dynamic Step entry 返回 `Complete(5)`，`Effectful` 分支仍通过 `Ask.ask` boundary 被 `drive` 内部 handle 消费。
+  - 新增定向覆盖：`effect_facts::solver::tests::refactor_effect_solver_consumes_higher_order_function_value_call_in_handle` 锁定 `drive` / `main` 的 solved outward cases 不再包含 handled `Ask.ask`；`default_refactor_runs_higher_order_function_value_handled_effect_cli` 覆盖默认 refactor `run` 下该 fixture 输出 `5` / `caught` / `9` / `10` 并以 exit 10 结束。
+  - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_effect_solver_consumes_higher_order_function_value_call_in_handle -- --nocapture`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`；`cargo run -p scoop -- run --no-incremental tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
+  - 额外 broad guard：`cargo test -p scoop --test p7_default_pipeline` 中新增 higher-order test 通过，但既有 `default_refactor_runs_async_await_task_resume_payload_cli` 仍失败于 `async_await_minimal_int_basic.scoop` 的 `pass MIR local type`，该问题不属于本任务的 `choose(mode)()` / higher-order returned function-value 阻塞，仍留给后续 `P7-T02Z` / `P7-T03` full-regression 收口处理。
 
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 

@@ -171,6 +171,29 @@ fn default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli() {
 }
 
 #[test]
+fn default_refactor_runs_higher_order_function_value_handled_effect_cli() {
+    let fixture = workspace_path(
+        "tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop",
+    );
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(10),
+        "default refactor higher-order function-value fixture should exit 10: {output:?}"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "5\ncaught\n9\n10\n"
+    );
+}
+
+#[test]
 fn default_pipeline_matches_explicit_refactor_test_fixtures_cli() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
 

@@ -1256,20 +1256,23 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn)
             {
                 contract.declared_row
-            } else if self.callable_value_reference_exists(callable_fqn) {
-                return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
             } else {
-                self.type_ctx
-                    .surface_callable_contract(
-                        types,
-                        callable_fqn,
-                        explicit_arg_count,
-                        receiver_ty.is_some(),
-                    )
-                    .ok_or_else(|| EffectFactsError::MissingCallableSurfaceContract {
-                        callable: callable_fqn.to_string(),
-                    })?
-                    .declared_row
+                match self.type_ctx.surface_callable_contract(
+                    types,
+                    callable_fqn,
+                    explicit_arg_count,
+                    receiver_ty.is_some(),
+                ) {
+                    Some(contract) => contract.declared_row,
+                    None if self.callable_value_reference_exists(callable_fqn) => {
+                        return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
+                    }
+                    None => {
+                        return Err(EffectFactsError::MissingCallableSurfaceContract {
+                            callable: callable_fqn.to_string(),
+                        });
+                    }
+                }
             };
             if declared_row.is_pure() {
                 return Ok(CallSiteEffectFacts::new_plain(
@@ -1302,20 +1305,23 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             declared_effect_row(raw_fun, types)
         } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn) {
             contract.declared_row
-        } else if self.callable_value_reference_exists(callable_fqn) {
-            return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
         } else {
-            self.type_ctx
-                .surface_callable_contract(
-                    types,
-                    callable_fqn,
-                    explicit_arg_count,
-                    receiver_ty.is_some(),
-                )
-                .ok_or_else(|| EffectFactsError::MissingCallableSurfaceContract {
-                    callable: callable_fqn.to_string(),
-                })?
-                .declared_row
+            match self.type_ctx.surface_callable_contract(
+                types,
+                callable_fqn,
+                explicit_arg_count,
+                receiver_ty.is_some(),
+            ) {
+                Some(contract) => contract.declared_row,
+                None if self.callable_value_reference_exists(callable_fqn) => {
+                    return Ok(self.dynamic_callable_value_fallback(kind, invoke_args_tuple_ty));
+                }
+                None => {
+                    return Err(EffectFactsError::MissingCallableSurfaceContract {
+                        callable: callable_fqn.to_string(),
+                    });
+                }
+            }
         };
         if declared_row.is_pure() {
             return Ok(CallSiteEffectFacts::new_plain(

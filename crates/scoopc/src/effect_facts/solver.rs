@@ -1438,6 +1438,58 @@ fun callValue(f: () -> Unit / (Alpha + Beta)): Unit / (Alpha + Beta) {
         )
     }
 
+    fn higher_order_handled_function_value_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_solver_higher_order_handled_function_value.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+enum Mode {
+    Pure,
+    Effectful(val seed: Int),
+}
+
+fun choose(mode: Mode): () -> Int / Ask {
+    when (mode) {
+        Pure -> {
+            val thunk: () -> Int / Ask = { 5 }
+            thunk
+        }
+        Effectful(seed) -> {
+            val thunk: () -> Int / Ask = { Ask.ask(seed) }
+            thunk
+        }
+    }
+}
+
+fun drive(mode: Mode): Int {
+    val result: Int = handle {
+        choose(mode)()
+    } with {
+        Ask.ask(seed), k -> {
+            println("caught")
+            println(seed.toString())
+            k.resume(seed + 1)
+        }
+    }
+    println(result.toString())
+    result
+}
+
+fun main() {
+    drive(Mode.Pure)
+    drive(Effectful(9))
+}
+"#,
+        )
+    }
+
     fn mixed_handle_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/effect_solver_block_facts.scoop",
@@ -1925,6 +1977,29 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
             ["sample.Alpha.go".to_string(), "sample.Beta.go".to_string()]
                 .into_iter()
                 .collect()
+        );
+    }
+
+    #[test]
+    fn refactor_effect_solver_consumes_higher_order_function_value_call_in_handle() {
+        let output = build_stage_output_for_source(
+            &higher_order_handled_function_value_source(),
+            OptLevel::O0,
+        );
+        let facts = output.effect_facts();
+
+        let (_, drive_facts) = callable_facts_for(facts, "sample.drive");
+        let drive_outward = case_fqns(facts, drive_facts.resolved_outward_cases());
+        assert!(
+            !drive_outward.contains("sample.Ask.ask"),
+            "drive 的 handle 应消费 choose(mode)() 的 Ask.ask，不应向 main 泄漏: {drive_outward:?}"
+        );
+
+        let (_, main_facts) = callable_facts_for(facts, "sample.main");
+        let main_outward = case_fqns(facts, main_facts.resolved_outward_cases());
+        assert!(
+            !main_outward.contains("sample.Ask.ask"),
+            "main 调用 drive 时不应看到 handled Ask.ask: {main_outward:?}"
         );
     }
 
