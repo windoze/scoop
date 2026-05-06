@@ -35,7 +35,7 @@ use crate::mir::{self, LocalId, SiteId};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
-use super::super::types::{CgTy, CgValue};
+use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{
     MainCodegen, RefactorCallableCarrierKind, TypeDescriptorSpec, sanitize_llvm_ident,
 };
@@ -648,6 +648,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 function,
                 None,
                 None,
+                None,
                 RefactorHandleCompletionMode::ContinueToExit,
             )?;
             if let Some(hir_fun) = hir_fun {
@@ -879,6 +880,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_fun,
                 body,
                 direct_fun,
+                None,
                 None,
                 None,
                 RefactorHandleCompletionMode::ContinueToExit,
@@ -1521,6 +1523,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             function,
             None,
             None,
+            None,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_method(case_tag, resume_tuple_ty)?;
@@ -1957,6 +1960,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_unreachable()?;
             return Ok(());
         }
+        let return_step_schema = (target.wrapper_projection().is_none()
+            && target.owner_step_schema() != surface.return_step_schema())
+        .then_some(surface.return_step_schema());
         RefactorCallableEmitter::new(
             self,
             program,
@@ -1968,6 +1974,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body,
             function,
             target.wrapper_projection(),
+            return_step_schema,
             surface_handle_sites,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
@@ -2015,6 +2022,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     state_blocks: BTreeMap<StateId, BasicBlock<'ctx>>,
     return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
+    return_step_schema: Option<StepSchemaId>,
     surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
     handle_completion_mode: RefactorHandleCompletionMode,
     return_mode: RefactorCallableReturnMode,
@@ -2041,6 +2049,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         return_projection: Option<
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
         >,
+        return_step_schema: Option<StepSchemaId>,
         surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
         handle_completion_mode: RefactorHandleCompletionMode,
     ) -> Result<Self, LlvmEmitError> {
@@ -2130,6 +2139,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             frame_root_slot,
             state_blocks,
             return_projection,
+            return_step_schema,
             surface_resume_handle_sites,
             handle_completion_mode,
             return_mode: RefactorCallableReturnMode::Step,
@@ -3042,6 +3052,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.store_local_value(stmt.span, *target, value)?;
             return Ok(true);
         }
+        if let Some(value) = self.lower_builtin_string_length_call(stmt.span, kind, args)? {
+            self.store_local_value(stmt.span, *target, value)?;
+            return Ok(true);
+        }
         if let Some(value) = self.lower_builtin_to_string_call(stmt.span, kind, args)? {
             self.store_local_value(stmt.span, *target, value)?;
             return Ok(true);
@@ -3096,7 +3110,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let mir::CallKind::FunValue { callee } = kind else {
             return Ok(None);
         };
-        let Some(receiver) = self.string_concat_receiver(callee) else {
+        let Some(receiver) = self.string_member_receiver(callee, "concat") else {
             return Ok(None);
         };
         if args.len() != 1 || args[0].name.is_some() {
@@ -3145,7 +3159,66 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .map(Some)
     }
 
-    fn string_concat_receiver(&self, callee: &mir::Operand) -> Option<mir::Operand> {
+    fn lower_builtin_string_length_call(
+        &mut self,
+        span: crate::span::Span,
+        kind: &mir::CallKind,
+        args: &[mir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let mir::CallKind::FunValue { callee } = kind else {
+            return Ok(None);
+        };
+        let Some(receiver) = self.string_member_receiver(callee, "length") else {
+            return Ok(None);
+        };
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.length args",
+                at: span.into(),
+            });
+        }
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            span,
+            &receiver,
+            &self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver = self.codegen.coerce_value(span, receiver, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.length receiver value",
+                at: span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_string_length();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into()],
+            "refactor_string_length",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor builtin String.length return value",
+                at: span.into(),
+            })?;
+        Ok(Some(self.codegen.cg_value_from_loaded(
+            span,
+            CgTy::Int(IntTy {
+                bits: self.codegen.host.word_bit_width(),
+                signed: true,
+            }),
+            raw,
+        )?))
+    }
+
+    fn string_member_receiver(
+        &self,
+        callee: &mir::Operand,
+        member_name: &str,
+    ) -> Option<mir::Operand> {
         let mir::Operand::Local(callee_local) = callee else {
             return None;
         };
@@ -3163,7 +3236,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 else {
                     return None;
                 };
-                (member.name == "concat"
+                (member.name == member_name
                     && self
                         .codegen
                         .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
@@ -4644,6 +4717,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     source,
                     lowering.operand_contract(),
                 )?;
+                if self.perform_lowering_is_runtime_error_raise(lowering) {
+                    let span = self.perform_site_span(source)?;
+                    self.emit_effect_set_active_with_trace(
+                        span,
+                        "refactor_raise_set_active_with_trace",
+                    )?;
+                }
                 let payload = self.pack_sources(
                     lowering.emitted_step().payload_tuple_ty(),
                     lowering.operand_contract().payload_sources(),
@@ -5290,6 +5370,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             function,
             None,
             None,
+            None,
             RefactorHandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(transport_ty)?;
@@ -5339,6 +5420,71 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None,
             None,
         )
+    }
+
+    fn perform_lowering_is_runtime_error_raise(
+        &self,
+        lowering: &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering,
+    ) -> bool {
+        lowering
+            .emitted_step()
+            .concrete_op_key()
+            .instance_key()
+            .template
+            .fqn
+            == "scoop.core.Raise.raise"
+            && self.source_ty_is_runtime_error(lowering.emitted_step().payload_tuple_ty())
+    }
+
+    fn perform_site_span(&self, site_id: SiteId) -> Result<crate::span::Span, LlvmEmitError> {
+        for block in &self.body.blocks {
+            if let mir::TerminatorKind::Perform {
+                site_id: terminator_site,
+                ..
+            } = &block.terminator.kind
+                && *terminator_site == site_id
+            {
+                return Ok(block.terminator.span);
+            }
+        }
+        Err(frontend_error(format!(
+            "refactor perform site {} 缺少 canonical MIR terminator span",
+            site_id.as_u32()
+        )))
+    }
+
+    fn emit_effect_set_active_with_trace(
+        &mut self,
+        span: crate::span::Span,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let (line, col) = self
+            .codegen
+            .current_source()?
+            .offset_to_line_col(span.start)
+            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect trace source location",
+                at: span.into(),
+            })?;
+        let line = u32::try_from(line).map_err(|_| LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor effect trace line overflow",
+            at: span.into(),
+        })?;
+        let col = u32::try_from(col).map_err(|_| LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor effect trace column overflow",
+            at: span.into(),
+        })?;
+        let i32_ty = self.codegen.context.i32_type();
+        let set_active = self.codegen.declare_runtime_effect_set_active_with_trace();
+        self.codegen.builder.build_call(
+            set_active,
+            &[
+                i32_ty.const_int(line as u64, false).into(),
+                i32_ty.const_int(col as u64, false).into(),
+            ],
+            name,
+        )?;
+        Ok(())
     }
 
     fn lower_runtime_error_boundary_payload(
@@ -5902,6 +6048,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.sync_frame_slots_from_locals()?;
         if let Some(projection) = self.return_projection {
             self.project_owner_step_to_wrapper(projection, step)
+        } else if let Some(return_step_schema) = self.return_step_schema {
+            let projected = if return_step_schema == self.abi_step_schema {
+                step
+            } else {
+                self.codegen.project_refactor_step_to_schema(
+                    self.abi,
+                    step,
+                    self.abi_step_schema,
+                    return_step_schema,
+                )?
+            };
+            self.codegen.builder.build_return(Some(&projected))?;
+            Ok(())
         } else {
             self.codegen.builder.build_return(Some(&step))?;
             Ok(())
@@ -6273,8 +6432,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let step = self
                 .codegen
                 .refactor_build_step_complete(self.step_layout, payload)?;
-            self.sync_frame_slots_from_locals()?;
-            self.codegen.builder.build_return(Some(&step))?;
+            self.return_step(step)?;
         }
         Ok(true)
     }
@@ -6827,6 +6985,29 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         payload: Option<BasicValueEnum<'ctx>>,
         payload_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
+        if let [binder] = binders
+            && self
+                .body
+                .locals
+                .get(binder.local().as_u32() as usize)
+                .is_some_and(|local| local.ty == payload_ty)
+        {
+            if let Some(raw) = payload {
+                let _ = self.store_loaded_raw_local(self.mir_fun.span, binder.local(), raw)?;
+                if let Some(frame_slot) = binder.frame_slot() {
+                    self.store_local_to_frame_slot(binder.local(), frame_slot)?;
+                }
+                return Ok(());
+            }
+            if !self.abi.source_value_layout(payload_ty)?.abi().is_elided() {
+                return Err(frontend_error(format!(
+                    "refactor handle arm payload binder local{} 需要完整 non-elided payload t{}，但 boundary lowering 未提供 payload",
+                    binder.local().as_u32(),
+                    payload_ty.as_u32(),
+                )));
+            }
+            return Ok(());
+        }
         for binder in binders {
             let value = self.unpack_payload_field(payload, payload_ty, binder.ordinal())?;
             if let Some(raw) = value {

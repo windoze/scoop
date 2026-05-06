@@ -194,6 +194,104 @@ fn default_refactor_runs_higher_order_function_value_handled_effect_cli() {
 }
 
 #[test]
+fn default_refactor_runs_indirect_perform_closure_resume_cli() {
+    let fixture = workspace_path(
+        "tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop",
+    );
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert!(
+        output.status.success(),
+        "default refactor closure continuation fixture should run: {output:?}"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "body_start\nclosure_enter\narm\nresult\n99\nclosure_resume\n32\nbody_done\n42\nafter_resume\n"
+    );
+}
+
+#[test]
+fn default_refactor_runs_multi_type_param_effect_payload_dispatch_cli() {
+    let fixture =
+        workspace_path("tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.scoop");
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert!(
+        output.status.success(),
+        "default refactor multi type-param effect payload fixture should run: {output:?}"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "left\n7\nright\n107\n10\n"
+    );
+}
+
+#[test]
+fn default_refactor_runs_raise_cleanup_gc_cli() {
+    let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop");
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert!(
+        output.status.success(),
+        "default refactor raise cleanup GC fixture should run: {output:?}"
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "0\n");
+}
+
+#[test]
+fn default_refactor_preserves_raise_trace_hook_cli() {
+    let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop");
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert!(
+        output.status.success(),
+        "default refactor raise trace hook fixture should run: {output:?}"
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "16\n5\n");
+}
+
+#[test]
+fn default_refactor_runs_receiver_effect_op_cli() {
+    let fixture = workspace_path("tests/fixtures/run-pass/effect_receiver_op_basic.scoop");
+
+    let output = run_scoop([
+        OsStr::new("run"),
+        OsStr::new("--no-incremental"),
+        fixture.as_os_str(),
+    ]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(30),
+        "default refactor receiver effect op fixture should exit 30: {output:?}"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "go\n2\ndirect_result\n4\nimmediate_before\nhey\n3\nimmediate_after\n6\nimmediate_result\n16\nescape_before\nz\n4\nafter_escape_handle\nescape_after\n9\nescape_total\n10\n"
+    );
+}
+
+#[test]
 fn default_pipeline_matches_explicit_refactor_test_fixtures_cli() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
 

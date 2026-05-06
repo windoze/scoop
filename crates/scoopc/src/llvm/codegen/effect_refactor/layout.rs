@@ -1700,8 +1700,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )));
                 }
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
-                    if candidate.resume_boundary_sites.is_empty()
-                        || candidate.handle_binder_routes.is_empty() =>
+                    if candidate.wrapper_projection.is_none()
+                        && (candidate.resume_boundary_sites.is_empty()
+                            || candidate.handle_binder_routes.is_empty()) =>
                 {
                     return Err(frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
@@ -3088,6 +3089,18 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         sources: &[LateLoweredOperandSource],
         expected_tuple_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
+        if let [source] = sources
+            && source.source_ty() == expected_tuple_ty
+        {
+            self.validate_boundary_operand_source_layout(
+                owner_root_fqn,
+                site_id,
+                kind,
+                label,
+                source,
+            )?;
+            return Ok(());
+        }
         let expected_components =
             expected_source_types_for_carrier(self.source_types, expected_tuple_ty, sources.len())
                 .map_err(|detail| {
@@ -11712,6 +11725,71 @@ fun main(): Int {
                         panic!("single-owner resume schema 不应发布 multi-owner dispatch")
                     }
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_dispatch_layout_resolves_cross_owner_wrapper_trampoline() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "continuation_escape_binder_resume_effect_row_runtime_basic.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, module| {
+                let query =
+                    result.expect("cross-owner wrapper schema 应可发布 owner dispatch query");
+                let entry = inputs
+                    .abi_visibility_program
+                    .surface_resume_dispatch_inventory()
+                    .iter()
+                    .find(|entry| {
+                        let Some(projection) = entry.wrapper_projection() else {
+                            return false;
+                        };
+                        let Some((underlying_owner, underlying_object)) =
+                            surface_resume_publication_owner_identity(
+                                projection.underlying_route().publication(),
+                            )
+                        else {
+                            return false;
+                        };
+                        entry.publications().iter().any(|publication| {
+                            matches!(
+                                publication,
+                                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                                    owner_version_key,
+                                    owner_continuation_object,
+                                    ..
+                                } if owner_version_key != underlying_owner
+                                    || *owner_continuation_object != underlying_object
+                            )
+                        })
+                    })
+                    .expect("fixture 应发布跨 owner 的 wrapper surface-resume schema");
+                let dispatch = query
+                    .surface_resume_dispatch_layout(entry.continuation_schema())
+                    .expect("cross-owner wrapper schema 的 owner dispatch contract 应可查询");
+
+                assert_eq!(
+                    dispatch.source_kind(),
+                    crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
+                );
+                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
+                    dispatch.target()
+                else {
+                    panic!("cross-owner fixture 应发布单一 underlying owner trampoline")
+                };
+                assert_eq!(trampoline.owner_root_fqn(), "start");
+                assert!(
+                    trampoline.resume_boundary_sites().is_empty(),
+                    "跨 owner wrapper trampoline 使用 underlying handle binder，不应要求 wrapper owner 的 resume site"
+                );
+                assert_eq!(trampoline.handle_binder_routes().len(), 1);
+                assert!(
+                    trampoline.wrapper_projection().is_some(),
+                    "跨 owner wrapper trampoline 必须携带 owner-step -> wrapper-step 投影"
+                );
+                assert!(module.get_function(trampoline.symbol_name()).is_some());
             },
         );
     }

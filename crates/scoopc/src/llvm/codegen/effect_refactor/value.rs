@@ -298,6 +298,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         )),
                     })?;
                 let value_ty = value.ty;
+                if slot.cg_ty == CgTy::Never {
+                    if value_ty == CgTy::Never
+                        && self
+                            .codegen
+                            .builder
+                            .get_insert_block()
+                            .is_some_and(|bb| bb.get_terminator().is_none())
+                    {
+                        self.codegen.builder.build_unreachable()?;
+                    }
+                    return Ok(());
+                }
                 let _ = self
                     .codegen
                     .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)

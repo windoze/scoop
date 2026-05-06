@@ -738,6 +738,50 @@
   - 修复验证过程中暴露的 composed call-boundary replay 过度重放：当同一 source tail 后续还有会捕获 continuation 的 resuming boundary 时，不再在 callee resume 前重放已执行过的 caller prefix；仍保留 nested block mixed replay 中需要的 prefix 重放，避免破坏 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`。
   - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo test -p scoopc --lib refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
 
+## P7-T02Zd：闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞
+
+- 参考：
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z / P7-T03
+  - [`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03g / P6-T03h / P6-T04
+  - 当前阻塞 fixture：`tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`
+- 背景：
+  - 继续执行 `P7-T02Z` 默认 run-pass 收口时，已修复前续 cross-owner surface-resume、closure env carrier、tuple payload binder、Raise trace hook 与 receiver effect op 缺口；
+  - 当前推进到 `effect_resume_finally_body_raise_after_resume.scoop`：`k.resume(41)` 恢复 handle body 后执行 `boom()`，body 再次 `Raise.raise(77)`，要求同一个 `finally` 只执行一次，然后把 `Raise<Int>` 传播给外层 `catch`；
+  - 现有 refactor lowering 在该 fixture 上先 fail fast：`HandleDispatch pending completion PropagateOutward(c1)` 对应多个 resume state（st11 与 st12）；若简单放宽该校验，会导致 `finally` 重复执行或错误完成 `handle_unreachable`，说明缺少 authoritative pending-completion origin / resume-state / composed-resume 分派 contract。
+
+- 必须实现的内容：
+  1. 为 `HandleDispatch` pending outward completion 发布 origin-aware contract。
+     - 同一 outward case 可由多个 boundary/resume state 进入同一 finally；P5/P6 handoff 必须能区分 pending completion 的来源 boundary、resume state 与 payload transport；
+     - 不得只按 case tag 选择第一个 resume state，也不得把不同来源合并成 schema 级偶然行为。
+  2. 修复 composed resume dispatch 对同一 resume state / 多 outward case 的分派。
+     - `k.resume(...)` 恢复 body 后若 body 再次 raise，必须把 callee/result Step 交回正确 boundary dispatch；
+     - 不得因为同一 resume state 存在多个 continuation composition 就 fail fast，也不得通过跳过 composition 或直接完成 handle 绕过。
+  3. 保证 finally 执行次数精确。
+     - resumed body raise 后，相关 finally 必须恰好执行一次；
+     - 不能在 surface-resume owner dispatch 和原 resume boundary 两侧重复执行 finally；
+     - 不能把 pending outward 错误转为 normal completion，导致 `handle_unreachable` 执行。
+  4. 保持 runtime-error / one-shot / dropped continuation / GC root contract。
+     - `Raise<Int>` 与 `Raise<RuntimeError>` 仍按 ordinary effect Step case 传播；
+     - pending payload carrier、frame roots、cleanup/drop state 不得退化或泄漏。
+  5. 增加或更新定向测试，覆盖 resumed body 在 finally-protected handle 中 raise 的路径。
+
+- 验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`
+  - 回归相邻 finally / continuation fixtures：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`
+  - 修复后恢复 `P7-T02Z` 默认 run-pass 收口。
+
+- 完成条件：
+  - `effect_resume_finally_body_raise_after_resume.scoop` 在默认 refactor run-pass 下输出 golden：`before` / `body_start` / `arm_start` / `body_after` / `41` / `finally` / `caught` / `77` / `result` / `77` / `done`；
+  - finally 不重复执行，不错误完成 handle；
+  - 没有 hidden legacy fallback、fixture 降级、case-tag 偶然映射或 runtime-only workaround。
+- 依赖：P7-T02Zc
+- 完成记录：
+  - 待完成。
+
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 
 - 参考：
@@ -775,7 +819,7 @@
   - 上述剩余 run-pass blockers 在默认 refactor 主线下通过；
   - 不存在新增 hidden legacy fallback、fixture 降级或 runtime-only workaround；
   - P7-T03 可以重新只聚焦标准 full regression 矩阵最终收口。
-- 依赖：P7-T02Zc
+- 依赖：P7-T02Zd
 - 完成记录：
   - 2026-05-06：本轮完成 hidden init / top-level init ordinary effect 的一部分通用修复：`TopLevelRef` 现在可携带 hidden init `EffectRow` 与稳定 MIR site id；P4/P5/P6 会把 object value / top-level immutable value init 中的 `Raise<RuntimeError>` 发布为显式 boundary 并捕获 outcome；仅作为静态成员 namespace receiver 的 `TopLevelRef` 不再提前执行 object init，避免绕过 member hidden-effect boundary。定向通过：`object_init_raise_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`object_value_init_raise_helper_try_catch_basic.scoop`、`top_level_immutable_init_raise_helper_try_catch_basic.scoop`、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_member_helper_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`。
   - 2026-05-06：继续验证 hidden suspend helper 系列时，`effect_handle_hidden_suspend_virtual_helper_basic.scoop` / `effect_handle_hidden_suspend_interface_helper_basic.scoop` 暴露 dynamic dispatch ABI schema identity drift：single-candidate interface dispatch 被折叠后缺少 dynamic-invoke carrier contract，随后 body program 与 ABI program 的 raw `StepSchemaId` / owner version key 漂移导致 completion payload、dynamic-invoke、HandleDispatch 与 surface-resume owner lookup 失败。已新增 prerequisite `P7-T02Za`；本任务保持未完成。
@@ -783,6 +827,8 @@
   - 2026-05-06：当前继续阻塞在 `effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`：`choose(mode)()` 已生成 MIR `FunValue` call，但 solver/late-lowered handoff 仍把 `drive` 内部应由 handle 消费的 `Ask.ask` 暴露到 `main`，导致 `main` call boundary 无法把 `Ask.ask` 从 callee StepSchema 投影到自身 output StepSchema。已新增 prerequisite `P7-T02Zb`；本任务保持未完成。
   - 2026-05-06：本轮继续收口 P7-T02Z 时完成多项默认 refactor run-pass 修复：compiler temporary slot inference 覆盖 concrete direct-call RHS；`toInt` intrinsic 可从 concrete slot ABI 消费 Float/String receiver；flattened lambda env tuple direct entry 绑定完整 components；plain closure 写入 effect-typed struct field 时安装 effect-step adapter；composed call-boundary resume 在需要时重放 owner Resume-state prefix，并避免普通 indirect resume / 非零 slice prefix 过度重放。定向通过：`async_await_minimal_int_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_indirect_perform_nonresuming_function_value_wrapper_member_direct.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`。
   - 2026-05-06：继续跑默认 `tests/fixtures/run-pass` 时阻塞在 `effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`：多个 owner continuation object 共享同一 owner-trampoline surface resume schema 时，ABI materializer 仍假定 schema -> 单 owner，且 wrapper projection 是 schema 级单值，不能表达 owner-specific completion payload source。已新增 prerequisite `P7-T02Zc`；本任务保持未完成。
+  - 2026-05-06：本轮继续恢复 `P7-T02Z` 后，已修复并验证以下默认 run-pass 阻塞：cross-owner wrapper `OwnerTrampolineMixed` ABI 校验过严导致 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop` fail fast；无显式 wrapper projection 的 owner Step -> surface Step return type drift 导致 `effect_escape_continuation_indirect_perform_closure.scoop` LLVM verify 失败；known-instance closure captured-env invoke carrier contract 导致 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` late lowering fail fast；单 payload binder 绑定完整 tuple payload 导致 `effect_multi_type_params_dispatch_basic.scoop` 输出错乱；effect-neutral assignment 写入 `Never` target local 导致 `effect_raise_cleanup_gc_basic.scoop` fail fast；refactor `Raise.raise` 未写 runtime trace hook 导致 `effect_raise_trace_hook_basic.scoop` 输出 `0/0`；`String.length` fun-value builtin 在 receiver effect op arm 内被 facts 误判为 effectful DynamicFallback，导致 `effect_receiver_op_basic.scoop` 投影失败。上述样本均已定向通过。
+  - 2026-05-06：继续默认 run-pass 时阻塞在 `effect_resume_finally_body_raise_after_resume.scoop`：resumed body 在 `k.resume(...)` 后再次 `Raise.raise(77)` 时，finally pending outward completion 缺少 origin/resume-state/composed-resume contract；简单放宽 fail-fast 会导致 `finally` 重复执行或错误 normal completion。已新增 prerequisite `P7-T02Zd`；本任务保持未完成。
 
 ## P7-T03：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归
 

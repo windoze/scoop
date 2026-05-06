@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::effect_facts::{
-    BodyEffectFacts, CallSiteEffectFacts, CaseTag, ClassCtorSiteEffectFacts, ConcreteOpKey,
-    EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts,
+    BodyEffectFacts, CallSiteEffectFacts, CallTargetMode, CaseTag, ClassCtorSiteEffectFacts,
+    ConcreteOpKey, EffectFamilyKey, HandleSiteEffectFacts, ImplPlan, MaterializedEffectFacts,
     PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts, StepCaseFact, StepSchema,
     StepSchemaId,
 };
@@ -4117,6 +4117,163 @@ fn build_ordered_call_arg_sources(
         .collect()
 }
 
+fn expected_source_components_for_carrier(types: &TypeStore, carrier_ty: TypeId) -> Vec<TypeId> {
+    match types.kind(carrier_ty) {
+        TypeKind::Value(ValueTypeKind::Unit) => Vec::new(),
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.clone(),
+        _ => vec![carrier_ty],
+    }
+}
+
+fn local_assignment(body: &Body, local: LocalId) -> Option<&Rvalue> {
+    body.blocks
+        .iter()
+        .flat_map(|block| block.stmts.iter())
+        .find_map(|stmt| match &stmt.kind {
+            StatementKind::Assign { target, value } if *target == local => Some(value),
+            _ => None,
+        })
+}
+
+fn resolve_closure_env_operand<'a>(body: &'a Body, callee: &Operand) -> Option<&'a Operand> {
+    let &Operand::Local(mut current) = callee else {
+        return None;
+    };
+    for _ in 0..32 {
+        match local_assignment(body, current)? {
+            Rvalue::MakeClosure { env, .. } => return Some(env),
+            Rvalue::Use(Operand::Local(next)) => current = *next,
+            _ => return None,
+        }
+    }
+    None
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_known_instance_closure_call_arg_sources(
+    root_fqn: &str,
+    site_id: SiteId,
+    kind: &'static str,
+    body: &Body,
+    types: &TypeStore,
+    callee: &Operand,
+    args: &[CallArg],
+    expected_tuple_ty: TypeId,
+) -> Result<Option<Vec<LateLoweredOperandSource>>, EffectLoweringError> {
+    let expected_components = expected_source_components_for_carrier(types, expected_tuple_ty);
+    let Some(env_operand) = resolve_closure_env_operand(body, callee) else {
+        return Ok(None);
+    };
+    if args.is_empty()
+        && let Ok(source) = operand_source_with_expected_ty(
+            root_fqn,
+            site_id,
+            kind,
+            body,
+            types,
+            env_operand,
+            expected_tuple_ty,
+            None,
+        )
+    {
+        return Ok(Some(vec![source]));
+    }
+    let decompose_env_tuple = matches!(
+        types.kind(expected_tuple_ty),
+        TypeKind::Value(ValueTypeKind::Tuple(_))
+    );
+    let env_sources = match env_operand {
+        Operand::Local(local) => match local_assignment(body, *local) {
+            Some(Rvalue::MakeTuple { elements }) if decompose_env_tuple => {
+                if elements.len() > expected_components.len() {
+                    return Err(invalid_boundary_operand_contract(
+                        root_fqn,
+                        site_id,
+                        kind,
+                        format!(
+                            "closure env component 数量({}) 超过 published invoke carrier t{} 的 component 数量({})",
+                            elements.len(),
+                            expected_tuple_ty.as_u32(),
+                            expected_components.len(),
+                        ),
+                    ));
+                }
+                elements
+                    .iter()
+                    .zip(expected_components.iter().copied())
+                    .map(|(element, expected_ty)| {
+                        operand_source_with_expected_ty(
+                            root_fqn,
+                            site_id,
+                            kind,
+                            body,
+                            types,
+                            element,
+                            expected_ty,
+                            None,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            Some(Rvalue::Use(source)) if expected_components.len() == 1 => {
+                vec![operand_source_with_expected_ty(
+                    root_fqn,
+                    site_id,
+                    kind,
+                    body,
+                    types,
+                    source,
+                    expected_components[0],
+                    None,
+                )?]
+            }
+            _ if expected_components.len() == 1 => vec![operand_source_with_expected_ty(
+                root_fqn,
+                site_id,
+                kind,
+                body,
+                types,
+                env_operand,
+                expected_components[0],
+                None,
+            )?],
+            _ if expected_components.is_empty() => Vec::new(),
+            _ => return Ok(None),
+        },
+        Operand::Const(_) if expected_components.is_empty() => Vec::new(),
+        Operand::Const(_) => return Ok(None),
+    };
+    let explicit_components = &expected_components[env_sources.len()..];
+    if args.len() != explicit_components.len() {
+        return Err(invalid_boundary_operand_contract(
+            root_fqn,
+            site_id,
+            kind,
+            format!(
+                "closure env component 数量({}) + ordered args 数量({}) 与 published carrier t{} 的 component 数量({}) 不一致",
+                env_sources.len(),
+                args.len(),
+                expected_tuple_ty.as_u32(),
+                expected_components.len(),
+            ),
+        ));
+    }
+    let mut sources = env_sources;
+    for (arg, expected_ty) in args.iter().zip(explicit_components.iter().copied()) {
+        sources.push(operand_source_with_expected_ty(
+            root_fqn,
+            site_id,
+            kind,
+            body,
+            types,
+            &arg.value,
+            expected_ty,
+            Some(arg.span),
+        )?);
+    }
+    Ok(Some(sources))
+}
+
 fn build_ordered_perform_payload_sources(
     root_fqn: &str,
     site_id: SiteId,
@@ -4288,15 +4445,42 @@ fn build_call_boundary_operand_contract(
                     ));
                 }
             };
-            let arg_sources = build_ordered_call_arg_sources(
-                root_fqn,
-                site_id,
-                "Call",
-                body,
-                args,
-                facts.invoke_args_tuple_ty(),
-                types,
-            )?;
+            let arg_sources = match kind {
+                CallKind::Closure { callee, .. }
+                    if facts.target_mode() == CallTargetMode::KnownInstance =>
+                {
+                    match build_known_instance_closure_call_arg_sources(
+                        root_fqn,
+                        site_id,
+                        "Call",
+                        body,
+                        types,
+                        callee,
+                        args,
+                        facts.invoke_args_tuple_ty(),
+                    )? {
+                        Some(sources) => sources,
+                        None => build_ordered_call_arg_sources(
+                            root_fqn,
+                            site_id,
+                            "Call",
+                            body,
+                            args,
+                            facts.invoke_args_tuple_ty(),
+                            types,
+                        )?,
+                    }
+                }
+                _ => build_ordered_call_arg_sources(
+                    root_fqn,
+                    site_id,
+                    "Call",
+                    body,
+                    args,
+                    facts.invoke_args_tuple_ty(),
+                    types,
+                )?,
+            };
             let contract = LateLoweredCallBoundaryOperandContract::new(
                 LateLoweredBoundarySourceConsumption::statement(
                     source_slice,
@@ -5764,6 +5948,52 @@ mod tests {
                 .span()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn refactor_effect_lowered_boundary_operand_contract_publishes_known_closure_env_sources() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_multi_escape_indirect_callee_suspend_matrix.scoop",
+        ));
+        let main = callable(&output, "main");
+        let closure_boundary = main
+            .boundary_map()
+            .entries()
+            .iter()
+            .find(|boundary| {
+                matches!(
+                    boundary.lowering(),
+                    Some(LateLoweredBoundaryLowering::Call(lowering))
+                        if lowering.facts().kind() == crate::effect_facts::CallSiteKind::Closure
+                            && lowering.facts().target_mode() == CallTargetMode::KnownInstance
+                )
+            })
+            .expect("fixture 应包含 known-instance closure call boundary");
+        let LateLoweredBoundaryLowering::Call(lowering) = closure_boundary
+            .lowering()
+            .expect("closure boundary 应发布 lowering contract")
+        else {
+            panic!("closure boundary 应物化成 Call lowering")
+        };
+
+        assert!(
+            lowering.operand_contract().carrier_source().is_some(),
+            "closure call 仍应发布 callable carrier source"
+        );
+        assert_eq!(
+            lowering.operand_contract().arg_sources().len(),
+            1,
+            "known-instance closure direct args 应由 closure env carrier 发布为单一 source"
+        );
+        assert_eq!(
+            lowering.operand_contract().arg_sources()[0].source_ty(),
+            lowering.facts().invoke_args_tuple_ty()
+        );
+        assert!(matches!(
+            lowering.operand_contract().arg_sources()[0].value(),
+            LateLoweredOperandValueSource::Local(_)
+        ));
     }
 
     #[test]
