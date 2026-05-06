@@ -11,8 +11,8 @@ use std::collections::HashSet;
 
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{
-    BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue, FunctionValue, IntValue,
-    PointerValue,
+    AggregateValueEnum, BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue,
+    FunctionValue, IntValue, PointerValue,
 };
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 
@@ -544,7 +544,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     ..
                 } = value
                     && *receiver == local
-                    && self.static_member_value(member)
+                    && (self.static_member_value(member)
+                        || self.static_member_fun_for_namespace(local, member))
                 {
                     saw_static_member = true;
                     continue;
@@ -555,6 +556,41 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
         }
         saw_static_member
+    }
+
+    fn static_member_fun_for_namespace(
+        &self,
+        receiver_local: LocalId,
+        member: &mir::MemberAccessMetadata,
+    ) -> bool {
+        let Some(receiver_fqn) = self.local_top_level_ref_fqn(receiver_local) else {
+            return false;
+        };
+        let member_fqn = match member.resolved.as_ref() {
+            Some(mir::MemberTarget::Fun { fqn })
+            | Some(mir::MemberTarget::ExtensionFun { fqn }) => fqn,
+            Some(mir::MemberTarget::Value { .. } | mir::MemberTarget::ExtensionValue { .. })
+            | None => return false,
+        };
+        member_fqn.starts_with(receiver_fqn)
+            && member_fqn.as_bytes().get(receiver_fqn.len()) == Some(&b'.')
+    }
+
+    fn local_top_level_ref_fqn(&self, local: LocalId) -> Option<&str> {
+        self.body.blocks.iter().find_map(|block| {
+            block.stmts.iter().find_map(|stmt| {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                if *target != local {
+                    return None;
+                }
+                let mir::Rvalue::TopLevelRef(top) = value else {
+                    return None;
+                };
+                Some(top.fqn.as_str())
+            })
+        })
     }
 
     fn static_member_value(&self, member: &mir::MemberAccessMetadata) -> bool {
@@ -1043,6 +1079,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         .codegen
                         .codegen_mir_sysroot_gc_handle_drop(span, args, self.slots);
                 }
+                "scoop.core.GC.pin" => {
+                    return self.lower_refactor_gc_pin(span, args, target_cg);
+                }
+                "scoop.core.GC.unpin" => {
+                    return self.lower_refactor_gc_unpin(span, args);
+                }
                 _ => {}
             }
         }
@@ -1052,7 +1094,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             | mir::CallKind::FunValue { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
-                return self.codegen.codegen_mir_plain_dynamic_call(
+                return self.codegen.codegen_mir_refactor_plain_dynamic_call(
                     span,
                     kind,
                     args,
@@ -1175,7 +1217,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     );
                 }
                 if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
-                    return self.codegen.codegen_mir_plain_dynamic_call(
+                    return self.codegen.codegen_mir_refactor_plain_dynamic_call(
                         span,
                         &mir::CallKind::FunValue {
                             callee: mir::Operand::Local(callee_local),
@@ -1204,7 +1246,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             return self
                 .codegen
-                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots);
+                .codegen_mir_refactor_plain_direct_call(span, callee_fqn, args, self.slots);
         }
         if self
             .codegen
@@ -1947,6 +1989,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let value_word = IntTy {
+            bits: self.codegen.host.word_bit_width(),
+            signed: true,
+        };
         match callee_fqn {
             "scoop.core.__scoop_array_builder_new" => {
                 if !args.is_empty() {
@@ -2019,10 +2065,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let value_cg = self
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_push value type",
-                        at: value_arg.span.into(),
-                    })?;
+                    .unwrap_or_else(|| match callee_fqn {
+                        "scoop.core.__scoop_array_builder_push_string" => CgTy::String,
+                        _ => CgTy::Int(value_word),
+                    });
                 let value_v = self.codegen.codegen_mir_operand_expected(
                     value_arg.span,
                     &value_arg.value,
@@ -3935,8 +3981,227 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     | "scoop.core.__scoop_stackmap_statepoint_smoke"
                     | "scoop.core.GC.handleNew"
                     | "scoop.core.GC.handleDrop"
+                    | "scoop.core.GC.pin"
+                    | "scoop.core.GC.unpin"
                     | "scoop.core.__scoop_thread_spawn_join_resume_u64"
             )
+    }
+
+    fn lower_refactor_gc_pin(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin arg contract",
+                at: span.into(),
+            });
+        }
+        let CgTy::Struct(pinned_ty) = target_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin target type",
+                at: span.into(),
+            });
+        };
+        let (field_idx, field_cg_ty) =
+            self.codegen
+                .lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", span)?;
+        let arg = &args[0];
+        let obj = self.codegen.codegen_mir_operand_expected(
+            arg.span,
+            &arg.value,
+            self.slots,
+            Some(field_cg_ty),
+        )?;
+        let obj = self.codegen.coerce_value(arg.span, obj, field_cg_ty)?;
+        let obj_ref = self.codegen.coerce_value(arg.span, obj, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(obj_ptr)) = obj_ref.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin arg value",
+                at: arg.span.into(),
+            });
+        };
+
+        let rt_pin = self.codegen.declare_runtime_gc_pin();
+        let call = self
+            .codegen
+            .builder
+            .build_call(rt_pin, &[obj_ptr.into()], "refactor_gc_pin")?;
+        let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.codegen.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.codegen.context.i32_type().const_zero(),
+            "refactor_gc_pin_ok",
+        )?;
+        let insert_block =
+            self.codegen
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor GC.pin insert block",
+                    at: span.into(),
+                })?;
+        let function = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_pin_ok");
+        let err_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_pin_err");
+        let cont_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_pin_cont");
+        self.codegen
+            .builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+
+        self.codegen.builder.position_at_end(err_bb);
+        self.codegen.emit_exit_with_code(span, 3)?;
+
+        self.codegen.builder.position_at_end(ok_bb);
+        let llvm_struct_ty = self.codegen.llvm_struct_type(span, pinned_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        let raw_field: BasicValueEnum<'ctx> = match field_cg_ty {
+            CgTy::Unit => self.codegen.context.i8_type().const_int(0, false).into(),
+            _ => obj.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.pin field value",
+                at: arg.span.into(),
+            })?,
+        };
+        agg = self.codegen.builder.build_insert_value(
+            agg,
+            raw_field,
+            field_idx,
+            "refactor_pinned_value",
+        )?;
+        self.codegen.builder.build_unconditional_branch(cont_bb)?;
+
+        self.codegen.builder.position_at_end(cont_bb);
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn lower_refactor_gc_unpin(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin arg contract",
+                at: span.into(),
+            });
+        }
+        let arg = &args[0];
+        let pinned = self
+            .codegen
+            .codegen_mir_operand_expected(arg.span, &arg.value, self.slots, None)?;
+        let CgTy::Struct(pinned_ty) = pinned.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin arg type",
+                at: arg.span.into(),
+            });
+        };
+        let Some(BasicValueEnum::StructValue(struct_v)) = pinned.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin arg value",
+                at: arg.span.into(),
+            });
+        };
+        let (field_idx, field_cg_ty) =
+            self.codegen
+                .lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", arg.span)?;
+        let extracted = self.codegen.builder.build_extract_value(
+            struct_v,
+            field_idx,
+            "refactor_pinned_value",
+        )?;
+        let field = self
+            .codegen
+            .cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
+        let field_ref = self.codegen.coerce_value(arg.span, field, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(obj_ptr)) = field_ref.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin value",
+                at: arg.span.into(),
+            });
+        };
+
+        let rt_unpin = self.codegen.declare_runtime_gc_unpin();
+        let call =
+            self.codegen
+                .builder
+                .build_call(rt_unpin, &[obj_ptr.into()], "refactor_gc_unpin")?;
+        let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.codegen.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.codegen.context.i32_type().const_zero(),
+            "refactor_gc_unpin_ok",
+        )?;
+        let insert_block =
+            self.codegen
+                .builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor GC.unpin insert block",
+                    at: span.into(),
+                })?;
+        let function = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor GC.unpin parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_unpin_ok");
+        let err_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_unpin_err");
+        let cont_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, "gc_unpin_cont");
+        self.codegen
+            .builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+
+        self.codegen.builder.position_at_end(err_bb);
+        self.codegen.emit_exit_with_code(span, 3)?;
+
+        self.codegen.builder.position_at_end(ok_bb);
+        self.codegen.builder.build_unconditional_branch(cont_bb)?;
+
+        self.codegen.builder.position_at_end(cont_bb);
+        Ok(CgValue::unit())
     }
 
     fn lower_refactor_gc_debug_intrinsic(

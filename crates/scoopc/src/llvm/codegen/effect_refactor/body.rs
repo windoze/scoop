@@ -3067,7 +3067,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         else {
             let value = self
                 .codegen
-                .codegen_mir_plain_dynamic_call(
+                .codegen_mir_refactor_plain_dynamic_call(
                     stmt.span,
                     kind,
                     args,
@@ -3939,6 +3939,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         if let Some(call_lowering) = dispatch_context.call_lowering
+            && self
+                .call_boundary_prefix_replay_matches_prior_resuming_route(boundary, call_lowering)?
             && !self.call_boundary_tail_has_later_resuming_boundary(boundary, call_lowering)?
         {
             self.replay_call_boundary_prefix(boundary, call_lowering)?;
@@ -3976,6 +3978,57 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             dispatch_context.call_lowering,
             Some(dispatch_context.continuation_compositions),
         )
+    }
+
+    fn call_boundary_prefix_replay_matches_prior_resuming_route(
+        &self,
+        boundary: &LateLoweredBoundary,
+        lowering: &LateLoweredCallBoundaryLowering,
+    ) -> Result<bool, LlvmEmitError> {
+        let output_cases = lowering
+            .dispatch()
+            .outward_cases()
+            .iter()
+            .map(|case| case.emission().case_tag())
+            .collect::<BTreeSet<_>>();
+        if output_cases.is_empty() {
+            return Ok(false);
+        }
+
+        for state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch { contract, .. } = state.terminator()
+            else {
+                continue;
+            };
+            if contract.boundary_routing(boundary.boundary_id()).is_none() {
+                continue;
+            }
+
+            let matched_cases = contract
+                .boundary_routings()
+                .iter()
+                .filter(|routing| routing.boundary_id() != boundary.boundary_id())
+                .filter(|routing| routing.resume_state() == boundary.owner_state())
+                .flat_map(|routing| routing.case_routings())
+                .filter(|case| output_cases.contains(&case.case_tag()))
+                .filter(|case| {
+                    matches!(
+                        case.action(),
+                        LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm { .. }
+                    ) && contract
+                        .handled_arm(case.case_tag())
+                        .and_then(|arm| arm.continuation_binder())
+                        .is_some()
+                })
+                .map(|case| case.case_tag())
+                .collect::<BTreeSet<_>>();
+
+            if output_cases.iter().all(|case| matched_cases.contains(case)) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     fn call_boundary_tail_has_later_resuming_boundary(
@@ -6735,10 +6788,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     RefactorHandleBoundaryRuntimeAction::EmitOutward
                 }
             };
-            let action = if self
-                .surface_resume_handle_sites
-                .as_ref()
-                .is_some_and(|sites| !sites.contains(site_id))
+            let action = if self.surface_resume_handle_sites.is_some()
+                && !self.surface_resume_allows_handle_dispatch(*site_id, state.state_id())
                 && !matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward)
             {
                 RefactorHandleBoundaryRuntimeAction::EmitOutward
@@ -6768,6 +6819,35 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
         }
         Ok(matched.map(|(_, action)| action))
+    }
+
+    fn surface_resume_allows_handle_dispatch(
+        &self,
+        site_id: SiteId,
+        dispatch_state: StateId,
+    ) -> bool {
+        let Some(surface_sites) = self.surface_resume_handle_sites.as_ref() else {
+            return true;
+        };
+        if surface_sites.contains(&site_id) {
+            return true;
+        }
+
+        self.callable.state_graph().states().iter().any(|state| {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id: parent_site,
+                contract,
+                ..
+            } = state.terminator()
+            else {
+                return false;
+            };
+            surface_sites.contains(parent_site)
+                && !matches!(
+                    contract.state_region(dispatch_state),
+                    LateLoweredHandleStateRegion::OutsideHandle
+                )
+        })
     }
 
     fn handle_dispatch_nesting_depth(&self, dispatch_state: StateId) -> usize {

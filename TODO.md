@@ -1,151 +1,485 @@
-# TODO 索引
+# TODO：HIR Completeness 新路径收口
 
-> 这是任务索引文件。仅列出任务 `id`、所在文件和任务标题。  
-> 具体任务描述、实现要求、约束、验证条件与完成条件，请查阅对应的 `TODO-Px.md` 文件。
+> 生成时间：2026-05-06
+> 计划基线：[`PLAN.md`](./PLAN.md)
+> Gap 基线：[`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md)
+> 格式参考：[`TODO-effect-refactor.md`](./TODO-effect-refactor.md) 与 `TODO-Px.md` 执行任务文件
+> 前置条件：effect-refactor 新路径入口已存在，`dump-hir --effect-pipeline refactor` 可进入 refactor typed HIR stage。
+> 顺序约束：严格按当前文件顺序推进；不得跨条目并行实现。
+> 本阶段目标：关闭所有现有 HIR gap，使 refactor typed HIR handoff 不再包含 `Todo(...)` 或等价 placeholder；支持的 spec surface 必须完整进入 HIR，不支持或延期的 surface 必须在 parser/typecheck/comptime/HIR stage 给清晰诊断。
 
-| ID | 文件 | 标题 |
-| --- | --- | --- |
-| `P0-T01` | `TODO-P0.md` | [DONE] 建立新旧主线共享的 CLI / Session pipeline selector |
-| `P0-T01R` | `TODO-P0.md` | [DONE] Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定 |
-| `P0-T02` | `TODO-P0.md` | [DONE] 建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块 |
-| `P0-T02R` | `TODO-P0.md` | [DONE] Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起 |
-| `P0-T03` | `TODO-P0.md` | [DONE] 建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档 |
-| `P0-T03R` | `TODO-P0.md` | [DONE] Review 边界清单，确认后续实现不会再靠临时判断混线 |
-| `P0-T04` | `TODO-P0.md` | [DONE] 建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义” |
-| `P0-T04R` | `TODO-P0.md` | [DONE] Review baseline parity 与 P0 退出条件 |
-| `P1-T01` | `TODO-P1.md` | [DONE] 建立 refactor AST stage 专用入口与阶段输出类型 |
-| `P1-T01R` | `TODO-P1.md` | [DONE] Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块 |
-| `P1-T02` | `TODO-P1.md` | [DONE] 锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状 |
-| `P1-T02R` | `TODO-P1.md` | [DONE] Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法 |
-| `P1-T03` | `TODO-P1.md` | [DONE] 建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity |
-| `P1-T03R` | `TODO-P1.md` | [DONE] Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径 |
-| `P2-T01` | `TODO-P2.md` | [DONE] 建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump` |
-| `P2-T01R` | `TODO-P2.md` | [DONE] Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离 |
-| `P2-T02` | `TODO-P2.md` | [DONE] 对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段 |
-| `P2-T02R` | `TODO-P2.md` | [DONE] Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser |
-| `P2-T03` | `TODO-P2.md` | [DONE] 落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束 |
-| `P2-T03R` | `TODO-P2.md` | [DONE] Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法 |
-| `P2-T04` | `TODO-P2.md` | [DONE] 输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵 |
-| `P2-T04R` | `TODO-P2.md` | [DONE] Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义 |
-| `P3-T01` | `TODO-P3.md` | [DONE] 建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖 |
-| `P3-T01R` | `TODO-P3.md` | [DONE] Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离 |
-| `P3-T02` | `TODO-P3.md` | [DONE] 把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义 |
-| `P3-T02R` | `TODO-P3.md` | [DONE] Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测 |
-| `P3-T03` | `TODO-P3.md` | [DONE] 显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier |
-| `P3-T03R` | `TODO-P3.md` | [DONE] Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包 |
-| `P3-T04` | `TODO-P3.md` | [DONE] 建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract |
-| `P3-T04R` | `TODO-P3.md` | [DONE] Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR |
-| `P4-T01` | `TODO-P4.md` | [DONE] 建立 refactor effect-facts stage 与独立 side-table 子系统边界 |
-| `P4-T01R` | `TODO-P4.md` | [DONE] Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts` |
-| `P4-T02` | `TODO-P4.md` | [DONE] 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
-| `P4-T02R` | `TODO-P4.md` | [DONE] Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定 |
-| `P4-T02a` | `TODO-P4.md` | [DONE] 修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body |
-| `P4-T02aR` | `TODO-P4.md` | [DONE] Review canonical pass-view 对 ordinary callable body 的发布结果，确认 P4 不再需要 raw/fallback 键空间 |
-| `P4-T03` | `TODO-P4.md` | [DONE] 构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析 |
-| `P4-T03R` | `TODO-P4.md` | [DONE] Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断 |
-| `P4-T04` | `TODO-P4.md` | [DONE] 实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填 |
-| `P4-T04R` | `TODO-P4.md` | [DONE] Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动 |
-| `P4-T05` | `TODO-P4.md` | [DONE] 新增 `dump-effect-facts` / snapshot 基线，并冻结 P4 -> P5 handoff contract |
-| `P4-T05R` | `TODO-P4.md` | [DONE] Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
-| `P4-T05a` | `TODO-P4.md` | [DONE] 把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff |
-| `P4-T05b` | `TODO-P4.md` | [DONE] 修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数 |
-| `P4-T06` | `TODO-P4.md` | [DONE] 为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema` |
-| `P5-T01` | `TODO-P5.md` | [DONE] 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |
-| `P5-T01R` | `TODO-P5.md` | [DONE] Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
-| `P5-T02` | `TODO-P5.md` | [DONE] 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
-| `P5-T02R` | `TODO-P5.md` | [DONE] Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定 |
-| `P5-T03` | `TODO-P5.md` | [DONE] 依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架 |
-| `P5-T03R` | `TODO-P5.md` | [DONE] Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动 |
-| `P5-T04` | `TODO-P5.md` | [DONE] 实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同 |
-| `P5-T04a` | `TODO-P5.md` | [DONE] 为 frame lifting 建立稳定的 MIR local 来源分类，避免把源码 `tmp*` local 误判为 compiler temporary |
-| `P5-T04R` | `TODO-P5.md` | [DONE] Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为 |
-| `P5-T04b` | `TODO-P5.md` | [DONE] 对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移 |
-| `P5-T05` | `TODO-P5.md` | [DONE] 物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering |
-| `P5-T05R` | `TODO-P5.md` | [DONE] Review `Step` / continuation 物化结果，确认没有第二套 ABI、没有 TLS 依赖、没有删减接口方法 |
-| `P5-T06` | `TODO-P5.md` | [DONE] 在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理 |
-| `P5-T06R` | `TODO-P5.md` | [DONE] Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析 |
-| `P5-T07` | `TODO-P5.md` | [DONE] 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
-| `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
-| `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
-| `P5-T07b` | `TODO-P5.md` | [DONE] 清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达 |
-| `P5-T08` | `TODO-P5.md` | [DONE] 让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳 |
-| `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
-| `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
-| `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
-| `P6-T01b` | `TODO-P6-part1.md` | [DONE] 扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状 |
-| `P6-T02` | `TODO-P6-part1.md` | [DONE] 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
-| `P6-T02a` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
-| `P6-T02b` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
-| `P6-T02R` | `TODO-P6-part1.md` | [DONE] Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
-| `P6-T02c` | `TODO-P6-part1.md` | [DONE] 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
-| `P6-T02d` | `TODO-P6-part1.md` | [DONE] 发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口 |
-| `P6-T02e` | `TODO-P6-part1.md` | [DONE] 发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径 |
-| `P6-T02f` | `TODO-P6-part1.md` | [DONE] 发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper |
-| `P6-T02g` | `TODO-P6-part1.md` | [DONE] 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
-| `P6-T02h` | `TODO-P6-part1.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
-| `P6-T02i` | `TODO-P6-part1.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
-| `P6-T02j` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
-| `P6-T02k` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02kR` | `TODO-P6-part1.md` | [DONE] Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02l` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
-| `P6-T02ma` | `TODO-P6-part1.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
-| `P6-T02m` | `TODO-P6-part2.md` | [DONE] 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
-| `P6-T02n` | `TODO-P6-part2.md` | [DONE] 清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层 |
-| `P6-T02o` | `TODO-P6-part2.md` | [DONE] 发布 statement/terminator anchored boundary operand contract，禁止 P6-T03 在 body emitter 现场回 raw MIR statement/terminator 恢复 `Call / Perform / Resume` 输入 |
-| `P6-T02p` | `TODO-P6-part2.md` | [DONE] 发布 callable version 选择 contract，禁止 P6-T03 在 backend 现场按 `root_fqn` / 单壳层假定选择 late-lowered body |
-| `P6-T02qa` | `TODO-P6-part2.md` | [DONE] 发布 escaped continuation aggregate/member write-read provenance contract，禁止 P6-T02q 在 late-lowered/ABI materialization 现场从 unresolved assign-lhs TODO 或 source shape 猜 `cell.k` 回读 continuation 的底层 surface route |
-| `P6-T02q` | `TODO-P6-part2.md` | [DONE] 发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema |
-| `P6-T02qb` | `TODO-P6-part2.md` | [DONE] 发布 cleanup/finally pending payload carrier contract，禁止 P6-T03 在 backend 现场发明 `ResumePayloadCarrier` 的 boxing / projection 规则 |
-| `P6-T02qc` | `TODO-P6-part2.md` | [DONE] 发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，禁止 P6-T03 在 shared surface body 现场反推 inverse dispatch |
-| `P6-T02qd` | `TODO-P6-part2.md` | [DONE] 发布 continuation resume payload -> resumed local/home 注入 contract，禁止 P6-T03 在 backend 现场回 canonical MIR 恢复 `PerformResult` / boundary-result 绑定 |
-| `P6-T02qe` | `TODO-P6-part2.md` | [DONE] 发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering |
-| `P6-T02qf` | `TODO-P6-part2.md` | [DONE] 把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path |
-| `P6-T02qg` | `TODO-P6-part2.md` | [DONE] 发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值 |
-| `P6-T02qga` | `TODO-P6-part3.md` | [DONE] 发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body |
-| `P6-T02qh` | `TODO-P6-part3.md` | [DONE] 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
-| `P6-T03` | `TODO-P6-part2.md` | [DONE] [ABANDONED] 旧单体 LLVM body lowering 任务，已拆分为 clean backend 小任务链 |
-| `P6-T03a` | `TODO-P6-part3.md` | [DONE] 固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive |
-| `P6-T03b` | `TODO-P6-part3.md` | [DONE] 发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义 |
-| `P6-T03c` | `TODO-P6-part3.md` | [DONE] 实现 refactor pure statement lowering，停止调用 legacy statement-level lowering |
-| `P6-T03d` | `TODO-P6-part3.md` | [DONE] 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
-| `P6-T03e` | `TODO-P6-part3.md` | [DONE] 闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper |
-| `P6-T03f` | `TODO-P6-part3.md` | [DONE] 闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward |
-| `P6-T03g` | `TODO-P6-part3.md` | [DONE] 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |
-| `P6-T03h` | `TODO-P6-part3.md` | [DONE] 闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon |
-| `P6-T03i` | `TODO-P6-part3.md` | [DONE] 闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件 |
-| `P6-T03R` | `TODO-P6-part3.md` | [DONE] Review clean LLVM body lowering，确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen |
-| `P6-T04` | `TODO-P6-part3.md` | [DONE] 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
-| `P6-T04R` | `TODO-P6-part3.md` | [DONE] Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖 |
-| `P6-T05` | `TODO-P6-part3.md` | [DONE] 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
-| `P6-T05a` | `TODO-P6-part3.md` | [DONE] 闭合 `NoOutward` plain callable 对本地 effect/control body 的 handoff，禁止 P6-T06 用 legacy fallback 或 complete-only `Step_F` 绕过 |
-| `P6-T06` | `TODO-P6-part3.md` | [DONE] 把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall |
-| `P6-T06R` | `TODO-P6-part3.md` | [DONE] Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归 |
-| `P6-T05R` | `TODO-P6-part3.md` | [DONE] Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
-| `P7-T01` | `TODO-P7.md` | [DONE] 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
-| `P7-T01R` | `TODO-P7.md` | [DONE] Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
-| `P7-T02` | `TODO-P7.md` | [DONE] 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
-| `P7-T02R` | `TODO-P7.md` | [DONE] Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |
-| `P7-T02T` | `TODO-P7.md` | [DONE] 发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞 |
-| `P7-T02S` | `TODO-P7.md` | [DONE] 修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞 |
-| `P7-T02U` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞 |
-| `P7-T02V` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞 |
-| `P7-T02W` | `TODO-P7.md` | [DONE] 闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞 |
-| `P7-T02X` | `TODO-P7.md` | [DONE] 闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞 |
-| `P7-T02Y` | `TODO-P7.md` | [DONE] 修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞 |
-| `P7-T02Za` | `TODO-P7.md` | [DONE] 闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞 |
-| `P7-T02Zb` | `TODO-P7.md` | [DONE] 闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞 |
-| `P7-T02Zc` | `TODO-P7.md` | [DONE] 发布 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract，解除 multi-function continuation resume schema 共享阻塞 |
-| `P7-T02Zd` | `TODO-P7.md` | [DONE] 闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞 |
-| `P7-T02Z` | `TODO-P7.md` | 闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级 |
-| `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
-| `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
-| `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |
-| `P7-T04R` | `TODO-P7.md` | Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression |
-| `P8-T01` | `TODO-P8.md` | 删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口 |
-| `P8-T01R` | `TODO-P8.md` | Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点 |
-| `P8-T02` | `TODO-P8.md` | 删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口 |
-| `P8-T02R` | `TODO-P8.md` | Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失 |
-| `P8-T03` | `TODO-P8.md` | 清理 tests / fixtures / docs 中的 legacy 主线残留，并把 compare 型资产改写为纯新主线回归 |
-| `P8-T03R` | `TODO-P8.md` | Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线 |
-| `P8-T04` | `TODO-P8.md` | 在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态 |
-| `P8-T04R` | `TODO-P8.md` | Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束 |
+## 全局约束
+
+- 本任务列表只覆盖 effect-refactor 新路径。
+- 旧 legacy path 可以保持现状，不得为了本阶段去修 legacy 行为。
+- 不得在旧 HIR/MIR 业务函数中加入 `if refactor { ... } else { ... }` 式混线逻辑。
+- 若共享实现不能做到完全中立单一 API，则为 refactor 新路径建立独立 stage/helper。
+- 每个任务完成时必须更新或新增定向测试；不要求运行 full fixtures。
+- 不得把 MIR/LLVM 后端缺口作为保留 HIR Todo 的理由。
+- `dump-hir --effect-pipeline refactor` 对 unsupported input 应失败并打印明确诊断，而不是输出含 Todo 的 HIR。
+- 所有 negative fixture 的错误消息必须能定位到用户源码 span，并说明该 surface 是延期、非法上下文、缺 typed metadata，还是当前 unsupported spec subset。
+- 每个任务如果发现新的 HIR placeholder reason，必须追加到 HIR completeness verifier 的清单或直接消除。
+
+## 任务索引
+
+| ID | 标题 |
+| --- | --- |
+| `HIR-T00` | 审计并冻结 refactor HIR placeholder inventory |
+| `HIR-T01` | 建立 refactor HIR no-Todo verifier 与 stage error 通道 |
+| `HIR-T02` | 在 parser 拒绝纯语法延期/非法 surface |
+| `HIR-T03` | 收口 comptime block/if/for 与 package-level comptime if |
+| `HIR-T04` | 收口 splice field `value.[field]` |
+| `HIR-T05` | 为 typealias/type/object/extension property 建立 HIR declaration graph |
+| `HIR-T06` | 收口 array literal、named/default/spread args 与 call arg canonicalization |
+| `HIR-T07` | 发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract |
+| `HIR-T08` | 收口 class literal 与 reflection/platform intrinsic HIR contract |
+| `HIR-T09` | 收口 `with` copy-update aggregate metadata |
+| `HIR-T10` | 建立 assignment LHS / HIR place contract |
+| `HIR-T11` | 收口 custom iterator for-loop 与 remaining debug fallbacks |
+| `HIR-T12` | 建立 top-level init/storage/object metadata handoff |
+| `HIR-T13` | 建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR |
+| `HIR-T14` | 冻结 HIR completeness 验证矩阵与阶段完成记录 |
+
+## HIR-T00：审计并冻结 refactor HIR placeholder inventory
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H0
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.1-§1.12
+- 目标：
+  - 找出所有可能在 refactor HIR handoff 中出现的 `Todo(...)` / `Missing` / fallback sentinel。
+  - 建立一份可执行 inventory，后续任务逐项清零。
+
+- 必须实现的内容：
+  1. 搜索并记录 `crates/scoopc/src/hir/**` 中所有 `ExprKind::Todo`、`StmtKind::Todo`、`Item::Todo` 构造点。
+  2. 搜索 refactor HIR stage 输出中是否还会携带来自 legacy `LoweredHir` 的 dump-only fallback。
+  3. 把每个 placeholder reason 分类为：parser 应拒绝、typecheck/comptime 应诊断、HIR 应实现、HIR handoff contract 应补齐、legacy-only 可忽略。
+  4. 在代码注释或测试 fixture 中固定 reason 清单，避免后续新增未分类 reason。
+  5. 明确哪些 reason 属于本阶段必须消除：`comptime_*`、`splice_field`、`class_lit`、`typealias`、`type`、`object`、`array_lit`、`spread_arg`、`named_arg`、`structured_concurrency_*`、`assign`、`with_update`、`missing_stmt`、`for_custom_iterator`、`extension_property_no_getter`。
+
+- 必须遵从的约束：
+  - 不修改 legacy output 以追求 inventory 通过。
+  - 不把 “后端还不支持” 写成 HIR placeholder 的保留理由。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`
+  - 额外搜索：`rg "ExprKind::Todo|StmtKind::Todo|Item::Todo" crates/scoopc/src/hir`
+
+- 完成条件：
+  - 当前所有 HIR placeholder 构造点都有处理策略。
+  - 可进入 `HIR-T01`。
+- 依赖：无
+
+## HIR-T01：建立 refactor HIR no-Todo verifier 与 stage error 通道
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H0, §2/H2
+- 目标：
+  - 让 refactor typed HIR stage 成功输出的前提变成“无 Todo、无 Missing、无缺 contract”。
+  - 把 HIR lowering 失败改成结构化 diagnostic，而不是 placeholder。
+
+- 必须实现的内容：
+  1. 新增 `RefactorHirCompletenessVerifier` 或等价 API。
+  2. verifier 遍历 `hir::File`、member fun side table、object init/top-level init roots、typed HIR effect/call/place/copy-update side tables。
+  3. 遇到 `Item::Todo`、`StmtKind::Todo`、`ExprKind::Todo`、`ExprKind::Missing`，或由 parser recovery 传入的 missing statement sentinel 时返回 `HirStageError`。
+  4. `HirStageError` 必须包含 source path、span、reason、所属 item/function。
+  5. refactor `dump-hir` 和所有 refactor HIR stage helper 默认执行 verifier。
+  6. legacy `dump-hir` 可继续走旧行为。
+
+- 必须遵从的约束：
+  - verifier 不能只扫描顶层 `File.items`，必须扫描所有下游可达 HIR body。
+  - 不允许通过跳过 side table/body 的方式绕过 verifier。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_no_todo`
+  - `cargo test -p scoop --no-default-features dump_hir`
+  - 构造一个测试输入触发每类 current placeholder，确认 refactor HIR stage 失败并给出 diagnostic。
+
+- 完成条件：
+  - refactor HIR stage 不可能成功产出含 Todo handoff。
+  - 可进入 `HIR-T02`。
+- 依赖：`HIR-T00`
+
+## HIR-T02：在 parser 拒绝纯语法延期/非法 surface
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H1
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §7.4
+- 目标：
+  - 不让纯语法即可判定为延期或非法上下文的 AST 进入 HIR。
+
+- 必须实现的内容：
+  1. parser 对 user-facing `spawn` 给出 deferred feature diagnostic。
+  2. parser 对 user-facing `join` 给出 deferred feature diagnostic。
+  3. parser 禁止 assignment expression 出现在表达式上下文；assignment 仅保留 statement form。
+  4. parser 禁止 `*arg` / spread arg 出现在 call argument list 之外。
+  5. parser 禁止 named arg 出现在 call argument list 之外。
+  6. parser diagnostics 必须说明当前 surface 不能进入 HIR，避免用户看到后端 unsupported。
+
+- 必须遵从的约束：
+  - 不拒绝 `comptime` 和 `value.[field]`，它们是本阶段必须支持的 spec surface。
+  - 不破坏已有合法 call arg 语法。
+
+- 验证：
+  - 新增 parse/typecheck negative fixtures：`spawn_deferred_is_error`、`join_deferred_is_error`、`assignment_expression_is_error`、`spread_arg_outside_call_is_error`、`named_arg_outside_call_is_error`。
+  - `cargo test -p scoopc --no-default-features parser_hir_surface_gate`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures <新增 fixtures>`
+
+- 完成条件：
+  - 上述 surface 不再能触达 refactor HIR lowering。
+  - 可进入 `HIR-T03`。
+- 依赖：`HIR-T01`
+
+## HIR-T03：收口 comptime block/if/for 与 package-level comptime if
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H3
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.1, §1.5
+- 目标：
+  - spec 支持的 comptime control flow 在进入 runtime HIR 前完成展开/裁剪。
+
+- 必须实现的内容：
+  1. 在 refactor HIR stage 前建立 comptime expansion pass，输入 typed/resolved AST 或等价 typed surface。
+  2. `comptime if` 求值为 true/false 后只保留选中 branch。
+  3. `comptime for` 遍历 compile-time collection 并展开为普通 statements/items。
+  4. `comptime block` 的 compile-time declarations / generated code 能进入后续 HIR lowering 输入。
+  5. package-level `comptime if` 展开为普通 top-level items。
+  6. expansion 失败时给出 source diagnostic，不生成 `comptime_*` Todo。
+  7. HIR verifier 增加断言：runtime HIR 中不得出现任何 comptime placeholder。
+
+- 必须遵从的约束：
+  - 不把 comptime control flow lower 成 runtime `if` / loop，除非 spec 语义明确要求。
+  - 不让后续 MIR/effect facts 再回 AST 做 expansion。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_comptime`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
+  - 新增 HIR fixtures 覆盖 function body `comptime if/for` 与 package-level `comptime if`。
+
+- 完成条件：
+  - `comptime_block`、`comptime_if`、`comptime_for`、`comptime_if_item` 不再出现在 refactor HIR handoff。
+  - 可进入 `HIR-T04`。
+- 依赖：`HIR-T02`
+
+## HIR-T04：收口 splice field `value.[field]`
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H3
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.2
+- 目标：
+  - `value.[field]` 在 HIR 中变成具体 typed field/member access。
+
+- 必须实现的内容：
+  1. typecheck/comptime 发布 splice field contract：receiver type、field name、field owner、field type、是否 mutable/place。
+  2. HIR lowering 直接消费该 contract，构造普通 `MemberAccess` 或 HIR place。
+  3. 对 string literal field、comptime variable field、reflection loop field 都建立覆盖。
+  4. field 无法静态解析时，diagnostic 要说明 `.[field]` 要求 compile-time known field name。
+  5. HIR verifier 禁止 `splice_field` reason。
+
+- 必须遵从的约束：
+  - MIR 不能再从 `SpliceField` AST shape 恢复 field。
+  - 不能把 unresolved splice field 降成 dynamic reflection fallback，除非 spec 明确支持且 HIR contract 已定义。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_splice_field`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
+  - 新增 unresolved splice negative fixture。
+
+- 完成条件：
+  - `ExprKind::Todo("splice_field")` 不再可达 refactor HIR。
+  - 可进入 `HIR-T05`。
+- 依赖：`HIR-T03`
+
+## HIR-T05：为 typealias/type/object/extension property 建立 HIR declaration graph
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.5
+- 目标：
+  - HIR file 能完整描述当前前端接受的 declaration，不再用 `Item::Todo` 占位。
+
+- 必须实现的内容：
+  1. 扩展 HIR `Item` 或新增 declaration side table，表达 typealias resolved form。
+  2. 表达 class/struct/enum/interface type declaration 的 nominal identity、kind、params、fields、constructors、member funcs、interfaces。
+  3. 表达 object declaration 的 singleton identity、member declarations、initializer root。
+  4. 表达 extension property getter/setter contract。
+  5. 缺 getter 且被读取的 extension property 在 typecheck/HIR stage 诊断，不再 `extension_property_no_getter`。
+  6. 更新 refactor HIR stable dump，展示 declaration graph 的关键字段。
+
+- 必须遵从的约束：
+  - 不要求 legacy HIR dump 改成新 declaration graph。
+  - 不把 type/object 的语义只留在 resolver/typecheck 私有表中。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_decls`
+  - 新增/更新 HIR fixtures 覆盖 typealias、class、struct、enum、interface、object、extension property。
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir <上述 fixtures>`
+
+- 完成条件：
+  - `Item::Todo("typealias" / "type" / "object" / "extension_property_no_getter")` 不再可达 refactor HIR。
+  - 可进入 `HIR-T06`。
+- 依赖：`HIR-T04`
+
+## HIR-T06：收口 array literal、named/default/spread args 与 call arg canonicalization
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.9, §3.10
+- 目标：
+  - HIR call sites 输出完整 ordered args，不让后端补 named/default/spread。
+  - array literal 无法推断时提前诊断。
+
+- 必须实现的内容：
+  1. 空 array literal 无 expected element type 时，typecheck/HIR stage 报错，不生成 `array_lit` Todo。
+  2. 非空 array literal 统一记录 target kind、element type、result type。
+  3. named args 在 typecheck 后写回 ordered arg mapping。
+  4. default args 在 HIR 中补齐为显式 expression 或 default thunk invocation contract。
+  5. spread args 仅在 vararg context 展开或构造 vararg array；非 vararg context 诊断。
+  6. class ctor、member、extension、generic function call 全部使用同一 arg binding contract。
+  7. 更新 HIR dump 显示 canonical arg order 与 default/spread 来源。
+
+- 必须遵从的约束：
+  - 不让 LLVM/raw MIR codegen 成为 named/default args 的唯一补齐点。
+  - 不把 `NamedArg` / `SpreadArg` raw syntax 作为普通 HIR expression 输出。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_call_args`
+  - fixtures 覆盖 empty array ok/error、function named/default、ctor named/default、member/extension/generic default、vararg/spread ok/error。
+
+- 完成条件：
+  - `array_lit`、`named_arg`、`spread_arg` placeholder 不再可达 refactor HIR。
+  - 可进入 `HIR-T07`。
+- 依赖：`HIR-T05`
+
+## HIR-T07：发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.7-§1.11, §3.7, §3.10
+- 目标：
+  - MIR lowering 不再从 callee 表达式形状、字符串 FQN 或成员名猜 call kind。
+
+- 必须实现的内容：
+  1. 在 typed HIR side table 中为每个 call site 发布 `CallSiteContract`。
+  2. contract 至少覆盖 direct top-level、member direct、extension、constructor、closure、fun value、fun ptr、virtual、interface、intrinsic、effect op、continuation resume。
+  3. dispatch contract 使用结构化 owner/member binding，不使用 `rsplit_once('.')` 作为语义来源。
+  4. ctor contract 包含 selected ctor、owner type、complete ordered args、default/named mapping。
+  5. continuation resume、perform、handle contract 继续以 stable site id/source key 发布，缺失即 HIR stage error。
+  6. GC/reflection/platform intrinsics 若 HIR 接受，必须标明 intrinsic kind 与 args contract。
+
+- 必须遵从的约束：
+  - refactor MIR stage 不得再依赖 legacy span/name guess 作为 authoritative source。
+  - 不在 HIR 阶段引入 StepSchema 或 late-lowered ABI。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_call_contracts`
+  - `dump-hir --effect-pipeline refactor` fixtures 覆盖 direct/fun-value/closure/virtual/interface/ctor/resume/perform/handle/intrinsic call。
+
+- 完成条件：
+  - 所有 call-like HIR site 都有下游可消费 provenance。
+  - 可进入 `HIR-T08`。
+- 依赖：`HIR-T06`
+
+## HIR-T08：收口 class literal 与 reflection/platform intrinsic HIR contract
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H6
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.3, §6.3
+- 目标：
+  - class literal 不再是 HIR Todo；runtime reflection fallback 有明确 HIR contract 或明确诊断。
+
+- 必须实现的内容：
+  1. 定义 HIR `ClassLiteral` / `TypeMetadataLiteral` 或等价 value primitive。
+  2. annotation/comptime context 按 v0 规则折叠为类型名字符串或 metadata constant。
+  3. runtime context 若允许，输出 source type、metadata kind、result type。
+  4. runtime context 若不允许，typecheck/HIR stage 诊断，不生成 Todo。
+  5. `nameOf<T>()`、`sizeOf<T>()`、`getPlatform()` 的 HIR intrinsic contract 必须明确 allowed context 与 fallback behavior。
+  6. HIR dump 显示 class literal/intrinsic contract。
+
+- 必须遵从的约束：
+  - 不以 LLVM lowering 尚未实现为理由删除 HIR contract。
+  - 不让 annotation-only 消费路径绕过 refactor HIR verifier。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_class_literal`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/annotation_args_const_expr_array_enum_classlit_ok.scoop`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/get_platform_runtime_ok.scoop`
+
+- 完成条件：
+  - `ExprKind::Todo("class_lit")` 不再可达 refactor HIR。
+  - 可进入 `HIR-T09`。
+- 依赖：`HIR-T07`
+
+## HIR-T09：收口 `with` copy-update aggregate metadata
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H7
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.12
+- 目标：
+  - copy-update 在 HIR 中有完整 aggregate/update contract，缺 metadata 不再 fallback Todo。
+
+- 必须实现的内容：
+  1. typecheck 发布 `WithUpdateContract`，包含 base type、aggregate kind、field/variant path、result type。
+  2. HIR lowering 强制消费该 contract。
+  3. struct、tuple、enum copy-update 都 lower 成稳定 HIR representation。
+  4. nested update path 明确 evaluation order 与 temporary/result binding。
+  5. unsupported aggregate kind 诊断。
+  6. HIR verifier 禁止 `with_update` reason。
+
+- 必须遵从的约束：
+  - 不允许缺 map 时降成 Any/Todo 再让 MIR/codegen 爆炸。
+  - 不为某个 aggregate shape 新开 codegen-only 特判绕过 HIR contract。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_with_update`
+  - 定向 fixtures 覆盖 `with_update_*` struct/tuple/enum/nested path 与 unsupported aggregate error。
+
+- 完成条件：
+  - `ExprKind::Todo("with_update")` 不再可达 refactor HIR。
+  - 可进入 `HIR-T10`。
+- 依赖：`HIR-T08`
+
+## HIR-T10：建立 assignment LHS / HIR place contract
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H7
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.6
+- 目标：
+  - 所有 refactor HIR assignment statement 都携带 typed place，不让 MIR 再产生 `assign lhs lowering pending`。
+
+- 必须实现的内容：
+  1. 定义 HIR `Place` 或 `AssignPlaceContract` side table。
+  2. 覆盖当前 typecheck 接受的 LHS：local var、top-level var、member field、index/property setter、safe-member setter。
+  3. 每个 place contract 包含 owner/binding、value type、mutability、write barrier/unsafe requirement 所需信息。
+  4. 未支持 place shape 由 typecheck/HIR stage 诊断。
+  5. assignment expression 在 `HIR-T02` 已 parser 拒绝；此任务只处理 statement assignment。
+  6. HIR dump 显示 place kind。
+
+- 必须遵从的约束：
+  - 不让 MIR 从 arbitrary expression tree 恢复 lvalue。
+  - 不把 unsupported setter/property shape 降成普通 member store。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_places`
+  - fixtures 覆盖 local/global/field/index/property/safe-member assignment 与 unsupported LHS error。
+
+- 完成条件：
+  - refactor MIR lowering 可只消费 place contract 生成 store。
+  - 可进入 `HIR-T11`。
+- 依赖：`HIR-T09`
+
+## HIR-T11：收口 custom iterator for-loop 与 remaining debug fallbacks
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H2
+- 目标：
+  - 清理 `missing_stmt`、`for_custom_iterator` 等非 spec 语义 placeholder。
+
+- 必须实现的内容：
+  1. parser 不应让 `ast::StmtKind::Missing` 进入成功 parse；若 recovery 产生 missing，refactor HIR stage 诊断。
+  2. custom iterator for-loop 必须强制依赖 typecheck 写回的 iterator/next contract。
+  3. contract 缺失时 HIR stage error，不能降成 `for_custom_iterator` Todo。
+  4. 若 custom iterator 当前 spec/typecheck 已支持，则 HIR lowering 必须展开为 while/when 或专用 HIR loop primitive。
+  5. 清查其它 debug fallback reason，逐一改为实现或诊断。
+
+- 必须遵从的约束：
+  - dump-only recovery 可以留在 legacy 路径，但 refactor production handoff 不能接受。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_for_loop`
+  - custom iterator ok/error fixtures。
+  - parser recovery negative fixture 确认 refactor HIR 不产出 missing stmt。
+
+- 完成条件：
+  - `missing_stmt`、`for_custom_iterator` 等 debug fallback 不再可达 refactor HIR。
+  - 可进入 `HIR-T12`。
+- 依赖：`HIR-T10`
+
+## HIR-T12：建立 top-level init/storage/object metadata handoff
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H8
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.4, §6.4
+- 目标：
+  - HIR program handoff 足以让下一阶段构建 top-level MIR roots，不再生成 top-level item Todo。
+
+- 必须实现的内容：
+  1. 为 top-level `val` / `var` 发布 initializer body contract。
+  2. 区分 const value、runtime immutable value、runtime mutable global。
+  3. object singleton initializer 进入 HIR init root graph。
+  4. type metadata / alias metadata 若需要 runtime init，进入 graph。
+  5. `@Extern` global variable contract 包含 external symbol name、linkage kind、TLS/global、initializer absence、unsafe access requirement。
+  6. 发布 dependency ordering 所需 facts。
+  7. 更新 HIR dump 显示 init/storage roots。
+
+- 必须遵从的约束：
+  - 不要求本任务实现 LLVM external global lowering。
+  - 不允许下一阶段只能回读 AST/HIR expr 私有字段补 init 语义。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_top_level_init`
+  - fixtures 覆盖 top-level val/var、const val、object init、extern global。
+
+- 完成条件：
+  - HIR handoff 已完整发布 top-level init/storage/object metadata。
+  - 可进入 `HIR-T13`。
+- 依赖：`HIR-T11`
+
+## HIR-T13：建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H9
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §2.1-§2.3
+- 目标：
+  - 在不要求 full fixtures 和 LLVM 的前提下，证明 HIR gap 不再流向下一阶段。
+
+- 必须实现的内容：
+  1. 新增 `refactor_hir_preflight` 测试入口或 internal API。
+  2. preflight 对所有 HIR completeness fixtures 执行 refactor typed HIR stage + no-Todo verifier。
+  3. preflight 检查 side tables 覆盖 call/resume/perform/handle/place/copy-update/top-level init roots。
+  4. 对少量代表性样本运行 refactor direct-style MIR stage，只检查没有 HIR-origin Todo 或 missing contract。
+  5. preflight 不能把后续已知 LLVM/codegen failure 计入本阶段 blocker。
+  6. 若 MIR stage 因后续非 HIR gap 失败，测试应明确标注 skip/known-later-stage，而不是降低 HIR gate。
+
+- 必须遵从的约束：
+  - 不运行 `cargo run -p scoop -- test` 全量矩阵。
+  - 不用 legacy path 证明 refactor HIR 完整。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_preflight`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir <HIR completeness fixture set>`
+  - 少量 `dump-mir --effect-pipeline refactor` smoke。
+
+- 完成条件：
+  - preflight 能阻止 HIR-origin Todo / missing contract 进入下一阶段。
+  - 可进入 `HIR-T14`。
+- 依赖：`HIR-T12`
+
+## HIR-T14：冻结 HIR completeness 验证矩阵与阶段完成记录
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4
+- 目标：
+  - 固化本阶段完成标准和后续阶段可依赖的 HIR handoff contract。
+
+- 必须实现的内容：
+  1. 在 `PLAN.md` 或专门 handoff 文档中记录最终 HIR invariants。
+  2. 更新 `TODO.md` 每个任务完成记录，列出实际变更、测试和剩余非 HIR gap。
+  3. 整理 HIR completeness fixture set，并说明为何不跑 full fixtures。
+  4. 搜索确认 refactor HIR stage 可达路径中没有 `Todo(...)` reason。
+  5. 明确后续 MIR/codegen gap 不属于 HIR stage blocker 的清单。
+
+- 必须遵从的约束：
+  - 不把“后续阶段仍失败”写成 HIR 阶段未完成，除非失败根因是 HIR contract 缺失。
+  - 不删除 legacy path，也不要求 legacy no-Todo。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_no_todo refactor_hir_preflight`
+  - `cargo test -p scoop --no-default-features dump_hir`
+  - `rg "Todo\(" crates/scoopc/src/hir crates/scoopc/src/effect_refactor_pipeline`，并确认命中要么 legacy-only、测试、verifier 禁用清单，要么不可达 refactor production handoff。
+
+- 完成条件：
+  - 可以明确宣布 HIR stage complete。
+  - 后续阶段可以把 refactor typed HIR handoff 当作完整输入。
+- 依赖：`HIR-T13`

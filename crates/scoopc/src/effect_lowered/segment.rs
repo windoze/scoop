@@ -5,7 +5,7 @@ use crate::mir::{
     BasicBlockId, Body, CallArg, CallKind, LocalId, Operand, Rvalue, SiteId, StatementKind,
     Terminator, TerminatorKind, UnwindAction,
 };
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::EffectLoweringError;
 use super::ir::{
@@ -366,6 +366,9 @@ impl<'a> SegmentationBuilder<'a> {
         boundary_anchor: Option<BoundaryAnchor>,
     ) -> Result<StateBlueprintTerminator, EffectLoweringError> {
         match &terminator.kind {
+            TerminatorKind::Return { value } if self.return_value_is_nothing(value) => {
+                Ok(StateBlueprintTerminator::Unreachable)
+            }
             TerminatorKind::Return { value } => Ok(StateBlueprintTerminator::Return {
                 payload_source: self.completion_payload_source(terminator, value)?,
             }),
@@ -419,6 +422,21 @@ impl<'a> SegmentationBuilder<'a> {
                 target: self.ensure_state(StateCursor::block_start(*resume_target), true),
             }),
         }
+    }
+
+    fn return_value_is_nothing(&self, value: &Option<Operand>) -> bool {
+        let Some(Operand::Local(local)) = value else {
+            return false;
+        };
+        self.body
+            .locals
+            .get(local.as_u32() as usize)
+            .is_some_and(|decl| {
+                matches!(
+                    self.types.kind(decl.ty),
+                    TypeKind::Value(ValueTypeKind::Nothing)
+                )
+            })
     }
 
     fn completion_payload_source(

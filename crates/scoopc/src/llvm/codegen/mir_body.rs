@@ -73,6 +73,15 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn mir_direct_call_base_fqn(fqn: &str) -> &str {
+    fqn.rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
+        .split_once("$overload")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
+}
+
 #[derive(Clone, Copy)]
 struct MirMemberFieldContract {
     field_cg: CgTy,
@@ -876,6 +885,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::Direct { callee_fqn } => {
                 if self.class_inits.contains_key(callee_fqn) {
                     return Some(CgTy::Ref);
+                }
+                if mir_direct_call_base_fqn(callee_fqn) == "scoop.core.size" {
+                    return Some(CgTy::Int(IntTy {
+                        bits: self.host.word_bit_width(),
+                        signed: true,
+                    }));
                 }
                 let fun = self.fun_index.get(callee_fqn).copied()?;
                 self.cg_ty_of(fun.return_ty)
@@ -4321,7 +4336,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn codegen_mir_plain_dynamic_call(
+    pub(super) fn codegen_mir_refactor_plain_dynamic_call(
         &mut self,
         span: crate::span::Span,
         kind: &crate::mir::CallKind,
@@ -4329,6 +4344,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         body: &crate::mir::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_plain_dynamic_call_with_policy(
+            span, kind, args, body, mir_types, slots, true,
+        )
+    }
+
+    fn codegen_mir_plain_dynamic_call_with_policy(
+        &mut self,
+        span: crate::span::Span,
+        kind: &crate::mir::CallKind,
+        args: &[crate::mir::CallArg],
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        allow_effect_typed_dispatch_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
             crate::mir::CallKind::Closure { callee, fn_ptr } => {
@@ -4388,11 +4418,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::CallKind::Virtual { receiver, dispatch } => {
                 let target = self.resolve_plain_virtual_dispatch_target(dispatch, args.len())?;
-                self.codegen_mir_plain_dispatch_call(span, receiver, args, slots, target)
+                self.codegen_mir_plain_dispatch_call(
+                    span,
+                    receiver,
+                    args,
+                    slots,
+                    target,
+                    allow_effect_typed_dispatch_signature,
+                )
             }
             crate::mir::CallKind::Interface { receiver, dispatch } => {
                 let target = self.resolve_plain_interface_dispatch_target(dispatch, args.len())?;
-                self.codegen_mir_plain_dispatch_call(span, receiver, args, slots, target)
+                self.codegen_mir_plain_dispatch_call(
+                    span,
+                    receiver,
+                    args,
+                    slots,
+                    target,
+                    allow_effect_typed_dispatch_signature,
+                )
             }
             crate::mir::CallKind::Direct { .. } | crate::mir::CallKind::Resume { .. } => {
                 Err(LlvmEmitError::UnsupportedMainBody {
@@ -4558,6 +4602,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         target: PlainDispatchTarget<'a>,
+        allow_effect_typed_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let sig_fun = target.sig_fun();
         if sig_fun.params.len() != args.len() + 1 {
@@ -4566,7 +4611,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        if self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty) {
+        if !allow_effect_typed_signature
+            && self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty)
+        {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor plain dispatch target may outward-effect",
                 at: span.into(),
@@ -4713,6 +4760,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _body: &crate::mir::Body,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_direct_call_with_policy(span, fqn, args, slots, false)
+    }
+
+    pub(super) fn codegen_mir_refactor_plain_direct_call(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_mir_direct_call_with_policy(span, fqn, args, slots, true)
+    }
+
+    fn codegen_mir_direct_call_with_policy(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        force_plain_abi: bool,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if let Some(value) = self.codegen_mir_sysroot_effect_intrinsic(span, fqn, args, slots)? {
             return Ok(value);
         }
@@ -4730,10 +4798,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        let call_may_suspend = self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
+        let call_may_suspend =
+            !force_plain_abi && self.known_fun_body_may_outward_effect(fqn, sig_fun.ty);
         let explicit_effect_call = call_may_suspend && !is_extern;
         let uses_hidden_incoming_resume_token =
-            self.top_level_fun_uses_hidden_incoming_resume_token(sig_fun);
+            !force_plain_abi && self.top_level_fun_uses_hidden_incoming_resume_token(sig_fun);
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {

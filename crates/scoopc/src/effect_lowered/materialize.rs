@@ -93,6 +93,8 @@ impl ContinuationRouteOwnerPlan {
 #[derive(Debug, Clone)]
 pub(crate) struct CrossCallableContinuationProvenance {
     member_routes_by_callee: HashMap<String, Vec<CrossCallableContinuationMemberRoute>>,
+    global_member_routes:
+        HashMap<GlobalContinuationMemberKey, Vec<CrossCallableGlobalContinuationMemberRoute>>,
 }
 
 impl CrossCallableContinuationProvenance {
@@ -102,12 +104,39 @@ impl CrossCallableContinuationProvenance {
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
+
+    fn routes_for_global_member(
+        &self,
+        receiver_fqn: &str,
+        member: &ContinuationMemberIdentityKey,
+    ) -> &[CrossCallableGlobalContinuationMemberRoute] {
+        let key = GlobalContinuationMemberKey {
+            receiver_fqn: receiver_fqn.to_string(),
+            member: member.clone(),
+        };
+        self.global_member_routes
+            .get(&key)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
 }
 
 #[derive(Debug, Clone)]
 struct CrossCallableContinuationMemberRoute {
     param_index: usize,
     member: ContinuationMemberIdentityKey,
+    path: Vec<PatternBindingStep>,
+    route: LateLoweredContinuationRoute,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct GlobalContinuationMemberKey {
+    receiver_fqn: String,
+    member: ContinuationMemberIdentityKey,
+}
+
+#[derive(Debug, Clone)]
+struct CrossCallableGlobalContinuationMemberRoute {
     path: Vec<PatternBindingStep>,
     route: LateLoweredContinuationRoute,
 }
@@ -263,6 +292,7 @@ impl PublishedContinuationProvenance {
         cross_callable: Option<&CrossCallableContinuationProvenance>,
     ) -> Result<Self, EffectLoweringError> {
         let mut provenance = Self::default();
+        let global_value_origins = build_global_value_origins(body);
 
         for (&site_id, site_facts) in body_facts.sites() {
             let SiteEffectFacts::Handle(handle_facts) = site_facts else {
@@ -404,7 +434,11 @@ impl PublishedContinuationProvenance {
         }
 
         if let Some(cross_callable) = cross_callable {
-            provenance.add_cross_callable_member_routes(body, cross_callable);
+            provenance.add_cross_callable_member_routes(
+                body,
+                cross_callable,
+                &global_value_origins,
+            );
         }
 
         for block in &body.blocks {
@@ -454,9 +488,34 @@ impl PublishedContinuationProvenance {
         &mut self,
         body: &Body,
         cross_callable: &CrossCallableContinuationProvenance,
+        global_value_origins: &HashMap<LocalId, String>,
     ) {
         for block in &body.blocks {
             for stmt in &block.stmts {
+                if let StatementKind::Assign {
+                    target: _,
+                    value:
+                        Rvalue::MemberAccess {
+                            receiver: Operand::Local(receiver_local),
+                            member,
+                            ..
+                        },
+                } = &stmt.kind
+                    && let Some(receiver_fqn) = global_value_origins.get(receiver_local)
+                {
+                    let key = ContinuationMemberKey::from_metadata(*receiver_local, member);
+                    for route in cross_callable.routes_for_global_member(receiver_fqn, &key.member)
+                    {
+                        self.member_store_routes
+                            .entry(key.clone())
+                            .or_default()
+                            .push(PublishedMemberStoreRoute::Resolved {
+                                path: route.path.clone(),
+                                route: route.route.clone(),
+                            });
+                    }
+                }
+
                 let StatementKind::Assign {
                     value:
                         Rvalue::Call {
@@ -829,6 +888,10 @@ pub(crate) fn build_cross_callable_continuation_provenance(
 ) -> Result<CrossCallableContinuationProvenance, EffectLoweringError> {
     let mut member_routes_by_callee: HashMap<String, Vec<CrossCallableContinuationMemberRoute>> =
         HashMap::new();
+    let mut global_member_routes: HashMap<
+        GlobalContinuationMemberKey,
+        Vec<CrossCallableGlobalContinuationMemberRoute>,
+    > = HashMap::new();
 
     for family in pass_view.instances() {
         let root_fqn = family.root_fqn();
@@ -852,15 +915,14 @@ pub(crate) fn build_cross_callable_continuation_provenance(
             owner_plan.continuation_object,
             None,
         )?;
+        let global_value_origins = build_global_value_origins(body);
 
         for (key, publications) in &provenance.member_store_routes {
-            let Some(param_index) = fun
+            let global_receiver = global_value_origins.get(&key.receiver_local).cloned();
+            let param_index = fun
                 .params
                 .iter()
-                .position(|param| param.local == key.receiver_local)
-            else {
-                continue;
-            };
+                .position(|param| param.local == key.receiver_local);
             for publication in publications {
                 let PublishedMemberStoreRoute::Unique(route) = publication else {
                     continue;
@@ -873,15 +935,29 @@ pub(crate) fn build_cross_callable_continuation_provenance(
                     &mut HashSet::new(),
                 )?;
                 for source_route in source_routes {
-                    member_routes_by_callee
-                        .entry(root_fqn.to_string())
-                        .or_default()
-                        .push(CrossCallableContinuationMemberRoute {
-                            param_index,
-                            member: key.member.clone(),
-                            path: route.path.clone(),
-                            route: source_route,
-                        });
+                    if let Some(param_index) = param_index {
+                        member_routes_by_callee
+                            .entry(root_fqn.to_string())
+                            .or_default()
+                            .push(CrossCallableContinuationMemberRoute {
+                                param_index,
+                                member: key.member.clone(),
+                                path: route.path.clone(),
+                                route: source_route.clone(),
+                            });
+                    }
+                    if let Some(receiver_fqn) = &global_receiver {
+                        global_member_routes
+                            .entry(GlobalContinuationMemberKey {
+                                receiver_fqn: receiver_fqn.clone(),
+                                member: key.member.clone(),
+                            })
+                            .or_default()
+                            .push(CrossCallableGlobalContinuationMemberRoute {
+                                path: route.path.clone(),
+                                route: source_route,
+                            });
+                    }
                 }
             }
         }
@@ -889,7 +965,55 @@ pub(crate) fn build_cross_callable_continuation_provenance(
 
     Ok(CrossCallableContinuationProvenance {
         member_routes_by_callee,
+        global_member_routes,
     })
+}
+
+fn build_global_value_origins(body: &Body) -> HashMap<LocalId, String> {
+    let mut origins = HashMap::new();
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let StatementKind::Assign { target, value } = &stmt.kind else {
+                continue;
+            };
+            match value {
+                Rvalue::TopLevelRef(top) => {
+                    origins.insert(*target, top.fqn.clone());
+                }
+                Rvalue::Use(Operand::Local(source)) => {
+                    if let Some(origin) = origins.get(source).cloned() {
+                        origins.insert(*target, origin);
+                    }
+                }
+                Rvalue::MemberAccess {
+                    receiver: Operand::Local(receiver),
+                    member,
+                    ..
+                } => {
+                    let Some(receiver_origin) = origins.get(receiver) else {
+                        continue;
+                    };
+                    let Some(member_fqn) = member_value_fqn(member) else {
+                        continue;
+                    };
+                    if member_fqn.starts_with(receiver_origin)
+                        && member_fqn.as_bytes().get(receiver_origin.len()) == Some(&b'.')
+                    {
+                        origins.insert(*target, member_fqn.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    origins
+}
+
+fn member_value_fqn(member: &MemberAccessMetadata) -> Option<&str> {
+    match member.resolved.as_ref()? {
+        MemberTarget::Value { fqn } | MemberTarget::ExtensionValue { fqn } => Some(fqn.as_str()),
+        MemberTarget::Fun { .. } | MemberTarget::ExtensionFun { .. } => None,
+    }
 }
 
 fn push_local_origin(
