@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir::{
-    CallArg, CallSite, Decl, DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind,
-    HirLowerError, HirStageError, Item, LoweredHir, Stmt, StmtKind, ValueRef,
+    AssignPlaceContract, AssignPlaceKind, CallArg, CallSite, Decl, DispatchCallKind, Expr,
+    ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item, LoweredHir, Stmt,
+    StmtKind, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -652,6 +653,7 @@ pub struct TypedHirEffectContracts {
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
     with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
+    assign_place_contracts: HashMap<CallSite, AssignPlaceContract>,
 }
 
 impl TypedHirEffectContracts {
@@ -674,6 +676,7 @@ impl TypedHirEffectContracts {
             && self.call_site_kinds.is_empty()
             && self.call_site_contracts.is_empty()
             && self.with_update_contracts.is_empty()
+            && self.assign_place_contracts.is_empty()
     }
 
     pub fn function_effects(&self) -> &[FunctionEffectContract] {
@@ -725,6 +728,10 @@ impl TypedHirEffectContracts {
 
     pub fn with_update_contracts(&self) -> &HashMap<CallSite, ast::WithUpdateContract> {
         &self.with_update_contracts
+    }
+
+    pub fn assign_place_contracts(&self) -> &HashMap<CallSite, AssignPlaceContract> {
+        &self.assign_place_contracts
     }
 
     /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
@@ -780,6 +787,14 @@ impl TypedHirEffectContracts {
         let _ = writeln!(out, "    with_update_contracts: [");
         for (call_site, contract) in with_update_contracts {
             format_with_update_contract(&mut out, types, call_site, contract);
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut assign_place_contracts = self.assign_place_contracts.iter().collect::<Vec<_>>();
+        assign_place_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    assign_place_contracts: [");
+        for (call_site, contract) in assign_place_contracts {
+            format_assign_place_contract(&mut out, types, call_site, contract);
         }
         let _ = writeln!(out, "    ],");
 
@@ -1019,6 +1034,7 @@ struct ContractCollector<'a> {
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
     with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
+    assign_place_contracts: HashMap<CallSite, AssignPlaceContract>,
 }
 
 impl<'a> ContractCollector<'a> {
@@ -1033,6 +1049,7 @@ impl<'a> ContractCollector<'a> {
             call_site_kinds: HashMap::new(),
             call_site_contracts: HashMap::new(),
             with_update_contracts: lowered_hir.with_update_contracts.clone(),
+            assign_place_contracts: lowered_hir.assign_place_contracts.clone(),
         }
     }
 
@@ -1056,6 +1073,7 @@ impl<'a> ContractCollector<'a> {
             call_site_kinds: self.call_site_kinds,
             call_site_contracts: self.call_site_contracts,
             with_update_contracts: self.with_update_contracts,
+            assign_place_contracts: self.assign_place_contracts,
         })
     }
 
@@ -1713,6 +1731,87 @@ fn format_required_effects(
         terms.push(runtime_error_effect_ty);
     }
     format_effect_row(types, &EffectRow::new(terms))
+}
+
+fn format_assign_place_contract(
+    out: &mut String,
+    types: &TypeStore,
+    call_site: &CallSite,
+    contract: &AssignPlaceContract,
+) {
+    let _ = writeln!(out, "        AssignPlaceContract {{");
+    let _ = writeln!(out, "            span: {:?},", call_site.span);
+    match &contract.kind {
+        AssignPlaceKind::Local {
+            id,
+            name,
+            decl_span,
+        } => {
+            let _ = writeln!(out, "            kind: Local,");
+            let _ = writeln!(out, "            id: {:?},", id);
+            let _ = writeln!(out, "            name: {:?},", name);
+            let _ = writeln!(out, "            decl_span: {:?},", decl_span);
+        }
+        AssignPlaceKind::TopLevel { id, fqn } => {
+            let _ = writeln!(out, "            kind: TopLevel,");
+            let _ = writeln!(out, "            id: {:?},", id);
+            let _ = writeln!(out, "            fqn: {:?},", fqn);
+        }
+        AssignPlaceKind::Member {
+            receiver_ty,
+            owner_fqn,
+            member_fqn,
+            member_name,
+            member_span,
+            resolved,
+        } => {
+            let _ = writeln!(out, "            kind: Member,");
+            let _ = writeln!(
+                out,
+                "            receiver_ty: {},",
+                types.display(*receiver_ty)
+            );
+            let _ = writeln!(out, "            owner_fqn: {:?},", owner_fqn);
+            let _ = writeln!(out, "            member_fqn: {:?},", member_fqn);
+            let _ = writeln!(out, "            member_name: {:?},", member_name);
+            let _ = writeln!(out, "            member_span: {:?},", member_span);
+            let _ = writeln!(out, "            resolved: {:?},", resolved);
+        }
+    }
+    let _ = writeln!(
+        out,
+        "            place_ty: {},",
+        format_type_id_lossy(types, contract.place_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            value_ty: {},",
+        format_type_id_lossy(types, contract.value_ty)
+    );
+    let _ = writeln!(out, "            mutable: {},", contract.mutable);
+    let _ = writeln!(
+        out,
+        "            write_barrier: {},",
+        format_assign_write_barrier(types, &contract.write_barrier)
+    );
+    let _ = writeln!(
+        out,
+        "            unsafe_required: {},",
+        contract.unsafe_required
+    );
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_assign_write_barrier(
+    types: &TypeStore,
+    requirement: &ast::AssignWriteBarrierRequirement,
+) -> String {
+    match requirement {
+        ast::AssignWriteBarrierRequirement::NotRequired => "NotRequired".to_string(),
+        ast::AssignWriteBarrierRequirement::StorageSlot { slot_ty } => {
+            format!("StorageSlot({})", format_type_id_lossy(types, *slot_ty))
+        }
+    }
 }
 
 fn format_with_update_contract(
@@ -2752,6 +2851,113 @@ fun use(pair: (Point, (Int, Int)), r: Result): Int {
     }
 
     #[test]
+    fn refactor_hir_places_publish_assignment_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_places.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+@ThreadLocal
+var G: Int = 0
+
+class Box(var value: Int)
+
+fun entry(box: Box): Int {
+    var x: Int = 1
+    x = 2
+    G = x
+    box.value = G
+    return box.value
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("assignment places should lower through HIR");
+        let contracts = output.effect_contracts().assign_place_contracts();
+        assert_eq!(contracts.len(), 3, "{contracts:#?}");
+        assert!(contracts.values().any(|contract| matches!(
+            &contract.kind,
+            crate::hir::AssignPlaceKind::Local { name, .. } if name == "x"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            &contract.kind,
+            crate::hir::AssignPlaceKind::TopLevel { fqn, .. } if fqn == "sample.G"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            &contract.kind,
+            crate::hir::AssignPlaceKind::Member { member_fqn, .. } if member_fqn == "sample.Box.value"
+        )));
+
+        let dump = output.stable_dump();
+        assert!(
+            dump.contains("AssignPlaceContract")
+                && dump.contains("kind: Local")
+                && dump.contains("kind: TopLevel")
+                && dump.contains("kind: Member"),
+            "place contracts should be visible in typed HIR dump: {dump}"
+        );
+
+        let facts = crate::mir::MirLoweringFacts::from_refactor_typed_handoff(
+            output.lowered_hir(),
+            output.effect_contracts(),
+        );
+        let mut types = output.lowered_hir().types.clone();
+        let mir = crate::mir::lower_hir_file_for_dump_with_facts(
+            output.lowered_hir().builtins,
+            &mut types,
+            output.hir_file(),
+            &output.lowered_hir().member_funs,
+            &facts,
+        );
+        let mut saw_top_level_store = false;
+        let mut saw_member_store = false;
+        for item in &mir.items {
+            let crate::mir::Item::Fun(fun) = item else {
+                continue;
+            };
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+                assert!(
+                    !matches!(
+                        stmt.kind,
+                        crate::mir::StatementKind::Todo("assign lhs lowering pending")
+                    ),
+                    "refactor MIR should consume assignment place contracts: {mir:#?}"
+                );
+                match &stmt.kind {
+                    crate::mir::StatementKind::StoreTopLevelVar { fqn, .. }
+                        if fqn == "sample.G" =>
+                    {
+                        saw_top_level_store = true;
+                    }
+                    crate::mir::StatementKind::StoreMember { member, .. }
+                        if matches!(
+                            member.resolved.as_ref(),
+                            Some(crate::mir::MemberTarget::Value { fqn })
+                                if fqn == "sample.Box.value"
+                        ) =>
+                    {
+                        saw_member_store = true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert!(
+            saw_top_level_store,
+            "top-level assignment store missing: {mir:#?}"
+        );
+        assert!(
+            saw_member_store,
+            "member assignment store missing: {mir:#?}"
+        );
+    }
+
+    #[test]
     fn refactor_hir_class_literal_and_intrinsic_contracts() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(
@@ -3065,6 +3271,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     ],
     with_update_contracts: [
     ],
+    assign_place_contracts: [
+    ],
     continuation_resume_sites: [
         ContinuationResumeSiteContract {
             span: 168..178,
@@ -3162,6 +3370,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         },
     ],
     with_update_contracts: [
+    ],
+    assign_place_contracts: [
     ],
     continuation_resume_sites: [
     ],

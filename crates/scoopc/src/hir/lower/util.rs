@@ -531,6 +531,7 @@ pub(super) fn collect_object_inits(
     CtorCallSiteIndex,
     crate::hir::DispatchCallSiteIndex,
     crate::hir::WithUpdateSiteIndex,
+    crate::hir::AssignPlaceSiteIndex,
 ) {
     let InitCollectionCx {
         source,
@@ -595,14 +596,18 @@ pub(super) fn collect_object_inits(
         }
     }
 
+    ctx.record_missing_assign_place_contracts_in_object_inits(&out);
+
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
     let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+    let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
     (
         out,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
+        assign_place_contracts,
     )
 }
 
@@ -710,6 +715,7 @@ pub(super) fn collect_class_inits(
     CtorCallSiteIndex,
     crate::hir::DispatchCallSiteIndex,
     crate::hir::WithUpdateSiteIndex,
+    crate::hir::AssignPlaceSiteIndex,
 ) {
     let InitCollectionCx {
         source,
@@ -773,14 +779,17 @@ pub(super) fn collect_class_inits(
             | ast::Item::ComptimeIf(_) => {}
         }
     }
+    ctx.record_missing_assign_place_contracts_in_class_inits(&out);
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
     let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+    let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
     (
         out,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
+        assign_place_contracts,
     )
 }
 

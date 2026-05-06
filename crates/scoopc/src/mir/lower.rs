@@ -55,6 +55,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
+    refactor_assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
     top_level_ref_hidden_effects: HashMap<String, EffectRow>,
@@ -76,6 +77,7 @@ impl Default for MirLoweringFacts {
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
             refactor_dispatch_sites: HashMap::new(),
+            refactor_assign_places: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
             top_level_ref_hidden_effects: HashMap::new(),
@@ -319,6 +321,7 @@ impl MirLoweringFacts {
         self.refactor_perform_sites.clear();
         self.refactor_handle_sites.clear();
         self.refactor_dispatch_sites.clear();
+        self.refactor_assign_places.clear();
 
         for (call_site, contract) in contracts.continuation_resume_sites() {
             self.refactor_resume_sites.insert(
@@ -391,6 +394,9 @@ impl MirLoweringFacts {
                 .insert(call_site.clone(), refactor_dispatch_call_info(kind, member));
         }
 
+        self.refactor_assign_places
+            .extend(contracts.assign_place_contracts().clone());
+
         self
     }
 
@@ -420,6 +426,15 @@ impl MirLoweringFacts {
     ) -> Option<&RefactorDispatchCallInfo> {
         self.refactor_dispatch_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
+    }
+
+    fn refactor_assign_place_contract(
+        &self,
+        source_path: &std::path::Path,
+        assign_span: Span,
+    ) -> Option<&hir::AssignPlaceContract> {
+        self.refactor_assign_places
+            .get(&hir::CallSite::new(source_path.to_path_buf(), assign_span))
     }
 
     fn top_level_fun_call_binding(
@@ -1702,6 +1717,11 @@ impl<'a> FnLowering<'a> {
 
     /// 降低一个赋值语句。
     fn lower_assign_stmt(&mut self, span: Span, lhs: &hir::Expr, rhs: &hir::Expr) {
+        if self.facts.uses_refactor_typed_contracts() {
+            self.lower_assign_stmt_with_place_contract(span, lhs, rhs);
+            return;
+        }
+
         match &lhs.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
                 let Some(target) = self.symbol_locals.get(id).copied() else {
@@ -1767,6 +1787,127 @@ impl<'a> FnLowering<'a> {
             _ => {
                 self.push_stmt(span, StatementKind::Todo("assign lhs lowering pending"));
             }
+        }
+    }
+
+    fn lower_assign_stmt_with_place_contract(
+        &mut self,
+        span: Span,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) {
+        let Some(contract) = self
+            .facts
+            .refactor_assign_place_contract(self.source_path.as_path(), span)
+            .cloned()
+        else {
+            self.push_stmt(span, StatementKind::Todo("assign place contract missing"));
+            return;
+        };
+
+        match &contract.kind {
+            hir::AssignPlaceKind::Local { id, .. } => {
+                let Some(target) = self.symbol_locals.get(id).copied() else {
+                    self.push_stmt(span, StatementKind::Todo("assign place local missing"));
+                    return;
+                };
+
+                let value = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                if self.boxed_symbols.contains(id) {
+                    let tmp = self.push_temp_local(span, self.builtins.unit);
+                    self.assign(
+                        span,
+                        tmp,
+                        Rvalue::CaptureBoxSet {
+                            box_operand: Operand::Local(target),
+                            value: Operand::Local(value),
+                        },
+                    );
+                } else {
+                    self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+                }
+            }
+            hir::AssignPlaceKind::TopLevel { fqn, .. } => {
+                let value_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                self.push_stmt(
+                    span,
+                    StatementKind::StoreTopLevelVar {
+                        fqn: fqn.clone(),
+                        value: Operand::Local(value_local),
+                        value_ty: contract.value_ty,
+                    },
+                );
+            }
+            hir::AssignPlaceKind::Member {
+                receiver_ty,
+                member_name,
+                resolved,
+                ..
+            } => {
+                let hir::ExprKind::MemberAccess { receiver, .. } = &lhs.kind else {
+                    self.push_stmt(
+                        span,
+                        StatementKind::Todo("assign place member receiver missing"),
+                    );
+                    return;
+                };
+                let receiver_local = self.lower_expr_to_local(receiver);
+                if self.current_is_terminated() {
+                    return;
+                }
+                let value_local = self.lower_expr_to_local(rhs);
+                if self.current_is_terminated() {
+                    return;
+                }
+                self.push_stmt(
+                    span,
+                    StatementKind::StoreMember {
+                        receiver: Operand::Local(receiver_local),
+                        member: self.assign_place_member_metadata(
+                            member_name,
+                            *receiver_ty,
+                            resolved.as_ref(),
+                        ),
+                        value: Operand::Local(value_local),
+                        value_ty: contract.value_ty,
+                        continuation_route: self.extract_stored_continuation_route(rhs),
+                    },
+                );
+            }
+        }
+    }
+
+    fn assign_place_member_metadata(
+        &self,
+        member_name: &str,
+        receiver_ty: TypeId,
+        resolved: Option<&hir::MemberRef>,
+    ) -> MemberAccessMetadata {
+        let resolved = resolved.map(|resolved| match resolved {
+            hir::MemberRef::Value { fqn, .. } => MemberTarget::Value { fqn: fqn.clone() },
+            hir::MemberRef::Fun { fqn, .. } => MemberTarget::Fun { fqn: fqn.clone() },
+            hir::MemberRef::ExtensionValue { fqn, .. } => {
+                MemberTarget::ExtensionValue { fqn: fqn.clone() }
+            }
+            hir::MemberRef::ExtensionFun { fqn, .. } => {
+                MemberTarget::ExtensionFun { fqn: fqn.clone() }
+            }
+        });
+        let hidden_effects = match &resolved {
+            Some(MemberTarget::Value { fqn }) => self.facts.object_member_hidden_effects(fqn),
+            _ => EffectRow::pure(),
+        };
+        MemberAccessMetadata {
+            name: member_name.to_string(),
+            receiver_ty,
+            resolved,
+            hidden_effects,
         }
     }
 

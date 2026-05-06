@@ -12,8 +12,9 @@ use super::ValScope;
 use super::types::ExpectedExpr;
 
 use super::super::{
-    Block, CallArg, Expr, ExprKind, LiteralKind, MemberAccess, MemberRef, Stmt, StmtKind, ValDecl,
-    ValueRef,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, ClassInit, ClassInitStep, Expr, ExprKind,
+    File, FunDecl, HandleExpr, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
+    ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
 
 impl<'a> HirLowering<'a> {
@@ -278,6 +279,7 @@ impl<'a> HirLowering<'a> {
                         (StmtKind::Expr(call), self.builtins.unit)
                     } else {
                         let lhs = self.lower_expr(pkg_prefix, lhs);
+                        self.record_assign_place_contract(s.span, e.span, &lhs);
                         let rhs = self.lower_expr(pkg_prefix, rhs);
                         (
                             StmtKind::Assign {
@@ -335,6 +337,394 @@ impl<'a> HirLowering<'a> {
             span: s.span,
             ty,
             kind,
+        }
+    }
+
+    fn record_assign_place_contract(&mut self, stmt_span: Span, assign_span: Span, lhs: &Expr) {
+        let Some(typechecked) = self.typechecked_assign_place_contract(assign_span) else {
+            return;
+        };
+
+        let kind = match (&typechecked.kind, &lhs.kind) {
+            (
+                ast::AssignPlaceContractKind::Local { .. },
+                ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            ) => AssignPlaceKind::Local {
+                id: *id,
+                name: name.clone(),
+                decl_span: *decl_span,
+            },
+            (
+                ast::AssignPlaceContractKind::TopLevel { .. },
+                ExprKind::VarRef(ValueRef::TopLevel { id, fqn }),
+            ) => AssignPlaceKind::TopLevel {
+                id: *id,
+                fqn: fqn.clone(),
+            },
+            (
+                ast::AssignPlaceContractKind::Member {
+                    owner_fqn,
+                    member_fqn,
+                    member_name,
+                    receiver_ty,
+                },
+                ExprKind::MemberAccess { receiver, member },
+            ) => AssignPlaceKind::Member {
+                receiver_ty: receiver_ty.unwrap_or(receiver.ty),
+                owner_fqn: owner_fqn.clone(),
+                member_fqn: member_fqn.clone(),
+                member_name: member_name.clone(),
+                member_span: member.span,
+                resolved: member.resolved.clone(),
+            },
+            _ => return,
+        };
+
+        self.assign_place_contracts.insert(
+            self.call_site(stmt_span),
+            AssignPlaceContract {
+                span: stmt_span,
+                kind,
+                place_ty: typechecked.place_ty,
+                value_ty: typechecked.value_ty,
+                mutable: typechecked.mutable,
+                write_barrier: typechecked.write_barrier,
+                unsafe_required: typechecked.unsafe_required,
+            },
+        );
+    }
+
+    fn typechecked_assign_place_contract(
+        &mut self,
+        assign_span: Span,
+    ) -> Option<ast::AssignPlaceContract> {
+        let typecheck_types = self.typecheck_types?;
+        let contract = self.file.assign_place_contract(assign_span)?;
+        Some(self.re_intern_assign_place_contract(typecheck_types, contract))
+    }
+
+    fn re_intern_assign_place_contract(
+        &mut self,
+        typecheck_types: &crate::ty::TypeStore,
+        contract: ast::AssignPlaceContract,
+    ) -> ast::AssignPlaceContract {
+        let place_ty = self
+            .types
+            .re_intern_from(typecheck_types, contract.place_ty);
+        let value_ty = self
+            .types
+            .re_intern_from(typecheck_types, contract.value_ty);
+        let write_barrier = match contract.write_barrier {
+            ast::AssignWriteBarrierRequirement::NotRequired => {
+                ast::AssignWriteBarrierRequirement::NotRequired
+            }
+            ast::AssignWriteBarrierRequirement::StorageSlot { slot_ty } => {
+                let slot_ty = self.types.re_intern_from(typecheck_types, slot_ty);
+                ast::AssignWriteBarrierRequirement::StorageSlot {
+                    slot_ty: self.apply_active_type_param_bindings(slot_ty),
+                }
+            }
+        };
+        let kind = match contract.kind {
+            ast::AssignPlaceContractKind::Member {
+                owner_fqn,
+                member_fqn,
+                member_name,
+                receiver_ty,
+            } => ast::AssignPlaceContractKind::Member {
+                owner_fqn,
+                member_fqn,
+                member_name,
+                receiver_ty: receiver_ty
+                    .map(|ty| self.types.re_intern_from(typecheck_types, ty))
+                    .map(|ty| self.apply_active_type_param_bindings(ty)),
+            },
+            ast::AssignPlaceContractKind::Local { name, decl_span } => {
+                ast::AssignPlaceContractKind::Local { name, decl_span }
+            }
+            ast::AssignPlaceContractKind::TopLevel { fqn } => {
+                ast::AssignPlaceContractKind::TopLevel { fqn }
+            }
+        };
+
+        ast::AssignPlaceContract {
+            kind,
+            place_ty: self.apply_active_type_param_bindings(place_ty),
+            value_ty: self.apply_active_type_param_bindings(value_ty),
+            mutable: contract.mutable,
+            write_barrier,
+            unsafe_required: contract.unsafe_required,
+        }
+    }
+
+    pub(super) fn record_missing_assign_place_contracts_in_file(&mut self, file: &File) {
+        for item in &file.items {
+            match item {
+                Item::Fun(fun) => {
+                    if let Some(body) = &fun.body {
+                        self.record_missing_assign_place_contracts_in_block(body);
+                    }
+                }
+                Item::Val(val) => {
+                    if let Some(init) = &val.init {
+                        self.record_missing_assign_place_contracts_in_expr(init);
+                    }
+                }
+                Item::Todo { .. } => {}
+            }
+        }
+    }
+
+    pub(super) fn record_missing_assign_place_contracts_in_funs(&mut self, funs: &[FunDecl]) {
+        for fun in funs {
+            if let Some(body) = &fun.body {
+                self.record_missing_assign_place_contracts_in_block(body);
+            }
+        }
+    }
+
+    pub(super) fn record_missing_assign_place_contracts_in_object_inits(
+        &mut self,
+        inits: &std::collections::HashMap<String, ObjectInit>,
+    ) {
+        for init in inits.values() {
+            for step in &init.steps {
+                match step {
+                    ObjectInitStep::PropertyInit { init, .. } => {
+                        self.record_missing_assign_place_contracts_in_expr(init);
+                    }
+                    ObjectInitStep::InitBlock { block } => {
+                        self.record_missing_assign_place_contracts_in_block(block);
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn record_missing_assign_place_contracts_in_class_inits(
+        &mut self,
+        inits: &std::collections::HashMap<String, ClassInit>,
+    ) {
+        for init in inits.values() {
+            for arg in &init.super_ctor_args {
+                self.record_missing_assign_place_contracts_in_call_arg(arg);
+            }
+            for step in &init.steps {
+                match step {
+                    ClassInitStep::PropertyInit { init, .. } => {
+                        self.record_missing_assign_place_contracts_in_expr(init);
+                    }
+                    ClassInitStep::InitBlock { block } => {
+                        self.record_missing_assign_place_contracts_in_block(block);
+                    }
+                }
+            }
+            for ctor in &init.ctors {
+                for param in &ctor.params {
+                    if let Some(default_value) = &param.default_value {
+                        self.record_missing_assign_place_contracts_in_expr(default_value);
+                    }
+                }
+                if let Some(delegation) = &ctor.delegation {
+                    for arg in &delegation.args {
+                        self.record_missing_assign_place_contracts_in_call_arg(arg);
+                    }
+                }
+                if let Some(body) = &ctor.body {
+                    self.record_missing_assign_place_contracts_in_block(body);
+                }
+            }
+        }
+    }
+
+    fn record_missing_assign_place_contracts_in_block(&mut self, block: &Block) {
+        for stmt in &block.stmts {
+            self.record_missing_assign_place_contracts_in_stmt(stmt);
+        }
+    }
+
+    fn record_missing_assign_place_contracts_in_stmt(&mut self, stmt: &Stmt) {
+        match &stmt.kind {
+            StmtKind::Assign { lhs, rhs, .. } => {
+                self.synthesize_assign_place_contract_if_missing(stmt.span, lhs, rhs);
+                self.record_missing_assign_place_contracts_in_expr(lhs);
+                self.record_missing_assign_place_contracts_in_expr(rhs);
+            }
+            StmtKind::Expr(expr) => self.record_missing_assign_place_contracts_in_expr(expr),
+            StmtKind::Val(val) => {
+                if let Some(init) = &val.init {
+                    self.record_missing_assign_place_contracts_in_expr(init);
+                }
+            }
+            StmtKind::While { cond, body } => {
+                self.record_missing_assign_place_contracts_in_expr(cond);
+                self.record_missing_assign_place_contracts_in_block(body);
+            }
+            StmtKind::Return { value } => {
+                if let Some(value) = value {
+                    self.record_missing_assign_place_contracts_in_expr(value);
+                }
+            }
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => {}
+        }
+    }
+
+    fn record_missing_assign_place_contracts_in_expr(&mut self, expr: &Expr) {
+        match &expr.kind {
+            ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.record_missing_assign_place_contracts_in_expr(&field.value);
+                }
+            }
+            ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.record_missing_assign_place_contracts_in_expr(element);
+                }
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let super::super::InterpolatedStringPart::Expr { expr } = part {
+                        self.record_missing_assign_place_contracts_in_expr(expr);
+                    }
+                }
+            }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::MemberAccess { receiver: expr, .. } => {
+                self.record_missing_assign_place_contracts_in_expr(expr);
+            }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.record_missing_assign_place_contracts_in_expr(lhs);
+                self.record_missing_assign_place_contracts_in_expr(rhs);
+            }
+            ExprKind::Block(block) => self.record_missing_assign_place_contracts_in_block(block),
+            ExprKind::Closure(closure) => {
+                self.record_missing_assign_place_contracts_in_expr(&closure.body);
+            }
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.record_missing_assign_place_contracts_in_expr(cond);
+                self.record_missing_assign_place_contracts_in_expr(then_branch);
+                if let Some(else_branch) = else_branch {
+                    self.record_missing_assign_place_contracts_in_expr(else_branch);
+                }
+            }
+            ExprKind::When { subject, arms } => {
+                self.record_missing_assign_place_contracts_in_expr(subject);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.record_missing_assign_place_contracts_in_expr(guard);
+                    }
+                    self.record_missing_assign_place_contracts_in_expr(&arm.body);
+                }
+            }
+            ExprKind::Call { callee, args } => {
+                self.record_missing_assign_place_contracts_in_expr(callee);
+                for arg in args {
+                    self.record_missing_assign_place_contracts_in_call_arg(arg);
+                }
+            }
+            ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    self.record_missing_assign_place_contracts_in_call_arg(arg);
+                }
+            }
+            ExprKind::Handle(handle) => {
+                self.record_missing_assign_place_contracts_in_handle(handle)
+            }
+            ExprKind::Missing
+            | ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
+            | ExprKind::Todo(_) => {}
+        }
+    }
+
+    fn record_missing_assign_place_contracts_in_handle(&mut self, handle: &HandleExpr) {
+        self.record_missing_assign_place_contracts_in_block(&handle.body);
+        for arm in &handle.arms {
+            self.record_missing_assign_place_contracts_in_expr(&arm.body);
+        }
+        if let Some(finally) = &handle.finally {
+            self.record_missing_assign_place_contracts_in_block(finally);
+        }
+    }
+
+    fn record_missing_assign_place_contracts_in_call_arg(&mut self, arg: &CallArg) {
+        match arg {
+            CallArg::Positional(expr) => self.record_missing_assign_place_contracts_in_expr(expr),
+            CallArg::Named { value, .. } => {
+                self.record_missing_assign_place_contracts_in_expr(value)
+            }
+        }
+    }
+
+    fn synthesize_assign_place_contract_if_missing(&mut self, span: Span, lhs: &Expr, rhs: &Expr) {
+        let site = self.call_site(span);
+        if self.assign_place_contracts.contains_key(&site) {
+            return;
+        }
+        let Some(kind) = self.synthetic_assign_place_kind(lhs) else {
+            return;
+        };
+        let write_barrier = if matches!(kind, AssignPlaceKind::Local { .. }) {
+            ast::AssignWriteBarrierRequirement::NotRequired
+        } else {
+            ast::AssignWriteBarrierRequirement::StorageSlot { slot_ty: lhs.ty }
+        };
+        self.assign_place_contracts.insert(
+            site,
+            AssignPlaceContract {
+                span,
+                kind,
+                place_ty: lhs.ty,
+                value_ty: rhs.ty,
+                mutable: true,
+                write_barrier,
+                unsafe_required: false,
+            },
+        );
+    }
+
+    fn synthetic_assign_place_kind(&self, lhs: &Expr) -> Option<AssignPlaceKind> {
+        match &lhs.kind {
+            ExprKind::VarRef(ValueRef::Local {
+                id,
+                name,
+                decl_span,
+            }) => Some(AssignPlaceKind::Local {
+                id: *id,
+                name: name.clone(),
+                decl_span: *decl_span,
+            }),
+            ExprKind::VarRef(ValueRef::TopLevel { id, fqn }) => Some(AssignPlaceKind::TopLevel {
+                id: *id,
+                fqn: fqn.clone(),
+            }),
+            ExprKind::MemberAccess { receiver, member } => {
+                let (owner_fqn, member_fqn) = member_binding_from_member_access(member);
+                Some(AssignPlaceKind::Member {
+                    receiver_ty: receiver.ty,
+                    owner_fqn,
+                    member_fqn: member_fqn.unwrap_or_else(|| member.name.clone()),
+                    member_name: member.name.clone(),
+                    member_span: member.span,
+                    resolved: member.resolved.clone(),
+                })
+            }
+            _ => None,
         }
     }
 
@@ -1145,6 +1535,22 @@ impl<'a> HirLowering<'a> {
             }),
         }
     }
+}
+
+fn member_binding_from_member_access(member: &MemberAccess) -> (Option<String>, Option<String>) {
+    let fqn = match member.resolved.as_ref() {
+        Some(MemberRef::Value { fqn, .. })
+        | Some(MemberRef::Fun { fqn, .. })
+        | Some(MemberRef::ExtensionValue { fqn, .. })
+        | Some(MemberRef::ExtensionFun { fqn, .. }) => fqn,
+        None => return (None, None),
+    };
+    let owner = fqn
+        .strip_suffix(&member.name)
+        .and_then(|prefix| prefix.strip_suffix('.'))
+        .filter(|owner| !owner.is_empty())
+        .map(ToOwned::to_owned);
+    (owner, Some(fqn.clone()))
 }
 
 fn collect_local_decl_spans_in_block(block: &ast::Block) -> Vec<Span> {

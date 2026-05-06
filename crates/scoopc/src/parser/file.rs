@@ -162,6 +162,7 @@ impl<'a> Parser<'a> {
             ),
             splice_field_contracts: std::cell::RefCell::new(std::collections::HashMap::new()),
             with_update_contracts: std::cell::RefCell::new(std::collections::HashMap::new()),
+            assign_place_contracts: std::cell::RefCell::new(std::collections::HashMap::new()),
             continuation_resume_call_sites: std::cell::RefCell::new(
                 std::collections::HashSet::new(),
             ),

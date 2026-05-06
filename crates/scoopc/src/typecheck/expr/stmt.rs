@@ -1501,7 +1501,7 @@ fn check_expr_stmt_with_mode(
         }
         ast::ExprKind::Lambda(lam) => check_lambda_expr_stmt_body(shared, lam, lower, state, flow),
         ast::ExprKind::Assign { lhs, rhs, .. } => {
-            check_assign_expr_stmt(shared, lhs, rhs, lower, state, flow)
+            check_assign_expr_stmt(shared, expr.span, lhs, rhs, lower, state, flow)
         }
         _ => Ok(()),
     }
@@ -1584,6 +1584,7 @@ fn check_if_expr_stmt(
 
 fn check_assign_expr_stmt(
     shared: StmtExprShared<'_>,
+    assign_span: Span,
     lhs: &ast::Expr,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
@@ -1593,7 +1594,7 @@ fn check_assign_expr_stmt(
     // T0443：赋值语句 `lhs = rhs` 最小规则：
     // - lhs 必须是可写目标：局部 `var` 绑定 或 可写属性（`var` property / ctor `var` param）
     // - rhs 类型必须可赋给 lhs（复用 `is_type_assignable` 的最小子类型/boxing 规则）
-    let expected_ty = match &lhs.kind {
+    let (expected_ty, place_kind, write_barrier, unsafe_required) = match &lhs.kind {
         ast::ExprKind::Ident(id) => {
             let Some(resolved) = id.resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
@@ -1613,12 +1614,21 @@ fn check_assign_expr_stmt(
                         });
                     }
 
-                    state.locals.get(decl_span).copied().ok_or_else(|| {
+                    let expected_ty = state.locals.get(decl_span).copied().ok_or_else(|| {
                         ExprTypeError::UnknownLocalValueType {
                             name: name.clone(),
                             span: id.span.into(),
                         }
-                    })?
+                    })?;
+                    (
+                        expected_ty,
+                        ast::AssignPlaceContractKind::Local {
+                            name: name.clone(),
+                            decl_span: *decl_span,
+                        },
+                        ast::AssignWriteBarrierRequirement::NotRequired,
+                        false,
+                    )
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
                     lower.emit_deprecated_value_use(fqn, id.span, "属性");
@@ -1637,7 +1647,14 @@ fn check_assign_expr_stmt(
                         });
                     }
 
-                    expected_ty
+                    (
+                        expected_ty,
+                        ast::AssignPlaceContractKind::TopLevel { fqn: fqn.clone() },
+                        ast::AssignWriteBarrierRequirement::StorageSlot {
+                            slot_ty: expected_ty,
+                        },
+                        false,
+                    )
                 }
             }
         }
@@ -1694,13 +1711,28 @@ fn check_assign_expr_stmt(
                 });
             }
 
-            infer_member_access_ty_from_known_receiver(
+            let expected_ty = infer_member_access_ty_from_known_receiver(
                 receiver_inputs,
                 receiver_ty,
                 member,
                 Some(resolved),
                 lower,
-            )?
+            )?;
+            let member_name = shared.source.slice(member.span).to_string();
+            let owner_fqn = owner_fqn_from_member_fqn(fqn, &member_name);
+            (
+                expected_ty,
+                ast::AssignPlaceContractKind::Member {
+                    owner_fqn,
+                    member_fqn: fqn.clone(),
+                    member_name,
+                    receiver_ty,
+                },
+                ast::AssignWriteBarrierRequirement::StorageSlot {
+                    slot_ty: expected_ty,
+                },
+                false,
+            )
         }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {
@@ -1729,18 +1761,38 @@ fn check_assign_expr_stmt(
         expected_from,
     )?;
 
-    if !is_type_assignable(found_ty, expected_ty, lower, shared.builtins) {
-        if literal_absorbs_to_expected(rhs, expected_ty, shared.source, lower, shared.builtins) {
-            return Ok(());
-        }
+    let value_ty = if is_type_assignable(found_ty, expected_ty, lower, shared.builtins) {
+        found_ty
+    } else if literal_absorbs_to_expected(rhs, expected_ty, shared.source, lower, shared.builtins) {
+        expected_ty
+    } else {
         return Err(ExprTypeError::AssignmentTypeMismatch {
             expected: lower.fmt_type(expected_ty),
             found: lower.fmt_type(found_ty),
             span: rhs.span.into(),
         });
-    }
+    };
+
+    lower.record_assign_place_contract(
+        assign_span,
+        ast::AssignPlaceContract {
+            kind: place_kind,
+            place_ty: expected_ty,
+            value_ty,
+            mutable: true,
+            write_barrier,
+            unsafe_required,
+        },
+    );
 
     Ok(())
+}
+
+fn owner_fqn_from_member_fqn(fqn: &str, member_name: &str) -> Option<String> {
+    fqn.strip_suffix(member_name)
+        .and_then(|prefix| prefix.strip_suffix('.'))
+        .filter(|owner| !owner.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 #[derive(Debug, Clone, Copy)]

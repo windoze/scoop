@@ -1132,7 +1132,7 @@ impl<'a> HirLowering<'a> {
                     )
                 }
             }
-            ast::ExprKind::Assign { .. } => (ExprKind::Todo("assign"), self.builtins.any),
+            ast::ExprKind::Assign { .. } => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::TypeCheck {
                 expr,
                 op,
@@ -2041,7 +2041,7 @@ impl<'a> HirLowering<'a> {
         ))
     }
 
-    fn apply_active_type_param_bindings(&mut self, ty: TypeId) -> TypeId {
+    pub(super) fn apply_active_type_param_bindings(&mut self, ty: TypeId) -> TypeId {
         if self.type_param_scopes.is_empty() {
             return ty;
         }

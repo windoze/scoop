@@ -652,6 +652,39 @@ pub struct MemberAccess {
     pub resolved: Option<MemberRef>,
 }
 
+/// HIR handoff contract for an assignment statement's left-hand side place.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssignPlaceContract {
+    pub span: Span,
+    pub kind: AssignPlaceKind,
+    pub place_ty: TypeId,
+    pub value_ty: TypeId,
+    pub mutable: bool,
+    pub write_barrier: ast::AssignWriteBarrierRequirement,
+    pub unsafe_required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AssignPlaceKind {
+    Local {
+        id: SymbolId,
+        name: String,
+        decl_span: Span,
+    },
+    TopLevel {
+        id: SymbolId,
+        fqn: String,
+    },
+    Member {
+        receiver_ty: TypeId,
+        owner_fqn: Option<String>,
+        member_fqn: String,
+        member_name: String,
+        member_span: Span,
+        resolved: Option<MemberRef>,
+    },
+}
+
 /// 调用实参（位置参数或命名参数）。
 #[derive(Debug, Clone)]
 pub enum CallArg {
@@ -968,6 +1001,9 @@ pub type CallArgBindingSiteIndex = HashMap<CallSite, ast::CallArgBinding>;
 
 /// 由 typecheck 确认并由 HIR lowering 消费的 `with` copy-update 合同。
 pub type WithUpdateSiteIndex = HashMap<CallSite, ast::WithUpdateContract>;
+
+/// 由 typecheck/HIR lowering 确认的 assignment LHS typed place 合同。
+pub type AssignPlaceSiteIndex = HashMap<CallSite, AssignPlaceContract>;
 
 /// 动态 dispatch 调用点索引：`source_path + call span + receiver_ty` → dispatch kind。
 pub type DispatchCallSiteIndex = HashMap<DispatchCallSite, DispatchCallKind>;

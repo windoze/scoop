@@ -497,6 +497,8 @@ pub(crate) struct TypeLowering<'a> {
     splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
     /// `base with { ... }` 的 typechecked copy-update contract。
     with_update_contracts: HashMap<Span, ast::WithUpdateContract>,
+    /// assignment statement LHS 的 typechecked place contract。
+    assign_place_contracts: HashMap<Span, ast::AssignPlaceContract>,
     /// typecheck 已确认的 `Continuation.resume` 调用点。
     ///
     /// 用途：
@@ -669,6 +671,7 @@ impl<'a> TypeLowering<'a> {
             typechecked_member_resolutions: HashMap::new(),
             splice_field_contracts: HashMap::new(),
             with_update_contracts: HashMap::new(),
+            assign_place_contracts: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
             zero_arg_unit_call_sugar_sites: HashSet::new(),
@@ -1616,6 +1619,14 @@ impl<'a> TypeLowering<'a> {
         self.with_update_contracts.insert(expr_span, contract);
     }
 
+    pub(super) fn record_assign_place_contract(
+        &mut self,
+        assign_span: Span,
+        contract: ast::AssignPlaceContract,
+    ) {
+        self.assign_place_contracts.insert(assign_span, contract);
+    }
+
     pub(super) fn emit_deprecated_type_use(&self, fqn: &str, span: Span) {
         if !self.warning_emission_enabled {
             return;
@@ -1839,6 +1850,12 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_with_update_contracts(&mut self) -> HashMap<Span, ast::WithUpdateContract> {
         std::mem::take(&mut self.with_update_contracts)
+    }
+
+    pub(super) fn take_assign_place_contracts(
+        &mut self,
+    ) -> HashMap<Span, ast::AssignPlaceContract> {
+        std::mem::take(&mut self.assign_place_contracts)
     }
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {

@@ -411,7 +411,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features with_update`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/with_update_expr.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T08`
 
-## HIR-T10：建立 assignment LHS / HIR place contract
+## [DONE] HIR-T10：建立 assignment LHS / HIR place contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H7
@@ -438,6 +438,14 @@
 - 完成条件：
   - refactor MIR lowering 可只消费 place contract 生成 store。
   - 可进入 `HIR-T11`。
+- 完成记录（2026-05-06）：
+  - `ast::File` 新增 assignment place side table；typecheck 现在为通过前端校验的 assignment statement 发布 local var、top-level `@ThreadLocal/@Global var` 与 mutable member field 的 typed place contract，包含 binding、place/value type、mutability、storage-slot write-barrier requirement 与 unsafe requirement 位。
+  - HIR lowering 将 typecheck contract 转换为 HIR-level `AssignPlaceContract`，保留 HIR `SymbolId`、top-level/member identity、receiver type 与 member binding；对 lowering 产生的合成 assignment 也补齐同类 contract，避免 for/desugar/debug fallback 形成无 contract HIR assignment。
+  - refactor HIR completeness verifier 现在要求每个 `StmtKind::Assign` 都有 place contract；typed HIR stable dump 新增 `assign_place_contracts` section，并同步 typed HIR snapshot。
+  - refactor MIR lowering 在 typed handoff 模式下消费 assignment place contract 生成 local store、`StoreTopLevelVar` 与 `StoreMember`，不再把 refactor assignment place 语义建立在 arbitrary LHS expression tree 猜测上；legacy MIR fallback 保持原行为。
+  - 当前 parser/typecheck 尚不接受 index assignment 或 safe-member assignment 作为成功 LHS；这些 unsupported LHS 仍在进入 HIR 前诊断，未作为可达 refactor HIR place contract 形态处理。
+  - 已移除 HIR `ExprKind::Todo("assign")` 构造点，并同步 placeholder inventory。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_places`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T09`
 
 ## HIR-T11：收口 custom iterator for-loop 与 remaining debug fallbacks

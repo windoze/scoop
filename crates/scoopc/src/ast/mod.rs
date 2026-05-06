@@ -85,6 +85,11 @@ pub struct File {
     /// 说明：该表发布 base/result 类型、路径上的 aggregate 形状以及每个 update 的字段绑定，
     /// HIR lowering 只消费这里的 contract，不再从 raw path 重新推断 copy-update 语义。
     pub(crate) with_update_contracts: RefCell<HashMap<Span, WithUpdateContract>>,
+    /// typecheck 确认的 assignment LHS typed place contract（按整个 assignment expr span 索引）。
+    ///
+    /// 说明：assignment statement 的左侧必须在进入 refactor HIR 前被归类为具体 place；HIR/MIR
+    /// 后续阶段只消费这里发布的 binding/type/mutability facts，不再从任意表达式树恢复 lvalue 语义。
+    pub(crate) assign_place_contracts: RefCell<HashMap<Span, AssignPlaceContract>>,
     /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
     ///
     /// 说明：
@@ -249,6 +254,18 @@ impl File {
 
     pub fn with_update_contracts(&self) -> HashMap<Span, WithUpdateContract> {
         self.with_update_contracts.borrow().clone()
+    }
+
+    pub fn replace_assign_place_contracts(&self, contracts: HashMap<Span, AssignPlaceContract>) {
+        *self.assign_place_contracts.borrow_mut() = contracts;
+    }
+
+    pub fn assign_place_contract(&self, span: Span) -> Option<AssignPlaceContract> {
+        self.assign_place_contracts.borrow().get(&span).cloned()
+    }
+
+    pub fn assign_place_contracts(&self) -> HashMap<Span, AssignPlaceContract> {
+        self.assign_place_contracts.borrow().clone()
     }
 
     pub fn replace_continuation_resume_call_sites(&self, sites: HashSet<Span>) {
@@ -1300,6 +1317,40 @@ pub struct WithUpdateContract {
     pub result_ty: TypeId,
     pub aggregates: Vec<WithUpdateAggregateContract>,
     pub updates: Vec<WithUpdateUpdateContract>,
+}
+
+/// typecheck 写回的 assignment LHS typed place 合同。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssignPlaceContract {
+    pub kind: AssignPlaceContractKind,
+    pub place_ty: TypeId,
+    pub value_ty: TypeId,
+    pub mutable: bool,
+    pub write_barrier: AssignWriteBarrierRequirement,
+    pub unsafe_required: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AssignPlaceContractKind {
+    Local {
+        name: String,
+        decl_span: Span,
+    },
+    TopLevel {
+        fqn: String,
+    },
+    Member {
+        owner_fqn: Option<String>,
+        member_fqn: String,
+        member_name: String,
+        receiver_ty: Option<TypeId>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AssignWriteBarrierRequirement {
+    NotRequired,
+    StorageSlot { slot_ty: TypeId },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

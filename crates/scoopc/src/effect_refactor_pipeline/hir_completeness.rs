@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::hir::{
-    Block, CallArg, ClassCtor, ClassInit, ClassInitStep, Expr, ExprKind, FunDecl, HirStageError,
-    Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind, ValDecl,
+    Block, CallArg, CallSite, ClassCtor, ClassInit, ClassInitStep, Expr, ExprKind, FunDecl,
+    HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind, ValDecl,
 };
 use crate::span::Span;
 
@@ -229,6 +229,7 @@ impl<'a> RefactorHirCompletenessVerifier<'a> {
             StmtKind::Expr(expr) => self.verify_expr(source_path, expr, owner),
             StmtKind::Val(val) => self.verify_val(source_path, val, owner),
             StmtKind::Assign { lhs, rhs, .. } => {
+                self.verify_assign_place_contract(source_path, stmt, owner)?;
                 self.verify_expr(source_path, lhs, owner)?;
                 self.verify_expr(source_path, rhs, owner)
             }
@@ -243,6 +244,24 @@ impl<'a> RefactorHirCompletenessVerifier<'a> {
                 Ok(())
             }
         }
+    }
+
+    fn verify_assign_place_contract(
+        &self,
+        source_path: &Path,
+        stmt: &Stmt,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        let site = CallSite::new(source_path.to_path_buf(), stmt.span);
+        if self.lowered_hir.assign_place_contracts.contains_key(&site) {
+            return Ok(());
+        }
+        self.fail(
+            source_path,
+            stmt.span,
+            "assignment statement missing typed place contract",
+            owner,
+        )
     }
 
     fn verify_expr(

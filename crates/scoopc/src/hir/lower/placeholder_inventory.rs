@@ -79,14 +79,6 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Parser emits a deferred-feature diagnostic for user-facing join before HIR lowering.",
     ),
     entry(
-        PlaceholderSurface::ExprTodo,
-        "assign",
-        PlaceholderDisposition::ParserShouldReject,
-        "HIR-T02/HIR-T10",
-        true,
-        "Parser rejects assignment in expression context; statement assignment later consumes a typed place contract.",
-    ),
-    entry(
         PlaceholderSurface::StmtTodo,
         "missing_stmt",
         PlaceholderDisposition::ParserShouldReject,
@@ -151,7 +143,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "comptime_if_item",
     "structured_concurrency_spawn_deferred",
     "structured_concurrency_join_deferred",
-    "assign",
     "missing_stmt",
     "for_custom_iterator",
 ];

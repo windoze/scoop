@@ -36,12 +36,12 @@ use crate::ty::{
 
 use super::EFFECT_ROW_PARAM_DECL_FILE;
 use super::{
-    AccessorContract, Block, CallArg, CallArgBindingSiteIndex, CallSite, ClassInitIndex,
-    ContinuationResumeCallSiteIndex, CtorCallSiteIndex, CtorDecl, CtorParamDecl, Decl, DeclMember,
-    DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl, FieldDecl, FieldOrigin,
-    File, FunDecl, Item, MemberFunDecl, NominalDecl, NonPureContinuationResumeCallSiteIndex,
-    ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId,
-    TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
+    AccessorContract, AssignPlaceSiteIndex, Block, CallArg, CallArgBindingSiteIndex, CallSite,
+    ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, CtorDecl, CtorParamDecl,
+    Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
+    FieldDecl, FieldOrigin, File, FunDecl, Item, MemberFunDecl, NominalDecl,
+    NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt,
+    StmtKind, SupertypeDecl, SymbolId, TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
 };
 
 use types::*;
@@ -150,6 +150,8 @@ struct HirLowering<'a> {
     handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex,
     /// `with` copy-update 的 typechecked aggregate/update contract。
     with_update_contracts: WithUpdateSiteIndex,
+    /// assignment statement LHS 的 typed HIR place contract。
+    assign_place_contracts: AssignPlaceSiteIndex,
     /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
     top_level_vars: super::TopLevelVarIndex,
     /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
@@ -306,6 +308,7 @@ impl<'a> HirLowering<'a> {
             effect_op_call_sites: HashMap::new(),
             handle_payload_tuple_tys: HashMap::new(),
             with_update_contracts: HashMap::new(),
+            assign_place_contracts: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -2165,6 +2168,7 @@ fn collect_compilation_unit_object_and_class_inits(
     CtorCallSiteIndex,
     super::DispatchCallSiteIndex,
     WithUpdateSiteIndex,
+    AssignPlaceSiteIndex,
 ) {
     let CompilationUnitInitCollectionInputs {
         index,
@@ -2183,6 +2187,7 @@ fn collect_compilation_unit_object_and_class_inits(
     let mut ctor_call_sites = CtorCallSiteIndex::new();
     let mut dispatch_call_sites = super::DispatchCallSiteIndex::new();
     let mut with_update_contracts = WithUpdateSiteIndex::new();
+    let mut assign_place_contracts = AssignPlaceSiteIndex::new();
 
     for (source, file) in compilation_unit {
         let init_collection_cx = InitCollectionCx {
@@ -2204,22 +2209,26 @@ fn collect_compilation_unit_object_and_class_inits(
             file_object_ctor_call_sites,
             file_object_dispatch_call_sites,
             file_object_with_update_contracts,
+            file_object_assign_place_contracts,
         ) = collect_object_inits(init_collection_cx, types);
         object_inits.extend(file_object_inits);
         ctor_call_sites.extend(file_object_ctor_call_sites);
         dispatch_call_sites.extend(file_object_dispatch_call_sites);
         with_update_contracts.extend(file_object_with_update_contracts);
+        assign_place_contracts.extend(file_object_assign_place_contracts);
 
         let (
             file_class_inits,
             file_class_ctor_call_sites,
             file_class_dispatch_call_sites,
             file_class_with_update_contracts,
+            file_class_assign_place_contracts,
         ) = collect_class_inits(init_collection_cx, types);
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
         dispatch_call_sites.extend(file_class_dispatch_call_sites);
         with_update_contracts.extend(file_class_with_update_contracts);
+        assign_place_contracts.extend(file_class_assign_place_contracts);
     }
 
     (
@@ -2228,6 +2237,7 @@ fn collect_compilation_unit_object_and_class_inits(
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
+        assign_place_contracts,
     )
 }
 
@@ -2312,6 +2322,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         effect_op_call_sites,
         handle_payload_tuple_tys,
         mut with_update_contracts,
+        mut assign_place_contracts,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -2342,11 +2353,14 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         );
         let file = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
+        ctx.record_missing_assign_place_contracts_in_file(&file);
+        ctx.record_missing_assign_place_contracts_in_funs(&member_funs);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+        let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -2359,6 +2373,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             effect_op_call_sites,
             handle_payload_tuple_tys,
             with_update_contracts,
+            assign_place_contracts,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2374,6 +2389,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         side_table_ctor_call_sites,
         side_table_dispatch_call_sites,
         side_table_with_update_contracts,
+        side_table_assign_place_contracts,
     ) = collect_compilation_unit_object_and_class_inits(
         &pairs,
         CompilationUnitInitCollectionInputs {
@@ -2393,6 +2409,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);
+    assign_place_contracts.extend(side_table_assign_place_contracts);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -2458,6 +2475,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_fun_call_sites,
         call_arg_bindings,
         with_update_contracts,
+        assign_place_contracts,
         object_inits,
         class_inits,
         class_vtables,
@@ -2641,6 +2659,7 @@ pub fn lower_for_compilation_unit(
         effect_op_call_sites,
         handle_payload_tuple_tys,
         mut with_update_contracts,
+        mut assign_place_contracts,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -2671,11 +2690,14 @@ pub fn lower_for_compilation_unit(
         );
         let file_hir = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
+        ctx.record_missing_assign_place_contracts_in_file(&file_hir);
+        ctx.record_missing_assign_place_contracts_in_funs(&member_funs);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+        let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -2688,6 +2710,7 @@ pub fn lower_for_compilation_unit(
             effect_op_call_sites,
             handle_payload_tuple_tys,
             with_update_contracts,
+            assign_place_contracts,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2701,6 +2724,7 @@ pub fn lower_for_compilation_unit(
         side_table_ctor_call_sites,
         side_table_dispatch_call_sites,
         side_table_with_update_contracts,
+        side_table_assign_place_contracts,
     ) = collect_compilation_unit_object_and_class_inits(
         compilation_unit,
         CompilationUnitInitCollectionInputs {
@@ -2720,6 +2744,7 @@ pub fn lower_for_compilation_unit(
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);
+    assign_place_contracts.extend(side_table_assign_place_contracts);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
@@ -2763,6 +2788,7 @@ pub fn lower_for_compilation_unit(
         top_level_fun_call_sites,
         call_arg_bindings,
         with_update_contracts,
+        assign_place_contracts,
         object_inits,
         class_inits,
         class_vtables,
@@ -3096,6 +3122,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let mut effect_op_call_sites: super::EffectOpCallSiteIndex = HashMap::new();
     let mut handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex = HashMap::new();
     let mut with_update_contracts: WithUpdateSiteIndex = HashMap::new();
+    let mut assign_place_contracts: AssignPlaceSiteIndex = HashMap::new();
     let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
         ContinuationResumeCallSiteIndex::new();
     let mut non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex =
@@ -3114,6 +3141,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             file_effect_op_call_sites,
             file_handle_payload_tuple_tys,
             file_with_update_contracts,
+            file_assign_place_contracts,
             file_top_level_vars,
             file_top_level_consts,
             file_top_level_immutable_values,
@@ -3146,11 +3174,14 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             // 字面量已不再依赖“仅入口文件可切片”的旧路径，因此这里可以稳定收集所有文件的 member_funs。
             let pkg_prefix = package_prefix(source, file.package.as_ref());
             let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
+            ctx.record_missing_assign_place_contracts_in_file(&file_hir);
+            ctx.record_missing_assign_place_contracts_in_funs(&file_member_funs);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
             let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
             let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
             let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
             let file_with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+            let file_assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
@@ -3164,6 +3195,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                 effect_op_call_sites,
                 handle_payload_tuple_tys,
                 file_with_update_contracts,
+                file_assign_place_contracts,
                 file_top_level_vars,
                 file_top_level_consts,
                 file_top_level_immutable_values,
@@ -3176,6 +3208,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         effect_op_call_sites.extend(file_effect_op_call_sites);
         handle_payload_tuple_tys.extend(file_handle_payload_tuple_tys);
         with_update_contracts.extend(file_with_update_contracts);
+        assign_place_contracts.extend(file_assign_place_contracts);
         continuation_resume_call_sites.extend(
             file.continuation_resume_call_sites()
                 .into_iter()
@@ -3222,6 +3255,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         side_table_ctor_call_sites,
         side_table_dispatch_call_sites,
         side_table_with_update_contracts,
+        side_table_assign_place_contracts,
     ) = collect_compilation_unit_object_and_class_inits(
         compilation_unit,
         CompilationUnitInitCollectionInputs {
@@ -3241,6 +3275,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);
+    assign_place_contracts.extend(side_table_assign_place_contracts);
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
@@ -3380,6 +3415,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_fun_call_sites,
         call_arg_bindings,
         with_update_contracts,
+        assign_place_contracts,
         object_inits,
         class_inits,
         class_vtables,
