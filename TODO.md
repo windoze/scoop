@@ -1115,7 +1115,7 @@
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - 额外 lint 通过：`cargo clippy -p scoop --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T14R：Review MIR-T14 phase exit audit
+## [DONE] MIR-T14R：Review MIR-T14 phase exit audit
 
 - 参考：
   - `MIR-T14`
@@ -1132,3 +1132,17 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T14` 已正确实现，MIR 阶段可以交接到 codegen 阶段；若发现缺口，`MIR-T14R` 保持未完成并把修复归回 `MIR-T14`。
 - 依赖：`MIR-T14`
+
+- 完成记录（2026-05-07）：
+  - Review 结论：`MIR-T14` phase exit audit 已按任务要求正确实现；未发现需要归回 `MIR-T14` 的阻塞缺口，MIR 阶段可以交接到 codegen 阶段。
+  - 审查覆盖 `MIR_REFACTOR_PHASE_EXIT_AUDIT.md`、`PLAN.md` M8/§4、`PIPELINE_GAPS.md` §9、`tests/fixtures/mir_refactor/**` golden 矩阵、diagnostics fixture 集、`refactor_hir_preflight` MIR smoke、`dump-mir`/fixture runner 共享 `stable_dump()` surface，以及 later-stage codegen owner 链接。
+  - 抽查确认 `tests/fixtures/mir_refactor` 共有 18 个 `.scoop` 样本且均有对应 `.mir` golden；golden 未包含 `Todo`、unresolved generic param 或本机绝对路径；合法 HIR completeness fixtures 不再使用 `HirOnly` 例外。
+  - diagnostics fixture 抽查确认 structured concurrency `spawn`/`join`、parser recovery missing、untrimmed package-level `comptime if`、unsupported assignment syntax、missing mutable local initializer、illegal break/continue、unsupported function type cast、cross-thread outward propagation、GC handle value-type surface、or-pattern binder 均以前端诊断固定，且注释说明不得进入 HIR/MIR 或后端猜 shape。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 验证通过：`cargo test -p scoop --no-default-features dump_mir`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor`。
+  - diagnostics fixtures 通过：`parse/spawn_deferred_is_error.scoop`、`typecheck/spawn_deferred_is_error.scoop`、`parse/join_deferred_is_error.scoop`、`typecheck/join_deferred_is_error.scoop`、`parse/parser_recovery_missing_stmt_is_error.scoop`、`resolve/package_level_comptime_if_untrimmed_is_error.scoop`、`parse/assignment_call_lhs_is_error.scoop`、`typecheck/local_var_missing_initializer_is_error.scoop`、`typecheck/break_not_in_loop_is_error.scoop`、`typecheck/continue_not_in_loop_is_error.scoop`、`typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`typecheck/fn_type_cast_effectful_as_is_error.scoop`、`typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`typecheck/gc_handle_new_value_type_is_error.scoop`、`typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - 额外 lint 通过：`cargo clippy -p scoop --no-default-features --all-targets -- -D warnings`。

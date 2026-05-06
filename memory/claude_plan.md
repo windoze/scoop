@@ -1,24 +1,32 @@
 # Execution Plan
 
-## Current Invocation
+## Constraints
 
-- Record this plan before running build, test, or project commands.
-- Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
-- Inspect only the files needed to understand and complete that task.
-- Implement the task as written, without narrowing scope or introducing fixture-only workarounds.
-- If a concrete prerequisite blocks the task, update `TODO.md` with the minimum prerequisite task, leave the blocked task incomplete, commit that bookkeeping, and stop.
-- Run the task's required validation plus relevant regression tests.
-- Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
-- Commit all relevant changes for this invocation with a task-scoped message.
-- Stop after completing exactly one task.
+- `TODO.md` is the authoritative task source.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Do not skip review tasks or tasks with completion notes but no `[DONE]` prefix.
+- Do not use workarounds for spec mismatches; if a concrete prerequisite is required, add the minimum prerequisite task to `TODO.md`, commit that bookkeeping, and stop.
+- Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria change.
+- Mark the completed task by prefixing its title with `[DONE]` and updating its completion record.
+- Commit all relevant uncommitted files after finishing or after recording a blocker.
+
+## Step-by-Step Plan
+
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Inspect only the files and context relevant to that task, including recent git state if needed to detect directly relevant unfinished work.
+3. Implement the task as written, without narrowing scope or introducing fixture-only behavior.
+4. Add or update the smallest relevant tests or fixtures required by the task.
+5. Run the task-specified validation commands and any directly relevant regression tests.
+6. If validation fails, fix the cause when it is in scope; if a concrete prerequisite blocks the task, update `TODO.md` with that prerequisite and stop after committing.
+7. Update this plan file after key milestones or any plan change.
+8. When the task is complete, update `TODO.md` with `[DONE]` and a completion record.
+9. Run final relevant validation, inspect git status/diff, and commit the completed task with a clear task-tagged message.
+10. Stop without starting the next task.
 
 ## Progress Log
 
-- Plan initialized.
-- First incomplete task identified: `MIR-T14` (`建立 MIR-only 验证矩阵并完成阶段退出审计`).
-- Latest commit is `[MIR-T13R] Review policy gates`; no separate unfinished issue was identified from the latest commit message.
-- Scope for this invocation: complete `MIR-T14`, update `TODO.md`, run the specified targeted validations, commit, and stop before `MIR-T14R`.
-- Checked the remaining `HirOnly` preflight samples with refactor `dump-mir`; all three can now run through strict MIR production validation.
-- Planned edits: remove HIR-only preflight exceptions, make MIR smoke use the strict stage boundary, add/update `mir_refactor/*.mir` goldens for every `mir_refactor/*.scoop`, and add a phase exit audit tied to the targeted validation matrix.
-- Implemented the preflight/golden/audit edits. Next step is to format and run the `MIR-T14` validation matrix, then update `TODO.md` and commit if validation passes.
-- Validation passed and `TODO.md` has been updated with `[DONE] MIR-T14` plus the completion record. Next step is to review the staged diff state and create the required task commit.
+- Initial execution plan recorded before project commands.
+- First incomplete task identified: `MIR-T14R` (`Review MIR-T14 phase exit audit`). This invocation will perform only that review task, rerun its required validations, update `TODO.md` with the review conclusion if successful, commit, and stop.
+- Static review completed: `MIR_REFACTOR_PHASE_EXIT_AUDIT.md`, `PLAN.md` M8/§4, `PIPELINE_GAPS.md` §9, fixture/golden coverage, diagnostics comments, stable dump sharing, and codegen owner links were checked.
+- Validation completed successfully: `refactor_hir_preflight`, `refactor_mir_no_todo`, `refactor_materialized_mir`, `dump_mir`, `mir_refactor` fixture matrix, 16 diagnostics fixtures, and `clippy` for `scoopc`/`scoop` with warnings denied all passed.
+- `TODO.md` updated: `MIR-T14R` is marked `[DONE]` with the review conclusion, audit coverage, fixture checks, diagnostics checks, validation commands, and lint results.
