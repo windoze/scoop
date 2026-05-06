@@ -34,10 +34,13 @@ use super::{
     InitializerRoot, InitializerRootKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
     LocalSourceKind, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
     MirValidationError, NominalMetadata, ObjectMetadata, Operand, Param, Pattern,
-    PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata, Rvalue,
-    SiteId, Statement, StatementKind, StoredContinuationRoutePublication,
-    StoredContinuationValueRoute, SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef,
-    TypeAliasMetadata, TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction,
+    PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata,
+    RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestKind,
+    RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeDescriptorKind,
+    RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, RuntimeTypeTestMetadata, Rvalue, SiteId,
+    Statement, StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
+    SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata,
+    TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -70,6 +73,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_top_level_init_roots: Vec<TopLevelInitRootContract>,
     refactor_extern_global_contracts: Vec<ExternGlobalContract>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
+    nominal_kinds: HashMap<String, ast::TypeKind>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
     continuation_identity_return_funs: HashMap<String, usize>,
@@ -95,6 +99,7 @@ impl Default for MirLoweringFacts {
             refactor_top_level_init_roots: Vec::new(),
             refactor_extern_global_contracts: Vec::new(),
             when_pat_binding_tys: HashMap::new(),
+            nominal_kinds: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
             continuation_identity_return_funs: HashMap::new(),
@@ -171,6 +176,7 @@ impl MirLoweringFacts {
             &lowered.top_level_fun_call_sites,
         )
         .with_member_value_types(lowered)
+        .with_nominal_kinds(lowered)
         .with_continuation_identity_return_funs(lowered)
         .with_class_ctor_hidden_effects(lowered)
     }
@@ -200,6 +206,7 @@ impl MirLoweringFacts {
             .extend(lowered.top_level_fun_call_sites.clone());
         facts = facts
             .with_member_value_types(lowered)
+            .with_nominal_kinds(lowered)
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
 
@@ -284,6 +291,11 @@ impl MirLoweringFacts {
             }
         }
 
+        self
+    }
+
+    fn with_nominal_kinds(mut self, lowered: &hir::LoweredHir) -> Self {
+        self.nominal_kinds.extend(lowered.nominal_kinds.clone());
         self
     }
 
@@ -439,6 +451,10 @@ impl MirLoweringFacts {
 
     fn uses_refactor_typed_contracts(&self) -> bool {
         self.site_contract_source == MirSiteContractSource::RefactorTyped
+    }
+
+    fn nominal_kind(&self, fqn: &str) -> Option<ast::TypeKind> {
+        self.nominal_kinds.get(fqn).copied()
     }
 
     fn dispatch_target_kind(
@@ -2563,6 +2579,188 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn runtime_type_test_metadata(
+        &self,
+        source_ty: TypeId,
+        target_ty: TypeId,
+    ) -> RuntimeTypeTestMetadata {
+        RuntimeTypeTestMetadata {
+            source_ty,
+            target_ty,
+            descriptor: self.runtime_type_descriptor_key(target_ty),
+            static_fold: self.runtime_type_static_fold(source_ty, target_ty),
+            parameterized: self.runtime_type_parameterized_match(target_ty),
+        }
+    }
+
+    fn runtime_cast_metadata(
+        &self,
+        source_ty: TypeId,
+        target_ty: TypeId,
+        result_ty: TypeId,
+        op: ast::CastOp,
+    ) -> RuntimeCastMetadata {
+        let test = self.runtime_type_test_metadata(source_ty, target_ty);
+        let (failure, result) = match op {
+            ast::CastOp::As => (
+                RuntimeCastFailure::Raise {
+                    effect_ty: find_raise_runtime_error_effect(self.types),
+                    error_fqn: "scoop.core.RuntimeError.ClassCastFailed".to_string(),
+                },
+                RuntimeCastResult::Target { ty: target_ty },
+            ),
+            ast::CastOp::AsQ => (
+                RuntimeCastFailure::ReturnNone,
+                RuntimeCastResult::Option {
+                    option_ty: result_ty,
+                    some_ty: target_ty,
+                },
+            ),
+        };
+
+        RuntimeCastMetadata {
+            test,
+            failure,
+            result,
+        }
+    }
+
+    fn runtime_pattern_type_test_metadata(
+        &self,
+        subject_ty: TypeId,
+        target_ty: TypeId,
+    ) -> RuntimePatternTypeTestMetadata {
+        let descriptor = self.runtime_type_descriptor_key(target_ty);
+        let parameterized = self.runtime_type_parameterized_match(target_ty);
+        let match_kind = self.runtime_pattern_match_kind(&descriptor, &parameterized);
+        RuntimePatternTypeTestMetadata {
+            subject_ty,
+            target_ty,
+            descriptor,
+            match_kind,
+            static_fold: self.runtime_type_static_fold(subject_ty, target_ty),
+            parameterized,
+        }
+    }
+
+    fn runtime_type_descriptor_key(&self, ty: TypeId) -> RuntimeTypeDescriptorKey {
+        let kind = match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Any) => RuntimeTypeDescriptorKind::Any,
+            TypeKind::Ref(RefTypeKind::String) => RuntimeTypeDescriptorKind::String,
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                RuntimeTypeDescriptorKind::Nominal {
+                    fqn: nominal.fqn.clone(),
+                    kind: self.facts.nominal_kind(&nominal.fqn),
+                }
+            }
+            TypeKind::Ref(RefTypeKind::Function(_)) => RuntimeTypeDescriptorKind::Function,
+            TypeKind::Ref(RefTypeKind::Union(_)) => RuntimeTypeDescriptorKind::Union,
+            TypeKind::Value(ValueTypeKind::Option(_)) => RuntimeTypeDescriptorKind::Option,
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => RuntimeTypeDescriptorKind::Tuple,
+            TypeKind::Value(_) => RuntimeTypeDescriptorKind::Value,
+            TypeKind::Param(_) => RuntimeTypeDescriptorKind::TypeParam,
+            TypeKind::StarProjection(_) => RuntimeTypeDescriptorKind::StarProjection,
+        };
+
+        RuntimeTypeDescriptorKey { ty, kind }
+    }
+
+    fn runtime_type_parameterized_match(&self, ty: TypeId) -> RuntimeTypeParameterizedMatch {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                if nominal.args.is_empty() && nominal.eff.is_none() {
+                    RuntimeTypeParameterizedMatch::None
+                } else {
+                    RuntimeTypeParameterizedMatch::Nominal {
+                        type_args: nominal.args.clone(),
+                        effect_arg: nominal.eff.clone(),
+                    }
+                }
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => RuntimeTypeParameterizedMatch::Function {
+                receiver: fun.receiver,
+                params: fun.params.clone(),
+                return_ty: fun.return_ty,
+                effects: fun.effects.clone(),
+                effects_closed: fun.effects_closed,
+            },
+            TypeKind::Ref(RefTypeKind::Union(union)) => RuntimeTypeParameterizedMatch::Union {
+                variants: union.variants.clone(),
+            },
+            TypeKind::Value(ValueTypeKind::Option(payload_ty)) => {
+                RuntimeTypeParameterizedMatch::Option {
+                    payload_ty: *payload_ty,
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(element_tys)) => {
+                RuntimeTypeParameterizedMatch::Tuple {
+                    element_tys: element_tys.clone(),
+                }
+            }
+            TypeKind::StarProjection(star) => RuntimeTypeParameterizedMatch::StarProjection {
+                read_ty: star.read_ty,
+            },
+            TypeKind::Ref(RefTypeKind::Any)
+            | TypeKind::Ref(RefTypeKind::String)
+            | TypeKind::Value(_)
+            | TypeKind::Param(_) => RuntimeTypeParameterizedMatch::None,
+        }
+    }
+
+    fn runtime_type_static_fold(
+        &self,
+        source_ty: TypeId,
+        target_ty: TypeId,
+    ) -> RuntimeTypeStaticFold {
+        if source_ty == target_ty {
+            return RuntimeTypeStaticFold::AlwaysTrue;
+        }
+        if target_ty == self.builtins.any {
+            return RuntimeTypeStaticFold::AlwaysTrue;
+        }
+        if target_ty == self.builtins.nothing {
+            return RuntimeTypeStaticFold::AlwaysFalse;
+        }
+
+        match (self.types.kind(source_ty), self.types.kind(target_ty)) {
+            (TypeKind::Value(_), TypeKind::Value(_)) => RuntimeTypeStaticFold::AlwaysFalse,
+            _ => RuntimeTypeStaticFold::Dynamic,
+        }
+    }
+
+    fn runtime_pattern_match_kind(
+        &self,
+        descriptor: &RuntimeTypeDescriptorKey,
+        parameterized: &RuntimeTypeParameterizedMatch,
+    ) -> RuntimePatternTypeTestKind {
+        if !matches!(parameterized, RuntimeTypeParameterizedMatch::None) {
+            return RuntimePatternTypeTestKind::RuntimeParameterized;
+        }
+
+        match &descriptor.kind {
+            RuntimeTypeDescriptorKind::Nominal {
+                kind: Some(ast::TypeKind::Class),
+                ..
+            } => RuntimePatternTypeTestKind::RuntimeClass,
+            RuntimeTypeDescriptorKind::Nominal {
+                kind: Some(ast::TypeKind::Interface),
+                ..
+            } => RuntimePatternTypeTestKind::RuntimeInterface,
+            RuntimeTypeDescriptorKind::Nominal { .. } => RuntimePatternTypeTestKind::RuntimeNominal,
+            RuntimeTypeDescriptorKind::Any
+            | RuntimeTypeDescriptorKind::String
+            | RuntimeTypeDescriptorKind::Function
+            | RuntimeTypeDescriptorKind::Union => RuntimePatternTypeTestKind::RuntimeRef,
+            RuntimeTypeDescriptorKind::Option
+            | RuntimeTypeDescriptorKind::Tuple
+            | RuntimeTypeDescriptorKind::Value
+            | RuntimeTypeDescriptorKind::TypeParam
+            | RuntimeTypeDescriptorKind::StarProjection => RuntimePatternTypeTestKind::StaticValue,
+        }
+    }
+
     fn lower_short_circuit_binary_expr(
         &mut self,
         span: Span,
@@ -2637,6 +2835,7 @@ impl<'a> FnLowering<'a> {
                 value: Operand::Local(value_local),
                 op,
                 test_ty,
+                metadata: self.runtime_type_test_metadata(value.ty, test_ty),
             },
         );
         result
@@ -2662,6 +2861,7 @@ impl<'a> FnLowering<'a> {
                 value: Operand::Local(value_local),
                 op,
                 target_ty,
+                metadata: self.runtime_cast_metadata(value.ty, target_ty, ty, op),
             },
         );
         result
@@ -4543,15 +4743,21 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    fn lower_pattern(&self, pat: &hir::WhenPat) -> Pattern {
+    fn lower_pattern(&self, pat: &hir::WhenPat, subject_ty: TypeId) -> Pattern {
         match pat {
             hir::WhenPat::Else { .. } => Pattern::Else,
             hir::WhenPat::Or { pats, .. } => Pattern::Or {
-                pats: pats.iter().map(|pat| self.lower_pattern(pat)).collect(),
+                pats: pats
+                    .iter()
+                    .map(|pat| self.lower_pattern(pat, subject_ty))
+                    .collect(),
             },
             hir::WhenPat::Wildcard { .. } => Pattern::Wildcard,
             hir::WhenPat::Rest { .. } => Pattern::Rest,
-            hir::WhenPat::Is { ty, .. } => Pattern::Is { ty: *ty },
+            hir::WhenPat::Is { ty, .. } => Pattern::Is {
+                ty: *ty,
+                metadata: self.runtime_pattern_type_test_metadata(subject_ty, *ty),
+            },
             hir::WhenPat::Bind { span, name, .. } => Pattern::Bind {
                 name: name.clone(),
                 ty: self
@@ -4560,11 +4766,21 @@ impl<'a> FnLowering<'a> {
                     .unwrap_or(self.builtins.any),
             },
             hir::WhenPat::Tuple { elements, .. } => Pattern::Tuple {
-                elements: elements.iter().map(|pat| self.lower_pattern(pat)).collect(),
+                elements: elements
+                    .iter()
+                    .enumerate()
+                    .map(|(index, pat)| {
+                        let element_ty = self.tuple_pattern_element_ty(subject_ty, index);
+                        self.lower_pattern(pat, element_ty)
+                    })
+                    .collect(),
             },
             hir::WhenPat::Variant { name, args, .. } => Pattern::Variant {
                 name: name.clone(),
-                args: args.iter().map(|pat| self.lower_pattern(pat)).collect(),
+                args: args
+                    .iter()
+                    .map(|pat| self.lower_pattern(pat, self.builtins.any))
+                    .collect(),
             },
             hir::WhenPat::IntLit { raw, .. } => Pattern::IntLit { raw: raw.clone() },
             hir::WhenPat::CharLit { value, .. } => Pattern::CharLit { value: *value },
@@ -4572,6 +4788,15 @@ impl<'a> FnLowering<'a> {
                 value: value.clone(),
             },
             hir::WhenPat::BoolLit { value, .. } => Pattern::BoolLit { value: *value },
+        }
+    }
+
+    fn tuple_pattern_element_ty(&self, subject_ty: TypeId, index: usize) -> TypeId {
+        match self.types.kind(subject_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                elements.get(index).copied().unwrap_or(self.builtins.any)
+            }
+            _ => self.builtins.any,
         }
     }
 
@@ -4714,7 +4939,7 @@ impl<'a> FnLowering<'a> {
                     cond,
                     Rvalue::PatternMatch {
                         subject: Operand::Local(subject_local),
-                        pattern: self.lower_pattern(&arm.pat),
+                        pattern: self.lower_pattern(&arm.pat, subject.ty),
                     },
                 );
                 self.set_terminator(

@@ -39,7 +39,9 @@ use super::{
     MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
     MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory,
     NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata,
-    PropertyMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
+    PropertyMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
+    RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeParameterizedMatch,
+    RuntimeTypeTestMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
     Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction,
     build_materialized_summary_table,
 };
@@ -434,6 +436,12 @@ struct MaterializedValidationContext<'a> {
     block: Option<BasicBlockId>,
     span: Span,
     surface: &'static str,
+}
+
+impl<'a> MaterializedValidationContext<'a> {
+    fn with_surface(self, surface: &'static str) -> Self {
+        Self { surface, ..self }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1077,7 +1085,12 @@ fn validate_materialized_rvalue(
             )?;
             validate_materialized_operand(materialized, fqn, block, span, "binary rhs", locals, rhs)
         }
-        Rvalue::TypeCheck { value, test_ty, .. } => {
+        Rvalue::TypeCheck {
+            value,
+            test_ty,
+            metadata,
+            ..
+        } => {
             validate_materialized_operand(
                 materialized,
                 fqn,
@@ -1096,10 +1109,23 @@ fn validate_materialized_rvalue(
                     surface: "typecheck target type",
                 },
                 *test_ty,
+            )?;
+            validate_materialized_type_test_metadata(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "typecheck metadata",
+                },
+                metadata,
             )
         }
         Rvalue::Cast {
-            value, target_ty, ..
+            value,
+            target_ty,
+            metadata,
+            ..
         } => {
             validate_materialized_operand(
                 materialized,
@@ -1119,6 +1145,16 @@ fn validate_materialized_rvalue(
                     surface: "cast target type",
                 },
                 *target_ty,
+            )?;
+            validate_materialized_cast_metadata(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "cast metadata",
+                },
+                metadata,
             )
         }
         Rvalue::MemberAccess {
@@ -1846,6 +1882,197 @@ fn validate_materialized_member_metadata(
     )
 }
 
+fn validate_materialized_type_test_metadata(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    metadata: &RuntimeTypeTestMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        ctx.with_surface("type-test source type"),
+        metadata.source_ty,
+    )?;
+    validate_materialized_type(
+        materialized,
+        ctx.with_surface("type-test target type"),
+        metadata.target_ty,
+    )?;
+    validate_materialized_descriptor_key(
+        materialized,
+        ctx.with_surface("type-test descriptor"),
+        &metadata.descriptor,
+    )?;
+    validate_materialized_parameterized_match(
+        materialized,
+        ctx.with_surface("type-test parameterized match"),
+        &metadata.parameterized,
+    )
+}
+
+fn validate_materialized_cast_metadata(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    metadata: &RuntimeCastMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type_test_metadata(
+        materialized,
+        ctx.with_surface("cast type test"),
+        &metadata.test,
+    )?;
+    match &metadata.failure {
+        RuntimeCastFailure::Raise { effect_ty, .. } => {
+            if let Some(effect_ty) = effect_ty {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("cast failure effect"),
+                    *effect_ty,
+                )?;
+            }
+        }
+        RuntimeCastFailure::ReturnNone => {}
+    }
+    match &metadata.result {
+        RuntimeCastResult::Target { ty } => {
+            validate_materialized_type(materialized, ctx.with_surface("cast result type"), *ty)
+        }
+        RuntimeCastResult::Option { option_ty, some_ty } => {
+            validate_materialized_type(
+                materialized,
+                ctx.with_surface("cast optional result type"),
+                *option_ty,
+            )?;
+            validate_materialized_type(materialized, ctx.with_surface("cast some type"), *some_ty)
+        }
+    }
+}
+
+fn validate_materialized_pattern_type_test_metadata(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    metadata: &RuntimePatternTypeTestMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        ctx.with_surface("pattern subject type"),
+        metadata.subject_ty,
+    )?;
+    validate_materialized_type(
+        materialized,
+        ctx.with_surface("pattern target type"),
+        metadata.target_ty,
+    )?;
+    validate_materialized_descriptor_key(
+        materialized,
+        ctx.with_surface("pattern descriptor"),
+        &metadata.descriptor,
+    )?;
+    validate_materialized_parameterized_match(
+        materialized,
+        ctx.with_surface("pattern parameterized match"),
+        &metadata.parameterized,
+    )
+}
+
+fn validate_materialized_descriptor_key(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    descriptor: &RuntimeTypeDescriptorKey,
+) -> MaterializeResult<()> {
+    validate_materialized_type(materialized, ctx, descriptor.ty)
+}
+
+fn validate_materialized_parameterized_match(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    parameterized: &RuntimeTypeParameterizedMatch,
+) -> MaterializeResult<()> {
+    match parameterized {
+        RuntimeTypeParameterizedMatch::None => Ok(()),
+        RuntimeTypeParameterizedMatch::Nominal {
+            type_args,
+            effect_arg,
+        } => {
+            for ty in type_args {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("nominal type arg"),
+                    *ty,
+                )?;
+            }
+            if let Some(effect_arg) = effect_arg {
+                validate_materialized_effect_row(
+                    materialized,
+                    ctx.with_surface("nominal effect arg"),
+                    effect_arg,
+                )?;
+            }
+            Ok(())
+        }
+        RuntimeTypeParameterizedMatch::Function {
+            receiver,
+            params,
+            return_ty,
+            effects,
+            ..
+        } => {
+            if let Some(receiver) = receiver {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("function receiver type"),
+                    *receiver,
+                )?;
+            }
+            for param in params {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("function param type"),
+                    *param,
+                )?;
+            }
+            validate_materialized_type(
+                materialized,
+                ctx.with_surface("function return type"),
+                *return_ty,
+            )?;
+            validate_materialized_effect_row(
+                materialized,
+                ctx.with_surface("function effects"),
+                effects,
+            )
+        }
+        RuntimeTypeParameterizedMatch::Option { payload_ty } => validate_materialized_type(
+            materialized,
+            ctx.with_surface("option payload type"),
+            *payload_ty,
+        ),
+        RuntimeTypeParameterizedMatch::Tuple { element_tys } => {
+            for element_ty in element_tys {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("tuple element type"),
+                    *element_ty,
+                )?;
+            }
+            Ok(())
+        }
+        RuntimeTypeParameterizedMatch::Union { variants } => {
+            for variant in variants {
+                validate_materialized_type(
+                    materialized,
+                    ctx.with_surface("union variant"),
+                    *variant,
+                )?;
+            }
+            Ok(())
+        }
+        RuntimeTypeParameterizedMatch::StarProjection { read_ty } => validate_materialized_type(
+            materialized,
+            ctx.with_surface("star projection read type"),
+            *read_ty,
+        ),
+    }
+}
+
 fn validate_materialized_pattern(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -1854,7 +2081,29 @@ fn validate_materialized_pattern(
     pattern: &Pattern,
 ) -> MaterializeResult<()> {
     match pattern {
-        Pattern::Is { ty } | Pattern::Bind { ty, .. } => validate_materialized_type(
+        Pattern::Is { ty, metadata } => {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "pattern type",
+                },
+                *ty,
+            )?;
+            validate_materialized_pattern_type_test_metadata(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "pattern type-test metadata",
+                },
+                metadata,
+            )
+        }
+        Pattern::Bind { ty, .. } => validate_materialized_type(
             materialized,
             MaterializedValidationContext {
                 fqn,
@@ -5509,13 +5758,22 @@ impl MirInstanceMaterializer {
                 *lhs = self.rewrite_operand(lhs.clone());
                 *rhs = self.rewrite_operand(rhs.clone());
             }
-            Rvalue::TypeCheck { value, test_ty, .. } => {
+            Rvalue::TypeCheck {
+                value,
+                test_ty,
+                metadata,
+                ..
+            } => {
                 *value = self.rewrite_operand(value.clone());
                 *test_ty =
                     substitute_type_and_effect_params(&mut self.types, *test_ty, ctx.substitution);
+                self.rewrite_type_test_metadata(metadata, ctx.substitution);
             }
             Rvalue::Cast {
-                value, target_ty, ..
+                value,
+                target_ty,
+                metadata,
+                ..
             } => {
                 *value = self.rewrite_operand(value.clone());
                 *target_ty = substitute_type_and_effect_params(
@@ -5523,6 +5781,7 @@ impl MirInstanceMaterializer {
                     *target_ty,
                     ctx.substitution,
                 );
+                self.rewrite_cast_metadata(metadata, ctx.substitution);
             }
             Rvalue::SizeOf { value_ty } => {
                 *value_ty =
@@ -5994,9 +6253,134 @@ impl MirInstanceMaterializer {
         }
     }
 
+    fn rewrite_type_test_metadata(
+        &mut self,
+        metadata: &mut RuntimeTypeTestMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        metadata.source_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.source_ty, substitution);
+        metadata.target_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.target_ty, substitution);
+        self.rewrite_descriptor_key(&mut metadata.descriptor, substitution);
+        self.rewrite_parameterized_match(&mut metadata.parameterized, substitution);
+    }
+
+    fn rewrite_cast_metadata(
+        &mut self,
+        metadata: &mut RuntimeCastMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        self.rewrite_type_test_metadata(&mut metadata.test, substitution);
+        if let RuntimeCastFailure::Raise { effect_ty, .. } = &mut metadata.failure {
+            *effect_ty = effect_ty
+                .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        }
+        match &mut metadata.result {
+            RuntimeCastResult::Target { ty } => {
+                *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+            }
+            RuntimeCastResult::Option { option_ty, some_ty } => {
+                *option_ty =
+                    substitute_type_and_effect_params(&mut self.types, *option_ty, substitution);
+                *some_ty =
+                    substitute_type_and_effect_params(&mut self.types, *some_ty, substitution);
+            }
+        }
+    }
+
+    fn rewrite_pattern_type_test_metadata(
+        &mut self,
+        metadata: &mut RuntimePatternTypeTestMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        metadata.subject_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.subject_ty, substitution);
+        metadata.target_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.target_ty, substitution);
+        self.rewrite_descriptor_key(&mut metadata.descriptor, substitution);
+        self.rewrite_parameterized_match(&mut metadata.parameterized, substitution);
+    }
+
+    fn rewrite_descriptor_key(
+        &mut self,
+        descriptor: &mut RuntimeTypeDescriptorKey,
+        substitution: &InstanceSubstitution,
+    ) {
+        descriptor.ty =
+            substitute_type_and_effect_params(&mut self.types, descriptor.ty, substitution);
+    }
+
+    fn rewrite_parameterized_match(
+        &mut self,
+        parameterized: &mut RuntimeTypeParameterizedMatch,
+        substitution: &InstanceSubstitution,
+    ) {
+        match parameterized {
+            RuntimeTypeParameterizedMatch::None => {}
+            RuntimeTypeParameterizedMatch::Nominal {
+                type_args,
+                effect_arg,
+            } => {
+                for ty in type_args {
+                    *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+                }
+                *effect_arg = effect_arg.as_ref().map(|row| {
+                    substitute_type_and_effect_params_in_effect_row(
+                        &mut self.types,
+                        row,
+                        substitution,
+                    )
+                });
+            }
+            RuntimeTypeParameterizedMatch::Function {
+                receiver,
+                params,
+                return_ty,
+                effects,
+                ..
+            } => {
+                *receiver = receiver
+                    .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+                for ty in params {
+                    *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+                }
+                *return_ty =
+                    substitute_type_and_effect_params(&mut self.types, *return_ty, substitution);
+                *effects = substitute_type_and_effect_params_in_effect_row(
+                    &mut self.types,
+                    effects,
+                    substitution,
+                );
+            }
+            RuntimeTypeParameterizedMatch::Option { payload_ty } => {
+                *payload_ty =
+                    substitute_type_and_effect_params(&mut self.types, *payload_ty, substitution);
+            }
+            RuntimeTypeParameterizedMatch::Tuple { element_tys } => {
+                for ty in element_tys {
+                    *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+                }
+            }
+            RuntimeTypeParameterizedMatch::Union { variants } => {
+                for ty in variants {
+                    *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+                }
+            }
+            RuntimeTypeParameterizedMatch::StarProjection { read_ty } => {
+                *read_ty =
+                    substitute_type_and_effect_params(&mut self.types, *read_ty, substitution);
+            }
+        }
+    }
+
     fn rewrite_pattern(&mut self, pattern: &mut Pattern, substitution: &InstanceSubstitution) {
         match pattern {
-            Pattern::Is { ty } | Pattern::Bind { ty, .. } => {
+            Pattern::Is { ty, metadata } => {
+                *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
+                self.rewrite_pattern_type_test_metadata(metadata, substitution);
+            }
+            Pattern::Bind { ty, .. } => {
                 *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
             }
             Pattern::Or { pats } => {

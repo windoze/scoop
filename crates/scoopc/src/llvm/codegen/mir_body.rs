@@ -1966,7 +1966,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Pattern::Or { pats } => pats.iter().all(|pat| {
                 self.raw_materialized_mir_pattern_is_supported(mir_types, pat, subject_ty)
             }),
-            crate::mir::Pattern::Is { ty } => {
+            crate::mir::Pattern::Is { ty, .. } => {
                 matches!(subject_ty, CgTy::Ref | CgTy::String)
                     && self
                         .equivalent_codegen_type_id(mir_types, *ty)
@@ -2529,6 +2529,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value,
                 op: ast::CastOp::As,
                 target_ty,
+                ..
             } => {
                 let target = self.cg_ty_of_mir_type(mir_types, *target_ty).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
@@ -3822,7 +3823,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            crate::mir::Pattern::Is { ty } => {
+            crate::mir::Pattern::Is { ty, .. } => {
                 self.codegen_mir_is_pattern_match(span, mir_types, subject, *ty)
             }
             crate::mir::Pattern::Tuple { elements } => {

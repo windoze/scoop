@@ -609,7 +609,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T09：收口 runtime value primitives 的 MIR 表达
+## [DONE] MIR-T09：收口 runtime value primitives 的 MIR 表达
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M6
@@ -644,6 +644,23 @@
 - 完成条件：
   - runtime type/cast/not-null/pattern surface 在 MIR no-placeholder 且 metadata 完整。
 - 依赖：`MIR-T08R`
+
+- 完成记录（2026-05-07）：
+  - `Rvalue::TypeCheck` 现在携带 `RuntimeTypeTestMetadata`，包含 source value type、target type、runtime descriptor key、static-foldability 和 parameterized matching contract。
+  - `Rvalue::Cast` 现在携带 `RuntimeCastMetadata`，区分 `as` 的 `Raise<RuntimeError.ClassCastFailed>` failure contract 与 `as?` 的 `Option<T>` / `None` result contract，并保留 target descriptor 与参数化匹配信息。
+  - `Pattern::Is` 现在携带 `RuntimePatternTypeTestMetadata`，明确 pattern subject type、target descriptor、static/ref/class/interface/parameterized 分类和参数化匹配合同。
+  - refactor production verifier 增加 runtime value primitive metadata 一致性检查；materialized MIR verifier/rewrite 覆盖新增 metadata 内的 source/target/descriptor/type-arg/effect-row 类型引用。
+  - `!!` 继续在 HIR 前置展开为显式 nullable `when`，本任务新增验证确保 refactor MIR 中存在 `Some` success payload extract、`None` failure branch 和 `Raise.raise(RuntimeError.NullAssertionFailed)` perform。
+  - unsupported function type runtime cast 保持 frontend/typecheck diagnostic，不进入 MIR。
+  - 新增 fixtures：`tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop`、`tests/fixtures/mir_refactor/not_null_assert.scoop`、`tests/fixtures/mir_refactor/pattern_is_type.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_value_primitives`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/not_null_assert.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/pattern_is_type.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T09R：Review MIR-T09 runtime value primitives
 

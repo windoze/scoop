@@ -269,7 +269,127 @@ impl File {
             Rvalue::Call { kind, .. } => {
                 self.validate_refactor_production_call_kind(fqn, block, span, kind)
             }
+            Rvalue::TypeCheck {
+                test_ty, metadata, ..
+            } => self.validate_refactor_type_test_metadata(fqn, block, span, *test_ty, metadata),
+            Rvalue::Cast {
+                op,
+                target_ty,
+                metadata,
+                ..
+            } => self.validate_refactor_cast_metadata(fqn, block, span, *op, *target_ty, metadata),
+            Rvalue::PatternMatch { pattern, .. } => {
+                self.validate_refactor_pattern_metadata(fqn, block, span, pattern)
+            }
             _ => Ok(()),
+        }
+    }
+
+    fn validate_refactor_type_test_metadata(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        expected_target_ty: TypeId,
+        metadata: &RuntimeTypeTestMetadata,
+    ) -> Result<(), MirValidationError> {
+        if metadata.target_ty != expected_target_ty || metadata.descriptor.ty != expected_target_ty
+        {
+            return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: fqn.to_string(),
+                block,
+                span,
+                primitive: "typecheck",
+                detail: "target type and runtime descriptor disagree",
+            });
+        }
+        Ok(())
+    }
+
+    fn validate_refactor_cast_metadata(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        op: ast::CastOp,
+        expected_target_ty: TypeId,
+        metadata: &RuntimeCastMetadata,
+    ) -> Result<(), MirValidationError> {
+        self.validate_refactor_type_test_metadata(
+            fqn,
+            block,
+            span,
+            expected_target_ty,
+            &metadata.test,
+        )?;
+
+        match (op, &metadata.failure, &metadata.result) {
+            (
+                ast::CastOp::As,
+                RuntimeCastFailure::Raise { .. },
+                RuntimeCastResult::Target { ty },
+            ) if *ty == expected_target_ty => Ok(()),
+            (
+                ast::CastOp::AsQ,
+                RuntimeCastFailure::ReturnNone,
+                RuntimeCastResult::Option { some_ty, .. },
+            ) if *some_ty == expected_target_ty => Ok(()),
+            _ => Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: fqn.to_string(),
+                block,
+                span,
+                primitive: "cast",
+                detail: "failure/result contract does not match cast operator",
+            }),
+        }
+    }
+
+    fn validate_refactor_pattern_metadata(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        pattern: &Pattern,
+    ) -> Result<(), MirValidationError> {
+        match pattern {
+            Pattern::Is { ty, metadata } => {
+                if metadata.target_ty != *ty || metadata.descriptor.ty != *ty {
+                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        primitive: "pattern type test",
+                        detail: "target type and runtime descriptor disagree",
+                    });
+                }
+                Ok(())
+            }
+            Pattern::Or { pats } => {
+                for pat in pats {
+                    self.validate_refactor_pattern_metadata(fqn, block, span, pat)?;
+                }
+                Ok(())
+            }
+            Pattern::Tuple { elements } => {
+                for element in elements {
+                    self.validate_refactor_pattern_metadata(fqn, block, span, element)?;
+                }
+                Ok(())
+            }
+            Pattern::Variant { args, .. } => {
+                for arg in args {
+                    self.validate_refactor_pattern_metadata(fqn, block, span, arg)?;
+                }
+                Ok(())
+            }
+            Pattern::Else
+            | Pattern::Wildcard
+            | Pattern::Rest
+            | Pattern::Bind { .. }
+            | Pattern::IntLit { .. }
+            | Pattern::CharLit { .. }
+            | Pattern::StringLit { .. }
+            | Pattern::BoolLit { .. } => Ok(()),
         }
     }
 
@@ -1440,21 +1560,155 @@ pub enum ConstValue {
     String,
 }
 
+/// 运行期类型检查使用的 descriptor key。
+///
+/// 该 key 保留 backend 需要的稳定身份，而不是要求后续阶段从 `TypeId` 重新猜测
+/// class/interface/function/value 等运行时分类。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeTypeDescriptorKey {
+    pub ty: TypeId,
+    pub kind: RuntimeTypeDescriptorKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeTypeDescriptorKind {
+    Any,
+    String,
+    Nominal {
+        fqn: String,
+        kind: Option<ast::TypeKind>,
+    },
+    Function,
+    Option,
+    Tuple,
+    Value,
+    TypeParam,
+    StarProjection,
+    Union,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeTypeStaticFold {
+    AlwaysTrue,
+    AlwaysFalse,
+    Dynamic,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeTypeParameterizedMatch {
+    None,
+    Nominal {
+        type_args: Vec<TypeId>,
+        effect_arg: Option<EffectRow>,
+    },
+    Function {
+        receiver: Option<TypeId>,
+        params: Vec<TypeId>,
+        return_ty: TypeId,
+        effects: EffectRow,
+        effects_closed: bool,
+    },
+    Option {
+        payload_ty: TypeId,
+    },
+    Tuple {
+        element_tys: Vec<TypeId>,
+    },
+    Union {
+        variants: Vec<TypeId>,
+    },
+    StarProjection {
+        read_ty: TypeId,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeTypeTestMetadata {
+    pub source_ty: TypeId,
+    pub target_ty: TypeId,
+    pub descriptor: RuntimeTypeDescriptorKey,
+    pub static_fold: RuntimeTypeStaticFold,
+    pub parameterized: RuntimeTypeParameterizedMatch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeCastFailure {
+    Raise {
+        effect_ty: Option<TypeId>,
+        error_fqn: String,
+    },
+    ReturnNone,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeCastResult {
+    Target { ty: TypeId },
+    Option { option_ty: TypeId, some_ty: TypeId },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeCastMetadata {
+    pub test: RuntimeTypeTestMetadata,
+    pub failure: RuntimeCastFailure,
+    pub result: RuntimeCastResult,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimePatternTypeTestKind {
+    StaticValue,
+    RuntimeRef,
+    RuntimeClass,
+    RuntimeInterface,
+    RuntimeNominal,
+    RuntimeParameterized,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimePatternTypeTestMetadata {
+    pub subject_ty: TypeId,
+    pub target_ty: TypeId,
+    pub descriptor: RuntimeTypeDescriptorKey,
+    pub match_kind: RuntimePatternTypeTestKind,
+    pub static_fold: RuntimeTypeStaticFold,
+    pub parameterized: RuntimeTypeParameterizedMatch,
+}
+
 /// `when` pattern 在 MIR 上的 backend-agnostic 表示。
 #[derive(Debug, Clone)]
 pub enum Pattern {
     Else,
-    Or { pats: Vec<Pattern> },
+    Or {
+        pats: Vec<Pattern>,
+    },
     Wildcard,
     Rest,
-    Is { ty: TypeId },
-    Bind { name: String, ty: TypeId },
-    Tuple { elements: Vec<Pattern> },
-    Variant { name: String, args: Vec<Pattern> },
-    IntLit { raw: String },
-    CharLit { value: char },
-    StringLit { value: String },
-    BoolLit { value: bool },
+    Is {
+        ty: TypeId,
+        metadata: RuntimePatternTypeTestMetadata,
+    },
+    Bind {
+        name: String,
+        ty: TypeId,
+    },
+    Tuple {
+        elements: Vec<Pattern>,
+    },
+    Variant {
+        name: String,
+        args: Vec<Pattern>,
+    },
+    IntLit {
+        raw: String,
+    },
+    CharLit {
+        value: char,
+    },
+    StringLit {
+        value: String,
+    },
+    BoolLit {
+        value: bool,
+    },
 }
 
 /// 从一个已匹配 subject 中提取 binder 值时使用的投影路径。
@@ -1501,11 +1755,13 @@ pub enum Rvalue {
         value: Operand,
         op: ast::TypeCheckOp,
         test_ty: TypeId,
+        metadata: RuntimeTypeTestMetadata,
     },
     Cast {
         value: Operand,
         op: ast::CastOp,
         target_ty: TypeId,
+        metadata: RuntimeCastMetadata,
     },
     MemberAccess {
         site_id: Option<SiteId>,
@@ -1927,6 +2183,16 @@ pub enum MirValidationError {
         site: MirSiteMetadataKind,
         detail: &'static str,
     },
+    #[error(
+        "refactor production MIR `{fqn}` has incomplete {primitive} runtime value metadata in {block:?} at {span:?}: {detail}"
+    )]
+    RefactorProductionRuntimeValueMetadata {
+        fqn: String,
+        block: BasicBlockId,
+        span: Span,
+        primitive: &'static str,
+        detail: &'static str,
+    },
 }
 
 impl MirValidationError {
@@ -1935,7 +2201,8 @@ impl MirValidationError {
             MirValidationError::RefactorProductionTodo { fqn, .. }
             | MirValidationError::RefactorProductionBodyContract { fqn, .. }
             | MirValidationError::RefactorProductionMissingReturnValue { fqn, .. }
-            | MirValidationError::RefactorProductionSiteMetadata { fqn, .. } => Some(fqn),
+            | MirValidationError::RefactorProductionSiteMetadata { fqn, .. }
+            | MirValidationError::RefactorProductionRuntimeValueMetadata { fqn, .. } => Some(fqn),
             MirValidationError::EmptyBody
             | MirValidationError::InvalidStartBlock { .. }
             | MirValidationError::InvalidTarget { .. }

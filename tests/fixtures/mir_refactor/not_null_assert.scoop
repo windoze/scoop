@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：MIR-T09 `!!` 在 refactor MIR 中展开为显式 nullable match 与失败 raise。
+
+package mir_refactor.not_null_assert
+
+import scoop.core.*
+
+fun unwrap(x: Int?): Int / Raise<RuntimeError> {
+    return x!!
+}

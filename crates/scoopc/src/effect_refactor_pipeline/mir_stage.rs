@@ -259,10 +259,13 @@ pub(crate) fn run_unvalidated_for_preflight(
 #[cfg(test)]
 mod tests {
     use super::RefactorMirStageOutput;
+    use crate::ast;
     use crate::mir::{
         CallKind, HandlerArmKind, InitializerDependencyKind, InitializerRootKind, Item,
         MemberTarget, MetadataRoot, MirLowerError, MirLoweringFacts, MirSiteMetadataKind,
-        MirValidationError, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        MirValidationError, Operand, Pattern, RuntimeCastFailure, RuntimeCastResult,
+        RuntimePatternTypeTestKind, RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch,
+        RuntimeTypeStaticFold, Rvalue, StatementKind, TerminatorKind, UnwindAction,
         lower_hir_file_for_dump_with_facts,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
@@ -684,6 +687,284 @@ fun main() {}
                     }
                 ))
         );
+    }
+
+    #[test]
+    fn refactor_mir_value_primitives_record_typecheck_and_cast_metadata() {
+        let output = run_fixture("mir_refactor", "runtime_typecheck_cast.scoop");
+        let body = validated_callable_body(&output, "mir_refactor.runtime_typecheck_cast.inspect");
+        let mut saw_iface_is = false;
+        let mut saw_other_not_is = false;
+        let mut saw_parameterized_holder_is = false;
+        let mut saw_as_raise = false;
+        let mut saw_asq_none = false;
+
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            match value {
+                Rvalue::TypeCheck {
+                    op,
+                    test_ty,
+                    metadata,
+                    ..
+                } => {
+                    assert_eq!(metadata.target_ty, *test_ty);
+                    assert_eq!(metadata.descriptor.ty, *test_ty);
+                    assert_eq!(metadata.static_fold, RuntimeTypeStaticFold::Dynamic);
+                    match (&metadata.descriptor.kind, op) {
+                        (
+                            RuntimeTypeDescriptorKind::Nominal {
+                                fqn,
+                                kind: Some(ast::TypeKind::Interface),
+                            },
+                            ast::TypeCheckOp::Is,
+                        ) if fqn == "mir_refactor.runtime_typecheck_cast.IFace" => {
+                            saw_iface_is = true;
+                        }
+                        (
+                            RuntimeTypeDescriptorKind::Nominal {
+                                fqn,
+                                kind: Some(ast::TypeKind::Class),
+                            },
+                            ast::TypeCheckOp::NotIs,
+                        ) if fqn == "mir_refactor.runtime_typecheck_cast.Other" => {
+                            saw_other_not_is = true;
+                        }
+                        (
+                            RuntimeTypeDescriptorKind::Nominal {
+                                fqn,
+                                kind: Some(ast::TypeKind::Class),
+                            },
+                            ast::TypeCheckOp::Is,
+                        ) if fqn == "mir_refactor.runtime_typecheck_cast.Holder" => {
+                            assert!(matches!(
+                                &metadata.parameterized,
+                                RuntimeTypeParameterizedMatch::Nominal { type_args, .. }
+                                    if type_args.len() == 1
+                            ));
+                            saw_parameterized_holder_is = true;
+                        }
+                        _ => {}
+                    }
+                }
+                Rvalue::Cast {
+                    op,
+                    target_ty,
+                    metadata,
+                    ..
+                } => {
+                    assert_eq!(metadata.test.target_ty, *target_ty);
+                    assert_eq!(metadata.test.descriptor.ty, *target_ty);
+                    match (op, &metadata.failure, &metadata.result) {
+                        (
+                            ast::CastOp::As,
+                            RuntimeCastFailure::Raise {
+                                effect_ty,
+                                error_fqn,
+                            },
+                            RuntimeCastResult::Target { ty },
+                        ) => {
+                            assert_eq!(*ty, *target_ty);
+                            assert!(effect_ty.is_some());
+                            assert_eq!(error_fqn, "scoop.core.RuntimeError.ClassCastFailed");
+                            saw_as_raise = true;
+                        }
+                        (
+                            ast::CastOp::AsQ,
+                            RuntimeCastFailure::ReturnNone,
+                            RuntimeCastResult::Option { option_ty, some_ty },
+                        ) => {
+                            assert_eq!(*some_ty, *target_ty);
+                            assert_ne!(*option_ty, *target_ty);
+                            assert!(matches!(
+                                &metadata.test.parameterized,
+                                RuntimeTypeParameterizedMatch::Nominal { type_args, .. }
+                                    if type_args.len() == 1
+                            ));
+                            saw_asq_none = true;
+                        }
+                        other => panic!("unexpected cast metadata: {other:?}"),
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        assert!(saw_iface_is, "missing interface `is` metadata");
+        assert!(saw_other_not_is, "missing class `!is` metadata");
+        assert!(
+            saw_parameterized_holder_is,
+            "missing parameterized typecheck metadata"
+        );
+        assert!(saw_as_raise, "missing `as` failure raise metadata");
+        assert!(saw_asq_none, "missing `as?` none-result metadata");
+    }
+
+    #[test]
+    fn refactor_mir_value_primitives_not_null_assert_is_explicit_match_and_raise() {
+        let output = run_fixture("mir_refactor", "not_null_assert.scoop");
+        let body = validated_callable_body(&output, "mir_refactor.not_null_assert.unwrap");
+        let mut saw_some_match = false;
+        let mut saw_none_match = false;
+        let mut saw_extract = false;
+        let mut saw_raise = false;
+
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                match &stmt.kind {
+                    StatementKind::Assign {
+                        value: Rvalue::PatternMatch { pattern, .. },
+                        ..
+                    } => {
+                        saw_some_match |= pattern_contains_variant(pattern, "Some");
+                        saw_none_match |= pattern_contains_variant(pattern, "None");
+                    }
+                    StatementKind::Assign {
+                        value: Rvalue::PatternExtract { .. },
+                        ..
+                    } => saw_extract = true,
+                    _ => {}
+                }
+            }
+            if let TerminatorKind::Perform { metadata, .. } = &block.terminator.kind {
+                saw_raise |= output.types().display(metadata.effect_ty).to_string()
+                    == "scoop.core.Raise<scoop.core.RuntimeError>"
+                    && output.types().display(metadata.result_ty).to_string() == "Nothing";
+            }
+        }
+
+        assert!(saw_some_match, "`!!` success arm should test Some payload");
+        assert!(saw_none_match, "`!!` failure arm should test None");
+        assert!(saw_extract, "`!!` success arm should extract payload");
+        assert!(
+            saw_raise,
+            "`!!` failure arm should perform RuntimeError raise"
+        );
+    }
+
+    #[test]
+    fn refactor_mir_value_primitives_pattern_is_type_metadata_is_classified() {
+        let output = run_fixture("mir_refactor", "pattern_is_type.scoop");
+        let body = validated_callable_body(&output, "mir_refactor.pattern_is_type.classify");
+        let mut saw_string = false;
+        let mut saw_box = false;
+
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign {
+                value: Rvalue::PatternMatch { pattern, .. },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            collect_pattern_is_metadata(pattern, &mut |metadata| {
+                assert_eq!(
+                    output.types().display(metadata.subject_ty).to_string(),
+                    "Any"
+                );
+                match &metadata.descriptor.kind {
+                    RuntimeTypeDescriptorKind::String => {
+                        assert_eq!(metadata.match_kind, RuntimePatternTypeTestKind::RuntimeRef);
+                        saw_string = true;
+                    }
+                    RuntimeTypeDescriptorKind::Nominal {
+                        fqn,
+                        kind: Some(ast::TypeKind::Class),
+                    } if fqn == "mir_refactor.pattern_is_type.Box" => {
+                        assert_eq!(
+                            metadata.match_kind,
+                            RuntimePatternTypeTestKind::RuntimeClass
+                        );
+                        saw_box = true;
+                    }
+                    _ => {}
+                }
+            });
+        }
+
+        assert!(saw_string, "missing `is String` pattern metadata");
+        assert!(saw_box, "missing `is Box` pattern metadata");
+    }
+
+    #[test]
+    fn refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/unsupported_function_type_cast.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun bad() {
+    val f: () -> Int / Pure! = { 1 }
+    val a: Any = f
+    val g: (() -> Int / Pure!)? = a as? (() -> Int / Pure!)
+    val _ = g
+}
+"#,
+        );
+        let err = super::super::load_typed_hir_stage_output_for_dump(&session, &source)
+            .expect_err("function type runtime cast must be rejected before MIR");
+        let report = format!("{err:?}");
+        assert!(
+            report.contains("FunctionTypeCastNotSupported")
+                || report.contains("function_type_cast_not_supported"),
+            "expected function-type cast diagnostic, got: {report}"
+        );
+    }
+
+    fn pattern_contains_variant(pattern: &Pattern, expected: &str) -> bool {
+        match pattern {
+            Pattern::Variant { name, .. } => name == expected,
+            Pattern::Or { pats } => pats
+                .iter()
+                .any(|pat| pattern_contains_variant(pat, expected)),
+            Pattern::Tuple { elements } => elements
+                .iter()
+                .any(|pat| pattern_contains_variant(pat, expected)),
+            Pattern::Else
+            | Pattern::Wildcard
+            | Pattern::Rest
+            | Pattern::Is { .. }
+            | Pattern::Bind { .. }
+            | Pattern::IntLit { .. }
+            | Pattern::CharLit { .. }
+            | Pattern::StringLit { .. }
+            | Pattern::BoolLit { .. } => false,
+        }
+    }
+
+    fn collect_pattern_is_metadata(
+        pattern: &Pattern,
+        visit: &mut impl FnMut(&crate::mir::RuntimePatternTypeTestMetadata),
+    ) {
+        match pattern {
+            Pattern::Is { metadata, .. } => visit(metadata),
+            Pattern::Or { pats } => {
+                for pat in pats {
+                    collect_pattern_is_metadata(pat, visit);
+                }
+            }
+            Pattern::Tuple { elements } => {
+                for pat in elements {
+                    collect_pattern_is_metadata(pat, visit);
+                }
+            }
+            Pattern::Variant { args, .. } => {
+                for pat in args {
+                    collect_pattern_is_metadata(pat, visit);
+                }
+            }
+            Pattern::Else
+            | Pattern::Wildcard
+            | Pattern::Rest
+            | Pattern::Bind { .. }
+            | Pattern::IntLit { .. }
+            | Pattern::CharLit { .. }
+            | Pattern::StringLit { .. }
+            | Pattern::BoolLit { .. } => {}
+        }
     }
 
     #[test]
