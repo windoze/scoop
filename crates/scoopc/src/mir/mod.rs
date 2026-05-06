@@ -23,6 +23,8 @@ mod inline;
 mod lower;
 mod materialize;
 mod pass_view;
+#[cfg(test)]
+mod placeholder_inventory;
 mod summary;
 
 use std::collections::{HashMap, VecDeque};

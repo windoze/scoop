@@ -36,7 +36,7 @@
 - 验证以定向命令为准，不运行 full fixtures。
 - 明确禁止在本阶段要求通过：`cargo test --all`、`cargo run -p scoop -- test`、P7/P8 GC/full regression 矩阵。
 
-## MIR-T00：建立 MIR placeholder inventory 与 gap ownership map
+## [DONE] MIR-T00：建立 MIR placeholder inventory 与 gap ownership map
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M0
@@ -92,6 +92,14 @@
   - 所有 known MIR gaps 都有 owner task。
   - 后续任务能用 inventory 判断是否真正消除了对应 gap。
 - 依赖：无
+
+- 完成记录（2026-05-06）：
+  - 新增 `crates/scoopc/src/mir/placeholder_inventory.rs`，以 `refactor_mir_placeholder_inventory` 单测固化 refactor MIR placeholder inventory。
+  - inventory 覆盖 MIR item/statement/rvalue/terminator/unwind placeholder surface、HIR handoff placeholder passthrough、materializer Todo no-op rewrite，并为每项记录 `PIPELINE_GAPS.md` 映射、disposition、owner task、production elimination 要求和处理策略。
+  - `crates/scoopc/src/mir/mod.rs` 已以 `#[cfg(test)]` 接入 inventory 模块；扫描器会在新增 placeholder 构造或 materializer no-op 变化时要求先更新 inventory。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 搜索审计已执行：`rg 'Todo\(|Item::Todo|StatementKind::Todo|Rvalue::Todo|TerminatorKind::Todo|UnwindAction::Todo' crates/scoopc/src`；命中已归入 inventory、HIR inventory、现有 verifier/preflight/summary/pass/codegen consumer、materializer no-op 或 legacy/effect-lowered consumer。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T01：落地 refactor production MIR strict verifier
 
