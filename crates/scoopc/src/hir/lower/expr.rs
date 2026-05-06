@@ -4,6 +4,9 @@
 //! - 该模块只负责 AST → HIR 的表达式部分 lowering；
 //! - 规则与 span 选择尽量保持与原先 `lower/mod.rs` 一致，避免 HIR fixtures 输出漂移。
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+
 use crate::ast;
 use crate::resolve::{ConstructorOverload, ParamSig, Visibility};
 use crate::span::Span;
@@ -26,6 +29,228 @@ struct LoweredSpliceFieldContract {
     field_name: String,
     field_fqn: String,
     field_ty: TypeId,
+}
+
+#[derive(Clone)]
+struct CallableParamPlan {
+    decl_file: PathBuf,
+    type_param_bindings: Vec<(String, TypeId)>,
+    params: Vec<DefaultArgParamInfo>,
+}
+
+struct CanonicalCallLoweringRequest<'b> {
+    pkg_prefix: &'b str,
+    call_span: Span,
+    callee: Expr,
+    source_args: &'b [ast::Expr],
+    receiver: Option<Expr>,
+    binding: crate::ast::CallArgBinding,
+    plan: Option<CallableParamPlan>,
+    call_ty: TypeId,
+}
+
+fn param_infos_from_ast_params(
+    source: &crate::source::SourceFile,
+    params: &[ast::Param],
+) -> Vec<DefaultArgParamInfo> {
+    params
+        .iter()
+        .map(|param| DefaultArgParamInfo {
+            decl_span: param.name.span,
+            name: param.name.text(source).to_string(),
+            is_vararg: param.is_vararg,
+            ty_ref: param.ty.clone(),
+            default_value: param.default_value.clone(),
+        })
+        .collect()
+}
+
+fn push_type_param_names(
+    source: &crate::source::SourceFile,
+    stack: &mut Vec<String>,
+    params: &[ast::TypeParam],
+) -> usize {
+    let start = stack.len();
+    stack.extend(params.iter().map(|p| p.name.text(source).to_string()));
+    start
+}
+
+fn find_fun_decl_with_type_params_in_type_member<'b>(
+    source: &crate::source::SourceFile,
+    member: &'b ast::TypeMember,
+    decl_span: Span,
+    type_params: &mut Vec<String>,
+) -> Option<(&'b ast::FunDecl, Vec<String>)> {
+    match member {
+        ast::TypeMember::Fun(fun) if fun.name.span == decl_span => {
+            let mut names = type_params.clone();
+            names.extend(
+                fun.type_params
+                    .iter()
+                    .map(|p| p.name.text(source).to_string()),
+            );
+            Some((fun, names))
+        }
+        ast::TypeMember::Type(ty) => {
+            let start = push_type_param_names(source, type_params, &ty.type_params);
+            let found = ty.body.as_ref().and_then(|body| {
+                body.members.iter().find_map(|member| {
+                    find_fun_decl_with_type_params_in_type_member(
+                        source,
+                        member,
+                        decl_span,
+                        type_params,
+                    )
+                })
+            });
+            type_params.truncate(start);
+            found
+        }
+        ast::TypeMember::Object(obj) => obj.body.as_ref().and_then(|body| {
+            body.members.iter().find_map(|member| {
+                find_fun_decl_with_type_params_in_type_member(
+                    source,
+                    member,
+                    decl_span,
+                    type_params,
+                )
+            })
+        }),
+        _ => None,
+    }
+}
+
+fn find_fun_decl_with_type_params<'b>(
+    source: &crate::source::SourceFile,
+    file: &'b ast::File,
+    decl_span: Span,
+) -> Option<(&'b ast::FunDecl, Vec<String>)> {
+    let mut type_params = Vec::new();
+    for item in &file.items {
+        match item {
+            ast::Item::Fun(fun) if fun.name.span == decl_span => {
+                let names = fun
+                    .type_params
+                    .iter()
+                    .map(|p| p.name.text(source).to_string())
+                    .collect();
+                return Some((fun, names));
+            }
+            ast::Item::Type(ty) => {
+                let start = push_type_param_names(source, &mut type_params, &ty.type_params);
+                let found = ty.body.as_ref().and_then(|body| {
+                    body.members.iter().find_map(|member| {
+                        find_fun_decl_with_type_params_in_type_member(
+                            source,
+                            member,
+                            decl_span,
+                            &mut type_params,
+                        )
+                    })
+                });
+                type_params.truncate(start);
+                if found.is_some() {
+                    return found;
+                }
+            }
+            ast::Item::Object(obj) => {
+                let found = obj.body.as_ref().and_then(|body| {
+                    body.members.iter().find_map(|member| {
+                        find_fun_decl_with_type_params_in_type_member(
+                            source,
+                            member,
+                            decl_span,
+                            &mut type_params,
+                        )
+                    })
+                });
+                if found.is_some() {
+                    return found;
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn find_ctor_params_with_type_params_in_type_decl(
+    source: &crate::source::SourceFile,
+    decl: &ast::TypeDecl,
+    ctor_span: Span,
+    type_params: &mut Vec<String>,
+) -> Option<(Vec<DefaultArgParamInfo>, Vec<String>)> {
+    let start = push_type_param_names(source, type_params, &decl.type_params);
+    if let Some(primary) = &decl.primary_ctor
+        && primary.params_span == ctor_span
+    {
+        let names = type_params.clone();
+        let params = param_infos_from_ast_params(source, &primary.params);
+        type_params.truncate(start);
+        return Some((params, names));
+    }
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::SecondaryCtor(ctor) if ctor.span == ctor_span => {
+                    let names = type_params.clone();
+                    let params = param_infos_from_ast_params(source, &ctor.params);
+                    type_params.truncate(start);
+                    return Some((params, names));
+                }
+                ast::TypeMember::Type(nested) => {
+                    if let Some(found) = find_ctor_params_with_type_params_in_type_decl(
+                        source,
+                        nested,
+                        ctor_span,
+                        type_params,
+                    ) {
+                        type_params.truncate(start);
+                        return Some(found);
+                    }
+                }
+                ast::TypeMember::Object(obj) => {
+                    if let Some(obj_body) = &obj.body {
+                        for nested in &obj_body.members {
+                            if let ast::TypeMember::Type(nested_ty) = nested
+                                && let Some(found) = find_ctor_params_with_type_params_in_type_decl(
+                                    source,
+                                    nested_ty,
+                                    ctor_span,
+                                    type_params,
+                                )
+                            {
+                                type_params.truncate(start);
+                                return Some(found);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    type_params.truncate(start);
+    None
+}
+
+fn find_ctor_params_with_type_params(
+    source: &crate::source::SourceFile,
+    file: &ast::File,
+    ctor_span: Span,
+) -> Option<(Vec<DefaultArgParamInfo>, Vec<String>)> {
+    let mut type_params = Vec::new();
+    for item in &file.items {
+        let ast::Item::Type(ty) = item else {
+            continue;
+        };
+        if let Some(found) =
+            find_ctor_params_with_type_params_in_type_decl(source, ty, ctor_span, &mut type_params)
+        {
+            return Some(found);
+        }
+    }
+    None
 }
 
 fn const_value_splice_field_name(value: &crate::comptime::ConstValue) -> Option<String> {
@@ -122,7 +347,19 @@ impl<'a> HirLowering<'a> {
                             ArrayLitTarget::Array,
                             result_ty,
                         ),
-                        None => (ExprKind::Todo("array_lit"), self.builtins.any),
+                        None => {
+                            let result_ty = self.intern_nominal(
+                                "scoop.core.Array".to_string(),
+                                vec![self.builtins.any],
+                                None,
+                            );
+                            self.build_array_lit_expr(
+                                e.span,
+                                lowered_elements,
+                                ArrayLitTarget::Array,
+                                result_ty,
+                            )
+                        }
                     }
                 }
             }
@@ -261,6 +498,31 @@ impl<'a> HirLowering<'a> {
                     let receiver =
                         self.lower_expr_with_expected(pkg_prefix, receiver, receiver_expected);
 
+                    if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span)
+                        && let Some(fun_binding) =
+                            self.typechecked_top_level_fun_call_binding(e.span)
+                    {
+                        let target_fqn = self
+                            .materialized_direct_call_target_fqn_for_binding(&fun_binding)
+                            .unwrap_or_else(|| fqn.clone());
+                        let callee = self.top_level_callee_expr_with_fqn(callee.span, target_fqn);
+                        let plan = self.callable_param_plan_for_fun_binding(&fun_binding);
+                        if let Some((kind, ty)) =
+                            self.lower_canonical_call_expr(CanonicalCallLoweringRequest {
+                                pkg_prefix,
+                                call_span: e.span,
+                                callee,
+                                source_args: args,
+                                receiver: Some(receiver.clone()),
+                                binding: arg_binding,
+                                plan,
+                                call_ty,
+                            })
+                        {
+                            return Some((kind, ty));
+                        }
+                    }
+
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
                     let mut positional_index = 0usize;
@@ -351,6 +613,77 @@ impl<'a> HirLowering<'a> {
                     } else {
                         self.lower_expr(pkg_prefix, receiver)
                     };
+
+                    if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span)
+                        && let Some(fun_binding) =
+                            self.typechecked_top_level_fun_call_binding(e.span)
+                    {
+                        let receiver_ty = receiver.ty;
+                        let dispatch_kind = if owner_is_interface {
+                            Some(crate::hir::DispatchCallKind::Interface)
+                        } else if owner_is_class {
+                            Some(crate::hir::DispatchCallKind::Virtual)
+                        } else {
+                            None
+                        };
+                        let target_fqn = if let Some(dispatch_kind) = dispatch_kind {
+                            if self.devirtualize_dispatch_calls {
+                                if let Some(target_fqn) =
+                                    crate::devirtualize::try_devirtualize_dispatch_target(
+                                        dispatch_kind,
+                                        owner_fqn,
+                                        member_name,
+                                        args.len(),
+                                        receiver_ty,
+                                        self.types,
+                                        crate::devirtualize::DispatchTargetFacts {
+                                            known_receiver_subclasses: self
+                                                .known_receiver_subclasses,
+                                            class_vtables: self.class_vtables,
+                                            interfaces: self.interfaces,
+                                            class_itables: self.class_itables,
+                                        },
+                                    )
+                                {
+                                    self.materialized_devirtualized_dispatch_target_fqn(
+                                        e.span,
+                                        &target_fqn,
+                                    )
+                                } else {
+                                    self.dispatch_call_sites.insert(
+                                        self.dispatch_call_site(e.span, receiver_ty),
+                                        dispatch_kind,
+                                    );
+                                    fqn.clone()
+                                }
+                            } else {
+                                self.dispatch_call_sites.insert(
+                                    self.dispatch_call_site(e.span, receiver_ty),
+                                    dispatch_kind,
+                                );
+                                fqn.clone()
+                            }
+                        } else {
+                            self.materialized_direct_call_target_fqn_for_binding(&fun_binding)
+                                .unwrap_or_else(|| fqn.clone())
+                        };
+                        let callee = self.top_level_callee_expr_with_fqn(callee.span, target_fqn);
+                        let plan = self.callable_param_plan_for_fun_binding(&fun_binding);
+                        if let Some((kind, ty)) =
+                            self.lower_canonical_call_expr(CanonicalCallLoweringRequest {
+                                pkg_prefix,
+                                call_span: e.span,
+                                callee,
+                                source_args: args,
+                                receiver: Some(receiver.clone()),
+                                binding: arg_binding,
+                                plan,
+                                call_ty,
+                            })
+                        {
+                            return Some((kind, ty));
+                        }
+                    }
 
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
@@ -484,6 +817,38 @@ impl<'a> HirLowering<'a> {
                         Box::new(self.lower_expr(pkg_prefix, callee))
                     };
 
+                    if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span) {
+                        let plan = if let Some(fun_binding) =
+                            self.typechecked_top_level_fun_call_binding(e.span)
+                        {
+                            self.callable_param_plan_for_fun_binding(&fun_binding)
+                        } else if let Some(ctor_binding) =
+                            self.typechecked_ctor_call_binding(e.span)
+                        {
+                            self.callable_param_plan_for_ctor_binding(e.span, &ctor_binding)
+                        } else {
+                            None
+                        };
+                        if let Some((kind, ty)) =
+                            self.lower_canonical_call_expr(CanonicalCallLoweringRequest {
+                                pkg_prefix,
+                                call_span: e.span,
+                                callee: callee.as_ref().clone(),
+                                source_args: args,
+                                receiver: None,
+                                binding: arg_binding,
+                                plan,
+                                call_ty,
+                            })
+                        {
+                            return Expr {
+                                span: e.span,
+                                ty,
+                                kind,
+                            };
+                        }
+                    }
+
                     // T0113: if there's a vararg param, split args into pre-vararg,
                     // vararg, and post-vararg, and wrap the vararg args in an array literal.
                     let lowered_args = if let Some(va_idx) = vararg_param_index {
@@ -520,9 +885,16 @@ impl<'a> HirLowering<'a> {
                     )
                 }
             }
-            // Appendix B.5.5：spread 仅在调用实参语境下有意义；HIR v0 暂不承载该语义。
-            ast::ExprKind::SpreadArg { .. } => (ExprKind::Todo("spread_arg"), self.builtins.any),
-            ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
+            // Parser/typecheck gate 确保 named/spread 只出现在调用实参语境；若恢复路径仍把
+            // 语法糖节点递给普通表达式 lowering，这里剥掉语法壳而不是产出 HIR placeholder。
+            ast::ExprKind::SpreadArg { expr, .. } => {
+                let inner = self.lower_expr_with_expected(pkg_prefix, expr, expected);
+                (inner.kind, inner.ty)
+            }
+            ast::ExprKind::NamedArg { value, .. } => {
+                let inner = self.lower_expr_with_expected(pkg_prefix, value, expected);
+                (inner.kind, inner.ty)
+            }
             ast::ExprKind::TupleLit { elements } => {
                 let elements: Vec<Expr> = elements
                     .iter()
@@ -1181,6 +1553,63 @@ impl<'a> HirLowering<'a> {
             is_intrinsic: binding.is_intrinsic,
             type_args,
             eff_args,
+        })
+    }
+
+    fn typechecked_call_arg_binding(&self, span: Span) -> Option<crate::ast::CallArgBinding> {
+        self.file.typechecked_call_arg_binding(span)
+    }
+
+    fn callable_param_plan_for_fun_binding(
+        &mut self,
+        binding: &crate::ast::TopLevelFunCallBinding,
+    ) -> Option<CallableParamPlan> {
+        let (decl_source, decl_file) = self.decl_ast_context(&binding.decl_file)?;
+        let (fun, type_param_names) =
+            find_fun_decl_with_type_params(decl_source, decl_file, binding.decl_span)?;
+        let type_param_bindings = type_param_names
+            .into_iter()
+            .zip(binding.type_args.iter().copied())
+            .collect();
+        Some(CallableParamPlan {
+            decl_file: binding.decl_file.clone(),
+            type_param_bindings,
+            params: param_infos_from_ast_params(decl_source, &fun.params),
+        })
+    }
+
+    fn callable_param_plan_for_ctor_binding(
+        &mut self,
+        call_span: Span,
+        binding: &crate::ast::CtorCallBinding,
+    ) -> Option<CallableParamPlan> {
+        let ctor_span = binding.ctor_span?;
+        let ctor = self
+            .index
+            .constructors
+            .get(&binding.owner_fqn)?
+            .iter()
+            .find(|ctor| ctor.span == ctor_span)?;
+        let (decl_source, decl_file) = self.decl_ast_context(&ctor.decl_file)?;
+        let (params, type_param_names) =
+            find_ctor_params_with_type_params(decl_source, decl_file, ctor_span)?;
+        let type_args = self
+            .typechecked_expr_ty(call_span)
+            .and_then(|ty| match self.types.kind(ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                    if nominal.fqn == binding.owner_fqn =>
+                {
+                    Some(nominal.args.clone())
+                }
+                _ => None,
+            })
+            .unwrap_or_default();
+        let type_param_bindings = type_param_names.into_iter().zip(type_args).collect();
+        Some(CallableParamPlan {
+            decl_file: ctor.decl_file.clone(),
+            type_param_bindings,
+            params,
         })
     }
 
@@ -2386,6 +2815,600 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn call_arg_value_expr(arg: &ast::Expr) -> (&ast::Expr, bool) {
+        let value = match &arg.kind {
+            ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
+            _ => arg,
+        };
+        match &value.kind {
+            ast::ExprKind::SpreadArg { expr, .. } => (expr.as_ref(), true),
+            _ => (value, false),
+        }
+    }
+
+    fn param_value_ty_from_plan(
+        &mut self,
+        plan: &CallableParamPlan,
+        param: &DefaultArgParamInfo,
+    ) -> TypeId {
+        let Some(ty_ref) = param.ty_ref.as_ref() else {
+            return self.builtins.any;
+        };
+        let Some((decl_source, decl_file)) = self.decl_ast_context(&plan.decl_file) else {
+            return self.builtins.any;
+        };
+        self.with_foreign_ast_context(decl_source, decl_file, |this| {
+            this.push_type_param_bindings(plan.type_param_bindings.clone());
+            let ty = this.lower_type_ref(ty_ref);
+            this.pop_type_params();
+            ty
+        })
+    }
+
+    fn param_hir_ty_from_plan(
+        &mut self,
+        plan: &CallableParamPlan,
+        param: &DefaultArgParamInfo,
+    ) -> TypeId {
+        let value_ty = self.param_value_ty_from_plan(plan, param);
+        if param.is_vararg {
+            self.intern_nominal("scoop.core.Array".to_string(), vec![value_ty], None)
+        } else {
+            value_ty
+        }
+    }
+
+    fn expected_expr_for_param_ty(&mut self, ty: TypeId) -> ExpectedExpr {
+        ExpectedExpr {
+            value_ty: Some(ty),
+            array_lit_target: self.array_lit_target_from_type_id(ty),
+            array_lit_ty: Some(ty),
+            struct_lit_ty: Some(ty),
+        }
+    }
+
+    fn lower_default_arg_value(
+        &mut self,
+        plan: &CallableParamPlan,
+        param: &DefaultArgParamInfo,
+        expected: ExpectedExpr,
+        overrides: &HashMap<Span, Span>,
+    ) -> Option<Expr> {
+        let default_value = param.default_value.as_ref()?;
+        let (decl_source, decl_file) = self.decl_ast_context(&plan.decl_file)?;
+        let decl_pkg_prefix = package_prefix(decl_source, decl_file.package.as_ref());
+        Some(
+            self.with_foreign_ast_context(decl_source, decl_file, |this| {
+                this.with_local_decl_span_overrides(overrides.clone(), |this| {
+                    this.push_type_param_bindings(plan.type_param_bindings.clone());
+                    let lowered =
+                        this.lower_expr_with_expected(&decl_pkg_prefix, default_value, expected);
+                    this.pop_type_params();
+                    lowered
+                })
+            }),
+        )
+    }
+
+    fn call_arg_binding_needs_block(&self, binding: &crate::ast::CallArgBinding) -> bool {
+        let mut expected_arg_idx = 0usize;
+        for param in &binding.params {
+            match param {
+                crate::ast::CallArgParamBinding::Receiver => {}
+                crate::ast::CallArgParamBinding::Default => return true,
+                crate::ast::CallArgParamBinding::Explicit(element) => {
+                    if element.spread || element.arg_index != expected_arg_idx {
+                        return true;
+                    }
+                    expected_arg_idx = expected_arg_idx.saturating_add(1);
+                }
+                crate::ast::CallArgParamBinding::Vararg(elements) => {
+                    for element in elements {
+                        if element.spread || element.arg_index != expected_arg_idx {
+                            return true;
+                        }
+                        expected_arg_idx = expected_arg_idx.saturating_add(1);
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn plan_param_for_slot<'b>(
+        &self,
+        plan: Option<&'b CallableParamPlan>,
+        param_index: usize,
+        binding: &crate::ast::CallArgBinding,
+    ) -> Option<(usize, &'b DefaultArgParamInfo)> {
+        let plan = plan?;
+        let receiver_before = binding
+            .params
+            .iter()
+            .take(param_index)
+            .filter(|param| matches!(param, crate::ast::CallArgParamBinding::Receiver))
+            .count();
+        let non_receiver_idx = param_index.checked_sub(receiver_before)?;
+        plan.params
+            .get(non_receiver_idx)
+            .map(|param| (non_receiver_idx, param))
+    }
+
+    fn lower_vararg_arg_expr(
+        &mut self,
+        pkg_prefix: &str,
+        call_span: Span,
+        source_args: &[ast::Expr],
+        elements: &[crate::ast::CallArgElementBinding],
+        elem_ty: TypeId,
+        array_ty: TypeId,
+    ) -> Option<Expr> {
+        if elements.len() == 1
+            && elements[0].spread
+            && let Some(arg) = source_args.get(elements[0].arg_index)
+        {
+            let (value, _) = Self::call_arg_value_expr(arg);
+            let expected = self.expected_expr_for_param_ty(array_ty);
+            let lowered = self.lower_expr_with_expected(pkg_prefix, value, expected);
+            if matches!(self.types.kind(lowered.ty), TypeKind::Ref(RefTypeKind::Nominal(n)) if n.fqn == "scoop.core.Array")
+            {
+                return Some(lowered);
+            }
+            if let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) =
+                self.types.kind(lowered.ty).clone()
+            {
+                let temp_span = Span::new(call_span.start, call_span.start);
+                let temp_id = self.intern_local_symbol(temp_span, false);
+                let temp_name = "__spread_tuple".to_string();
+                let tuple_decl = Stmt {
+                    span: call_span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(ValDecl {
+                        span: call_span,
+                        id: Some(temp_id),
+                        name: Some(temp_name.clone()),
+                        mutable: false,
+                        ty: lowered.ty,
+                        init: Some(lowered),
+                    }),
+                };
+                let mut array_elements = Vec::with_capacity(tuple_elems.len());
+                for (idx, ty) in tuple_elems.iter().copied().enumerate() {
+                    let receiver = Expr {
+                        span: temp_span,
+                        ty: self.types.ty_tuple(tuple_elems.clone()),
+                        kind: ExprKind::VarRef(ValueRef::Local {
+                            id: temp_id,
+                            name: temp_name.clone(),
+                            decl_span: temp_span,
+                        }),
+                    };
+                    array_elements.push(Expr {
+                        span: call_span,
+                        ty,
+                        kind: ExprKind::MemberAccess {
+                            receiver: Box::new(receiver),
+                            member: MemberAccess {
+                                span: call_span,
+                                name: format!("_{idx}"),
+                                resolved: None,
+                            },
+                        },
+                    });
+                }
+                let (array_kind, _) = self.build_array_lit_expr(
+                    call_span,
+                    array_elements,
+                    ArrayLitTarget::Array,
+                    array_ty,
+                );
+                let array_expr = Expr {
+                    span: call_span,
+                    ty: array_ty,
+                    kind: array_kind,
+                };
+                return Some(Expr {
+                    span: call_span,
+                    ty: array_ty,
+                    kind: ExprKind::Block(Block {
+                        span: call_span,
+                        ty: array_ty,
+                        stmts: vec![
+                            tuple_decl,
+                            Stmt {
+                                span: call_span,
+                                ty: array_ty,
+                                kind: StmtKind::Expr(array_expr),
+                            },
+                        ],
+                    }),
+                });
+            }
+            return Some(lowered);
+        }
+
+        let mut lowered_elements = Vec::new();
+        for element in elements {
+            let arg = source_args.get(element.arg_index)?;
+            let (value, is_spread) = Self::call_arg_value_expr(arg);
+            let expected =
+                self.expected_expr_for_param_ty(if is_spread { array_ty } else { elem_ty });
+            let lowered = self.lower_expr_with_expected(pkg_prefix, value, expected);
+            if is_spread
+                && let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) =
+                    self.types.kind(lowered.ty).clone()
+            {
+                for (idx, ty) in tuple_elems.iter().copied().enumerate() {
+                    lowered_elements.push(Expr {
+                        span: call_span,
+                        ty,
+                        kind: ExprKind::MemberAccess {
+                            receiver: Box::new(lowered.clone()),
+                            member: MemberAccess {
+                                span: call_span,
+                                name: format!("_{idx}"),
+                                resolved: None,
+                            },
+                        },
+                    });
+                }
+                continue;
+            }
+            lowered_elements.push(lowered);
+        }
+        let (kind, _) =
+            self.build_array_lit_expr(call_span, lowered_elements, ArrayLitTarget::Array, array_ty);
+        Some(Expr {
+            span: call_span,
+            ty: array_ty,
+            kind,
+        })
+    }
+
+    fn lower_canonical_call_expr(
+        &mut self,
+        request: CanonicalCallLoweringRequest<'_>,
+    ) -> Option<(ExprKind, TypeId)> {
+        let CanonicalCallLoweringRequest {
+            pkg_prefix,
+            call_span,
+            callee,
+            source_args,
+            receiver,
+            binding,
+            plan,
+            call_ty,
+        } = request;
+        if !self.call_arg_binding_needs_block(&binding) {
+            let mut args = Vec::with_capacity(binding.params.len());
+            for (param_idx, param_binding) in binding.params.iter().enumerate() {
+                match param_binding {
+                    crate::ast::CallArgParamBinding::Receiver => {
+                        args.push(CallArg::Positional(receiver.clone()?));
+                    }
+                    crate::ast::CallArgParamBinding::Explicit(element) => {
+                        let arg = source_args.get(element.arg_index)?;
+                        let (value, _) = Self::call_arg_value_expr(arg);
+                        let expected_ty = if let Some(plan_ref) = plan.as_ref() {
+                            self.plan_param_for_slot(Some(plan_ref), param_idx, &binding)
+                                .map(|(_, param)| self.param_hir_ty_from_plan(plan_ref, param))
+                                .unwrap_or(self.builtins.any)
+                        } else {
+                            self.builtins.any
+                        };
+                        let expected = self.expected_expr_for_param_ty(expected_ty);
+                        args.push(CallArg::Positional(
+                            self.lower_expr_with_expected(pkg_prefix, value, expected),
+                        ));
+                    }
+                    crate::ast::CallArgParamBinding::Vararg(elements) => {
+                        let plan_ref = plan.as_ref()?;
+                        let (_, param) =
+                            self.plan_param_for_slot(Some(plan_ref), param_idx, &binding)?;
+                        let elem_ty = self.param_value_ty_from_plan(plan_ref, param);
+                        let array_ty = self.param_hir_ty_from_plan(plan_ref, param);
+                        let expr = self.lower_vararg_arg_expr(
+                            pkg_prefix,
+                            call_span,
+                            source_args,
+                            elements,
+                            elem_ty,
+                            array_ty,
+                        )?;
+                        args.push(CallArg::Positional(expr));
+                    }
+                    crate::ast::CallArgParamBinding::Default => return None,
+                }
+            }
+            return Some((
+                ExprKind::Call {
+                    callee: Box::new(callee),
+                    args,
+                },
+                call_ty,
+            ));
+        }
+
+        let plan = plan?;
+        let mut stmts = Vec::new();
+        let mut param_refs: Vec<Option<Expr>> = vec![None; binding.params.len()];
+        let mut arg_refs: HashMap<usize, Expr> = HashMap::new();
+        let mut overrides: HashMap<Span, Span> = HashMap::new();
+
+        for (param_idx, param_binding) in binding.params.iter().enumerate() {
+            if !matches!(param_binding, crate::ast::CallArgParamBinding::Receiver) {
+                continue;
+            }
+            let receiver = receiver.clone()?;
+            let (decl_span, id, name) =
+                self.fresh_synthetic_local(call_span, "__call_receiver", false);
+            let ty = receiver.ty;
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(id),
+                    name: Some(name.clone()),
+                    mutable: false,
+                    ty,
+                    init: Some(receiver),
+                }),
+            });
+            param_refs[param_idx] = Some(Expr {
+                span: decl_span,
+                ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            });
+        }
+
+        for (arg_idx, source_arg) in source_args.iter().enumerate() {
+            let mut expected_ty = None;
+            let mut used = false;
+            for (param_idx, param_binding) in binding.params.iter().enumerate() {
+                match param_binding {
+                    crate::ast::CallArgParamBinding::Explicit(element)
+                        if element.arg_index == arg_idx =>
+                    {
+                        used = true;
+                        if let Some((_, param)) =
+                            self.plan_param_for_slot(Some(&plan), param_idx, &binding)
+                        {
+                            expected_ty = Some(self.param_hir_ty_from_plan(&plan, param));
+                        }
+                    }
+                    crate::ast::CallArgParamBinding::Vararg(elements)
+                        if elements.iter().any(|element| element.arg_index == arg_idx) =>
+                    {
+                        used = true;
+                        if let Some((_, param)) =
+                            self.plan_param_for_slot(Some(&plan), param_idx, &binding)
+                        {
+                            let (_, spread) = Self::call_arg_value_expr(source_arg);
+                            expected_ty = Some(if spread {
+                                self.param_hir_ty_from_plan(&plan, param)
+                            } else {
+                                self.param_value_ty_from_plan(&plan, param)
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if !used {
+                continue;
+            }
+            let (value, _) = Self::call_arg_value_expr(source_arg);
+            let expected =
+                self.expected_expr_for_param_ty(expected_ty.unwrap_or(self.builtins.any));
+            let init = self.lower_expr_with_expected(pkg_prefix, value, expected);
+            let (decl_span, id, name) = self.fresh_synthetic_local(call_span, "__call_arg", false);
+            let ty = init.ty;
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(id),
+                    name: Some(name.clone()),
+                    mutable: false,
+                    ty,
+                    init: Some(init),
+                }),
+            });
+            arg_refs.insert(
+                arg_idx,
+                Expr {
+                    span: decl_span,
+                    ty,
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id,
+                        name,
+                        decl_span,
+                    }),
+                },
+            );
+        }
+
+        for (param_idx, param_binding) in binding.params.iter().enumerate() {
+            if !matches!(param_binding, crate::ast::CallArgParamBinding::Default) {
+                continue;
+            }
+            let (plan_idx, param) = self.plan_param_for_slot(Some(&plan), param_idx, &binding)?;
+            let param_ty = self.param_hir_ty_from_plan(&plan, param);
+            let expected = self.expected_expr_for_param_ty(param_ty);
+            let init = self.lower_default_arg_value(&plan, param, expected, &overrides)?;
+            let (decl_span, id, name) =
+                self.fresh_synthetic_local(call_span, "__call_default", false);
+            overrides.insert(param.decl_span, decl_span);
+            let _ = plan_idx;
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(id),
+                    name: Some(name.clone()),
+                    mutable: false,
+                    ty: param_ty,
+                    init: Some(init),
+                }),
+            });
+            param_refs[param_idx] = Some(Expr {
+                span: decl_span,
+                ty: param_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            });
+        }
+
+        for (param_idx, param_binding) in binding.params.iter().enumerate() {
+            let crate::ast::CallArgParamBinding::Vararg(elements) = param_binding else {
+                continue;
+            };
+            let (_, param) = self.plan_param_for_slot(Some(&plan), param_idx, &binding)?;
+            let array_ty = self.param_hir_ty_from_plan(&plan, param);
+            let expr = if elements.len() == 1 && elements[0].spread {
+                let spread_ref = arg_refs.get(&elements[0].arg_index)?.clone();
+                match self.types.kind(spread_ref.ty).clone() {
+                    TypeKind::Ref(RefTypeKind::Nominal(n)) if n.fqn == "scoop.core.Array" => {
+                        spread_ref
+                    }
+                    TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) => {
+                        let mut array_elements = Vec::with_capacity(tuple_elems.len());
+                        for (idx, ty) in tuple_elems.iter().copied().enumerate() {
+                            array_elements.push(Expr {
+                                span: call_span,
+                                ty,
+                                kind: ExprKind::MemberAccess {
+                                    receiver: Box::new(spread_ref.clone()),
+                                    member: MemberAccess {
+                                        span: call_span,
+                                        name: format!("_{idx}"),
+                                        resolved: None,
+                                    },
+                                },
+                            });
+                        }
+                        let (kind, _) = self.build_array_lit_expr(
+                            call_span,
+                            array_elements,
+                            ArrayLitTarget::Array,
+                            array_ty,
+                        );
+                        Expr {
+                            span: call_span,
+                            ty: array_ty,
+                            kind,
+                        }
+                    }
+                    _ => spread_ref,
+                }
+            } else {
+                let mut array_elements = Vec::new();
+                for element in elements {
+                    let value = arg_refs.get(&element.arg_index)?.clone();
+                    if element.spread {
+                        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) =
+                            self.types.kind(value.ty).clone()
+                        else {
+                            return None;
+                        };
+                        for (idx, ty) in tuple_elems.iter().copied().enumerate() {
+                            array_elements.push(Expr {
+                                span: call_span,
+                                ty,
+                                kind: ExprKind::MemberAccess {
+                                    receiver: Box::new(value.clone()),
+                                    member: MemberAccess {
+                                        span: call_span,
+                                        name: format!("_{idx}"),
+                                        resolved: None,
+                                    },
+                                },
+                            });
+                        }
+                    } else {
+                        array_elements.push(value);
+                    }
+                }
+                let (kind, _) = self.build_array_lit_expr(
+                    call_span,
+                    array_elements,
+                    ArrayLitTarget::Array,
+                    array_ty,
+                );
+                Expr {
+                    span: call_span,
+                    ty: array_ty,
+                    kind,
+                }
+            };
+            let (decl_span, id, name) =
+                self.fresh_synthetic_local(call_span, "__call_vararg", false);
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(id),
+                    name: Some(name.clone()),
+                    mutable: false,
+                    ty: array_ty,
+                    init: Some(expr),
+                }),
+            });
+            param_refs[param_idx] = Some(Expr {
+                span: decl_span,
+                ty: array_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            });
+        }
+
+        for (param_idx, param_binding) in binding.params.iter().enumerate() {
+            if let crate::ast::CallArgParamBinding::Explicit(element) = param_binding {
+                param_refs[param_idx] = Some(arg_refs.get(&element.arg_index)?.clone());
+            }
+        }
+
+        let args = param_refs
+            .into_iter()
+            .map(|expr| expr.map(CallArg::Positional))
+            .collect::<Option<Vec<_>>>()?;
+        let call_expr = Expr {
+            span: call_span,
+            ty: call_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args,
+            },
+        };
+        stmts.push(Stmt {
+            span: call_span,
+            ty: call_ty,
+            kind: StmtKind::Expr(call_expr),
+        });
+        Some((
+            ExprKind::Block(Block {
+                span: call_span,
+                ty: call_ty,
+                stmts,
+            }),
+            call_ty,
+        ))
+    }
+
     /// 将 `[...]` 降到统一的 builder/intrinsics 调用形态（TODO T1317c）。
     ///
     /// 形态（概念上）：
@@ -2639,14 +3662,8 @@ impl<'a> HirLowering<'a> {
         arg: &ast::Expr,
         expected: ExpectedExpr,
     ) -> CallArg {
-        match &arg.kind {
-            ast::ExprKind::NamedArg { name, value, .. } => CallArg::Named {
-                name: name.text(self.source).to_string(),
-                name_span: name.span,
-                value: self.lower_expr_with_expected(pkg_prefix, value, expected),
-            },
-            _ => CallArg::Positional(self.lower_expr_with_expected(pkg_prefix, arg, expected)),
-        }
+        let (value, _) = Self::call_arg_value_expr(arg);
+        CallArg::Positional(self.lower_expr_with_expected(pkg_prefix, value, expected))
     }
 
     /// T0113: Lower call arguments when the callee has a vararg parameter.
@@ -4318,14 +5335,22 @@ impl<'a> HirLowering<'a> {
         let effect_ty = self
             .typechecked_performed_effect_ty(call_span)
             .unwrap_or(self.builtins.any);
-        let args: Vec<CallArg> = args
-            .iter()
-            .map(|arg| self.lower_call_arg(pkg_prefix, arg))
-            .collect();
         let arg_mapping = self
             .typechecked_effect_op_call_binding(call_span)
             .map(|binding| binding.arg_mapping)
             .unwrap_or_else(|| (0..args.len()).collect());
+        let lowered_source_args: Vec<Expr> = args
+            .iter()
+            .map(|arg| {
+                let (value, _) = Self::call_arg_value_expr(arg);
+                self.lower_expr(pkg_prefix, value)
+            })
+            .collect();
+        let args: Vec<CallArg> = arg_mapping
+            .iter()
+            .filter_map(|arg_idx| lowered_source_args.get(*arg_idx).cloned())
+            .map(CallArg::Positional)
+            .collect();
         let payload_tuple_ty = if args.len() > 1 {
             let mut elements = Vec::with_capacity(arg_mapping.len());
             for &arg_idx in &arg_mapping {
@@ -4925,14 +5950,8 @@ impl<'a> HirLowering<'a> {
     }
 
     pub(super) fn lower_call_arg(&mut self, pkg_prefix: &str, arg: &ast::Expr) -> CallArg {
-        match &arg.kind {
-            ast::ExprKind::NamedArg { name, value, .. } => CallArg::Named {
-                name: name.text(self.source).to_string(),
-                name_span: name.span,
-                value: self.lower_expr(pkg_prefix, value),
-            },
-            _ => CallArg::Positional(self.lower_expr(pkg_prefix, arg)),
-        }
+        let (value, _) = Self::call_arg_value_expr(arg);
+        CallArg::Positional(self.lower_expr(pkg_prefix, value))
     }
 
     fn call_arg_value_ty(arg: &CallArg) -> TypeId {

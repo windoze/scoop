@@ -1,0 +1,15 @@
+package fixtures.hir
+
+import scoop.core.*
+
+fun choose<T>(value: T, count: Int = 1): T { return value }
+
+fun sum(prefix: Int, vararg xs: Int): Int { return prefix }
+
+fun main(): Int {
+    val a: Int = choose<Int>(count = 2, value = 1)
+    val xs: Array<Int> = [1, 2]
+    val empty: Array<Int> = []
+    val d: Int = sum(0, *xs)
+    return a + d
+}

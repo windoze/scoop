@@ -526,6 +526,10 @@ pub(crate) struct TypeLowering<'a> {
     /// - 记录普通顶层函数调用在 overload resolution / 泛型实例化之后的最终声明目标；
     /// - 供 const/comptime 等后续阶段按 typecheck 最终决议重放调用，而不是重新按名字/arity 猜测。
     top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
+    /// typecheck 选中的 canonical call-arg binding。
+    ///
+    /// 用途：把 named/default/vararg/spread 实参绑定发布给 HIR，避免后续阶段重读 raw AST 形状。
+    typechecked_call_arg_bindings: HashMap<Span, ast::CallArgBinding>,
     /// typecheck 选中的 effect-op 调用绑定信息。
     ///
     /// 用途：
@@ -667,6 +671,7 @@ impl<'a> TypeLowering<'a> {
             zero_arg_unit_call_sugar_sites: HashSet::new(),
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
+            typechecked_call_arg_bindings: HashMap::new(),
             typechecked_effect_op_call_bindings: HashMap::new(),
             typechecked_ctor_call_bindings: HashMap::new(),
             monomorph_requests: None,
@@ -1748,6 +1753,15 @@ impl<'a> TypeLowering<'a> {
         self.top_level_fun_call_bindings.insert(call_span, binding);
     }
 
+    pub(super) fn record_typechecked_call_arg_binding(
+        &mut self,
+        call_span: Span,
+        binding: ast::CallArgBinding,
+    ) {
+        self.typechecked_call_arg_bindings
+            .insert(call_span, binding);
+    }
+
     pub(super) fn record_typechecked_effect_op_call_binding(
         &mut self,
         call_span: Span,
@@ -1834,6 +1848,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::TopLevelFunCallBinding> {
         std::mem::take(&mut self.top_level_fun_call_bindings)
+    }
+
+    pub(super) fn take_typechecked_call_arg_bindings(
+        &mut self,
+    ) -> HashMap<Span, ast::CallArgBinding> {
+        std::mem::take(&mut self.typechecked_call_arg_bindings)
     }
 
     pub(super) fn take_typechecked_effect_op_call_bindings(

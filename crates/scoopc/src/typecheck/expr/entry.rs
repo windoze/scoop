@@ -106,6 +106,7 @@ struct CheckFileExprsPassResult {
     zero_arg_unit_call_sugar_sites: HashSet<Span>,
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
+    typechecked_call_arg_bindings: HashMap<Span, ast::CallArgBinding>,
     typechecked_effect_op_call_bindings: HashMap<Span, ast::EffectOpCallBinding>,
     typechecked_ctor_call_bindings: HashMap<Span, ast::CtorCallBinding>,
     monomorph_requests: Vec<MonomorphRequest>,
@@ -275,6 +276,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_zero_arg_unit_call_sugar_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
     file.replace_top_level_fun_call_bindings(HashMap::new());
+    file.replace_typechecked_call_arg_bindings(HashMap::new());
     file.replace_typechecked_effect_op_call_bindings(HashMap::new());
     file.replace_typechecked_ctor_call_bindings(HashMap::new());
 }
@@ -295,6 +297,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
     file.replace_zero_arg_unit_call_sugar_sites(result.zero_arg_unit_call_sugar_sites.clone());
     file.replace_top_level_fun_value_refs(result.top_level_fun_value_refs.clone());
     file.replace_top_level_fun_call_bindings(result.top_level_fun_call_bindings.clone());
+    file.replace_typechecked_call_arg_bindings(result.typechecked_call_arg_bindings.clone());
     file.replace_typechecked_effect_op_call_bindings(
         result.typechecked_effect_op_call_bindings.clone(),
     );
@@ -447,6 +450,7 @@ fn check_file_exprs_pass(
         zero_arg_unit_call_sugar_sites: lower.take_zero_arg_unit_call_sugar_sites(),
         top_level_fun_value_refs: lower.take_top_level_fun_value_refs(),
         top_level_fun_call_bindings: lower.take_top_level_fun_call_bindings(),
+        typechecked_call_arg_bindings: lower.take_typechecked_call_arg_bindings(),
         typechecked_effect_op_call_bindings: lower.take_typechecked_effect_op_call_bindings(),
         typechecked_ctor_call_bindings: lower.take_typechecked_ctor_call_bindings(),
         monomorph_requests,

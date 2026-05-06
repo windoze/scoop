@@ -118,6 +118,11 @@ pub struct File {
     ///   避免重新按简单名字或 arity 猜测调用目标；
     /// - `type_args` 保留调用点最终的实例化结果，便于后续 generic const fun 接线。
     pub(crate) top_level_fun_call_bindings: RefCell<HashMap<Span, TopLevelFunCallBinding>>,
+    /// typecheck 确认的调用实参 canonical binding（按调用 span 索引）。
+    ///
+    /// 说明：该表把 named/default/vararg/spread 语法统一归一到 HIR 可直接消费的形参顺序，
+    /// 避免 HIR/MIR/codegen 再从 raw `NamedArg` / `SpreadArg` AST 形状猜测实参语义。
+    pub(crate) typechecked_call_arg_bindings: RefCell<HashMap<Span, CallArgBinding>>,
     /// typecheck 选中的 effect-op 调用绑定信息（按调用 span 索引）。
     ///
     /// 说明：
@@ -289,6 +294,17 @@ impl File {
         self.top_level_fun_call_bindings.borrow().clone()
     }
 
+    pub fn replace_typechecked_call_arg_bindings(&self, bindings: HashMap<Span, CallArgBinding>) {
+        *self.typechecked_call_arg_bindings.borrow_mut() = bindings;
+    }
+
+    pub fn typechecked_call_arg_binding(&self, span: Span) -> Option<CallArgBinding> {
+        self.typechecked_call_arg_bindings
+            .borrow()
+            .get(&span)
+            .cloned()
+    }
+
     pub fn replace_typechecked_effect_op_call_bindings(
         &self,
         bindings: HashMap<Span, EffectOpCallBinding>,
@@ -332,6 +348,29 @@ pub struct TopLevelFunCallBinding {
     pub is_intrinsic: bool,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallArgBinding {
+    pub params: Vec<CallArgParamBinding>,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallArgParamBinding {
+    /// Implicit receiver lowered as the first HIR argument for member/extension calls.
+    Receiver,
+    /// One explicit source argument supplies this parameter.
+    Explicit(CallArgElementBinding),
+    /// The parameter is supplied by its declaration-site default value.
+    Default,
+    /// The parameter is a vararg slot, supplied by zero or more source arguments.
+    Vararg(Vec<CallArgElementBinding>),
+}
+
+#[derive(Debug, Clone)]
+pub struct CallArgElementBinding {
+    pub arg_index: usize,
+    pub spread: bool,
 }
 
 #[derive(Debug, Clone)]

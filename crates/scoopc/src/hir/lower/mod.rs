@@ -514,6 +514,7 @@ impl<'a> HirLowering<'a> {
                 params.push(DefaultArgParamInfo {
                     decl_span: p.name.span,
                     name,
+                    is_vararg: p.is_vararg,
                     ty_ref: p.ty.clone(),
                     default_value: p.default_value.clone(),
                 });
@@ -1991,6 +1992,7 @@ fn collect_default_arg_structs_in_type_decl(
                 params.push(DefaultArgParamInfo {
                     decl_span: p.name.span,
                     name: p.name.text(source).to_string(),
+                    is_vararg: p.is_vararg,
                     ty_ref: p.ty.clone(),
                     default_value: p.default_value.clone(),
                 });
@@ -2008,6 +2010,7 @@ fn collect_default_arg_structs_in_type_decl(
                 params.push(DefaultArgParamInfo {
                     decl_span: p.name.span,
                     name: p.name.text(source).to_string(),
+                    is_vararg: false,
                     ty_ref: p.ty.clone(),
                     default_value: p.init.clone(),
                 });

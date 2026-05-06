@@ -190,6 +190,7 @@ pub(super) struct DefaultArgFunInfo {
 pub(super) struct DefaultArgParamInfo {
     pub(super) decl_span: Span,
     pub(super) name: String,
+    pub(super) is_vararg: bool,
     pub(super) ty_ref: Option<ast::TypeRef>,
     pub(super) default_value: Option<ast::Expr>,
 }

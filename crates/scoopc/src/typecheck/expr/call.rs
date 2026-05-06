@@ -555,6 +555,101 @@ enum ParamArgBinding {
     Vararg(Vec<usize>),
 }
 
+fn call_arg_element_binding(
+    call_args: &[CallArgInfo<'_>],
+    arg_idx: usize,
+) -> Option<ast::CallArgElementBinding> {
+    Some(ast::CallArgElementBinding {
+        arg_index: arg_idx,
+        spread: call_args.get(arg_idx)?.is_spread,
+    })
+}
+
+fn call_arg_binding_from_mapping(
+    mapping: &[ParamArgBinding],
+    call_args: &[CallArgInfo<'_>],
+) -> Option<ast::CallArgBinding> {
+    let mut params = Vec::with_capacity(mapping.len());
+    for binding in mapping {
+        let param = match binding {
+            ParamArgBinding::Default => ast::CallArgParamBinding::Default,
+            ParamArgBinding::Single(arg_idx) => {
+                ast::CallArgParamBinding::Explicit(call_arg_element_binding(call_args, *arg_idx)?)
+            }
+            ParamArgBinding::Vararg(arg_idxs) => ast::CallArgParamBinding::Vararg(
+                arg_idxs
+                    .iter()
+                    .copied()
+                    .map(|arg_idx| call_arg_element_binding(call_args, arg_idx))
+                    .collect::<Option<Vec<_>>>()?,
+            ),
+        };
+        params.push(param);
+    }
+    Some(ast::CallArgBinding { params })
+}
+
+fn call_arg_binding_from_mapping_with_receiver(
+    mapping: &[ParamArgBinding],
+    call_args_with_receiver: &[CallArgInfo<'_>],
+) -> Option<ast::CallArgBinding> {
+    let mut params = Vec::with_capacity(mapping.len());
+    for binding in mapping {
+        let param = match binding {
+            ParamArgBinding::Default => ast::CallArgParamBinding::Default,
+            ParamArgBinding::Single(0) => ast::CallArgParamBinding::Receiver,
+            ParamArgBinding::Single(arg_idx) => {
+                let source_arg_idx = arg_idx.checked_sub(1)?;
+                ast::CallArgParamBinding::Explicit(ast::CallArgElementBinding {
+                    arg_index: source_arg_idx,
+                    spread: call_args_with_receiver.get(*arg_idx)?.is_spread,
+                })
+            }
+            ParamArgBinding::Vararg(arg_idxs) => ast::CallArgParamBinding::Vararg(
+                arg_idxs
+                    .iter()
+                    .copied()
+                    .map(|arg_idx| {
+                        Some(ast::CallArgElementBinding {
+                            arg_index: arg_idx.checked_sub(1)?,
+                            spread: call_args_with_receiver.get(arg_idx)?.is_spread,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+            ),
+        };
+        params.push(param);
+    }
+    Some(ast::CallArgBinding { params })
+}
+
+fn call_arg_binding_from_mapping_with_receiver_prefix(
+    mapping: &[ParamArgBinding],
+    call_args: &[CallArgInfo<'_>],
+) -> Option<ast::CallArgBinding> {
+    let mut params = Vec::with_capacity(mapping.len() + 1);
+    params.push(ast::CallArgParamBinding::Receiver);
+    params.extend(call_arg_binding_from_mapping(mapping, call_args)?.params);
+    Some(ast::CallArgBinding { params })
+}
+
+fn call_arg_binding_from_optional_mapping(
+    mapping: &[Option<usize>],
+    call_args: &[CallArgInfo<'_>],
+) -> Option<ast::CallArgBinding> {
+    let params = mapping
+        .iter()
+        .copied()
+        .map(|arg_idx| match arg_idx {
+            Some(arg_idx) => {
+                call_arg_element_binding(call_args, arg_idx).map(ast::CallArgParamBinding::Explicit)
+            }
+            None => Some(ast::CallArgParamBinding::Default),
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(ast::CallArgBinding { params })
+}
+
 fn vararg_param_index(param_is_vararg: &[bool]) -> Option<usize> {
     let mut found: Option<usize> = None;
     for (idx, is_vararg) in param_is_vararg.iter().copied().enumerate() {
@@ -2785,6 +2880,9 @@ pub(super) fn infer_call_expr_type(
                         eff_args,
                     },
                 );
+                if let Some(binding) = call_arg_binding_from_mapping(&mapping, &call_args) {
+                    lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+                }
                 if used_unit_sugar {
                     lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
                 }
@@ -3354,6 +3452,10 @@ pub(super) fn infer_call_expr_type(
                     eff_args,
                 },
             );
+            if let Some(binding) = call_arg_binding_from_mapping(&chosen.mapping, chosen_call_args)
+            {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
             if chosen.used_unit_sugar {
                 lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
             }
@@ -4092,6 +4194,9 @@ fn infer_nominal_constructor_call_expr_type(
         chosen.ctor_span,
         chosen.arg_mapping.clone(),
     );
+    if let Some(binding) = call_arg_binding_from_optional_mapping(&chosen.arg_mapping, &call_args) {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+    }
     let ty =
         lower.lower_type_fqn_with_args(chosen.owner_fqn, chosen.inferred_type_args, callee.span)?;
     Ok(Some(ty))
@@ -6417,6 +6522,11 @@ fn infer_member_call_expr_type(
                     eff_args,
                 },
             );
+            if let Some(binding) =
+                call_arg_binding_from_mapping_with_receiver(&chosen.mapping, &chosen_call_args)
+            {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
             if chosen.used_unit_sugar {
                 lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
             }
@@ -7279,6 +7389,11 @@ fn infer_member_call_expr_type(
                 eff_args,
             },
         );
+        if let Some(binding) =
+            call_arg_binding_from_mapping_with_receiver_prefix(&mapping, effective_call_args)
+        {
+            lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+        }
         if used_unit_sugar {
             lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
         }
@@ -7302,6 +7417,8 @@ fn infer_member_call_expr_type(
         expected_arg_tys: Vec<TypeId>,
         /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
         defaults_used: usize,
+        /// 形参 -> 实参绑定（不含 receiver，receiver 由调用形状隐式提供）。
+        mapping: Vec<ParamArgBinding>,
         /// 当前候选是否通过 typed `Unit` zero-arg sugar 匹配得到。
         used_unit_sugar: bool,
     }
@@ -7767,6 +7884,7 @@ fn infer_member_call_expr_type(
                 instantiated,
                 eff_arg,
                 defaults_used,
+                mapping,
                 used_unit_sugar,
             });
         }
@@ -7916,6 +8034,11 @@ fn infer_member_call_expr_type(
             eff_args,
         },
     );
+    if let Some(binding) =
+        call_arg_binding_from_mapping_with_receiver_prefix(&chosen.mapping, chosen_call_args)
+    {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+    }
     if chosen.used_unit_sugar {
         lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
     }

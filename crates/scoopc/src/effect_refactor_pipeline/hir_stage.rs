@@ -1526,6 +1526,60 @@ fun bad(p: Point, name: String): Any { return p.[name] }
         ));
     }
 
+    #[test]
+    fn refactor_hir_call_args_canonicalizes_arrays_named_defaults_and_spread() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_call_args.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun choose<T>(value: T, count: Int = 1): T { return value }
+
+class Box(val base: Int) {
+    fun add(x: Int = 1, y: Int): Int { return x + y }
+}
+
+class Pair(val x: Int = 1, val y: Int)
+
+fun Int.bump(delta: Int = 1): Int { return this + delta }
+
+fun sum(prefix: Int, vararg xs: Int): Int { return prefix }
+
+fun main(): Int {
+    val a: Int = choose<Int>(count = 2, value = 1)
+    val b: Int = Box(10).add(y = 2)
+    val p: Pair = Pair(y = 2)
+    val c: Int = 1.bump()
+    val xs: Array<Int> = [1, 2]
+    val empty: Array<Int> = []
+    val d: Int = sum(0, *xs)
+    return a + b + c + d
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("canonical call args should lower to HIR");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("array_lit"),
+            "array literal Todo leaked: {dump}"
+        );
+        assert!(!dump.contains("named_arg"), "named arg Todo leaked: {dump}");
+        assert!(
+            !dump.contains("spread_arg"),
+            "spread arg Todo leaked: {dump}"
+        );
+        assert!(
+            !dump.contains("Named"),
+            "HIR calls should use ordered positional args, not raw named args: {dump}"
+        );
+        assert!(
+            dump.contains("__call_default") && dump.contains("__call_vararg"),
+            "default and spread canonicalization should be visible in HIR dump: {dump}"
+        );
+    }
+
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
         let session = refactor_session();
         let source = load_hir_fixture(name);

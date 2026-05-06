@@ -266,7 +266,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_splice_field`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_non_static_name_is_error.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_unknown_field_is_error.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T03`, `HIR-T05`
 
-## HIR-T06：收口 array literal、named/default/spread args 与 call arg canonicalization
+## [DONE] HIR-T06：收口 array literal、named/default/spread args 与 call arg canonicalization
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H5
@@ -295,6 +295,13 @@
 - 完成条件：
   - `array_lit`、`named_arg`、`spread_arg` placeholder 不再可达 refactor HIR。
   - 可进入 `HIR-T07`。
+- 完成记录（2026-05-06）：
+  - `ast::File` 新增 typechecked call-arg binding side table，typecheck 现在为 direct function、member、extension 与 ctor 调用发布 ordered argument contract，覆盖 receiver、explicit、default 与 vararg/spread slots。
+  - refactor HIR lowering 消费该 contract：命名实参按形参顺序输出为 positional HIR args，默认参数以显式 block/局部绑定补齐，vararg/spread 构造为显式 array slot，effect-op args 也按 typechecked mapping 输出为 positional payload。
+  - array literal fallback 不再生成 `ExprKind::Todo("array_lit")`；typed empty/non-empty arrays 继续降为 builder block，call 外 named/spread 语法壳在 HIR 中剥离而不生成 placeholder。
+  - placeholder inventory 已移除 `array_lit`、`named_arg`、`spread_arg` reason；新增 `refactor_hir_call_args` 单测覆盖 generic default、class ctor/member/extension default、array literal 与 vararg spread canonicalization。
+  - 新增 HIR fixture `tests/fixtures/hir/refactor_call_args.scoop/.hir`，覆盖 generic named/default、typed empty/non-empty array literal 与 vararg spread 的 canonical HIR dump。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_call_args`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_call_args.scoop`、相关 array/named/default/vararg typecheck fixtures、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T04`
 
 ## HIR-T07：发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract
