@@ -1,9 +1,20 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 37..52,
+                fqn: "a.Point",
+                name: "Point",
+                kind: Struct,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 37..52,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 54..88,

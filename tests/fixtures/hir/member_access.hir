@@ -1,9 +1,64 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 32..82,
+                fqn: "a.Point",
+                name: "Point",
+                kind: Class,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [
+                    CtorDecl {
+                        span: 43..55,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 48..49,
+                                name: "x",
+                                ty: TypeId(
+                                    5,
+                                ),
+                                has_default: false,
+                                property: Some(
+                                    Var,
+                                ),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 48..49,
+                            fqn: "a.Point.x",
+                            name: "x",
+                            mutable: true,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                    Fun(
+                        MemberFunDecl {
+                            span: 60..80,
+                            fqn: "a.Point.inc",
+                            name: "inc",
+                            type_params: [],
+                            params: [],
+                            return_ty: TypeId(
+                                5,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 32..82,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 84..153,

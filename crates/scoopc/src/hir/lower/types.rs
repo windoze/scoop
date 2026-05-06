@@ -16,7 +16,8 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeStore};
 use crate::typecheck::{
-    AnnotationError, ExprTypeError, StructDeclError, TypeEnvError, TypeHeaderError, TypeLowerError,
+    AnnotationError, ExprTypeError, PropertyDeclError, StructDeclError, TypeEnvError,
+    TypeHeaderError, TypeLowerError,
 };
 
 use super::super::{
@@ -241,6 +242,10 @@ pub enum HirLowerError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    PropertyDecl(Box<PropertyDeclError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     TypeLower(Box<TypeLowerError>),
 
     #[error(transparent)]
@@ -276,6 +281,12 @@ impl From<TypeEnvError> for HirLowerError {
 impl From<AnnotationError> for HirLowerError {
     fn from(error: AnnotationError) -> Self {
         Self::Annotation(Box::new(error))
+    }
+}
+
+impl From<Box<PropertyDeclError>> for HirLowerError {
+    fn from(error: Box<PropertyDeclError>) -> Self {
+        Self::PropertyDecl(error)
     }
 }
 

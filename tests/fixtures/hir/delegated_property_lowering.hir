@@ -1,20 +1,141 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 32..194,
+                fqn: "a.Delegate",
+                name: "Delegate",
+                kind: Class,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [
+                    CtorDecl {
+                        span: 46..48,
+                        kind: Primary,
+                        params: [],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 53..114,
+                            fqn: "a.Delegate.getValue",
+                            name: "getValue",
+                            type_params: [],
+                            params: [
+                                CtorParamDecl {
+                                    span: 66..73,
+                                    name: "thisRef",
+                                    ty: TypeId(
+                                        0,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                                CtorParamDecl {
+                                    span: 80..88,
+                                    name: "property",
+                                    ty: TypeId(
+                                        10,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                            ],
+                            return_ty: TypeId(
+                                5,
+                            ),
+                        },
+                    ),
+                    Fun(
+                        MemberFunDecl {
+                            span: 117..192,
+                            fqn: "a.Delegate.setValue",
+                            name: "setValue",
+                            type_params: [],
+                            params: [
+                                CtorParamDecl {
+                                    span: 130..137,
+                                    name: "thisRef",
+                                    ty: TypeId(
+                                        0,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                                CtorParamDecl {
+                                    span: 144..152,
+                                    name: "property",
+                                    ty: TypeId(
+                                        10,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                                CtorParamDecl {
+                                    span: 168..173,
+                                    name: "value",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                            ],
+                            return_ty: TypeId(
+                                2,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 196..236,
+                fqn: "a.C",
+                name: "C",
+                kind: Class,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [
+                    CtorDecl {
+                        span: 203..205,
+                        kind: Primary,
+                        params: [],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Property(
+                        PropertyDecl {
+                            span: 210..234,
+                            fqn: "a.C.p",
+                            name: "p",
+                            mutable: true,
+                            ty: TypeId(
+                                5,
+                            ),
+                            has_backing_field: false,
+                            getter: None,
+                            setter: None,
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 32..194,
-            kind: "type",
-        },
-        Todo {
-            span: 196..236,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 238..307,
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    10,
+                    11,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -43,13 +164,13 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            11,
+                                            12,
                                         ),
                                         init: Some(
                                             Expr {
                                                 span: 269..272,
                                                 ty: TypeId(
-                                                    11,
+                                                    12,
                                                 ),
                                                 kind: Call {
                                                     callee: Expr {
@@ -108,7 +229,7 @@ File {
                                                                     receiver: Expr {
                                                                         span: 288..289,
                                                                         ty: TypeId(
-                                                                            11,
+                                                                            12,
                                                                         ),
                                                                         kind: VarRef(
                                                                             Local {
@@ -142,7 +263,7 @@ File {
                                                             Expr {
                                                                 span: 288..289,
                                                                 ty: TypeId(
-                                                                    11,
+                                                                    12,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
@@ -157,7 +278,7 @@ File {
                                                             Expr {
                                                                 span: 290..291,
                                                                 ty: TypeId(
-                                                                    12,
+                                                                    10,
                                                                 ),
                                                                 kind: VarRef(
                                                                     TopLevel {
@@ -201,7 +322,7 @@ File {
                                                             receiver: Expr {
                                                                 span: 294..295,
                                                                 ty: TypeId(
-                                                                    11,
+                                                                    12,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
@@ -235,7 +356,7 @@ File {
                                                     Expr {
                                                         span: 294..295,
                                                         ty: TypeId(
-                                                            11,
+                                                            12,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
@@ -250,7 +371,7 @@ File {
                                                     Expr {
                                                         span: 296..297,
                                                         ty: TypeId(
-                                                            12,
+                                                            10,
                                                         ),
                                                         kind: VarRef(
                                                             TopLevel {

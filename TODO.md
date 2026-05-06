@@ -185,7 +185,7 @@
   - 已尝试任务列出的 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`；当前仍在进入 HIR 前以既有 `scoop::typecheck::missing_type_annotation`（顶层 `P`）诊断失败，未生成 comptime placeholder。该 fixture 的 type declaration/splice HIR 收口仍归后续 `HIR-T05`/`HIR-T04`。
 - 依赖：`HIR-T02`
 
-## HIR-T05：为 typealias/type/object/extension property 建立 HIR declaration graph
+## [DONE] HIR-T05：为 typealias/type/object/extension property 建立 HIR declaration graph
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H4
@@ -216,6 +216,13 @@
 - 调整记录（2026-05-06）：
   - `HIR-T04` 的指定 `dump-hir` 验证 fixture 含本地 `struct Point`；在 refactor no-Todo verifier 下会先被 `Item::Todo(type)` 拒绝。
   - 因此 declaration graph 是 `HIR-T04` 的具体 prerequisite，先完成本任务，再回到 splice field HIR lowering。
+- 完成记录（2026-05-06）：
+  - `hir::File` 新增 `decls` declaration graph，并以自定义 Debug 保持无声明文件的既有 dump 形状；新增 `Decl`、`TypeAliasDecl`、`NominalDecl`、`ObjectDecl`、`ExtensionPropertyDecl` 及字段/构造器/成员/访问器 contract 结构。
+  - 新增 `crates/scoopc/src/hir/lower/decls.rs`，refactor typed HIR lowering 现在为 typealias、class/struct/enum/interface、object 与 extension property 生成结构化 declaration graph；extension property getter 继续合成为可调用 HIR function，缺 getter 不再生成 `Item::Todo(extension_property_no_getter)`。
+  - refactor typed HIR 入口现在执行 property declaration check；读取缺 getter 的 extension property 会在进入 HIR 前得到 `scoop::typecheck::extension_property_getter_required` 诊断，而不是落入 HIR placeholder 或通用后端 unsupported。
+  - 已移除 `Item::Todo("typealias" / "type" / "object" / "extension_property_no_getter")` 构造点，并同步 placeholder inventory 与 no-Todo verifier 测试期望。
+  - 新增 `tests/fixtures/hir/refactor_decl_graph.scoop/.hir` 覆盖 typealias、interface、class、struct、enum、object、extension property；同步受 declaration graph 输出影响且可通过当前 no-Todo gate 的既有 HIR golden。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_decls`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、更新后的 HIR snapshot fixtures、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/refactor_decl_graph.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T03`
 
 ## HIR-T04：收口 splice field `value.[field]`

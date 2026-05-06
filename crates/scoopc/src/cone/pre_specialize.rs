@@ -373,6 +373,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
         hir_fun.fqn = instance_fqn.clone();
 
         let hir_file = hir::File {
+            decls: Vec::new(),
             items: vec![hir::Item::Fun(hir_fun)],
         };
         let mir_facts = mir::MirLoweringFacts::from_hir_side_tables_and_resume_spans(

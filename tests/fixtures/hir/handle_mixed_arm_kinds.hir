@@ -1,17 +1,95 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 43..79,
+                fqn: "fixtures.hir.Yield",
+                name: "Yield",
+                kind: Effect,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 62..77,
+                            fqn: "fixtures.hir.Yield.next",
+                            name: "next",
+                            type_params: [],
+                            params: [],
+                            return_ty: TypeId(
+                                5,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 81..118,
+                fqn: "fixtures.hir.Ask",
+                name: "Ask",
+                kind: Effect,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 98..116,
+                            fqn: "fixtures.hir.Ask.current",
+                            name: "current",
+                            type_params: [],
+                            params: [],
+                            return_ty: TypeId(
+                                5,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 120..168,
+                fqn: "fixtures.hir.Boom",
+                name: "Boom",
+                kind: Effect,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 138..166,
+                            fqn: "fixtures.hir.Boom.boom",
+                            name: "boom",
+                            type_params: [],
+                            params: [
+                                CtorParamDecl {
+                                    span: 147..151,
+                                    name: "code",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: None,
+                                },
+                            ],
+                            return_ty: TypeId(
+                                3,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 43..79,
-            kind: "type",
-        },
-        Todo {
-            span: 81..118,
-            kind: "type",
-        },
-        Todo {
-            span: 120..168,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 170..625,

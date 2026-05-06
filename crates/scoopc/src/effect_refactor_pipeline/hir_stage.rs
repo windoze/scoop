@@ -1214,13 +1214,7 @@ mod tests {
             assert_eq!(err.source_path(), source_path.as_path());
         }
 
-        const ITEM_REASONS: &[&str] = &[
-            "typealias",
-            "comptime_if_item",
-            "type",
-            "object",
-            "extension_property_no_getter",
-        ];
+        const ITEM_REASONS: &[&str] = &["comptime_if_item"];
         for reason in ITEM_REASONS {
             let (mut lowered, source_path) = clean_lowered_hir();
             lowered.file.items = vec![Item::Todo {
@@ -1333,22 +1327,128 @@ mod tests {
     }
 
     #[test]
-    fn refactor_hir_no_todo_stage_reports_source_diagnostic_for_real_input() {
+    fn refactor_hir_decls_lowers_typealias_nominal_object_and_extension_property_graph() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(
-            "<mem>/typealias_placeholder.scoop",
-            "package sample\ntypealias Alias = Int\nfun main() {}\n",
+            "<mem>/refactor_hir_decls.scoop",
+            r#"package sample
+typealias Alias = Int
+interface Named {
+    fun name(): String
+}
+class Person(val id: Int) : Named {
+    val title: String = "Dr"
+    init {}
+    constructor(id: Int, name: String) : this(id) {}
+    fun name(): String { return "person" }
+}
+struct Point(val x: Int, val y: Int)
+enum Choice {
+    Some(val value: Int)
+    None
+}
+object Registry {
+    val count: Int = 0
+    fun name(): String { return "registry" }
+}
+val String.last: Int
+    get() = 0
+fun main() {}
+"#,
         );
 
-        let err = run(&session, &source).expect_err("typealias placeholder 应被 HIR stage 拒绝");
-        let HirLowerError::Stage(stage_error) = err else {
-            panic!("应返回结构化 HirStageError")
-        };
+        let output = run(&session, &source).expect("declaration graph 不应生成 Item::Todo");
+        let decls = &output.hir_file().decls;
+        assert!(
+            decls
+                .iter()
+                .any(|decl| matches!(decl, crate::hir::Decl::TypeAlias(alias) if alias.fqn == "sample.Alias")),
+            "typealias declaration should be present: {decls:#?}"
+        );
+        assert!(
+            decls.iter().any(|decl| {
+                matches!(decl, crate::hir::Decl::Nominal(nominal)
+                if nominal.fqn == "sample.Person"
+                    && nominal.kind == crate::ast::TypeKind::Class
+                    && nominal.interfaces.iter().any(|iface| iface == "sample.Named")
+                    && nominal.constructors.len() == 2
+                    && nominal.members.iter().any(|member| matches!(
+                        member,
+                        crate::hir::DeclMember::Field(field) if field.fqn == "sample.Person.id"
+                    ))
+                    && nominal.members.iter().any(|member| matches!(
+                        member,
+                        crate::hir::DeclMember::Fun(fun) if fun.fqn == "sample.Person.name"
+                    )))
+            }),
+            "class declaration should expose identity, constructors, fields, funcs, and interfaces: {decls:#?}"
+        );
+        assert!(
+            decls.iter().any(|decl| {
+                matches!(decl, crate::hir::Decl::Nominal(nominal)
+                if nominal.fqn == "sample.Point"
+                    && nominal.kind == crate::ast::TypeKind::Struct
+                    && nominal.members.iter().any(|member| matches!(
+                        member,
+                        crate::hir::DeclMember::Field(field) if field.fqn == "sample.Point.x"
+                    )))
+            }),
+            "struct declaration should expose primary-constructor fields: {decls:#?}"
+        );
+        assert!(
+            decls.iter().any(|decl| {
+                matches!(decl, crate::hir::Decl::Nominal(nominal)
+                    if nominal.fqn == "sample.Choice"
+                        && nominal.kind == crate::ast::TypeKind::Enum
+                        && nominal.members.iter().any(|member| matches!(
+                            member,
+                            crate::hir::DeclMember::EnumVariant(variant) if variant.fqn == "sample.Choice.Some"
+                        )))
+            }),
+            "enum declaration should expose variants: {decls:#?}"
+        );
+        assert!(
+            decls.iter().any(|decl| {
+                matches!(decl, crate::hir::Decl::Object(object)
+                if object.fqn == "sample.Registry"
+                    && object.initializer_root == "sample.Registry"
+                    && object.members.iter().any(|member| matches!(
+                        member,
+                        crate::hir::DeclMember::Field(field) if field.fqn == "sample.Registry.count"
+                    )))
+            }),
+            "object declaration should expose singleton identity, members, and initializer root: {decls:#?}"
+        );
+        assert!(
+            decls.iter().any(|decl| {
+                matches!(decl, crate::hir::Decl::ExtensionProperty(prop)
+                    if prop.fqn == "sample.last" && prop.getter.is_some() && prop.setter.is_none())
+            }),
+            "extension property declaration should expose getter/setter contract: {decls:#?}"
+        );
+        assert!(
+            output.stable_dump().contains("ExtensionPropertyDecl"),
+            "stable dump should render declaration graph: {}",
+            output.stable_dump()
+        );
+    }
 
-        assert_eq!(stage_error.reason(), "Item::Todo(typealias)");
-        assert_eq!(stage_error.owner(), "top-level item");
-        assert_eq!(stage_error.source_path(), source.path());
-        assert!(!stage_error.span().is_empty());
+    #[test]
+    fn refactor_hir_decls_reports_extension_property_missing_getter_before_hir() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/extension_property_missing_getter.scoop",
+            "package sample\nval String.bad: Int\nfun main(): Int { return \"\".bad }\n",
+        );
+
+        let err = run(&session, &source).expect_err("missing getter should be diagnosed");
+        let HirLowerError::PropertyDecl(err) = err else {
+            panic!("expected property declaration diagnostic, got {err:?}");
+        };
+        assert!(matches!(
+            *err,
+            crate::typecheck::PropertyDeclError::ExtensionPropertyGetterRequired { .. }
+        ));
     }
 
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {

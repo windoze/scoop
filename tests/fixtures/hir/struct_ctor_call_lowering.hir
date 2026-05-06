@@ -1,9 +1,75 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 43..79,
+                fqn: "fixtures.hir.Point",
+                name: "Point",
+                kind: Struct,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [
+                    CtorDecl {
+                        span: 55..79,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 60..61,
+                                name: "x",
+                                ty: TypeId(
+                                    5,
+                                ),
+                                has_default: false,
+                                property: Some(
+                                    Val,
+                                ),
+                            },
+                            CtorParamDecl {
+                                span: 72..73,
+                                name: "y",
+                                ty: TypeId(
+                                    5,
+                                ),
+                                has_default: false,
+                                property: Some(
+                                    Val,
+                                ),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 60..61,
+                            fqn: "fixtures.hir.Point.x",
+                            name: "x",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                    Field(
+                        FieldDecl {
+                            span: 72..73,
+                            fqn: "fixtures.hir.Point.y",
+                            name: "y",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 43..79,
-            kind: "type",
-        },
         Val(
             ValDecl {
                 span: 81..119,

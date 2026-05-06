@@ -176,43 +176,11 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::ItemTodo,
-        "typealias",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T05",
-        true,
-        "Declaration graph records the resolved typealias form instead of preserving an item placeholder.",
-    ),
-    entry(
-        PlaceholderSurface::ItemTodo,
         "comptime_if_item",
         PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
         "HIR-T03",
         true,
         "Package-level comptime if is expanded or diagnosed before top-level HIR items are built.",
-    ),
-    entry(
-        PlaceholderSurface::ItemTodo,
-        "type",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T05",
-        true,
-        "Declaration graph records nominal identity, members, constructors, fields, and interface facts.",
-    ),
-    entry(
-        PlaceholderSurface::ItemTodo,
-        "object",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T05/HIR-T12",
-        true,
-        "Declaration/init graphs record singleton identity, members, initializer root, and storage metadata.",
-    ),
-    entry(
-        PlaceholderSurface::ItemTodo,
-        "extension_property_no_getter",
-        PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-        "HIR-T05",
-        true,
-        "Missing readable getter is diagnosed by typecheck/HIR stage instead of emitted as a declaration placeholder.",
     ),
     entry(
         PlaceholderSurface::ExprMissing,
@@ -231,9 +199,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "comptime_if_item",
     "splice_field",
     "class_lit",
-    "typealias",
-    "type",
-    "object",
     "array_lit",
     "spread_arg",
     "named_arg",
@@ -243,7 +208,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "with_update",
     "missing_stmt",
     "for_custom_iterator",
-    "extension_property_no_getter",
 ];
 
 const EXPR_TODO_PATTERN: &str = concat!("ExprKind", "::Todo(\"");

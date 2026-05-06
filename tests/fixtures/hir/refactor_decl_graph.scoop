@@ -1,0 +1,35 @@
+// EXPECT: pass
+// EXPECT-HIR: refactor_decl_graph.hir
+// 目标：HIR-T05，refactor typed HIR 输出 typealias/type/object/extension property declaration graph。
+
+package fixtures.hir_decls
+
+typealias Alias = Int
+
+interface Named {
+    fun name(): String
+}
+
+class Person(val id: Int) : Named {
+    val title: String = "Dr"
+    init {}
+    constructor(id: Int, label: String) : this(id) {}
+    fun name(): String { return "person" }
+}
+
+struct Point(val x: Int, val y: Int)
+
+enum Choice {
+    Some(val value: Int)
+    None
+}
+
+object Registry {
+    val count: Int = 0
+    fun name(): String { return "registry" }
+}
+
+val String.last: Int
+    get() = 0
+
+fun main() {}

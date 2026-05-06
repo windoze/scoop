@@ -94,9 +94,174 @@ impl fmt::Debug for ClosureId {
 }
 
 /// 一个源文件 lowering 后的 HIR。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct File {
+    pub decls: Vec<Decl>,
     pub items: Vec<Item>,
+}
+
+impl fmt::Debug for File {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("File");
+        if !self.decls.is_empty() {
+            s.field("decls", &self.decls);
+        }
+        s.field("items", &self.items);
+        s.finish()
+    }
+}
+
+/// HIR declaration graph entry for non-function top-level declarations.
+#[derive(Debug, Clone)]
+pub enum Decl {
+    TypeAlias(TypeAliasDecl),
+    Nominal(NominalDecl),
+    Object(ObjectDecl),
+    ExtensionProperty(ExtensionPropertyDecl),
+}
+
+/// Declaration-site type parameter metadata retained by HIR.
+#[derive(Debug, Clone)]
+pub struct DeclTypeParam {
+    pub span: Span,
+    pub name: String,
+    pub variance: Option<ast::TypeParamVariance>,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeAliasDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub type_params: Vec<DeclTypeParam>,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct NominalDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub kind: ast::TypeKind,
+    pub type_params: Vec<DeclTypeParam>,
+    pub supertypes: Vec<SupertypeDecl>,
+    pub interfaces: Vec<String>,
+    pub constructors: Vec<CtorDecl>,
+    pub members: Vec<DeclMember>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub kind: ast::ObjectKind,
+    pub supertypes: Vec<SupertypeDecl>,
+    pub interfaces: Vec<String>,
+    pub initializer_root: String,
+    pub members: Vec<DeclMember>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtensionPropertyDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub type_params: Vec<DeclTypeParam>,
+    pub receiver_ty: TypeId,
+    pub ty: TypeId,
+    pub getter: Option<AccessorContract>,
+    pub setter: Option<AccessorContract>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SupertypeDecl {
+    pub span: Span,
+    pub fqn: Option<String>,
+    pub ty: TypeId,
+    pub ctor_arg_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum DeclMember {
+    Field(FieldDecl),
+    Property(PropertyDecl),
+    Fun(MemberFunDecl),
+    EnumVariant(EnumVariantDecl),
+    InitBlock { span: Span },
+    Nested(Decl),
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+    pub origin: FieldOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldOrigin {
+    PrimaryCtorParam,
+    BodyProperty,
+    EnumVariantPayload,
+}
+
+#[derive(Debug, Clone)]
+pub struct PropertyDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+    pub has_backing_field: bool,
+    pub getter: Option<AccessorContract>,
+    pub setter: Option<AccessorContract>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AccessorContract {
+    pub span: Span,
+    pub fqn: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemberFunDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub type_params: Vec<DeclTypeParam>,
+    pub params: Vec<CtorParamDecl>,
+    pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumVariantDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub fields: Vec<FieldDecl>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorDecl {
+    pub span: Span,
+    pub kind: ClassCtorKind,
+    pub params: Vec<CtorParamDecl>,
+    pub delegation: Option<ast::CtorDelegationKind>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorParamDecl {
+    pub span: Span,
+    pub name: String,
+    pub ty: TypeId,
+    pub has_default: bool,
+    pub property: Option<ast::ValKind>,
 }
 
 /// 顶层条目（top-level items）。

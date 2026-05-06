@@ -4,6 +4,7 @@
 //! - 这里的 lowering 仅用于 `dump-hir` 的调试输出，因此实现上优先保证“稳定输出 + 不 panic”；。
 //! - 完整 lowering（含类型推断结果、更多语法节点）会在后续任务（TODO T0702+）逐步补齐。
 
+mod decls;
 mod types;
 mod util;
 
@@ -35,9 +36,12 @@ use crate::ty::{
 
 use super::EFFECT_ROW_PARAM_DECL_FILE;
 use super::{
-    Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex,
-    Expr, ExprKind, File, FunDecl, Item, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
-    Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
+    AccessorContract, Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex,
+    CtorCallSiteIndex, CtorDecl, CtorParamDecl, Decl, DeclMember, DeclTypeParam, EnumVariantDecl,
+    Expr, ExprKind, ExtensionPropertyDecl, FieldDecl, FieldOrigin, File, FunDecl, Item,
+    MemberFunDecl, NominalDecl, NonPureContinuationResumeCallSiteIndex, ObjectDecl,
+    ObjectInitIndex, Param, PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TypeAliasDecl,
+    ValDecl, ValueRef,
 };
 
 use types::*;
@@ -459,13 +463,14 @@ impl<'a> HirLowering<'a> {
     fn lower_file(&mut self) -> File {
         let pkg_prefix = package_prefix(self.source, self.file.package.as_ref());
         self.default_arg_funs = self.collect_default_arg_funs(&pkg_prefix);
+        let mut decls = Vec::new();
         let mut items = Vec::with_capacity(self.file.items.len());
 
         for item in &self.file.items {
-            self.lower_item_into(&pkg_prefix, item, &mut items);
+            self.lower_item_into(&pkg_prefix, item, &mut items, &mut decls);
         }
 
-        File { items }
+        File { decls, items }
     }
 
     /// 扫描当前源文件内的顶层 `fun` 声明，收集“默认参数”信息（供 call-site 默认参数补齐使用）。
@@ -525,7 +530,13 @@ impl<'a> HirLowering<'a> {
         out
     }
 
-    fn lower_item_into(&mut self, pkg_prefix: &str, item: &ast::Item, out: &mut Vec<Item>) {
+    fn lower_item_into(
+        &mut self,
+        pkg_prefix: &str,
+        item: &ast::Item,
+        out: &mut Vec<Item>,
+        decls: &mut Vec<Decl>,
+    ) {
         match item {
             ast::Item::Fun(fun) => out.push(Item::Fun(self.lower_fun_decl(pkg_prefix, fun))),
             ast::Item::Val(v) if matches!(v.binding, ast::ValBinding::Pattern(_)) => {
@@ -536,35 +547,33 @@ impl<'a> HirLowering<'a> {
                 v,
                 ValScope::TopLevel,
             ))),
-            ast::Item::TypeAlias(ta) => out.push(Item::Todo {
-                span: ta.span,
-                kind: "typealias",
-            }),
+            ast::Item::TypeAlias(ta) => {
+                decls.push(Decl::TypeAlias(self.lower_typealias_decl(pkg_prefix, ta)));
+            }
             ast::Item::ComptimeIf(ci) => out.push(Item::Todo {
                 span: ci.span,
                 kind: "comptime_if_item",
             }),
-            ast::Item::Type(ty) => out.push(Item::Todo {
-                span: ty.span,
-                kind: "type",
-            }),
-            ast::Item::Object(obj) => out.push(Item::Todo {
-                span: obj.span,
-                kind: "object",
-            }),
+            ast::Item::Type(ty) => {
+                decls.push(Decl::Nominal(self.lower_nominal_decl(pkg_prefix, ty)));
+            }
+            ast::Item::Object(obj) => {
+                if let Some(decl) = self.lower_object_decl(pkg_prefix, obj) {
+                    decls.push(Decl::Object(decl));
+                }
+            }
             ast::Item::ExtensionProperty(p) => {
-                out.push(self.lower_extension_property(pkg_prefix, p))
+                decls.push(Decl::ExtensionProperty(
+                    self.lower_extension_property_decl(pkg_prefix, p),
+                ));
+                if let Some(getter) = self.lower_extension_property(pkg_prefix, p) {
+                    out.push(getter);
+                }
             }
         }
     }
 
-    /// 收集并 lowering 当前文件内的 member `fun` / 值类型 computed property getter，
-    /// 为可 codegen 的顶层函数形态。
-    ///
-    /// 说明：
-    /// - 该收集发生在 `lower_file()` 之后，作为 side table 保存，避免影响 `dump-hir` 的输出稳定性；
-    /// - T1508a 只需要“直连 member call”，因此这里不尝试建模 vtable/itable 的动态分发信息；
-    ///   统一把 member method 表达为 `Owner.method(this, ...args) -> ret` 的顶层调用约定。
+    /// Collect member functions and value-type computed getters into the callable side table.
     fn collect_member_funs(&mut self, pkg_prefix: &str) -> Vec<FunDecl> {
         let mut out: Vec<FunDecl> = Vec::new();
 
@@ -805,12 +814,9 @@ impl<'a> HirLowering<'a> {
         &mut self,
         pkg_prefix: &str,
         prop: &ast::ExtensionPropertyDecl,
-    ) -> Item {
+    ) -> Option<Item> {
         let Some(getter) = &prop.getter else {
-            return Item::Todo {
-                span: prop.span,
-                kind: "extension_property_no_getter",
-            };
+            return None;
         };
 
         self.push_type_params(&prop.type_params);
@@ -871,7 +877,7 @@ impl<'a> HirLowering<'a> {
 
         self.pop_type_params();
 
-        Item::Fun(FunDecl {
+        Some(Item::Fun(FunDecl {
             span: prop.span,
             fqn,
             name,
@@ -881,7 +887,7 @@ impl<'a> HirLowering<'a> {
             params,
             return_ty,
             body,
-        })
+        }))
     }
 
     /// 降低一个 class/object 的 member `fun` 为”顶层函数形态”（显式 `this` 参数）。
@@ -2451,6 +2457,7 @@ pub fn lower_typed_for_dump(
         &mut typecheck_types,
         builtins,
     )?;
+    crate::typecheck::check_file_properties(source, &ast, &index, &env)?;
     crate::typecheck::check_file_type_refs(
         source,
         &ast,
@@ -2997,6 +3004,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let generic_template_symbol_suffixes =
         util::collect_generic_template_symbol_suffixes(compilation_unit);
 
+    let mut decls: Vec<Decl> = Vec::new();
     let mut items: Vec<Item> = Vec::new();
     let mut member_funs: Vec<FunDecl> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
@@ -3095,6 +3103,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_immutable_values.extend(file_top_level_immutable_values);
         when_pat_binding_tys.extend(file_when_pat_binding_tys);
         member_funs.extend(file_member_funs);
+        decls.extend(file_hir.decls);
         items.extend(file_hir.items);
     }
 
@@ -3257,7 +3266,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let top_level_fun_call_sites = collect_top_level_fun_call_sites(files_to_lower);
 
     Ok(LoweredHir {
-        file: File { items },
+        file: File { decls, items },
         member_funs,
         materialized_mir: None,
         types,

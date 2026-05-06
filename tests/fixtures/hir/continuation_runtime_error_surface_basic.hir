@@ -1,9 +1,33 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 43..78,
+                fqn: "fixtures.hir.Boom",
+                name: "Boom",
+                kind: Effect,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 61..76,
+                            fqn: "fixtures.hir.Boom.next",
+                            name: "next",
+                            type_params: [],
+                            params: [],
+                            return_ty: TypeId(
+                                5,
+                            ),
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 43..78,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 80..194,
