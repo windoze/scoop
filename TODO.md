@@ -13,7 +13,7 @@
 | ID | 阶段 | 标题 |
 | --- | --- | --- |
 | `CG-T00` | CG0 | [DONE] 建立 codegen gap inventory 与 backend gate |
-| `CG-T00R` | CG0R | Review CG-T00 codegen inventory 与 backend gate |
+| `CG-T00R` | CG0R | [DONE] Review CG-T00 codegen inventory 与 backend gate |
 | `CG-T01` | CG1 | 收口 raw MIR effect/control route 与 unsupported call kind |
 | `CG-T01R` | CG1R | Review CG-T01 raw MIR route gate |
 | `CG-T02` | CG2 | 收口 runtime type/value primitive LLVM lowering |
@@ -75,7 +75,7 @@
   - 2026-05-07：将 refactor LLVM smoke 纳入 `refactor_llvm_backend_gate` 过滤，确认 refactor stage 生成 effectful handle body IR 且不回 legacy handler-stack/outcome runtime。
   - 验证通过：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、搜索 `UnsupportedMainBody|pass MIR|refactor .*unsupported` 与 `runtime fatal helper` 命中 inventory trigger 且带 owner、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T00R：Review CG-T00 codegen inventory 与 backend gate
+## [DONE] CG-T00R：Review CG-T00 codegen inventory 与 backend gate
 
 - 参考：
   - `CG-T00`
@@ -92,6 +92,10 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T00` 已正确实现；若发现缺口，`CG-T00R` 保持未完成并把修复归回 `CG-T00`。
 - 依赖：`CG-T00`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T00` 的 executable inventory、raw MIR backend gate 接入点与 refactor LLVM smoke，确认 `PIPELINE_GAPS.md` codegen-stage scope 的 gap 均有唯一 owner task，gate 在 raw MIR body emission 前拒绝缺 upstream/MIR contract 的 Todo、effect/control terminator、cleanup Perform、PerformResult、runtime type primitive、unsupported call kind、pattern `is Type` 与 ambiguous continuation route，并通过 `scoop::llvm::refactor_backend_gate` 诊断携带 body FQN、source span、gap id 与 suggested owner；refactor smoke 未回落到 legacy handler-stack / EffectOutcome backend。
+  - 验证通过：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、搜索 `UnsupportedMainBody|pass MIR|refactor .*unsupported|runtime fatal helper` 与 runtime thread-resume fatal helper，确认命中可追踪到 inventory/owner；`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T01：收口 raw MIR effect/control route 与 unsupported call kind
 

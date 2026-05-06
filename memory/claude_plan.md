@@ -1,27 +1,27 @@
-# 当前执行计划
+# Claude Plan
 
-## 约束
-- 以 `TODO.md` 为唯一任务排序与完成状态来源。
-- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
-- 如遇到阻塞当前任务的实现缺口，不用 workaround；在 `TODO.md` 中新增最小必要前置任务并停止。
-- 完成任务后更新 `TODO.md`、运行相关验证、提交 Git commit。
+## Scope
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个未完成任务及其验证要求。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
-3. 读取当前任务涉及的代码、测试与文档，限定调查范围。
-4. 实现任务或在发现硬性阻塞时更新 `TODO.md` 添加前置任务。
-5. 运行任务要求的验证与必要的回归测试，修复当前任务引入的问题。
-6. 更新 `TODO.md`：为完成任务标题加 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 更新本文件记录关键进度。
-8. 提交所有与本次任务相关的变更，然后停止。
+Execute exactly the first incomplete task from `TODO.md`, then stop after implementation, validation, documentation updates, and a git commit.
 
-## 当前状态
-- 已定位第一个未完成任务：`CG-T00：建立 codegen gap inventory 与 backend gate`。
-- 最近提交 `ba02261c Update plan` 未直接指向 `CG-T00` 的未完成实现问题。
-- 已确认现有后端入口主要在 `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/codegen/mir_body.rs`，refactor smoke 已集中在 `effect_refactor_pipeline/llvm_codegen_stage.rs` 与 `scoop` CLI 测试。
-- 当前实施方案：新增 `llvm::codegen_gap_inventory` 静态 owner map；在 `codegen_top_level_mir_fun` 进入 raw MIR body emission 前调用 backend gate；补 `codegen_gap_inventory*` 与 `refactor_llvm_backend_gate*` 单测。
-- 已完成实现：新增 inventory、`RefactorBackendGate` 诊断、raw MIR backend gate，并将 refactor LLVM smoke 测试纳入 `refactor_llvm_backend_gate` 过滤名称。
-- 已完成验证：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、inventory trigger 搜索、`cargo clippy --all-targets -- -D warnings`。
-- 已更新 `TODO.md`，将 `CG-T00` 标记为 `[DONE]` 并写入完成记录。
-- 下一步提交本次任务变更，然后停止。
+## Execution Plan
+
+1. Read `TODO.md` first and identify the first heading whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Read the selected task details, dependencies, validation requirements, and any nearby context needed to implement it correctly.
+4. Inspect only the relevant code, fixtures, specs, or tests needed for the selected task.
+5. Implement the smallest spec-correct change for that task, without workaround behavior or fixture-only hacks.
+6. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task in dependency order, keep the current task incomplete, commit that bookkeeping, and stop.
+7. Run the task-required validation plus any focused tests needed for changed code.
+8. Fix any failures directly caused by the current task and rerun validation until it passes or a real blocker is recorded.
+9. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
+10. Update `PLAN.md` only if the phase-level sequencing, dependencies, assumptions, or completion criteria changed.
+11. Review git status/diff, commit all relevant changes with a task-specific message, and stop without starting the next task.
+
+## Progress Log
+
+- Initial plan recorded before project inspection.
+- Selected first incomplete task: `CG-T00R` (`Review CG-T00 codegen inventory 与 backend gate`).
+- Review-specific plan: rerun `CG-T00` validation commands, inspect codegen gap inventory and backend gate coverage against the documented pipeline gaps, search unsupported/fallback trigger strings for owner traceability, then either record findings or mark `CG-T00R` done with validation notes.
+- Context review completed: inspected `PIPELINE_GAPS.md`, `PLAN-pipeline-gaps-codegen.md`, `codegen_gap_inventory.rs`, the raw MIR gate call site, and the refactor LLVM smoke test. Next step is validation execution.
+- Validation completed: `cargo test -p scoopc codegen_gap_inventory`, `cargo test -p scoopc refactor_llvm_backend_gate`, trigger-pattern searches, and `cargo clippy --all-targets -- -D warnings` passed. `TODO.md` has been updated to mark `CG-T00R` done with completion notes.
