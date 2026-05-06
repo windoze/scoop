@@ -5,8 +5,8 @@
 //! added here before they are allowed to reach LLVM body emission.
 
 use crate::mir::{
-    Body, Pattern, Rvalue, StatementKind, StoredContinuationRoutePublication, TerminatorKind,
-    UnwindAction,
+    Body, MirCodegenBackendRoute, MirCodegenRoutingFact, Pattern, Rvalue, StatementKind,
+    StoredContinuationRoutePublication, TerminatorKind, UnwindAction,
 };
 use crate::span::Span;
 
@@ -402,6 +402,39 @@ pub(crate) fn raw_mir_backend_gate_failure(
     body_fqn: &str,
     body_span: Span,
     body: &Body,
+    routing_fact: Option<&MirCodegenRoutingFact>,
+    require_routing_fact: bool,
+) -> Option<CodegenBackendGateFailure> {
+    if let Some(failure) = raw_mir_body_shape_gate_failure(body_fqn, body_span, body) {
+        return Some(failure);
+    }
+
+    if require_routing_fact {
+        let Some(fact) = routing_fact else {
+            return Some(gate_failure(
+                body_fqn,
+                body_span,
+                "PIPELINE_GAPS §3.1",
+                "raw MIR route attempted without a MIR-T12 codegen routing fact",
+            ));
+        };
+        if !matches!(fact.route, MirCodegenBackendRoute::PlainRawMir) {
+            return Some(gate_failure(
+                body_fqn,
+                body_span,
+                raw_route_fact_gap_id(fact),
+                raw_route_fact_detail(fact.route),
+            ));
+        }
+    }
+
+    None
+}
+
+fn raw_mir_body_shape_gate_failure(
+    body_fqn: &str,
+    body_span: Span,
+    body: &Body,
 ) -> Option<CodegenBackendGateFailure> {
     for block in &body.blocks {
         for stmt in &block.stmts {
@@ -489,6 +522,43 @@ pub(crate) fn raw_mir_backend_gate_failure(
     }
 
     None
+}
+
+fn raw_route_fact_gap_id(fact: &MirCodegenRoutingFact) -> &'static str {
+    if fact
+        .features
+        .contains(&crate::mir::MirCodegenRouteFeature::PerformResult)
+    {
+        return "PIPELINE_GAPS §3.3";
+    }
+    if fact.features.iter().any(|feature| {
+        matches!(
+            feature,
+            crate::mir::MirCodegenRouteFeature::VirtualCall
+                | crate::mir::MirCodegenRouteFeature::InterfaceCall
+                | crate::mir::MirCodegenRouteFeature::ResumeCall
+        )
+    }) {
+        return "PIPELINE_GAPS §3.6";
+    }
+    "PIPELINE_GAPS §3.1"
+}
+
+fn raw_route_fact_detail(route: MirCodegenBackendRoute) -> &'static str {
+    match route {
+        MirCodegenBackendRoute::PlainRawMir => {
+            "raw MIR route fact accepted a raw-safe effect-neutral body"
+        }
+        MirCodegenBackendRoute::PlainLocalControlHandoff => {
+            "body is routed to plain-local control handoff; raw MIR route only accepts raw-safe effect-neutral bodies"
+        }
+        MirCodegenBackendRoute::EffectStepLowering => {
+            "body is routed to EffectStep lowering; raw MIR route must not lower effect-control bodies"
+        }
+        MirCodegenBackendRoute::FrontendReject => {
+            "body is routed to frontend rejection; raw MIR route must not emit rejected bodies"
+        }
+    }
 }
 
 fn raw_mir_rvalue_gate_failure(
@@ -627,7 +697,11 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
-    use crate::mir::{BasicBlock, BasicBlockId, Terminator};
+    use crate::mir::{
+        BasicBlock, BasicBlockId, MirCodegenAbiPublication, MirCodegenBackendRoute,
+        MirCodegenRouteFeature, MirCodegenRoutingFact, Statement, Terminator,
+    };
+    use crate::ty::TypeStore;
 
     fn span() -> Span {
         Span::new(10, 4)
@@ -646,6 +720,44 @@ mod tests {
                     unwind: UnwindAction::NoUnwind,
                 },
             }],
+        }
+    }
+
+    fn body_with_assignment(value: Rvalue) -> Body {
+        Body {
+            locals: Vec::new(),
+            start: BasicBlockId::from_raw(0),
+            blocks: vec![BasicBlock {
+                is_cleanup: false,
+                stmts: vec![Statement {
+                    span: span(),
+                    kind: StatementKind::Assign {
+                        target: crate::mir::LocalId::from_raw(0),
+                        value,
+                    },
+                }],
+                terminator: Terminator {
+                    span: span(),
+                    kind: TerminatorKind::Return {
+                        value: Some(crate::mir::Operand::Const(crate::mir::ConstValue::Unit)),
+                    },
+                    unwind: UnwindAction::NoUnwind,
+                },
+            }],
+        }
+    }
+
+    fn route_fact(
+        route: MirCodegenBackendRoute,
+        features: impl IntoIterator<Item = MirCodegenRouteFeature>,
+    ) -> MirCodegenRoutingFact {
+        MirCodegenRoutingFact {
+            body_fqn: "sample.main".to_string(),
+            span: span(),
+            route,
+            route_reason: "test route",
+            features: features.into_iter().collect(),
+            abi: MirCodegenAbiPublication::plain_no_outward(),
         }
     }
 
@@ -760,7 +872,7 @@ mod tests {
     #[test]
     fn refactor_llvm_backend_gate_rejects_missing_upstream_contract_before_body_emission() {
         let body = body_with_terminator(TerminatorKind::Todo("missing source contract"));
-        let failure = raw_mir_backend_gate_failure("sample.main", span(), &body)
+        let failure = raw_mir_backend_gate_failure("sample.main", span(), &body, None, false)
             .expect("gate should reject MIR Todo before raw body emission");
 
         assert_eq!(failure.body_fqn, "sample.main");
@@ -780,6 +892,62 @@ mod tests {
             value: Some(crate::mir::Operand::Const(crate::mir::ConstValue::Unit)),
         });
 
-        assert!(raw_mir_backend_gate_failure("sample.main", span(), &body).is_none());
+        assert!(raw_mir_backend_gate_failure("sample.main", span(), &body, None, false).is_none());
+    }
+
+    #[test]
+    fn refactor_llvm_raw_route_gate_requires_published_routing_fact() {
+        let body = body_with_terminator(TerminatorKind::Return {
+            value: Some(crate::mir::Operand::Const(crate::mir::ConstValue::Unit)),
+        });
+        let failure = raw_mir_backend_gate_failure("sample.main", span(), &body, None, true)
+            .expect("refactor raw route must consume MIR-T12 routing facts");
+
+        assert_eq!(failure.entry.gap_id, "PIPELINE_GAPS §3.1");
+        assert!(failure.detail.contains("MIR-T12 codegen routing fact"));
+    }
+
+    #[test]
+    fn refactor_llvm_raw_route_gate_allows_raw_safe_body_with_plain_raw_fact() {
+        let body = body_with_terminator(TerminatorKind::Return {
+            value: Some(crate::mir::Operand::Const(crate::mir::ConstValue::Unit)),
+        });
+        let fact = route_fact(MirCodegenBackendRoute::PlainRawMir, []);
+
+        assert!(
+            raw_mir_backend_gate_failure("sample.main", span(), &body, Some(&fact), true).is_none()
+        );
+    }
+
+    #[test]
+    fn raw_mir_effect_control_route_rejects_plain_local_handoff_before_raw_emission() {
+        let body = body_with_terminator(TerminatorKind::Return {
+            value: Some(crate::mir::Operand::Const(crate::mir::ConstValue::Unit)),
+        });
+        let fact = route_fact(
+            MirCodegenBackendRoute::PlainLocalControlHandoff,
+            [MirCodegenRouteFeature::Perform],
+        );
+        let failure = raw_mir_backend_gate_failure("sample.main", span(), &body, Some(&fact), true)
+            .expect("plain-local handoff bodies must not enter raw MIR emission");
+
+        assert_eq!(failure.entry.gap_id, "PIPELINE_GAPS §3.1");
+        assert!(failure.detail.contains("plain-local control handoff"));
+    }
+
+    #[test]
+    fn raw_mir_effect_control_route_rejects_perform_result_default_value() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let body = body_with_assignment(Rvalue::PerformResult {
+            op_fqn: "sample.Ping.hit".to_string(),
+            effect_ty: builtins.unit,
+        });
+        let fact = route_fact(MirCodegenBackendRoute::PlainRawMir, []);
+        let failure = raw_mir_backend_gate_failure("sample.main", span(), &body, Some(&fact), true)
+            .expect("PerformResult must require a published resume payload binding");
+
+        assert_eq!(failure.entry.gap_id, "PIPELINE_GAPS §3.3");
+        assert!(failure.detail.contains("resume payload binding"));
     }
 }

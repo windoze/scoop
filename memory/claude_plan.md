@@ -1,27 +1,27 @@
-# Claude Plan
+# Claude Execution Plan
 
-## Scope
+## Current Invocation
 
-Execute exactly the first incomplete task from `TODO.md`, then stop after implementation, validation, documentation updates, and a git commit.
+- Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
+- Check the latest commit only for an explicitly mentioned unfinished issue that directly affects that first incomplete task.
+- Inspect the relevant code and fixtures for that task, keeping `TODO.md` as the source of truth.
+- Implement the task as written, avoiding workarounds or scope narrowing.
+- If a concrete blocker prevents spec-correct implementation, add the minimum prerequisite task to `TODO.md`, document the blocker here, commit, and stop.
+- Run the validation commands required by the task and any focused tests needed for the touched area.
+- Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
+- Update this file after key steps or plan changes.
+- Commit all relevant changes with a task-tagged message, then stop without starting the next task.
 
-## Execution Plan
+## Progress
 
-1. Read `TODO.md` first and identify the first heading whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that selected task.
-3. Read the selected task details, dependencies, validation requirements, and any nearby context needed to implement it correctly.
-4. Inspect only the relevant code, fixtures, specs, or tests needed for the selected task.
-5. Implement the smallest spec-correct change for that task, without workaround behavior or fixture-only hacks.
-6. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task in dependency order, keep the current task incomplete, commit that bookkeeping, and stop.
-7. Run the task-required validation plus any focused tests needed for changed code.
-8. Fix any failures directly caused by the current task and rerun validation until it passes or a real blocker is recorded.
-9. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
-10. Update `PLAN.md` only if the phase-level sequencing, dependencies, assumptions, or completion criteria changed.
-11. Review git status/diff, commit all relevant changes with a task-specific message, and stop without starting the next task.
-
-## Progress Log
-
-- Initial plan recorded before project inspection.
-- Selected first incomplete task: `CG-T00R` (`Review CG-T00 codegen inventory 与 backend gate`).
-- Review-specific plan: rerun `CG-T00` validation commands, inspect codegen gap inventory and backend gate coverage against the documented pipeline gaps, search unsupported/fallback trigger strings for owner traceability, then either record findings or mark `CG-T00R` done with validation notes.
-- Context review completed: inspected `PIPELINE_GAPS.md`, `PLAN-pipeline-gaps-codegen.md`, `codegen_gap_inventory.rs`, the raw MIR gate call site, and the refactor LLVM smoke test. Next step is validation execution.
-- Validation completed: `cargo test -p scoopc codegen_gap_inventory`, `cargo test -p scoopc refactor_llvm_backend_gate`, trigger-pattern searches, and `cargo clippy --all-targets -- -D warnings` passed. `TODO.md` has been updated to mark `CG-T00R` done with completion notes.
+- Initial plan written before repository commands.
+- Identified first incomplete task: `CG-T01` (raw MIR effect/control route and unsupported call kind closure).
+- Latest commit `bc105756 [CG-T00R] Review codegen inventory gate` does not explicitly introduce a separate unfinished issue for `CG-T01`.
+- Next step: inspect the raw MIR LLVM route gate, codegen gap inventory, and existing focused tests before editing.
+- Found existing MIR-T12 routing facts in `mir/codegen_route.rs` and publication through effect facts/lowering stages, but LLVM codegen did not yet carry those facts into raw MIR body selection.
+- Edit plan: thread `MirCodegenRoutingFacts` through refactor LLVM emit inputs, require `PlainRawMir` before raw MIR emission, fail fast on missing/non-raw route facts, and add focused tests named by `CG-T01`.
+- Implemented routing-fact threading into LLVM codegen, raw route fact enforcement, and focused `refactor_llvm_raw_route_gate` / `raw_mir_effect_control_route` tests.
+- Passed focused tests and smoke build fixtures for raw-safe LLVM emit and effect body refactor reroute; next step is full lint validation and TODO completion bookkeeping.
+- `cargo clippy --all-targets -- -D warnings` passed.
+- Updated `TODO.md` to mark `CG-T01` as `[DONE]` and record implementation plus validation commands.
+- Next step: inspect git status/diff, then commit the completed task and stop.

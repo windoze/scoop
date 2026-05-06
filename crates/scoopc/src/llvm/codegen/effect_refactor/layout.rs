@@ -7175,6 +7175,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });
@@ -7253,6 +7254,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });
@@ -7330,6 +7332,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });

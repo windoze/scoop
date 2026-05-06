@@ -112,6 +112,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .materialized_pass_view()
             .map(|view| &view.materialized().types)
             .unwrap_or(self.types);
+        if let Some(route_facts) = self.codegen_routing_facts() {
+            let Some(fact) = route_facts.get(&mir_fun.fqn) else {
+                return false;
+            };
+            if !matches!(fact.route, crate::mir::MirCodegenBackendRoute::PlainRawMir) {
+                return false;
+            }
+        }
         let supported = self.raw_materialized_mir_body_is_supported(body, mir_types);
         body.validate_cfg().is_err() || !supported
     }
@@ -142,10 +150,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "pass MIR cfg",
                 at: mir_fun.span.into(),
             })?;
+        let route_facts = self.codegen_routing_facts();
         if let Some(failure) = crate::llvm::codegen_gap_inventory::raw_mir_backend_gate_failure(
             &mir_fun.fqn,
             mir_fun.span,
             body,
+            route_facts.and_then(|facts| facts.get(&mir_fun.fqn)),
+            route_facts.is_some(),
         ) {
             return Err(failure.into_llvm_error());
         }
@@ -1067,8 +1078,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn raw_materialized_mir_terminator_is_supported(
         &self,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
+        _body: &crate::mir::Body,
+        _mir_types: &TypeStore,
         terminator: &crate::mir::Terminator,
     ) -> bool {
         match &terminator.kind {
@@ -1085,19 +1096,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::TerminatorKind::CondBr { cond, .. } => {
                 self.raw_materialized_mir_operand_is_supported(cond)
             }
-            crate::mir::TerminatorKind::Perform { metadata, args, .. } => {
-                !matches!(terminator.unwind, crate::mir::UnwindAction::Cleanup { .. })
-                    && self.raw_materialized_mir_effect_instance_ty_is_supported(
-                        mir_types,
-                        metadata.effect_ty,
-                    )
-                    && self.raw_materialized_mir_perform_payload_is_supported(
-                        body,
-                        mir_types,
-                        metadata.payload_tuple_ty,
-                        args,
-                    )
-            }
+            crate::mir::TerminatorKind::Perform { .. } => false,
             crate::mir::TerminatorKind::ResumeUnwind
             | crate::mir::TerminatorKind::Handle { .. }
             | crate::mir::TerminatorKind::Todo(_) => false,
@@ -1194,11 +1193,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value,
                 target_cg,
             ),
-            crate::mir::Rvalue::PerformResult { effect_ty, .. } => {
-                target_cg.is_some()
-                    && self
-                        .raw_materialized_mir_effect_instance_ty_is_supported(mir_types, *effect_ty)
-            }
+            crate::mir::Rvalue::PerformResult { .. } => false,
             crate::mir::Rvalue::MemberAccess {
                 receiver, member, ..
             } => self.raw_materialized_mir_member_access_is_supported(
@@ -1571,56 +1566,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::Virtual { .. }
             | crate::mir::CallKind::Interface { .. }
             | crate::mir::CallKind::Resume { .. } => false,
-        }
-    }
-
-    fn raw_materialized_mir_effect_instance_ty_is_supported(
-        &self,
-        mir_types: &TypeStore,
-        effect_ty: TypeId,
-    ) -> bool {
-        self.equivalent_codegen_type_id(mir_types, effect_ty)
-            .is_some_and(|effect_ty| self.effect_instance_key(effect_ty).is_some())
-    }
-
-    fn raw_materialized_mir_perform_payload_is_supported(
-        &self,
-        body: &crate::mir::Body,
-        mir_types: &TypeStore,
-        payload_tuple_ty: Option<TypeId>,
-        args: &[crate::mir::PerformArg],
-    ) -> bool {
-        match payload_tuple_ty {
-            None => match args {
-                [] => true,
-                [arg] => {
-                    self.raw_materialized_mir_operand_is_supported(&arg.value)
-                        && self
-                            .mir_operand_cg_ty(body, mir_types, &arg.value)
-                            .is_some()
-                }
-                _ => false,
-            },
-            Some(payload_tuple_ty) => {
-                let Some(payload_tuple_ty) =
-                    self.equivalent_codegen_type_id(mir_types, payload_tuple_ty)
-                else {
-                    return false;
-                };
-                let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
-                    self.types.kind(payload_tuple_ty)
-                else {
-                    return false;
-                };
-                element_tys.len() == args.len()
-                    && element_tys.iter().zip(args).all(|(elem_ty, arg)| {
-                        self.raw_materialized_mir_operand_is_supported(&arg.value)
-                            && self
-                                .cg_ty_of(*elem_ty)
-                                .zip(self.mir_operand_cg_ty(body, mir_types, &arg.value))
-                                .is_some_and(|(expected_cg, actual_cg)| actual_cg == expected_cg)
-                    })
-            }
         }
     }
 

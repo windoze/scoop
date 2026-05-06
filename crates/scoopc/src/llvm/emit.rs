@@ -30,6 +30,7 @@ use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
     refactor_abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
@@ -68,6 +69,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         Self {
             lowered,
             materialized_pass_view: lowered.materialized_pass_view(),
+            codegen_routing_facts: None,
             late_lowered_program: None,
             late_lowered_types: None,
             refactor_abi_program: None,
@@ -84,6 +86,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         Ok(Self {
             lowered,
             materialized_pass_view: Some(materialized_pass_view),
+            codegen_routing_facts: None,
             late_lowered_program: None,
             late_lowered_types: None,
             refactor_abi_program: None,
@@ -109,6 +112,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         Self {
             lowered,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
+            codegen_routing_facts: Some(effect_lowered_stage_output.codegen_routing_facts()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
             refactor_abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
@@ -816,6 +820,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let LoweredCodegenEntry {
         lowered,
         materialized_pass_view,
+        codegen_routing_facts,
         late_lowered_program,
         late_lowered_types,
         refactor_abi_program,
@@ -897,6 +902,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
             materialized_pass_view,
+            codegen_routing_facts,
             program_facts: Rc::clone(&program_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });

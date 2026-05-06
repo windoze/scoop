@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `CG-T00` | CG0 | [DONE] 建立 codegen gap inventory 与 backend gate |
 | `CG-T00R` | CG0R | [DONE] Review CG-T00 codegen inventory 与 backend gate |
-| `CG-T01` | CG1 | 收口 raw MIR effect/control route 与 unsupported call kind |
+| `CG-T01` | CG1 | [DONE] 收口 raw MIR effect/control route 与 unsupported call kind |
 | `CG-T01R` | CG1R | Review CG-T01 raw MIR route gate |
 | `CG-T02` | CG2 | 收口 runtime type/value primitive LLVM lowering |
 | `CG-T02R` | CG2R | Review CG-T02 runtime value primitive lowering |
@@ -97,7 +97,7 @@
   - 2026-05-07：复审 `CG-T00` 的 executable inventory、raw MIR backend gate 接入点与 refactor LLVM smoke，确认 `PIPELINE_GAPS.md` codegen-stage scope 的 gap 均有唯一 owner task，gate 在 raw MIR body emission 前拒绝缺 upstream/MIR contract 的 Todo、effect/control terminator、cleanup Perform、PerformResult、runtime type primitive、unsupported call kind、pattern `is Type` 与 ambiguous continuation route，并通过 `scoop::llvm::refactor_backend_gate` 诊断携带 body FQN、source span、gap id 与 suggested owner；refactor smoke 未回落到 legacy handler-stack / EffectOutcome backend。
   - 验证通过：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、搜索 `UnsupportedMainBody|pass MIR|refactor .*unsupported|runtime fatal helper` 与 runtime thread-resume fatal helper，确认命中可追踪到 inventory/owner；`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T01：收口 raw MIR effect/control route 与 unsupported call kind
+## [DONE] CG-T01：收口 raw MIR effect/control route 与 unsupported call kind
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG1
@@ -124,6 +124,12 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §3.1、§3.2、§3.3、§3.6 不再能在 production refactor codegen 中晚期触发 unsupported。
 - 依赖：`CG-T00R`，`MIR-T12R`
+
+- 完成记录：
+  - 2026-05-07：将 `MirCodegenRoutingFacts` 从 refactor effect-lowered stage 传入 LLVM codegen，raw MIR body emission 在 refactor path 下必须消费 MIR-T12 route fact，缺失或非 `PlainRawMir` route 会在 backend gate fail-fast，不再回 HIR-compatible fallback。
+  - 2026-05-07：raw body capability check 不再把 `Perform` 或 `PerformResult` 视为 raw-safe；`PerformResult` 保持 backend gate 拒绝，避免默认值 miscompile；`PlainLocalControlHandoff` / `EffectStepLowering` body 由 route gate 阻止进入 raw emission。
+  - 2026-05-07：新增 `refactor_llvm_raw_route_gate` 与 `raw_mir_effect_control_route` 定向单测，覆盖 raw-safe plain body、缺 routing fact fail-fast、plain-local handoff reroute、`PerformResult` resume payload binding guard。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_raw_route_gate`、`cargo test -p scoopc raw_mir_effect_control_route`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoopc refactor_mir_codegen_routing_contract`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T01R：Review CG-T01 raw MIR route gate
 

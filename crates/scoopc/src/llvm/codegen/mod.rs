@@ -380,6 +380,9 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// reachability、callable body-presence、known fun suspendability 查询与显式
     /// pass-rewritten callable body lowering 会优先观察该 pass 产物层。
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    /// MIR-T12 发布的 codegen route facts。refactor LLVM path 必须先消费这份 handoff，
+    /// 再允许 callable 进入 raw MIR lowering。
+    codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -603,6 +606,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    pub(super) codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     pub(super) program_facts: Rc<ProgramFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -652,6 +656,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             extern_funs,
             fun_index,
             materialized_pass_view,
+            codegen_routing_facts,
             program_facts,
             effect_op_tags,
         } = inputs;
@@ -689,6 +694,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             builtins,
             fun_index,
             materialized_pass_view,
+            codegen_routing_facts,
             program_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -707,6 +713,10 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
         &self,
     ) -> Option<&crate::mir::MaterializedMirPassView<'a>> {
         self.materialized_pass_view.as_ref()
+    }
+
+    pub(super) fn codegen_routing_facts(&self) -> Option<&'a crate::mir::MirCodegenRoutingFacts> {
+        self.codegen_routing_facts
     }
 
     pub(super) fn raw_non_generic_callable_candidate_body<'b>(
