@@ -1,31 +1,29 @@
-# Execution Plan
+# Current Invocation Plan
 
 ## Scope
-- Follow `TODO.md` as the source of truth.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that task, or add the minimum prerequisite task if a concrete blocker makes completion impossible.
+- Follow `TODO.md` as the authoritative task list.
+- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Stop after completing and committing that one task, or after committing a required blocker/prerequisite update.
 
-## Steps
-1. Read `TODO.md` and inspect the latest commit message for directly relevant unfinished work.
-2. Read only the files needed to understand and implement the first incomplete task.
-3. Implement the task with the smallest correct code changes.
-4. Add or update focused tests/fixtures required by the task.
-5. Run the task-specified validation and relevant regression tests.
-6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record, or record a blocker/prerequisite if completion is impossible.
-7. Run final verification as practical for the changed area.
-8. Commit all relevant changes with a task-scoped commit message.
-9. Stop after the first incomplete task is completed or blocked and recorded.
+## Execution Steps
+1. Read `TODO.md` to identify the first incomplete task and its requirements.
+2. Check the latest commit message only for directly relevant unfinished context for that task.
+3. Inspect the minimal code, fixtures, and docs needed to understand the selected task.
+4. Implement the task without narrowing scope or introducing workarounds.
+5. Add or update focused tests/fixtures required by the task.
+6. Run the task's required validation plus relevant targeted checks.
+7. If validation exposes a task-blocking implementation gap, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
+8. If the task is complete, prefix its `TODO.md` heading with `[DONE]`, update its completion record, and avoid routine `PLAN.md` edits unless phase-level sequencing changed.
+9. Commit all relevant uncommitted changes with a descriptive task-tagged message.
+10. Stop without starting the next task.
 
-## Progress
-- Plan initialized before repository inspection.
-- First incomplete task identified: `CG-T02R` review of runtime value primitive lowering.
-- Latest commit `[CG-T02] Lower runtime type primitives in LLVM` is directly relevant and will be reviewed as part of this task.
-- Review focus: MIR metadata-driven `is`/`!is`/`as`/`as?`/`!!`/pattern type-test lowering, `Raise<RuntimeError>` failure boundaries, and function-type cast diagnostics.
-- Initial code review located the CG-T02 implementation in MIR lowering, refactor LLVM MIR body codegen, frontend cast diagnostics, and runtime primitive fixtures.
-- Verification in progress: rerunning the CG-T02 directed tests and fixtures before final review decision.
-- Review finding: `Pattern::Is` carries `RuntimePatternTypeTestMetadata`, but LLVM pattern support/codegen still read only the pattern target type. This blocks metadata-driven static-fold cases such as value-type `when` pattern tests.
-- Plan update: fix pattern `is Type` support/codegen to validate and consume MIR pattern metadata, then add a targeted refactor LLVM coverage case and rerun validation.
-- Fix complete: `Pattern::Is` support/codegen now validates MIR pattern metadata, honors static folds, and uses runtime descriptor lowering only for dynamic ref-like cases.
-- Validation passed: MIR/LLVM primitive tests, required run-pass/typecheck fixtures, parameterized runtime match fixtures, backend inventory/gate tests, and `cargo clippy --all-targets -- -D warnings`.
-- Next step: mark `CG-T02R` complete in `TODO.md` and commit the review/fix.
-- `TODO.md` updated: `CG-T02R` is marked `[DONE]` with review findings, the metadata fix, and validation commands.
+## Progress Log
+- Initial plan recorded before running repository commands.
+- Read `TODO.md`; first incomplete task is `CG-T03: 收口 call/ctor/function-ref/intrinsic/default/interface lowering`.
+- Next step is to inspect the latest commit for directly relevant unfinished context, then examine only the code paths needed for CG-T03.
+- Latest commit is `[CG-T02R] Review runtime value primitive lowering`; no directly relevant unfinished CG-T03 note found.
+- Initial code exploration found likely CG-T03 gaps: `getPlatform()` lacks refactor runtime lowering, class ctor MIR lacks selected ctor/complete ordered args metadata, interface dispatch metadata lacks selected slot/default target, and tests need a `refactor_llvm_call_contract_lowering` coverage point.
+- Implementation plan refined: extend MIR `ClassCtor` with selected ctor span and expected ordered param count, extend `DispatchMetadata` with selected member FQN/span, add interface slot declaration identity, make refactor ctor codegen reject incomplete/named args instead of selecting/defaulting in backend, add `getPlatform()` literal lowering, then add targeted unit/fixture coverage.
+- Implemented the main CG-T03 changes and added targeted fixtures. `cargo test -p scoopc refactor_llvm_call_contract_lowering` now passes; next step is to run the MIR contract test and run-pass/build fixtures for ctor defaults, platform intrinsic, interface default dispatch, function references, and reflection/sizeOf coverage.
+- Targeted validations passed for `refactor_llvm_call_contract_lowering`, MIR call contracts, class ctor named/default/delegation, `getPlatform()` runtime, interface default dispatch, top-level function value, sizeOf codegen, codegen gap inventory, and backend gate. Next step is `cargo clippy --all-targets -- -D warnings`, then TODO completion record and commit.
+- `cargo clippy --all-targets -- -D warnings` passed. `TODO.md` was updated to mark `CG-T03` as `[DONE]` with the completion record and validation list. Next step is to commit all relevant changes for this invocation.

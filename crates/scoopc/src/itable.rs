@@ -36,6 +36,8 @@ struct MethodShapeKey {
 pub struct InterfaceMethodSlot {
     pub slot: u32,
     pub name: String,
+    pub member_fqn: String,
+    pub decl_span: crate::span::Span,
     pub params_len: u32,
     pub has_receiver: bool,
     /// interface 默认方法（有 body）为 true；抽象方法为 false。
@@ -758,6 +760,8 @@ fn collect_interfaces_in_type_decl(
                 method_slots.push(InterfaceMethodSlot {
                     slot,
                     name: fun.name.text(source).to_string(),
+                    member_fqn: format!("{}.{}", type_fqn, fun.name.text(source)),
+                    decl_span: fun.span,
                     params_len: fun.params.len() as u32,
                     has_receiver: fun.receiver.is_some(),
                     has_body: matches!(fun.body, ast::FunBody::Block(_)),

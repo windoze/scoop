@@ -235,6 +235,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.sizeOf" {
                 return self.codegen_sysroot_size_of(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.getPlatform" {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "getPlatform intrinsic arity",
+                        at: span.into(),
+                    });
+                }
+                let target_cg = expected
+                    .or_else(|| result_ty.and_then(|ty| self.cg_ty_of(ty)))
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "getPlatform intrinsic return type",
+                        at: span.into(),
+                    })?;
+                return self.codegen_platform_literal(span, target_cg);
+            }
             if dispatch_fqn == "scoop.core.panic" {
                 return self.codegen_sysroot_panic(span, callee.span, args);
             }

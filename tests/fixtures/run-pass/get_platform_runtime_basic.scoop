@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: get_platform_runtime_basic.stdout
+//
+// CG-T03: `getPlatform()` has refactor runtime lowering instead of a declaration-only call.
+
+import scoop.core.*
+
+fun main(): Int {
+    val p: Platform = getPlatform()
+    println(p.triple != "")
+    println(p.arch != "")
+    println(p.vendor != "")
+    println(p.os != "")
+    println(p.env == p.env)
+    return 0
+}

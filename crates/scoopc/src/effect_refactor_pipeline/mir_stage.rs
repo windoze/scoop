@@ -617,7 +617,7 @@ fun main() {}
         for forbidden in [
             "call callee lowering pending",
             "ctor call lowering pending",
-            "sizeOf intrinsic requires one positional arg",
+            "sizeOf intrinsic requires value or type arg",
         ] {
             assert!(
                 !dump.contains(forbidden),
@@ -657,10 +657,15 @@ fun main() {}
                 StatementKind::Assign {
                     value:
                         Rvalue::ClassCtor {
-                            class_fqn, args, ..
+                            class_fqn,
+                            ctor,
+                            args,
+                            ..
                         },
                     ..
                 } if class_fqn == "mir_refactor.call_contracts.Box" && args.len() == 1 => {
+                    assert_eq!(ctor.ordered_param_count, 1);
+                    assert!(ctor.selected_ctor_span.is_some());
                     saw_class_ctor = true;
                 }
                 StatementKind::Assign {

@@ -30,22 +30,23 @@ use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, BasicBlock, BasicBlockId, Body,
     CallAbiHandoffMetadata, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
-    ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, CtorMetadata,
-    CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
-    EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
-    GcIntrinsicOperation, GcIntrinsicPairing, GcIntrinsicTransportMetadata, GcRootLifetime,
-    HandleMetadata, HandlerArm, HandlerArmKind, InitializerDependency, InitializerDependencyKind,
-    InitializerRoot, InitializerRootKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
-    LocalSourceKind, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
-    MirBoxingIntent, MirBoxingReason, MirTransportKind, MirTransportRequirements,
-    MirValidationError, NominalMetadata, ObjectMetadata, Operand, Param, Pattern,
-    PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata,
-    RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestKind,
-    RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeDescriptorKind,
-    RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, RuntimeTypeTestMetadata, Rvalue, SiteId,
-    Statement, StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
-    SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata,
-    TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction, ValueTransportMetadata,
+    ClassCtorCallMetadata, ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata,
+    ConstValue, CtorMetadata, CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata,
+    DispatchMetadata, EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
+    FieldMetadata, File, FunDecl, GcIntrinsicOperation, GcIntrinsicPairing,
+    GcIntrinsicTransportMetadata, GcRootLifetime, HandleMetadata, HandlerArm, HandlerArmKind,
+    InitializerDependency, InitializerDependencyKind, InitializerRoot, InitializerRootKind,
+    InterpolatedStringPart, Item, LocalDecl, LocalId, LocalSourceKind, MemberAccessMetadata,
+    MemberFunMetadata, MemberTarget, MetadataRoot, MirBoxingIntent, MirBoxingReason,
+    MirTransportKind, MirTransportRequirements, MirValidationError, NominalMetadata,
+    ObjectMetadata, Operand, Param, Pattern, PatternBindingStep, PerformArg, PerformMetadata,
+    PropertyMetadata, ResumeMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
+    RuntimePatternTypeTestKind, RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey,
+    RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold,
+    RuntimeTypeTestMetadata, Rvalue, SiteId, Statement, StatementKind,
+    StoredContinuationRoutePublication, StoredContinuationValueRoute, SupertypeMetadata,
+    Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral,
+    TypeMetadataLiteralKind, UnwindAction, ValueTransportMetadata,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -72,6 +73,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
     refactor_call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
     refactor_assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
+    class_ctor_call_sites: HashMap<hir::CallSite, hir::CtorCallInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
     top_level_ref_hidden_effects: HashMap<String, EffectRow>,
@@ -98,6 +100,7 @@ impl Default for MirLoweringFacts {
             refactor_dispatch_sites: HashMap::new(),
             refactor_call_sites: HashMap::new(),
             refactor_assign_places: HashMap::new(),
+            class_ctor_call_sites: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
             top_level_ref_hidden_effects: HashMap::new(),
@@ -142,6 +145,8 @@ struct RefactorDispatchCallInfo {
     kind: DispatchTargetKind,
     owner_fqn: String,
     member_name: String,
+    member_fqn: String,
+    member_decl_span: Option<Span>,
     receiver_ty: TypeId,
 }
 
@@ -153,6 +158,8 @@ fn refactor_dispatch_call_info(
         kind,
         owner_fqn: member.owner_fqn().to_string(),
         member_name: member.member_name().to_string(),
+        member_fqn: member.member_fqn().to_string(),
+        member_decl_span: member.function().decl_span(),
         receiver_ty: member.receiver_ty(),
     }
 }
@@ -182,6 +189,7 @@ impl MirLoweringFacts {
         )
         .with_member_value_types(lowered)
         .with_nominal_kinds(lowered)
+        .with_class_ctor_call_sites(lowered)
         .with_continuation_identity_return_funs(lowered)
         .with_class_ctor_hidden_effects(lowered)
     }
@@ -212,6 +220,7 @@ impl MirLoweringFacts {
         facts = facts
             .with_member_value_types(lowered)
             .with_nominal_kinds(lowered)
+            .with_class_ctor_call_sites(lowered)
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
 
@@ -296,6 +305,12 @@ impl MirLoweringFacts {
             }
         }
 
+        self
+    }
+
+    fn with_class_ctor_call_sites(mut self, lowered: &hir::LoweredHir) -> Self {
+        self.class_ctor_call_sites
+            .extend(lowered.ctor_call_sites.clone());
         self
     }
 
@@ -502,6 +517,15 @@ impl MirLoweringFacts {
         call_span: Span,
     ) -> Option<&TypedCallSiteContract> {
         self.refactor_call_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
+    }
+
+    fn class_ctor_call_info(
+        &self,
+        source_path: &std::path::Path,
+        call_span: Span,
+    ) -> Option<&hir::CtorCallInfo> {
+        self.class_ctor_call_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
@@ -3324,6 +3348,10 @@ impl<'a> FnLowering<'a> {
             Rvalue::ClassCtor {
                 site_id,
                 class_fqn: ctor.owner_fqn().to_string(),
+                ctor: ClassCtorCallMetadata {
+                    selected_ctor_span: ctor.ctor_span(),
+                    ordered_param_count: ctor.arg_mapping().len(),
+                },
                 args,
                 hidden_effects,
             },
@@ -3455,6 +3483,8 @@ impl<'a> FnLowering<'a> {
         let dispatch = DispatchMetadata {
             owner_fqn: member.owner_fqn().to_string(),
             member_name: member.member_name().to_string(),
+            member_fqn: member.member_fqn().to_string(),
+            member_decl_span: member.function().decl_span(),
             receiver_ty: member.receiver_ty(),
         };
         let kind = match dispatch_kind {
@@ -4128,12 +4158,25 @@ impl<'a> FnLowering<'a> {
             let hidden_effects = self
                 .facts
                 .class_ctor_hidden_effects(self.source_path.as_path(), span);
+            let ctor = self
+                .facts
+                .class_ctor_call_info(self.source_path.as_path(), span)
+                .filter(|info| info.class_fqn == callee_fqn)
+                .map(|info| ClassCtorCallMetadata {
+                    selected_ctor_span: info.ctor_span,
+                    ordered_param_count: info.arg_mapping.len(),
+                })
+                .unwrap_or(ClassCtorCallMetadata {
+                    selected_ctor_span: None,
+                    ordered_param_count: args.len(),
+                });
             self.assign(
                 span,
                 result,
                 Rvalue::ClassCtor {
                     site_id,
                     class_fqn: callee_fqn,
+                    ctor,
                     args,
                     hidden_effects,
                 },
@@ -4243,15 +4286,20 @@ impl<'a> FnLowering<'a> {
         if binding.fqn != "scoop.core.sizeOf" || !binding.is_intrinsic {
             return false;
         }
-        let [hir::CallArg::Positional(value)] = args else {
+        let value_ty = match args {
+            [hir::CallArg::Positional(value)] => Some(value.ty),
+            [] => binding.type_args.first().copied(),
+            _ => None,
+        };
+        let Some(value_ty) = value_ty else {
             self.assign(
                 span,
                 result,
-                Rvalue::Todo("sizeOf intrinsic requires one positional arg"),
+                Rvalue::Todo("sizeOf intrinsic requires value or type arg"),
             );
             return true;
         };
-        self.assign(span, result, Rvalue::SizeOf { value_ty: value.ty });
+        self.assign(span, result, Rvalue::SizeOf { value_ty });
         true
     }
 
@@ -4470,9 +4518,16 @@ impl<'a> FnLowering<'a> {
             );
             return true;
         };
+        let member_decl_span = self
+            .facts
+            .top_level_fun_call_binding(self.source_path.as_path(), span)
+            .filter(|binding| binding.fqn == callee_fqn)
+            .map(|binding| binding.decl_span);
         let dispatch = DispatchMetadata {
             owner_fqn: owner_fqn.to_string(),
             member_name: member_name.to_string(),
+            member_fqn: callee_fqn.to_string(),
+            member_decl_span,
             receiver_ty,
         };
         let kind = match dispatch_kind {
@@ -4545,6 +4600,8 @@ impl<'a> FnLowering<'a> {
         let dispatch = DispatchMetadata {
             owner_fqn: dispatch_info.owner_fqn,
             member_name: dispatch_info.member_name,
+            member_fqn: dispatch_info.member_fqn,
+            member_decl_span: dispatch_info.member_decl_span,
             receiver_ty: if receiver_ty == dispatch_info.receiver_ty {
                 receiver_ty
             } else {

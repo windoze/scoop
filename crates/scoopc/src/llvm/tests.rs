@@ -559,6 +559,56 @@ fun main(): Int {
 }
 
 #[test]
+fn refactor_llvm_call_contract_lowering() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/cg_t03_call_contracts.scoop",
+        r#"
+package fixtures.cgt03
+
+import scoop.core.*
+
+interface Ping {
+    fun ping(): Int {
+        return 7
+    }
+}
+
+class Box(val value: Int) : Ping
+
+fun read(x: Ping): Int {
+    return x.ping()
+}
+
+fun main(): Int {
+    val b: Box = Box(value = 3)
+    val platform: Platform = getPlatform()
+    val bytes: Int = sizeOf(1)
+    return read(b) + b.value + bytes
+}
+"#,
+    );
+
+    let context = Context::create();
+    let ir = build_minimal_main_module(&session, &source, &context)
+        .unwrap()
+        .print_to_string()
+        .to_string();
+    assert!(
+        ir.contains("@fixtures.cgt03.Ping.ping"),
+        "interface default method slot should keep the selected default implementation:\n{ir}"
+    );
+    assert!(
+        ir.contains("call_itable"),
+        "interface call through Ping should lower through an itable slot:\n{ir}"
+    );
+    assert!(
+        !ir.contains("scoop.core.getPlatform"),
+        "getPlatform should lower to a Platform literal, not a declaration-only intrinsic call:\n{ir}"
+    );
+}
+
+#[test]
 fn float_builtin_types_lower_to_llvm_scalars() {
     let source = SourceFile::new_virtual(
         "<mem>",

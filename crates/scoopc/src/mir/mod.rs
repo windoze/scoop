@@ -845,14 +845,16 @@ impl File {
                 })
             }
             CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. }
-                if dispatch.owner_fqn.is_empty() || dispatch.member_name.is_empty() =>
+                if dispatch.owner_fqn.is_empty()
+                    || dispatch.member_name.is_empty()
+                    || dispatch.member_fqn.is_empty() =>
             {
                 Err(MirValidationError::RefactorProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
                     span,
                     site: MirSiteMetadataKind::Call,
-                    detail: "dispatch call is missing owner/member identity",
+                    detail: "dispatch call is missing selected member identity",
                 })
             }
             CallKind::Resume { resume, .. } if resume.runtime_error_effect_ty.is_none() => {
@@ -1935,7 +1937,16 @@ pub struct PerformMetadata {
 pub struct DispatchMetadata {
     pub owner_fqn: String,
     pub member_name: String,
+    pub member_fqn: String,
+    pub member_decl_span: Option<Span>,
     pub receiver_ty: TypeId,
+}
+
+/// class constructor call 在 MIR 上发布的 selected ctor / ordered-args contract。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassCtorCallMetadata {
+    pub selected_ctor_span: Option<Span>,
+    pub ordered_param_count: usize,
 }
 
 /// `Continuation.resume(...)` 在 MIR 上保留的最小语义 metadata。
@@ -2240,6 +2251,7 @@ pub enum Rvalue {
     ClassCtor {
         site_id: SiteId,
         class_fqn: String,
+        ctor: ClassCtorCallMetadata,
         args: Vec<CallArg>,
         hidden_effects: EffectRow,
     },

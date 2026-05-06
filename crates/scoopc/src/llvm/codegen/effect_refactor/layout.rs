@@ -5477,24 +5477,20 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?;
         let mut candidates = iface.method_slots.iter().filter(|slot| {
-            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+            slot.member_fqn == dispatch.member_fqn && slot.params_len == explicit_arg_count as u32
         });
         let first = candidates.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} `{}`.`{}`/{} 的 itable slot",
+                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot",
                 site_id.as_u32(),
-                dispatch.owner_fqn,
-                dispatch.member_name,
-                explicit_arg_count,
+                dispatch.member_fqn,
             ))
         })?;
         if candidates.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` interface call site {} `{}`.`{}`/{} 的 itable slot 多义",
+                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot 多义",
                 site_id.as_u32(),
-                dispatch.owner_fqn,
-                dispatch.member_name,
-                explicit_arg_count,
+                dispatch.member_fqn,
             )));
         }
         Ok((iface.interface_id, first.slot))

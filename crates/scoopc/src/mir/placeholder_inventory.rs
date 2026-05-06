@@ -156,7 +156,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::Rvalue,
-        "sizeOf intrinsic requires one positional arg",
+        "sizeOf intrinsic requires value or type arg",
         "PIPELINE_GAPS.md §6.3",
         PlaceholderDisposition::LegacyOnly,
         "MIR-T07",

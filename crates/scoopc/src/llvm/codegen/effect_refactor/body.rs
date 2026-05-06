@@ -148,6 +148,7 @@ struct RefactorHandleFinallyRuntime {
 enum RefactorClassCtorBoundarySource<'a> {
     ClassCtor {
         span: crate::span::Span,
+        ctor: &'a mir::ClassCtorCallMetadata,
         args: &'a [mir::CallArg],
     },
     ObjectProperty {
@@ -4908,7 +4909,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .with_active_suspend_site_any_effect_outcome_capture(site_id.as_u32(), |cg| {
                 cg.with_ordinary_effect_propagation_suppressed(|cg| match &source {
-                    RefactorClassCtorBoundarySource::ClassCtor { span, args } => {
+                    RefactorClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
                         let args = args.to_vec();
                         let class_layout_key = class_layout_key.as_ref().ok_or_else(|| {
                             frontend_error(
@@ -4918,6 +4919,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         cg.codegen_mir_refactor_class_ctor_call(
                             *span,
                             class_layout_key,
+                            ctor,
                             &args,
                             &slots,
                         )
@@ -5053,12 +5055,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 value:
                     mir::Rvalue::ClassCtor {
                         site_id: stmt_site,
+                        ctor,
                         args,
                         ..
                     },
                 ..
             } if *stmt_site == site_id => Ok(RefactorClassCtorBoundarySource::ClassCtor {
                 span: stmt.span,
+                ctor,
                 args,
             }),
             mir::StatementKind::Assign {

@@ -18,7 +18,7 @@
 | `CG-T01R` | CG1R | [DONE] Review CG-T01 raw MIR route gate |
 | `CG-T02` | CG2 | [DONE] 收口 runtime type/value primitive LLVM lowering |
 | `CG-T02R` | CG2R | [DONE] Review CG-T02 runtime value primitive lowering |
-| `CG-T03` | CG3 | 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
+| `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04` | CG4 | 收口 aggregate/enum/array/closure/boxing transport lowering |
 | `CG-T04R` | CG4R | Review CG-T04 composite transport lowering |
@@ -214,7 +214,7 @@
   - 2026-05-07：复审中发现 `Pattern::Is` 虽携带 `RuntimePatternTypeTestMetadata`，LLVM pattern support/codegen 仍只读取目标 `ty`，会阻断 value-type static-fold pattern；已修复为验证并消费 pattern metadata，静态折叠直接生成常量，动态 ref-like case 才进入 runtime descriptor / itable matching。
   - 验证通过：`cargo test -p scoopc refactor_mir_value_primitives`、`cargo test -p scoopc refactor_llvm_runtime_type_primitives`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/not_null_assert_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T03：收口 call/ctor/function-ref/intrinsic/default/interface lowering
+## [DONE] CG-T03：收口 call/ctor/function-ref/intrinsic/default/interface lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG3
@@ -241,6 +241,12 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §3.7、§3.9、§3.10、§6.3、§6.5 的 codegen 部分关闭。
 - 依赖：`CG-T02R`，`MIR-T07R`，`MIR-T08R`
+
+- 完成记录：
+  - 2026-05-07：MIR `ClassCtor` 现在携带 selected ctor span 与完整 ordered param count；refactor LLVM class ctor lowering 只消费该契约与 positional args，缺 selected ctor 或 args 不完整时 fail-fast，不再在 backend 重新选择 overload 或补 named/default args。
+  - 2026-05-07：dispatch metadata 携带 selected member FQN/span，interface slot metadata 携带 method FQN；plain interface dispatch 与 ABI materialization 通过 selected member identity 解析 itable slot/default implementation，不再扫描 owner/member 字符串恢复 signature。
+  - 2026-05-07：`getPlatform()` 在 LLVM codegen 中 lower 为 `scoop.core.Platform` literal；`sizeOf<T>()` / `nameOf<T>()` 的 refactor MIR intrinsic contract 保持通过 MIR primitive 覆盖，top-level function reference 继续由 HIR/MIR function-value closure contract 覆盖。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_call_contract_lowering`、`cargo test -p scoopc refactor_mir_call_contract_lowers_typed_call_sites`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/get_platform_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/intrinsic_size_of_int_word.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T03R：Review CG-T03 call/ctor/intrinsic lowering
 

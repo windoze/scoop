@@ -717,22 +717,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 语义：`sizeOf(x)` 在当前阶段返回 `x` 的静态类型在目标 ABI 下的 store size（bytes）。
-        //
-        // 说明：
-        // - 规范中的 `sizeOf<T>()` 是 comptime 反射 intrinsic（spec §6.4）；
-        // - 当前阶段尚未实现 comptime 执行链路，因此该 intrinsic 先作为 codegen 内建：
-        //   直接把结果 lowering 为编译期常量（不产生对 `scoop.core.sizeOf` 的函数调用）。
-        if args.len() != 1 {
+        // 语义：`sizeOf(x)` 在 HIR-compatible path 返回静态类型的目标 ABI store size。
+        let [hir::CallArg::Positional(expr)] = args else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "sizeOf() arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sizeOf() named arg",
                 at: span.into(),
             });
         };

@@ -1038,12 +1038,14 @@ fn remap_rvalue(
         }),
         Rvalue::ClassCtor {
             class_fqn,
+            ctor,
             args,
             hidden_effects,
             ..
         } => Some(Rvalue::ClassCtor {
             site_id: fresh_cloned_site_id(next_site_id),
             class_fqn: class_fqn.clone(),
+            ctor: ctor.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
             hidden_effects: hidden_effects.clone(),
         }),

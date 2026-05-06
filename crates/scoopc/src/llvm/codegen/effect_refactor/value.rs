@@ -473,13 +473,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )
             }
             mir::Rvalue::ClassCtor {
-                class_fqn, args, ..
+                class_fqn,
+                ctor,
+                args,
+                ..
             } => {
                 let class_layout_key =
                     self.refactor_class_ctor_layout_key(class_fqn, target_local)?;
                 self.codegen.codegen_mir_refactor_class_ctor_call(
                     span,
                     &class_layout_key,
+                    ctor,
                     args,
                     self.slots,
                 )
@@ -1186,6 +1190,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if let Some(value) = self.lower_refactor_atomic_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
+        }
+        if callee_fqn == "scoop.core.getPlatform" {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "getPlatform intrinsic arity",
+                    at: span.into(),
+                });
+            }
+            return self.codegen.codegen_platform_literal(span, target_cg);
         }
         if callee_fqn == "scoop.core.panic" {
             return self.lower_refactor_panic_call(span, args);

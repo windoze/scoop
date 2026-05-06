@@ -82,6 +82,15 @@ fn mir_direct_call_base_fqn(fqn: &str) -> &str {
         .unwrap_or(fqn)
 }
 
+fn decompose_target_triple(triple: &str) -> (String, String, String, String) {
+    let mut parts = triple.split('-');
+    let arch = parts.next().unwrap_or("").to_string();
+    let vendor = parts.next().unwrap_or("").to_string();
+    let os = parts.next().unwrap_or("").to_string();
+    let env = parts.next().unwrap_or("").to_string();
+    (arch, vendor, os, env)
+}
+
 #[derive(Clone, Copy)]
 struct MirMemberFieldContract {
     field_cg: CgTy,
@@ -2634,11 +2643,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots,
             ),
             crate::mir::Rvalue::ClassCtor {
-                class_fqn, args, ..
+                class_fqn,
+                ctor,
+                args,
+                ..
             } => {
                 let class_layout_key =
                     self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
-                self.codegen_mir_class_ctor_call(span, &class_layout_key, args, slots)
+                self.codegen_mir_refactor_class_ctor_call(
+                    span,
+                    &class_layout_key,
+                    ctor,
+                    args,
+                    slots,
+                )
             }
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
@@ -2797,6 +2815,107 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_string_literal_from_text(span, &type_name)
             }
         }
+    }
+
+    pub(super) fn codegen_platform_literal(
+        &mut self,
+        span: crate::span::Span,
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let CgTy::Struct(struct_ty) = target_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "getPlatform intrinsic result type",
+                at: span.into(),
+            });
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "getPlatform intrinsic nominal Platform type",
+                at: span.into(),
+            });
+        };
+        if nominal.fqn != "scoop.core.Platform" {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "getPlatform intrinsic Platform target",
+                at: span.into(),
+            });
+        }
+
+        let layout_key = self.nominal_layout_key(nominal);
+        let layout =
+            self.struct_layouts
+                .get(&layout_key)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "getPlatform intrinsic Platform layout",
+                    at: span.into(),
+                })?;
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let (arch, vendor, os, env) = decompose_target_triple(&self.host.triple);
+        let field_values = [
+            ("triple", self.host.triple.as_str()),
+            ("arch", arch.as_str()),
+            ("vendor", vendor.as_str()),
+            ("os", os.as_str()),
+            ("env", env.as_str()),
+        ];
+
+        let mut deferred_fields: Vec<(u32, String, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(layout.fields.len());
+        for (idx, layout_field) in layout.fields.iter().enumerate() {
+            let (_, text) = field_values
+                .iter()
+                .find(|(name, _)| *name == layout_field.name)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "getPlatform intrinsic Platform field",
+                    at: span.into(),
+                })?;
+            let field_cg =
+                self.cg_ty_of_layout_field(span, layout_field.ty, layout_field.ty_fqn.as_deref())?;
+            let value = self.codegen_string_literal_from_text(span, text)?;
+            let value = if value.ty != field_cg {
+                self.coerce_value(span, value, field_cg)?
+            } else {
+                value
+            };
+            let deferred = self.defer_gc_sensitive_cg_value(
+                span,
+                &format!("get_platform_field_{idx}"),
+                value,
+            )?;
+            let llvm_idx = self
+                .shared_caches
+                .pack_field_indices
+                .borrow()
+                .get(&layout_key)
+                .map_or(idx as u32, |indices| indices[idx]);
+            deferred_fields.push((llvm_idx, layout_field.name.clone(), deferred));
+        }
+
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        for (idx, (llvm_idx, field_name, deferred)) in deferred_fields.into_iter().enumerate() {
+            let materialized = self.materialize_deferred_cg_value(
+                span,
+                &format!("get_platform_field_reload_{idx}"),
+                deferred,
+            )?;
+            let raw = materialized
+                .value
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "getPlatform intrinsic field value",
+                    at: span.into(),
+                })?;
+            agg = self.builder.build_insert_value(
+                agg,
+                raw,
+                llvm_idx,
+                &format!("get_platform_insert_{field_name}"),
+            )?;
+        }
+
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(agg.as_basic_value_enum()),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -5178,39 +5297,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ))
         })?;
         let mut slots = iface.method_slots.iter().filter(|slot| {
-            slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+            slot.member_fqn == dispatch.member_fqn && slot.params_len == explicit_arg_count as u32
         });
         let slot = slots.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain interface call 缺少 `{}`.`{}`/{} 的 itable slot",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+                "refactor plain interface call 缺少 `{}` 的 selected itable slot",
+                dispatch.member_fqn,
             ))
         })?;
         if slots.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor plain interface call `{}`.`{}`/{} 的 itable slot 多义",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
+                "refactor plain interface call `{}` 的 selected itable slot 多义",
+                dispatch.member_fqn,
             )));
         }
 
-        let owner_prefix = format!("{}.", dispatch.owner_fqn);
-        let mut sig_candidates = self.fun_index.values().copied().filter(|fun| {
-            fun.name == dispatch.member_name
-                && fun.params.len() == explicit_arg_count + 1
-                && fun.fqn.starts_with(&owner_prefix)
-        });
-        let sig_fun = sig_candidates.next().ok_or_else(|| {
-            frontend_error(format!(
-                "refactor plain interface call 缺少 `{}`.`{}`/{} 的 signature",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
-            ))
-        })?;
-        if sig_candidates.next().is_some() {
-            return Err(frontend_error(format!(
-                "refactor plain interface call `{}`.`{}`/{} 的 signature 多义",
-                dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
-            )));
-        }
+        let sig_fun = self
+            .fun_index
+            .get(dispatch.member_fqn.as_str())
+            .copied()
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor plain interface call 缺少 `{}` 的 selected signature",
+                    dispatch.member_fqn,
+                ))
+            })?;
         Ok(PlainDispatchTarget::Interface {
             interface_id: iface.interface_id,
             slot: slot.slot,
@@ -5415,6 +5526,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!("pass MIR direct call 缺少 callee `{fqn}` 的 callable signature"),
             })?;
+        if fqn == "scoop.core.getPlatform" {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "getPlatform intrinsic arity",
+                    at: span.into(),
+                });
+            }
+            let target_cg =
+                self.cg_ty_of(sig_fun.return_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "getPlatform intrinsic return type",
+                        at: span.into(),
+                    })?;
+            return self.codegen_platform_literal(span, target_cg);
+        }
         if !is_extern && sig_fun.body.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR declaration-only direct call",
@@ -6067,19 +6193,114 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn selected_mir_class_ctor_from_contract<'b>(
+        &self,
+        span: crate::span::Span,
+        class: &'b hir::ClassInit,
+        ctor: &crate::mir::ClassCtorCallMetadata,
+        args: &[crate::mir::CallArg],
+        kind: &'static str,
+    ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
+        if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        }
+
+        let selected_ctor = match ctor.selected_ctor_span {
+            Some(selected_span) => Some(
+                class
+                    .ctors
+                    .iter()
+                    .find(|candidate| candidate.span == selected_span)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor class ctor selected ctor contract",
+                        at: span.into(),
+                    })?,
+            ),
+            None if class.ctors.is_empty() => None,
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor class ctor selected ctor contract",
+                    at: span.into(),
+                });
+            }
+        };
+
+        let param_count = selected_ctor.map_or(0, |ctor| ctor.params.len());
+        if param_count != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        }
+
+        Ok(selected_ctor)
+    }
+
+    fn codegen_mir_refactor_class_ctor_ordered_args(
+        &mut self,
+        span: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        ctor_params: &[hir::ClassCtorParam],
+        kind: &'static str,
+    ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
+        if ctor_params.len() != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        }
+
+        let mut evaluated_args = Vec::with_capacity(args.len());
+        for (idx, (param, arg)) in ctor_params.iter().zip(args).enumerate() {
+            if arg.name.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: arg.span.into(),
+                });
+            }
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor class ctor param type",
+                    at: arg.span.into(),
+                })?;
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
+            let value = self.coerce_value(arg.span, value, param_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("refactor_class_ctor_ordered_arg_{idx}"),
+                value,
+            )?;
+            evaluated_args.push(self.materialize_deferred_cg_value(
+                arg.span,
+                &format!("refactor_class_ctor_ordered_arg_reload_{idx}"),
+                deferred,
+            )?);
+        }
+
+        Ok(evaluated_args)
+    }
+
     pub(super) fn codegen_mir_refactor_class_ctor_call(
         &mut self,
         span: crate::span::Span,
         class_layout_key: &str,
+        ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let class = self.class_init_layout(span, class_layout_key)?;
-        let (selected_ctor, arg_mapping) = self.pick_class_ctor_for_mir_args(
+        let selected_ctor = self.selected_mir_class_ctor_from_contract(
             span,
             &class,
+            ctor,
             args,
-            "refactor class ctor overload mismatch/ambiguous",
+            "refactor class ctor selected/ordered args contract",
         )?;
         let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
@@ -6149,13 +6370,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let evaluated_args = self.codegen_mir_class_ctor_eval_args(
+        let evaluated_args = self.codegen_mir_refactor_class_ctor_ordered_args(
             span,
             args,
             slots,
-            &arg_mapping,
             ctor_params,
-            "refactor class ctor arg eval",
+            "refactor class ctor ordered arg eval",
         )?;
 
         let current_obj = self.reload_deferred_gc_ref_without_clearing(

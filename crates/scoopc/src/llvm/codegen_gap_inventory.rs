@@ -592,12 +592,15 @@ fn raw_mir_rvalue_gate_failure(
             | crate::mir::CallKind::Closure { .. }
             | crate::mir::CallKind::FunValue { .. } => None,
         },
-        Rvalue::ClassCtor { args, .. } if args.iter().any(|arg| arg.name.is_some()) => {
+        Rvalue::ClassCtor { ctor, args, .. }
+            if args.iter().any(|arg| arg.name.is_some())
+                || args.len() != ctor.ordered_param_count =>
+        {
             Some(gate_failure(
                 body_fqn,
                 span,
                 "PIPELINE_GAPS §3.9",
-                "class constructor named/default argument contract reached backend incomplete",
+                "class constructor selected/ordered argument contract reached backend incomplete",
             ))
         }
         Rvalue::Use(_)
