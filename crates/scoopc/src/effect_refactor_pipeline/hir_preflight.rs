@@ -115,6 +115,12 @@ const HIR_ORIGIN_MIR_FALLBACK_REASONS: &[&str] = &[
     "StmtKind::Todo(comptime_if)",
     "StmtKind::Todo(comptime_for)",
     "StmtKind::Todo(for_custom_iterator)",
+    "comptime_if_item",
+    "missing_stmt",
+    "comptime_block",
+    "comptime_if",
+    "comptime_for",
+    "for_custom_iterator",
     "array_lit",
     "spread_arg",
     "named_arg",
@@ -311,8 +317,12 @@ fn assert_no_hir_origin_mir_fallbacks(
     fixture: HirCompletenessFixture,
 ) {
     for item in &output.file().items {
-        let MirItem::Fun(fun) = item else {
-            continue;
+        let fun = match item {
+            MirItem::Fun(fun) => fun,
+            MirItem::Todo { kind, .. } => {
+                assert_not_hir_origin_mir_fallback(kind, fixture, "top-level MIR item");
+                continue;
+            }
         };
         let Some(body) = &fun.body else {
             continue;

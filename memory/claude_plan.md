@@ -30,3 +30,4 @@
 - Implementation direction: add a focused refactor HIR preflight test/API that loads the HIR completeness fixture set through typed HIR/no-Todo verification, checks required typed side tables, and runs direct-style MIR smoke only for representative samples.
 - Implemented `hir_preflight` test coverage, added assignment place and class literal runtime typecheck fixtures, and validated the preflight, dump-hir fixture set, MIR smoke samples, related no-Todo/dump-hir tests, and clippy.
 - Updated `TODO.md` to mark `HIR-T13` as complete with the validation record. Next action: inspect git status/diff, commit this task, then stop.
+- After the first commit, tightened the MIR fallback scan to include top-level MIR `Item::Todo` and raw HIR placeholder reasons; next action is to rerun the focused preflight/clippy checks and commit the correction.
