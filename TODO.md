@@ -574,7 +574,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T08R：Review MIR-T08 dispatch/resume/perform/handle contract
+## [DONE] MIR-T08R：Review MIR-T08 dispatch/resume/perform/handle contract
 
 - 参考：
   - `MIR-T08`
@@ -591,6 +591,23 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T08` 已正确实现；若发现缺口，`MIR-T08R` 保持未完成并把修复归回 `MIR-T08`。
 - 依赖：`MIR-T08`
+
+- 完成记录（2026-05-06）：
+  - Review 结论：`MIR-T08` dispatch/resume/perform/handle site contract 已按任务要求正确实现；未发现需要归回 `MIR-T08` 的阻塞缺口。
+  - 已审查 typed HIR `ContinuationResumeSiteContract` / `PerformSiteContract` / `HandleSiteContract` 收集、`MirLoweringFacts::with_refactor_typed_contracts(...)` handoff、refactor MIR dispatch/resume/perform/handle lowering、strict production site metadata verifier、placeholder inventory 和相关 fixtures。
+  - `dispatch_and_resume_call.scoop` dump 抽查确认 virtual/interface dispatch 使用 structured owner/member/receiver metadata，resume 使用 typed continuation/resume/answer/out/runtime-error metadata，不依赖 legacy canonical-shape placeholder。
+  - `handle_perform.scoop` 与 `handle_finally_boundary.scoop` dump 抽查确认 perform/handle 均有 stable site id、operation identity、payload/result metadata、resume/cleanup/exit targets 和 explicit unwind/finally boundary。
+  - 搜索审计确认 `refactor perform contract missing`、`refactor handle contract missing` 不再有源码构造；`resume lowering requires canonical callee shape`、`dispatch callee lowering pending` 源码命中仅保留在 legacy non-refactor fallback、inventory/preflight/verifier/docs 中，refactor production path 不命中。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_effect_site_contract`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_perform.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_call_contract`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T09：收口 runtime value primitives 的 MIR 表达
 
