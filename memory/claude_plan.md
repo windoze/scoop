@@ -1,27 +1,41 @@
-执行计划（不包含私有推理链）：
+# 执行计划
 
-1. 先读取 `TODO.md` 作为索引，并按索引顺序打开对应的 `TODO-Px.md` 详细任务文件，确定第一个标题未带 `[DONE]` 的详细任务。
-2. 检查最近提交信息是否明确提到与该任务直接相关的未完成问题；只把阻塞当前任务的问题纳入范围。
-3. 阅读当前任务的详细要求、依赖、验证标准和完成记录，必要时同步确认相关源码、测试、规范位置。
-4. 按任务要求做最小正确实现；若遇到无法绕过的缺失特性或规范不匹配，则在对应 `TODO-Px.md` 中插入最小前置任务，同步 `TODO.md`，提交并停止。
-5. 运行相关测试；如修改影响范围较大，再运行更广泛的验证命令，并修复当前任务引入的问题。
-6. 将完成任务的详细标题加上 `[DONE]`，更新完成记录，并同步 `TODO.md` 中同一任务的 `[DONE]` 状态。
-7. 检查工作区差异，提交本次任务相关的全部变更；提交后停止，不继续下一个任务。
+## 当前约束
+- 先按 `TODO.md` 索引定位第一个未完成的详细任务，再以对应 `TODO-Px.md` 为准执行。
+- 每次只完成一个详细任务，完成后停止。
+- 不通过变通、弱化测试或改变既定建模方式绕过缺失功能或规格不符。
+- 如遇阻塞，添加最小必要前置任务，同步 `TODO.md`，提交后停止。
+- 完成任务后同步 `[DONE]` 标记、完成记录和必要索引，并提交所有相关变更。
 
-当前状态：已定位第一个未完成详细任务为 `TODO-P7.md` 的 `P7-T02Z`。最近提交 `P7-T02Zb` 的记录提到仍有默认 run-pass 阻塞留给 `P7-T02Z` / `P7-T03`，本轮只处理 `P7-T02Z`。
+## 初始步骤
+1. 读取 `TODO.md`，按索引顺序定位引用的详细任务文件。
+2. 读取对应 `TODO-Px.md` 文件，寻找第一个标题未带 `[DONE]` 的详细任务。
+3. 检查最近提交信息是否显式提到与该任务直接相关的未完成问题。
+4. 阅读当前任务要求、约束、验证命令和完成记录格式。
 
-当前执行步骤：
+## 实施步骤
+1. 基于当前任务要求检查相关代码、测试和 fixtures。
+2. 做最小正确实现，避免无关重构。
+3. 添加或更新与任务直接相关的测试/fixtures。
+4. 运行任务要求的验证命令，并根据失败结果修复实现。
+5. 必要时运行更广泛的相关验证，确保没有警告或回归。
 
-1. 已检查工作区状态，只有本轮计划文件与后续代码修改；未跟踪的 `crates/scoop/target/` 构建目录不纳入提交。
-2. 已复现并修复 `async_await_minimal_int_basic.scoop` 的 `pass MIR local type`：扩展 compiler-temporary slot inference，使 direct call 已 concrete 的 RHS ABI 类型可用于声明类型仍是泛型参数的临时 local。
-3. 已通过：`cargo run -p scoop -- run --no-incremental tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`。
-4. 已修复 `array_lit_infer_string_char_float_basic.scoop`：`toInt` intrinsic 在 source type 仍是泛型参数但 local slot 已有 concrete ABI 时，使用 slot ABI 继续走 Float/String intrinsic lowering。单 fixture 已通过。
-5. 已修复 `effect_escape_continuation_indirect_perform_closure_locals.scoop`：refactor direct entry 对 flattened lambda env tuple 现在会用全部 components 组装 env 参数；同时聚合 local 写入后的 explicit root 同步改为优先从当前 SSA value 抽取 GC leaf，避免回读未同步 alloca leaf。单 fixture 已通过。
-6. 已修复 `effect_indirect_perform_nonresuming_function_value_wrapper_member_direct.scoop`：struct 字段为 effect-typed function 时，若字段值来自 plain closure，会在 struct literal 构造前为 closure object 安装 effect-step adapter。单 fixture 已通过。
-7. 已修复 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`：composed call-boundary resume 在调用 callee surface resume 前会按 source consumption 重放 caller boundary prefix。单 fixture 已通过。
-8. 已修正 composed call-boundary prefix replay 条件：只在 call boundary 的 owner state 是 Resume state 时重放 prefix，避免普通 indirect perform resume 重复执行初始 handle body prefix。`effect_escape_continuation_indirect_perform_basic.scoop` 与 multi block fixture 均通过。
-9. 已修正 composed replay 的二次守护：只有 owner 是 Resume state 且 source slice 从语句 0 开始时才重放 prefix；避免多 call site callee branch 中重复执行已完成的 caller prefix。相关三个 fixture 均通过。
-10. 默认 run-pass 继续阻塞在 `effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`：多个 owner continuation object 共享 owner-trampoline surface-resume schema 时，当前 handoff/ABI query 只能表达单 owner，且 wrapper projection 缺 owner 维度。
-11. 已新增 prerequisite `P7-T02Zc` 到 `TODO-P7.md` 并同步 `TODO.md`，`P7-T02Z` 依赖改为 `P7-T02Zc`；本轮不标记 `P7-T02Z` 完成。
-12. 已运行 `cargo fmt --all`、多项定向 run-pass fixture、`cargo test -p scoopc --lib effect_lowered`、`cargo test -p scoopc --lib llvm::codegen::effect_refactor`、`cargo clippy --all-targets -- -D warnings`；除已记录的新增前置任务阻塞外，本轮修复验证通过。
-13. 下一步检查 git diff，提交本轮代码修复与任务拆分记录后停止。
+## 收尾步骤
+1. 在对应 `TODO-Px.md` 标题前加 `[DONE]` 并更新完成记录。
+2. 同步 `TODO.md` 中对应索引项的 `[DONE]` 状态。
+3. 仅在阶段计划实际变化时更新 `PLAN.md`。
+4. 检查工作区变更，确认不误改无关内容。
+5. 使用清晰任务编号提交变更。
+6. 停止，不继续下一项任务。
+
+## 进度记录
+- 已写入初始计划，下一步读取任务索引并定位第一个未完成详细任务。
+- 已读取 `TODO.md` 与 `TODO-P7.md`，确认第一个未完成详细任务为 `P7-T02Zc`。
+- 已检查最新提交 `c4e5eea1 [P7-T02Z] Fix run-pass blockers and add multi-owner prerequisite`，其新增的 multi-owner prerequisite 与当前任务直接相关，纳入本轮范围。
+- 下一步聚焦 late-lowered surface-resume dispatch / wrapper projection / ABI materializer 中 schema 单 owner 假设，修复后运行 `P7-T02Zc` 指定 fixture 与相关单测。
+- 已修改 late-lowered inventory，使同一 continuation schema 可携带多个 owner-specific wrapper projection。
+- 已修改 refactor LLVM ABI materializer 与 shared surface-resume 入口，允许多 owner trampoline 并按 continuation object runtime descriptor 分派。
+- 下一步运行定向 `cargo check` / fixture 验证，修正编译错误或剩余语义问题。
+- 已修复 composed call-boundary replay 的过度重放：当同一 source tail 后续还有会捕获 continuation 的 resuming boundary 时，不再重放已执行过的 caller prefix；仍保留 nested block mixed replay 需要的 prefix 重放。
+- 已通过定向验证：new multi-owner ABI 单测、`effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`effect_lowered`、`llvm::codegen::effect_refactor`、`llvm::tests`、`cargo clippy --all-targets -- -D warnings`。
+- 下一步更新 `TODO-P7.md` / `TODO.md` 完成记录，随后检查 git diff 并提交。

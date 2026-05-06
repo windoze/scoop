@@ -1212,10 +1212,11 @@ pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
     contract: LateLoweredSurfaceResumeContract,
     source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
     publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
-    wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
+    wrapper_projections: Vec<LateLoweredSurfaceResumeWrapperProjection>,
 }
 
 impl LateLoweredSurfaceResumeDispatchInventoryEntry {
+    #[cfg(test)]
     pub(crate) fn new(
         continuation_schema: ContinuationSchemaId,
         contract: LateLoweredSurfaceResumeContract,
@@ -1223,12 +1224,29 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
         publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
         wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Self {
+        let wrapper_projections = wrapper_projection.into_iter().collect();
+        Self::new_with_wrapper_projections(
+            continuation_schema,
+            contract,
+            source_kind,
+            publications,
+            wrapper_projections,
+        )
+    }
+
+    pub(crate) fn new_with_wrapper_projections(
+        continuation_schema: ContinuationSchemaId,
+        contract: LateLoweredSurfaceResumeContract,
+        source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+        publications: Vec<LateLoweredSurfaceResumeDispatchPublication>,
+        wrapper_projections: Vec<LateLoweredSurfaceResumeWrapperProjection>,
+    ) -> Self {
         Self {
             continuation_schema,
             contract,
             source_kind,
             publications,
-            wrapper_projection,
+            wrapper_projections,
         }
     }
 
@@ -1249,7 +1267,11 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
     }
 
     pub fn wrapper_projection(&self) -> Option<&LateLoweredSurfaceResumeWrapperProjection> {
-        self.wrapper_projection.as_ref()
+        (self.wrapper_projections.len() == 1).then(|| &self.wrapper_projections[0])
+    }
+
+    pub fn wrapper_projections(&self) -> &[LateLoweredSurfaceResumeWrapperProjection] {
+        &self.wrapper_projections
     }
 }
 
@@ -1337,8 +1359,7 @@ fn build_surface_resume_dispatch_inventory(
     let mut inventory =
         BTreeMap::<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>::new();
     let mut wrapper_projections =
-        BTreeMap::<ContinuationSchemaId, LateLoweredSurfaceResumeWrapperProjection>::new();
-    let mut conflicting_wrapper_projections = BTreeSet::<ContinuationSchemaId>::new();
+        BTreeMap::<ContinuationSchemaId, Vec<LateLoweredSurfaceResumeWrapperProjection>>::new();
 
     for object in continuation_objects {
         for surface_resume in object.surface_resumes() {
@@ -1395,7 +1416,6 @@ fn build_surface_resume_dispatch_inventory(
             if let Some(projection) = &projection {
                 register_surface_resume_wrapper_projection(
                     &mut wrapper_projections,
-                    &mut conflicting_wrapper_projections,
                     facts.continuation_schema(),
                     projection.clone(),
                 );
@@ -1439,7 +1459,6 @@ fn build_surface_resume_dispatch_inventory(
                     }
                     register_surface_resume_wrapper_projection(
                         &mut wrapper_projections,
-                        &mut conflicting_wrapper_projections,
                         contract.continuation_schema(),
                         projection.clone(),
                     );
@@ -1497,7 +1516,6 @@ fn build_surface_resume_dispatch_inventory(
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
                             &mut wrapper_projections,
-                            &mut conflicting_wrapper_projections,
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
@@ -1510,7 +1528,6 @@ fn build_surface_resume_dispatch_inventory(
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
                             &mut wrapper_projections,
-                            &mut conflicting_wrapper_projections,
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
@@ -1527,18 +1544,15 @@ fn build_surface_resume_dispatch_inventory(
         .into_iter()
         .filter_map(|(continuation_schema, entry)| {
             entry.contract.map(|contract| {
-                let wrapper_projection =
-                    if conflicting_wrapper_projections.contains(&continuation_schema) {
-                        None
-                    } else {
-                        wrapper_projections.remove(&continuation_schema)
-                    };
-                LateLoweredSurfaceResumeDispatchInventoryEntry::new(
+                let projections = wrapper_projections
+                    .remove(&continuation_schema)
+                    .unwrap_or_default();
+                LateLoweredSurfaceResumeDispatchInventoryEntry::new_with_wrapper_projections(
                     continuation_schema,
                     contract,
                     entry.source_kind(),
                     entry.publications,
-                    wrapper_projection,
+                    projections,
                 )
             })
         })
@@ -1549,9 +1563,8 @@ fn register_call_boundary_callee_wrapper_projection(
     inventory: &mut BTreeMap<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>,
     wrapper_projections: &mut BTreeMap<
         ContinuationSchemaId,
-        LateLoweredSurfaceResumeWrapperProjection,
+        Vec<LateLoweredSurfaceResumeWrapperProjection>,
     >,
-    conflicting_wrapper_projections: &mut BTreeSet<ContinuationSchemaId>,
     composition: &LateLoweredCallBoundaryContinuationComposition,
     step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
     continuation_objects: &[LateLoweredContinuationObject],
@@ -1632,7 +1645,6 @@ fn register_call_boundary_callee_wrapper_projection(
         );
     register_surface_resume_wrapper_projection(
         wrapper_projections,
-        conflicting_wrapper_projections,
         wrapper_contract.continuation_schema(),
         projection,
     );
@@ -1698,24 +1710,65 @@ fn build_call_boundary_callee_wrapper_projection(
 fn register_surface_resume_wrapper_projection(
     wrapper_projections: &mut BTreeMap<
         ContinuationSchemaId,
-        LateLoweredSurfaceResumeWrapperProjection,
+        Vec<LateLoweredSurfaceResumeWrapperProjection>,
     >,
-    conflicting_wrapper_projections: &mut BTreeSet<ContinuationSchemaId>,
     continuation_schema: ContinuationSchemaId,
     projection: LateLoweredSurfaceResumeWrapperProjection,
 ) {
-    if conflicting_wrapper_projections.contains(&continuation_schema) {
+    let projections = wrapper_projections.entry(continuation_schema).or_default();
+    if projections
+        .iter()
+        .any(|existing| same_surface_resume_wrapper_projection_shape(existing, &projection))
+    {
         return;
     }
-    match wrapper_projections.get(&continuation_schema) {
-        Some(existing) if !same_surface_resume_wrapper_projection_shape(existing, &projection) => {
-            wrapper_projections.remove(&continuation_schema);
-            conflicting_wrapper_projections.insert(continuation_schema);
+    projections.push(projection);
+}
+
+fn surface_resume_projection_owner_identity(
+    projection: &LateLoweredSurfaceResumeWrapperProjection,
+) -> Option<(&LateLoweredBodyVersionKey, ContinuationObjectId)> {
+    match projection.underlying_route().publication() {
+        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+            owner_version_key,
+            owner_continuation_object,
+            ..
         }
-        Some(_) => {}
-        None => {
-            wrapper_projections.insert(continuation_schema, projection);
+        | LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+            owner_version_key,
+            owner_continuation_object,
+            ..
+        } => Some((owner_version_key, *owner_continuation_object)),
+        LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
+        | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => None,
+    }
+}
+
+fn same_surface_resume_wrapper_projection_shape(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    left == right
+        || (same_surface_resume_projection_owner_identity(left, right)
+            && left.owner_step_schema() == right.owner_step_schema()
+            && left.wrapper_step_schema() == right.wrapper_step_schema()
+            && same_surface_resume_wrapper_complete_shape(left.complete(), right.complete())
+            && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_projection_owner_identity(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    match (
+        surface_resume_projection_owner_identity(left),
+        surface_resume_projection_owner_identity(right),
+    ) {
+        (Some((left_owner, left_object)), Some((right_owner, right_object))) => {
+            left_owner == right_owner && left_object == right_object
         }
+        (None, None) => left.underlying_route() == right.underlying_route(),
+        _ => false,
     }
 }
 
@@ -1868,20 +1921,6 @@ fn continuation_owner_step_schema(
     })
 }
 
-fn same_surface_resume_wrapper_projection_shape(
-    left: &LateLoweredSurfaceResumeWrapperProjection,
-    right: &LateLoweredSurfaceResumeWrapperProjection,
-) -> bool {
-    left == right
-        || (same_surface_resume_wrapper_underlying_route_shape(
-            left.underlying_route(),
-            right.underlying_route(),
-        ) && left.owner_step_schema() == right.owner_step_schema()
-            && left.wrapper_step_schema() == right.wrapper_step_schema()
-            && same_surface_resume_wrapper_complete_shape(left.complete(), right.complete())
-            && left.outward_cases() == right.outward_cases())
-}
-
 fn same_surface_resume_wrapper_complete_shape(
     left: &LateLoweredSurfaceResumeWrapperCompleteProjection,
     right: &LateLoweredSurfaceResumeWrapperCompleteProjection,
@@ -1932,34 +1971,6 @@ fn same_completion_payload_source_ignoring_span(
             LateLoweredCompletionPayloadSource::Operand(left),
             LateLoweredCompletionPayloadSource::Operand(right),
         ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
-        _ => false,
-    }
-}
-
-fn same_surface_resume_wrapper_underlying_route_shape(
-    left: &LateLoweredContinuationRoute,
-    right: &LateLoweredContinuationRoute,
-) -> bool {
-    if left.continuation_schema() != right.continuation_schema() {
-        return false;
-    }
-    match (left.publication(), right.publication()) {
-        (
-            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-        ) => true,
-        (
-            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                owner_version_key: left_owner,
-                owner_continuation_object: left_object,
-                ..
-            },
-            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                owner_version_key: right_owner,
-                owner_continuation_object: right_object,
-                ..
-            },
-        ) => left_owner == right_owner && left_object == right_object,
         _ => false,
     }
 }

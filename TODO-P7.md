@@ -689,7 +689,7 @@
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib refactor_effect_solver_consumes_higher_order_function_value_call_in_handle -- --nocapture`；`cargo test -p scoop --test p7_default_pipeline default_refactor_runs_higher_order_function_value_handled_effect_cli -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`；`cargo run -p scoop -- run --no-incremental tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
   - 额外 broad guard：`cargo test -p scoop --test p7_default_pipeline` 中新增 higher-order test 通过，但既有 `default_refactor_runs_async_await_task_resume_payload_cli` 仍失败于 `async_await_minimal_int_basic.scoop` 的 `pass MIR local type`，该问题不属于本任务的 `choose(mode)()` / higher-order returned function-value 阻塞，仍留给后续 `P7-T02Z` / `P7-T03` full-regression 收口处理。
 
-## P7-T02Zc：发布 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract，解除 multi-function continuation resume schema 共享阻塞
+## [DONE] P7-T02Zc：发布 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract，解除 multi-function continuation resume schema 共享阻塞
 
 - 参考：
   - [`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02m / P6-T02qc / P6-T02qd
@@ -732,7 +732,11 @@
   - P7-T02Z 可以继续执行剩余 run-pass 收口，不再被 multi-owner owner-trampoline schema 共享阻塞。
 - 依赖：P7-T02Zb
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-06：完成 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract。late-lowered surface-resume inventory 现在为同一 `ContinuationSchemaId` 保留多个 owner-specific wrapper projection，而不是在 schema 级把不同 owner-local completion payload source 合并成单值或视为冲突；dump 会逐条渲染 owner-aware projection。
+  - refactor LLVM ABI materializer 现在按 owner version + continuation object 分组发布 owner trampoline target；同一 surface schema 可生成多个 owner trampoline，并在 shared surface-resume entry 中按 continuation object runtime type descriptor 分派到正确 owner，不再取第一个 owner 或因 ko1/ko2 共享 schema fail fast。
+  - wrapper projection validation 改为 owner-specific：每个 owner trampoline 携带自己的 underlying route、resume boundary / handle binder route、owner step -> wrapper step projection 和 completion payload source。新增 `refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines`，覆盖 `effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop` 中 `run_direct_indirect_direct` / `run_indirect_direct` 共享 owner-trampoline schema 的 ABI query。
+  - 修复验证过程中暴露的 composed call-boundary replay 过度重放：当同一 source tail 后续还有会捕获 continuation 的 resuming boundary 时，不再在 callee resume 前重放已执行过的 caller prefix；仍保留 nested block mixed replay 中需要的 prefix 重放，避免破坏 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`。
+  - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo test -p scoopc --lib refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 

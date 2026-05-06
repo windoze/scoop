@@ -323,7 +323,7 @@ fn render_surface_resume_dispatch_inventory_entry(
         )
         .unwrap();
     }
-    if let Some(projection) = entry.wrapper_projection() {
+    for projection in entry.wrapper_projections() {
         render_surface_resume_wrapper_projection(rendered, projection);
     }
 }

@@ -41,12 +41,11 @@ use super::super::{
 };
 use super::types::{
     RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
-    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
-    RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorPlainCallableLayout, RefactorSourceAbiLayout,
-    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
-    RefactorStepVariantLayout,
+    RefactorContinuationSurfaceResumeLayout, RefactorDynamicInvokeCarrierLayout,
+    RefactorDynamicInvokeLayout, RefactorFrameLayout, RefactorHandleContinuationBinderLayout,
+    RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorTerminalAction,
+    RefactorPlainCallableLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
+    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
 };
 use super::value::RefactorValuePrimitives;
 
@@ -293,9 +292,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ))
                 })?;
             let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
-            if let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(target) =
-                dispatch.target()
-            {
+            for target in dispatch.target().owner_trampolines() {
                 let mut child = self.fresh_child_codegen();
                 child.codegen_refactor_surface_resume_owner_trampoline(
                     abi_program,
@@ -1567,20 +1564,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let dispatch = abi.surface_resume_dispatch_layout(surface.continuation_schema())?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
-        let target = match dispatch.target() {
-            RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(target) => target,
-            RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
-                self.builder.build_unreachable()?;
-                return Ok(());
-            }
-        };
+        let targets = dispatch.target().owner_trampolines();
+        if targets.is_empty() {
+            self.builder.build_unreachable()?;
+            return Ok(());
+        }
         let cont = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
                 "refactor surface resume `{}` 缺少 continuation 参数",
                 surface.symbol_name()
             ))
         })?;
-        let mut args = vec![cont.into()];
+        let cont_ptr = cont.into_pointer_value();
+        let mut args = vec![cont_ptr.into()];
         if surface.param_count() > 1 {
             let payload = function.get_nth_param(1).ok_or_else(|| {
                 frontend_error(format!(
@@ -1590,17 +1586,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
             args.push(payload.into());
         }
-        let trampoline_fun = self.refactor_function(target.symbol_name())?;
-        let call =
+        if targets.len() == 1 {
+            let trampoline_fun = self.refactor_function(targets[0].symbol_name())?;
+            let call =
+                self.builder
+                    .build_call(trampoline_fun, &args, "refactor_surface_resume_call")?;
+            let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor surface resume `{}` 调用 owner dispatch 未返回 Step_F",
+                    surface.symbol_name()
+                ))
+            })?;
+            self.builder.build_return(Some(&owner_step))?;
+            return Ok(());
+        }
+
+        let current_desc = self.load_gc_object_type_desc(cont_ptr, "surface_resume_cont_desc")?;
+        let word_ty = self.context.i64_type();
+        let current_desc_int =
             self.builder
-                .build_call(trampoline_fun, &args, "refactor_surface_resume_call")?;
-        let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
-            frontend_error(format!(
-                "refactor surface resume `{}` 调用 owner dispatch 未返回 Step_F",
-                surface.symbol_name()
-            ))
-        })?;
-        self.builder.build_return(Some(&owner_step))?;
+                .build_ptr_to_int(current_desc, word_ty, "surface_resume_cont_desc_int")?;
+        let first_check = self
+            .context
+            .append_basic_block(function, "surface_resume_check0");
+        self.builder.build_unconditional_branch(first_check)?;
+        let mut check_bb = first_check;
+        for (index, target) in targets.iter().enumerate() {
+            let next_bb = self
+                .context
+                .append_basic_block(function, &format!("surface_resume_check{}", index + 1));
+            let hit_bb = self.context.append_basic_block(
+                function,
+                &format!(
+                    "surface_resume_hit_ko{}",
+                    target.owner_continuation_object().as_u32()
+                ),
+            );
+            self.builder.position_at_end(check_bb);
+            let continuation_layout = abi
+                .continuation_layout(target.owner_continuation_object())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor surface resume `{}` 缺少 owner continuation object ko{} layout",
+                        surface.symbol_name(),
+                        target.owner_continuation_object().as_u32(),
+                    ))
+                })?;
+            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+                crate::span::Span::new(0, 0),
+                continuation_layout.llvm_ty(),
+                continuation_layout.layout_anchor_name(),
+            )?;
+            let type_desc_i8 = self.builder.build_pointer_cast(
+                type_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "surface_resume_target_desc",
+            )?;
+            let target_desc_int = self.builder.build_ptr_to_int(
+                type_desc_i8,
+                word_ty,
+                "surface_resume_target_desc_int",
+            )?;
+            let is_match = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_desc_int,
+                target_desc_int,
+                "surface_resume_desc_match",
+            )?;
+            self.builder
+                .build_conditional_branch(is_match, hit_bb, next_bb)?;
+
+            self.builder.position_at_end(hit_bb);
+            let trampoline_fun = self.refactor_function(target.symbol_name())?;
+            let call = self.builder.build_call(
+                trampoline_fun,
+                &args,
+                "refactor_surface_resume_owner_call",
+            )?;
+            let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor surface resume `{}` 调用 owner dispatch `{}` 未返回 Step_F",
+                    surface.symbol_name(),
+                    target.symbol_name(),
+                ))
+            })?;
+            self.builder.build_return(Some(&owner_step))?;
+            check_bb = next_bb;
+        }
+
+        self.builder.position_at_end(check_bb);
+        self.builder.build_unreachable()?;
         Ok(())
     }
 
@@ -3782,7 +3857,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 composition.input_step_schema().as_u32(),
             )));
         }
-        if let Some(call_lowering) = dispatch_context.call_lowering {
+        if let Some(call_lowering) = dispatch_context.call_lowering
+            && !self.call_boundary_tail_has_later_resuming_boundary(boundary, call_lowering)?
+        {
             self.replay_call_boundary_prefix(boundary, call_lowering)?;
         }
         let callee = self.codegen.refactor_function(surface.symbol_name())?;
@@ -3818,6 +3895,57 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             dispatch_context.call_lowering,
             Some(dispatch_context.continuation_compositions),
         )
+    }
+
+    fn call_boundary_tail_has_later_resuming_boundary(
+        &self,
+        boundary: &LateLoweredBoundary,
+        lowering: &LateLoweredCallBoundaryLowering,
+    ) -> Result<bool, LlvmEmitError> {
+        let LateLoweredBoundarySourceConsumption::Statement {
+            source_slice,
+            statement_index,
+            ..
+        } = lowering.operand_contract().source_consumption()
+        else {
+            return Ok(false);
+        };
+        for candidate in self.callable.boundary_map().entries() {
+            if candidate.boundary_id() == boundary.boundary_id() {
+                continue;
+            }
+            let Some(LateLoweredBoundaryLowering::Perform(perform)) = candidate.lowering() else {
+                continue;
+            };
+            let candidate_consumption = perform.operand_contract().source_consumption();
+            if candidate_consumption.source_slice().block_id() != source_slice.block_id() {
+                continue;
+            }
+            let starts_after_call = match candidate_consumption {
+                LateLoweredBoundarySourceConsumption::Statement {
+                    statement_index: candidate_index,
+                    ..
+                } => candidate_index > statement_index,
+                LateLoweredBoundarySourceConsumption::Terminator {
+                    source_slice: candidate_slice,
+                } => candidate_slice.start_statement_index() >= source_slice.end_statement_index(),
+            };
+            if !starts_after_call {
+                continue;
+            }
+            let Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) = self
+                .handle_boundary_action(
+                    candidate.boundary_id(),
+                    perform.emitted_step().case_tag(),
+                )?
+            else {
+                continue;
+            };
+            if action.continuation_binder.is_some() {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     fn replay_call_boundary_prefix(

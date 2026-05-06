@@ -1674,7 +1674,20 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
 /// `ContinuationSchemaId` authoritative 地路由到 owner-specific lowering target。
 pub(super) enum RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
     OwnerTrampoline(Box<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
+    OwnerTrampolines(Vec<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
     Unreachable,
+}
+
+impl<'ctx> RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
+    pub(super) fn owner_trampolines(
+        &self,
+    ) -> &[RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>] {
+        match self {
+            Self::OwnerTrampoline(target) => std::slice::from_ref(target.as_ref()),
+            Self::OwnerTrampolines(targets) => targets,
+            Self::Unreachable => &[],
+        }
+    }
 }
 
 /// shared surface-resume symbol 到 owner dispatch target 的稳定 LLVM query。

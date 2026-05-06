@@ -1353,15 +1353,22 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable => {
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable
                 }
-                _ => RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(Box::new(
-                    self.materialize_surface_resume_owner_trampoline_layout(
+                _ => {
+                    let mut targets = self.materialize_surface_resume_owner_trampoline_layouts(
                         entry,
                         surface_layout,
                         callable_layouts,
                         frame_layouts,
                         &method_targets,
-                    )?,
-                )),
+                    )?;
+                    if targets.len() == 1 {
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(Box::new(
+                            targets.remove(0),
+                        ))
+                    } else {
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
+                    }
+                }
             };
             if layouts
                 .insert(
@@ -1457,7 +1464,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let mut method_targets = Vec::with_capacity(candidates.len());
         for (object_id, interface_id, case_tag) in candidates {
             let (binding_schema, expected_return_step_schema) =
-                match entry.wrapper_projection().and_then(|projection| {
+                match entry.wrapper_projections().iter().find_map(|projection| {
                     let route = projection.underlying_route();
                     match route.publication() {
                         LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
@@ -1566,177 +1573,118 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(method_targets)
     }
 
-    fn materialize_surface_resume_owner_trampoline_layout(
+    fn materialize_surface_resume_owner_trampoline_layouts(
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
         method_targets: &[RefactorContinuationSurfaceResumeMethodLookup],
-    ) -> Result<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>, LlvmEmitError> {
-        let mut owner_version_key = method_targets.first().map(|lookup| {
-            self.program
-                .continuation_object(lookup.continuation_object())
-                .expect("method target continuation object 应存在")
-                .owner_version_key()
-                .clone()
-        });
-        let mut owner_continuation_object: Option<ContinuationObjectId> = None;
-        if let Some(lookup) = method_targets.first() {
-            owner_continuation_object = Some(lookup.continuation_object());
-        }
-        let mut resume_boundary_sites = BTreeSet::new();
-        let mut handle_binder_routes = BTreeSet::new();
-        let underlying_wrapper_route = if method_targets.is_empty() {
-            entry.wrapper_projection().and_then(|projection| {
-                let route = projection.underlying_route();
-                if route.continuation_schema() == entry.continuation_schema() {
-                    return None;
-                }
-                let route_owner = surface_resume_publication_owner_identity(route.publication())?;
-                let mut saw_owner_publication = false;
-                for publication in entry.publications() {
-                    let Some(publication_owner) =
-                        surface_resume_publication_owner_identity(publication)
-                    else {
-                        continue;
-                    };
-                    saw_owner_publication = true;
-                    if publication_owner != route_owner {
-                        return Some(route);
-                    }
-                }
-                (!saw_owner_publication).then_some(route)
-            })
-        } else {
-            None
-        };
+    ) -> Result<Vec<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>, LlvmEmitError>
+    {
+        let mut candidates = Vec::<SurfaceResumeOwnerTrampolineCandidate>::new();
 
-        if let Some(route) = underlying_wrapper_route {
-            match route.publication() {
-                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
-                    owner_version_key: published_owner,
-                    owner_continuation_object: published_object,
-                    site_id,
-                } => {
-                    owner_version_key = Some(published_owner.clone());
-                    owner_continuation_object = Some(*published_object);
-                    resume_boundary_sites.insert(*site_id);
-                }
-                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                    owner_version_key: published_owner,
-                    owner_continuation_object: published_object,
-                    site_id,
-                    arm_ordinal,
-                    handled_case,
-                } => {
-                    owner_version_key = Some(published_owner.clone());
-                    owner_continuation_object = Some(*published_object);
-                    handle_binder_routes.insert((*site_id, *arm_ordinal, *handled_case));
-                }
-                LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
-                | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => {}
-            }
+        for lookup in method_targets {
+            let object = self
+                .program
+                .continuation_object(lookup.continuation_object())
+                .expect("method target continuation object 应存在");
+            let candidate = surface_resume_owner_candidate_mut(
+                &mut candidates,
+                object.owner_version_key(),
+                lookup.continuation_object(),
+            );
+            candidate.has_method_target = true;
+        }
+
+        let projection_owners = entry
+            .wrapper_projections()
+            .iter()
+            .filter_map(|projection| {
+                surface_resume_publication_owner_identity(
+                    projection.underlying_route().publication(),
+                )
+                .map(|(owner, object)| (owner.clone(), object))
+            })
+            .collect::<Vec<_>>();
+
+        for projection in entry.wrapper_projections() {
+            let Some((owner_version_key, owner_continuation_object)) =
+                surface_resume_publication_owner_identity(
+                    projection.underlying_route().publication(),
+                )
+            else {
+                continue;
+            };
+            let candidate = surface_resume_owner_candidate_mut(
+                &mut candidates,
+                owner_version_key,
+                owner_continuation_object,
+            );
+            candidate.add_publication(
+                entry.continuation_schema(),
+                projection.underlying_route().publication(),
+            )?;
+            candidate.set_wrapper_projection(entry.continuation_schema(), projection.clone())?;
         }
 
         for publication in entry.publications() {
-            if underlying_wrapper_route.is_some() {
+            let Some((published_owner, published_object)) =
+                surface_resume_publication_owner_identity(publication)
+            else {
+                continue;
+            };
+            if !projection_owners.is_empty()
+                && !projection_owners
+                    .iter()
+                    .any(|(owner, object)| owner == published_owner && *object == published_object)
+            {
                 continue;
             }
-            match publication {
-                LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
-                    owner_version_key: published_owner,
-                    owner_continuation_object: published_object,
-                    site_id,
-                } => {
-                    match (&owner_version_key, owner_continuation_object) {
-                        (Some(existing_owner), Some(existing_object))
-                            if existing_owner != published_owner
-                                || existing_object != *published_object =>
-                        {
-                            return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 歧义：存在多个 owner continuation object（ko{} 与 ko{}）",
-                                entry.continuation_schema().as_u32(),
-                                existing_object.as_u32(),
-                                published_object.as_u32(),
-                            )));
-                        }
-                        _ => {
-                            owner_version_key = Some(published_owner.clone());
-                            owner_continuation_object = Some(*published_object);
-                        }
-                    }
-                    if !resume_boundary_sites.insert(*site_id) {
-                        return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 resume boundary site {} 重复发布到 owner trampoline contract",
-                            entry.continuation_schema().as_u32(),
-                            site_id.as_u32(),
-                        )));
-                    }
-                }
-                LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                    owner_version_key: published_owner,
-                    owner_continuation_object: published_object,
-                    site_id,
-                    arm_ordinal,
-                    handled_case,
-                } => {
-                    match (&owner_version_key, owner_continuation_object) {
-                        (Some(existing_owner), Some(existing_object))
-                            if existing_owner != published_owner
-                                || existing_object != *published_object =>
-                        {
-                            return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 歧义：存在多个 owner continuation object（ko{} 与 ko{}）",
-                                entry.continuation_schema().as_u32(),
-                                existing_object.as_u32(),
-                                published_object.as_u32(),
-                            )));
-                        }
-                        _ => {
-                            owner_version_key = Some(published_owner.clone());
-                            owner_continuation_object = Some(*published_object);
-                        }
-                    }
-                    if !handle_binder_routes.insert((*site_id, *arm_ordinal, *handled_case)) {
-                        return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 handle continuation binder site{} arm#{} case c{} 重复发布到 owner trampoline contract",
-                            entry.continuation_schema().as_u32(),
-                            site_id.as_u32(),
-                            arm_ordinal,
-                            handled_case.as_u32(),
-                        )));
-                    }
-                }
-                LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
-                | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => {}
-            }
+            let candidate = surface_resume_owner_candidate_mut(
+                &mut candidates,
+                published_owner,
+                published_object,
+            );
+            candidate.add_publication(entry.continuation_schema(), publication)?;
         }
 
-        let owner_version_key = owner_version_key.ok_or_else(|| {
-            frontend_error(format!(
+        if candidates.is_empty() {
+            return Err(frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 {:?}，但缺少 owner-specific surface-resume dispatch target",
                 entry.continuation_schema().as_u32(),
                 entry.source_kind(),
-            ))
-        })?;
-        let owner_continuation_object = owner_continuation_object.ok_or_else(|| {
-            frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布 owner-specific surface-resume dispatch，但缺少 owner continuation object",
-                entry.continuation_schema().as_u32(),
-            ))
-        })?;
-        if underlying_wrapper_route.is_some() {
-            if resume_boundary_sites.is_empty() && handle_binder_routes.is_empty() {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 cross-owner wrapper projection 缺少 underlying owner route",
-                    entry.continuation_schema().as_u32(),
-                )));
-            }
-        } else {
+            )));
+        }
+
+        candidates
+            .into_iter()
+            .map(|candidate| {
+                self.materialize_surface_resume_owner_trampoline_candidate(
+                    entry,
+                    surface_layout,
+                    callable_layouts,
+                    frame_layouts,
+                    candidate,
+                )
+            })
+            .collect()
+    }
+
+    fn materialize_surface_resume_owner_trampoline_candidate(
+        &mut self,
+        entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
+        surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        candidate: SurfaceResumeOwnerTrampolineCandidate,
+    ) -> Result<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>, LlvmEmitError> {
+        let owner_version_key = candidate.owner_version_key;
+        let owner_continuation_object = candidate.owner_continuation_object;
+        if !candidate.has_method_target {
             match entry.source_kind() {
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::ResumeBoundaryOnly
-                    if resume_boundary_sites.is_empty() =>
+                    if candidate.resume_boundary_sites.is_empty() =>
                 {
                     return Err(frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ResumeBoundaryOnly，但 owner trampoline contract 缺少 resume boundary site",
@@ -1744,7 +1692,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )));
                 }
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::HandleContinuationBinderOnly
-                    if handle_binder_routes.is_empty() =>
+                    if candidate.handle_binder_routes.is_empty() =>
                 {
                     return Err(frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 HandleContinuationBinderOnly，但 owner trampoline contract 缺少 handle binder route",
@@ -1752,7 +1700,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     )));
                 }
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
-                    if resume_boundary_sites.is_empty() || handle_binder_routes.is_empty() =>
+                    if candidate.resume_boundary_sites.is_empty()
+                        || candidate.handle_binder_routes.is_empty() =>
                 {
                     return Err(frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
@@ -1798,8 +1747,12 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 owner_callable.root_fqn(),
             )));
         }
-        let wrapper_projection =
-            self.validate_surface_resume_wrapper_projection(entry, owner_callable, frame_layouts)?;
+        let wrapper_projection = self.validate_surface_resume_wrapper_projection(
+            entry,
+            owner_callable,
+            frame_layouts,
+            candidate.wrapper_projection.as_ref(),
+        )?;
 
         let symbol_name = format!(
             "__scoop_refactor_surface_resume_owner_dispatch__{}__k{}",
@@ -1816,8 +1769,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             symbol_name,
             surface_layout.llvm_ty(),
             surface_layout.param_count(),
-            resume_boundary_sites.into_iter().collect(),
-            handle_binder_routes
+            candidate.resume_boundary_sites.into_iter().collect(),
+            candidate
+                .handle_binder_routes
                 .into_iter()
                 .map(|(site_id, arm_ordinal, handled_case)| {
                     RefactorContinuationSurfaceResumeHandleBinderRoute::new(
@@ -1836,6 +1790,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
         frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        published_projection: Option<&LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let mut derived_candidates = Vec::<LateLoweredSurfaceResumeWrapperProjection>::new();
 
@@ -1870,7 +1825,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
 
-        match (entry.wrapper_projection(), derived_candidates.pop()) {
+        match (published_projection, derived_candidates.pop()) {
             (Some(published), Some(derived)) => {
                 if !same_surface_resume_wrapper_projection_shape(published, &derived) {
                     return Err(frontend_error(format!(
@@ -6635,6 +6590,127 @@ fn validate_published_handle_boundary_routings(
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
+}
+
+struct SurfaceResumeOwnerTrampolineCandidate {
+    owner_version_key: LateLoweredBodyVersionKey,
+    owner_continuation_object: ContinuationObjectId,
+    resume_boundary_sites: BTreeSet<SiteId>,
+    handle_binder_routes: BTreeSet<(SiteId, u32, crate::effect_facts::CaseTag)>,
+    wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
+    has_method_target: bool,
+}
+
+impl SurfaceResumeOwnerTrampolineCandidate {
+    fn new(
+        owner_version_key: LateLoweredBodyVersionKey,
+        owner_continuation_object: ContinuationObjectId,
+    ) -> Self {
+        Self {
+            owner_version_key,
+            owner_continuation_object,
+            resume_boundary_sites: BTreeSet::new(),
+            handle_binder_routes: BTreeSet::new(),
+            wrapper_projection: None,
+            has_method_target: false,
+        }
+    }
+
+    fn add_publication(
+        &mut self,
+        continuation_schema: ContinuationSchemaId,
+        publication: &LateLoweredSurfaceResumeDispatchPublication,
+    ) -> Result<(), LlvmEmitError> {
+        match publication {
+            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                owner_version_key,
+                owner_continuation_object,
+                site_id,
+            } => {
+                self.validate_owner(
+                    continuation_schema,
+                    owner_version_key,
+                    *owner_continuation_object,
+                )?;
+                self.resume_boundary_sites.insert(*site_id);
+            }
+            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                owner_version_key,
+                owner_continuation_object,
+                site_id,
+                arm_ordinal,
+                handled_case,
+            } => {
+                self.validate_owner(
+                    continuation_schema,
+                    owner_version_key,
+                    *owner_continuation_object,
+                )?;
+                self.handle_binder_routes
+                    .insert((*site_id, *arm_ordinal, *handled_case));
+            }
+            LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. }
+            | LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn set_wrapper_projection(
+        &mut self,
+        continuation_schema: ContinuationSchemaId,
+        projection: LateLoweredSurfaceResumeWrapperProjection,
+    ) -> Result<(), LlvmEmitError> {
+        if let Some(existing) = &self.wrapper_projection {
+            if !same_surface_resume_wrapper_projection_shape(existing, &projection) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 continuation schema k{} owner ko{} 的 owner-step -> wrapper-step projection contract 歧义：published={existing:?}，new={projection:?}",
+                    continuation_schema.as_u32(),
+                    self.owner_continuation_object.as_u32(),
+                )));
+            }
+            return Ok(());
+        }
+        self.wrapper_projection = Some(projection);
+        Ok(())
+    }
+
+    fn validate_owner(
+        &self,
+        continuation_schema: ContinuationSchemaId,
+        owner_version_key: &LateLoweredBodyVersionKey,
+        owner_continuation_object: ContinuationObjectId,
+    ) -> Result<(), LlvmEmitError> {
+        if &self.owner_version_key != owner_version_key
+            || self.owner_continuation_object != owner_continuation_object
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 漂移：candidate ko{} 与 publication ko{} 不一致",
+                continuation_schema.as_u32(),
+                self.owner_continuation_object.as_u32(),
+                owner_continuation_object.as_u32(),
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn surface_resume_owner_candidate_mut<'a>(
+    candidates: &'a mut Vec<SurfaceResumeOwnerTrampolineCandidate>,
+    owner_version_key: &LateLoweredBodyVersionKey,
+    owner_continuation_object: ContinuationObjectId,
+) -> &'a mut SurfaceResumeOwnerTrampolineCandidate {
+    if let Some(index) = candidates.iter().position(|candidate| {
+        candidate.owner_version_key == *owner_version_key
+            && candidate.owner_continuation_object == owner_continuation_object
+    }) {
+        return &mut candidates[index];
+    }
+    candidates.push(SurfaceResumeOwnerTrampolineCandidate::new(
+        owner_version_key.clone(),
+        owner_continuation_object,
+    ));
+    let index = candidates.len() - 1;
+    &mut candidates[index]
 }
 
 fn refactor_layout_type_is_any(types: &TypeStore, ty: TypeId) -> bool {
@@ -11470,6 +11546,9 @@ fun main(): Int {
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
                         panic!("shared schema object-method fixture 不应是 unreachable dispatch")
                     }
+                    RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                        panic!("shared schema object-method fixture 不应发布 multi-owner dispatch")
+                    }
                 }
             },
         );
@@ -11523,6 +11602,9 @@ fun main(): Int {
                     }
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
                         panic!("handle-binder-only schema 不应是 unreachable dispatch")
+                    }
+                    RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                        panic!("handle-binder-only schema 不应发布 multi-owner dispatch")
                     }
                 }
             },
@@ -11626,6 +11708,62 @@ fun main(): Int {
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
                         panic!("resume-boundary-only schema 不应是 unreachable dispatch")
                     }
+                    RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                        panic!("single-owner resume schema 不应发布 multi-owner dispatch")
+                    }
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines() {
+        with_phase_fixture_query_result(
+            "run-pass",
+            "effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop",
+            |inputs| inputs.abi_visibility_program.clone(),
+            |inputs, result, module| {
+                let query = result.expect("multi-owner schema 应可发布 owner dispatch query");
+                let entry = inputs
+                    .abi_visibility_program
+                    .surface_resume_dispatch_inventory()
+                    .iter()
+                    .find(|entry| entry.wrapper_projections().len() >= 2)
+                    .expect("fixture 应发布 owner-aware wrapper projections");
+                let dispatch = query
+                    .surface_resume_dispatch_layout(entry.continuation_schema())
+                    .expect("multi-owner schema 的 owner dispatch contract 应可查询");
+
+                assert_eq!(entry.wrapper_projections().len(), 2);
+                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets) =
+                    dispatch.target()
+                else {
+                    panic!("multi-owner schema 应发布多个 owner trampoline target");
+                };
+                let roots = targets
+                    .iter()
+                    .map(|target| target.owner_root_fqn().to_string())
+                    .collect::<BTreeSet<_>>();
+                assert_eq!(
+                    roots,
+                    [
+                        "run_direct_indirect_direct".to_string(),
+                        "run_indirect_direct".to_string(),
+                    ]
+                    .into_iter()
+                    .collect::<BTreeSet<_>>()
+                );
+                for target in targets {
+                    assert!(
+                        target.wrapper_projection().is_some(),
+                        "每个 owner trampoline 都必须携带 owner-specific wrapper projection: {}",
+                        target.owner_root_fqn()
+                    );
+                    assert!(
+                        module.get_function(target.symbol_name()).is_some(),
+                        "owner trampoline symbol 应声明到 module: {}",
+                        target.symbol_name()
+                    );
                 }
             },
         );
@@ -11715,11 +11853,21 @@ fun main(): Int {
                     .surface_resume_dispatch_layout(resume_schema)
                     .expect("shared wrapper dispatch 应可查询");
 
-                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
-                    dispatch.target()
-                else {
-                    panic!("shared wrapper schema 应发布 owner trampoline");
-                };
+                let trampoline =
+                    match dispatch.target() {
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(
+                            trampoline,
+                        ) => trampoline.as_ref(),
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(
+                            targets,
+                        ) if targets.len() == 1 => &targets[0],
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                            panic!("该 fixture 应只有一个 owner trampoline")
+                        }
+                        RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                            panic!("shared wrapper schema 应发布 owner trampoline")
+                        }
+                    };
                 let projection = trampoline
                     .wrapper_projection()
                     .expect("shared wrapper schema 应发布 wrapper projection");
@@ -11761,11 +11909,21 @@ fun main(): Int {
                     .surface_resume_dispatch_layout(resume_schema)
                     .expect("shared wrapper dispatch 应可查询");
 
-                let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
-                    dispatch.target()
-                else {
-                    panic!("shared wrapper schema 应发布 owner trampoline");
-                };
+                let trampoline =
+                    match dispatch.target() {
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(
+                            trampoline,
+                        ) => trampoline.as_ref(),
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(
+                            targets,
+                        ) if targets.len() == 1 => &targets[0],
+                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                            panic!("该 fixture 应只有一个 owner trampoline")
+                        }
+                        RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                            panic!("shared wrapper schema 应发布 owner trampoline")
+                        }
+                    };
                 let projection = trampoline
                     .wrapper_projection()
                     .expect("shared wrapper schema 应发布 wrapper projection");
@@ -11953,6 +12111,9 @@ fun main(): Int {
                     }
                     RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
                         panic!("多 method 共享 schema 不应是 unreachable dispatch")
+                    }
+                    RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                        panic!("多 method 单 owner schema 不应发布 multi-owner dispatch")
                     }
                 }
             },
