@@ -230,7 +230,7 @@ impl File {
                 block.terminator.span,
                 &block.terminator.unwind,
             )?;
-            self.validate_refactor_production_terminator(fun, block_id, block, unit_ty)?;
+            self.validate_refactor_production_terminator(fun, body, block_id, block, unit_ty)?;
         }
 
         Ok(())
@@ -324,33 +324,61 @@ impl File {
                 args,
                 payload,
                 ..
-            } => self.validate_refactor_aggregate_transport(
-                site,
-                "enum payload",
-                *enum_ty,
-                AggregateTransportKind::EnumPayload,
-                args.len(),
-                payload,
-            ),
+            } => {
+                let expected_fields = args
+                    .iter()
+                    .map(|arg| {
+                        (
+                            arg.name.as_deref(),
+                            Self::refactor_operand_ty(body, &arg.value),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                self.validate_refactor_aggregate_transport(
+                    site,
+                    "enum payload",
+                    *enum_ty,
+                    AggregateTransportKind::EnumPayload,
+                    &expected_fields,
+                    payload,
+                )
+            }
             Rvalue::MakeTuple {
                 elements,
                 transport,
-            } => self.validate_refactor_aggregate_transport(
-                site,
-                "tuple aggregate",
-                result_ty.unwrap_or(transport.aggregate_ty),
-                transport.kind,
-                elements.len(),
-                transport,
-            ),
-            Rvalue::StructLit { fields, transport } => self.validate_refactor_aggregate_transport(
-                site,
-                "struct aggregate",
-                result_ty.unwrap_or(transport.aggregate_ty),
-                AggregateTransportKind::Struct,
-                fields.len(),
-                transport,
-            ),
+            } => {
+                let expected_fields = elements
+                    .iter()
+                    .map(|element| (None, Self::refactor_operand_ty(body, element)))
+                    .collect::<Vec<_>>();
+                self.validate_refactor_aggregate_transport(
+                    site,
+                    "tuple aggregate",
+                    result_ty.unwrap_or(transport.aggregate_ty),
+                    transport.kind,
+                    &expected_fields,
+                    transport,
+                )
+            }
+            Rvalue::StructLit { fields, transport } => {
+                let expected_fields = fields
+                    .iter()
+                    .map(|field| {
+                        (
+                            Some(field.name.as_str()),
+                            Self::refactor_operand_ty(body, &field.value),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                self.validate_refactor_aggregate_transport(
+                    site,
+                    "struct aggregate",
+                    result_ty.unwrap_or(transport.aggregate_ty),
+                    AggregateTransportKind::Struct,
+                    &expected_fields,
+                    transport,
+                )
+            }
             Rvalue::CaptureBoxNew { value, contract } => self.validate_refactor_value_transport(
                 site,
                 "capture box value",
@@ -499,14 +527,14 @@ impl File {
         transport: &'static str,
         expected_aggregate_ty: TypeId,
         expected_kind: AggregateTransportKind,
-        expected_field_count: usize,
+        expected_fields: &[(Option<&str>, Option<TypeId>)],
         metadata: &AggregateTransportMetadata,
     ) -> Result<(), MirValidationError> {
         let detail = if metadata.aggregate_ty != expected_aggregate_ty {
             Some("aggregate transport type and result/source type disagree")
         } else if metadata.kind != expected_kind {
             Some("aggregate transport kind is wrong for this MIR node")
-        } else if metadata.fields.len() != expected_field_count {
+        } else if metadata.fields.len() != expected_fields.len() {
             Some("aggregate transport field count does not match lowered values")
         } else if metadata
             .fields
@@ -515,6 +543,19 @@ impl File {
             .any(|(index, field)| field.index != index || field.ty != field.transport.source_ty)
         {
             Some("aggregate transport field metadata is inconsistent")
+        } else if metadata.fields.iter().zip(expected_fields.iter()).any(
+            |(field, (expected_name, _))| {
+                expected_name.is_some_and(|name| field.name.as_deref() != Some(name))
+            },
+        ) {
+            Some("aggregate transport field name does not match lowered value")
+        } else if metadata
+            .fields
+            .iter()
+            .zip(expected_fields.iter())
+            .any(|(field, (_, expected_ty))| expected_ty.is_some_and(|ty| field.ty != ty))
+        {
+            Some("aggregate transport field type does not match lowered value")
         } else {
             None
         };
@@ -730,6 +771,7 @@ impl File {
     fn validate_refactor_production_terminator(
         &self,
         fun: &FunDecl,
+        body: &Body,
         block_id: BasicBlockId,
         block: &BasicBlock,
         unit_ty: TypeId,
@@ -763,6 +805,7 @@ impl File {
                 };
                 self.validate_refactor_production_perform(
                     site,
+                    body,
                     op_fqn,
                     metadata,
                     args,
@@ -794,6 +837,7 @@ impl File {
     fn validate_refactor_production_perform(
         &self,
         site: RefactorProductionSiteContext<'_>,
+        body: &Body,
         op_fqn: &str,
         metadata: &PerformMetadata,
         args: &[PerformArg],
@@ -805,6 +849,8 @@ impl File {
             Some("perform metadata arg mapping does not match lowered payload args")
         } else if metadata.payload_component_tys.len() != args.len() {
             Some("perform metadata payload component types do not match lowered payload args")
+        } else if metadata.payload_transport.len() != args.len() {
+            Some("perform metadata payload transports do not match lowered payload args")
         } else if metadata
             .arg_mapping
             .iter()
@@ -812,6 +858,23 @@ impl File {
             .ne(args.iter().map(|arg| arg.source_arg_index))
         {
             Some("perform metadata arg mapping disagrees with lowered payload args")
+        } else if metadata
+            .payload_transport
+            .iter()
+            .zip(metadata.payload_component_tys.iter().copied())
+            .any(|(transport, ty)| transport.source_ty != ty)
+        {
+            Some("perform payload transport type disagrees with payload component type")
+        } else if metadata
+            .payload_transport
+            .iter()
+            .zip(args.iter())
+            .any(|(transport, arg)| {
+                Self::refactor_operand_ty(body, &arg.value)
+                    .is_some_and(|ty| transport.source_ty != ty)
+            })
+        {
+            Some("perform payload transport type does not match lowered payload value")
         } else if matches!(unwind, UnwindAction::NoUnwind) {
             Some("perform terminator is missing an explicit unwind action")
         } else {
@@ -826,6 +889,19 @@ impl File {
                 site: MirSiteMetadataKind::Perform,
                 detail,
             });
+        }
+
+        for (transport, component_ty) in metadata
+            .payload_transport
+            .iter()
+            .zip(metadata.payload_component_tys.iter().copied())
+        {
+            self.validate_refactor_value_transport(
+                site,
+                "perform payload",
+                Some(component_ty),
+                transport,
+            )?;
         }
 
         Ok(())
@@ -2982,6 +3058,136 @@ mod tests {
                 span: test_span(),
                 transport: "member store continuation route",
                 detail: "ambiguous continuation route must be split or rejected before handoff",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_aggregate_transport_rejects_field_type_mismatch() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let tuple_ty = types.ty_tuple(vec![builtins.int]);
+        let mut body = Body::new_empty();
+        let source = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("source".to_string()),
+            ty: builtins.int,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let target = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("target".to_string()),
+            ty: tuple_ty,
+            source: LocalSourceKind::CompilerTemporary,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: test_span(),
+                kind: StatementKind::Assign {
+                    target,
+                    value: Rvalue::MakeTuple {
+                        elements: vec![Operand::Local(source)],
+                        transport: AggregateTransportMetadata {
+                            aggregate_ty: tuple_ty,
+                            kind: AggregateTransportKind::Tuple,
+                            fields: vec![AggregateTransportField {
+                                index: 0,
+                                name: None,
+                                ty: builtins.string,
+                                transport: ValueTransportMetadata::plain(
+                                    builtins.string,
+                                    MirTransportKind::Reference,
+                                ),
+                            }],
+                        },
+                    },
+                },
+            }],
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        let file = production_file(builtins.unit, body);
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                transport: "tuple aggregate",
+                detail: "aggregate transport field type does not match lowered value",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_aggregate_transport_rejects_perform_payload_transport_mismatch() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let source = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("payload".to_string()),
+            ty: builtins.int,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let resume = BasicBlockId(1);
+        let start = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Perform {
+                    site_id: SiteId::from_raw(0),
+                    op_fqn: "sample.E.op".to_string(),
+                    metadata: PerformMetadata {
+                        effect_ty: builtins.any,
+                        result_ty: builtins.unit,
+                        payload_tuple_ty: None,
+                        payload_component_tys: vec![builtins.int],
+                        payload_transport: vec![ValueTransportMetadata::plain(
+                            builtins.string,
+                            MirTransportKind::Reference,
+                        )],
+                        arg_mapping: vec![0],
+                    },
+                    args: vec![PerformArg {
+                        span: test_span(),
+                        source_arg_index: 0,
+                        name: None,
+                        value: Operand::Local(source),
+                    }],
+                    resume_target: resume,
+                },
+                unwind: UnwindAction::Propagate,
+            },
+        });
+        let resume_block = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        assert_eq!(resume_block, resume);
+        body.start = start;
+        let file = production_file(builtins.unit, body);
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionSiteMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                site: MirSiteMetadataKind::Perform,
+                detail: "perform payload transport type disagrees with payload component type",
             })
         );
     }

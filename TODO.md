@@ -754,7 +754,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T10R：Review MIR-T10 composite transport contract
+## [DONE] MIR-T10R：Review MIR-T10 composite transport contract
 
 - 参考：
   - `MIR-T10`
@@ -771,6 +771,18 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T10` 已正确实现；若发现缺口，`MIR-T10R` 保持未完成并把修复归回 `MIR-T10`。
 - 依赖：`MIR-T10`
+
+- 完成记录（2026-05-07）：
+  - Review 结论：`MIR-T10` composite transport contract 在本次 review 修复 verifier 缺口后已按任务要求正确实现；未发现剩余需要归回 `MIR-T10` 的阻塞缺口。
+  - 审查覆盖 `mir::transport` metadata、refactor MIR lowering、strict production verifier、materialized MIR verifier/substitution、`aggregate_transport.scoop` fixture 与 aggregate/effect payload 单测。
+  - Review 修复：production verifier 现在会把 tuple/struct/enum aggregate transport field 的 name/type 反查到实际 lowered operands，并校验 perform payload transport 数量、component type 与 lowered payload value type；新增 forged metadata 负例防止 source value transport contract 与 MIR 值脱节。
+  - MIR dump 抽查确认 `aggregate_transport.scoop` 中 tuple/struct/enum payload、array build/get/set、closure env/mutable capture box、function-value call ABI handoff、aggregate return 和 effect payload 均有 explicit transport metadata；materialized verifier 覆盖 aggregate/closure/call/array/perform transport metadata 内的 type/effect param substitution。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_aggregate_transport`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/aggregate_transport.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T11：收口 generic root、effect-row args 与 materialization substitution
 
