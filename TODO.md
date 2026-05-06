@@ -131,7 +131,7 @@
   - 2026-05-07：新增 `refactor_llvm_raw_route_gate` 与 `raw_mir_effect_control_route` 定向单测，覆盖 raw-safe plain body、缺 routing fact fail-fast、plain-local handoff reroute、`PerformResult` resume payload binding guard。
   - 验证通过：`cargo test -p scoopc refactor_llvm_raw_route_gate`、`cargo test -p scoopc raw_mir_effect_control_route`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoopc refactor_mir_codegen_routing_contract`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T01R：Review CG-T01 raw MIR route gate
+## [DONE] CG-T01R：Review CG-T01 raw MIR route gate
 
 - 参考：
   - `CG-T01`
@@ -148,6 +148,12 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T01` 已正确实现；若发现缺口，`CG-T01R` 保持未完成并把修复归回 `CG-T01`。
 - 依赖：`CG-T01`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T01` 的 raw MIR route gate，确认 refactor LLVM emit 会携带 MIR-T12 `MirCodegenRoutingFacts`，raw MIR body emission 在 route facts 存在时必须匹配 `PlainRawMir`，缺 fact 或 `PlainLocalControlHandoff` / `EffectStepLowering` / `FrontendReject` 路由均会在 backend gate fail-fast。
+  - 2026-05-07：确认 `PerformResult`、`Handle`、`ResumeUnwind`、cleanup `Perform`、`Virtual` / `Interface` / continuation `Resume` call kind 的 raw path 均由 route verifier / backend gate 阻止，不依赖默认值、`unreachable`、legacy HIR fallback 或第二套 raw handler/resume/cleanup semantics；plain-local handoff 与 EffectStep body 由已发布 handoff route 消费。
+  - 2026-05-07：搜索 `TerminatorKind::Handle` / `TerminatorKind::Perform` / `TerminatorKind::ResumeUnwind` / `CallKind::Resume` / `Rvalue::PerformResult`，命中限于 raw support rejection/gate、受 gate 保护的 generic MIR emitter、refactor fail-fast 分支和 use-collection helpers，未发现绕过 handoff 的 raw route 直接 lowering。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_raw_route_gate`、`cargo test -p scoopc raw_mir_effect_control_route`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoopc refactor_mir_codegen_routing_contract`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T02：收口 runtime type/value primitive LLVM lowering
 
