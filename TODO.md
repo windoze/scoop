@@ -16,8 +16,8 @@
 | `MIR-T01` | M1 | 落地 refactor production MIR strict verifier |
 | `MIR-T02` | M1 | 落地 materialized MIR strict verifier 与 no-param gate |
 | `MIR-T03` | M2 | 收口 parser/frontend/HIR placeholder 入口 |
-| `MIR-T04` | M2 | 完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包 |
 | `MIR-T05` | M3 | 建立完整 MIR program item graph 与 top-level roots |
+| `MIR-T04` | M2 | 完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包 |
 | `MIR-T06` | M4 | 建立 unified place/lvalue contract 并清理 assignment Todo |
 | `MIR-T07` | M5 | 收口 call/ctor/default/named/intrinsic typed call-site contract |
 | `MIR-T08` | M5 | 收口 dispatch/resume/perform/handle site contract |
@@ -247,45 +247,6 @@
   - diagnostics fixtures 通过：`parse/spawn_deferred_is_error.scoop`、`parse/join_deferred_is_error.scoop`、`parse/parser_recovery_missing_stmt_is_error.scoop`、`typecheck/spawn_deferred_is_error.scoop`、`typecheck/join_deferred_is_error.scoop`、`resolve/package_level_comptime_if_untrimmed_is_error.scoop`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §2/M2
-  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.1、§1.2、§1.3、§1.12
-- 目标：
-  - spec-supported compile-time surface 在进入 MIR 前展开为普通 typed HIR/MIR 输入。
-  - class literal 和 copy-update 不再以 fallback Todo 表示。
-
-- 必须实现的内容：
-  1. `comptime block/if/for`：
-     - runtime HIR lowering 前必须完成 expansion/elimination。
-     - 未能求值的条件、不可枚举的 comptime for、非法生成项都给 source diagnostic。
-  2. splice field：
-     - `value.[field]` 必须在 comptime/typecheck 阶段解析为 concrete member access。
-     - 若 field 值不是 compile-time string/name，frontend diagnostic。
-  3. class literal：
-     - 选择并实现本阶段 policy。
-     - 若 runtime class literal 支持，则 MIR 表达为 type metadata/string/type descriptor value primitive。
-     - 若仅 annotation/comptime 支持，则 runtime 用法 frontend diagnostic。
-  4. `with` copy-update：
-     - typed handoff 必须发布 aggregate kind、base type、field path、value type、enum variant payload mapping。
-     - HIR lowering 不再因缺 aggregate maps 返回 `Todo("with_update")`。
-  5. 将 HIR preflight 中相关 `HirOnly` 样本升级为 MIR smoke。
-
-- 必须遵从的约束：
-  - 不允许 comptime/splice/class literal 的合法样本只停在 HIR 验证。
-  - 不允许 with-update unsupported aggregate 晚到 MIR Todo；必须 frontend diagnostic 或具体 MIR contract。
-
-- 验证：
-  1. 运行：`cargo test -p scoopc --no-default-features refactor_hir_comptime`
-  2. 运行：`cargo test -p scoopc --no-default-features refactor_mir_comptime_splice`
-  3. 定向命令：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
-  4. 新增/更新 `mir_refactor` fixtures 覆盖 comptime control-flow、splice field、class literal policy、tuple/struct/enum with-update。
-
-- 完成条件：
-  - `comptime_*`、`splice_field`、`class_lit`、`with_update` 不再能泄漏到 refactor MIR Todo。
-- 依赖：`MIR-T03`
-
 ## MIR-T05：建立完整 MIR program item graph 与 top-level roots
 
 - 参考：
@@ -324,6 +285,53 @@
   - refactor MIR `File` 不含 top-level declaration Todo。
   - materialized root index 能找到所有 generic/non-generic callable 和 initializer template。
 - 依赖：`MIR-T02`
+
+- 排序记录（2026-05-06）：
+  - `MIR-T04` 的指定验证命令 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 当前被 `top-level val` MIR item placeholder 阻塞。
+  - 该 blocker 属于本任务范围，因此本任务前移为 `MIR-T04` 的前置任务；不得通过替换 fixture、跳过指定命令或放宽 strict verifier 绕过。
+
+## MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/M2
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.1、§1.2、§1.3、§1.12
+- 目标：
+  - spec-supported compile-time surface 在进入 MIR 前展开为普通 typed HIR/MIR 输入。
+  - class literal 和 copy-update 不再以 fallback Todo 表示。
+
+- 必须实现的内容：
+  1. `comptime block/if/for`：
+     - runtime HIR lowering 前必须完成 expansion/elimination。
+     - 未能求值的条件、不可枚举的 comptime for、非法生成项都给 source diagnostic。
+  2. splice field：
+     - `value.[field]` 必须在 comptime/typecheck 阶段解析为 concrete member access。
+     - 若 field 值不是 compile-time string/name，frontend diagnostic。
+  3. class literal：
+     - 选择并实现本阶段 policy。
+     - 若 runtime class literal 支持，则 MIR 表达为 type metadata/string/type descriptor value primitive。
+     - 若仅 annotation/comptime 支持，则 runtime 用法 frontend diagnostic。
+  4. `with` copy-update：
+     - typed handoff 必须发布 aggregate kind、base type、field path、value type、enum variant payload mapping。
+     - HIR lowering 不再因缺 aggregate maps 返回 `Todo("with_update")`。
+  5. 将 HIR preflight 中相关 `HirOnly` 样本升级为 MIR smoke。
+
+- 必须遵从的约束：
+  - 不允许 comptime/splice/class literal 的合法样本只停在 HIR 验证。
+  - 不允许 with-update unsupported aggregate 晚到 MIR Todo；必须 frontend diagnostic 或具体 MIR contract。
+
+- 验证：
+  1. 运行：`cargo test -p scoopc --no-default-features refactor_hir_comptime`
+  2. 运行：`cargo test -p scoopc --no-default-features refactor_mir_comptime_splice`
+  3. 定向命令：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
+  4. 新增/更新 `mir_refactor` fixtures 覆盖 comptime control-flow、splice field、class literal policy、tuple/struct/enum with-update。
+
+- 完成条件：
+  - `comptime_*`、`splice_field`、`class_lit`、`with_update` 不再能泄漏到 refactor MIR Todo。
+- 依赖：`MIR-T03`、`MIR-T05`
+
+- 阻塞记录（2026-05-06）：
+  - 指定 splice field `dump-mir` 验证目前会被 `Item::Todo { kind: "top-level val" }` 拒绝，不能通过换 fixture 或降低 verifier 绕过。
+  - 已将 `MIR-T05` 前移为本任务前置任务；完成 top-level roots 后再继续本任务。
 
 ## MIR-T06：建立 unified place/lvalue contract 并清理 assignment Todo
 

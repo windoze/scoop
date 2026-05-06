@@ -30,6 +30,8 @@
 8. M7：generic/materialized MIR 完整性收口。
 9. M8：MIR-only 验证矩阵与阶段退出审计。
 
+执行顺序调整（2026-05-06）：`MIR-T04` 的指定 splice-field `dump-mir` 验证依赖 top-level `const val`/`val` 不再生成 MIR item placeholder；因此 `MIR-T05` 先于 `MIR-T04` 执行，完成 top-level roots 后再关闭剩余 M2 surface。
+
 ## 2. 分阶段计划
 
 ### M0. MIR gap inventory 与 strict gate 设计冻结

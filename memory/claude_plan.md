@@ -1,38 +1,24 @@
-# Execution Plan
+# 执行计划
 
-## Scope
+## 当前状态
 
-- Current authoritative task source: `TODO.md`.
-- First incomplete task: `MIR-T03` (`收口 parser/frontend/HIR placeholder 入口`).
-- Complete exactly `MIR-T03`, mark it `[DONE]`, commit, then stop.
-- Do not broaden into unrelated historical issues unless they directly block `MIR-T03`.
+- 本文件用于记录本次调用的可公开执行计划、关键决策和进度更新。
+- 已读取 `TODO.md`，原第一个未完成任务为 `MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包`。
+- 执行 `MIR-T04` 指定 splice-field `dump-mir` 验证时发现直接 blocker：strict refactor MIR 在 `tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 上拒绝 `Item::Todo { kind: "top-level val" }`。
+- 该 blocker 已由现有 `MIR-T05` 覆盖，因此本次只调整任务顺序和依赖，停止在前置任务修复之前。
 
-## Step-By-Step Plan
+## 步骤计划
 
-1. Check the latest commit message for unfinished work directly relevant to `MIR-T03`.
-2. Inspect the HIR placeholder inventory, HIR/refactor stage preflight, parser/frontend diagnostics, and existing tests for `spawn`, `join`, parser recovery `Missing`, and package-level `comptime if`.
-3. Extend HIR placeholder inventory so entries use the same disposition vocabulary as MIR inventory and fail on untracked placeholder ingress.
-4. Add or tighten parser/frontend diagnostics so deferred `spawn` and user-facing `join` are rejected before HIR/MIR production output.
-5. Ensure parser recovery `Missing` cannot enter refactor production HIR/MIR as a successful output; upgrade it to source diagnostics in the refactor frontend path.
-6. Ensure untrimmed package-level `comptime if` reports a source diagnostic instead of lowering to `Item::Todo(comptime_if_item)`.
-7. Add HIR stage no-placeholder preflight so refactor successful HIR output rejects required-to-eliminate `ExprKind::Todo`, `StmtKind::Todo`, `Item::Todo`, and `ExprKind::Missing` before MIR fallback.
-8. Add or update targeted unit tests and diagnostics fixtures required by `TODO.md`.
-9. Run the required validation: `cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory` and `cargo test -p scoopc --no-default-features refactor_hir_preflight`, plus any newly relevant targeted fixture/diagnostic commands.
-10. Fix task-scoped validation failures without weakening behavior or using workarounds.
-11. Update `TODO.md` by prefixing `MIR-T03` with `[DONE]` and adding a completion record with validation results.
-12. Update this file after key milestones or if the plan changes.
-13. Commit all invocation changes with a `MIR-T03` scoped message.
-14. Stop without beginning `MIR-T04`.
+1. 保持 `MIR-T04` 未完成，不标记 `[DONE]`。
+2. 在 `TODO.md` 中将已存在的 `MIR-T05` 前移为 `MIR-T04` 的前置任务，并记录 blocker 原因。
+3. 在 `PLAN.md` 中记录这次阶段依赖调整，因为 M3 top-level roots 现在必须先于剩余 M2 surface 闭包验证。
+4. 提交 `TODO.md`、`PLAN.md` 和本计划文件的变更。
+5. 停止，不实现 `MIR-T04` 或继续下一任务。
 
-## Progress
+## 进度记录
 
-- Plan initialized for this invocation before running terminal commands.
-- `TODO.md` was read to identify the first incomplete task: `MIR-T03`.
-- Latest commit checked: `fae27801 [MIR-T02] Add materialized MIR verifier`; no directly relevant unfinished issue found in the commit subject.
-- Working tree contains existing `MIR-T03`-scoped edits in HIR/MIR placeholder and preflight files plus one resolve fixture; next step is to inspect and complete them without reverting unrelated work.
-- Inspection found existing edits for the main `MIR-T03` surfaces: HIR placeholder inventory disposition names, parser `spawn`/`join` rejection, HIR lowering stage errors for parser recovery `Missing`, package-level `comptime if`, and a HIR completeness verifier on `TypedHirStageOutput::new`.
-- Next step is targeted validation to identify any remaining compile/test issues.
-- Required tests passed once: `refactor_hir_placeholder_inventory` and `refactor_hir_preflight`; both exposed an unused-variable warning in `hir/lower/expr.rs`, which has been fixed by marking the placeholder span parameter intentionally unused.
-- Final validation passed after formatting: `refactor_hir_placeholder_inventory`, `refactor_hir_preflight`, `refactor_hir_no_todo`, `parser_hir_surface_gate`, six targeted diagnostics fixtures for `spawn`/`join`/parser recovery/package-level comptime-if, and `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`.
-- `TODO.md` has been updated to mark `MIR-T03` as `[DONE]` with completion notes and validation results.
-- Final step: inspect git status/diff, commit all `MIR-T03` changes, then stop.
+- 已创建初始计划文件。
+- 已确认当前任务为 `MIR-T04`。
+- 已运行指定 splice-field `dump-mir` 验证，失败原因为 `<file>` 上 `top-level val` item Todo。
+- 已更新 `TODO.md`：`MIR-T05` 前移到 `MIR-T04` 之前，`MIR-T04` 依赖增加 `MIR-T05`，并记录不得绕过该 blocker。
+- 已更新 `PLAN.md`：记录 M3 top-level roots 需要先于 `MIR-T04` 验证执行。
