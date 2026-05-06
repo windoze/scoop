@@ -10,15 +10,11 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum PlaceholderSurface {
-    ItemTodo,
-    StatementTodo,
-    RvalueTodo,
-    TerminatorTodo,
-    UnwindActionTodo,
-    MaterializerStatementTodoNoOp,
-    MaterializerRvalueTodoNoOp,
-    MaterializerTerminatorTodoNoOp,
-    MaterializerUnwindActionTodoNoOp,
+    Item,
+    Statement,
+    Rvalue,
+    Terminator,
+    UnwindAction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,7 +65,7 @@ const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
 
 const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
-        PlaceholderSurface::ItemTodo,
+        PlaceholderSurface::Item,
         "top-level val",
         "PIPELINE_GAPS.md §1.4",
         PlaceholderDisposition::ImplementInMir,
@@ -78,7 +74,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Model top-level values as MIR declaration/initializer roots instead of Item::Todo.",
     ),
     entry(
-        PlaceholderSurface::ItemTodo,
+        PlaceholderSurface::Item,
         "comptime_if_item",
         "PIPELINE_GAPS.md §1.5",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -87,7 +83,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Expand or diagnose package-level comptime if before HIR is handed to MIR.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "comptime_block",
         "PIPELINE_GAPS.md §1.1",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -96,7 +92,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Comptime expansion eliminates block statements before runtime MIR lowering.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "comptime_if",
         "PIPELINE_GAPS.md §1.1",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -105,7 +101,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Comptime expansion keeps only the selected runtime branch before MIR lowering.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "comptime_for",
         "PIPELINE_GAPS.md §1.1",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -114,7 +110,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Comptime expansion unrolls enumerable loops before MIR lowering.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "structured_concurrency_spawn_deferred",
         "PIPELINE_GAPS.md §7.4",
         PlaceholderDisposition::RejectBeforeMir,
@@ -123,7 +119,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Deferred spawn syntax must be rejected by parser/frontend gates before HIR/MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "structured_concurrency_join_deferred",
         "PIPELINE_GAPS.md §7.4",
         PlaceholderDisposition::RejectBeforeMir,
@@ -132,7 +128,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Deferred join syntax must be rejected by parser/frontend gates before HIR/MIR.",
     ),
     entry(
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         "unterminated",
         "PIPELINE_GAPS.md §2.1",
         PlaceholderDisposition::ImplementInMir,
@@ -141,7 +137,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "The builder sentinel must be overwritten before stage output; strict MIR rejects leaks.",
     ),
     entry(
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         "break not in loop",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::RejectBeforeMir,
@@ -150,7 +146,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Frontend control-flow checks diagnose break outside loops before MIR lowering.",
     ),
     entry(
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         "continue not in loop",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::RejectBeforeMir,
@@ -159,7 +155,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Frontend control-flow checks diagnose continue outside loops before MIR lowering.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "val decl missing symbol id",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -168,7 +164,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Typed HIR handoff must publish symbol ids for local declarations consumed by MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "boxed var decl init pending",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementInMir,
@@ -177,7 +173,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Boxed mutable locals without initializers need an explicit init/default contract.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "assign lhs missing local",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementInMir,
@@ -186,7 +182,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Assignment lowering must consume a typed local/place contract instead of falling back.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "assign lhs lowering pending",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementInMir,
@@ -195,7 +191,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "All assignable surfaces accepted by typecheck need a unified MIR place/store model.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "assign place contract missing",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -204,7 +200,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Typed HIR must publish authoritative assignment place contracts for refactor MIR.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "assign place local missing",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementInMir,
@@ -213,7 +209,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "MIR local allocation and assignment place contracts must agree on source symbol ids.",
     ),
     entry(
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         "assign place member receiver missing",
         "PIPELINE_GAPS.md §1.6",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -222,7 +218,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Member assignment contracts must retain the receiver expression route used by MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "missing expr",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::RejectBeforeMir,
@@ -231,7 +227,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Parser recovery and unsupported HIR fallbacks must become source diagnostics before MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "class literal MIR lowering pending",
         "PIPELINE_GAPS.md §1.3",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -240,7 +236,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Class literals are either lowered to metadata/string primitives or rejected before MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "unbound local ref",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -249,7 +245,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Typed HIR symbol resolution must prevent unbound local references from reaching MIR.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "call callee lowering pending",
         "PIPELINE_GAPS.md §1.7",
         PlaceholderDisposition::ImplementInMir,
@@ -258,7 +254,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Call lowering must consume typed call-site contracts for callee provenance.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "ctor call lowering pending",
         "PIPELINE_GAPS.md §1.7",
         PlaceholderDisposition::ImplementInMir,
@@ -267,7 +263,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Constructor lowering must consume selected constructor and complete argument bindings.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "sizeOf intrinsic requires one positional arg",
         "PIPELINE_GAPS.md §6.3",
         PlaceholderDisposition::ImplementInMir,
@@ -276,7 +272,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Reflection intrinsics need explicit MIR intrinsic metadata or frontend rejection.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "resume lowering requires canonical callee shape",
         "PIPELINE_GAPS.md §1.9",
         PlaceholderDisposition::ImplementInMir,
@@ -285,7 +281,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Resume calls must be driven by typed resume-site metadata, not canonical callee shape.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "dispatch callee lowering pending",
         "PIPELINE_GAPS.md §1.8",
         PlaceholderDisposition::ImplementInMir,
@@ -294,7 +290,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Dispatch metadata must come from structured owner/member bindings.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "refactor perform contract missing",
         "PIPELINE_GAPS.md §1.10",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -303,7 +299,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Typed handoff must publish perform-site payload/result/resume metadata.",
     ),
     entry(
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         "refactor perform contract missing",
         "PIPELINE_GAPS.md §1.10",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -312,7 +308,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Missing perform metadata must be a stage diagnostic rather than a terminator Todo.",
     ),
     entry(
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         "refactor handle contract missing",
         "PIPELINE_GAPS.md §1.11",
         PlaceholderDisposition::ImplementBeforeMir,
@@ -321,49 +317,13 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Typed handoff must publish handle-site body/arm/finally metadata.",
     ),
     entry(
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         "refactor handle contract missing",
         "PIPELINE_GAPS.md §1.11",
         PlaceholderDisposition::ImplementBeforeMir,
         "MIR-T08",
         true,
         "Missing handle metadata must be a stage diagnostic rather than a terminator Todo.",
-    ),
-    entry(
-        PlaceholderSurface::MaterializerStatementTodoNoOp,
-        "StatementKind::Todo no-op rewrite",
-        "PIPELINE_GAPS.md §2.2",
-        PlaceholderDisposition::ImplementInMir,
-        "MIR-T02",
-        true,
-        "Materializer rewrite must reject statement Todo instead of cloning it into snapshots.",
-    ),
-    entry(
-        PlaceholderSurface::MaterializerRvalueTodoNoOp,
-        "Rvalue::Todo no-op rewrite",
-        "PIPELINE_GAPS.md §2.2",
-        PlaceholderDisposition::ImplementInMir,
-        "MIR-T02",
-        true,
-        "Materializer rewrite must reject rvalue Todo instead of cloning it into snapshots.",
-    ),
-    entry(
-        PlaceholderSurface::MaterializerTerminatorTodoNoOp,
-        "TerminatorKind::Todo no-op rewrite",
-        "PIPELINE_GAPS.md §2.2",
-        PlaceholderDisposition::ImplementInMir,
-        "MIR-T02",
-        true,
-        "Materializer rewrite must reject terminator Todo instead of cloning it into snapshots.",
-    ),
-    entry(
-        PlaceholderSurface::MaterializerUnwindActionTodoNoOp,
-        "UnwindAction::Todo implicit no-op rewrite",
-        "PIPELINE_GAPS.md §2.2",
-        PlaceholderDisposition::ImplementInMir,
-        "MIR-T02",
-        true,
-        "Materializer rewrite must reject unwind Todo instead of leaving it untouched.",
     ),
 ];
 
@@ -474,7 +434,7 @@ fn scan_refactor_mir_placeholder_surfaces() -> BTreeSet<PlaceholderKey> {
 
     scan_mir_lower_placeholders(&manifest_dir, &mut observed);
     scan_hir_handoff_placeholders(&manifest_dir, &mut observed);
-    scan_materializer_noop_rewrites(&manifest_dir, &mut observed);
+    assert_materializer_rejects_todo_rewrites(&manifest_dir);
 
     observed
 }
@@ -483,36 +443,36 @@ fn scan_mir_lower_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Plac
     let path = manifest_dir.join("src/mir/lower.rs");
     let source = read_non_test_source(&path);
 
-    collect_item_todo_constructors(&source, PlaceholderSurface::ItemTodo, observed);
+    collect_item_todo_constructors(&source, PlaceholderSurface::Item, observed);
     collect_string_reason_constructors(
         &source,
         STATEMENT_TODO_PATTERN,
-        PlaceholderSurface::StatementTodo,
+        PlaceholderSurface::Statement,
         observed,
     );
     collect_string_reason_constructors(
         &source,
         RVALUE_TODO_PATTERN,
-        PlaceholderSurface::RvalueTodo,
+        PlaceholderSurface::Rvalue,
         observed,
     );
     collect_string_reason_constructors(
         &source,
         TERMINATOR_TODO_PATTERN,
-        PlaceholderSurface::TerminatorTodo,
+        PlaceholderSurface::Terminator,
         observed,
     );
     collect_string_reason_constructors(
         &source,
         UNWIND_TODO_PATTERN,
-        PlaceholderSurface::UnwindActionTodo,
+        PlaceholderSurface::UnwindAction,
         observed,
     );
     collect_emit_todo_value_calls(&source, observed);
 
     if source.contains("TerminatorKind::Todo(UNTERMINATED)") {
         observed.insert(PlaceholderKey::new(
-            PlaceholderSurface::TerminatorTodo,
+            PlaceholderSurface::Terminator,
             "unterminated",
         ));
     }
@@ -531,50 +491,42 @@ fn scan_hir_handoff_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Pl
             continue;
         }
         let source = read_non_test_source(&path);
-        collect_item_todo_constructors(&source, PlaceholderSurface::ItemTodo, observed);
+        collect_item_todo_constructors(&source, PlaceholderSurface::Item, observed);
         collect_string_reason_constructors(
             &source,
             HIR_STMT_TODO_PATTERN,
-            PlaceholderSurface::StatementTodo,
+            PlaceholderSurface::Statement,
             observed,
         );
         collect_string_reason_constructors(
             &source,
             HIR_EXPR_TODO_PATTERN,
-            PlaceholderSurface::RvalueTodo,
+            PlaceholderSurface::Rvalue,
             observed,
         );
     }
 }
 
-fn scan_materializer_noop_rewrites(manifest_dir: &Path, observed: &mut BTreeSet<PlaceholderKey>) {
+fn assert_materializer_rejects_todo_rewrites(manifest_dir: &Path) {
     let path = manifest_dir.join("src/mir/materialize.rs");
     let source = read_non_test_source(&path);
 
-    if source.contains("StatementKind::Nop | StatementKind::Todo(_) => {}") {
-        observed.insert(PlaceholderKey::new(
-            PlaceholderSurface::MaterializerStatementTodoNoOp,
-            "StatementKind::Todo no-op rewrite",
-        ));
-    }
-    if source.contains("| TerminatorKind::Todo(_) => {}") {
-        observed.insert(PlaceholderKey::new(
-            PlaceholderSurface::MaterializerTerminatorTodoNoOp,
-            "TerminatorKind::Todo no-op rewrite",
-        ));
-    }
-    if source.contains("Rvalue::Todo(_) => {}") {
-        observed.insert(PlaceholderKey::new(
-            PlaceholderSurface::MaterializerRvalueTodoNoOp,
-            "Rvalue::Todo no-op rewrite",
-        ));
-    }
-    if source.contains("fn rewrite_terminator(") && !source.contains("terminator.unwind") {
-        observed.insert(PlaceholderKey::new(
-            PlaceholderSurface::MaterializerUnwindActionTodoNoOp,
-            "UnwindAction::Todo implicit no-op rewrite",
-        ));
-    }
+    assert!(
+        !source.contains("StatementKind::Nop | StatementKind::Todo(_) => {}"),
+        "materializer must reject StatementKind::Todo instead of no-op rewriting it"
+    );
+    assert!(
+        !source.contains("| TerminatorKind::Todo(_) => {}"),
+        "materializer must reject TerminatorKind::Todo instead of no-op rewriting it"
+    );
+    assert!(
+        !source.contains("Rvalue::Todo(_) => {}"),
+        "materializer must reject Rvalue::Todo instead of no-op rewriting it"
+    );
+    assert!(
+        !source.contains("fn rewrite_terminator(") || source.contains("terminator.unwind"),
+        "materializer must inspect terminator.unwind so UnwindAction::Todo cannot pass through"
+    );
 }
 
 fn assert_effect_refactor_pipeline_has_no_placeholder_constructors() {
@@ -586,29 +538,29 @@ fn assert_effect_refactor_pipeline_has_no_placeholder_constructors() {
     let mut observed = BTreeSet::new();
     for path in files {
         let source = read_non_test_source(&path);
-        collect_item_todo_constructors(&source, PlaceholderSurface::ItemTodo, &mut observed);
+        collect_item_todo_constructors(&source, PlaceholderSurface::Item, &mut observed);
         collect_string_reason_constructors(
             &source,
             STATEMENT_TODO_PATTERN,
-            PlaceholderSurface::StatementTodo,
+            PlaceholderSurface::Statement,
             &mut observed,
         );
         collect_string_reason_constructors(
             &source,
             RVALUE_TODO_PATTERN,
-            PlaceholderSurface::RvalueTodo,
+            PlaceholderSurface::Rvalue,
             &mut observed,
         );
         collect_string_reason_constructors(
             &source,
             TERMINATOR_TODO_PATTERN,
-            PlaceholderSurface::TerminatorTodo,
+            PlaceholderSurface::Terminator,
             &mut observed,
         );
         collect_string_reason_constructors(
             &source,
             UNWIND_TODO_PATTERN,
-            PlaceholderSurface::UnwindActionTodo,
+            PlaceholderSurface::UnwindAction,
             &mut observed,
         );
     }
@@ -678,7 +630,7 @@ fn collect_emit_todo_value_calls(source: &str, out: &mut BTreeSet<PlaceholderKey
                 .find('"')
                 .unwrap_or_else(|| panic!("unterminated emit_todo_value reason"));
             out.insert(PlaceholderKey::new(
-                PlaceholderSurface::RvalueTodo,
+                PlaceholderSurface::Rvalue,
                 &after_quote[..end],
             ));
         }

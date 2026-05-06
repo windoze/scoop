@@ -156,7 +156,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T02：落地 materialized MIR strict verifier 与 no-param gate
+## [DONE] MIR-T02：落地 materialized MIR strict verifier 与 no-param gate
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M1、§2/M7
@@ -190,6 +190,18 @@
   - materialized MIR successful output 一定 no Todo/no unresolved generic param。
   - 后续 P4/P5/P6 可以把 materialized snapshot 当 canonical input。
 - 依赖：`MIR-T01`
+
+- 完成记录（2026-05-06）：
+  - `MaterializedMir::validate_refactor_materialized()` 已作为 materializer 输出边界的 strict verifier 接入，覆盖 raw materialized file 与 pass-view canonical callable bodies。
+  - materializer rewrite 入口现在拒绝 `StatementKind::Todo`、`Rvalue::Todo`、`TerminatorKind::Todo`、`UnwindAction::Todo`，不再 no-op 透传 placeholder。
+  - materialized verifier 现在检查 instance type/effect args、函数签名、参数、frame slot、return/call arg operand、aggregate/closure/effect metadata、resume/perform/handle metadata 中的 unresolved `TypeKind::Param` / effect-row param，并拒绝未物化的 generic direct call target。
+  - `MissingGenericTemplate`、`MissingMirRootForTemplate`、type/effect arg arity error 增加 call-site 字段；site-bound missing template 会携带 source call site。
+  - 更新 MIR placeholder inventory：移除 materializer no-op owner entry，并改为断言 materializer 不得恢复 Todo no-op rewrite。
+  - 新增 `refactor_materialized_mir_*` 单测，覆盖 Todo template、missing root、裸 type param、effect-row arg 缺失。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T03：收口 parser/frontend/HIR placeholder 入口
 

@@ -32,11 +32,12 @@ use crate::typecheck::{
 };
 
 use super::{
-    Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl, HandleMetadata,
-    HandlerArm, InstanceRootSummaryInput, Item, LocalDecl, MaterializedCallableFamilies,
-    MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
-    MemberAccessMetadata, MemberTarget, Operand, Pattern, PerformMetadata, Rvalue, Statement,
-    StatementKind, Terminator, TerminatorKind, TopLevelRef, build_materialized_summary_table,
+    BasicBlockId, Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl,
+    HandleMetadata, HandlerArm, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
+    MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
+    MaterializedMirSummaries, MemberAccessMetadata, MemberTarget, MirPlaceholderCategory, Operand,
+    Param, Pattern, PerformArg, PerformMetadata, Rvalue, Statement, StatementKind, StructLitField,
+    Terminator, TerminatorKind, TopLevelRef, UnwindAction, build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -137,6 +138,11 @@ pub struct MaterializedMir {
 }
 
 impl MaterializedMir {
+    /// Validate the canonical materialized MIR handoff before it can be consumed by later stages.
+    pub fn validate_refactor_materialized(&self) -> Result<(), Box<MirMaterializeError>> {
+        validate_refactor_materialized_mir(self)
+    }
+
     /// 返回当前 materialized MIR 上 canonical 的 callable body / summary 查询视图。
     pub fn callable_view(&self) -> super::MaterializedCallableView<'_> {
         super::MaterializedCallableView::new(self, &self.callable_families)
@@ -234,40 +240,97 @@ pub enum MirMaterializeError {
     #[error("{message}")]
     Frontend { message: String },
 
-    #[error("实例请求找不到对应的 generic template：{fqn}@{file}:{span:?}")]
+    #[error(
+        "实例请求找不到对应的 generic template：{fqn}@{file}:{span:?}，调用点 {call_file:?}:{call_site:?}"
+    )]
     #[diagnostic(code(scoop::mir::materialize::missing_generic_template))]
     MissingGenericTemplate {
         fqn: String,
         file: String,
         span: Span,
+        call_file: Option<String>,
+        call_site: Option<Span>,
     },
 
-    #[error("generic template 没有匹配的 MIR 根函数：{fqn}@{file}:{span:?}")]
+    #[error(
+        "generic template 没有匹配的 MIR 根函数：{fqn}@{file}:{span:?}，调用点 {call_file:?}:{call_site:?}"
+    )]
     #[diagnostic(code(scoop::mir::materialize::missing_mir_root_for_template))]
     MissingMirRootForTemplate {
         fqn: String,
         file: String,
         span: Span,
+        call_file: Option<String>,
+        call_site: Option<Span>,
     },
 
-    #[error("实例化的 type args 数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个")]
+    #[error(
+        "实例化的 type args 数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个，调用点 {call_site:?}"
+    )]
     #[diagnostic(code(scoop::mir::materialize::type_arg_arity_mismatch))]
     TypeArgArityMismatch {
         fqn: String,
         expected: usize,
         found: usize,
+        call_site: Option<Span>,
         #[label("模板声明在这里")]
         decl_span: miette::SourceSpan,
     },
 
-    #[error("实例化的 effect args 数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个")]
+    #[error(
+        "实例化的 effect args 数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个，调用点 {call_site:?}"
+    )]
     #[diagnostic(code(scoop::mir::materialize::effect_arg_arity_mismatch))]
     EffectArgArityMismatch {
         fqn: String,
         expected: usize,
         found: usize,
+        call_site: Option<Span>,
         #[label("模板声明在这里")]
         decl_span: miette::SourceSpan,
+    },
+
+    #[error(
+        "materialized MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}"
+    )]
+    #[diagnostic(code(scoop::mir::materialize::todo_in_materialized_mir))]
+    MaterializedTodo {
+        fqn: String,
+        block: Option<BasicBlockId>,
+        span: Span,
+        category: MirPlaceholderCategory,
+        reason: &'static str,
+    },
+
+    #[error("materialized MIR `{fqn}` failed structural validation: {error}")]
+    #[diagnostic(code(scoop::mir::materialize::invalid_materialized_mir))]
+    MaterializedMirValidation {
+        fqn: String,
+        #[source]
+        error: super::MirValidationError,
+    },
+
+    #[error(
+        "materialized MIR `{fqn}` contains unresolved generic parameter in {surface} at {span:?}: {ty}"
+    )]
+    #[diagnostic(code(scoop::mir::materialize::unresolved_generic_param))]
+    MaterializedUnresolvedGenericParam {
+        fqn: String,
+        block: Option<BasicBlockId>,
+        span: Span,
+        surface: &'static str,
+        ty: String,
+    },
+
+    #[error(
+        "materialized MIR `{fqn}` has unresolved generic direct call target `{callee_fqn}` in {block:?} at {span:?}"
+    )]
+    #[diagnostic(code(scoop::mir::materialize::missing_materialized_call_target))]
+    MaterializedMissingCallTarget {
+        fqn: String,
+        block: Option<BasicBlockId>,
+        span: Span,
+        callee_fqn: String,
     },
 }
 
@@ -359,6 +422,1249 @@ fn frontend_err(message: impl Into<String>) -> Box<MirMaterializeError> {
     materialize_err(MirMaterializeError::Frontend {
         message: message.into(),
     })
+}
+
+#[derive(Clone, Copy)]
+struct MaterializedValidationContext<'a> {
+    fqn: &'a str,
+    block: Option<BasicBlockId>,
+    span: Span,
+    surface: &'static str,
+}
+
+#[derive(Clone, Copy)]
+struct MaterializedRootSets<'a> {
+    known_roots: &'a HashSet<String>,
+    generic_templates: &'a HashSet<String>,
+}
+
+fn validate_refactor_materialized_mir(materialized: &MaterializedMir) -> MaterializeResult<()> {
+    let known_roots = collect_materialized_known_roots(materialized);
+    let generic_templates = materialized
+        .instance_keys
+        .iter()
+        .map(|key| key.template.fqn.clone())
+        .collect::<HashSet<_>>();
+
+    for key in &materialized.instance_keys {
+        validate_materialized_instance_key(materialized, key)?;
+    }
+
+    for item in &materialized.file.items {
+        validate_materialized_item(materialized, item, &known_roots, &generic_templates)?;
+    }
+
+    let pass_view = materialized.pass_view();
+    let mut seen = HashSet::new();
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            if seen.insert(fun.fqn.clone()) {
+                validate_materialized_fun(materialized, fun, &known_roots, &generic_templates)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_materialized_known_roots(materialized: &MaterializedMir) -> HashSet<String> {
+    let mut roots = HashSet::new();
+    for item in &materialized.file.items {
+        if let Item::Fun(fun) = item {
+            roots.insert(fun.fqn.clone());
+        }
+    }
+    let pass_view = materialized.pass_view();
+    for family in pass_view.instances() {
+        roots.insert(family.root_fqn().to_string());
+        roots.extend(family.callable_fqns().map(str::to_string));
+    }
+    roots
+}
+
+fn validate_materialized_instance_key(
+    materialized: &MaterializedMir,
+    key: &InstanceKey,
+) -> MaterializeResult<()> {
+    for &ty in &key.type_args {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn: &key.template.fqn,
+                block: None,
+                span: key.template.decl_span,
+                surface: "instance type arg",
+            },
+            ty,
+        )?;
+    }
+    for row in &key.eff_args {
+        validate_materialized_effect_row(
+            materialized,
+            MaterializedValidationContext {
+                fqn: &key.template.fqn,
+                block: None,
+                span: key.template.decl_span,
+                surface: "instance effect arg",
+            },
+            row,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_item(
+    materialized: &MaterializedMir,
+    item: &Item,
+    known_roots: &HashSet<String>,
+    generic_templates: &HashSet<String>,
+) -> MaterializeResult<()> {
+    match item {
+        Item::Fun(fun) => {
+            validate_materialized_fun(materialized, fun, known_roots, generic_templates)
+        }
+        Item::Todo { span, kind } => Err(materialize_err(MirMaterializeError::MaterializedTodo {
+            fqn: "<file>".to_string(),
+            block: None,
+            span: *span,
+            category: MirPlaceholderCategory::Item,
+            reason: kind,
+        })),
+    }
+}
+
+fn validate_materialized_fun(
+    materialized: &MaterializedMir,
+    fun: &FunDecl,
+    known_roots: &HashSet<String>,
+    generic_templates: &HashSet<String>,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &fun.fqn,
+            block: None,
+            span: fun.span,
+            surface: "function type",
+        },
+        fun.ty,
+    )?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &fun.fqn,
+            block: None,
+            span: fun.span,
+            surface: "return type",
+        },
+        fun.return_ty,
+    )?;
+    for param in &fun.params {
+        validate_materialized_param(materialized, &fun.fqn, param)?;
+    }
+
+    let Some(body) = &fun.body else {
+        return Ok(());
+    };
+    body.validate_cfg().map_err(|error| {
+        materialize_err(MirMaterializeError::MaterializedMirValidation {
+            fqn: fun.fqn.clone(),
+            error,
+        })
+    })?;
+
+    for local in &body.locals {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn: &fun.fqn,
+                block: None,
+                span: local.span,
+                surface: "frame slot",
+            },
+            local.ty,
+        )?;
+    }
+
+    for (block_index, block) in body.blocks.iter().enumerate() {
+        let block_id = BasicBlockId::from_raw(block_index as u32);
+        for stmt in &block.stmts {
+            validate_materialized_statement(
+                materialized,
+                &fun.fqn,
+                block_id,
+                &body.locals,
+                stmt,
+                MaterializedRootSets {
+                    known_roots,
+                    generic_templates,
+                },
+            )?;
+        }
+        validate_materialized_unwind_action(
+            block.terminator.span,
+            &fun.fqn,
+            block_id,
+            &block.terminator.unwind,
+        )?;
+        validate_materialized_terminator(
+            materialized,
+            fun,
+            block_id,
+            &body.locals,
+            &block.terminator,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn validate_materialized_param(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    param: &Param,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: None,
+            span: param.span,
+            surface: "parameter type",
+        },
+        param.ty,
+    )
+}
+
+fn validate_materialized_statement(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    locals: &[LocalDecl],
+    stmt: &Statement,
+    root_sets: MaterializedRootSets<'_>,
+) -> MaterializeResult<()> {
+    match &stmt.kind {
+        StatementKind::Assign { target: _, value } => validate_materialized_rvalue(
+            materialized,
+            fqn,
+            block,
+            stmt.span,
+            locals,
+            value,
+            root_sets,
+        ),
+        StatementKind::StoreMember {
+            receiver,
+            member,
+            value,
+            value_ty,
+            continuation_route,
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "member store receiver",
+                locals,
+                receiver,
+            )?;
+            validate_materialized_member_metadata(materialized, fqn, block, stmt.span, member)?;
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "member store value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span: stmt.span,
+                    surface: "member store value type",
+                },
+                *value_ty,
+            )?;
+            if let crate::mir::StoredContinuationRoutePublication::Unique(route) =
+                continuation_route
+            {
+                validate_materialized_type(
+                    materialized,
+                    MaterializedValidationContext {
+                        fqn,
+                        block: Some(block),
+                        span: stmt.span,
+                        surface: "stored continuation source type",
+                    },
+                    route.source_ty,
+                )?;
+            }
+            Ok(())
+        }
+        StatementKind::StoreTopLevelVar {
+            value, value_ty, ..
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "top-level store value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span: stmt.span,
+                    surface: "top-level store value type",
+                },
+                *value_ty,
+            )
+        }
+        StatementKind::Todo(reason) => {
+            Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                fqn: fqn.to_string(),
+                block: Some(block),
+                span: stmt.span,
+                category: MirPlaceholderCategory::Statement,
+                reason,
+            }))
+        }
+        StatementKind::Nop => Ok(()),
+    }
+}
+
+fn validate_materialized_rvalue(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    value: &Rvalue,
+    root_sets: MaterializedRootSets<'_>,
+) -> MaterializeResult<()> {
+    match value {
+        Rvalue::Use(operand) => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "source value",
+            locals,
+            operand,
+        ),
+        Rvalue::TopLevelRef(top) => {
+            validate_materialized_top_level_ref(materialized, fqn, block, span, top, root_sets)
+        }
+        Rvalue::UnresolvedName { .. } => Ok(()),
+        Rvalue::Unary { operand, .. } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "unary operand",
+            locals,
+            operand,
+        ),
+        Rvalue::Binary { lhs, rhs, .. } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "binary lhs",
+                locals,
+                lhs,
+            )?;
+            validate_materialized_operand(materialized, fqn, block, span, "binary rhs", locals, rhs)
+        }
+        Rvalue::TypeCheck { value, test_ty, .. } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "typecheck value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "typecheck target type",
+                },
+                *test_ty,
+            )
+        }
+        Rvalue::Cast {
+            value, target_ty, ..
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "cast value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "cast target type",
+                },
+                *target_ty,
+            )
+        }
+        Rvalue::MemberAccess {
+            receiver, member, ..
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "member receiver",
+                locals,
+                receiver,
+            )?;
+            validate_materialized_member_metadata(materialized, fqn, block, span, member)
+        }
+        Rvalue::EnumVariant { enum_ty, args, .. } => {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "enum transport type",
+                },
+                *enum_ty,
+            )?;
+            validate_materialized_call_args(materialized, fqn, block, span, locals, args)
+        }
+        Rvalue::ClassCtor {
+            args,
+            hidden_effects,
+            ..
+        } => {
+            validate_materialized_effect_row(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "class constructor hidden effects",
+                },
+                hidden_effects,
+            )?;
+            validate_materialized_call_args(materialized, fqn, block, span, locals, args)
+        }
+        Rvalue::Call { kind, args, .. } => {
+            validate_materialized_call_args(materialized, fqn, block, span, locals, args)?;
+            validate_materialized_call_kind(materialized, fqn, block, span, locals, kind, root_sets)
+        }
+        Rvalue::MakeTuple { elements } => validate_materialized_operands(
+            materialized,
+            fqn,
+            block,
+            span,
+            "tuple aggregate element",
+            locals,
+            elements,
+        ),
+        Rvalue::StructLit { fields } => {
+            for field in fields {
+                validate_materialized_struct_lit_field(
+                    materialized,
+                    fqn,
+                    block,
+                    span,
+                    locals,
+                    field,
+                )?;
+            }
+            Ok(())
+        }
+        Rvalue::SizeOf { value_ty } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "sizeof type argument",
+            },
+            *value_ty,
+        ),
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                validate_materialized_interpolated_part(materialized, fqn, block, locals, part)?;
+            }
+            Ok(())
+        }
+        Rvalue::TupleGet { tuple, .. } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "tuple get source",
+            locals,
+            tuple,
+        ),
+        Rvalue::CaptureBoxNew { value } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "capture box value",
+            locals,
+            value,
+        ),
+        Rvalue::CaptureBoxGet { box_operand } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "capture box source",
+            locals,
+            box_operand,
+        ),
+        Rvalue::CaptureBoxSet { box_operand, value } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "capture box source",
+                locals,
+                box_operand,
+            )?;
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "capture box value",
+                locals,
+                value,
+            )
+        }
+        Rvalue::PatternMatch { subject, pattern } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "pattern subject",
+                locals,
+                subject,
+            )?;
+            validate_materialized_pattern(materialized, fqn, block, span, pattern)
+        }
+        Rvalue::PatternExtract { subject, .. } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "pattern extract subject",
+            locals,
+            subject,
+        ),
+        Rvalue::MakeClosure { env, fn_ptr } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "closure env",
+                locals,
+                env,
+            )?;
+            validate_materialized_call_target(
+                fqn,
+                Some(block),
+                span,
+                fn_ptr,
+                root_sets.known_roots,
+                root_sets.generic_templates,
+            )
+        }
+        Rvalue::PerformResult { effect_ty, .. } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "perform result effect type",
+            },
+            *effect_ty,
+        ),
+        Rvalue::Todo(reason) => Err(materialize_err(MirMaterializeError::MaterializedTodo {
+            fqn: fqn.to_string(),
+            block: Some(block),
+            span,
+            category: MirPlaceholderCategory::Rvalue,
+            reason,
+        })),
+    }
+}
+
+fn validate_materialized_top_level_ref(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    top: &TopLevelRef,
+    root_sets: MaterializedRootSets<'_>,
+) -> MaterializeResult<()> {
+    validate_materialized_effect_row(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "top-level root hidden effects",
+        },
+        &top.hidden_effects,
+    )?;
+    validate_materialized_call_target(
+        fqn,
+        Some(block),
+        span,
+        &top.fqn,
+        root_sets.known_roots,
+        root_sets.generic_templates,
+    )
+}
+
+fn validate_materialized_call_args(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    args: &[CallArg],
+) -> MaterializeResult<()> {
+    for arg in args {
+        validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            arg.span,
+            "call arg",
+            locals,
+            &arg.value,
+        )?;
+    }
+    let _ = span;
+    Ok(())
+}
+
+fn validate_materialized_call_kind(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    kind: &CallKind,
+    root_sets: MaterializedRootSets<'_>,
+) -> MaterializeResult<()> {
+    match kind {
+        CallKind::Direct { callee_fqn } => validate_materialized_call_target(
+            fqn,
+            Some(block),
+            span,
+            callee_fqn,
+            root_sets.known_roots,
+            root_sets.generic_templates,
+        ),
+        CallKind::Closure { callee, fn_ptr } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "closure callee",
+                locals,
+                callee,
+            )?;
+            validate_materialized_call_target(
+                fqn,
+                Some(block),
+                span,
+                fn_ptr,
+                root_sets.known_roots,
+                root_sets.generic_templates,
+            )
+        }
+        CallKind::FunValue { callee } => validate_materialized_operand(
+            materialized,
+            fqn,
+            block,
+            span,
+            "function value callee",
+            locals,
+            callee,
+        ),
+        CallKind::Virtual { receiver, dispatch } | CallKind::Interface { receiver, dispatch } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "dispatch receiver",
+                locals,
+                receiver,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "dispatch receiver type",
+                },
+                dispatch.receiver_ty,
+            )
+        }
+        CallKind::Resume {
+            continuation,
+            resume,
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "resume continuation",
+                locals,
+                continuation,
+            )?;
+            validate_materialized_resume_metadata(materialized, fqn, block, span, resume)
+        }
+    }
+}
+
+fn validate_materialized_resume_metadata(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    resume: &super::ResumeMetadata,
+) -> MaterializeResult<()> {
+    for (surface, ty) in [
+        ("resume continuation type", resume.continuation_ty),
+        ("resume payload type", resume.resume_ty),
+        ("resume answer type", resume.answer_ty),
+        ("resume return type", resume.return_ty),
+    ] {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface,
+            },
+            ty,
+        )?;
+    }
+    validate_materialized_effect_row(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "resume out effects",
+        },
+        &resume.out_effects,
+    )?;
+    if let Some(runtime_error) = resume.runtime_error_effect_ty {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "resume runtime-error effect type",
+            },
+            runtime_error,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_struct_lit_field(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    field: &StructLitField,
+) -> MaterializeResult<()> {
+    validate_materialized_operand(
+        materialized,
+        fqn,
+        block,
+        field.span,
+        "struct aggregate field",
+        locals,
+        &field.value,
+    )?;
+    let _ = span;
+    Ok(())
+}
+
+fn validate_materialized_interpolated_part(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    locals: &[LocalDecl],
+    part: &InterpolatedStringPart,
+) -> MaterializeResult<()> {
+    match part {
+        InterpolatedStringPart::Text { .. } => Ok(()),
+        InterpolatedStringPart::Expr { span, value, ty } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                *span,
+                "interpolated string value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span: *span,
+                    surface: "interpolated string value type",
+                },
+                *ty,
+            )
+        }
+    }
+}
+
+fn validate_materialized_terminator(
+    materialized: &MaterializedMir,
+    fun: &FunDecl,
+    block: BasicBlockId,
+    locals: &[LocalDecl],
+    terminator: &Terminator,
+) -> MaterializeResult<()> {
+    match &terminator.kind {
+        TerminatorKind::Return { value: Some(value) } => validate_materialized_operand(
+            materialized,
+            &fun.fqn,
+            block,
+            terminator.span,
+            "return value",
+            locals,
+            value,
+        ),
+        TerminatorKind::Return { value: None } => Ok(()),
+        TerminatorKind::Perform { metadata, args, .. } => {
+            validate_materialized_perform_metadata(
+                materialized,
+                &fun.fqn,
+                block,
+                terminator.span,
+                metadata,
+            )?;
+            for arg in args {
+                validate_materialized_perform_arg(
+                    materialized,
+                    &fun.fqn,
+                    block,
+                    terminator.span,
+                    locals,
+                    arg,
+                )?;
+            }
+            Ok(())
+        }
+        TerminatorKind::Handle { metadata, arms, .. } => {
+            validate_materialized_handle_metadata(
+                materialized,
+                &fun.fqn,
+                block,
+                terminator.span,
+                metadata,
+            )?;
+            for arm in arms {
+                validate_materialized_handler_arm(
+                    materialized,
+                    &fun.fqn,
+                    block,
+                    terminator.span,
+                    arm,
+                )?;
+            }
+            Ok(())
+        }
+        TerminatorKind::CondBr { cond, .. } => validate_materialized_operand(
+            materialized,
+            &fun.fqn,
+            block,
+            terminator.span,
+            "branch condition",
+            locals,
+            cond,
+        ),
+        TerminatorKind::Todo(reason) => {
+            Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                fqn: fun.fqn.clone(),
+                block: Some(block),
+                span: terminator.span,
+                category: MirPlaceholderCategory::Terminator,
+                reason,
+            }))
+        }
+        TerminatorKind::ResumeUnwind
+        | TerminatorKind::Goto { .. }
+        | TerminatorKind::Unreachable => Ok(()),
+    }
+}
+
+fn validate_materialized_perform_arg(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    arg: &PerformArg,
+) -> MaterializeResult<()> {
+    validate_materialized_operand(
+        materialized,
+        fqn,
+        block,
+        arg.span,
+        "perform payload arg",
+        locals,
+        &arg.value,
+    )?;
+    let _ = span;
+    Ok(())
+}
+
+fn validate_materialized_perform_metadata(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    metadata: &PerformMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "perform effect type",
+        },
+        metadata.effect_ty,
+    )?;
+    if let Some(payload_tuple_ty) = metadata.payload_tuple_ty {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "perform payload tuple type",
+            },
+            payload_tuple_ty,
+        )?;
+    }
+    for &payload_ty in &metadata.payload_component_tys {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "perform payload component type",
+            },
+            payload_ty,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_handle_metadata(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    metadata: &HandleMetadata,
+) -> MaterializeResult<()> {
+    for (surface, ty) in [
+        ("handle result type", Some(metadata.result_ty)),
+        ("handle body result type", Some(metadata.body_result_ty)),
+        ("handle finally result type", metadata.finally_result_ty),
+    ] {
+        if let Some(ty) = ty {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface,
+                },
+                ty,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_materialized_handler_arm(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    arm: &HandlerArm,
+) -> MaterializeResult<()> {
+    for (surface, ty) in [
+        ("handler arm effect type", Some(arm.handled_effect_ty)),
+        ("handler arm payload tuple type", arm.payload_tuple_ty),
+        ("handler arm body type", Some(arm.body_ty)),
+    ] {
+        if let Some(ty) = ty {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface,
+                },
+                ty,
+            )?;
+        }
+    }
+    for &payload_ty in &arm.payload_component_tys {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "handler arm payload component type",
+            },
+            payload_ty,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_unwind_action(
+    span: Span,
+    fqn: &str,
+    block: BasicBlockId,
+    unwind: &UnwindAction,
+) -> MaterializeResult<()> {
+    match unwind {
+        UnwindAction::Todo(reason) => Err(materialize_err(MirMaterializeError::MaterializedTodo {
+            fqn: fqn.to_string(),
+            block: Some(block),
+            span,
+            category: MirPlaceholderCategory::UnwindAction,
+            reason,
+        })),
+        UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => Ok(()),
+    }
+}
+
+fn validate_materialized_member_metadata(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    member: &MemberAccessMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "member receiver type",
+        },
+        member.receiver_ty,
+    )?;
+    validate_materialized_effect_row(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "member hidden effects",
+        },
+        &member.hidden_effects,
+    )
+}
+
+fn validate_materialized_pattern(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    pattern: &Pattern,
+) -> MaterializeResult<()> {
+    match pattern {
+        Pattern::Is { ty } | Pattern::Bind { ty, .. } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "pattern type",
+            },
+            *ty,
+        ),
+        Pattern::Or { pats } => {
+            for pat in pats {
+                validate_materialized_pattern(materialized, fqn, block, span, pat)?;
+            }
+            Ok(())
+        }
+        Pattern::Tuple { elements } | Pattern::Variant { args: elements, .. } => {
+            for pat in elements {
+                validate_materialized_pattern(materialized, fqn, block, span, pat)?;
+            }
+            Ok(())
+        }
+        Pattern::Else
+        | Pattern::Wildcard
+        | Pattern::Rest
+        | Pattern::IntLit { .. }
+        | Pattern::CharLit { .. }
+        | Pattern::StringLit { .. }
+        | Pattern::BoolLit { .. } => Ok(()),
+    }
+}
+
+fn validate_materialized_operands(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    locals: &[LocalDecl],
+    operands: &[Operand],
+) -> MaterializeResult<()> {
+    for operand in operands {
+        validate_materialized_operand(materialized, fqn, block, span, surface, locals, operand)?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_operand(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    locals: &[LocalDecl],
+    operand: &Operand,
+) -> MaterializeResult<()> {
+    if let Operand::Local(local) = operand
+        && let Some(local_decl) = locals.get(local.as_u32() as usize)
+    {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface,
+            },
+            local_decl.ty,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_type(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    ty: TypeId,
+) -> MaterializeResult<()> {
+    if type_contains_param(&materialized.types, ty) {
+        return Err(materialize_err(
+            MirMaterializeError::MaterializedUnresolvedGenericParam {
+                fqn: ctx.fqn.to_string(),
+                block: ctx.block,
+                span: ctx.span,
+                surface: ctx.surface,
+                ty: materialized.types.display(ty).to_string(),
+            },
+        ));
+    }
+    Ok(())
+}
+
+fn validate_materialized_effect_row(
+    materialized: &MaterializedMir,
+    ctx: MaterializedValidationContext<'_>,
+    row: &EffectRow,
+) -> MaterializeResult<()> {
+    if effect_row_contains_param(&materialized.types, row) {
+        let ty = format!("eff {:?}", EffectRowRepr(row));
+        return Err(materialize_err(
+            MirMaterializeError::MaterializedUnresolvedGenericParam {
+                fqn: ctx.fqn.to_string(),
+                block: ctx.block,
+                span: ctx.span,
+                surface: ctx.surface,
+                ty,
+            },
+        ));
+    }
+    Ok(())
+}
+
+fn validate_materialized_call_target(
+    fqn: &str,
+    block: Option<BasicBlockId>,
+    span: Span,
+    callee_fqn: &str,
+    known_roots: &HashSet<String>,
+    generic_templates: &HashSet<String>,
+) -> MaterializeResult<()> {
+    let unresolved_generic_target = callee_fqn.is_empty()
+        || generic_templates.contains(callee_fqn)
+        || (callee_fqn.contains("::<") && !known_roots.contains(callee_fqn));
+    if unresolved_generic_target {
+        return Err(materialize_err(
+            MirMaterializeError::MaterializedMissingCallTarget {
+                fqn: fqn.to_string(),
+                block,
+                span,
+                callee_fqn: callee_fqn.to_string(),
+            },
+        ));
+    }
+    Ok(())
 }
 
 /// 为 `dump-ir` / tests 生成 monomorphic MIR instances。
@@ -2392,6 +3698,16 @@ struct DirectCallInferenceInput<'a> {
     substitution: &'a InstanceSubstitution,
 }
 
+#[derive(Clone, Copy)]
+struct DirectCallRewriteContext<'a> {
+    template_source_path: &'a Path,
+    caller_fqn: &'a str,
+    block_id: BasicBlockId,
+    call_span: Span,
+    locals: &'a [LocalDecl],
+    substitution: &'a InstanceSubstitution,
+}
+
 fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
     let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty) else {
         return None;
@@ -2494,6 +3810,8 @@ impl MirInstanceMaterializer {
                         fqn: template.fqn.clone(),
                         file: template.source_path.display().to_string(),
                         span: template.decl_span,
+                        call_file: None,
+                        call_site: None,
                     },
                 ));
             };
@@ -2731,6 +4049,8 @@ impl MirInstanceMaterializer {
                         fqn: binding.fqn,
                         file: binding.decl_file.display().to_string(),
                         span: binding.decl_span,
+                        call_file: Some(site.0.display().to_string()),
+                        call_site: Some(site.1),
                     },
                 ));
             };
@@ -2766,6 +4086,8 @@ impl MirInstanceMaterializer {
                         fqn: binding.fqn,
                         file: binding.decl_file.display().to_string(),
                         span: binding.decl_span,
+                        call_file: Some(site.0.display().to_string()),
+                        call_site: Some(site.1),
                     },
                 ));
             };
@@ -2839,6 +4161,8 @@ impl MirInstanceMaterializer {
                         fqn: key.symbol.fqn.clone(),
                         file: key.symbol.decl_file.display().to_string(),
                         span: key.symbol.decl_span,
+                        call_file: Some(request.request_source_path.display().to_string()),
+                        call_site: Some(request.call_span),
                     },
                 ));
             };
@@ -3460,6 +4784,7 @@ impl MirInstanceMaterializer {
                 super::escape::run_escape_analysis(&mut materialized);
             }
         }
+        materialized.validate_refactor_materialized()?;
         Ok(materialized)
     }
 
@@ -3486,6 +4811,8 @@ impl MirInstanceMaterializer {
                     fqn: instance.template.fqn.clone(),
                     file: instance.template.source_path.display().to_string(),
                     span: instance.template.decl_span,
+                    call_file: None,
+                    call_site: None,
                 },
             ));
         };
@@ -3495,6 +4822,7 @@ impl MirInstanceMaterializer {
                 fqn: root.template.fqn.clone(),
                 expected: root.type_param_names.len(),
                 found: instance.type_args.len(),
+                call_site: None,
                 decl_span: root.template.decl_span.into(),
             }));
         }
@@ -3552,6 +4880,7 @@ impl MirInstanceMaterializer {
                         fqn: root.template.fqn.clone(),
                         expected: 0,
                         found: eff_args.len(),
+                        call_site: None,
                         decl_span: root.template.decl_span.into(),
                     },
                 ));
@@ -3565,6 +4894,7 @@ impl MirInstanceMaterializer {
                         fqn: root.template.fqn.clone(),
                         expected: 1,
                         found: eff_args.len(),
+                        call_site: None,
                         decl_span: root.template.decl_span.into(),
                     },
                 ));
@@ -3655,11 +4985,11 @@ impl MirInstanceMaterializer {
                 let Some(block) = body.blocks.get_mut(block_idx) else {
                     continue;
                 };
-                self.rewrite_block(block, &ctx)?;
+                self.rewrite_block(BasicBlockId::from_raw(block_idx as u32), block, &ctx)?;
             }
         } else {
-            for block in &mut body.blocks {
-                self.rewrite_block(block, &ctx)?;
+            for (block_idx, block) in body.blocks.iter_mut().enumerate() {
+                self.rewrite_block(BasicBlockId::from_raw(block_idx as u32), block, &ctx)?;
             }
         }
         Ok(())
@@ -3667,22 +4997,26 @@ impl MirInstanceMaterializer {
 
     fn rewrite_block(
         &mut self,
+        block_id: BasicBlockId,
         block: &mut super::BasicBlock,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         for stmt in &mut block.stmts {
-            self.rewrite_statement(stmt, ctx)?;
+            self.rewrite_statement(stmt, block_id, ctx)?;
         }
-        self.rewrite_terminator(&mut block.terminator, ctx)
+        self.rewrite_terminator(&mut block.terminator, block_id, ctx)
     }
 
     fn rewrite_statement(
         &mut self,
         stmt: &mut Statement,
+        block_id: BasicBlockId,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match &mut stmt.kind {
-            StatementKind::Assign { value, .. } => self.rewrite_rvalue(stmt.span, value, ctx)?,
+            StatementKind::Assign { value, .. } => {
+                self.rewrite_rvalue(stmt.span, block_id, value, ctx)?
+            }
             StatementKind::StoreMember {
                 receiver,
                 member,
@@ -3712,7 +5046,16 @@ impl MirInstanceMaterializer {
                 *value_ty =
                     substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
             }
-            StatementKind::Nop | StatementKind::Todo(_) => {}
+            StatementKind::Todo(reason) => {
+                return Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                    fqn: ctx.instance_root_fqn.to_string(),
+                    block: Some(block_id),
+                    span: stmt.span,
+                    category: MirPlaceholderCategory::Statement,
+                    reason,
+                }));
+            }
+            StatementKind::Nop => {}
         }
         Ok(())
     }
@@ -3720,8 +5063,10 @@ impl MirInstanceMaterializer {
     fn rewrite_terminator(
         &mut self,
         terminator: &mut Terminator,
+        block_id: BasicBlockId,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        self.rewrite_unwind_action(terminator.span, block_id, &terminator.unwind, ctx)?;
         match &mut terminator.kind {
             TerminatorKind::Perform { metadata, args, .. } => {
                 self.rewrite_perform_metadata(metadata, ctx.substitution);
@@ -3743,10 +5088,41 @@ impl MirInstanceMaterializer {
             }
             TerminatorKind::ResumeUnwind
             | TerminatorKind::Goto { .. }
-            | TerminatorKind::Unreachable
-            | TerminatorKind::Todo(_) => {}
+            | TerminatorKind::Unreachable => {}
+            TerminatorKind::Todo(reason) => {
+                return Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                    fqn: ctx.instance_root_fqn.to_string(),
+                    block: Some(block_id),
+                    span: terminator.span,
+                    category: MirPlaceholderCategory::Terminator,
+                    reason,
+                }));
+            }
         }
         Ok(())
+    }
+
+    fn rewrite_unwind_action(
+        &mut self,
+        span: Span,
+        block_id: BasicBlockId,
+        unwind: &UnwindAction,
+        ctx: &RewriteContext<'_>,
+    ) -> MaterializeResult<()> {
+        match unwind {
+            UnwindAction::Todo(reason) => {
+                Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                    fqn: ctx.instance_root_fqn.to_string(),
+                    block: Some(block_id),
+                    span,
+                    category: MirPlaceholderCategory::UnwindAction,
+                    reason,
+                }))
+            }
+            UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => {
+                Ok(())
+            }
+        }
     }
 
     fn rewrite_handle_metadata(
@@ -3781,6 +5157,7 @@ impl MirInstanceMaterializer {
     fn rewrite_rvalue(
         &mut self,
         stmt_span: Span,
+        block_id: BasicBlockId,
         value: &mut Rvalue,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
@@ -3838,7 +5215,7 @@ impl MirInstanceMaterializer {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
-                self.rewrite_call_kind(stmt_span, kind, args, ctx)?;
+                self.rewrite_call_kind(stmt_span, block_id, kind, args, ctx)?;
             }
             Rvalue::EnumVariant { enum_ty, args, .. } => {
                 *enum_ty =
@@ -3917,7 +5294,15 @@ impl MirInstanceMaterializer {
                     ctx.substitution,
                 );
             }
-            Rvalue::Todo(_) => {}
+            Rvalue::Todo(reason) => {
+                return Err(materialize_err(MirMaterializeError::MaterializedTodo {
+                    fqn: ctx.instance_root_fqn.to_string(),
+                    block: Some(block_id),
+                    span: stmt_span,
+                    category: MirPlaceholderCategory::Rvalue,
+                    reason,
+                }));
+            }
         }
         Ok(())
     }
@@ -3925,10 +5310,19 @@ impl MirInstanceMaterializer {
     fn rewrite_call_kind(
         &mut self,
         call_span: Span,
+        block_id: BasicBlockId,
         kind: &mut CallKind,
         args: &mut Vec<CallArg>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
+        let direct_ctx = DirectCallRewriteContext {
+            template_source_path: ctx.template_source_path,
+            caller_fqn: ctx.instance_root_fqn,
+            block_id,
+            call_span,
+            locals: ctx.locals,
+            substitution: ctx.substitution,
+        };
         match kind {
             CallKind::Direct { callee_fqn } => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
@@ -3939,14 +5333,7 @@ impl MirInstanceMaterializer {
                     *callee_fqn = rewritten;
                     return Ok(());
                 }
-                self.materialize_direct_call_target(
-                    ctx.template_source_path,
-                    call_span,
-                    callee_fqn,
-                    args,
-                    ctx.locals,
-                    ctx.substitution,
-                )?;
+                self.materialize_direct_call_target(callee_fqn, args, direct_ctx)?;
             }
             CallKind::Closure { callee, fn_ptr } => {
                 *callee = self.rewrite_operand(callee.clone());
@@ -3980,14 +5367,7 @@ impl MirInstanceMaterializer {
                 ) {
                     let direct_args = dispatch_direct_call_args(call_span, receiver, args);
                     let mut direct_fqn = target_fqn;
-                    self.materialize_direct_call_target(
-                        ctx.template_source_path,
-                        call_span,
-                        &mut direct_fqn,
-                        &direct_args,
-                        ctx.locals,
-                        ctx.substitution,
-                    )?;
+                    self.materialize_direct_call_target(&mut direct_fqn, &direct_args, direct_ctx)?;
                     *args = direct_args;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
@@ -4017,14 +5397,7 @@ impl MirInstanceMaterializer {
                 ) {
                     let direct_args = dispatch_direct_call_args(call_span, receiver, args);
                     let mut direct_fqn = target_fqn;
-                    self.materialize_direct_call_target(
-                        ctx.template_source_path,
-                        call_span,
-                        &mut direct_fqn,
-                        &direct_args,
-                        ctx.locals,
-                        ctx.substitution,
-                    )?;
+                    self.materialize_direct_call_target(&mut direct_fqn, &direct_args, direct_ctx)?;
                     *args = direct_args;
                     *kind = CallKind::Direct {
                         callee_fqn: direct_fqn,
@@ -4071,29 +5444,38 @@ impl MirInstanceMaterializer {
 
     fn materialize_direct_call_target(
         &mut self,
-        template_source_path: &Path,
-        call_span: Span,
         callee_fqn: &mut String,
         args: &[CallArg],
-        locals: &[LocalDecl],
-        substitution: &InstanceSubstitution,
+        ctx: DirectCallRewriteContext<'_>,
     ) -> MaterializeResult<()> {
         if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
-            template_source_path,
-            call_span,
+            template_source_path: ctx.template_source_path,
+            call_span: ctx.call_span,
             callee_fqn,
             args,
             result_ty: None,
-            locals,
-            substitution,
+            locals: ctx.locals,
+            substitution: ctx.substitution,
         }) {
             *callee_fqn = self.instance_fqn(&instance_key);
             self.enqueue(instance_key);
             return Ok(());
         }
-        if let Some(reachable_callee) =
-            self.resolve_non_generic_direct_callee(template_source_path, call_span, callee_fqn)
-        {
+        if self.roots_by_fqn.contains_key(callee_fqn) {
+            return Err(materialize_err(
+                MirMaterializeError::MaterializedMissingCallTarget {
+                    fqn: ctx.caller_fqn.to_string(),
+                    block: Some(ctx.block_id),
+                    span: ctx.call_span,
+                    callee_fqn: callee_fqn.clone(),
+                },
+            ));
+        }
+        if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
+            ctx.template_source_path,
+            ctx.call_span,
+            callee_fqn,
+        ) {
             let mut discovered = Vec::new();
             self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
             for instance in discovered {
@@ -4939,9 +6321,12 @@ fn collect_type_param_bindings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mir::{LocalSourceKind, MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+    use crate::mir::{
+        BasicBlock, LocalSourceKind, MirLoweringFacts, lower_hir_file_for_dump_with_facts,
+    };
     use crate::session::Session;
     use crate::source::SourceFile;
+    use crate::ty::TypeParamType;
 
     /// 构造“完整编译单元 facts + 仅部分文件贡献实例请求”的最小测试输入。
     fn prepare_typechecked_compilation_unit_inputs(
@@ -5048,6 +6433,373 @@ mod tests {
         }
 
         (files, index, env, types, monomorph_requests)
+    }
+
+    fn test_span() -> Span {
+        Span::new(10, 20)
+    }
+
+    fn test_source_path() -> PathBuf {
+        PathBuf::from("<mem>/refactor_materialized_mir.scoop")
+    }
+
+    fn unit_return_body() -> Body {
+        let mut body = Body::new_empty();
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    fn body_with_statement_todo() -> Body {
+        let mut body = unit_return_body();
+        body.blocks[0].stmts.push(Statement {
+            span: test_span(),
+            kind: StatementKind::Todo("assign lhs lowering pending"),
+        });
+        body
+    }
+
+    fn body_with_rvalue_todo(unit_ty: TypeId) -> Body {
+        let mut body = Body::new_empty();
+        let local = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("tmp".to_string()),
+            ty: unit_ty,
+            source: LocalSourceKind::CompilerTemporary,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: test_span(),
+                kind: StatementKind::Assign {
+                    target: local,
+                    value: Rvalue::Todo("missing expr"),
+                },
+            }],
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    fn body_with_terminator_todo() -> Body {
+        let mut body = Body::new_empty();
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Todo("unterminated"),
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    fn body_with_unwind_todo() -> Body {
+        let mut body = Body::new_empty();
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::Todo("perform unwind pending"),
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    fn generic_template_key() -> TemplateKey {
+        TemplateKey {
+            fqn: "fixtures.materialize.id".to_string(),
+            source_path: test_source_path(),
+            decl_span: test_span(),
+        }
+    }
+
+    fn generic_materializer_for_body(
+        body: Body,
+        eff_param_name: Option<String>,
+    ) -> (MirInstanceMaterializer, InstanceKey) {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let template = generic_template_key();
+        let fun = FunDecl {
+            span: template.decl_span,
+            fqn: template.fqn.clone(),
+            name: "id".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        };
+        let typecheck_types = TypeStore::new();
+        let materializer = MirInstanceMaterializer::new(
+            File {
+                items: vec![Item::Fun(fun)],
+            },
+            types,
+            builtins,
+            MaterializerConstructionInputs {
+                typecheck_types: &typecheck_types,
+                template_infos: vec![GenericTemplateInfo {
+                    request_lookup_key: (
+                        template.fqn.clone(),
+                        template.source_path.clone(),
+                        template.decl_span,
+                    ),
+                    template: template.clone(),
+                    type_param_names: Vec::new(),
+                    eff_param_name: eff_param_name.clone(),
+                    signature_key: "fun||id||Unit".to_string(),
+                    has_body: true,
+                }],
+                callable_body_infos: Vec::new(),
+                callable_signatures: vec![CallableSignatureInfo {
+                    template: template.clone(),
+                    fun_ty: builtins.unit,
+                    return_ty: builtins.unit,
+                    params: Vec::new(),
+                }],
+                known_receiver_subclasses: HashSet::new(),
+                direct_subclasses: HashMap::new(),
+                class_vtables: HashMap::new(),
+                interfaces: HashMap::new(),
+                class_itables: HashMap::new(),
+                top_level_fun_value_refs: HashMap::new(),
+                top_level_fun_call_bindings: HashMap::new(),
+                top_level_immutable_values: HashMap::new(),
+                request_sources: HashSet::new(),
+                request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
+                request_root_fun_keys: Vec::new(),
+            },
+            OptLevel::O0,
+            false,
+            false,
+        )
+        .unwrap();
+        let instance = InstanceKey {
+            template,
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+        };
+        (materializer, instance)
+    }
+
+    fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
+        let instance_keys = Vec::new();
+        let callable_families = MaterializedCallableFamilies::from_inputs(Vec::new());
+        let summaries = build_materialized_summary_table(&file, &types, &[], &[]);
+        let pass_artifacts = MaterializedMirPassArtifacts::from_initial_publication(
+            &file,
+            &summaries,
+            &callable_families,
+            &instance_keys,
+        );
+        MaterializedMir {
+            file,
+            types,
+            instance_keys,
+            summaries,
+            opt_level: OptLevel::O0,
+            callable_families,
+            pass_artifacts,
+            caller_side_pass_candidates: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_todo_rejects_statement_template() {
+        let (materializer, instance) =
+            generic_materializer_for_body(body_with_statement_todo(), None);
+
+        let err = materializer.run(vec![instance]).unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedTodo {
+                category: MirPlaceholderCategory::Statement,
+                reason: "assign lhs lowering pending",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_todo_rejects_rvalue_template() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let (materializer, instance) =
+            generic_materializer_for_body(body_with_rvalue_todo(builtins.unit), None);
+
+        let err = materializer.run(vec![instance]).unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedTodo {
+                category: MirPlaceholderCategory::Rvalue,
+                reason: "missing expr",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_todo_rejects_terminator_template() {
+        let (materializer, instance) =
+            generic_materializer_for_body(body_with_terminator_todo(), None);
+
+        let err = materializer.run(vec![instance]).unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedTodo {
+                category: MirPlaceholderCategory::Terminator,
+                reason: "unterminated",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_todo_rejects_unwind_template() {
+        let (materializer, instance) = generic_materializer_for_body(body_with_unwind_todo(), None);
+
+        let err = materializer.run(vec![instance]).unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedTodo {
+                category: MirPlaceholderCategory::UnwindAction,
+                reason: "perform unwind pending",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_param_rejects_frame_slot_type_param() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let param_ty = types.ty_param(TypeParamType {
+            name: "T".to_string(),
+            decl_file: test_source_path(),
+            decl_span: test_span(),
+        });
+        let mut body = unit_return_body();
+        body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("x".to_string()),
+            ty: param_ty,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let file = File {
+            items: vec![Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            })],
+        };
+        let materialized = materialized_for_test(file, types);
+
+        let err = materialized.validate_refactor_materialized().unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedUnresolvedGenericParam {
+                surface: "frame slot",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_missing_root_reports_template_span() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let typecheck_types = TypeStore::new();
+        let template = generic_template_key();
+
+        let err = match MirInstanceMaterializer::new(
+            File { items: Vec::new() },
+            types,
+            builtins,
+            MaterializerConstructionInputs {
+                typecheck_types: &typecheck_types,
+                template_infos: vec![GenericTemplateInfo {
+                    request_lookup_key: (
+                        template.fqn.clone(),
+                        template.source_path.clone(),
+                        template.decl_span,
+                    ),
+                    template: template.clone(),
+                    type_param_names: Vec::new(),
+                    eff_param_name: None,
+                    signature_key: "fun||id||Unit".to_string(),
+                    has_body: true,
+                }],
+                callable_body_infos: Vec::new(),
+                callable_signatures: Vec::new(),
+                known_receiver_subclasses: HashSet::new(),
+                direct_subclasses: HashMap::new(),
+                class_vtables: HashMap::new(),
+                interfaces: HashMap::new(),
+                class_itables: HashMap::new(),
+                top_level_fun_value_refs: HashMap::new(),
+                top_level_fun_call_bindings: HashMap::new(),
+                top_level_immutable_values: HashMap::new(),
+                request_sources: HashSet::new(),
+                request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
+                request_root_fun_keys: Vec::new(),
+            },
+            OptLevel::O0,
+            false,
+            false,
+        ) {
+            Ok(_) => panic!("missing generic MIR root should be rejected"),
+            Err(err) => err,
+        };
+
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MissingMirRootForTemplate {
+                fqn,
+                span,
+                call_site: None,
+                ..
+            } if fqn == "fixtures.materialize.id" && span == test_span()
+        ));
+    }
+
+    #[test]
+    fn refactor_materialized_mir_no_param_rejects_missing_effect_row_arg() {
+        let (materializer, instance) =
+            generic_materializer_for_body(unit_return_body(), Some("E".to_string()));
+
+        let err = materializer.run(vec![instance]).unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::EffectArgArityMismatch {
+                fqn,
+                expected: 1,
+                found: 0,
+                ..
+            } if fqn == "fixtures.materialize.id"
+        ));
     }
 
     #[test]
