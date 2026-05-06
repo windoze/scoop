@@ -173,6 +173,7 @@
 - `value.[field]` 必须在 comptime / typecheck 阶段解析为具体 field binding，再 lower 为普通 `MemberAccess` 或对应 HIR place。
 - 对无法静态解析的 splice field，给出 source diagnostic，说明 field 必须是 compile-time known string / field symbol。
 - 更新 comptime reflection side tables，使 HIR lowering 不从源码字符串猜 field。
+- 涉及本地 `struct` / `class` declaration 的 splice field HIR 验证必须先依赖 H4 declaration graph，避免 refactor no-Todo verifier 在进入 splice lowering 断言前被 `Item::Todo(type)` 阻断。
 
 阶段输出：
 
@@ -196,6 +197,7 @@
 
 - HIR file 本身能完整表达当前前端接受的非 executable declaration。
 - 不再把 typealias、type、object 当成 `Item::Todo`，也不要求下游回看 AST 才知道声明图。
+- 该阶段是本地类型 splice field HIR 验证的 prerequisite；完成后再收口 `value.[field]` 的 HIR lowering。
 
 实现：
 

@@ -28,8 +28,8 @@
 | `HIR-T01` | 建立 refactor HIR no-Todo verifier 与 stage error 通道 |
 | `HIR-T02` | 在 parser 拒绝纯语法延期/非法 surface |
 | `HIR-T03` | 收口 comptime block/if/for 与 package-level comptime if |
-| `HIR-T04` | 收口 splice field `value.[field]` |
 | `HIR-T05` | 为 typealias/type/object/extension property 建立 HIR declaration graph |
+| `HIR-T04` | 收口 splice field `value.[field]` |
 | `HIR-T06` | 收口 array literal、named/default/spread args 与 call arg canonicalization |
 | `HIR-T07` | 发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract |
 | `HIR-T08` | 收口 class literal 与 reflection/platform intrinsic HIR contract |
@@ -175,45 +175,15 @@
 
 - 完成条件：
   - `comptime_block`、`comptime_if`、`comptime_for`、`comptime_if_item` 不再出现在 refactor HIR handoff。
-  - 可进入 `HIR-T04`。
+  - 可进入 `HIR-T05`。
 - 完成记录（2026-05-06）：
   - 新增 `RuntimeComptimePlan` 与 `plan_runtime_comptime_in_file`，在 refactor typed HIR lowering 前基于已 resolved/typechecked AST 求值语句级 `comptime if` 条件与 `comptime for` 迭代集合。
   - refactor typed HIR lowering 现在消费该计划：`comptime block` 直接内联生成语句，`comptime if` 只 lower 选中分支，`comptime for` 按编译期迭代值展开 body；基础编译期 loop binder 可 lower 为 HIR 合成 literal，并为 unroll body 内局部声明重映射 synthetic span，避免重复 SymbolId。
   - typecheck 为 `comptime for` body 注入 binder 类型（覆盖 `IntProgression`、`Array`/`MutableArray`、`ComptimeList` 与 tuple 的当前可推导元素类型），使展开体中的 binder 引用能进入 typed HIR。
   - 新增单测 `refactor_hir_comptime_expands_block_if_for_and_package_if`，覆盖 function body `comptime block/if/for`、package-level `comptime if`、以及 `comptime for` binder literal lowering；新增 HIR fixture `tests/fixtures/hir/refactor_comptime_control_flow.{scoop,hir}`。
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_comptime`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_comptime_control_flow.scoop`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
-  - 已尝试任务列出的 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`；当前仍在进入 HIR 前以既有 `scoop::typecheck::missing_type_annotation`（顶层 `P`）诊断失败，未生成 comptime placeholder。该 fixture 的 splice/type declaration HIR 收口仍归后续 `HIR-T04`/`HIR-T05`。
+  - 已尝试任务列出的 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`；当前仍在进入 HIR 前以既有 `scoop::typecheck::missing_type_annotation`（顶层 `P`）诊断失败，未生成 comptime placeholder。该 fixture 的 type declaration/splice HIR 收口仍归后续 `HIR-T05`/`HIR-T04`。
 - 依赖：`HIR-T02`
-
-## HIR-T04：收口 splice field `value.[field]`
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §2/H3
-  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.2
-- 目标：
-  - `value.[field]` 在 HIR 中变成具体 typed field/member access。
-
-- 必须实现的内容：
-  1. typecheck/comptime 发布 splice field contract：receiver type、field name、field owner、field type、是否 mutable/place。
-  2. HIR lowering 直接消费该 contract，构造普通 `MemberAccess` 或 HIR place。
-  3. 对 string literal field、comptime variable field、reflection loop field 都建立覆盖。
-  4. field 无法静态解析时，diagnostic 要说明 `.[field]` 要求 compile-time known field name。
-  5. HIR verifier 禁止 `splice_field` reason。
-
-- 必须遵从的约束：
-  - MIR 不能再从 `SpliceField` AST shape 恢复 field。
-  - 不能把 unresolved splice field 降成 dynamic reflection fallback，除非 spec 明确支持且 HIR contract 已定义。
-
-- 验证：
-  - `cargo test -p scoopc --no-default-features refactor_hir_splice_field`
-  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`
-  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
-  - 新增 unresolved splice negative fixture。
-
-- 完成条件：
-  - `ExprKind::Todo("splice_field")` 不再可达 refactor HIR。
-  - 可进入 `HIR-T05`。
-- 依赖：`HIR-T03`
 
 ## HIR-T05：为 typealias/type/object/extension property 建立 HIR declaration graph
 
@@ -242,8 +212,44 @@
 
 - 完成条件：
   - `Item::Todo("typealias" / "type" / "object" / "extension_property_no_getter")` 不再可达 refactor HIR。
+  - 可进入 `HIR-T04`。
+- 调整记录（2026-05-06）：
+  - `HIR-T04` 的指定 `dump-hir` 验证 fixture 含本地 `struct Point`；在 refactor no-Todo verifier 下会先被 `Item::Todo(type)` 拒绝。
+  - 因此 declaration graph 是 `HIR-T04` 的具体 prerequisite，先完成本任务，再回到 splice field HIR lowering。
+- 依赖：`HIR-T03`
+
+## HIR-T04：收口 splice field `value.[field]`
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/H3
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.2
+- 目标：
+  - `value.[field]` 在 HIR 中变成具体 typed field/member access。
+
+- 必须实现的内容：
+  1. typecheck/comptime 发布 splice field contract：receiver type、field name、field owner、field type、是否 mutable/place。
+  2. HIR lowering 直接消费该 contract，构造普通 `MemberAccess` 或 HIR place。
+  3. 对 string literal field、comptime variable field、reflection loop field 都建立覆盖。
+  4. field 无法静态解析时，diagnostic 要说明 `.[field]` 要求 compile-time known field name。
+  5. HIR verifier 禁止 `splice_field` reason。
+
+- 必须遵从的约束：
+  - MIR 不能再从 `SpliceField` AST shape 恢复 field。
+  - 不能把 unresolved splice field 降成 dynamic reflection fallback，除非 spec 明确支持且 HIR contract 已定义。
+
+- 验证：
+  - `cargo test -p scoopc --no-default-features refactor_hir_splice_field`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
+  - 新增 unresolved splice negative fixture。
+
+- 完成条件：
+  - `ExprKind::Todo("splice_field")` 不再可达 refactor HIR。
   - 可进入 `HIR-T06`。
-- 依赖：`HIR-T04`
+- 阻塞记录（2026-05-06）：
+  - 指定验证 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 当前先失败于 `scoop::typecheck::missing_type_annotation`（顶层 `P`）；即使补齐注解，同类本地 `struct` splice fixture 也会被 refactor HIR no-Todo verifier 以 `Item::Todo(type)` 拒绝。
+  - 该失败属于 `HIR-T05` declaration graph prerequisite，不能通过削弱 splice fixture、跳过 verifier 或保留 `splice_field` placeholder 绕过。
+- 依赖：`HIR-T03`, `HIR-T05`
 
 ## HIR-T06：收口 array literal、named/default/spread args 与 call arg canonicalization
 
@@ -274,7 +280,7 @@
 - 完成条件：
   - `array_lit`、`named_arg`、`spread_arg` placeholder 不再可达 refactor HIR。
   - 可进入 `HIR-T07`。
-- 依赖：`HIR-T05`
+- 依赖：`HIR-T04`
 
 ## HIR-T07：发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract
 
