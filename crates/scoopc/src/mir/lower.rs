@@ -14,7 +14,9 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::effect_refactor_pipeline::{
-    HandleArmContractKind, MemberCallTargetContract, TypedCallSiteContract, TypedHirEffectContracts,
+    ExternGlobalContract, HandleArmContractKind, MemberCallTargetContract,
+    TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
+    TypedCallSiteContract, TypedHirEffectContracts,
 };
 use crate::hir;
 use crate::session::Session;
@@ -25,12 +27,17 @@ use crate::ty::{
 };
 
 use super::{
-    BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, DispatchMetadata, File, FunDecl,
-    HandleMetadata, HandlerArm, HandlerArmKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
-    LocalSourceKind, MemberAccessMetadata, MemberTarget, MirValidationError, Operand, Param,
-    Pattern, PatternBindingStep, PerformArg, PerformMetadata, ResumeMetadata, Rvalue, SiteId,
-    Statement, StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
-    Terminator, TerminatorKind, TopLevelRef, UnwindAction,
+    AccessorMetadata, BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, CtorMetadata,
+    CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
+    EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
+    HandleMetadata, HandlerArm, HandlerArmKind, InitializerDependency, InitializerDependencyKind,
+    InitializerRoot, InitializerRootKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
+    LocalSourceKind, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
+    MirValidationError, NominalMetadata, ObjectMetadata, Operand, Param, Pattern,
+    PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata, Rvalue,
+    SiteId, Statement, StatementKind, StoredContinuationRoutePublication,
+    StoredContinuationValueRoute, SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef,
+    TypeAliasMetadata, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -59,6 +66,8 @@ pub(crate) struct MirLoweringFacts {
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
     top_level_ref_hidden_effects: HashMap<String, EffectRow>,
+    refactor_top_level_init_roots: Vec<TopLevelInitRootContract>,
+    refactor_extern_global_contracts: Vec<ExternGlobalContract>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
@@ -81,6 +90,8 @@ impl Default for MirLoweringFacts {
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
             top_level_ref_hidden_effects: HashMap::new(),
+            refactor_top_level_init_roots: Vec::new(),
+            refactor_extern_global_contracts: Vec::new(),
             when_pat_binding_tys: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
@@ -322,6 +333,8 @@ impl MirLoweringFacts {
         self.refactor_handle_sites.clear();
         self.refactor_dispatch_sites.clear();
         self.refactor_assign_places.clear();
+        self.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
+        self.refactor_extern_global_contracts = contracts.extern_global_contracts().to_vec();
 
         for (call_site, contract) in contracts.continuation_resume_sites() {
             self.refactor_resume_sites.insert(
@@ -508,6 +521,14 @@ impl MirLoweringFacts {
             .get(fqn)
             .cloned()
             .unwrap_or_else(EffectRow::pure)
+    }
+
+    fn refactor_top_level_init_roots(&self) -> &[TopLevelInitRootContract] {
+        &self.refactor_top_level_init_roots
+    }
+
+    fn refactor_extern_global_contracts(&self) -> &[ExternGlobalContract] {
+        &self.refactor_extern_global_contracts
     }
 
     fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {
@@ -957,6 +978,25 @@ impl<'a> MirLowering<'a> {
     fn lower_file(&mut self, file: &hir::File, member_funs: &[hir::FunDecl]) -> File {
         let top_level_fun_return_tys = collect_top_level_fun_return_tys(file, member_funs);
         let mut items = Vec::with_capacity(file.items.len() + member_funs.len());
+        if self.facts.uses_refactor_typed_contracts() {
+            items.extend(
+                file.decls
+                    .iter()
+                    .map(|decl| Item::Metadata(lower_decl_metadata(decl))),
+            );
+            items.extend(
+                self.facts
+                    .refactor_top_level_init_roots()
+                    .iter()
+                    .map(|root| Item::InitializerRoot(self.lower_initializer_root(root))),
+            );
+            items.extend(
+                self.facts
+                    .refactor_extern_global_contracts()
+                    .iter()
+                    .map(|contract| Item::ExternGlobal(lower_extern_global_root(contract))),
+            );
+        }
         for item in &file.items {
             match item {
                 hir::Item::Fun(fun) => {
@@ -964,6 +1004,7 @@ impl<'a> MirLowering<'a> {
                     items.push(Item::Fun(primary));
                     items.extend(nested.into_iter().map(Item::Fun));
                 }
+                hir::Item::Val(_) if self.facts.uses_refactor_typed_contracts() => {}
                 hir::Item::Val(decl) => items.push(Item::Todo {
                     span: decl.span,
                     kind: "top-level val",
@@ -981,6 +1022,23 @@ impl<'a> MirLowering<'a> {
         }
 
         File { items }
+    }
+
+    fn lower_initializer_root(&self, root: &TopLevelInitRootContract) -> InitializerRoot {
+        InitializerRoot {
+            span: root.span(),
+            fqn: root.fqn().to_string(),
+            source_path: root.source_path().to_path_buf(),
+            kind: lower_initializer_root_kind(root.kind()),
+            ty: root.ty(),
+            has_initializer: root.has_initializer(),
+            dependencies: root
+                .dependencies()
+                .iter()
+                .map(lower_initializer_dependency)
+                .collect(),
+            hidden_effects: self.facts.top_level_ref_hidden_effects(root.fqn()),
+        }
     }
 
     /// 把一个函数降到 MIR。
@@ -1015,6 +1073,219 @@ fn collect_top_level_fun_return_tys(
         return_tys.insert(fun.fqn.clone(), fun.return_ty);
     }
     return_tys
+}
+
+fn lower_initializer_root_kind(kind: TopLevelInitRootKind) -> InitializerRootKind {
+    match kind {
+        TopLevelInitRootKind::ConstVal => InitializerRootKind::ConstVal,
+        TopLevelInitRootKind::RuntimeImmutableVal => InitializerRootKind::RuntimeImmutableVal,
+        TopLevelInitRootKind::RuntimeMutableVar { storage } => {
+            InitializerRootKind::RuntimeMutableVar { storage }
+        }
+        TopLevelInitRootKind::ObjectSingleton => InitializerRootKind::ObjectSingleton,
+    }
+}
+
+fn lower_initializer_dependency(
+    dependency: &crate::effect_refactor_pipeline::TopLevelInitDependency,
+) -> InitializerDependency {
+    InitializerDependency {
+        fqn: dependency.fqn().to_string(),
+        kind: match dependency.kind() {
+            TopLevelInitDependencyKind::TopLevelValue => InitializerDependencyKind::TopLevelValue,
+            TopLevelInitDependencyKind::ObjectSingleton => {
+                InitializerDependencyKind::ObjectSingleton
+            }
+        },
+    }
+}
+
+fn lower_extern_global_root(contract: &ExternGlobalContract) -> ExternGlobalRoot {
+    ExternGlobalRoot {
+        span: contract.span(),
+        fqn: contract.fqn().to_string(),
+        source_path: contract.source_path().to_path_buf(),
+        ty: contract.ty(),
+        mutable: contract.mutable(),
+        symbol: contract.symbol().to_string(),
+        linkage: contract.linkage(),
+        storage: contract.storage(),
+        initializer_absent: contract.initializer_absent(),
+        unsafe_required: contract.unsafe_required(),
+    }
+}
+
+fn lower_decl_metadata(decl: &hir::Decl) -> MetadataRoot {
+    match decl {
+        hir::Decl::TypeAlias(alias) => MetadataRoot::TypeAlias(TypeAliasMetadata {
+            span: alias.span,
+            fqn: alias.fqn.clone(),
+            name: alias.name.clone(),
+            type_params: alias
+                .type_params
+                .iter()
+                .map(lower_decl_type_param_metadata)
+                .collect(),
+            ty: alias.ty,
+        }),
+        hir::Decl::Nominal(nominal) => MetadataRoot::Nominal(NominalMetadata {
+            span: nominal.span,
+            fqn: nominal.fqn.clone(),
+            name: nominal.name.clone(),
+            kind: nominal.kind,
+            type_params: nominal
+                .type_params
+                .iter()
+                .map(lower_decl_type_param_metadata)
+                .collect(),
+            supertypes: nominal
+                .supertypes
+                .iter()
+                .map(lower_supertype_metadata)
+                .collect(),
+            interfaces: nominal.interfaces.clone(),
+            constructors: nominal
+                .constructors
+                .iter()
+                .map(lower_ctor_metadata)
+                .collect(),
+            members: nominal
+                .members
+                .iter()
+                .map(lower_decl_member_metadata)
+                .collect(),
+        }),
+        hir::Decl::Object(object) => MetadataRoot::Object(ObjectMetadata {
+            span: object.span,
+            fqn: object.fqn.clone(),
+            name: object.name.clone(),
+            kind: object.kind,
+            supertypes: object
+                .supertypes
+                .iter()
+                .map(lower_supertype_metadata)
+                .collect(),
+            interfaces: object.interfaces.clone(),
+            initializer_root: object.initializer_root.clone(),
+            members: object
+                .members
+                .iter()
+                .map(lower_decl_member_metadata)
+                .collect(),
+        }),
+        hir::Decl::ExtensionProperty(prop) => {
+            MetadataRoot::ExtensionProperty(ExtensionPropertyMetadata {
+                span: prop.span,
+                fqn: prop.fqn.clone(),
+                name: prop.name.clone(),
+                type_params: prop
+                    .type_params
+                    .iter()
+                    .map(lower_decl_type_param_metadata)
+                    .collect(),
+                mutable: prop.mutable,
+                receiver_ty: prop.receiver_ty,
+                ty: prop.ty,
+                getter: prop.getter.as_ref().map(lower_accessor_metadata),
+                setter: prop.setter.as_ref().map(lower_accessor_metadata),
+            })
+        }
+    }
+}
+
+fn lower_decl_type_param_metadata(param: &hir::DeclTypeParam) -> DeclTypeParamMetadata {
+    DeclTypeParamMetadata {
+        span: param.span,
+        name: param.name.clone(),
+        variance: param.variance,
+        ty: param.ty,
+    }
+}
+
+fn lower_supertype_metadata(supertype: &hir::SupertypeDecl) -> SupertypeMetadata {
+    SupertypeMetadata {
+        span: supertype.span,
+        fqn: supertype.fqn.clone(),
+        ty: supertype.ty,
+        ctor_arg_count: supertype.ctor_arg_count,
+    }
+}
+
+fn lower_ctor_metadata(ctor: &hir::CtorDecl) -> CtorMetadata {
+    CtorMetadata {
+        span: ctor.span,
+        kind: ctor.kind,
+        params: ctor.params.iter().map(lower_ctor_param_metadata).collect(),
+        delegation: ctor.delegation,
+    }
+}
+
+fn lower_ctor_param_metadata(param: &hir::CtorParamDecl) -> CtorParamMetadata {
+    CtorParamMetadata {
+        span: param.span,
+        name: param.name.clone(),
+        ty: param.ty,
+        has_default: param.has_default,
+        property: param.property,
+    }
+}
+
+fn lower_decl_member_metadata(member: &hir::DeclMember) -> DeclMemberMetadata {
+    match member {
+        hir::DeclMember::Field(field) => DeclMemberMetadata::Field(lower_field_metadata(field)),
+        hir::DeclMember::Property(prop) => DeclMemberMetadata::Property(PropertyMetadata {
+            span: prop.span,
+            fqn: prop.fqn.clone(),
+            name: prop.name.clone(),
+            mutable: prop.mutable,
+            ty: prop.ty,
+            has_backing_field: prop.has_backing_field,
+            getter: prop.getter.as_ref().map(lower_accessor_metadata),
+            setter: prop.setter.as_ref().map(lower_accessor_metadata),
+        }),
+        hir::DeclMember::Fun(fun) => DeclMemberMetadata::Fun(MemberFunMetadata {
+            span: fun.span,
+            fqn: fun.fqn.clone(),
+            name: fun.name.clone(),
+            type_params: fun
+                .type_params
+                .iter()
+                .map(lower_decl_type_param_metadata)
+                .collect(),
+            params: fun.params.iter().map(lower_ctor_param_metadata).collect(),
+            return_ty: fun.return_ty,
+        }),
+        hir::DeclMember::EnumVariant(variant) => {
+            DeclMemberMetadata::EnumVariant(EnumVariantMetadata {
+                span: variant.span,
+                fqn: variant.fqn.clone(),
+                name: variant.name.clone(),
+                fields: variant.fields.iter().map(lower_field_metadata).collect(),
+            })
+        }
+        hir::DeclMember::InitBlock { span } => DeclMemberMetadata::InitBlock { span: *span },
+        hir::DeclMember::Nested(decl) => {
+            DeclMemberMetadata::Nested(Box::new(lower_decl_metadata(decl)))
+        }
+    }
+}
+
+fn lower_field_metadata(field: &hir::FieldDecl) -> FieldMetadata {
+    FieldMetadata {
+        span: field.span,
+        fqn: field.fqn.clone(),
+        name: field.name.clone(),
+        mutable: field.mutable,
+        ty: field.ty,
+        origin: field.origin,
+    }
+}
+
+fn lower_accessor_metadata(accessor: &hir::AccessorContract) -> AccessorMetadata {
+    AccessorMetadata {
+        span: accessor.span,
+        fqn: accessor.fqn.clone(),
+    }
 }
 
 /// 函数体 lowering：负责为单个函数构造 `Body`、管理 locals、并生成显式 CFG。
@@ -4347,7 +4618,7 @@ fun <eff E = Pure> wrap(box: Box): Int / E {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) => Some(fun.fqn.as_str()),
-                Item::Todo { .. } => None,
+                _ => None,
             })
             .collect::<Vec<_>>();
 
@@ -4390,7 +4661,7 @@ fun <eff E = Pure> wrap(): Int / E {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) => Some(fun.fqn.as_str()),
-                Item::Todo { .. } => None,
+                _ => None,
             })
             .collect::<Vec<_>>();
 
@@ -4429,7 +4700,7 @@ fun repeat<T>(x: T, n: Int): T {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.fqn == "fixtures.mirlower.repeat" => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .expect("expected generic repeat MIR root");
         let body = fun.body.as_ref().expect("repeat should have a MIR body");
@@ -4476,7 +4747,7 @@ fun entry(lhs: Num, rhs: Num): Bool {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.fqn == "fixtures.mirlower.entry" => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .expect("expected entry MIR root");
         let body = fun.body.as_ref().expect("entry should have a MIR body");
@@ -4552,7 +4823,7 @@ fun entry(lhs: Num, rhs: Num): Int {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.fqn == "fixtures.mirlower.entry" => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .expect("expected entry MIR root");
         let body = fun.body.as_ref().expect("entry should have a MIR body");
@@ -4627,7 +4898,7 @@ fun entry(lhs: Num, rhs: Num): Int {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.fqn == "main" => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .expect("expected main MIR root");
         let body = fun.body.as_ref().expect("main should have a MIR body");

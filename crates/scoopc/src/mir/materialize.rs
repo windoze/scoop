@@ -32,12 +32,16 @@ use crate::typecheck::{
 };
 
 use super::{
-    BasicBlockId, Body, CallArg, CallKind, ConstValue, DeclOnlySummaryInput, File, FunDecl,
-    HandleMetadata, HandlerArm, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
-    MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
-    MaterializedMirSummaries, MemberAccessMetadata, MemberTarget, MirPlaceholderCategory, Operand,
-    Param, Pattern, PerformArg, PerformMetadata, Rvalue, Statement, StatementKind, StructLitField,
-    Terminator, TerminatorKind, TopLevelRef, UnwindAction, build_materialized_summary_table,
+    BasicBlockId, Body, CallArg, CallKind, ConstValue, DeclMemberMetadata, DeclOnlySummaryInput,
+    DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File,
+    FunDecl, HandleMetadata, HandlerArm, InitializerRoot, InstanceRootSummaryInput,
+    InterpolatedStringPart, Item, LocalDecl, MaterializedCallableFamilies,
+    MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
+    MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory,
+    NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata,
+    PropertyMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
+    Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, UnwindAction,
+    build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -470,8 +474,20 @@ fn validate_refactor_materialized_mir(materialized: &MaterializedMir) -> Materia
 fn collect_materialized_known_roots(materialized: &MaterializedMir) -> HashSet<String> {
     let mut roots = HashSet::new();
     for item in &materialized.file.items {
-        if let Item::Fun(fun) = item {
-            roots.insert(fun.fqn.clone());
+        match item {
+            Item::Fun(fun) => {
+                roots.insert(fun.fqn.clone());
+            }
+            Item::InitializerRoot(root) => {
+                roots.insert(root.fqn.clone());
+            }
+            Item::ExternGlobal(root) => {
+                roots.insert(root.fqn.clone());
+            }
+            Item::Metadata(root) => {
+                roots.insert(root.fqn().to_string());
+            }
+            Item::Todo { .. } => {}
         }
     }
     let pass_view = materialized.pass_view();
@@ -523,6 +539,9 @@ fn validate_materialized_item(
         Item::Fun(fun) => {
             validate_materialized_fun(materialized, fun, known_roots, generic_templates)
         }
+        Item::InitializerRoot(root) => validate_materialized_initializer_root(materialized, root),
+        Item::ExternGlobal(root) => validate_materialized_extern_global_root(materialized, root),
+        Item::Metadata(root) => validate_materialized_metadata_root(materialized, root),
         Item::Todo { span, kind } => Err(materialize_err(MirMaterializeError::MaterializedTodo {
             fqn: "<file>".to_string(),
             block: None,
@@ -531,6 +550,278 @@ fn validate_materialized_item(
             reason: kind,
         })),
     }
+}
+
+fn validate_materialized_initializer_root(
+    materialized: &MaterializedMir,
+    root: &InitializerRoot,
+) -> MaterializeResult<()> {
+    if let Some(ty) = root.ty {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn: &root.fqn,
+                block: None,
+                span: root.span,
+                surface: "initializer root type",
+            },
+            ty,
+        )?;
+    }
+    validate_materialized_effect_row(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &root.fqn,
+            block: None,
+            span: root.span,
+            surface: "initializer root hidden effects",
+        },
+        &root.hidden_effects,
+    )
+}
+
+fn validate_materialized_extern_global_root(
+    materialized: &MaterializedMir,
+    root: &ExternGlobalRoot,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &root.fqn,
+            block: None,
+            span: root.span,
+            surface: "extern global type",
+        },
+        root.ty,
+    )
+}
+
+fn validate_materialized_metadata_root(
+    materialized: &MaterializedMir,
+    root: &MetadataRoot,
+) -> MaterializeResult<()> {
+    match root {
+        MetadataRoot::TypeAlias(alias) => {
+            validate_materialized_typealias_metadata(materialized, alias)
+        }
+        MetadataRoot::Nominal(nominal) => {
+            validate_materialized_nominal_metadata(materialized, nominal)
+        }
+        MetadataRoot::Object(object) => validate_materialized_object_metadata(materialized, object),
+        MetadataRoot::ExtensionProperty(prop) => {
+            validate_materialized_extension_property_metadata(materialized, prop)
+        }
+    }
+}
+
+fn validate_materialized_typealias_metadata(
+    materialized: &MaterializedMir,
+    alias: &TypeAliasMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_decl_type_params(materialized, &alias.fqn, &alias.type_params)?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &alias.fqn,
+            block: None,
+            span: alias.span,
+            surface: "typealias target type",
+        },
+        alias.ty,
+    )
+}
+
+fn validate_materialized_nominal_metadata(
+    materialized: &MaterializedMir,
+    nominal: &NominalMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_decl_type_params(materialized, &nominal.fqn, &nominal.type_params)?;
+    for supertype in &nominal.supertypes {
+        validate_materialized_supertype_metadata(materialized, &nominal.fqn, supertype)?;
+    }
+    for ctor in &nominal.constructors {
+        for param in &ctor.params {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn: &nominal.fqn,
+                    block: None,
+                    span: param.span,
+                    surface: "constructor parameter type",
+                },
+                param.ty,
+            )?;
+        }
+    }
+    validate_materialized_decl_members(materialized, &nominal.fqn, &nominal.members)
+}
+
+fn validate_materialized_object_metadata(
+    materialized: &MaterializedMir,
+    object: &ObjectMetadata,
+) -> MaterializeResult<()> {
+    for supertype in &object.supertypes {
+        validate_materialized_supertype_metadata(materialized, &object.fqn, supertype)?;
+    }
+    validate_materialized_decl_members(materialized, &object.fqn, &object.members)
+}
+
+fn validate_materialized_extension_property_metadata(
+    materialized: &MaterializedMir,
+    prop: &ExtensionPropertyMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_decl_type_params(materialized, &prop.fqn, &prop.type_params)?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &prop.fqn,
+            block: None,
+            span: prop.span,
+            surface: "extension receiver type",
+        },
+        prop.receiver_ty,
+    )?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: &prop.fqn,
+            block: None,
+            span: prop.span,
+            surface: "extension property type",
+        },
+        prop.ty,
+    )
+}
+
+fn validate_materialized_decl_type_params(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    params: &[DeclTypeParamMetadata],
+) -> MaterializeResult<()> {
+    for param in params {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: None,
+                span: param.span,
+                surface: "declaration type parameter",
+            },
+            param.ty,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_supertype_metadata(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    supertype: &SupertypeMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: None,
+            span: supertype.span,
+            surface: "supertype metadata",
+        },
+        supertype.ty,
+    )
+}
+
+fn validate_materialized_decl_members(
+    materialized: &MaterializedMir,
+    owner_fqn: &str,
+    members: &[DeclMemberMetadata],
+) -> MaterializeResult<()> {
+    for member in members {
+        match member {
+            DeclMemberMetadata::Field(field) => {
+                validate_materialized_field_metadata(materialized, owner_fqn, field)?;
+            }
+            DeclMemberMetadata::Property(prop) => {
+                validate_materialized_property_metadata(materialized, owner_fqn, prop)?;
+            }
+            DeclMemberMetadata::Fun(fun) => {
+                validate_materialized_member_fun_metadata(materialized, owner_fqn, fun)?;
+            }
+            DeclMemberMetadata::EnumVariant(variant) => {
+                for field in &variant.fields {
+                    validate_materialized_field_metadata(materialized, owner_fqn, field)?;
+                }
+            }
+            DeclMemberMetadata::InitBlock { .. } => {}
+            DeclMemberMetadata::Nested(root) => {
+                validate_materialized_metadata_root(materialized, root)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_materialized_field_metadata(
+    materialized: &MaterializedMir,
+    owner_fqn: &str,
+    field: &FieldMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: owner_fqn,
+            block: None,
+            span: field.span,
+            surface: "field type",
+        },
+        field.ty,
+    )
+}
+
+fn validate_materialized_property_metadata(
+    materialized: &MaterializedMir,
+    owner_fqn: &str,
+    prop: &PropertyMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: owner_fqn,
+            block: None,
+            span: prop.span,
+            surface: "property type",
+        },
+        prop.ty,
+    )
+}
+
+fn validate_materialized_member_fun_metadata(
+    materialized: &MaterializedMir,
+    owner_fqn: &str,
+    fun: &MemberFunMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_decl_type_params(materialized, owner_fqn, &fun.type_params)?;
+    for param in &fun.params {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn: owner_fqn,
+                block: None,
+                span: param.span,
+                surface: "member function parameter type",
+            },
+            param.ty,
+        )?;
+    }
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn: owner_fqn,
+            block: None,
+            span: fun.span,
+            surface: "member function return type",
+        },
+        fun.return_ty,
+    )
 }
 
 fn validate_materialized_fun(

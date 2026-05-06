@@ -47,7 +47,7 @@ impl MaterializedMirPassArtifacts {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) if fun.body.is_some() => Some((fun.fqn.clone(), fun.clone())),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .collect::<HashMap<_, _>>();
         Self {

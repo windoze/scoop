@@ -2564,7 +2564,7 @@ fn collect_raw_fun_by_fqn(file: &MirFile) -> HashMap<String, MirFunDecl> {
         .iter()
         .filter_map(|item| match item {
             MirItem::Fun(fun) => Some((fun.fqn.clone(), fun.clone())),
-            MirItem::Todo { .. } => None,
+            _ => None,
         })
         .collect()
 }

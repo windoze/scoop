@@ -1,24 +1,52 @@
-# 执行计划
+# Claude Plan
 
-## 当前状态
+## Scope
+- Execute exactly the first incomplete task in `TODO.md`, then stop.
+- Treat `TODO.md` as authoritative for task order, dependencies, validation, and completion records.
+- Do not perform broad historical triage before identifying the current task.
 
-- 本文件用于记录本次调用的可公开执行计划、关键决策和进度更新。
-- 已读取 `TODO.md`，原第一个未完成任务为 `MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包`。
-- 执行 `MIR-T04` 指定 splice-field `dump-mir` 验证时发现直接 blocker：strict refactor MIR 在 `tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 上拒绝 `Item::Todo { kind: "top-level val" }`。
-- 该 blocker 已由现有 `MIR-T05` 覆盖，因此本次只调整任务顺序和依赖，停止在前置任务修复之前。
+## Execution Plan
+1. Read `TODO.md` and identify the first heading that is not prefixed with `[DONE]`.
+2. Check the latest commit only for an explicitly mentioned unfinished issue that directly affects that task.
+3. Inspect only the files and implementation areas needed for the selected task.
+4. Implement the task as written, without narrowing scope or using fixture-only workarounds.
+5. Add or update the smallest relevant tests/fixtures required by the task.
+6. Run the task-specified validations and relevant regression tests.
+7. If a concrete blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
+8. If implementation succeeds, mark the task title `[DONE]` in `TODO.md` and update its completion record.
+9. Commit all relevant changes with a clear task-tagged commit message.
+10. Stop without starting the next task.
 
-## 步骤计划
+## Current Progress
+- Plan initialized before task selection.
+- First incomplete task selected: `MIR-T05：建立完整 MIR program item graph 与 top-level roots`.
+- Latest commit references the same prerequisite relationship (`[MIR-T04] Record top-level roots prerequisite`), so it is directly relevant and confirms `MIR-T05` is the current execution unit.
 
-1. 保持 `MIR-T04` 未完成，不标记 `[DONE]`。
-2. 在 `TODO.md` 中将已存在的 `MIR-T05` 前移为 `MIR-T04` 的前置任务，并记录 blocker 原因。
-3. 在 `PLAN.md` 中记录这次阶段依赖调整，因为 M3 top-level roots 现在必须先于剩余 M2 surface 闭包验证。
-4. 提交 `TODO.md`、`PLAN.md` 和本计划文件的变更。
-5. 停止，不实现 `MIR-T04` 或继续下一任务。
+## Current Task Plan: MIR-T05
+1. Inspect the existing MIR item model, MIR lowering for top-level items, root/materialization indexes, and refactor stage output APIs.
+2. Implement non-executable MIR declarations and executable initializer/root metadata for top-level values and related declarations.
+3. Ensure `hir::Item::Val` no longer lowers to `Item::Todo` on the refactor production path.
+4. Add query APIs for callable roots, initializer roots, global/extern roots, and nominal/object/typealias metadata roots.
+5. Add/update targeted tests and fixture `tests/fixtures/mir_refactor/top_level_roots.scoop`.
+6. Run the required validations for `MIR-T05` and fix any task-scoped regressions.
+7. Mark `MIR-T05` `[DONE]` in `TODO.md`, update its completion record, then commit all relevant changes.
 
-## 进度记录
+## Discoveries
+- HIR refactor stage already publishes `TopLevelInitRootContract`, `ExternGlobalContract`, and a declaration graph in `hir::File::decls`.
+- MIR lowering still emits `Item::Todo { kind: "top-level val" }` for `hir::Item::Val`, which is the direct blocker for `MIR-T05` and `MIR-T04`'s splice dump command.
+- The minimal correct route is to copy those typed HIR contracts into explicit MIR item graph entries during refactor MIR lowering, then build query APIs from MIR items instead of HIR side tables.
 
-- 已创建初始计划文件。
-- 已确认当前任务为 `MIR-T04`。
-- 已运行指定 splice-field `dump-mir` 验证，失败原因为 `<file>` 上 `top-level val` item Todo。
-- 已更新 `TODO.md`：`MIR-T05` 前移到 `MIR-T04` 之前，`MIR-T04` 依赖增加 `MIR-T05`，并记录不得绕过该 blocker。
-- 已更新 `PLAN.md`：记录 M3 top-level roots 需要先于 `MIR-T04` 验证执行。
+## Progress
+- Added MIR item graph entries for initializer roots, extern globals, and declaration metadata roots.
+- Refactor MIR lowering now publishes HIR declaration graph and typed top-level/global contracts as MIR items, and skips the old top-level `val` Todo on the refactor path.
+- Added `RefactorMirStageOutput` query APIs for initializer, global, and metadata roots.
+- Added `refactor_mir_item_graph_publishes_top_level_roots` and `tests/fixtures/mir_refactor/top_level_roots.scoop`.
+- Validation passed so far:
+  - `cargo test -p scoopc --no-default-features refactor_mir_item_graph`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/top_level_roots.scoop`
+  - `cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`
+  - `cargo test -p scoopc --no-default-features refactor_mir_no_todo`
+  - `cargo test -p scoopc --no-default-features refactor_materialized_mir`
+  - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`
+- `TODO.md` now marks `MIR-T05` as `[DONE]` with completion records and validation logs.

@@ -325,6 +325,9 @@ fn assert_no_hir_origin_mir_fallbacks(
                 assert_not_hir_origin_mir_fallback(kind, fixture, "top-level MIR item");
                 continue;
             }
+            MirItem::InitializerRoot(_) | MirItem::ExternGlobal(_) | MirItem::Metadata(_) => {
+                continue;
+            }
         };
         let Some(body) = &fun.body else {
             continue;

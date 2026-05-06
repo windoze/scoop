@@ -247,7 +247,7 @@
   - diagnostics fixtures 通过：`parse/spawn_deferred_is_error.scoop`、`parse/join_deferred_is_error.scoop`、`parse/parser_recovery_missing_stmt_is_error.scoop`、`typecheck/spawn_deferred_is_error.scoop`、`typecheck/join_deferred_is_error.scoop`、`resolve/package_level_comptime_if_untrimmed_is_error.scoop`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T05：建立完整 MIR program item graph 与 top-level roots
+## [DONE] MIR-T05：建立完整 MIR program item graph 与 top-level roots
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M3
@@ -289,6 +289,20 @@
 - 排序记录（2026-05-06）：
   - `MIR-T04` 的指定验证命令 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 当前被 `top-level val` MIR item placeholder 阻塞。
   - 该 blocker 属于本任务范围，因此本任务前移为 `MIR-T04` 的前置任务；不得通过替换 fixture、跳过指定命令或放宽 strict verifier 绕过。
+
+- 完成记录（2026-05-06）：
+  - 新增 MIR-owned `InitializerRoot`、`ExternGlobalRoot`、`MetadataRoot` item graph 表达，覆盖 top-level const/runtime val/var/object singleton initializer roots、extern global contract、typealias/nominal/object/extension-property metadata roots。
+  - refactor MIR lowering 现在从 typed HIR handoff 发布 declaration graph、top-level initializer roots、extern global roots，并在 refactor path 上跳过旧的 `Item::Todo { kind: "top-level val" }` 降级路径。
+  - `RefactorMirStageOutput` 新增 callable/initializer/global/metadata root 查询面；后续阶段可从 MIR stage output 查询 top-level values、extern globals、type/object/typealias metadata 和 object/member callable roots。
+  - materialized MIR verifier/known-root 收集已识别新的 MIR root item，避免后续恢复 top-level root 时只认 callable roots。
+  - 新增 `tests/fixtures/mir_refactor/top_level_roots.scoop` 和 `refactor_mir_item_graph_publishes_top_level_roots` 单测，覆盖 top-level val、typealias、type、object、extern global。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_item_graph`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/top_level_roots.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - `MIR-T04` 原 blocker 验证已通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`。
 
 ## MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
 

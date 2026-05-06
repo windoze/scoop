@@ -122,7 +122,7 @@ impl ClosureSimplifySnapshot {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) => Some((fun.fqn.clone(), fun.clone())),
-                Item::Todo { .. } => None,
+                _ => None,
             })
             .collect::<HashMap<_, _>>();
         for family in pass_view.instances() {

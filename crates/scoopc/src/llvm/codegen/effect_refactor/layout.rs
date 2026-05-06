@@ -1251,7 +1251,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     .iter()
                     .find_map(|item| match item {
                         crate::mir::Item::Fun(fun) if fun.fqn == root_fqn => Some(fun),
-                        crate::mir::Item::Fun(_) | crate::mir::Item::Todo { .. } => None,
+                        _ => None,
                     })
             })
             .or_else(|| {

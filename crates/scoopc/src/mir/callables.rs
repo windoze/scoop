@@ -148,8 +148,7 @@ impl<'a> MaterializedCallableView<'a> {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) if fun.body.is_some() => Some((fun.fqn.as_str(), fun)),
-                Item::Todo { .. } => None,
-                Item::Fun(_) => None,
+                _ => None,
             })
             .collect::<HashMap<_, _>>();
         Self {

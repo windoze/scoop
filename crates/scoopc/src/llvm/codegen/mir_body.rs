@@ -258,7 +258,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         crate::mir::Item::Fun(fun) if fun.fqn == fqn && fun.body.is_some() => {
                             Some(fun)
                         }
-                        crate::mir::Item::Fun(_) | crate::mir::Item::Todo { .. } => None,
+                        _ => None,
                     })
             })
             .or_else(|| {

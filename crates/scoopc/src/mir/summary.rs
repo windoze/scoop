@@ -163,7 +163,7 @@ pub(crate) fn build_materialized_summary_table(
         .iter()
         .filter_map(|item| match item {
             Item::Fun(fun) => Some(fun.clone()),
-            Item::Todo { .. } => None,
+            _ => None,
         })
         .collect::<Vec<_>>();
 
@@ -1025,7 +1025,7 @@ mod tests {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.span == key.template.decl_span => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .expect("materialized root function should exist for every instance")
     }

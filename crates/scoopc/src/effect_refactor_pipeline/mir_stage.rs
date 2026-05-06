@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
 use crate::mir::{
-    File as MirFile, FunDecl as MirFunDecl, Item as MirItem, LoweredMir, MaterializedMir,
-    MirLowerError, MirLoweringFacts, lower_hir_file_for_dump_with_facts,
+    ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
+    InitializerRoot as MirInitializerRoot, Item as MirItem, LoweredMir, MaterializedMir,
+    MetadataRoot as MirMetadataRoot, MirLowerError, MirLoweringFacts,
+    lower_hir_file_for_dump_with_facts,
 };
 use crate::ty::{TypeId, TypeStore};
 
@@ -28,6 +30,9 @@ pub struct RefactorMirStageOutput {
     lowered_mir: LoweredMir,
     effect_contracts: TypedHirEffectContracts,
     callable_body_indices: BTreeMap<String, usize>,
+    initializer_root_indices: BTreeMap<String, usize>,
+    global_root_indices: BTreeMap<String, usize>,
+    metadata_root_indices: BTreeMap<String, usize>,
     materialized_mir: Option<MaterializedMir>,
 }
 
@@ -37,8 +42,15 @@ impl RefactorMirStageOutput {
         effect_contracts: TypedHirEffectContracts,
         materialized_mir: Option<MaterializedMir>,
     ) -> Self {
+        let callable_body_indices = collect_callable_body_indices(&lowered_mir.file);
+        let initializer_root_indices = collect_initializer_root_indices(&lowered_mir.file);
+        let global_root_indices = collect_global_root_indices(&lowered_mir.file);
+        let metadata_root_indices = collect_metadata_root_indices(&lowered_mir.file);
         Self {
-            callable_body_indices: collect_callable_body_indices(&lowered_mir.file),
+            callable_body_indices,
+            initializer_root_indices,
+            global_root_indices,
+            metadata_root_indices,
             lowered_mir,
             effect_contracts,
             materialized_mir,
@@ -85,6 +97,48 @@ impl RefactorMirStageOutput {
         }
     }
 
+    /// 以稳定顺序枚举 MIR-owned top-level initializer/value roots。
+    pub fn initializer_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.initializer_root_indices.keys().map(String::as_str)
+    }
+
+    /// 按 root FQN 查询 top-level initializer/value root。
+    pub fn initializer_root(&self, fqn: &str) -> Option<&MirInitializerRoot> {
+        let item_index = *self.initializer_root_indices.get(fqn)?;
+        match self.file().items.get(item_index)? {
+            MirItem::InitializerRoot(root) => Some(root),
+            _ => None,
+        }
+    }
+
+    /// 以稳定顺序枚举 MIR-owned global/extern roots。
+    pub fn global_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.global_root_indices.keys().map(String::as_str)
+    }
+
+    /// 按 FQN 查询 `@Extern` global root contract。
+    pub fn extern_global_root(&self, fqn: &str) -> Option<&MirExternGlobalRoot> {
+        let item_index = *self.global_root_indices.get(fqn)?;
+        match self.file().items.get(item_index)? {
+            MirItem::ExternGlobal(root) => Some(root),
+            _ => None,
+        }
+    }
+
+    /// 以稳定顺序枚举 MIR-owned type/object/typealias metadata roots。
+    pub fn metadata_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.metadata_root_indices.keys().map(String::as_str)
+    }
+
+    /// 按 FQN 查询 MIR declaration metadata root。
+    pub fn metadata_root(&self, fqn: &str) -> Option<&MirMetadataRoot> {
+        let item_index = *self.metadata_root_indices.get(fqn)?;
+        match self.file().items.get(item_index)? {
+            MirItem::Metadata(root) => Some(root),
+            _ => None,
+        }
+    }
+
     /// refactor `dump-mir` / `mir_refactor` fixtures / 定向单测共用的稳定文本 surface。
     ///
     /// P3-T04 起，这个 formatter 就是 refactor direct-style MIR 的 snapshot/golden 基线：
@@ -111,6 +165,39 @@ fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
             continue;
         }
         indices.entry(fun.fqn.clone()).or_insert(item_index);
+    }
+    indices
+}
+
+fn collect_initializer_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
+    let mut indices = BTreeMap::new();
+    for (item_index, item) in file.items.iter().enumerate() {
+        let MirItem::InitializerRoot(root) = item else {
+            continue;
+        };
+        indices.entry(root.fqn.clone()).or_insert(item_index);
+    }
+    indices
+}
+
+fn collect_global_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
+    let mut indices = BTreeMap::new();
+    for (item_index, item) in file.items.iter().enumerate() {
+        let MirItem::ExternGlobal(root) = item else {
+            continue;
+        };
+        indices.entry(root.fqn.clone()).or_insert(item_index);
+    }
+    indices
+}
+
+fn collect_metadata_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
+    let mut indices = BTreeMap::new();
+    for (item_index, item) in file.items.iter().enumerate() {
+        let MirItem::Metadata(root) = item else {
+            continue;
+        };
+        indices.entry(root.fqn().to_string()).or_insert(item_index);
     }
     indices
 }
@@ -173,7 +260,8 @@ pub(crate) fn run_unvalidated_for_preflight(
 mod tests {
     use super::RefactorMirStageOutput;
     use crate::mir::{
-        CallKind, HandlerArmKind, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        CallKind, HandlerArmKind, InitializerDependencyKind, InitializerRootKind, Item,
+        MetadataRoot, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -254,6 +342,106 @@ mod tests {
         assert!(output.callable_body("sample.main").is_some());
         assert_eq!(output.effect_contracts().function_effects().len(), 2);
         assert!(output.stable_dump().contains("FunDecl"));
+    }
+
+    #[test]
+    fn refactor_mir_item_graph_publishes_top_level_roots() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_mir_item_graph.scoop",
+            r#"package sample
+import scoop.core.*
+
+typealias Alias = Int
+struct Point(val x: Int)
+
+const val Base: Int = 1
+val Runtime: Int = Base + 1
+
+@Global
+var Counter: Int = Runtime
+
+@Extern(name = "native_counter")
+var NativeCounter: Int
+
+object Registry {
+    val count: Int = Runtime
+    fun touch(): Int { return 0 }
+}
+
+fun main() {}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = super::run(typed_hir_output).unwrap();
+
+        assert!(
+            output
+                .file()
+                .items
+                .iter()
+                .all(|item| !matches!(item, Item::Todo { .. })),
+            "refactor MIR item graph must not contain top-level declaration Todo: {:#?}",
+            output.file()
+        );
+
+        let initializer_fqns = output.initializer_root_fqns().collect::<Vec<_>>();
+        for expected in [
+            "sample.Base",
+            "sample.Counter",
+            "sample.Runtime",
+            "sample.Registry",
+        ] {
+            assert!(
+                initializer_fqns.contains(&expected),
+                "missing initializer root `{expected}` in {initializer_fqns:?}"
+            );
+        }
+
+        let runtime = output.initializer_root("sample.Runtime").unwrap();
+        assert_eq!(runtime.kind, InitializerRootKind::RuntimeImmutableVal);
+        assert!(runtime.dependencies.iter().any(|dependency| {
+            dependency.fqn == "sample.Base"
+                && dependency.kind == InitializerDependencyKind::TopLevelValue
+        }));
+
+        let registry = output.initializer_root("sample.Registry").unwrap();
+        assert_eq!(registry.kind, InitializerRootKind::ObjectSingleton);
+        assert!(registry.dependencies.iter().any(|dependency| {
+            dependency.fqn == "sample.Runtime"
+                && dependency.kind == InitializerDependencyKind::TopLevelValue
+        }));
+
+        let native = output.extern_global_root("sample.NativeCounter").unwrap();
+        assert_eq!(native.symbol, "native_counter");
+        assert!(native.initializer_absent);
+        assert!(
+            output
+                .global_root_fqns()
+                .any(|fqn| fqn == "sample.NativeCounter")
+        );
+
+        assert!(matches!(
+            output.metadata_root("sample.Alias"),
+            Some(MetadataRoot::TypeAlias(alias)) if alias.name == "Alias"
+        ));
+        assert!(matches!(
+            output.metadata_root("sample.Point"),
+            Some(MetadataRoot::Nominal(nominal)) if nominal.name == "Point"
+        ));
+        assert!(matches!(
+            output.metadata_root("sample.Registry"),
+            Some(MetadataRoot::Object(object)) if object.initializer_root == "sample.Registry"
+        ));
+        assert!(
+            output
+                .metadata_root_fqns()
+                .any(|fqn| fqn == "sample.Registry")
+        );
+        assert!(output.callable_body("sample.Registry.touch").is_some());
+        assert!(output.callable_body("sample.main").is_some());
     }
 
     #[test]

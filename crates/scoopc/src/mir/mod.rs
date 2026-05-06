@@ -29,6 +29,7 @@ mod summary;
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
+use std::path::PathBuf;
 
 use thiserror::Error;
 
@@ -163,6 +164,7 @@ impl File {
         for item in &self.items {
             match item {
                 Item::Fun(fun) => self.validate_refactor_production_fun(fun, unit_ty)?,
+                Item::InitializerRoot(_) | Item::ExternGlobal(_) | Item::Metadata(_) => {}
                 Item::Todo { span, kind } => {
                     return Err(MirValidationError::RefactorProductionTodo {
                         fqn: "<file>".to_string(),
@@ -506,11 +508,223 @@ impl File {
 #[derive(Debug, Clone)]
 pub enum Item {
     Fun(FunDecl),
+    /// Non-function root used by later refactor stages to discover top-level initialization.
+    InitializerRoot(InitializerRoot),
+    /// External global storage contract published by typed HIR and owned by MIR stage output.
+    ExternGlobal(ExternGlobalRoot),
+    /// Type/object declaration metadata root owned by MIR stage output.
+    Metadata(MetadataRoot),
     /// 未纳入当前阶段 MIR 的条目占位（例如顶层 val/global init、type decl 等）。
     Todo {
         span: Span,
         kind: &'static str,
     },
+}
+
+/// A top-level value/object initializer root visible from MIR stage output.
+#[derive(Debug, Clone)]
+pub struct InitializerRoot {
+    pub span: Span,
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub kind: InitializerRootKind,
+    pub ty: Option<TypeId>,
+    pub has_initializer: bool,
+    pub dependencies: Vec<InitializerDependency>,
+    pub hidden_effects: EffectRow,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializerRootKind {
+    ConstVal,
+    RuntimeImmutableVal,
+    RuntimeMutableVar {
+        storage: crate::hir::TopLevelVarStorage,
+    },
+    ObjectSingleton,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InitializerDependency {
+    pub fqn: String,
+    pub kind: InitializerDependencyKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitializerDependencyKind {
+    TopLevelValue,
+    ObjectSingleton,
+}
+
+/// MIR-owned contract for an `@Extern` top-level global variable.
+#[derive(Debug, Clone)]
+pub struct ExternGlobalRoot {
+    pub span: Span,
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub symbol: String,
+    pub linkage: crate::hir::ExternGlobalLinkage,
+    pub storage: crate::hir::TopLevelVarStorage,
+    pub initializer_absent: bool,
+    pub unsafe_required: bool,
+}
+
+/// MIR-owned declaration metadata root for type/object declarations.
+#[derive(Debug, Clone)]
+pub enum MetadataRoot {
+    TypeAlias(TypeAliasMetadata),
+    Nominal(NominalMetadata),
+    Object(ObjectMetadata),
+    ExtensionProperty(ExtensionPropertyMetadata),
+}
+
+impl MetadataRoot {
+    pub fn fqn(&self) -> &str {
+        match self {
+            Self::TypeAlias(alias) => &alias.fqn,
+            Self::Nominal(nominal) => &nominal.fqn,
+            Self::Object(object) => &object.fqn,
+            Self::ExtensionProperty(prop) => &prop.fqn,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeAliasMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub type_params: Vec<DeclTypeParamMetadata>,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct NominalMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub kind: ast::TypeKind,
+    pub type_params: Vec<DeclTypeParamMetadata>,
+    pub supertypes: Vec<SupertypeMetadata>,
+    pub interfaces: Vec<String>,
+    pub constructors: Vec<CtorMetadata>,
+    pub members: Vec<DeclMemberMetadata>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub kind: ast::ObjectKind,
+    pub supertypes: Vec<SupertypeMetadata>,
+    pub interfaces: Vec<String>,
+    pub initializer_root: String,
+    pub members: Vec<DeclMemberMetadata>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtensionPropertyMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub type_params: Vec<DeclTypeParamMetadata>,
+    pub receiver_ty: TypeId,
+    pub ty: TypeId,
+    pub getter: Option<AccessorMetadata>,
+    pub setter: Option<AccessorMetadata>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeclTypeParamMetadata {
+    pub span: Span,
+    pub name: String,
+    pub variance: Option<ast::TypeParamVariance>,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct SupertypeMetadata {
+    pub span: Span,
+    pub fqn: Option<String>,
+    pub ty: TypeId,
+    pub ctor_arg_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorMetadata {
+    pub span: Span,
+    pub kind: crate::hir::ClassCtorKind,
+    pub params: Vec<CtorParamMetadata>,
+    pub delegation: Option<ast::CtorDelegationKind>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorParamMetadata {
+    pub span: Span,
+    pub name: String,
+    pub ty: TypeId,
+    pub has_default: bool,
+    pub property: Option<ast::ValKind>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DeclMemberMetadata {
+    Field(FieldMetadata),
+    Property(PropertyMetadata),
+    Fun(MemberFunMetadata),
+    EnumVariant(EnumVariantMetadata),
+    InitBlock { span: Span },
+    Nested(Box<MetadataRoot>),
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+    pub origin: crate::hir::FieldOrigin,
+}
+
+#[derive(Debug, Clone)]
+pub struct PropertyMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+    pub has_backing_field: bool,
+    pub getter: Option<AccessorMetadata>,
+    pub setter: Option<AccessorMetadata>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AccessorMetadata {
+    pub span: Span,
+    pub fqn: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemberFunMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub type_params: Vec<DeclTypeParamMetadata>,
+    pub params: Vec<CtorParamMetadata>,
+    pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumVariantMetadata {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub fields: Vec<FieldMetadata>,
 }
 
 /// 函数声明在 MIR 视图下的承载。
@@ -2295,7 +2509,7 @@ fun entry(): Int {
             .iter()
             .filter_map(|item| match item {
                 Item::Fun(fun) => Some(fun.fqn.as_str()),
-                Item::Todo { .. } => None,
+                _ => None,
             })
             .collect();
 

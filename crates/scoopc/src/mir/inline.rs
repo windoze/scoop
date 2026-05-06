@@ -1667,7 +1667,7 @@ fun main(): Int {
             .iter()
             .find_map(|item| match item {
                 Item::Fun(fun) if fun.fqn == fqn => Some(fun),
-                Item::Fun(_) | Item::Todo { .. } => None,
+                _ => None,
             })
             .unwrap_or_else(|| panic!("missing raw MIR fun `{fqn}`"))
     }

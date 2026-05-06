@@ -295,7 +295,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Option<&'a FunDecl> {
     materialized.file.items.iter().find_map(|item| match item {
         Item::Fun(fun) if fun.fqn == fqn => Some(fun),
-        Item::Fun(_) | Item::Todo { .. } => None,
+        _ => None,
     })
 }
 
