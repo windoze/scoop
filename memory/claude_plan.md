@@ -1,33 +1,51 @@
-# 当前执行计划
+# Current Invocation Plan
 
-## 约束
-- 以 `TODO.md` 为唯一任务顺序来源，只处理第一个标题未带 `[DONE]` 的任务。
-- 不跳到后续任务，不做开放式历史问题清扫。
-- 若当前任务遇到直接阻塞的规格或实现缺口，先修复；若无法在本次正确完成，则在 `TODO.md` 中插入最小必要前置任务、提交并停止。
-- 完成后必须更新 `TODO.md` 的任务标题为 `[DONE]`，填写完成记录，运行相关验证，并提交全部相关改动。
+## Reasoning Summary
 
-## 步骤
-1. 阅读 `TODO.md`，确定第一个未完成任务及其依赖、验证要求和完成记录格式。
-2. 查看最新提交信息，判断是否明确提到与该任务直接相关的未完成问题。
-3. 阅读当前任务涉及的代码、测试、规格或 fixtures，限定范围内定位实现点。
-4. 按任务要求做最小正确实现，不使用 workaround 或削弱测试形态。
-5. 添加或更新必要测试/fixture，并运行任务指定验证；若出现相关失败，继续修复并复测。
-6. 更新 `TODO.md`：仅在任务完成时给当前任务标题加 `[DONE]` 并记录验证结果；只有阶段级计划变化时才更新 `PLAN.md`。
-7. 运行必要的格式化/检查，查看 git 状态和 diff，提交本次任务相关所有改动。
-8. 提交后停止，不处理下一个任务。
+- `TODO.md` is the authoritative task list, and the first heading without a `[DONE]` prefix is the only task to complete in this invocation.
+- I will avoid broad triage before selecting that task. I will only treat existing issues as in scope if they directly block the selected task or invalidate its specified behavior.
+- I will not use workaround implementations. If the task exposes a missing prerequisite or spec mismatch that prevents correct implementation, I will add the minimum prerequisite task in `TODO.md`, leave the current task incomplete, commit that bookkeeping, and stop.
+- I will update this file after key milestones or if the plan changes.
 
-## 进度
-- 已读取 `TODO.md`，首个未完成任务为 `MIR-T10R：Review MIR-T10 composite transport contract`。
-- 最新提交为 `[MIR-T10] Add composite transport contracts`，与当前 review 任务直接相关；本次将把该提交内容作为 review 范围。
-- 初轮验证已通过：`refactor_mir_aggregate_transport`、`aggregate_transport.scoop` dump、`refactor_materialized_mir`。
-- Review 发现并修复 production verifier 缺口：aggregate transport fields 与 perform payload transport 现在会反查实际 lowered operand/component type，并新增对应负例测试。
-- 复测已通过：`refactor_mir_aggregate_transport`、`aggregate_transport.scoop` dump、`refactor_materialized_mir`、`refactor_mir_no_todo`、`refactor_mir_placeholder_inventory`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
-- 已更新 `TODO.md`，将 `MIR-T10R` 标记为 `[DONE]` 并记录 review 结论、修复和验证结果。
+## Step-by-Step Plan
 
-## MIR-T10R 执行步骤
-1. 阅读 `MIR-T10` 相关实现、transport metadata、strict verifier、materializer substitution/verifier、fixture 与测试。
-2. 重跑 `MIR-T10` 的验证命令：`refactor_mir_aggregate_transport`、`aggregate_transport.scoop` dump、必要 materialized/no-todo/inventory 回归。
-3. 抽查 `aggregate_transport.scoop` dump，确认 tuple/struct/enum/array/closure capture/effect payload 均有 explicit transport metadata。
-4. 检查 materialized MIR/代码路径，确认 aggregate/closure/effect metadata 不保留裸 type param 或 source-shape fallback。
-5. 若发现阻塞缺口，修复并复测；若无法正确修复，则更新 `TODO.md` 记录前置缺口并停止。
-6. 若 review 通过，更新 `TODO.md` 将 `MIR-T10R` 标记为 `[DONE]` 并填写 review 记录，提交全部相关改动后停止。
+1. Read `TODO.md` and identify the first incomplete task by checking task headings for the `[DONE]` prefix.
+2. Check the latest commit message only for directly relevant unfinished issue context.
+3. Inspect the code and tests needed for the selected task, keeping the scope limited to that task.
+4. Implement the smallest correct change that satisfies the task requirements.
+5. Add or update tests/fixtures required by the task.
+6. Run the task-specified validation commands and any focused tests needed for confidence.
+7. If validation fails, diagnose and fix issues that are in scope for the selected task, then rerun validation.
+8. Mark the selected task as `[DONE]` in `TODO.md` and update its completion record.
+9. Update this plan file with completion notes.
+10. Commit all relevant changes with a task-specific commit message.
+11. Stop without starting the next task.
+
+## Selected Task
+
+- First incomplete task: `MIR-T11：收口 generic root、effect-row args 与 materialization substitution`.
+- Latest commit checked: `[MIR-T10R] Review composite transport contract`; no directly relevant unfinished blocker was indicated by the commit subject.
+
+## Task-Specific Plan
+
+1. Inspect existing MIR root index, typed call-site contracts, generic metadata, and materializer substitution code.
+2. Identify current test coverage and fixture style for `mir_refactor` materialization tests.
+3. Extend or verify root publication for top-level/member/extension/constructor/object-side callables.
+4. Ensure instance keys and materialization paths include type args, effect-row args, owner/receiver identity, and callable version where represented by existing data structures.
+5. Extend substitution/no-param validation across all MIR metadata surfaces listed by `MIR-T11`.
+6. Add `generic_materialization.scoop` and focused Rust tests/negative cases under `refactor_mir_materialize_generics`.
+7. Run the `MIR-T11` validation command and focused regressions needed by adjacent materializer/root verifier code.
+8. Mark `MIR-T11` `[DONE]`, record validation results, update this file, commit, and stop.
+
+## Progress Notes
+
+- Selected task `MIR-T11` has been implemented and marked `[DONE]` in `TODO.md`.
+- Implemented generic materialization support around merged AST/lowered-HIR/monomorph call-site bindings, materialized direct-call and top-level-ref target rewriting, duplicate overlapping binding handling, and concrete result/member type repair for materialized pass-view bodies.
+- Added `tests/fixtures/mir_refactor/generic_materialization.scoop` coverage for top-level/member/extension/object generic callables, effect-row args, generic constructor concrete owner type, and closure/effect-row substitution.
+- Validation completed successfully:
+  - `cargo test -p scoopc --no-default-features refactor_mir_materialize_generics`
+  - `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/generic_materialization.scoop`
+  - `cargo test -p scoopc --no-default-features refactor_materialized_mir`
+  - `cargo test -p scoopc --no-default-features refactor_mir_no_todo`
+  - `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`
+- Next step: commit the current task changes only, then stop.

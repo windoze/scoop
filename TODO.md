@@ -784,7 +784,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T11：收口 generic root、effect-row args 与 materialization substitution
+## [DONE] MIR-T11：收口 generic root、effect-row args 与 materialization substitution
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M7
@@ -833,6 +833,19 @@
   - materialized MIR snapshot 完整替换所有 generic/effect params。
   - P4/P5/P6 不再需要 generic HIR template side table 补语义。
 - 依赖：`MIR-T10R`
+
+- 完成记录（2026-05-07）：
+  - materializer 现在合并 AST/typecheck call-site binding、lowered-HIR call-site binding 与 monomorph request binding，确保 top-level、member、extension、object/member side-table generic callable 的 type args / effect-row args 能进入 canonical `InstanceKey` 并驱动 pass-view call rewrite。
+  - request-root non-generic callable 的 materialized pass view 会重写 generic direct call target 和对应 `TopLevelRef` function-value target；重复但等价的 overlapping site binding 不再被误判为歧义，非等价 overlap 仍保持 fail-fast。
+  - generic member/extension/object callable 的 owner/receiver identity 通过 `TemplateKey`（FQN + source path + decl span）、owner type args 顺序与 stable materialized symbol suffix 核验；generic constructor surface 保留 concrete owner/result type，不再留下裸 param 给后端。
+  - materialized rewrite/validation 覆盖 call kind、dispatch/resume/perform/handle、cast/typecheck、aggregate/array/closure transport、top-level ref 与 call result/member result metadata，普通 source value/frame/call/return 继续由 strict verifier 拒绝裸 type/effect param。
+  - 新增 `tests/fixtures/mir_refactor/generic_materialization.scoop`，覆盖 top-level generic function、generic member、extension effect-row call、object member generic callable、generic ctor concrete owner type、closure/effect-row substitution。
+  - 负例覆盖 missing root、missing template call-site diagnostic、unsubstituted frame slot type param、missing effect-row arg。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_materialize_generics`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/generic_materialization.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T11R：Review MIR-T11 generic materialization contract
 
