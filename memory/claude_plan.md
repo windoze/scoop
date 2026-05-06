@@ -42,4 +42,4 @@
 5. 修改 stable dump 与 completeness verifier/inventory 测试，使 declaration graph 可见且 no-Todo 检查继续生效。
 6. 新增或更新 HIR fixtures 与单测，覆盖 typealias、class、struct、enum、interface、object、extension property。
 7. 运行 `cargo test -p scoopc --no-default-features refactor_hir_decls`、相关 `dump-hir` fixture 验证、必要 no-Todo 测试与 clippy。
-8. 更新 `TODO.md` 完成记录并标记 `[DONE]`，提交本轮变更后停止。当前状态：已完成，待提交。
+8. 更新 `TODO.md` 完成记录并标记 `[DONE]`，提交本轮变更后停止。当前状态：已完成并已提交。
