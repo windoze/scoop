@@ -303,7 +303,14 @@ impl<'a> HirLowering<'a> {
                 let value = value.as_ref().map(|e| self.lower_expr(pkg_prefix, e));
                 (StmtKind::Return { value }, self.builtins.nothing)
             }
-            ast::StmtKind::Missing => (StmtKind::Todo("missing_stmt"), self.builtins.unit),
+            ast::StmtKind::Missing => {
+                self.record_stage_error(
+                    s.span,
+                    "parser recovery Missing statement cannot enter HIR lowering",
+                    "HIR statement lowering",
+                );
+                (StmtKind::Empty, self.builtins.unit)
+            }
             ast::StmtKind::While { cond, body, .. } => (
                 StmtKind::While {
                     cond: self.lower_expr(pkg_prefix, cond),
@@ -747,22 +754,31 @@ impl<'a> HirLowering<'a> {
             }
             Some(ast::ForLoopIterableKind::Custom) => {
                 let Some(custom) = info.and_then(|info| info.custom.as_ref()) else {
-                    return Stmt {
-                        span: stmt_span,
-                        ty: self.builtins.unit,
-                        kind: StmtKind::Todo("for_custom_iterator"),
-                    };
+                    self.record_stage_error(
+                        stmt_span,
+                        "custom for-loop missing typechecked iterator/next contract",
+                        "HIR for-loop lowering",
+                    );
+                    return self.empty_unit_stmt(stmt_span);
                 };
                 self.lower_for_custom_iterator(pkg_prefix, stmt_span, f, custom)
             }
             _ => {
-                // Custom iterator or dump-hir (no typecheck) fallback.
-                Stmt {
-                    span: stmt_span,
-                    ty: self.builtins.unit,
-                    kind: StmtKind::Todo("for_custom_iterator"),
-                }
+                self.record_stage_error(
+                    stmt_span,
+                    "for-loop missing typechecked iterator contract",
+                    "HIR for-loop lowering",
+                );
+                self.empty_unit_stmt(stmt_span)
             }
+        }
+    }
+
+    fn empty_unit_stmt(&self, span: Span) -> Stmt {
+        Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Empty,
         }
     }
 
@@ -1329,9 +1345,12 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
+        let iterator_call_span = Span::new(for_span.start + 4, for_span.start + 5);
+        let next_call_span = Span::new(for_span.start + 5, for_span.start + 6);
+
         // val __for_iter = Iterable.iterator(__for_iterable)
         let iterator_call = self.lower_synthetic_dispatch_call(
-            for_span,
+            iterator_call_span,
             iterable_ref(for_span),
             iterable_ty,
             &info.iterator_method_fqn,
@@ -1394,7 +1413,7 @@ impl<'a> HirLowering<'a> {
 
         // __for_iter.next()
         let next_call = self.lower_synthetic_dispatch_call(
-            for_span,
+            next_call_span,
             iterator_ref(for_span),
             iterator_ty,
             &info.next_method_fqn,

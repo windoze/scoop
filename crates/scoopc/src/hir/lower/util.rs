@@ -526,13 +526,16 @@ pub(super) struct InitCollectionCx<'a> {
 pub(super) fn collect_object_inits(
     cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-) -> (
-    ObjectInitIndex,
-    CtorCallSiteIndex,
-    crate::hir::DispatchCallSiteIndex,
-    crate::hir::WithUpdateSiteIndex,
-    crate::hir::AssignPlaceSiteIndex,
-) {
+) -> Result<
+    (
+        ObjectInitIndex,
+        CtorCallSiteIndex,
+        crate::hir::DispatchCallSiteIndex,
+        crate::hir::WithUpdateSiteIndex,
+        crate::hir::AssignPlaceSiteIndex,
+    ),
+    HirLowerError,
+> {
     let InitCollectionCx {
         source,
         file,
@@ -597,18 +600,21 @@ pub(super) fn collect_object_inits(
     }
 
     ctx.record_missing_assign_place_contracts_in_object_inits(&out);
+    if let Some(err) = ctx.take_stage_error() {
+        return Err(err.into());
+    }
 
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
     let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
     let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
-    (
+    Ok((
         out,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
         assign_place_contracts,
-    )
+    ))
 }
 
 fn collect_objects_in_type_decl(
@@ -710,13 +716,16 @@ fn collect_object_decl_inits(
 pub(super) fn collect_class_inits(
     cx: InitCollectionCx<'_>,
     types: &mut TypeStore,
-) -> (
-    ClassInitIndex,
-    CtorCallSiteIndex,
-    crate::hir::DispatchCallSiteIndex,
-    crate::hir::WithUpdateSiteIndex,
-    crate::hir::AssignPlaceSiteIndex,
-) {
+) -> Result<
+    (
+        ClassInitIndex,
+        CtorCallSiteIndex,
+        crate::hir::DispatchCallSiteIndex,
+        crate::hir::WithUpdateSiteIndex,
+        crate::hir::AssignPlaceSiteIndex,
+    ),
+    HirLowerError,
+> {
     let InitCollectionCx {
         source,
         file,
@@ -780,17 +789,20 @@ pub(super) fn collect_class_inits(
         }
     }
     ctx.record_missing_assign_place_contracts_in_class_inits(&out);
+    if let Some(err) = ctx.take_stage_error() {
+        return Err(err.into());
+    }
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
     let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
     let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
-    (
+    Ok((
         out,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
         assign_place_contracts,
-    )
+    ))
 }
 
 fn collect_classes_in_type_decl(

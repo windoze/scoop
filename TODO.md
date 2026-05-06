@@ -448,7 +448,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_places`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T09`
 
-## HIR-T11：收口 custom iterator for-loop 与 remaining debug fallbacks
+## [DONE] HIR-T11：收口 custom iterator for-loop 与 remaining debug fallbacks
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H2
@@ -473,6 +473,12 @@
 - 完成条件：
   - `missing_stmt`、`for_custom_iterator` 等 debug fallback 不再可达 refactor HIR。
   - 可进入 `HIR-T12`。
+- 完成记录（2026-05-06）：
+  - parser 未知语句 fallback 现在返回 parse diagnostic；`ast::StmtKind::Missing` 仅保留为错误恢复 sentinel，不再能出现在成功 parse 结果中并进入 refactor HIR。
+  - HIR lowering 对意外 `StmtKind::Missing`、缺失 `resolved_for_info` 或缺失 custom iterator metadata 记录结构化 `HirStageError`，不再构造 `StmtKind::Todo("missing_stmt")` / `StmtKind::Todo("for_custom_iterator")`。
+  - custom iterator for-loop 继续消费 typecheck 写回的 iterator/next contract 并展开为显式 `while` + `when` HIR；合成 `iterator()` / `next()` 调用改用不同 synthetic span，typed call contract 可分别记录 interface dispatch provenance。
+  - placeholder inventory 已移除 `missing_stmt` 与 `for_custom_iterator` 构造点；新增 parser recovery negative fixture `parser_recovery_missing_stmt_is_error.scoop` 与 `refactor_hir_for_loop` 定向单测覆盖 custom iterator 成功 lowering 和缺 contract stage error。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_for_loop`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse`、custom iterator ok/error typecheck fixtures、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/for_loop_iter_protocol_ok.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T10`
 
 ## HIR-T12：建立 top-level init/storage/object metadata handoff

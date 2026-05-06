@@ -5,8 +5,8 @@
 //! - 语句仅支持：
 //!   - 空语句：`;`
 //!   - 表达式语句：基于现有表达式子集解析（`try_parse_expr`，当前支持 postfix + 二元优先级）
-//! - 其它尚未实现的语句形态：以 `StmtKind::Missing` 占位，并尽量跳过到语句边界，
-//!   以保证 parser cursor 前进与括号平衡（避免把“未实现”误报为顶层语法错误）
+//! - 其它尚未实现的语句形态：报告 parse error；`StmtKind::Missing` 仅用于错误恢复，
+//!   不能出现在成功 parse 的 AST 中。
 
 use crate::ast;
 use crate::span::Span;
@@ -302,7 +302,12 @@ impl<'a> Parser<'a> {
             });
         }
 
-        Ok(self.parse_missing_stmt())
+        let tok = *self.peek();
+        Err(ParseError::Expected {
+            expected: "语句（当前语法不能进入 HIR）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })
     }
 
     fn looks_like_annotated_local_val_decl(&self) -> bool {
@@ -660,7 +665,7 @@ impl<'a> Parser<'a> {
                 && depth_bracket == 0
                 && (self.peek_symbol(Symbol::Semicolon)
                     || self.peek_symbol(Symbol::RBrace)
-                    || self.is_stmt_start())
+                    || self.is_recovery_boundary_stmt_start())
             {
                 break;
             }
@@ -701,7 +706,7 @@ impl<'a> Parser<'a> {
         // 这样外层循环还能继续尝试解析后续语句。
         if self.peek_kind(TokenKind::Eof)
             || self.peek_symbol(Symbol::RBrace)
-            || self.is_stmt_start()
+            || self.is_recovery_boundary_stmt_start()
         {
             let pos = self.peek().span.start;
             return ast::Stmt {
@@ -712,5 +717,21 @@ impl<'a> Parser<'a> {
         }
 
         self.parse_missing_stmt()
+    }
+
+    fn is_recovery_boundary_stmt_start(&self) -> bool {
+        matches!(
+            self.peek().kind,
+            TokenKind::Keyword(
+                Keyword::Val
+                    | Keyword::Var
+                    | Keyword::Return
+                    | Keyword::Comptime
+                    | Keyword::For
+                    | Keyword::While
+                    | Keyword::Break
+                    | Keyword::Continue
+            )
+        )
     }
 }

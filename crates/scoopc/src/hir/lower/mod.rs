@@ -211,6 +211,8 @@ struct HirLowering<'a> {
     comptime_value_scopes: Vec<HashMap<Span, crate::comptime::ConstValue>>,
     /// 当前展开体中需要重映射的局部声明 span，避免同一源码 body 多次 unroll 后局部 SymbolId 冲突。
     local_decl_span_overrides: Vec<HashMap<Span, Span>>,
+    /// lowering 过程中发现的第一个 typed HIR contract 错误。
+    stage_error: Option<HirStageError>,
 }
 
 /// 构造 `HirLowering` 时用到的非必需上下文集合。
@@ -332,7 +334,28 @@ impl<'a> HirLowering<'a> {
             runtime_comptime_plan,
             comptime_value_scopes: Vec::new(),
             local_decl_span_overrides: Vec::new(),
+            stage_error: None,
         }
+    }
+
+    fn record_stage_error(
+        &mut self,
+        span: Span,
+        reason: impl Into<String>,
+        owner: impl Into<String>,
+    ) {
+        if self.stage_error.is_none() {
+            self.stage_error = Some(HirStageError::new(
+                self.source.path().to_path_buf(),
+                span,
+                reason,
+                owner,
+            ));
+        }
+    }
+
+    fn take_stage_error(&mut self) -> Option<HirStageError> {
+        self.stage_error.take()
     }
 
     fn intern_local_symbol(&mut self, decl_span: Span, mutable: bool) -> SymbolId {
@@ -2162,14 +2185,17 @@ fn collect_compilation_unit_object_and_class_inits(
     compilation_unit: &[(&SourceFile, &ast::File)],
     inputs: CompilationUnitInitCollectionInputs<'_>,
     types: &mut TypeStore,
-) -> (
-    ObjectInitIndex,
-    ClassInitIndex,
-    CtorCallSiteIndex,
-    super::DispatchCallSiteIndex,
-    WithUpdateSiteIndex,
-    AssignPlaceSiteIndex,
-) {
+) -> Result<
+    (
+        ObjectInitIndex,
+        ClassInitIndex,
+        CtorCallSiteIndex,
+        super::DispatchCallSiteIndex,
+        WithUpdateSiteIndex,
+        AssignPlaceSiteIndex,
+    ),
+    HirLowerError,
+> {
     let CompilationUnitInitCollectionInputs {
         index,
         type_kinds,
@@ -2210,7 +2236,7 @@ fn collect_compilation_unit_object_and_class_inits(
             file_object_dispatch_call_sites,
             file_object_with_update_contracts,
             file_object_assign_place_contracts,
-        ) = collect_object_inits(init_collection_cx, types);
+        ) = collect_object_inits(init_collection_cx, types)?;
         object_inits.extend(file_object_inits);
         ctor_call_sites.extend(file_object_ctor_call_sites);
         dispatch_call_sites.extend(file_object_dispatch_call_sites);
@@ -2223,7 +2249,7 @@ fn collect_compilation_unit_object_and_class_inits(
             file_class_dispatch_call_sites,
             file_class_with_update_contracts,
             file_class_assign_place_contracts,
-        ) = collect_class_inits(init_collection_cx, types);
+        ) = collect_class_inits(init_collection_cx, types)?;
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
         dispatch_call_sites.extend(file_class_dispatch_call_sites);
@@ -2231,14 +2257,14 @@ fn collect_compilation_unit_object_and_class_inits(
         assign_place_contracts.extend(file_class_assign_place_contracts);
     }
 
-    (
+    Ok((
         object_inits,
         class_inits,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
         assign_place_contracts,
-    )
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2352,7 +2378,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             },
         );
         let file = ctx.lower_file();
+        if let Some(err) = ctx.take_stage_error() {
+            return Err(err.into());
+        }
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
+        if let Some(err) = ctx.take_stage_error() {
+            return Err(err.into());
+        }
         ctx.record_missing_assign_place_contracts_in_file(&file);
         ctx.record_missing_assign_place_contracts_in_funs(&member_funs);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
@@ -2405,7 +2437,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             builtins,
         },
         &mut types,
-    );
+    )?;
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);
@@ -2689,7 +2721,13 @@ pub fn lower_for_compilation_unit(
             },
         );
         let file_hir = ctx.lower_file();
+        if let Some(err) = ctx.take_stage_error() {
+            return Err(err.into());
+        }
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
+        if let Some(err) = ctx.take_stage_error() {
+            return Err(err.into());
+        }
         ctx.record_missing_assign_place_contracts_in_file(&file_hir);
         ctx.record_missing_assign_place_contracts_in_funs(&member_funs);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
@@ -2740,7 +2778,7 @@ pub fn lower_for_compilation_unit(
             builtins,
         },
         &mut types,
-    );
+    )?;
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);
@@ -3171,9 +3209,15 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                 },
             );
             let file_hir = ctx.lower_file();
+            if let Some(err) = ctx.take_stage_error() {
+                return Err(err.into());
+            }
             // 字面量已不再依赖“仅入口文件可切片”的旧路径，因此这里可以稳定收集所有文件的 member_funs。
             let pkg_prefix = package_prefix(source, file.package.as_ref());
             let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
+            if let Some(err) = ctx.take_stage_error() {
+                return Err(err.into());
+            }
             ctx.record_missing_assign_place_contracts_in_file(&file_hir);
             ctx.record_missing_assign_place_contracts_in_funs(&file_member_funs);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
@@ -3271,7 +3315,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             builtins,
         },
         &mut types,
-    );
+    )?;
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
     with_update_contracts.extend(side_table_with_update_contracts);

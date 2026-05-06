@@ -1,26 +1,40 @@
-## Current Invocation Plan
+# Claude Execution Plan
 
-Note: This file records the actionable execution plan and progress. It intentionally does not include private chain-of-thought.
+## Current Invocation
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check recent git context only as needed to determine whether the latest commit mentions an unfinished issue directly relevant to that task.
-3. Inspect the task requirements, dependencies, and validation instructions from `TODO.md`.
-4. Implement the first incomplete task exactly as written, without narrowing scope or using workarounds.
-5. If a concrete blocker prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
-6. Run the relevant validation commands, including broader checks if required by the task or if changes affect shared behavior.
-7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record.
-8. Update this plan file at key progress points.
-9. Commit all relevant changes with a task-specific commit message.
-10. Stop after exactly one task is completed or after committing a required blocker/prerequisite update.
+Goal: complete exactly the first incomplete task in `TODO.md`, validate it, mark it `[DONE]`, commit the resulting changes, and stop.
+
+## Plan
+
+1. Read `TODO.md` first and identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Inspect the selected task's required files, dependencies, and validation criteria.
+4. Implement the smallest spec-correct change needed for that task, without workarounds or scope narrowing.
+5. Add or update tests/fixtures required by the task.
+6. Run the task-specific validation commands and any relevant broader checks.
+7. If a concrete blocker prevents completion, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
+8. If the task is completed, prefix its `TODO.md` title with `[DONE]` and update its completion record.
+9. Commit all relevant current changes with a task-scoped commit message.
+10. Stop without starting the next task.
 
 ## Progress
 
-- Initial plan recorded.
-- Identified first incomplete `TODO.md` task: `HIR-T10`, assignment LHS / HIR place contract.
-- Next step: inspect recent git context and existing assignment/typecheck/HIR lowering code relevant to `HIR-T10`.
-- Recent commit is `[HIR-T09] Add with-update HIR contracts`; no unfinished latest-commit issue blocks `HIR-T10`.
-- Current implementation already typechecks assignment statements for local `var`, top-level `var`, and ordinary mutable member fields; parser/typecheck do not currently accept index setter or safe-member setter assignment forms.
-- Implementation plan refined: add typecheck assignment-place side table, convert it to a HIR-level `AssignPlaceContract` with HIR symbol/member identities, require contracts in the refactor HIR verifier, expose them in stable typed HIR contracts, and make refactor MIR assignment lowering consume the place contract instead of deriving the place semantics from arbitrary LHS expression shape.
-- Implemented assignment-place contracts across typecheck, HIR lowering, refactor HIR verifier, typed HIR stable dump, and refactor MIR lowering.
-- Verified with `cargo test -p scoopc --no-default-features refactor_hir_places`, `refactor_hir_no_todo`, `refactor_hir_placeholder_inventory`, `refactor_typed_hir`, `cargo test -p scoop --no-default-features dump_hir`, and `cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`.
-- Next step: mark `HIR-T10` done in `TODO.md` and commit the completed task.
+- Initial execution plan recorded before running code or shell commands.
+- Identified first incomplete task: `HIR-T11` (`收口 custom iterator for-loop 与 remaining debug fallbacks`).
+- Latest commit `[HIR-T10] Add assignment place contracts` does not declare unfinished work directly blocking `HIR-T11`.
+- Found two relevant fallback paths: parser fallback can produce `ast::StmtKind::Missing` on successful parse, and HIR lowering can emit `StmtKind::Todo("for_custom_iterator")` when the typechecked for-loop contract is absent.
+
+## Implementation Notes
+
+1. Make unknown block statements produce a parse error and use `StmtKind::Missing` only as recovery state for failed parses.
+2. Add typed HIR for-loop contract validation during lowering so missing `resolved_for_info` or missing custom iterator metadata becomes `HirStageError` before any successful handoff.
+3. Remove `missing_stmt` and `for_custom_iterator` HIR Todo constructors; if such AST reaches lowering unexpectedly, record a stage error and return a throwaway empty statement that is not exposed on successful paths.
+4. Update placeholder inventory/no-Todo tests to remove the eliminated reasons.
+5. Add targeted tests and fixtures for custom iterator success/error and parser recovery failure.
+
+- Parser fallback now reports an error for unknown statements instead of returning a successful `StmtKind::Missing`.
+- HIR lowering now records a stage error for unexpected Missing statements or missing for-loop contracts instead of constructing `missing_stmt` / `for_custom_iterator` Todo nodes.
+- Synthetic custom-iterator `iterator()` / `next()` calls now use distinct synthetic spans so typed call contracts do not collide.
+- Added targeted custom iterator HIR tests and a parser recovery negative fixture.
+- Validation passed for targeted HIR tests, placeholder inventory/no-Todo tests, parser fixtures, custom iterator fixtures, dump-hir tests, and clippy.
+- `TODO.md` now marks `HIR-T11` as `[DONE]` with completion notes and validation commands.

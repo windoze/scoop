@@ -1357,7 +1357,31 @@ impl<'a> ContractCollector<'a> {
 
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             let function = FunctionTargetContract::synthetic(fqn.clone());
-            if fqn.starts_with("scoop.core.__") || fqn.starts_with("scoop.core.GC.") {
+            if let Some((dispatch_kind, receiver_ty)) =
+                self.dispatch_kind_and_receiver_ty(source_path, expr.span)
+            {
+                let (owner_fqn, member_name) = self.member_binding_for_fqn(fqn).ok_or_else(|| {
+                    HirStageError::new(
+                        source_path.to_path_buf(),
+                        expr.span,
+                        format!(
+                            "synthetic dispatch call contract missing owner/member binding for `{fqn}`"
+                        ),
+                        "typed HIR call contract",
+                    )
+                })?;
+                let member = MemberCallTargetContract::new(
+                    owner_fqn,
+                    member_name,
+                    fqn.clone(),
+                    receiver_ty,
+                    function,
+                );
+                match dispatch_kind {
+                    DispatchCallKind::Virtual => Some(TypedCallSiteContract::Virtual(member)),
+                    DispatchCallKind::Interface => Some(TypedCallSiteContract::Interface(member)),
+                }
+            } else if fqn.starts_with("scoop.core.__") || fqn.starts_with("scoop.core.GC.") {
                 Some(TypedCallSiteContract::Intrinsic {
                     kind: TypedIntrinsicKind::from_fqn(fqn),
                     function,
@@ -2955,6 +2979,94 @@ fun entry(box: Box): Int {
             saw_member_store,
             "member assignment store missing: {mir:#?}"
         );
+    }
+
+    #[test]
+    fn refactor_hir_for_loop_lowers_custom_iterator_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_for_loop_custom_iterator.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+interface MyIterator {
+    fun next(): Option<Int>
+}
+
+interface MyIterable {
+    fun iterator(): MyIterator
+}
+
+fun sum(xs: MyIterable): Int {
+    var total: Int = 0
+    for (x in xs) {
+        total = total + x
+    }
+    return total
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("custom iterator for-loop should lower");
+        let dump = output.stable_dump();
+        assert!(!dump.contains("for_custom_iterator"), "Todo leaked: {dump}");
+        assert!(!dump.contains("StmtKind::Todo"), "Todo leaked: {dump}");
+        assert!(
+            dump.contains("__for_iterable")
+                && dump.contains("__for_iter")
+                && dump.contains("__for_running")
+                && dump.contains("When"),
+            "custom iterator should lower to explicit loop/when form: {dump}"
+        );
+
+        let contracts = output.effect_contracts().call_site_contracts();
+        let saw_iterator = contracts.values().any(|contract| {
+            matches!(contract, TypedCallSiteContract::Interface(member) if member.member_fqn() == "sample.MyIterable.iterator")
+        });
+        let saw_next = contracts.values().any(|contract| {
+            matches!(contract, TypedCallSiteContract::Interface(member) if member.member_fqn() == "sample.MyIterator.next")
+        });
+        assert!(
+            saw_iterator && saw_next,
+            "iterator/next dispatch contracts missing: {contracts:#?}"
+        );
+    }
+
+    #[test]
+    fn refactor_hir_for_loop_missing_contract_is_stage_error() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_for_loop_missing_contract.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+interface MyIterator {
+    fun next(): Option<Int>
+}
+
+interface MyIterable {
+    fun iterator(): MyIterator
+}
+
+fun use(xs: MyIterable) {
+    for (x in xs) {}
+}
+"#,
+        );
+
+        let err = crate::hir::lower_for_dump(&session, &source)
+            .expect_err("untyped HIR lowering lacks the for-loop contract");
+        let HirLowerError::Stage(err) = err else {
+            panic!("expected HIR stage error, got {err:?}");
+        };
+        assert_eq!(
+            err.reason(),
+            "for-loop missing typechecked iterator contract"
+        );
+        assert_eq!(err.owner(), "HIR for-loop lowering");
+        assert_eq!(err.source_path(), source.path());
     }
 
     #[test]

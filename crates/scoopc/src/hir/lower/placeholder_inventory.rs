@@ -80,14 +80,6 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::StmtTodo,
-        "missing_stmt",
-        PlaceholderDisposition::ParserShouldReject,
-        "HIR-T11",
-        true,
-        "Parser recovery Missing statements must not enter successful refactor HIR lowering.",
-    ),
-    entry(
-        PlaceholderSurface::StmtTodo,
         "comptime_block",
         PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
         "HIR-T03",
@@ -109,14 +101,6 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "HIR-T03",
         true,
         "Comptime expansion unrolls compile-time iteration into ordinary runtime statements/items.",
-    ),
-    entry(
-        PlaceholderSurface::StmtTodo,
-        "for_custom_iterator",
-        PlaceholderDisposition::HirShouldImplement,
-        "HIR-T11",
-        true,
-        "HIR consumes the typechecked iterator/next contract or reports a missing-contract stage error.",
     ),
     entry(
         PlaceholderSurface::ItemTodo,
@@ -143,8 +127,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "comptime_if_item",
     "structured_concurrency_spawn_deferred",
     "structured_concurrency_join_deferred",
-    "missing_stmt",
-    "for_custom_iterator",
 ];
 
 const EXPR_TODO_PATTERN: &str = concat!("ExprKind", "::Todo(\"");
