@@ -3793,6 +3793,7 @@ mod tests {
             ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Closure(_)
             | ExprKind::Missing
             | ExprKind::Todo(_) => {}
@@ -3984,6 +3985,7 @@ mod tests {
             ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Closure(_)
             | ExprKind::Missing
             | ExprKind::Todo(_) => {}
@@ -4121,6 +4123,7 @@ mod tests {
             ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Missing
             | ExprKind::Todo(_) => None,
         }
@@ -5062,6 +5065,7 @@ fun main(): Int {
             ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Closure(_)
             | ExprKind::Missing
             | ExprKind::Todo(_) => None,

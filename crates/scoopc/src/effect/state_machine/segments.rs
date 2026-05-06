@@ -4943,6 +4943,7 @@ fun demo(limit: Int): Int {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Todo(_) => None,
         }
     }

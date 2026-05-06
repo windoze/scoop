@@ -339,7 +339,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_call_contracts`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features dispatch_and_resume`、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T06`
 
-## HIR-T08：收口 class literal 与 reflection/platform intrinsic HIR contract
+## [DONE] HIR-T08：收口 class literal 与 reflection/platform intrinsic HIR contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H6
@@ -368,6 +368,12 @@
 - 完成条件：
   - `ExprKind::Todo("class_lit")` 不再可达 refactor HIR。
   - 可进入 `HIR-T09`。
+- 完成记录（2026-05-06）：
+  - HIR 新增 `ClassLiteral` / `ClassLiteralExpr` value primitive，v0 runtime value 明确为类型名字符串，同时保留 source type、source FQN、metadata kind 与 result type，refactor HIR dump 可直接展示该 contract。
+  - 普通表达式 typecheck 现在接受 `Type::class` 并验证类型引用；HIR lowering 不再生成 `ExprKind::Todo("class_lit")`，placeholder inventory 与 no-Todo verifier 期望已同步移除该 reason。
+  - typed HIR intrinsic contract 现在为 `nameOf<T>()`、`sizeOf<T>()`、`getPlatform()` 显示 `intrinsic_allowed_context` 与 `intrinsic_runtime_fallback`，区分 reflection normal runtime call 与 platform query fallback。
+  - 新增 `refactor_hir_class_literal_and_intrinsic_contracts` 单测覆盖 runtime class literal HIR contract，以及 `nameOf<T>()`、`sizeOf<T>()`、`getPlatform()` 的 intrinsic contract dump。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_class_literal`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_hir_call_contracts`、`cargo test -p scoop --no-default-features dump_hir`、三个指定 typecheck fixtures、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T07`
 
 ## HIR-T09：收口 `with` copy-update aggregate metadata

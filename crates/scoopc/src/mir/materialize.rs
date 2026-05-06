@@ -1260,6 +1260,7 @@ fn collect_hir_direct_call_instances_in_expr(
         | crate::hir::ExprKind::Literal(_)
         | crate::hir::ExprKind::VarRef(_)
         | crate::hir::ExprKind::UnresolvedIdent { .. }
+        | crate::hir::ExprKind::ClassLiteral(_)
         | crate::hir::ExprKind::Todo(_) => {}
     }
 }
@@ -1390,6 +1391,7 @@ fn collect_top_level_value_refs_in_expr(expr: &crate::hir::Expr, out: &mut Vec<S
         | crate::hir::ExprKind::Literal(_)
         | crate::hir::ExprKind::VarRef(_)
         | crate::hir::ExprKind::UnresolvedIdent { .. }
+        | crate::hir::ExprKind::ClassLiteral(_)
         | crate::hir::ExprKind::Todo(_) => {}
     }
 }

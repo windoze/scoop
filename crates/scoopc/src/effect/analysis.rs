@@ -390,6 +390,7 @@ pub(crate) fn collect_known_local_metadata_in_expr(
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
     }
 }

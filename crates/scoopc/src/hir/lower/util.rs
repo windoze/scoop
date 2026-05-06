@@ -76,6 +76,7 @@ fn collect_declared_locals_in_expr(expr: &super::super::Expr, declared: &mut Has
         | super::super::ExprKind::Literal(_)
         | super::super::ExprKind::VarRef(_)
         | super::super::ExprKind::UnresolvedIdent { .. }
+        | super::super::ExprKind::ClassLiteral(_)
         | super::super::ExprKind::Todo(_) => {}
         super::super::ExprKind::StructLit { fields, .. } => {
             for f in fields {
@@ -244,6 +245,7 @@ fn collect_used_locals_in_expr(expr: &super::super::Expr, used: &mut HashMap<Sym
         super::super::ExprKind::Missing
         | super::super::ExprKind::Literal(_)
         | super::super::ExprKind::UnresolvedIdent { .. }
+        | super::super::ExprKind::ClassLiteral(_)
         | super::super::ExprKind::Todo(_) => {}
         super::super::ExprKind::VarRef(v) => {
             let ValueRef::Local {
@@ -4724,6 +4726,7 @@ fn collect_generic_fun_calls_in_expr(
         | super::super::ExprKind::Literal(_)
         | super::super::ExprKind::VarRef(_)
         | super::super::ExprKind::UnresolvedIdent { .. }
+        | super::super::ExprKind::ClassLiteral(_)
         | super::super::ExprKind::Todo(_) => {}
         super::super::ExprKind::StructLit { fields, .. } => {
             for field in fields {

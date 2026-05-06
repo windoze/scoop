@@ -552,6 +552,7 @@ impl<'a> HirLowering<'a> {
             | ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Todo(_) => {}
         }
     }

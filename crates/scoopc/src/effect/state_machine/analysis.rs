@@ -2219,6 +2219,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 current_state
             }
+            hir::ExprKind::ClassLiteral(_) => {
+                self.push_action(
+                    current_state,
+                    HandleStateOp::Literal {
+                        expr: Box::new(expr.clone()),
+                    },
+                );
+                current_state
+            }
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
                 let slot = self.authoritative_local_slot(*id, name, expr.ty);
                 self.frame_slots.entry(*id).or_insert(slot);
@@ -2680,6 +2689,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(value_ref) => {
@@ -3266,6 +3276,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => {}
             hir::ExprKind::Handle(_) => {}
@@ -3500,6 +3511,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => {}
             hir::ExprKind::StructLit { fields, .. } => {
@@ -5035,6 +5047,7 @@ fn build_resume_tail_expr(
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Block(_)
         | hir::ExprKind::Closure(_)
         | hir::ExprKind::Handle(_)
@@ -5483,6 +5496,7 @@ fn expr_contains_span(expr: &hir::Expr, expr_span: Span) -> bool {
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Closure(_)
         | hir::ExprKind::Todo(_) => false,
         hir::ExprKind::StructLit { fields, .. } => fields
@@ -5701,6 +5715,7 @@ fn rewrite_expr_replacing_span(
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Closure(_)
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::StructLit { fields, .. } => {
@@ -6568,6 +6583,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Todo(_) => {}
             hir::ExprKind::Block(block) => self.collect_local_fun_effects_in_block(block, out),
             hir::ExprKind::If {
@@ -6705,6 +6721,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
@@ -7198,6 +7215,7 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
     }
 }
@@ -7388,6 +7406,7 @@ fn collect_local_refs_in_expr(
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
     }
 }
@@ -7456,6 +7475,7 @@ fn collect_used_locals_in_expr_static(expr: &hir::Expr, out: &mut HashSet<hir::S
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
             out.insert(*id);
@@ -7580,7 +7600,8 @@ fn expr_kind_signature(kind: &hir::ExprKind) -> usize {
         hir::ExprKind::Call { .. } => 17,
         hir::ExprKind::Perform { .. } => 18,
         hir::ExprKind::Handle(_) => 19,
-        hir::ExprKind::Todo(_) => 20,
+        hir::ExprKind::ClassLiteral(_) => 20,
+        hir::ExprKind::Todo(_) => 21,
     }
 }
 
@@ -8270,6 +8291,7 @@ fn summarize_direct_step_expr(
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Closure(_)
         | hir::ExprKind::Todo(_) => DirectStepSummary::continue_pure(),
         hir::ExprKind::VarRef(value_ref) => {
@@ -9817,6 +9839,7 @@ fun demo(): Int / (Boom) {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Todo(_) => None,
         }
     }

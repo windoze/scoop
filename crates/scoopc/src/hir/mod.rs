@@ -428,6 +428,11 @@ pub enum ExprKind {
         ty: TypeId,
         fields: Vec<StructLitField>,
     },
+    /// class literal / type metadata literal: `TypeName::class`.
+    ///
+    /// v0 keeps the runtime value as the stable type-name string while retaining the source type
+    /// metadata needed by later stages to upgrade this to a richer `TypeMeta` value.
+    ClassLiteral(ClassLiteralExpr),
     /// tuple 字面量：`(a, b, ...)`（spec §2.3.3）。
     ///
     /// 说明：
@@ -529,6 +534,19 @@ pub enum ExprKind {
     /// - HIR 保留 arm 语义形态与显式 continuation binder 符号，供后续 lowering/codegen 识别。
     Handle(HandleExpr),
     Todo(&'static str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeMetadataLiteralKind {
+    TypeNameString,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassLiteralExpr {
+    pub source_ty: TypeId,
+    pub source_fqn: Option<String>,
+    pub metadata_kind: TypeMetadataLiteralKind,
+    pub result_ty: TypeId,
 }
 
 /// closure（lambda）捕获的一个外部局部变量（free variable）。

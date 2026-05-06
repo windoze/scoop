@@ -64,14 +64,6 @@ const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
 const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
         PlaceholderSurface::ExprTodo,
-        "class_lit",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T08",
-        true,
-        "Publish class/type metadata literal or reject unsupported runtime contexts before HIR handoff.",
-    ),
-    entry(
-        PlaceholderSurface::ExprTodo,
         "structured_concurrency_spawn_deferred",
         PlaceholderDisposition::ParserShouldReject,
         "HIR-T02",
@@ -165,7 +157,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "comptime_if",
     "comptime_for",
     "comptime_if_item",
-    "class_lit",
     "structured_concurrency_spawn_deferred",
     "structured_concurrency_join_deferred",
     "assign",

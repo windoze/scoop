@@ -1357,6 +1357,7 @@ fn collect_symbol_types_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolI
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {
@@ -1497,6 +1498,7 @@ fn collect_closures_in_expr(expr: &hir::Expr, out: &mut Vec<hir::ClosureExpr>) {
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {

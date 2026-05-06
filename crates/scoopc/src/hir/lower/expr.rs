@@ -19,9 +19,10 @@ use super::types::*;
 use super::util::*;
 
 use super::super::{
-    Block, CallArg, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, HandleArm, HandleArmKind,
-    HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart, LiteralKind, MemberAccess,
-    MemberRef, Param, Stmt, StmtKind, StructLitField, ValDecl, ValueRef, WhenArm, WhenPat,
+    Block, CallArg, ClassLiteralExpr, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind,
+    HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart,
+    LiteralKind, MemberAccess, MemberRef, Param, Stmt, StmtKind, StructLitField,
+    TypeMetadataLiteralKind, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 #[derive(Clone)]
@@ -363,7 +364,21 @@ impl<'a> HirLowering<'a> {
                     }
                 }
             }
-            ast::ExprKind::ClassLit { .. } => (ExprKind::Todo("class_lit"), self.builtins.string),
+            ast::ExprKind::ClassLit { ty } => {
+                let source_ty = self.lower_type_ref(ty);
+                let source_fqn = self
+                    .index
+                    .type_ref_to_fqn_in_file(self.source, self.file, ty);
+                (
+                    ExprKind::ClassLiteral(ClassLiteralExpr {
+                        source_ty,
+                        source_fqn,
+                        metadata_kind: TypeMetadataLiteralKind::TypeNameString,
+                        result_ty: self.builtins.string,
+                    }),
+                    self.builtins.string,
+                )
+            }
             ast::ExprKind::InterpolatedString { raw, parts } => {
                 let parts = parts
                     .iter()

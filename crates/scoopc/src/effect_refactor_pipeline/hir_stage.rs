@@ -329,6 +329,20 @@ pub enum TypedIntrinsicKind {
     Compiler { name: String },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicAllowedContext {
+    ComptimeAndRuntime,
+    RuntimeOnly,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicRuntimeFallback {
+    NormalRuntimeCall,
+    PlatformQuery,
+    RuntimeIntrinsic,
+    CompilerLowered,
+}
+
 impl TypedIntrinsicKind {
     fn from_fqn(fqn: &str) -> Self {
         let name = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
@@ -348,6 +362,26 @@ impl TypedIntrinsicKind {
             | "scoop.core.GC.handleDrop" => Self::Gc { name },
             _ if fqn.starts_with("scoop.core.__") => Self::Runtime { name },
             _ => Self::Compiler { name },
+        }
+    }
+
+    pub fn allowed_context(&self) -> IntrinsicAllowedContext {
+        match self {
+            Self::Reflection { .. } | Self::Platform { .. } => {
+                IntrinsicAllowedContext::ComptimeAndRuntime
+            }
+            Self::Gc { .. } | Self::Runtime { .. } | Self::Compiler { .. } => {
+                IntrinsicAllowedContext::RuntimeOnly
+            }
+        }
+    }
+
+    pub fn runtime_fallback(&self) -> IntrinsicRuntimeFallback {
+        match self {
+            Self::Reflection { .. } => IntrinsicRuntimeFallback::NormalRuntimeCall,
+            Self::Platform { .. } => IntrinsicRuntimeFallback::PlatformQuery,
+            Self::Gc { .. } | Self::Runtime { .. } => IntrinsicRuntimeFallback::RuntimeIntrinsic,
+            Self::Compiler { .. } => IntrinsicRuntimeFallback::CompilerLowered,
         }
     }
 }
@@ -1093,6 +1127,7 @@ impl<'a> ContractCollector<'a> {
             | ExprKind::Literal(_)
             | ExprKind::VarRef(_)
             | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_)
             | ExprKind::Todo(_) => {}
             ExprKind::StructLit { fields, .. } => {
                 for field in fields {
@@ -1720,6 +1755,16 @@ fn format_call_site_contract(
         }
         TypedCallSiteContract::Intrinsic { kind, function } => {
             let _ = writeln!(out, "            intrinsic_kind: {:?},", kind);
+            let _ = writeln!(
+                out,
+                "            intrinsic_allowed_context: {:?},",
+                kind.allowed_context()
+            );
+            let _ = writeln!(
+                out,
+                "            intrinsic_runtime_fallback: {:?},",
+                kind.runtime_fallback()
+            );
             format_function_target(out, types, function, "target");
         }
         TypedCallSiteContract::EffectOp(perform) => {
@@ -1942,7 +1987,6 @@ mod tests {
     fn refactor_hir_no_todo_rejects_current_placeholder_reasons() {
         const EXPR_REASONS: &[&str] = &[
             "array_lit",
-            "class_lit",
             "spread_arg",
             "named_arg",
             "structured_concurrency_spawn_deferred",
@@ -2469,6 +2513,111 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
             TypedCallSiteContract::EffectOp(perform)
                 if perform.op_fqn() == "sample.Boom.boom"
         )));
+    }
+
+    #[test]
+    fn refactor_hir_class_literal_and_intrinsic_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_class_literal.scoop",
+            r#"package sample
+import scoop.core.*
+
+struct Point(val x: Int)
+
+val ClassName: String = Point::class
+
+fun runtime(): String {
+    val n: String = nameOf<Point>()
+    val bytes: Int = sizeOf<Point>()
+    val platform: Platform = getPlatform()
+    return n
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("class literal fixture should lower to HIR");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("class_lit"),
+            "class literal Todo leaked: {dump}"
+        );
+        assert!(
+            dump.contains("ClassLiteral"),
+            "class literal contract missing: {dump}"
+        );
+        assert!(
+            dump.contains("source_fqn: Some") && dump.contains("\"sample.Point\""),
+            "class literal source type FQN missing: {dump}"
+        );
+        assert!(
+            dump.contains("metadata_kind: TypeNameString"),
+            "class literal metadata kind missing: {dump}"
+        );
+        assert!(
+            dump.contains("intrinsic_allowed_context: ComptimeAndRuntime"),
+            "intrinsic allowed context missing: {dump}"
+        );
+        assert!(
+            dump.contains("intrinsic_runtime_fallback: NormalRuntimeCall"),
+            "reflection intrinsic runtime fallback missing: {dump}"
+        );
+        assert!(
+            dump.contains("intrinsic_runtime_fallback: PlatformQuery"),
+            "platform intrinsic runtime fallback missing: {dump}"
+        );
+
+        let contracts = output.effect_contracts().call_site_contracts();
+        let mut saw_name_of = false;
+        let mut saw_size_of = false;
+        let mut saw_get_platform = false;
+        for contract in contracts.values() {
+            let TypedCallSiteContract::Intrinsic { kind, function } = contract else {
+                continue;
+            };
+            match function.fqn() {
+                "scoop.core.nameOf" => {
+                    saw_name_of = true;
+                    assert_eq!(
+                        kind.allowed_context(),
+                        IntrinsicAllowedContext::ComptimeAndRuntime
+                    );
+                    assert_eq!(
+                        kind.runtime_fallback(),
+                        IntrinsicRuntimeFallback::NormalRuntimeCall
+                    );
+                }
+                "scoop.core.sizeOf" => {
+                    saw_size_of = true;
+                    assert_eq!(
+                        kind.allowed_context(),
+                        IntrinsicAllowedContext::ComptimeAndRuntime
+                    );
+                    assert_eq!(
+                        kind.runtime_fallback(),
+                        IntrinsicRuntimeFallback::NormalRuntimeCall
+                    );
+                }
+                "scoop.core.getPlatform" => {
+                    saw_get_platform = true;
+                    assert_eq!(
+                        kind.allowed_context(),
+                        IntrinsicAllowedContext::ComptimeAndRuntime
+                    );
+                    assert_eq!(
+                        kind.runtime_fallback(),
+                        IntrinsicRuntimeFallback::PlatformQuery
+                    );
+                }
+                _ => {}
+            }
+        }
+        assert!(saw_name_of, "nameOf intrinsic contract missing: {dump}");
+        assert!(saw_size_of, "sizeOf intrinsic contract missing: {dump}");
+        assert!(
+            saw_get_platform,
+            "getPlatform intrinsic contract missing: {dump}"
+        );
     }
 
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {

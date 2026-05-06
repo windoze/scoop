@@ -1,32 +1,34 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 范围
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after completing and committing that one task, or after committing any required prerequisite/blocker bookkeeping.
+- 本次只处理 `TODO.md` 中按顺序出现的第一个标题未带 `[DONE]` 的任务。
+- `TODO.md` 是任务顺序、依赖、验收和完成记录的唯一权威来源。
+- `PLAN.md` 只在阶段级计划、依赖或完成标准发生变化时更新。
 
-## Execution Plan
+## 步骤
 
-1. Read `TODO.md` first and determine the first incomplete task by heading prefix.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Read the minimum relevant files needed to understand and implement the task.
-4. Implement the task without workarounds or scope narrowing.
-5. Add or update tests/fixtures required by the task.
-6. Run the task's required validation commands and any focused tests needed for confidence.
-7. If validation exposes a task-blocking spec mismatch or missing feature, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-8. If the task is complete, update `TODO.md` by prefixing the task heading with `[DONE]` and filling the completion record.
-9. Update this plan file when key steps complete or the plan changes.
-10. Commit all relevant changes with a descriptive task-tagged message.
-11. Stop without starting the next task.
+1. 读取 `TODO.md`，定位第一个未完成任务，并检查其要求、依赖和验证方式。
+2. 检查最近提交信息；仅当它明确提到与当前任务直接相关的未完成问题时，将其纳入当前任务或作为前置任务记录。
+3. 根据当前任务读取最小必要代码和测试上下文，不做开放式历史问题扫描。
+4. 如果存在阻塞当前任务的缺失语言特性、规范不匹配或实现边界，优先在 `TODO.md` 中加入最小必要前置任务，保留当前任务未完成，然后提交并停止。
+5. 如果无阻塞，按任务要求实现最小正确改动，不引入绕路、夹具专用逻辑或弱化规格的实现。
+6. 添加或更新相关测试/fixture，运行任务要求的验证命令及必要的回归测试。
+7. 若验证失败，定位并修复与当前任务直接相关的问题，重复验证。
+8. 验证通过后，在 `TODO.md` 中把当前任务标题前缀改为 `[DONE]`，并更新完成记录。
+9. 更新本文件记录关键进展和实际执行结果。
+10. 检查工作区变更，提交所有本次任务相关变更；如果本次是在恢复未完成任务，则按要求把当前未提交文件一起纳入提交。
+11. 提交后停止，不继续处理下一个任务。
 
-## Progress Log
+## 进度
 
-- Initialized execution plan before reading project task files.
-- Read `TODO.md`; first incomplete task is `HIR-T07`: publish callable callee provenance and dispatch/ctor/intrinsic HIR contracts.
-- Checked latest commit (`[HIR-T06] Canonicalize refactor HIR call arguments`) and current worktree; no directly relevant unfinished issue was found.
-- Inspected HIR lowering, typed HIR stage contracts, and MIR lowering facts. Current gap: typed HIR only exposes coarse call kinds, while refactor MIR dispatch still reconstructs owner/member from callee FQN. Plan update: add structured call-site contracts to typed HIR and route refactor MIR dispatch through those contracts.
-- Implemented structured typed HIR call-site contracts for direct top-level, member direct, extension, constructor, closure, function value, FunPtr, virtual/interface dispatch, intrinsic, continuation resume, and effect-op sites. Refactor MIR dispatch now consumes the typed HIR owner/member contract instead of reconstructing dispatch metadata from callee FQN.
-- Added `refactor_hir_call_contracts_surface_ok.scoop` and a focused unit test covering the HIR-T07 call surfaces. Verified focused contract tests, typed HIR snapshots, no-Todo tests, dump-hir tests, dispatch/resume tests, the new fixture, and refactor `dump-hir` on the fixture.
-- Ran `cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings` successfully.
-- Updated `TODO.md` by marking `HIR-T07` as `[DONE]` and recording implementation details plus validation commands. `PLAN.md` did not need changes because phase-level sequencing was unchanged.
+- 已创建初始执行计划。
+- 已读取 `TODO.md`，第一个未完成任务是 `HIR-T08：收口 class literal 与 reflection/platform intrinsic HIR contract`。
+- 已检查最近提交：`522779ad [HIR-T07] Publish refactor HIR call contracts`，该提交与当前任务顺序直接相关，未发现需要先插入的新前置任务。
+- 当前任务执行重点：消除 `ExprKind::Todo("class_lit")`，为 class literal 与 `nameOf<T>()`、`sizeOf<T>()`、`getPlatform()` 发布/展示明确 HIR contract，并按任务要求补测试与 fixture。
+- 已实现 HIR `ClassLiteral` value primitive，v0 结果类型为 `String`，同时保留 source type、source FQN 与 metadata kind。
+- 已让普通表达式 typecheck 接受 `Type::class` 并验证其类型引用，避免 runtime class literal 触达 HIR Todo。
+- 已扩展 typed HIR intrinsic contract dump，明确 intrinsic allowed context 与 runtime fallback；新增定向单测覆盖 `nameOf<T>()`、`sizeOf<T>()`、`getPlatform()`。
+- 已运行并通过：`cargo test -p scoopc --no-default-features refactor_hir_class_literal`。
+- 已完成全部验证：placeholder inventory、no-Todo verifier、call contracts、dump-hir tests、三个指定 typecheck fixtures、reflection fixture dump-hir 与 clippy 均通过。
+- 已将 `TODO.md` 中 `HIR-T08` 标记为 `[DONE]` 并补充完成记录。

@@ -100,6 +100,10 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::StructLit { ty, fields } => {
             infer_struct_lit_expr_type(inputs, expr, ty, fields, lower)
         }
+        ast::ExprKind::ClassLit { ty } => {
+            let _ = lower.lower_type_ref(ty)?;
+            Ok(builtins.string)
+        }
         ast::ExprKind::If {
             cond,
             then_branch,

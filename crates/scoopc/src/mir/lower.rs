@@ -716,6 +716,7 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         match &expr.kind {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => Vec::new(),
@@ -1873,6 +1874,9 @@ impl<'a> FnLowering<'a> {
                 tmp
             }
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),
+            hir::ExprKind::ClassLiteral(_) => {
+                self.emit_todo_value(expr.span, expr.ty, "class literal MIR lowering pending")
+            }
             hir::ExprKind::VarRef(v) => self.lower_var_ref(expr.span, expr.ty, v),
             hir::ExprKind::StructLit { fields, .. } => {
                 self.lower_struct_lit_expr(expr.span, expr.ty, fields)
@@ -3200,6 +3204,7 @@ impl<'a> FnLowering<'a> {
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::Todo(_) => None,
             hir::ExprKind::StructLit { fields, .. } => fields
                 .iter()
@@ -4030,6 +4035,7 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {

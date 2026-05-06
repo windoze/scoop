@@ -256,7 +256,10 @@ impl<'a> RefactorHirCompletenessVerifier<'a> {
             ExprKind::Todo(kind) => {
                 self.placeholder(source_path, expr.span, "ExprKind::Todo", kind, owner)
             }
-            ExprKind::Literal(_) | ExprKind::VarRef(_) | ExprKind::UnresolvedIdent { .. } => Ok(()),
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_) => Ok(()),
             ExprKind::StructLit { fields, .. } => {
                 for field in fields {
                     self.verify_expr(source_path, &field.value, owner)?;
