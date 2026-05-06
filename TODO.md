@@ -847,7 +847,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T11R：Review MIR-T11 generic materialization contract
+## [DONE] MIR-T11R：Review MIR-T11 generic materialization contract
 
 - 参考：
   - `MIR-T11`
@@ -864,6 +864,19 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T11` 已正确实现；若发现缺口，`MIR-T11R` 保持未完成并把修复归回 `MIR-T11`。
 - 依赖：`MIR-T11`
+
+- 完成记录（2026-05-07）：
+  - Review 结论：`MIR-T11` generic materialization contract 已按任务要求正确实现；未发现需要归回 `MIR-T11` 的阻塞缺口。
+  - 审查覆盖 generic root collection、canonical `TemplateKey` / `InstanceKey`、type/effect-row args publication、request-root pass view rewrite、decl-only/materialized root handling、runtime metadata substitution、aggregate/closure/effect transport substitution，以及 missing root/template/unresolved param/effect-row arg 负例。
+  - `generic_materialization.scoop` materialized MIR 抽查确认 top-level generic function、generic member、extension effect-row call、object member generic callable、closure family 和 generic constructor owner/result type 均有 concrete materialized representation；request-root pass view 的 generic direct-call target 已重写到 concrete materialized root。
+  - default Pure effect-row materialization spot-check 确认省略 `eff` use-site arg 的 declaration-only generic call 生成 `::<eff Pure>` 实例。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_materialize_generics`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/generic_materialization.scoop`。
+  - materialized MIR 抽查通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/mir_refactor/generic_materialization.scoop`。
+  - default effect-row spot-check 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/typecheck/eff_row_param_default_pure_ok.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T12：建立 codegen routing / ABI handoff 守卫
 
