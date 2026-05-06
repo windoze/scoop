@@ -421,7 +421,10 @@ fn observe_rvalue(
         Rvalue::Use(operand) => {
             observe_operand(operand, OperandUsage::Value, state, param_use_summaries)
         }
-        Rvalue::TopLevelRef(_) | Rvalue::UnresolvedName { .. } | Rvalue::PerformResult { .. } => {}
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::TypeMetadataLiteral(_)
+        | Rvalue::PerformResult { .. } => {}
         Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
@@ -652,6 +655,7 @@ fn rvalue_provenance(
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
         | Rvalue::Call { .. }
@@ -807,6 +811,7 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => 1,
         Rvalue::Unary { .. }
         | Rvalue::TypeCheck { .. }

@@ -293,6 +293,7 @@ impl BlockCallableProvenance {
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::SizeOf { .. }
+            | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
             | Rvalue::Call { .. }
@@ -577,7 +578,8 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         | Rvalue::TopLevelRef(_)
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
-        | Rvalue::SizeOf { .. } => true,
+        | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_) => true,
         Rvalue::Call { kind, .. } => {
             matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
         }
@@ -624,7 +626,8 @@ fn rvalue_is_inlineable(
         | Rvalue::TopLevelRef(_)
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
-        | Rvalue::SizeOf { .. } => true,
+        | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_) => true,
         Rvalue::Call { kind, .. } => call_kind_is_inlineable(kind, direct_call_param_provenance),
         Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
         Rvalue::UnresolvedName { .. }
@@ -790,6 +793,7 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => {}
     }
@@ -1035,6 +1039,9 @@ fn remap_rvalue(
         Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
             value_ty: *value_ty,
         }),
+        Rvalue::TypeMetadataLiteral(metadata) => {
+            Some(Rvalue::TypeMetadataLiteral(metadata.clone()))
+        }
         Rvalue::StructLit { fields } => Some(Rvalue::StructLit {
             fields: remap_struct_lit_fields(fields, local_operands, local_map)?,
         }),

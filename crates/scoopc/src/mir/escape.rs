@@ -428,6 +428,7 @@ fn analyze_rvalue_uses(
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => {}
         Rvalue::Todo(reason) => {
             if !is_structural_handle_result_todo(reason) {

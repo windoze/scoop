@@ -14,7 +14,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "hir",
         name: "refactor_comptime_control_flow.scoop",
         requirements: &[],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "hir",
@@ -26,7 +26,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "comptime",
         name: "splice_field_access_v0_basic.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "hir",
@@ -49,9 +49,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "typecheck",
         name: "refactor_hir_class_literal_runtime_ok.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::HirOnly(
-            "class literal HIR contract is complete; direct MIR support is a later stage",
-        ),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -75,13 +73,13 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "typecheck",
         name: "with_update_tuple_nested_path_ok.scoop",
         requirements: &[RequiredHirContract::WithUpdate],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "with_update_enum_variant_payload_ok.scoop",
         requirements: &[RequiredHirContract::WithUpdate],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -234,6 +232,60 @@ fn refactor_hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
     assert!(
         mir_smoke_count >= 3,
         "preflight should keep a representative HIR -> MIR smoke subset"
+    );
+}
+
+#[test]
+fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
+    let session = refactor_session();
+    let fixture = HirCompletenessFixture {
+        phase: "mir_refactor",
+        name: "comptime_splice_class_with_update.scoop",
+        requirements: &[
+            RequiredHirContract::DeclarationGraph,
+            RequiredHirContract::WithUpdate,
+        ],
+        mir: MirPreflightMode::Run,
+    };
+    let source = fixture.load();
+
+    let typed_hir = run_typed_hir_preflight(&session, &source, fixture);
+    let hir_dump = typed_hir.stable_dump();
+    for forbidden in [
+        "ComptimeBlock",
+        "ComptimeIf",
+        "ComptimeFor",
+        "Todo(\"comptime_block\"",
+        "Todo(\"comptime_if\"",
+        "Todo(\"comptime_for\"",
+    ] {
+        assert!(
+            !hir_dump.contains(forbidden),
+            "comptime surface `{forbidden}` must be expanded before MIR for `{}`",
+            fixture.label()
+        );
+    }
+
+    let output = super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+        .unwrap_or_else(|err| panic!("refactor MIR preclosure fixture should pass: {err:?}"));
+    assert_no_hir_origin_mir_fallbacks(&output, fixture);
+
+    let dump = format!("{:#?}", output.file());
+    assert!(
+        !dump.contains("Todo"),
+        "MIR-T04 fixture must not contain placeholder Todo: {dump}"
+    );
+    assert!(
+        dump.contains("TypeMetadataLiteral"),
+        "class literal policy should lower to a MIR type metadata literal: {dump}"
+    );
+    assert!(
+        dump.contains("MemberAccess"),
+        "splice field access should become concrete member access: {dump}"
+    );
+    assert!(
+        dump.contains("StructLit") && dump.contains("MakeTuple") && dump.contains("EnumVariant"),
+        "with-update should lower struct, tuple, and enum transports into concrete MIR: {dump}"
     );
 }
 

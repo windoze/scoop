@@ -201,15 +201,6 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::Rvalue,
-        "class literal MIR lowering pending",
-        "PIPELINE_GAPS.md §1.3",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T04",
-        true,
-        "Class literals are either lowered to metadata/string primitives or rejected before MIR.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
         "unbound local ref",
         "PIPELINE_GAPS.md §1",
         PlaceholderDisposition::ImplementBeforeMir,

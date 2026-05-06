@@ -304,7 +304,7 @@
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
   - `MIR-T04` 原 blocker 验证已通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`。
 
-## MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
+## [DONE] MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M2
@@ -346,6 +346,21 @@
 - 阻塞记录（2026-05-06）：
   - 指定 splice field `dump-mir` 验证目前会被 `Item::Todo { kind: "top-level val" }` 拒绝，不能通过换 fixture 或降低 verifier 绕过。
   - 已将 `MIR-T05` 前移为本任务前置任务；完成 top-level roots 后再继续本任务。
+
+- 完成记录（2026-05-06）：
+  - runtime class literal 已按本阶段 policy 降为 `Rvalue::TypeMetadataLiteral`，保留 source type / FQN，并以 `String` type-name primitive 支持 MIR/codegen/materialization consumers。
+  - `refactor_hir_preflight` 中 comptime control-flow、splice field、runtime class literal、struct/tuple/enum with-update 合法样本已从 `HirOnly` 升级为 MIR smoke。
+  - 新增 `tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`，覆盖 package/runtime comptime expansion、splice field concrete member access、runtime class literal、struct/tuple/enum with-update MIR transport。
+  - MIR placeholder inventory 已移除 `class literal MIR lowering pending`；`MIR-T04` fixture 断言输出不含 `Todo`，并包含 `TypeMetadataLiteral`、`MemberAccess`、`StructLit`、`MakeTuple`、`EnumVariant`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_comptime`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_comptime_splice`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T06：建立 unified place/lvalue contract 并清理 assignment Todo
 

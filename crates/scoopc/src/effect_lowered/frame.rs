@@ -1022,6 +1022,7 @@ fn collect_rvalue_uses(
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => {}
     }

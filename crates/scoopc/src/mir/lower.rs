@@ -37,7 +37,7 @@ use super::{
     PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata, Rvalue,
     SiteId, Statement, StatementKind, StoredContinuationRoutePublication,
     StoredContinuationValueRoute, SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef,
-    TypeAliasMetadata, UnwindAction,
+    TypeAliasMetadata, TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -2286,8 +2286,8 @@ impl<'a> FnLowering<'a> {
                 tmp
             }
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),
-            hir::ExprKind::ClassLiteral(_) => {
-                self.emit_todo_value(expr.span, expr.ty, "class literal MIR lowering pending")
+            hir::ExprKind::ClassLiteral(class_lit) => {
+                self.lower_class_literal_expr(expr.span, expr.ty, class_lit)
             }
             hir::ExprKind::VarRef(v) => self.lower_var_ref(expr.span, expr.ty, v),
             hir::ExprKind::StructLit { fields, .. } => {
@@ -3772,6 +3772,28 @@ impl<'a> FnLowering<'a> {
             hir::LiteralKind::String => ConstValue::String,
         };
         self.assign(span, tmp, Rvalue::Use(Operand::Const(c)));
+        tmp
+    }
+
+    fn lower_class_literal_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        class_lit: &hir::ClassLiteralExpr,
+    ) -> LocalId {
+        let tmp = self.push_temp_local(span, ty);
+        let kind = match class_lit.metadata_kind {
+            hir::TypeMetadataLiteralKind::TypeNameString => TypeMetadataLiteralKind::TypeNameString,
+        };
+        self.assign(
+            span,
+            tmp,
+            Rvalue::TypeMetadataLiteral(TypeMetadataLiteral {
+                source_ty: class_lit.source_ty,
+                source_fqn: class_lit.source_fqn.clone(),
+                kind,
+            }),
+        );
         tmp
     }
 

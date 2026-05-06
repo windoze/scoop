@@ -1,0 +1,54 @@
+package mir_refactor.comptime_splice_class_with_update
+
+import scoop.core.*
+
+const val ENABLED: Bool = true
+
+comptime if (true) {
+    fun packageSelected(): Int { return 1 }
+} else {
+    fun packageSelected(): Int { return 2 }
+}
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+fun selectedBranch(): Int {
+    comptime if (ENABLED) {
+        return 3
+    } else {
+        return 4
+    }
+}
+
+fun unrolled(): Int {
+    var acc: Int = 0
+    comptime for (i in 1..3) {
+        acc = acc + 1
+    }
+    return acc
+}
+
+fun spliceField(p: Point): Int {
+    return p.["x"] + p.[FieldMeta { name: "y" }]
+}
+
+fun className(): String {
+    return Point::class
+}
+
+fun updateStruct(p: Point): Point {
+    return p with { x: 1 }
+}
+
+fun updateTuple(pair: (Point, (Int, Int))): (Point, (Int, Int)) {
+    return pair with { _0.x: 1, _1._0: 3 }
+}
+
+fun updateEnum(r: Result): Result {
+    return r with { Ok.point.x: 1, Err.code: 2 }
+}

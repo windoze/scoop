@@ -3501,6 +3501,7 @@ fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementC
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
@@ -3628,6 +3629,7 @@ fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => false,
     }

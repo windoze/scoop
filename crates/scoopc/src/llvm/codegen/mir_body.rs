@@ -1123,6 +1123,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::SizeOf { value_ty } => self
                 .cg_ty_of_mir_type(mir_types, *value_ty)
                 .is_some_and(|cg_ty| self.llvm_basic_type_of(span, cg_ty).is_ok()),
+            crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
+                matches!(
+                    metadata.kind,
+                    crate::mir::TypeMetadataLiteralKind::TypeNameString
+                ) && target_cg == Some(CgTy::String)
+            }
             crate::mir::Rvalue::Call { kind, args, .. } => {
                 self.raw_materialized_mir_call_kind_is_supported(body, mir_types, kind)
                     && args
@@ -2410,6 +2416,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::SizeOf { value_ty } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
             }
+            crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
+                self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
+            }
             crate::mir::Rvalue::StructLit { fields } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
@@ -2551,6 +2560,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::SizeOf { value_ty } => {
                 self.codegen_mir_size_of(span, mir_types, *value_ty)
             }
+            crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
+                self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
+            }
             crate::mir::Rvalue::StructLit { fields } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
@@ -2628,6 +2640,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "refactor value primitive rvalue",
                 at: span.into(),
             }),
+        }
+    }
+
+    fn codegen_mir_type_metadata_literal(
+        &mut self,
+        span: crate::span::Span,
+        metadata: &crate::mir::TypeMetadataLiteral,
+        mir_types: &TypeStore,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match metadata.kind {
+            crate::mir::TypeMetadataLiteralKind::TypeNameString => {
+                let type_name = metadata
+                    .source_fqn
+                    .clone()
+                    .unwrap_or_else(|| mir_types.display(metadata.source_ty).to_string());
+                self.codegen_string_literal_from_text(span, &type_name)
+            }
         }
     }
 

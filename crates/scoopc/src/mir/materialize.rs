@@ -40,7 +40,7 @@ use super::{
     MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory,
     NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata,
     PropertyMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
-    Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, UnwindAction,
+    Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction,
     build_materialized_summary_table,
 };
 
@@ -1201,6 +1201,9 @@ fn validate_materialized_rvalue(
             },
             *value_ty,
         ),
+        Rvalue::TypeMetadataLiteral(metadata) => {
+            validate_materialized_type_metadata_literal(materialized, fqn, block, span, metadata)
+        }
         Rvalue::InterpolatedString { parts, .. } => {
             for part in parts {
                 validate_materialized_interpolated_part(materialized, fqn, block, locals, part)?;
@@ -1312,6 +1315,25 @@ fn validate_materialized_rvalue(
             reason,
         })),
     }
+}
+
+fn validate_materialized_type_metadata_literal(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    metadata: &TypeMetadataLiteral,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "type metadata literal source type",
+        },
+        metadata.source_ty,
+    )
 }
 
 fn validate_materialized_top_level_ref(
@@ -5495,6 +5517,13 @@ impl MirInstanceMaterializer {
             Rvalue::SizeOf { value_ty } => {
                 *value_ty =
                     substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
+            Rvalue::TypeMetadataLiteral(metadata) => {
+                metadata.source_ty = substitute_type_and_effect_params(
+                    &mut self.types,
+                    metadata.source_ty,
+                    ctx.substitution,
+                );
             }
             Rvalue::MemberAccess {
                 receiver, member, ..

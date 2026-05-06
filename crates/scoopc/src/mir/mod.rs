@@ -1305,6 +1305,22 @@ pub struct StructLitField {
     pub value: Operand,
 }
 
+/// MIR-level type metadata literal value.
+///
+/// Scoop 0.1 keeps runtime `T::class` as a stable type-name string value while retaining the
+/// source type identity needed by later stages to upgrade this to richer metadata.
+#[derive(Debug, Clone)]
+pub struct TypeMetadataLiteral {
+    pub source_ty: TypeId,
+    pub source_fqn: Option<String>,
+    pub kind: TypeMetadataLiteralKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeMetadataLiteralKind {
+    TypeNameString,
+}
+
 /// `perform` payload 在 MIR 上的一个已排序参数槽位。
 ///
 /// 说明：
@@ -1529,6 +1545,8 @@ pub enum Rvalue {
     SizeOf {
         value_ty: TypeId,
     },
+    /// Runtime class literal / type metadata value primitive.
+    TypeMetadataLiteral(TypeMetadataLiteral),
     /// 运行期插值字符串构造。表达式片段已按 ANF 先求值为 operand。
     InterpolatedString {
         raw: bool,
@@ -1745,6 +1763,7 @@ impl Rvalue {
             | Rvalue::MakeTuple { .. }
             | Rvalue::StructLit { .. }
             | Rvalue::SizeOf { .. }
+            | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
             | Rvalue::CaptureBoxNew { .. }
