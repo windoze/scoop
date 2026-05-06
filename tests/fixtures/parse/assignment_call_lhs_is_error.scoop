@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 13:5
+// EXPECT-ERROR: 可赋值的左值（标识符或成员访问）
+
+package fixtures.parse
+
+import scoop.core.*
+
+fun make(): Int { return 0 }
+
+fun main() {
+    make() = 1
+}

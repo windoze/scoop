@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_expr
+// EXPECT-ERROR-AT: 11:9
+// EXPECT-ERROR: 局部 val/var（缺少 initializer）
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    var x: Int
+}

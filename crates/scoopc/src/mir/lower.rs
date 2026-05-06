@@ -1881,12 +1881,7 @@ impl<'a> FnLowering<'a> {
     /// 降低 `break`：跳转到当前 loop 的 exit block。
     fn lower_break_stmt(&mut self, span: Span) {
         let Some(ctx) = self.loop_stack.last().copied() else {
-            self.set_terminator(
-                self.current_bb,
-                span,
-                TerminatorKind::Todo("break not in loop"),
-            );
-            return;
+            panic!("typecheck must reject `break` outside loops before MIR lowering: {span:?}");
         };
         if self.cleanup_scopes.len() == ctx.cleanup_depth {
             self.set_terminator(
@@ -1911,12 +1906,7 @@ impl<'a> FnLowering<'a> {
     /// 降低 `continue`：跳转到当前 loop 的 cond block。
     fn lower_continue_stmt(&mut self, span: Span) {
         let Some(ctx) = self.loop_stack.last().copied() else {
-            self.set_terminator(
-                self.current_bb,
-                span,
-                TerminatorKind::Todo("continue not in loop"),
-            );
-            return;
+            panic!("typecheck must reject `continue` outside loops before MIR lowering: {span:?}");
         };
         if self.cleanup_scopes.len() == ctx.cleanup_depth {
             self.set_terminator(
@@ -1940,10 +1930,12 @@ impl<'a> FnLowering<'a> {
 
     /// 降低一个 `val/var` 声明：分配 local，并 lower initializer（若存在）。
     fn lower_val_decl(&mut self, decl: &hir::ValDecl) {
-        let Some(id) = decl.id else {
-            self.push_stmt(decl.span, StatementKind::Todo("val decl missing symbol id"));
-            return;
-        };
+        let id = decl.id.unwrap_or_else(|| {
+            panic!(
+                "typed HIR local declaration must have a symbol id: {:?}",
+                decl.span
+            )
+        });
 
         let name = decl.name.as_deref().unwrap_or("<anon>");
         // `var` 若被 closure 捕获，需要在本函数内以 box 形式存储，保证后续读写别名一致（T0714）。
@@ -1965,10 +1957,9 @@ impl<'a> FnLowering<'a> {
                     },
                 );
             } else {
-                self.assign(
-                    decl.span,
-                    local,
-                    Rvalue::Todo("boxed var decl init pending"),
+                panic!(
+                    "typecheck must reject captured mutable locals without initializer before MIR lowering: {:?}",
+                    decl.span
                 );
             }
             return;
@@ -2072,16 +2063,14 @@ impl<'a> FnLowering<'a> {
             .refactor_assign_place_contract(self.source_path.as_path(), span)
             .cloned()
         else {
-            self.push_stmt(span, StatementKind::Todo("assign place contract missing"));
-            return;
+            panic!("typed HIR assignment must have a place contract before MIR lowering: {span:?}");
         };
 
         match &contract.kind {
             hir::AssignPlaceKind::Local { id, .. } => {
-                let Some(target) = self.symbol_locals.get(id).copied() else {
-                    self.push_stmt(span, StatementKind::Todo("assign place local missing"));
-                    return;
-                };
+                let target = self.symbol_locals.get(id).copied().unwrap_or_else(|| {
+                    panic!("assignment place contract references an unallocated local: {id:?}")
+                });
 
                 let value = self.lower_expr_to_local(rhs);
                 if self.current_is_terminated() {
@@ -2122,11 +2111,9 @@ impl<'a> FnLowering<'a> {
                 ..
             } => {
                 let hir::ExprKind::MemberAccess { receiver, .. } = &lhs.kind else {
-                    self.push_stmt(
-                        span,
-                        StatementKind::Todo("assign place member receiver missing"),
+                    panic!(
+                        "member assignment place contract must match a member-access lhs: {span:?}"
                     );
-                    return;
                 };
                 let receiver_local = self.lower_expr_to_local(receiver);
                 if self.current_is_terminated() {
@@ -2364,13 +2351,6 @@ impl<'a> FnLowering<'a> {
     fn emit_unit(&mut self, span: Span) -> LocalId {
         let tmp = self.push_temp_local(span, self.builtins.unit);
         self.assign(span, tmp, Rvalue::Use(Operand::Const(ConstValue::Unit)));
-        tmp
-    }
-
-    /// 生成一个“未实现的值”，并返回其 local。
-    fn emit_todo_value(&mut self, span: Span, ty: TypeId, msg: &'static str) -> LocalId {
-        let tmp = self.push_temp_local(span, ty);
-        self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
     }
 
@@ -3868,9 +3848,9 @@ impl<'a> FnLowering<'a> {
     fn lower_var_ref(&mut self, span: Span, ty: TypeId, v: &hir::ValueRef) -> LocalId {
         match v {
             hir::ValueRef::Local { id, .. } => {
-                let Some(local) = self.symbol_locals.get(id).copied() else {
-                    return self.emit_todo_value(span, ty, "unbound local ref");
-                };
+                let local = self.symbol_locals.get(id).copied().unwrap_or_else(|| {
+                    panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
+                });
 
                 if self.boxed_symbols.contains(id) {
                     let tmp = self.push_temp_local(span, ty);

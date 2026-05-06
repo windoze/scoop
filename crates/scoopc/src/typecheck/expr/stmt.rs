@@ -1232,6 +1232,15 @@ pub(super) fn check_local_val_decl_exprs(
         check_nogc_boxing_gate(found, expected, init.span, lower, shared.builtins)?;
     }
 
+    if v.init.is_none()
+        && let ast::ValBinding::Name(name) = &v.binding
+    {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "局部 val/var（缺少 initializer）",
+            span: name.span.into(),
+        });
+    }
+
     let inferred = declared_ty.or(init_ty);
 
     match &v.binding {

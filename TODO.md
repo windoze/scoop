@@ -362,7 +362,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T06：建立 unified place/lvalue contract 并清理 assignment Todo
+## [DONE] MIR-T06：建立 unified place/lvalue contract 并清理 assignment Todo
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M4
@@ -398,6 +398,21 @@
   - assignment/store lowering 不再产生 Todo。
   - Store metadata 足以支撑 later-stage member/global/index/continuation provenance。
 - 依赖：`MIR-T05`
+
+- 完成记录（2026-05-06）：
+  - refactor MIR assignment lowering 现在只消费 typed HIR assignment place contract；缺失 contract、缺失 local symbol、member contract 与 LHS route 不一致等情况均作为前置 HIR invariant，不再构造 refactor-reachable assignment/place Todo。
+  - captured mutable local without initializer 已在 frontend/typecheck 以 source diagnostic 拒绝；MIR lowering 不再生成 `Rvalue::Todo("boxed var decl init pending")`。
+  - `break` / `continue` outside loop 继续由 typecheck control-flow diagnostic 拒绝；MIR lowering 不再保留对应 terminator Todo 构造。
+  - MIR placeholder inventory 已移除 refactor-reachable `MIR-T06` placeholder entries；仅 legacy non-refactor assignment fallback 仍以 `LegacyOnly` bucket 追踪 `assign lhs missing local` / `assign lhs lowering pending`。
+  - 新增 `tests/fixtures/mir_refactor/assignment_places.scoop`，覆盖 local、boxed local、top-level var、extern global、direct/nested member store 的 refactor MIR store contract。
+  - 新增 diagnostics fixtures：`parse/assignment_call_lhs_is_error.scoop`、`typecheck/local_var_missing_initializer_is_error.scoop`，并复用既有 `break_not_in_loop_is_error.scoop` / `continue_not_in_loop_is_error.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_place_contract`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/assignment_places.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - diagnostics fixtures 通过：`parse/assignment_call_lhs_is_error.scoop`、`typecheck/local_var_missing_initializer_is_error.scoop`、`typecheck/break_not_in_loop_is_error.scoop`、`typecheck/continue_not_in_loop_is_error.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T07：收口 call/ctor/default/named/intrinsic typed call-site contract
 

@@ -261,7 +261,7 @@ mod tests {
     use super::RefactorMirStageOutput;
     use crate::mir::{
         CallKind, HandlerArmKind, InitializerDependencyKind, InitializerRootKind, Item,
-        MetadataRoot, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        MemberTarget, MetadataRoot, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -442,6 +442,122 @@ fun main() {}
         );
         assert!(output.callable_body("sample.Registry.touch").is_some());
         assert!(output.callable_body("sample.main").is_some());
+    }
+
+    #[test]
+    fn refactor_mir_place_contract_lowers_assignment_places() {
+        let output = run_fixture("mir_refactor", "assignment_places.scoop");
+        let dump = output.stable_dump();
+        for forbidden in [
+            "assign lhs lowering pending",
+            "assign place contract missing",
+            "assign place local missing",
+            "assign place member receiver missing",
+            "boxed var decl init pending",
+            "val decl missing symbol id",
+            "unbound local ref",
+        ] {
+            assert!(
+                !dump.contains(forbidden),
+                "refactor MIR assignment place lowering leaked `{forbidden}`: {dump}"
+            );
+        }
+
+        let native = output
+            .extern_global_root("mir_refactor.assignment_places.NativeCounter")
+            .expect("extern global root should be published");
+        assert!(native.unsafe_required);
+
+        let body = validated_callable_body(&output, "mir_refactor.assignment_places.use");
+        let mut saw_global_store = false;
+        let mut saw_extern_store = false;
+        let mut saw_capture_box_new = false;
+        let mut saw_capture_box_set = false;
+        let mut box_value_store_count = 0usize;
+
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            match &stmt.kind {
+                StatementKind::StoreTopLevelVar { fqn, .. }
+                    if fqn == "mir_refactor.assignment_places.G" =>
+                {
+                    saw_global_store = true;
+                }
+                StatementKind::StoreTopLevelVar { fqn, .. }
+                    if fqn == "mir_refactor.assignment_places.NativeCounter" =>
+                {
+                    saw_extern_store = true;
+                }
+                StatementKind::Assign {
+                    value: Rvalue::CaptureBoxNew { .. },
+                    ..
+                } => {
+                    saw_capture_box_new = true;
+                }
+                StatementKind::Assign {
+                    value: Rvalue::CaptureBoxSet { .. },
+                    ..
+                } => {
+                    saw_capture_box_set = true;
+                }
+                StatementKind::StoreMember { member, .. }
+                    if matches!(
+                        member.resolved.as_ref(),
+                        Some(MemberTarget::Value { fqn })
+                            if fqn == "mir_refactor.assignment_places.Box.value"
+                    ) =>
+                {
+                    box_value_store_count += 1;
+                }
+                _ => {}
+            }
+        }
+
+        assert!(saw_global_store, "top-level var store missing: {dump}");
+        assert!(saw_extern_store, "extern global store missing: {dump}");
+        assert!(
+            saw_capture_box_new && saw_capture_box_set,
+            "boxed mutable local should lower to explicit capture-box new/set: {dump}"
+        );
+        assert!(
+            box_value_store_count >= 2,
+            "direct and nested member stores should target Box.value: {dump}"
+        );
+    }
+
+    #[test]
+    fn refactor_mir_place_contract_rejects_invalid_inputs_before_mir() {
+        let session = refactor_session();
+        for (name, source, expected) in [
+            (
+                "local_missing_initializer",
+                "package sample\nimport scoop.core.*\nfun main() { var x: Int }\n",
+                "局部 val/var（缺少 initializer）",
+            ),
+            (
+                "assignment_call_lhs",
+                "package sample\nimport scoop.core.*\nfun make(): Int { return 0 }\nfun main() { make() = 1 }\n",
+                "可赋值的左值（标识符或成员访问）",
+            ),
+            (
+                "break_not_in_loop",
+                "package sample\nimport scoop.core.*\nfun main() { break }\n",
+                "BreakNotInLoop",
+            ),
+            (
+                "continue_not_in_loop",
+                "package sample\nimport scoop.core.*\nfun main() { continue }\n",
+                "ContinueNotInLoop",
+            ),
+        ] {
+            let source = SourceFile::new_virtual(format!("<mem>/{name}.scoop"), source);
+            let err =
+                super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap_err();
+            let report = format!("{err:?}");
+            assert!(
+                report.contains(expected),
+                "expected diagnostic `{expected}` for {name}, got: {report}"
+            );
+        }
     }
 
     #[test]
