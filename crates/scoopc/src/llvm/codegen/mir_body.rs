@@ -753,12 +753,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         local_id: crate::mir::LocalId,
         local: &crate::mir::LocalDecl,
     ) -> Result<CgTy, LlvmEmitError> {
-        let local_cg = self.cg_ty_of_mir_type(mir_types, local.ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR local type",
-                at: local.span.into(),
-            },
-        )?;
+        let local_cg = self.cg_ty_of_mir_type(mir_types, local.ty);
         let mut member_field_cg = None;
         for block in &body.blocks {
             for stmt in &block.stmts {
@@ -799,21 +794,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if let Some(field_cg) = member_field_cg
             && (matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
-                || self.mir_type_contains_param(mir_types, local.ty)
-                || self.cg_ty_layout_equivalent(local_cg, field_cg))
+                || local_cg.is_some_and(|local_cg| {
+                    self.mir_type_contains_param(mir_types, local.ty)
+                        || self.cg_ty_layout_equivalent(local_cg, field_cg)
+                }))
         {
             return Ok(field_cg);
         }
         if let Some(assigned_cg) = self.mir_local_assignment_cg_ty(body, mir_types, local_id)
             && matches!(local.source, crate::mir::LocalSourceKind::CompilerTemporary)
-            && (matches!(local_cg, CgTy::Ref)
+            && (local_cg.is_none()
+                || matches!(local_cg, Some(CgTy::Ref))
                 || matches!(assigned_cg, CgTy::Enum(_))
                 || self.mir_type_contains_param(mir_types, local.ty)
-                || self.cg_ty_layout_equivalent(local_cg, assigned_cg))
+                || local_cg
+                    .is_some_and(|local_cg| self.cg_ty_layout_equivalent(local_cg, assigned_cg)))
         {
             return Ok(assigned_cg);
         }
-        Ok(local_cg)
+        local_cg.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "pass MIR local type",
+            at: local.span.into(),
+        })
     }
 
     fn mir_local_assignment_cg_ty(

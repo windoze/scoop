@@ -444,6 +444,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
             }
+            mir::Rvalue::StructLit { fields } => {
+                self.install_effect_typed_plain_closure_adapters_for_struct_fields(
+                    span, fields, target_cg,
+                )?;
+                self.codegen.codegen_mir_effect_neutral_rvalue(
+                    span,
+                    value,
+                    self.body,
+                    self.source_types,
+                    self.slots,
+                    target_cg,
+                )
+            }
             mir::Rvalue::ClassCtor {
                 class_fqn, args, ..
             } => {
@@ -607,6 +620,22 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         else {
             return Ok(None);
         };
+        self.maybe_build_effect_typed_plain_closure_adapter_for_source_ty(span, target_ty, fn_ptr)
+    }
+
+    fn maybe_build_effect_typed_plain_closure_adapter_for_source_ty(
+        &mut self,
+        span: Span,
+        target_ty: TypeId,
+        fn_ptr: &str,
+    ) -> Result<Option<inkwell::values::PointerValue<'ctx>>, LlvmEmitError> {
+        if self
+            .abi
+            .maybe_plain_callable_layout_by_root_fqn(fn_ptr)?
+            .is_none()
+        {
+            return Ok(None);
+        }
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.source_types.kind(target_ty) else {
             return Ok(None);
         };
@@ -625,6 +654,96 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let layout = self.effect_typed_plain_adapter_layout(&fun_ty)?;
         self.build_effect_typed_plain_closure_adapter(span, fn_ptr, &fun_ty, layout)
             .map(Some)
+    }
+
+    fn install_effect_typed_plain_closure_adapters_for_struct_fields(
+        &mut self,
+        span: Span,
+        fields: &[mir::StructLitField],
+        target_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        let CgTy::Struct(struct_ty) = target_cg else {
+            return Ok(());
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.codegen.types.kind(struct_ty)
+        else {
+            return Ok(());
+        };
+        let layout_key = self.codegen.nominal_layout_key(nominal);
+        let layout = self.codegen.struct_layouts.get(&layout_key).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor struct closure adapter layout",
+                at: span.into(),
+            },
+        )?;
+        for layout_field in &layout.fields {
+            let Some(init) = fields.iter().find(|field| field.name == layout_field.name) else {
+                continue;
+            };
+            let mir::Operand::Local(source_local) = init.value else {
+                continue;
+            };
+            let Some((_env, fn_ptr)) = self.local_make_closure_source(source_local) else {
+                continue;
+            };
+            let Some(field_ty) = layout_field.ty else {
+                continue;
+            };
+            let Some(source_field_ty) = self.source_type_matching_codegen_ty(field_ty) else {
+                continue;
+            };
+            let Some(adapter) = self.maybe_build_effect_typed_plain_closure_adapter_for_source_ty(
+                init.span,
+                source_field_ty,
+                &fn_ptr,
+            )?
+            else {
+                continue;
+            };
+            self.store_closure_dynamic_entry(init.span, &init.value, adapter)?;
+        }
+        Ok(())
+    }
+
+    fn source_type_matching_codegen_ty(&self, codegen_ty: TypeId) -> Option<TypeId> {
+        let display = self.codegen.types.display(codegen_ty).to_string();
+        self.source_types
+            .iter_ids()
+            .find(|&ty| self.source_types.display(ty).to_string() == display)
+    }
+
+    fn store_closure_dynamic_entry(
+        &mut self,
+        span: Span,
+        closure_operand: &mir::Operand,
+        fn_ptr: inkwell::values::PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let closure = self.codegen.codegen_mir_operand_expected(
+            span,
+            closure_operand,
+            self.slots,
+            Some(CgTy::Ref),
+        )?;
+        let closure = self.codegen.coerce_value(span, closure, CgTy::Ref)?;
+        let Some(BasicValueEnum::PointerValue(raw_closure)) = closure.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor struct closure adapter value",
+                at: span.into(),
+            });
+        };
+        let closure_ptr = self.codegen.refactor_cast_ptr(
+            raw_closure,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            "refactor_struct_closure_adapter_obj",
+        )?;
+        let fn_gep = self.codegen.builder.build_struct_gep(
+            self.codegen.llvm_closure_object_type(),
+            closure_ptr,
+            2,
+            "refactor_struct_closure_adapter_fn_gep",
+        )?;
+        let _ = self.codegen.builder.build_store(fn_gep, fn_ptr)?;
+        Ok(())
     }
 
     fn effect_typed_plain_adapter_layout(
@@ -2246,6 +2365,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let value_cg = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, value_ty)
+            .or_else(|| self.operand_slot_cg_ty(&arg.value))
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor toInt receiver type",
                 at: arg.span.into(),
@@ -2266,47 +2386,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 return self.codegen.coerce_value(arg.span, value, int_ty).map(Some);
             }
             TypeKind::Ref(RefTypeKind::String) => {
-                let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
-                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor String.toInt receiver value",
-                        at: arg.span.into(),
-                    });
-                };
-                let rt = self.codegen.declare_runtime_string_to_int();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[ptr.into()],
-                    "rt_string_to_int",
-                )?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor String.toInt return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(int64_val) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor String.toInt return type",
-                        at: span.into(),
-                    });
-                };
-                let runtime_int = CgValue::int(
-                    int64_val,
-                    super::super::types::IntTy {
-                        bits: 64,
-                        signed: true,
-                    },
-                );
-                return self
-                    .codegen
-                    .coerce_value(span, runtime_int, int_ty)
-                    .map(Some);
+                return self.lower_string_to_int(span, arg, value);
             }
             _ => {}
         }
         match value.ty {
+            CgTy::String => self.lower_string_to_int(span, arg, value),
             CgTy::Float64 | CgTy::Float32 => {
                 let Some(BasicValueEnum::FloatValue(float_val)) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2353,6 +2438,58 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    fn lower_string_to_int(
+        &mut self,
+        span: Span,
+        arg: &mir::CallArg,
+        value: CgValue<'ctx>,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
+        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor String.toInt receiver value",
+                at: arg.span.into(),
+            });
+        };
+        let rt = self.codegen.declare_runtime_string_to_int();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            rt,
+            &[ptr.into()],
+            "rt_string_to_int",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor String.toInt return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(int64_val) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor String.toInt return type",
+                at: span.into(),
+            });
+        };
+        let runtime_int = CgValue::int(
+            int64_val,
+            super::super::types::IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.codegen
+            .coerce_value(
+                span,
+                runtime_int,
+                CgTy::Int(super::super::types::IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                }),
+            )
+            .map(Some)
     }
 
     fn lower_refactor_hash_intrinsic(
@@ -4330,6 +4467,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             mir::Operand::Const(mir::ConstValue::Float64) => Some(self.codegen.builtins.float64),
             mir::Operand::Const(mir::ConstValue::Float32) => Some(self.codegen.builtins.float32),
             mir::Operand::Const(mir::ConstValue::String) => Some(self.codegen.builtins.string),
+        }
+    }
+
+    fn operand_slot_cg_ty(&self, operand: &mir::Operand) -> Option<CgTy> {
+        match operand {
+            mir::Operand::Local(local) => self
+                .slots
+                .get(local.as_u32() as usize)
+                .map(|slot| slot.cg_ty),
+            mir::Operand::Const(value) => self.codegen.mir_const_cg_ty(value),
         }
     }
 

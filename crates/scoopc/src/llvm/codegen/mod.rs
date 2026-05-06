@@ -1437,6 +1437,115 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn sync_basic_value_into_explicit_frame(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        raw: BasicValueEnum<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let slot =
+            self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
+        let Some(frame_slots) = self
+            .explicit_frame_slot_mirrors_for(slot)
+            .map(|slots| slots.to_vec())
+        else {
+            return Ok(());
+        };
+        if frame_slots.is_empty() {
+            return Ok(());
+        }
+
+        let mut leaves = Vec::new();
+        if !self.collect_gc_ptr_leaf_values_in_basic_value(
+            raw,
+            value_ty,
+            name_prefix,
+            &mut leaves,
+        )? {
+            return self.sync_storage_slot_into_explicit_frame(at, slot, value_ty, name_prefix);
+        }
+        if leaves.len() != frame_slots.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value/frame slot count mismatch",
+                at: at.into(),
+            });
+        }
+        for ((leaf, _leaf_ty), frame_slot) in leaves.into_iter().zip(frame_slots) {
+            let ptr = leaf.into_pointer_value();
+            let _ = self.builder.build_store(frame_slot, ptr)?;
+        }
+        Ok(())
+    }
+
+    fn collect_gc_ptr_leaf_values_in_basic_value(
+        &mut self,
+        raw: BasicValueEnum<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+        out: &mut Vec<(BasicValueEnum<'ctx>, PointerType<'ctx>)>,
+    ) -> Result<bool, LlvmEmitError> {
+        match value_ty {
+            BasicTypeEnum::PointerType(ptr_ty) => {
+                if !matches!(raw, BasicValueEnum::PointerValue(_)) {
+                    return Ok(false);
+                }
+                if ptr_ty.get_address_space() == self.gc_address_space() {
+                    out.push((raw, ptr_ty));
+                }
+            }
+            BasicTypeEnum::StructType(struct_ty) => {
+                if struct_ty.is_opaque() {
+                    return Ok(true);
+                }
+                let BasicValueEnum::StructValue(raw) = raw else {
+                    return Ok(false);
+                };
+                for (idx, field_ty) in struct_ty.get_field_types().into_iter().enumerate() {
+                    let field = self.builder.build_extract_value(
+                        raw,
+                        idx as u32,
+                        &format!("{name_prefix}_leaf_value_{idx}"),
+                    )?;
+                    if !self.collect_gc_ptr_leaf_values_in_basic_value(
+                        field,
+                        field_ty,
+                        name_prefix,
+                        out,
+                    )? {
+                        return Ok(false);
+                    }
+                }
+            }
+            BasicTypeEnum::ArrayType(array_ty) => {
+                let BasicValueEnum::ArrayValue(raw) = raw else {
+                    return Ok(false);
+                };
+                for idx in 0..array_ty.len() {
+                    let field = self.builder.build_extract_value(
+                        raw,
+                        idx,
+                        &format!("{name_prefix}_leaf_array_value_{idx}"),
+                    )?;
+                    if !self.collect_gc_ptr_leaf_values_in_basic_value(
+                        field,
+                        array_ty.get_element_type(),
+                        name_prefix,
+                        out,
+                    )? {
+                        return Ok(false);
+                    }
+                }
+            }
+            BasicTypeEnum::IntType(_)
+            | BasicTypeEnum::FloatType(_)
+            | BasicTypeEnum::VectorType(_)
+            | BasicTypeEnum::ScalableVectorType(_) => {}
+        }
+        Ok(true)
+    }
+
     fn finalize_function_explicit_frame_lifecycle(
         &mut self,
         at: crate::span::Span,

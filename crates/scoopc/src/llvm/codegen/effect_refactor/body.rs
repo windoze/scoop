@@ -3782,6 +3782,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 composition.input_step_schema().as_u32(),
             )));
         }
+        if let Some(call_lowering) = dispatch_context.call_lowering {
+            self.replay_call_boundary_prefix(boundary, call_lowering)?;
+        }
         let callee = self.codegen.refactor_function(surface.symbol_name())?;
         let mut args = vec![callee_continuation.into()];
         if surface.param_count() > 1 {
@@ -3815,6 +3818,89 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             dispatch_context.call_lowering,
             Some(dispatch_context.continuation_compositions),
         )
+    }
+
+    fn replay_call_boundary_prefix(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &LateLoweredCallBoundaryLowering,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(owner_state) = self.callable.state_graph().state(boundary.owner_state()) else {
+            return Err(frontend_error(format!(
+                "refactor composed call replay bd{} 缺少 owner state st{}",
+                boundary.boundary_id().as_u32(),
+                boundary.owner_state().as_u32(),
+            )));
+        };
+        if !matches!(owner_state.role(), LateLoweredStateRole::Resume) {
+            return Ok(());
+        }
+        let LateLoweredBoundarySourceConsumption::Statement {
+            source_slice,
+            statement_index,
+            ..
+        } = lowering.operand_contract().source_consumption()
+        else {
+            return Ok(());
+        };
+        if source_slice.start_statement_index() != 0 {
+            return Ok(());
+        }
+        let block = self
+            .body
+            .blocks
+            .get(source_slice.block_id().as_u32() as usize)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor composed call replay block",
+                at: self.mir_fun.span.into(),
+            })?;
+        for stmt_index in source_slice.start_statement_index()..statement_index {
+            let stmt =
+                block
+                    .stmts
+                    .get(stmt_index as usize)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor composed call replay statement",
+                        at: self.mir_fun.span.into(),
+                    })?;
+            let classification = self
+                .callable
+                .source_statement_classification(source_slice, stmt_index)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor composed call replay bb{} stmt{} 缺少 published classification",
+                        source_slice.block_id().as_u32(),
+                        stmt_index,
+                    ))
+                })?;
+            match classification.kind() {
+                LateLoweredSourceStatementClassificationKind::EffectNeutralValue
+                | LateLoweredSourceStatementClassificationKind::BoundaryResultInjection {
+                    ..
+                }
+                | LateLoweredSourceStatementClassificationKind::CompletionPayloadInjection {
+                    ..
+                } => {
+                    if !self.lower_published_call_statement(stmt)? {
+                        self.lower_effect_neutral_statement(stmt)?;
+                    }
+                }
+                LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor { .. }
+                | LateLoweredSourceStatementClassificationKind::ResumePayloadInjection { .. }
+                | LateLoweredSourceStatementClassificationKind::HandleSyntheticCarrierBinder {
+                    ..
+                }
+                | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
+                LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
+                    return Err(frontend_error(format!(
+                        "refactor composed call replay bb{} stmt{} classified unsupported: {reason}",
+                        source_slice.block_id().as_u32(),
+                        stmt_index,
+                    )));
+                }
+            }
+        }
+        Ok(())
     }
 
     fn resume_payload_binding_accepts_tuple(
@@ -3900,6 +3986,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 if index == 0 {
                     if env_component_count == 0 {
                         self.codegen.default_value(param.span, param_cg)?
+                    } else if self.mir_fun.params.len() == 1
+                        && param.ty == entry_layout.invoke_args_tuple_ty()
+                        && matches!(param_cg, CgTy::Tuple(_))
+                    {
+                        self.bind_direct_tuple_param_from_components(
+                            entry_layout.symbol_name(),
+                            param.span,
+                            param.ty,
+                            param_cg,
+                            args_layout,
+                            raw_arg,
+                            0,
+                        )?
                     } else {
                         self.bind_direct_param_from_component(
                             entry_layout.symbol_name(),

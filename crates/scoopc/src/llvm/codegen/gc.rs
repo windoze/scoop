@@ -1934,7 +1934,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 if ptr.get_type().get_address_space() == AddressSpace::default() {
                     let storage_ty = self.llvm_basic_type_of(at, ty)?;
-                    self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, "store_local")?;
+                    self.sync_basic_value_into_explicit_frame(
+                        at,
+                        ptr,
+                        raw,
+                        storage_ty,
+                        "store_local",
+                    )?;
                 }
             }
             CgTy::Enum(enum_ty) => {
@@ -1965,7 +1971,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 if ptr.get_type().get_address_space() == AddressSpace::default() {
                     let storage_ty = self.llvm_basic_type_of(at, ty)?;
-                    self.sync_storage_slot_into_explicit_frame(at, ptr, storage_ty, "store_enum")?;
+                    self.sync_basic_value_into_explicit_frame(
+                        at,
+                        ptr,
+                        raw,
+                        storage_ty,
+                        "store_enum",
+                    )?;
                 }
             }
         }
