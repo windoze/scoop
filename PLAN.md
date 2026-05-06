@@ -388,6 +388,8 @@
 
 ## 4. 完成标准
 
+最终 HIR handoff contract 与验证矩阵冻结在 [`HIR_COMPLETENESS_HANDOFF.md`](./HIR_COMPLETENESS_HANDOFF.md)。该文档是本阶段完成记录的一部分，并明确 refactor typed HIR 可提供给后续 MIR/effect/late-lowering 阶段依赖的 invariant。
+
 本阶段完成时，必须能够明确陈述以下结论全部成立：
 
 1. `dump-hir --effect-pipeline refactor` 和 refactor typed HIR stage 不再产出任何 `Item::Todo`、`StmtKind::Todo`、`ExprKind::Todo` 或等价 placeholder。

@@ -553,7 +553,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_preflight`、HIR completeness fixture set 的 `dump-hir --effect-pipeline refactor`、代表性 `dump-mir --effect-pipeline refactor` smoke、新增 typecheck fixtures、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T12`
 
-## HIR-T14：冻结 HIR completeness 验证矩阵与阶段完成记录
+## [DONE] HIR-T14：冻结 HIR completeness 验证矩阵与阶段完成记录
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4
@@ -579,4 +579,9 @@
 - 完成条件：
   - 可以明确宣布 HIR stage complete。
   - 后续阶段可以把 refactor typed HIR handoff 当作完整输入。
+- 完成记录（2026-05-06）：
+  - 新增 [`HIR_COMPLETENESS_HANDOFF.md`](./HIR_COMPLETENESS_HANDOFF.md)，冻结 effect-refactor typed HIR 的最终 no-placeholder invariant、验证矩阵、HIR completeness fixture set、最终 `Todo(` 扫描分类，以及不阻塞 HIR 阶段的后续 MIR/codegen gap 清单。
+  - 更新 [`PLAN.md`](./PLAN.md) §4，将 HIR 完成标准链接到 handoff 文档；既有 `HIR-T00` 至 `HIR-T13` 完成记录已保留其实际变更与验证命令，本任务用 handoff 文档汇总阶段完成标准和剩余非 HIR gap。
+  - 最终 `rg "Todo\\(" crates/scoopc/src/hir crates/scoopc/src/effect_refactor_pipeline` 命中已分类为 legacy/debug HIR lowerer与遍历、placeholder inventory、verifier 拒绝路径、preflight denylist/测试注入，或 impossible-after-verifier 的下游容错分支；未发现新的 refactor production HIR placeholder 来源。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_hir_preflight`、`cargo test -p scoop --no-default-features dump_hir`、`rg "Todo\\(" crates/scoopc/src/hir crates/scoopc/src/effect_refactor_pipeline`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T13`
