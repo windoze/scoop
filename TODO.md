@@ -490,7 +490,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_call_contracts_record_callable_provenance`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T07R：Review MIR-T07 typed call-site contract
+## [DONE] MIR-T07R：Review MIR-T07 typed call-site contract
 
 - 参考：
   - `MIR-T07`
@@ -507,6 +507,18 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T07` 已正确实现；若发现缺口，`MIR-T07R` 保持未完成并把修复归回 `MIR-T07`。
 - 依赖：`MIR-T07`
+
+- 完成记录（2026-05-06）：
+  - Review 结论：`MIR-T07` typed call-site contract 已按任务要求正确实现；未发现需要归回 `MIR-T07` 的阻塞缺口。
+  - 已审查 typed HIR `TypedCallSiteContract` 收集、`MirLoweringFacts::from_refactor_typed_handoff(...)` handoff、refactor MIR call lowering、fixture 断言与 placeholder inventory bucket。
+  - `call_contracts.scoop` 的 MIR dump 抽查确认 direct/generic/named-default/extension/object-member/class-ctor/top-level function reference/function value/immediate closure/`nameOf`/`sizeOf`/`getPlatform` 均有 no-placeholder MIR 表达，call args 已为 canonical positional args。
+  - 搜索审计确认 `call callee lowering pending`、`ctor call lowering pending`、`sizeOf intrinsic requires one positional arg` 的源码命中仅在 legacy fallback、inventory/preflight 审计或测试断言中；refactor production dump 未命中这些 reason。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_call_contract`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/call_contracts.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_call_contracts_record_callable_provenance`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T08：收口 dispatch/resume/perform/handle site contract
 
