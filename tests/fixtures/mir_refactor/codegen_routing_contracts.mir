@@ -1,0 +1,1322 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 148..183,
+                    fqn: "mir_refactor.codegen_routing_contracts.Ping",
+                    name: "Ping",
+                    kind: Effect,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 166..181,
+                                fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                name: "hit",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    2,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 185..256,
+                    fqn: "mir_refactor.codegen_routing_contracts.Base",
+                    name: "Base",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 200..202,
+                            kind: Primary,
+                            params: [],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 209..254,
+                                fqn: "mir_refactor.codegen_routing_contracts.Base.ping",
+                                name: "ping",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 258..296,
+                    fqn: "mir_refactor.codegen_routing_contracts.IFace",
+                    name: "IFace",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 280..294,
+                                fqn: "mir_refactor.codegen_routing_contracts.IFace.foo",
+                                name: "foo",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 298..351,
+                fqn: "mir_refactor.codegen_routing_contracts.rawSafe",
+                name: "rawSafe",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 323..332,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 331..332,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 344..349,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 348..349,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 317..351,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 331..332,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 323..332,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 348..349,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 344..349,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 337..349,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 353..406,
+                fqn: "mir_refactor.codegen_routing_contracts.callVirtual",
+                name: "callVirtual",
+                ty: TypeId(
+                    12,
+                ),
+                params: [
+                    Param {
+                        span: 369..370,
+                        name: "b",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 369..370,
+                                name: Some(
+                                    "b",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 396..404,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 383..406,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 396..404,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Virtual {
+                                                    receiver: Local(
+                                                        l0,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "mir_refactor.codegen_routing_contracts.Base",
+                                                        member_name: "ping",
+                                                        receiver_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 389..404,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 408..463,
+                fqn: "mir_refactor.codegen_routing_contracts.callInterface",
+                name: "callInterface",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 426..427,
+                        name: "i",
+                        ty: TypeId(
+                            13,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 426..427,
+                                name: Some(
+                                    "i",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 454..461,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 441..463,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 454..461,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Interface {
+                                                    receiver: Local(
+                                                        l0,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "mir_refactor.codegen_routing_contracts.IFace",
+                                                        member_name: "foo",
+                                                        receiver_ty: TypeId(
+                                                            13,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 447..461,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 465..574,
+                fqn: "mir_refactor.codegen_routing_contracts.resumeBoom",
+                name: "resumeBoom",
+                ty: TypeId(
+                    19,
+                ),
+                params: [
+                    Param {
+                        span: 480..481,
+                        name: "k",
+                        ty: TypeId(
+                            16,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 480..481,
+                                name: Some(
+                                    "k",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 561..572,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 570..571,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 570..571,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 561..572,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Resume {
+                                                    continuation: Local(
+                                                        l0,
+                                                    ),
+                                                    resume: ResumeMetadata {
+                                                        continuation_ty: TypeId(
+                                                            16,
+                                                        ),
+                                                        resume_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        answer_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        return_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        out_effects: EffectRow {
+                                                            terms: [
+                                                                TypeId(
+                                                                    15,
+                                                                ),
+                                                            ],
+                                                        },
+                                                        runtime_error_effect_ty: Some(
+                                                            TypeId(
+                                                                18,
+                                                            ),
+                                                        ),
+                                                        suspends_outward: true,
+                                                    },
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 570..571,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 465..574,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 576..690,
+                fqn: "mir_refactor.codegen_routing_contracts.handled",
+                name: "handled",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 608..688,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 625..635,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 644..645,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 681..682,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 595..690,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 608..688,
+                                    kind: Handle {
+                                        site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: None,
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                                binder_count: 0,
+                                                binder_locals: [],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    15,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        2,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: false,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: None,
+                                        exit_target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 625..635,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: PerformResult {
+                                                op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                                effect_ty: TypeId(
+                                                    15,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 625..635,
+                                    kind: Perform {
+                                        site_id: site1,
+                                        op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                15,
+                                            ),
+                                            result_ty: TypeId(
+                                                2,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                            payload_component_tys: [],
+                                            payload_transport: [],
+                                            arg_mapping: [],
+                                        },
+                                        args: [],
+                                        resume_target: bb4,
+                                    },
+                                    unwind: Propagate,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 681..682,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 667..682,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 667..682,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 601..688,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 644..645,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 615..651,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 615..651,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 692..737,
+                fqn: "mir_refactor.codegen_routing_contracts.outward",
+                name: "outward",
+                ty: TypeId(
+                    20,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 725..735,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 725..735,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: PerformResult {
+                                                op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                                effect_ty: TypeId(
+                                                    15,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 725..735,
+                                    kind: Perform {
+                                        site_id: site0,
+                                        op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                15,
+                                            ),
+                                            result_ty: TypeId(
+                                                2,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                            payload_component_tys: [],
+                                            payload_transport: [],
+                                            arg_mapping: [],
+                                        },
+                                        args: [],
+                                        resume_target: bb1,
+                                    },
+                                    unwind: Propagate,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 692..737,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 739..791,
+                fqn: "mir_refactor.codegen_routing_contracts.main",
+                name: "main",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 768..789,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 768..777,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 780..789,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 755..791,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 768..777,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.codegen_routing_contracts.rawSafe",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 780..789,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.codegen_routing_contracts.handled",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 768..789,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l1,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l2,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 761..789,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 166..181,
+                fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
+                name: "hit",
+                ty: TypeId(
+                    21,
+                ),
+                params: [
+                    Param {
+                        span: 155..159,
+                        name: "this",
+                        ty: TypeId(
+                            15,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 209..254,
+                fqn: "mir_refactor.codegen_routing_contracts.Base.ping",
+                name: "ping",
+                ty: TypeId(
+                    12,
+                ),
+                params: [
+                    Param {
+                        span: 196..200,
+                        name: "this",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 196..200,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 247..248,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 230..254,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 247..248,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 240..248,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 280..294,
+                fqn: "mir_refactor.codegen_routing_contracts.IFace.foo",
+                name: "foo",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 268..273,
+                        name: "this",
+                        ty: TypeId(
+                            13,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
+    ],
+}
+codegen_routing_facts:
+  - body: mir_refactor.codegen_routing_contracts.Base.ping
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 209..254
+  - body: mir_refactor.codegen_routing_contracts.callInterface
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: InterfaceCall
+    span: 408..463
+  - body: mir_refactor.codegen_routing_contracts.callVirtual
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: VirtualCall
+    span: 353..406
+  - body: mir_refactor.codegen_routing_contracts.handled
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle, Perform, PerformResult
+    span: 576..690
+  - body: mir_refactor.codegen_routing_contracts.main
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 739..791
+  - body: mir_refactor.codegen_routing_contracts.outward
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Perform, PerformResult
+    span: 692..737
+  - body: mir_refactor.codegen_routing_contracts.rawSafe
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 298..351
+  - body: mir_refactor.codegen_routing_contracts.resumeBoom
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: ResumeCall
+    span: 465..574

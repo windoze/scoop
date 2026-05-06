@@ -1061,7 +1061,7 @@
   - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T14：建立 MIR-only 验证矩阵并完成阶段退出审计
+## [DONE] MIR-T14：建立 MIR-only 验证矩阵并完成阶段退出审计
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M8、§4
@@ -1099,6 +1099,21 @@
   - `PIPELINE_GAPS.md` 中 MIR-stage scope 的 gap 已关闭或重分类为 later-stage backend/runtime gap，并链接到 codegen TODO owner。
   - 可以进入下一阶段，不再担心 Todo placeholder 流入 P4/P5/P6。
 - 依赖：`MIR-T13R`
+
+- 完成记录（2026-05-07）：
+  - `refactor_hir_preflight` 已取消所有 `HirOnly` 例外；`refactor_decl_graph.scoop`、`for_loop_iter_protocol_ok.scoop`、`refactor_top_level_init.scoop` 等合法样本现在全部运行 strict refactor MIR stage smoke，不再使用 unvalidated MIR preflight helper。
+  - `tests/fixtures/mir_refactor/*.scoop` 已全部补齐/刷新 `.mir` golden，目录级 fixture runner 现在覆盖 18 个 refactor MIR 样本，并通过 `RefactorMirStageOutput::stable_dump()` 共享 CLI、fixture runner 和 Rust tests 的稳定 snapshot surface。
+  - `stable_dump()` 现在归一化 workspace-local `source_path`，避免 MIR golden 绑定本机绝对路径；新增 `dump_mir` 测试确认 `scoop dump-mir` 渲染结果等于 stage stable dump。
+  - 新增 `MIR_REFACTOR_PHASE_EXIT_AUDIT.md`，记录 MIR-only 验证矩阵、owner-task fixture 矩阵、diagnostics fixture 集，并逐项核对 `PIPELINE_GAPS.md` §1、§2 以及 §3-§7 的 MIR-facing disposition / later-stage owner。
+  - diagnostics fixture 集已复跑覆盖 structured concurrency `spawn`/`join`、parser recovery missing、untrimmed package-level `comptime if`、unsupported assignment syntax、missing mutable local initializer、illegal break/continue、unsupported function type cast、cross-thread outward propagation、GC handle value-type surface、or-pattern binder。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 验证通过：`cargo test -p scoop --no-default-features dump_mir`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor`。
+  - diagnostics fixtures 通过：`parse/spawn_deferred_is_error.scoop`、`typecheck/spawn_deferred_is_error.scoop`、`parse/join_deferred_is_error.scoop`、`typecheck/join_deferred_is_error.scoop`、`parse/parser_recovery_missing_stmt_is_error.scoop`、`resolve/package_level_comptime_if_untrimmed_is_error.scoop`、`parse/assignment_call_lhs_is_error.scoop`、`typecheck/local_var_missing_initializer_is_error.scoop`、`typecheck/break_not_in_loop_is_error.scoop`、`typecheck/continue_not_in_loop_is_error.scoop`、`typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`typecheck/fn_type_cast_effectful_as_is_error.scoop`、`typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`typecheck/gc_handle_new_value_type_is_error.scoop`、`typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+  - 额外 lint 通过：`cargo clippy -p scoop --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T14R：Review MIR-T14 phase exit audit
 

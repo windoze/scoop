@@ -1,31 +1,24 @@
-# Claude Execution Plan
+# Execution Plan
 
-## Scope
+## Current Invocation
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after implementing, validating, documenting, and committing that one task.
+- Record this plan before running build, test, or project commands.
+- Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
+- Inspect only the files needed to understand and complete that task.
+- Implement the task as written, without narrowing scope or introducing fixture-only workarounds.
+- If a concrete prerequisite blocks the task, update `TODO.md` with the minimum prerequisite task, leave the blocked task incomplete, commit that bookkeeping, and stop.
+- Run the task's required validation plus relevant regression tests.
+- Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+- Commit all relevant changes for this invocation with a task-scoped message.
+- Stop after completing exactly one task.
 
-## Execution Plan
+## Progress Log
 
-1. Read `TODO.md` first and identify the first incomplete task by heading state.
-2. Check the latest commit only for an explicitly unfinished issue directly relevant to that task.
-3. Inspect only the code, tests, and docs needed for the selected task.
-4. Implement the smallest spec-correct change needed to complete the task.
-5. Add or update relevant tests/fixtures for the task requirements.
-6. Run targeted validation first, then broader required validation if feasible.
-7. If a concrete blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
-8. If the task is completed, prefix its `TODO.md` heading with `[DONE]` and update its completion record.
-9. Update this plan file when key steps complete or if the plan changes.
-10. Commit all relevant changes with a task-scoped message and stop.
-
-## Progress
-
-- Initial execution plan recorded.
-- Read `TODO.md`; first incomplete task is `MIR-T13R: Review MIR-T13 policy gates`.
-- Current plan is to review `MIR-T13` implementation, rerun its required validations, inspect the relevant diagnostics/smoke/preflight policy gates, then either record a blocking gap or mark `MIR-T13R` done and commit.
-- Latest commit is `[MIR-T13] Add MIR policy gates`; it does not mention an unfinished issue.
-- Review pass found the expected policy gates in code: GC intrinsic transport metadata/verifiers, cross-thread non-`Pure` continuation diagnostic, or-pattern binder diagnostic, preflight policy denylist entries, and ResumeUnwind cleanup/pending-completion smoke tests.
-- Validation completed successfully: `refactor_mir_policy_gates`, `refactor_hir_preflight`, `refactor_materialized_mir`, `refactor_mir_no_todo`, the three MIR-T13 diagnostics fixtures, `dump-mir` and `dump-effect-lowered` for `handle_finally_boundary.scoop`, plus `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`.
-- Updated `TODO.md`: marked `MIR-T13R` as `[DONE]` and added the review completion record.
-- Git diff reviewed; only `TODO.md` and this progress plan are pending for the `MIR-T13R` commit.
+- Plan initialized.
+- First incomplete task identified: `MIR-T14` (`建立 MIR-only 验证矩阵并完成阶段退出审计`).
+- Latest commit is `[MIR-T13R] Review policy gates`; no separate unfinished issue was identified from the latest commit message.
+- Scope for this invocation: complete `MIR-T14`, update `TODO.md`, run the specified targeted validations, commit, and stop before `MIR-T14R`.
+- Checked the remaining `HirOnly` preflight samples with refactor `dump-mir`; all three can now run through strict MIR production validation.
+- Planned edits: remove HIR-only preflight exceptions, make MIR smoke use the strict stage boundary, add/update `mir_refactor/*.mir` goldens for every `mir_refactor/*.scoop`, and add a phase exit audit tied to the targeted validation matrix.
+- Implemented the preflight/golden/audit edits. Next step is to format and run the `MIR-T14` validation matrix, then update `TODO.md` and commit if validation passes.
+- Validation passed and `TODO.md` has been updated with `[DONE] MIR-T14` plus the completion record. Next step is to review the staged diff state and create the required task commit.

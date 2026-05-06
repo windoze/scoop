@@ -1,0 +1,1043 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 142..167,
+                    fqn: "mir_refactor.assignment_places.Box",
+                    name: "Box",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 151..167,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 156..161,
+                                    name: "value",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Var,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 156..161,
+                                fqn: "mir_refactor.assignment_places.Box.value",
+                                name: "value",
+                                mutable: true,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 168..194,
+                    fqn: "mir_refactor.assignment_places.Holder",
+                    name: "Holder",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 180..194,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 185..188,
+                                    name: "box",
+                                    ty: TypeId(
+                                        10,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Var,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 185..188,
+                                fqn: "mir_refactor.assignment_places.Holder.box",
+                                name: "box",
+                                mutable: true,
+                                ty: TypeId(
+                                    10,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 61..83,
+                fqn: "mir_refactor.assignment_places.G",
+                source_path: "tests/fixtures/mir_refactor/assignment_places.scoop",
+                kind: RuntimeMutableVar {
+                    storage: Global,
+                },
+                ty: Some(
+                    TypeId(
+                        5,
+                    ),
+                ),
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: EffectRow {
+                    terms: [],
+                },
+            },
+        ),
+        ExternGlobal(
+            ExternGlobalRoot {
+                span: 85..140,
+                fqn: "mir_refactor.assignment_places.NativeCounter",
+                source_path: "tests/fixtures/mir_refactor/assignment_places.scoop",
+                ty: TypeId(
+                    5,
+                ),
+                mutable: true,
+                symbol: "native_counter",
+                linkage: External,
+                storage: Global,
+                initializer_absent: true,
+                unsafe_required: true,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 196..509,
+                fqn: "mir_refactor.assignment_places.use",
+                name: "use",
+                ty: TypeId(
+                    12,
+                ),
+                params: [
+                    Param {
+                        span: 204..207,
+                        name: "box",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 214..220,
+                        name: "holder",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 204..207,
+                                name: Some(
+                                    "box",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 214..220,
+                                name: Some(
+                                    "holder",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 241..259,
+                                name: Some(
+                                    "local",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 258..259,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 272..273,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 279..304,
+                                name: Some(
+                                    "captured",
+                                ),
+                                ty: TypeId(
+                                    20,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 309..345,
+                                name: Some(
+                                    "reader",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 333..345,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    21,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 333..345,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 361..373,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 361..369,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 372..373,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 350..373,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 383..391,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 425..426,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 407..428,
+                                name: Some(
+                                    "tmp10",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 445..446,
+                                name: Some(
+                                    "tmp11",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 451..461,
+                                name: Some(
+                                    "tmp12",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 470..479,
+                                name: Some(
+                                    "tmp13",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 491..507,
+                                name: Some(
+                                    "tmp14",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 491..501,
+                                name: Some(
+                                    "tmp15",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 235..509,
+                                name: Some(
+                                    "tmp16",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 258..259,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 241..259,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 272..273,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 264..273,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 279..304,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: CaptureBoxNew {
+                                                value: Local(
+                                                    l2,
+                                                ),
+                                                contract: CaptureBoxTransportMetadata {
+                                                    box_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    value: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 333..345,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: MakeTuple {
+                                                elements: [
+                                                    Local(
+                                                        l5,
+                                                    ),
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        21,
+                                                    ),
+                                                    kind: ClosureEnv,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "captured",
+                                                            ),
+                                                            ty: TypeId(
+                                                                20,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    20,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 333..345,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: MakeClosure {
+                                                env: Local(
+                                                    l7,
+                                                ),
+                                                fn_ptr: "mir_refactor.assignment_places.use.$lambda0",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        21,
+                                                    ),
+                                                    captures: [
+                                                        ClosureCaptureTransportMetadata {
+                                                            name: "captured",
+                                                            decl_span: 283..291,
+                                                            mutable: true,
+                                                            source_local: l5,
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    20,
+                                                                ),
+                                                                kind: CaptureBox,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 309..345,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Local(
+                                                    l8,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 361..369,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: CaptureBoxGet {
+                                                box_operand: Local(
+                                                    l5,
+                                                ),
+                                                contract: CaptureBoxTransportMetadata {
+                                                    box_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    value: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 372..373,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 361..373,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l10,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l11,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 350..373,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: CaptureBoxSet {
+                                                box_operand: Local(
+                                                    l5,
+                                                ),
+                                                value: Local(
+                                                    l9,
+                                                ),
+                                                contract: CaptureBoxTransportMetadata {
+                                                    box_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    value: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 383..391,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: CaptureBoxGet {
+                                                box_operand: Local(
+                                                    l5,
+                                                ),
+                                                contract: CaptureBoxTransportMetadata {
+                                                    box_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    value: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 379..391,
+                                        kind: StoreTopLevelVar {
+                                            fqn: "mir_refactor.assignment_places.G",
+                                            value: Local(
+                                                l13,
+                                            ),
+                                            value_ty: TypeId(
+                                                5,
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 425..426,
+                                        kind: Assign {
+                                            target: l14,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "mir_refactor.assignment_places.G",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 409..426,
+                                        kind: StoreTopLevelVar {
+                                            fqn: "mir_refactor.assignment_places.NativeCounter",
+                                            value: Local(
+                                                l14,
+                                            ),
+                                            value_ty: TypeId(
+                                                5,
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 407..428,
+                                        kind: Assign {
+                                            target: l15,
+                                            value: Use(
+                                                Const(
+                                                    Unit,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 445..446,
+                                        kind: Assign {
+                                            target: l16,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "mir_refactor.assignment_places.G",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 433..446,
+                                        kind: StoreMember {
+                                            receiver: Local(
+                                                l0,
+                                            ),
+                                            member: MemberAccessMetadata {
+                                                name: "value",
+                                                receiver_ty: TypeId(
+                                                    10,
+                                                ),
+                                                resolved: Some(
+                                                    Value {
+                                                        fqn: "mir_refactor.assignment_places.Box.value",
+                                                    },
+                                                ),
+                                                hidden_effects: EffectRow {
+                                                    terms: [],
+                                                },
+                                            },
+                                            value: Local(
+                                                l16,
+                                            ),
+                                            value_ty: TypeId(
+                                                5,
+                                            ),
+                                            continuation_route: None,
+                                        },
+                                    },
+                                    Statement {
+                                        span: 451..461,
+                                        kind: Assign {
+                                            target: l17,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l1,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "box",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_refactor.assignment_places.Holder.box",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 470..479,
+                                        kind: Assign {
+                                            target: l18,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l0,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "value",
+                                                    receiver_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_refactor.assignment_places.Box.value",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 451..479,
+                                        kind: StoreMember {
+                                            receiver: Local(
+                                                l17,
+                                            ),
+                                            member: MemberAccessMetadata {
+                                                name: "value",
+                                                receiver_ty: TypeId(
+                                                    10,
+                                                ),
+                                                resolved: Some(
+                                                    Value {
+                                                        fqn: "mir_refactor.assignment_places.Box.value",
+                                                    },
+                                                ),
+                                                hidden_effects: EffectRow {
+                                                    terms: [],
+                                                },
+                                            },
+                                            value: Local(
+                                                l18,
+                                            ),
+                                            value_ty: TypeId(
+                                                5,
+                                            ),
+                                            continuation_route: None,
+                                        },
+                                    },
+                                    Statement {
+                                        span: 491..501,
+                                        kind: Assign {
+                                            target: l20,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l1,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "box",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_refactor.assignment_places.Holder.box",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 491..507,
+                                        kind: Assign {
+                                            target: l19,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l20,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "value",
+                                                    receiver_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_refactor.assignment_places.Box.value",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 484..507,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l19,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 333..345,
+                fqn: "mir_refactor.assignment_places.use.$lambda0",
+                name: "$lambda0",
+                ty: TypeId(
+                    0,
+                ),
+                params: [
+                    Param {
+                        span: 333..345,
+                        name: "$env",
+                        ty: TypeId(
+                            21,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 333..345,
+                                name: Some(
+                                    "$env",
+                                ),
+                                ty: TypeId(
+                                    21,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 283..291,
+                                name: Some(
+                                    "captured",
+                                ),
+                                ty: TypeId(
+                                    20,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 335..343,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 283..291,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: TupleGet {
+                                                tuple: Local(
+                                                    l0,
+                                                ),
+                                                index: 0,
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 335..343,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: CaptureBoxGet {
+                                                box_operand: Local(
+                                                    l1,
+                                                ),
+                                                contract: CaptureBoxTransportMetadata {
+                                                    box_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    value: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 333..345,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}
+codegen_routing_facts:
+  - body: mir_refactor.assignment_places.use
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 196..509
+  - body: mir_refactor.assignment_places.use.$lambda0
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 333..345

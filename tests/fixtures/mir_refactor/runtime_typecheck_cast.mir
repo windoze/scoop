@@ -1,0 +1,1026 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 182..221,
+                    fqn: "mir_refactor.runtime_typecheck_cast.IFace",
+                    name: "IFace",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 204..219,
+                                fqn: "mir_refactor.runtime_typecheck_cast.IFace.ping",
+                                name: "ping",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 223..240,
+                    fqn: "mir_refactor.runtime_typecheck_cast.Base",
+                    name: "Base",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 238..240,
+                            kind: Primary,
+                            params: [],
+                            delegation: None,
+                        },
+                    ],
+                    members: [],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 242..307,
+                    fqn: "mir_refactor.runtime_typecheck_cast.Impl",
+                    name: "Impl",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [
+                        SupertypeMetadata {
+                            span: 257..263,
+                            fqn: Some(
+                                "mir_refactor.runtime_typecheck_cast.Base",
+                            ),
+                            ty: TypeId(
+                                10,
+                            ),
+                            ctor_arg_count: 0,
+                        },
+                        SupertypeMetadata {
+                            span: 265..270,
+                            fqn: Some(
+                                "mir_refactor.runtime_typecheck_cast.IFace",
+                            ),
+                            ty: TypeId(
+                                11,
+                            ),
+                            ctor_arg_count: 0,
+                        },
+                    ],
+                    interfaces: [
+                        "mir_refactor.runtime_typecheck_cast.IFace",
+                    ],
+                    constructors: [
+                        CtorMetadata {
+                            span: 252..254,
+                            kind: Primary,
+                            params: [],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 277..305,
+                                fqn: "mir_refactor.runtime_typecheck_cast.Impl.ping",
+                                name: "ping",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 309..331,
+                    fqn: "mir_refactor.runtime_typecheck_cast.Other",
+                    name: "Other",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [
+                        SupertypeMetadata {
+                            span: 325..331,
+                            fqn: Some(
+                                "mir_refactor.runtime_typecheck_cast.Base",
+                            ),
+                            ty: TypeId(
+                                10,
+                            ),
+                            ctor_arg_count: 0,
+                        },
+                    ],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 320..322,
+                            kind: Primary,
+                            params: [],
+                            delegation: None,
+                        },
+                    ],
+                    members: [],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 333..362,
+                    fqn: "mir_refactor.runtime_typecheck_cast.Holder",
+                    name: "Holder",
+                    kind: Class,
+                    type_params: [
+                        DeclTypeParamMetadata {
+                            span: 346..347,
+                            name: "T",
+                            variance: None,
+                            ty: TypeId(
+                                12,
+                            ),
+                        },
+                    ],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 348..362,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 353..358,
+                                    name: "value",
+                                    ty: TypeId(
+                                        12,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 353..358,
+                                fqn: "mir_refactor.runtime_typecheck_cast.Holder.value",
+                                name: "value",
+                                mutable: false,
+                                ty: TypeId(
+                                    12,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 364..709,
+                fqn: "mir_refactor.runtime_typecheck_cast.inspect",
+                name: "inspect",
+                ty: TypeId(
+                    15,
+                ),
+                params: [
+                    Param {
+                        span: 376..377,
+                        name: "x",
+                        ty: TypeId(
+                            0,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 376..377,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 417..447,
+                                name: Some(
+                                    "isIface",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 437..447,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 452..484,
+                                name: Some(
+                                    "notOther",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 473..484,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 489..526,
+                                name: Some(
+                                    "isHolder",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 510..526,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 531..562,
+                                name: Some(
+                                    "asIface",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 552..562,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 567..616,
+                                name: Some(
+                                    "maybeHolder",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 599..616,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 628..707,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 657..683,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 662..664,
+                                name: Some(
+                                    "_o",
+                                ),
+                                ty: TypeId(
+                                    17,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 669..683,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 692..701,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 700..701,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 411..709,
+                                name: Some(
+                                    "tmp10",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 437..447,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: TypeCheck {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: Is,
+                                                test_ty: TypeId(
+                                                    11,
+                                                ),
+                                                metadata: RuntimeTypeTestMetadata {
+                                                    source_ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    target_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    descriptor: RuntimeTypeDescriptorKey {
+                                                        ty: TypeId(
+                                                            11,
+                                                        ),
+                                                        kind: Nominal {
+                                                            fqn: "mir_refactor.runtime_typecheck_cast.IFace",
+                                                            kind: Some(
+                                                                Interface,
+                                                            ),
+                                                        },
+                                                    },
+                                                    static_fold: Dynamic,
+                                                    parameterized: None,
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 417..447,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 473..484,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: TypeCheck {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: NotIs,
+                                                test_ty: TypeId(
+                                                    16,
+                                                ),
+                                                metadata: RuntimeTypeTestMetadata {
+                                                    source_ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    target_ty: TypeId(
+                                                        16,
+                                                    ),
+                                                    descriptor: RuntimeTypeDescriptorKey {
+                                                        ty: TypeId(
+                                                            16,
+                                                        ),
+                                                        kind: Nominal {
+                                                            fqn: "mir_refactor.runtime_typecheck_cast.Other",
+                                                            kind: Some(
+                                                                Class,
+                                                            ),
+                                                        },
+                                                    },
+                                                    static_fold: Dynamic,
+                                                    parameterized: None,
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 452..484,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 510..526,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: TypeCheck {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: Is,
+                                                test_ty: TypeId(
+                                                    17,
+                                                ),
+                                                metadata: RuntimeTypeTestMetadata {
+                                                    source_ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    target_ty: TypeId(
+                                                        17,
+                                                    ),
+                                                    descriptor: RuntimeTypeDescriptorKey {
+                                                        ty: TypeId(
+                                                            17,
+                                                        ),
+                                                        kind: Nominal {
+                                                            fqn: "mir_refactor.runtime_typecheck_cast.Holder",
+                                                            kind: Some(
+                                                                Class,
+                                                            ),
+                                                        },
+                                                    },
+                                                    static_fold: Dynamic,
+                                                    parameterized: Nominal {
+                                                        type_args: [
+                                                            TypeId(
+                                                                5,
+                                                            ),
+                                                        ],
+                                                        effect_arg: None,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 489..526,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Local(
+                                                    l6,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 552..562,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Cast {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: As,
+                                                target_ty: TypeId(
+                                                    11,
+                                                ),
+                                                metadata: RuntimeCastMetadata {
+                                                    test: RuntimeTypeTestMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        target_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                        descriptor: RuntimeTypeDescriptorKey {
+                                                            ty: TypeId(
+                                                                11,
+                                                            ),
+                                                            kind: Nominal {
+                                                                fqn: "mir_refactor.runtime_typecheck_cast.IFace",
+                                                                kind: Some(
+                                                                    Interface,
+                                                                ),
+                                                            },
+                                                        },
+                                                        static_fold: Dynamic,
+                                                        parameterized: None,
+                                                    },
+                                                    failure: Raise {
+                                                        effect_ty: Some(
+                                                            TypeId(
+                                                                14,
+                                                            ),
+                                                        ),
+                                                        error_fqn: "scoop.core.RuntimeError.ClassCastFailed",
+                                                    },
+                                                    result: Target {
+                                                        ty: TypeId(
+                                                            11,
+                                                        ),
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 531..562,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Local(
+                                                    l8,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 599..616,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: Cast {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: AsQ,
+                                                target_ty: TypeId(
+                                                    17,
+                                                ),
+                                                metadata: RuntimeCastMetadata {
+                                                    test: RuntimeTypeTestMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        target_ty: TypeId(
+                                                            17,
+                                                        ),
+                                                        descriptor: RuntimeTypeDescriptorKey {
+                                                            ty: TypeId(
+                                                                17,
+                                                            ),
+                                                            kind: Nominal {
+                                                                fqn: "mir_refactor.runtime_typecheck_cast.Holder",
+                                                                kind: Some(
+                                                                    Class,
+                                                                ),
+                                                            },
+                                                        },
+                                                        static_fold: Dynamic,
+                                                        parameterized: Nominal {
+                                                            type_args: [
+                                                                TypeId(
+                                                                    5,
+                                                                ),
+                                                            ],
+                                                            effect_arg: None,
+                                                        },
+                                                    },
+                                                    failure: ReturnNone,
+                                                    result: Option {
+                                                        option_ty: TypeId(
+                                                            18,
+                                                        ),
+                                                        some_ty: TypeId(
+                                                            17,
+                                                        ),
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 567..616,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: Use(
+                                                Local(
+                                                    l10,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 657..665,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l9,
+                                                ),
+                                                pattern: Variant {
+                                                    name: "Some",
+                                                    args: [
+                                                        Bind {
+                                                            name: "_o",
+                                                            ty: TypeId(
+                                                                17,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 657..683,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l12,
+                                        ),
+                                        then_target: bb3,
+                                        else_target: bb2,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 621..707,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l11,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 692..696,
+                                        kind: Assign {
+                                            target: l15,
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l9,
+                                                ),
+                                                pattern: Variant {
+                                                    name: "None",
+                                                    args: [],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 692..701,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l15,
+                                        ),
+                                        then_target: bb5,
+                                        else_target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 662..664,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: PatternExtract {
+                                                subject: Local(
+                                                    l9,
+                                                ),
+                                                path: [
+                                                    VariantField {
+                                                        variant: "Some",
+                                                        field_index: 0,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 669..683,
+                                        kind: Assign {
+                                            target: l14,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Interface {
+                                                    receiver: Local(
+                                                        l7,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "mir_refactor.runtime_typecheck_cast.IFace",
+                                                        member_name: "ping",
+                                                        receiver_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 657..683,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: Use(
+                                                Local(
+                                                    l14,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 657..683,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 628..707,
+                                    kind: Unreachable,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 700..701,
+                                        kind: Assign {
+                                            target: l16,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 692..701,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: Use(
+                                                Local(
+                                                    l16,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 692..701,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 204..219,
+                fqn: "mir_refactor.runtime_typecheck_cast.IFace.ping",
+                name: "ping",
+                ty: TypeId(
+                    19,
+                ),
+                params: [
+                    Param {
+                        span: 192..197,
+                        name: "this",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 277..305,
+                fqn: "mir_refactor.runtime_typecheck_cast.Impl.ping",
+                name: "ping",
+                ty: TypeId(
+                    21,
+                ),
+                params: [
+                    Param {
+                        span: 248..252,
+                        name: "this",
+                        ty: TypeId(
+                            20,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 248..252,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    20,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 302..303,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 293..305,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 302..303,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 295..303,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}
+codegen_routing_facts:
+  - body: mir_refactor.runtime_typecheck_cast.Impl.ping
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 277..305
+  - body: mir_refactor.runtime_typecheck_cast.inspect
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: InterfaceCall
+    span: 364..709

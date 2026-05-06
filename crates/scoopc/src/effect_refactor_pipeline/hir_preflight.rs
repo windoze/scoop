@@ -7,32 +7,26 @@ use crate::source::SourceFile;
 
 use super::{RefactorMirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for_dump};
 
-const HIR_ONLY: &str = "typed HIR/no-Todo coverage; MIR smoke is limited to representative samples";
-
 const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
         phase: "hir",
         name: "refactor_comptime_control_flow.scoop",
         requirements: &[],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "hir",
         name: "refactor_decl_graph.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
     },
     HirCompletenessFixture {
         phase: "comptime",
         name: "splice_field_access_v0_basic.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "hir",
         name: "refactor_call_args.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -43,55 +37,46 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
             RequiredHirContract::Perform,
             RequiredHirContract::Handle,
         ],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "refactor_hir_class_literal_runtime_ok.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "reflection_runtime_fallback_v0.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "get_platform_runtime_ok.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "with_update_struct_field_ok.scoop",
         requirements: &[RequiredHirContract::WithUpdate],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "with_update_tuple_nested_path_ok.scoop",
         requirements: &[RequiredHirContract::WithUpdate],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "with_update_enum_variant_payload_ok.scoop",
         requirements: &[RequiredHirContract::WithUpdate],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "refactor_hir_assignment_places_ok.scoop",
         requirements: &[RequiredHirContract::AssignPlace],
-        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "for_loop_iter_protocol_ok.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
     },
     HirCompletenessFixture {
         phase: "hir",
@@ -100,7 +85,6 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
             RequiredHirContract::TopLevelInitRoot,
             RequiredHirContract::ExternGlobal,
         ],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
     },
 ];
 
@@ -154,7 +138,6 @@ struct HirCompletenessFixture {
     phase: &'static str,
     name: &'static str,
     requirements: &'static [RequiredHirContract],
-    mir: MirPreflightMode,
 }
 
 impl HirCompletenessFixture {
@@ -170,12 +153,6 @@ impl HirCompletenessFixture {
         SourceFile::load(&path)
             .unwrap_or_else(|err| panic!("preflight fixture `{}` should load: {err}", self.label()))
     }
-}
-
-#[derive(Clone, Copy)]
-enum MirPreflightMode {
-    Run,
-    HirOnly(&'static str),
 }
 
 #[derive(Clone, Copy)]
@@ -215,25 +192,14 @@ fn refactor_hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
     for fixture in HIR_COMPLETENESS_FIXTURES {
         let source = fixture.load();
         run_typed_hir_preflight(&session, &source, *fixture);
-
-        match fixture.mir {
-            MirPreflightMode::Run => {
-                mir_smoke_count += 1;
-                run_direct_mir_preflight(&session, &source, *fixture);
-            }
-            MirPreflightMode::HirOnly(reason) => {
-                assert!(
-                    !reason.is_empty(),
-                    "HIR-only preflight entries must document why MIR smoke is skipped ({})",
-                    fixture.label()
-                );
-            }
-        }
+        mir_smoke_count += 1;
+        run_direct_mir_preflight(&session, &source, *fixture);
     }
 
-    assert!(
-        mir_smoke_count >= 3,
-        "preflight should keep a representative HIR -> MIR smoke subset"
+    assert_eq!(
+        mir_smoke_count,
+        HIR_COMPLETENESS_FIXTURES.len(),
+        "all legal typed-HIR completeness fixtures must run strict MIR smoke"
     );
 }
 
@@ -247,7 +213,6 @@ fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
             RequiredHirContract::DeclarationGraph,
             RequiredHirContract::WithUpdate,
         ],
-        mir: MirPreflightMode::Run,
     };
     let source = fixture.load();
 
@@ -357,14 +322,13 @@ fn run_direct_mir_preflight(
     source: &SourceFile,
     fixture: HirCompletenessFixture,
 ) {
-    let typed_hir_output =
-        load_typed_hir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
+    let output = super::load_direct_style_mir_stage_output_for_dump(session, source)
+        .unwrap_or_else(|err| {
             panic!(
-                "typed HIR preflight should pass before MIR smoke for `{}`: {err:?}",
+                "strict direct-style MIR preflight should pass for `{}`: {err:?}",
                 fixture.label()
             )
         });
-    let output = super::mir_stage::run_unvalidated_for_preflight(typed_hir_output);
     assert_no_hir_origin_mir_fallbacks(&output, fixture);
 }
 

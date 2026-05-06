@@ -166,12 +166,25 @@ impl RefactorMirStageOutput {
                 _ => None,
             });
         out.push_str(&MirCodegenRoutingFacts::new(route_facts).stable_dump());
-        out
+        normalize_refactor_stable_dump_paths(out)
     }
 
     pub fn into_lowered_mir(self) -> LoweredMir {
         self.lowered_mir
     }
+}
+
+fn normalize_refactor_stable_dump_paths(mut text: String) -> String {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let Some(workspace_root) = manifest_dir.parent().and_then(std::path::Path::parent) else {
+        return text;
+    };
+    let root = workspace_root.display().to_string();
+    if root.is_empty() {
+        return text;
+    }
+    text = text.replace(&format!("{root}/"), "");
+    text.replace(&format!("{root}\\"), "")
 }
 
 fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
@@ -268,14 +281,6 @@ pub(crate) fn run(
 }
 
 #[cfg(test)]
-pub(crate) fn run_unvalidated_for_preflight(
-    typed_hir_output: TypedHirStageOutput,
-) -> RefactorMirStageOutput {
-    let (output, _) = lower_refactor_mir_stage_unvalidated(typed_hir_output);
-    output
-}
-
-#[cfg(test)]
 mod tests {
     use super::RefactorMirStageOutput;
     use crate::ast;
@@ -368,6 +373,25 @@ mod tests {
         assert!(output.callable_body("sample.main").is_some());
         assert_eq!(output.effect_contracts().function_effects().len(), 2);
         assert!(output.stable_dump().contains("FunDecl"));
+    }
+
+    #[test]
+    fn refactor_mir_stable_dump_normalizes_workspace_source_paths() {
+        let session = refactor_session();
+        let source = load_fixture("mir_refactor", "top_level_roots.scoop");
+
+        let output = super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+            .expect("top-level roots fixture should produce strict refactor MIR");
+        let dump = output.stable_dump();
+
+        assert!(
+            dump.contains("source_path: \"tests/fixtures/mir_refactor/top_level_roots.scoop\""),
+            "stable dump should use workspace-relative source paths: {dump}"
+        );
+        assert!(
+            !dump.contains(env!("CARGO_MANIFEST_DIR")),
+            "stable dump must not embed machine-local manifest paths: {dump}"
+        );
     }
 
     #[test]

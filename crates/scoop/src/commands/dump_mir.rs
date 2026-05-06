@@ -94,6 +94,27 @@ mod tests {
     }
 
     #[test]
+    fn refactor_dump_mir_render_uses_stage_stable_dump_surface() {
+        let session_options = SessionOptions::new(EffectPipelineMode::Refactor);
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/mir_refactor/top_level_roots.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+        let session = Session::with_options(session_options).unwrap();
+
+        let expected =
+            scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(
+                &session, &source,
+            )
+            .unwrap()
+            .stable_dump();
+        let actual = super::render_dump_output(fixture, session_options).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn legacy_dump_mir_command_keeps_lower_for_dump_behavior() {
         let session =
             Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap();
