@@ -1216,7 +1216,7 @@ pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
 }
 
 impl LateLoweredSurfaceResumeDispatchInventoryEntry {
-    #[cfg(test)]
+    #[cfg(all(test, feature = "llvm"))]
     pub(crate) fn new(
         continuation_schema: ContinuationSchemaId,
         contract: LateLoweredSurfaceResumeContract,

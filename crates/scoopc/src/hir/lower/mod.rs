@@ -7,6 +7,9 @@
 mod types;
 mod util;
 
+#[cfg(test)]
+mod placeholder_inventory;
+
 mod patterns;
 mod sugar;
 

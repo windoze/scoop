@@ -40,7 +40,7 @@
 | `HIR-T13` | 建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR |
 | `HIR-T14` | 冻结 HIR completeness 验证矩阵与阶段完成记录 |
 
-## HIR-T00：审计并冻结 refactor HIR placeholder inventory
+## [DONE] HIR-T00：审计并冻结 refactor HIR placeholder inventory
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H0
@@ -67,6 +67,11 @@
 - 完成条件：
   - 当前所有 HIR placeholder 构造点都有处理策略。
   - 可进入 `HIR-T01`。
+- 完成记录（2026-05-06）：
+  - 新增 `crates/scoopc/src/hir/lower/placeholder_inventory.rs`，以可执行测试冻结 `src/hir/**` 中的 `ExprKind::Todo`、`StmtKind::Todo`、`Item::Todo` 与当前 `ExprKind::Missing` sentinel 清单。
+  - 每个 reason 已分类到 parser 拒绝、typecheck/comptime 诊断、HIR 实现或 HIR handoff contract，并绑定后续 owner task；明确当前 refactor HIR handoff 没有 legacy `lower_for_dump` dump-only fallback。
+  - 为保持验证无警告，将仅 LLVM test 使用的 `LateLoweredSurfaceResumeDispatchInventoryEntry::new` gate 到 `all(test, feature = "llvm")`。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`rg "ExprKind::Todo|StmtKind::Todo|Item::Todo" crates/scoopc/src/hir`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 - 依赖：无
 
 ## HIR-T01：建立 refactor HIR no-Todo verifier 与 stage error 通道
