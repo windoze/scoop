@@ -6386,6 +6386,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
         let fail_incoming = if self.ordinary_effect_propagation_enabled() {
             self.emit_ordinary_non_resuming_effect_exit(span, "cast_raise_effect")?;
+            self.builder.build_unreachable()?;
             None
         } else {
             let dead_bb =

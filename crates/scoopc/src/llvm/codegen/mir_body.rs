@@ -870,6 +870,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     crate::mir::Rvalue::Binary { lhs, .. } => {
                         self.mir_operand_cg_ty(body, mir_types, lhs)?
                     }
+                    crate::mir::Rvalue::TypeCheck { .. } => CgTy::Bool,
+                    crate::mir::Rvalue::Cast { target_ty, .. } => {
+                        self.cg_ty_of_mir_type(mir_types, *target_ty)?
+                    }
                     crate::mir::Rvalue::Call { kind, .. } => {
                         self.mir_call_result_cg_ty(body, mir_types, kind)?
                     }
@@ -1121,6 +1125,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     || self.top_level_consts.contains_key(fqn)
                     || self.top_level_immutable_values.contains_key(fqn)
                     || self.top_level_vars.contains_key(fqn)
+                    || self.mir_static_enum_unit_variant_value(fqn)
             }
             crate::mir::Rvalue::Binary { lhs, rhs, .. } => {
                 self.raw_materialized_mir_operand_is_supported(lhs)
@@ -1226,10 +1231,131 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })
             }
             crate::mir::Rvalue::UnresolvedName { .. } => matches!(target_cg, Some(CgTy::Enum(_))),
-            crate::mir::Rvalue::TypeCheck { .. }
-            | crate::mir::Rvalue::Cast { .. }
-            | crate::mir::Rvalue::Todo(_) => false,
+            crate::mir::Rvalue::TypeCheck {
+                value,
+                test_ty,
+                metadata,
+                ..
+            } => {
+                target_cg == Some(CgTy::Bool)
+                    && *test_ty == metadata.target_ty
+                    && self.raw_materialized_mir_runtime_type_test_is_supported(
+                        body, mir_types, value, metadata,
+                    )
+            }
+            crate::mir::Rvalue::Cast {
+                value,
+                op,
+                target_ty,
+                metadata,
+            } => self.raw_materialized_mir_runtime_cast_is_supported(
+                body, mir_types, value, *op, *target_ty, metadata, target_cg,
+            ),
+            crate::mir::Rvalue::Todo(_) => false,
         }
+    }
+
+    fn raw_materialized_mir_runtime_type_test_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        value: &crate::mir::Operand,
+        metadata: &crate::mir::RuntimeTypeTestMetadata,
+    ) -> bool {
+        if !self.raw_materialized_mir_operand_is_supported(value) {
+            return false;
+        }
+        match metadata.static_fold {
+            crate::mir::RuntimeTypeStaticFold::AlwaysTrue
+            | crate::mir::RuntimeTypeStaticFold::AlwaysFalse => true,
+            crate::mir::RuntimeTypeStaticFold::Dynamic => {
+                self.mir_operand_cg_ty(body, mir_types, value)
+                    .is_some_and(|source_cg| matches!(source_cg, CgTy::Ref | CgTy::String))
+                    && self.runtime_type_descriptor_is_codegen_supported(mir_types, metadata)
+            }
+        }
+    }
+
+    fn mir_static_enum_unit_variant_value(&self, fqn: &str) -> bool {
+        let Some((owner_fqn, variant_name)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        self.enum_layouts
+            .get(owner_fqn)
+            .and_then(|layout| {
+                layout
+                    .variants
+                    .iter()
+                    .find(|variant| variant.name == variant_name)
+            })
+            .is_some_and(|variant| variant.fields.is_empty())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn raw_materialized_mir_runtime_cast_is_supported(
+        &mut self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        value: &crate::mir::Operand,
+        op: ast::CastOp,
+        target_ty: TypeId,
+        metadata: &crate::mir::RuntimeCastMetadata,
+        result_cg: Option<CgTy>,
+    ) -> bool {
+        if target_ty != metadata.test.target_ty
+            || !self.raw_materialized_mir_runtime_type_test_is_supported(
+                body,
+                mir_types,
+                value,
+                &metadata.test,
+            )
+        {
+            return false;
+        }
+        let Some(target_cg) = self.cg_ty_of_mir_type(mir_types, target_ty) else {
+            return false;
+        };
+        if !matches!(target_cg, CgTy::Ref | CgTy::String) {
+            return false;
+        }
+        match (op, &metadata.failure, &metadata.result, result_cg) {
+            (
+                ast::CastOp::As,
+                crate::mir::RuntimeCastFailure::Raise { .. },
+                crate::mir::RuntimeCastResult::Target { ty },
+                Some(result_cg),
+            ) => *ty == target_ty && result_cg == target_cg,
+            (
+                ast::CastOp::AsQ,
+                crate::mir::RuntimeCastFailure::ReturnNone,
+                crate::mir::RuntimeCastResult::Option { option_ty, some_ty },
+                Some(CgTy::Enum(result_enum_ty)),
+            ) => {
+                *some_ty == target_ty
+                    && self
+                        .equivalent_codegen_type_id(mir_types, *option_ty)
+                        .is_some_and(|option_ty| option_ty == result_enum_ty)
+            }
+            _ => false,
+        }
+    }
+
+    fn runtime_type_descriptor_is_codegen_supported(
+        &self,
+        mir_types: &TypeStore,
+        metadata: &crate::mir::RuntimeTypeTestMetadata,
+    ) -> bool {
+        if !matches!(
+            metadata.descriptor.kind,
+            crate::mir::RuntimeTypeDescriptorKind::Any
+                | crate::mir::RuntimeTypeDescriptorKind::String
+                | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
+        ) {
+            return false;
+        }
+        self.equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
+            .and_then(|target_ty| self.cg_ty_of(target_ty))
+            .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
     }
 
     fn raw_materialized_mir_member_access_is_supported(
@@ -1812,6 +1938,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|&candidate| self.types.display(candidate).to_string() == source_display)
     }
 
+    fn equivalent_runtime_ref_codegen_type_id(
+        &self,
+        source_types: &TypeStore,
+        source_ty: TypeId,
+    ) -> Option<TypeId> {
+        let source_display = source_types.display(source_ty).to_string();
+        self.types.iter_ids().find(|&candidate| {
+            self.types.display(candidate).to_string() == source_display
+                && matches!(self.types.kind(candidate), TypeKind::Ref(_))
+        })
+    }
+
     fn mir_class_ctor_layout_key(
         &self,
         class_fqn: &str,
@@ -2344,7 +2482,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
-                self.codegen_top_level_value_ref(span, fqn)
+                if let Some(value) =
+                    self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_top_level_value_ref(span, fqn)
+                }
             }
             crate::mir::Rvalue::Unary { op, operand } => {
                 let operand = self.codegen_mir_operand(span, operand, slots)?;
@@ -2355,6 +2499,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let rhs = self.codegen_mir_operand(span, rhs, slots)?;
                 self.codegen_mir_binary(span, *op, lhs, rhs)
             }
+            crate::mir::Rvalue::TypeCheck {
+                value,
+                op,
+                test_ty,
+                metadata,
+            } => {
+                self.codegen_mir_type_check(span, value, *op, *test_ty, metadata, mir_types, slots)
+            }
+            crate::mir::Rvalue::Cast {
+                value,
+                op,
+                target_ty,
+                metadata,
+            } => self.codegen_mir_cast(
+                span, value, *op, *target_ty, metadata, mir_types, slots, target_cg,
+            ),
             crate::mir::Rvalue::Call { kind, args, .. } => {
                 self.codegen_mir_call(span, kind, args, body, mir_types, slots)
             }
@@ -2440,9 +2600,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
-            crate::mir::Rvalue::TypeCheck { .. }
-            | crate::mir::Rvalue::Cast { .. }
-            | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR rvalue",
                 at: span.into(),
             }),
@@ -2463,7 +2621,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
-                self.codegen_top_level_value_ref(span, fqn)
+                if let Some(value) =
+                    self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
+                {
+                    Ok(value)
+                } else {
+                    self.codegen_top_level_value_ref(span, fqn)
+                }
             }
             crate::mir::Rvalue::Unary { op, operand } => {
                 let operand = self.codegen_mir_operand(span, operand, slots)?;
@@ -2474,30 +2638,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let rhs = self.codegen_mir_operand(span, rhs, slots)?;
                 self.codegen_mir_binary(span, *op, lhs, rhs)
             }
+            crate::mir::Rvalue::TypeCheck {
+                value,
+                op,
+                test_ty,
+                metadata,
+            } => {
+                self.codegen_mir_type_check(span, value, *op, *test_ty, metadata, mir_types, slots)
+            }
             crate::mir::Rvalue::Cast {
                 value,
-                op: ast::CastOp::As,
+                op,
                 target_ty,
-                ..
-            } => {
-                let target = self.cg_ty_of_mir_type(mir_types, *target_ty).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor value primitive cast target type",
-                        at: span.into(),
-                    },
-                )?;
-                let value = self.codegen_mir_operand_expected(span, value, slots, Some(target))?;
-                if matches!(value.ty, CgTy::Ref | CgTy::String)
-                    && matches!(target, CgTy::Ref | CgTy::String)
-                    && value.ty != target
-                {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor value primitive runtime cast",
-                        at: span.into(),
-                    });
-                }
-                self.coerce_value(span, value, target)
-            }
+                metadata,
+            } => self.codegen_mir_cast(
+                span, value, *op, *target_ty, metadata, mir_types, slots, target_cg,
+            ),
             crate::mir::Rvalue::PatternMatch { subject, pattern } => {
                 self.codegen_mir_pattern_match(span, mir_types, subject, pattern, slots)
             }
@@ -2576,12 +2732,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
-            crate::mir::Rvalue::TypeCheck { .. }
-            | crate::mir::Rvalue::Cast {
-                op: ast::CastOp::AsQ,
-                ..
-            }
-            | crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor value primitive rvalue",
                 at: span.into(),
             }),
@@ -2603,6 +2754,426 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_string_literal_from_text(span, &type_name)
             }
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_type_check(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        op: ast::TypeCheckOp,
+        test_ty: TypeId,
+        metadata: &crate::mir::RuntimeTypeTestMetadata,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if metadata.target_ty != test_ty || metadata.descriptor.ty != test_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime type-check metadata",
+                at: span.into(),
+            });
+        }
+        let is_ok =
+            self.codegen_mir_runtime_type_test_is_ok(span, value, metadata, mir_types, slots)?;
+        let out = match op {
+            ast::TypeCheckOp::Is => is_ok,
+            ast::TypeCheckOp::NotIs => self.builder.build_not(is_ok, "mir_typecheck_not")?,
+        };
+        Ok(CgValue::bool(out))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_cast(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        op: ast::CastOp,
+        target_ty: TypeId,
+        metadata: &crate::mir::RuntimeCastMetadata,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if metadata.test.target_ty != target_ty || metadata.test.descriptor.ty != target_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime cast metadata",
+                at: span.into(),
+            });
+        }
+        match op {
+            ast::CastOp::As => self.codegen_mir_cast_as(
+                span, value, target_ty, metadata, mir_types, slots, target_cg,
+            ),
+            ast::CastOp::AsQ => self.codegen_mir_cast_asq(
+                span, value, target_ty, metadata, mir_types, slots, target_cg,
+            ),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_cast_as(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        target_ty: TypeId,
+        metadata: &crate::mir::RuntimeCastMetadata,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let crate::mir::RuntimeCastFailure::Raise { error_fqn, .. } = &metadata.failure else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as` cast failure contract",
+                at: span.into(),
+            });
+        };
+        if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as` cast runtime error contract",
+                at: span.into(),
+            });
+        }
+        let crate::mir::RuntimeCastResult::Target { ty } = &metadata.result else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as` cast result contract",
+                at: span.into(),
+            });
+        };
+        if *ty != target_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as` cast target contract",
+                at: span.into(),
+            });
+        }
+
+        let target_codegen_ty = self
+            .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as` target codegen type",
+                at: span.into(),
+            })?;
+        let expected_cg =
+            self.cg_ty_of(target_codegen_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "MIR `as` target type",
+                    at: span.into(),
+                })?;
+        let result_cg = if target_cg == CgTy::Never {
+            expected_cg
+        } else {
+            target_cg
+        };
+        if expected_cg != result_cg || !matches!(result_cg, CgTy::Ref | CgTy::String) {
+            return Err(frontend_error(format!(
+                "MIR `as` target runtime type mismatch: target_ty={}, expected_cg={expected_cg:?}, result_cg={target_cg:?}",
+                mir_types.display(target_ty)
+            )));
+        }
+
+        let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
+        if metadata.test.static_fold == crate::mir::RuntimeTypeStaticFold::AlwaysTrue {
+            let target_ptr_ty = self.runtime_cast_target_ptr_type(span, result_cg)?;
+            let casted_ptr =
+                self.builder
+                    .build_pointer_cast(obj_ptr, target_ptr_ty, "mir_cast_verified_ptr")?;
+            return Ok(CgValue {
+                ty: result_cg,
+                value: Some(casted_ptr.into()),
+            });
+        }
+        let is_ok = self.codegen_mir_runtime_type_test_is_ok(
+            span,
+            value,
+            &metadata.test,
+            mir_types,
+            slots,
+        )?;
+        self.codegen_checked_runtime_ref_cast(span, obj_ptr, target_codegen_ty, result_cg, is_ok)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_cast_asq(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        target_ty: TypeId,
+        metadata: &crate::mir::RuntimeCastMetadata,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !matches!(metadata.failure, crate::mir::RuntimeCastFailure::ReturnNone) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` cast failure contract",
+                at: span.into(),
+            });
+        }
+        let crate::mir::RuntimeCastResult::Option { option_ty, some_ty } = &metadata.result else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` cast result contract",
+                at: span.into(),
+            });
+        };
+        if *some_ty != target_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` cast target contract",
+                at: span.into(),
+            });
+        }
+
+        let target_codegen_ty = self
+            .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` target codegen type",
+                at: span.into(),
+            })?;
+        let target_value_cg =
+            self.cg_ty_of(target_codegen_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "MIR `as?` target type",
+                    at: span.into(),
+                })?;
+        if !matches!(target_value_cg, CgTy::Ref | CgTy::String) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` target runtime type",
+                at: span.into(),
+            });
+        }
+        let option_codegen_ty = self
+            .equivalent_codegen_type_id(mir_types, *option_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` option codegen type",
+                at: span.into(),
+            })?;
+        if target_cg != CgTy::Enum(option_codegen_ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR `as?` result type",
+                at: span.into(),
+            });
+        }
+
+        let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
+        let is_ok = self.codegen_mir_runtime_type_test_is_ok(
+            span,
+            value,
+            &metadata.test,
+            mir_types,
+            slots,
+        )?;
+        self.codegen_checked_runtime_ref_cast_option(
+            span,
+            obj_ptr,
+            target_codegen_ty,
+            target_value_cg,
+            option_codegen_ty,
+            is_ok,
+        )
+    }
+
+    fn codegen_mir_runtime_type_test_is_ok(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        metadata: &crate::mir::RuntimeTypeTestMetadata,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        match metadata.static_fold {
+            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+                return Ok(self.context.bool_type().const_int(1, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+                return Ok(self.context.bool_type().const_int(0, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+        }
+
+        if !self.runtime_type_descriptor_is_codegen_supported(mir_types, metadata) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime type descriptor",
+                at: span.into(),
+            });
+        }
+        let target_ty = self
+            .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime type target",
+                at: span.into(),
+            })?;
+        let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
+        self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)
+    }
+
+    fn codegen_mir_runtime_ref_operand(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<(PointerValue<'ctx>, CgValue<'ctx>), LlvmEmitError> {
+        let value = self.codegen_mir_operand(span, value, slots)?;
+        let value = match value.ty {
+            CgTy::Ref => value,
+            CgTy::String => self.coerce_value(span, value, CgTy::Ref)?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "MIR runtime type operand",
+                    at: span.into(),
+                });
+            }
+        };
+        let Some(BasicValueEnum::PointerValue(obj_ptr)) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime type operand value",
+                at: span.into(),
+            });
+        };
+        Ok((obj_ptr, value))
+    }
+
+    fn runtime_cast_target_ptr_type(
+        &self,
+        span: crate::span::Span,
+        target_cg: CgTy,
+    ) -> Result<inkwell::types::PointerType<'ctx>, LlvmEmitError> {
+        match target_cg {
+            CgTy::Ref => Ok(self.llvm_gc_i8_ptr_type()),
+            CgTy::String => Ok(self.llvm_scoop_string_ptr_type()),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR runtime cast target type",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_checked_runtime_ref_cast(
+        &mut self,
+        span: crate::span::Span,
+        obj_ptr: PointerValue<'ctx>,
+        _target_ty: TypeId,
+        target_cg: CgTy,
+        is_ok: inkwell::values::IntValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let target_ptr_ty = self.runtime_cast_target_ptr_type(span, target_cg)?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "mir_cast_ok");
+        let fail_bb = self.context.append_basic_block(func, "mir_cast_fail");
+        let merge_bb = self.context.append_basic_block(func, "mir_cast_merge");
+        self.builder
+            .build_conditional_branch(is_ok, ok_bb, fail_bb)?;
+
+        self.builder.position_at_end(ok_bb);
+        let casted_ptr = self
+            .builder
+            .build_pointer_cast(obj_ptr, target_ptr_ty, "mir_cast_ptr")?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(fail_bb);
+        self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
+        let fail_incoming = if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_non_resuming_effect_exit(span, "mir_cast_raise_effect")?;
+            self.builder.build_unreachable()?;
+            None
+        } else {
+            let dead_bb =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: span.into(),
+                    })?;
+            let default_ptr = target_ptr_ty.const_null();
+            self.builder.build_unconditional_branch(merge_bb)?;
+            Some((default_ptr, dead_bb))
+        };
+
+        self.builder.position_at_end(merge_bb);
+        let phi = self.builder.build_phi(target_ptr_ty, "mir_cast_value")?;
+        if let Some((default_ptr, dead_bb)) = fail_incoming {
+            phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
+        } else {
+            phi.add_incoming(&[(&casted_ptr, ok_bb)]);
+        }
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(phi.as_basic_value().into_pointer_value().into()),
+        })
+    }
+
+    fn codegen_checked_runtime_ref_cast_option(
+        &mut self,
+        span: crate::span::Span,
+        obj_ptr: PointerValue<'ctx>,
+        _target_ty: TypeId,
+        target_cg: CgTy,
+        option_ty: TypeId,
+        is_ok: inkwell::values::IntValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let target_ptr_ty = self.runtime_cast_target_ptr_type(span, target_cg)?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "mir_asq_ok");
+        let fail_bb = self.context.append_basic_block(func, "mir_asq_fail");
+        let merge_bb = self.context.append_basic_block(func, "mir_asq_merge");
+        self.builder
+            .build_conditional_branch(is_ok, ok_bb, fail_bb)?;
+
+        self.builder.position_at_end(ok_bb);
+        let casted_ptr =
+            self.builder
+                .build_pointer_cast(obj_ptr, target_ptr_ty, "mir_asq_cast_ptr")?;
+        let casted = CgValue {
+            ty: target_cg,
+            value: Some(casted_ptr.into()),
+        };
+        let payload = self.coerce_enum_payload(span, casted, target_cg)?;
+        let some_v = self.build_enum_value(span, option_ty, 0, payload)?;
+        let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "MIR `as?` Some value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(fail_bb);
+        let none_v = self.build_enum_value(span, option_ty, 1, CgEnumPayload::default())?;
+        let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "MIR `as?` None value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        let llvm_option_ty = self.llvm_enum_value_type(span, option_ty)?;
+        let phi = self.builder.build_phi(llvm_option_ty, "mir_asq_value")?;
+        phi.add_incoming(&[(&some_raw, ok_bb), (&none_raw, fail_bb)]);
+        Ok(CgValue {
+            ty: CgTy::Enum(option_ty),
+            value: Some(phi.as_basic_value()),
+        })
     }
 
     fn codegen_mir_interpolated_string(
@@ -3880,7 +4451,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_ty: TypeId,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let target_ty = self
-            .equivalent_codegen_type_id(mir_types, target_ty)
+            .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR pattern is target type",
                 at: span.into(),

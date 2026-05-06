@@ -2915,9 +2915,20 @@ impl<'a> FnLowering<'a> {
         op: ast::CastOp,
         target_ty: TypeId,
     ) -> LocalId {
-        let result = self.push_temp_local(span, ty);
+        let result_ty = if op == ast::CastOp::As { target_ty } else { ty };
+        let result = self.push_temp_local(span, result_ty);
         let value_local = self.lower_expr_to_local(value);
         if self.current_is_terminated() {
+            return result;
+        }
+        if op == ast::CastOp::As {
+            self.lower_cast_as_expr_with_runtime_error_boundary(
+                span,
+                result,
+                value,
+                value_local,
+                target_ty,
+            );
             return result;
         }
         self.assign(
@@ -2931,6 +2942,129 @@ impl<'a> FnLowering<'a> {
             },
         );
         result
+    }
+
+    fn lower_cast_as_expr_with_runtime_error_boundary(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        value: &hir::Expr,
+        value_local: LocalId,
+        target_ty: TypeId,
+    ) {
+        let mut metadata =
+            self.runtime_cast_metadata(value.ty, target_ty, target_ty, ast::CastOp::As);
+        let test_local = self.push_temp_local(span, self.builtins.bool_);
+        self.assign(
+            span,
+            test_local,
+            Rvalue::TypeCheck {
+                value: Operand::Local(value_local),
+                op: ast::TypeCheckOp::Is,
+                test_ty: target_ty,
+                metadata: metadata.test.clone(),
+            },
+        );
+
+        let ok_bb = self.push_block(span);
+        let fail_bb = self.push_block(span);
+        let merge_bb = self.push_block(span);
+        let parent = self.current_bb;
+        self.set_terminator(
+            parent,
+            span,
+            TerminatorKind::CondBr {
+                cond: Operand::Local(test_local),
+                then_target: ok_bb,
+                else_target: fail_bb,
+            },
+        );
+
+        self.current_bb = ok_bb;
+        metadata.test.static_fold = RuntimeTypeStaticFold::AlwaysTrue;
+        self.assign(
+            span,
+            result,
+            Rvalue::Cast {
+                value: Operand::Local(value_local),
+                op: ast::CastOp::As,
+                target_ty,
+                metadata,
+            },
+        );
+        self.set_terminator(ok_bb, span, TerminatorKind::Goto { target: merge_bb });
+
+        self.current_bb = fail_bb;
+        self.lower_cast_as_failure_raise(span, result, merge_bb);
+
+        self.current_bb = merge_bb;
+    }
+
+    fn lower_cast_as_failure_raise(&mut self, span: Span, result: LocalId, merge_bb: BasicBlockId) {
+        let runtime_error_ty = find_runtime_error_type(self.types).unwrap_or(self.builtins.any);
+        let effect_ty = find_raise_runtime_error_effect(self.types).unwrap_or(self.builtins.any);
+        let error_local = self.push_temp_local(span, runtime_error_ty);
+        self.assign(
+            span,
+            error_local,
+            Rvalue::TopLevelRef(TopLevelRef {
+                fqn: "scoop.core.RuntimeError.ClassCastFailed".to_string(),
+                site_id: None,
+                hidden_effects: EffectRow::pure(),
+            }),
+        );
+
+        let perform_result = self.push_temp_local(span, self.builtins.nothing);
+        self.assign(
+            span,
+            perform_result,
+            Rvalue::PerformResult {
+                op_fqn: "scoop.core.Raise.raise".to_string(),
+                effect_ty,
+            },
+        );
+
+        let resume_target = self.push_block(span);
+        let site_id = self.fresh_site_id();
+        let unwind = self.build_perform_unwind_action(span);
+        let payload_transport = self.value_transport_with_boxing_reason(
+            runtime_error_ty,
+            MirTransportKind::EffectPayload,
+            MirBoxingReason::EffectPayload,
+            Some(runtime_error_ty),
+        );
+        self.set_terminator_with_unwind(
+            self.current_bb,
+            span,
+            TerminatorKind::Perform {
+                site_id,
+                op_fqn: "scoop.core.Raise.raise".to_string(),
+                metadata: PerformMetadata {
+                    effect_ty,
+                    result_ty: self.builtins.nothing,
+                    payload_tuple_ty: Some(runtime_error_ty),
+                    payload_component_tys: vec![runtime_error_ty],
+                    payload_transport: vec![payload_transport],
+                    arg_mapping: vec![0],
+                },
+                args: vec![PerformArg {
+                    span,
+                    source_arg_index: 0,
+                    name: None,
+                    value: Operand::Local(error_local),
+                }],
+                resume_target,
+            },
+            unwind,
+        );
+
+        self.current_bb = resume_target;
+        self.assign(span, result, Rvalue::Use(Operand::Local(perform_result)));
+        self.set_terminator(
+            resume_target,
+            span,
+            TerminatorKind::Goto { target: merge_bb },
+        );
     }
 
     fn lower_member_access_expr(
@@ -5630,7 +5764,19 @@ fn continuation_contract_from_type(
 }
 
 fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
-    let runtime_error_ty = types.iter_ids().find(|&id| {
+    let runtime_error_ty = find_runtime_error_type(types)?;
+    types.iter_ids().find(|&id| {
+        matches!(
+            types.kind(id),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Raise"
+                    && nominal.args.as_slice() == [runtime_error_ty]
+        )
+    })
+}
+
+fn find_runtime_error_type(types: &TypeStore) -> Option<TypeId> {
+    types.iter_ids().find(|&id| {
         matches!(
             types.kind(id),
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.RuntimeError"
@@ -5638,14 +5784,6 @@ fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
             types.kind(id),
             TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.RuntimeError"
-        )
-    })?;
-    types.iter_ids().find(|&id| {
-        matches!(
-            types.kind(id),
-            TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                if nominal.fqn == "scoop.core.Raise"
-                    && nominal.args.as_slice() == [runtime_error_ty]
         )
     })
 }

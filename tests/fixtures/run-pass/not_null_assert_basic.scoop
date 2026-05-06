@@ -1,9 +1,7 @@
-// EXPECT: fail
-// T3406: 当前真实阻塞是 LLVM lowering 仍会把 `!!` 非空断言收口成
-// `when arm type mismatch`；待非空断言值语义/codegen 收口后回收该 fixture。
+// EXPECT: pass
 // RUN-STDOUT: not_null_assert_basic.stdout
 //
-// T0108: `!!` (non-null assert) codegen.
+// T0108 / CG-T02: `!!` (non-null assert) codegen.
 //
 // Covers:
 //   - `expr!!` on a `Some` value -> unwraps successfully.

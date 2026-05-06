@@ -904,6 +904,45 @@ fun main(args: Array<String>): Int {
         )
     }
 
+    fn runtime_type_primitives_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_runtime_type_primitives_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+interface IFace {
+    fun ping(): Int
+}
+
+open class Base()
+class Impl() : Base(), IFace {
+    fun ping(): Int {
+        return 42
+    }
+}
+class Other() : Base()
+
+fun main(): Int {
+    val x: Any = Impl()
+    val _is_iface: Bool = x is IFace
+    val _not_other: Bool = x !is Other
+    val _maybe_iface: IFace? = x as? IFace
+    val _maybe_other: Other? = x as? Other
+    val caught: Int = try {
+        val _bad: Other = x as Other
+        0
+    } catch (e: RuntimeError) {
+        val _unused: RuntimeError = e
+        1
+    }
+    return caught
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1073,6 +1112,31 @@ fun main(args: Array<String>): Int {
         assert!(
             main.contains("@scoop_entry_argv_array") && main.contains("@sample.main"),
             "main wrapper should build argv array and pass it to the refactor plain entry:\n{main}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_runtime_type_primitives() {
+        let ir = emit_refactor_ir_for_source(
+            runtime_type_primitives_source(),
+            "runtime_type_primitives.ll",
+        );
+
+        assert!(
+            ir.contains("mir_typecheck_not"),
+            "`!is` should lower as a runtime type test plus boolean negation:\n{ir}"
+        );
+        assert!(
+            ir.contains("mir_asq_value"),
+            "`as?` should construct an Option<T> value in refactor LLVM:\n{ir}"
+        );
+        assert!(
+            ir.contains("scoop_effect_set_active_with_trace"),
+            "`as` failure should route through RuntimeError effect propagation:\n{ir}"
+        );
+        assert!(
+            ir.contains("isa_iface") || ir.contains("isa_loop"),
+            "runtime type tests should use descriptor/itable matching helpers:\n{ir}"
         );
     }
 

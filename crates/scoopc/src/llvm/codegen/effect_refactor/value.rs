@@ -271,6 +271,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     && !self.codegen.top_level_consts.contains_key(fqn)
                     && !self.codegen.top_level_immutable_values.contains_key(fqn)
                     && !self.codegen.top_level_vars.contains_key(fqn)
+                    && !self.static_enum_unit_variant_value(fqn)
                 {
                     return Ok(());
                 }
@@ -482,6 +483,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     args,
                     self.slots,
                 )
+            }
+            mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. })
+                if self.static_enum_unit_variant_value(fqn) =>
+            {
+                self.codegen
+                    .try_codegen_qualified_enum_unit_variant_value(span, fqn)?
+                    .ok_or_else(|| frontend_error(format!("missing enum unit variant `{fqn}`")))
             }
             mir::Rvalue::MemberAccess { member, .. }
                 if let Some(mir::MemberTarget::Value { fqn }) = &member.resolved

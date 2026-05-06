@@ -5,7 +5,7 @@
 //! added here before they are allowed to reach LLVM body emission.
 
 use crate::mir::{
-    Body, MirCodegenBackendRoute, MirCodegenRoutingFact, Pattern, Rvalue, StatementKind,
+    Body, MirCodegenBackendRoute, MirCodegenRoutingFact, Rvalue, StatementKind,
     StoredContinuationRoutePublication, TerminatorKind, UnwindAction,
 };
 use crate::span::Span;
@@ -579,12 +579,6 @@ fn raw_mir_rvalue_gate_failure(
             "PIPELINE_GAPS §3.3",
             "PerformResult reached raw LLVM emission without a published resume payload binding",
         )),
-        Rvalue::TypeCheck { .. } | Rvalue::Cast { .. } => Some(gate_failure(
-            body_fqn,
-            span,
-            "PIPELINE_GAPS §3.4",
-            "runtime type primitive reached raw LLVM emission without runtime descriptor lowering",
-        )),
         Rvalue::Call { kind, .. } => match kind {
             crate::mir::CallKind::Virtual { .. }
             | crate::mir::CallKind::Interface { .. }
@@ -606,19 +600,13 @@ fn raw_mir_rvalue_gate_failure(
                 "class constructor named/default argument contract reached backend incomplete",
             ))
         }
-        Rvalue::PatternMatch { pattern, .. } if pattern_contains_runtime_type_test(pattern) => {
-            Some(gate_failure(
-                body_fqn,
-                span,
-                "PIPELINE_GAPS §3.8",
-                "pattern `is Type` reached raw LLVM emission without full runtime type-test lowering",
-            ))
-        }
         Rvalue::Use(_)
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
+        | Rvalue::TypeCheck { .. }
+        | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
@@ -657,24 +645,6 @@ fn raw_mir_unwind_gate_failure(
             "cleanup Perform reached raw LLVM emission without cleanup/resume routing",
         )),
         UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => None,
-    }
-}
-
-fn pattern_contains_runtime_type_test(pattern: &Pattern) -> bool {
-    match pattern {
-        Pattern::Is { .. } => true,
-        Pattern::Or { pats } | Pattern::Tuple { elements: pats } => {
-            pats.iter().any(pattern_contains_runtime_type_test)
-        }
-        Pattern::Variant { args, .. } => args.iter().any(pattern_contains_runtime_type_test),
-        Pattern::Else
-        | Pattern::Wildcard
-        | Pattern::Rest
-        | Pattern::Bind { .. }
-        | Pattern::IntLit { .. }
-        | Pattern::CharLit { .. }
-        | Pattern::StringLit { .. }
-        | Pattern::BoolLit { .. } => false,
     }
 }
 

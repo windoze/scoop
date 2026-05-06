@@ -15,8 +15,8 @@
 | `CG-T00` | CG0 | [DONE] 建立 codegen gap inventory 与 backend gate |
 | `CG-T00R` | CG0R | [DONE] Review CG-T00 codegen inventory 与 backend gate |
 | `CG-T01` | CG1 | [DONE] 收口 raw MIR effect/control route 与 unsupported call kind |
-| `CG-T01R` | CG1R | Review CG-T01 raw MIR route gate |
-| `CG-T02` | CG2 | 收口 runtime type/value primitive LLVM lowering |
+| `CG-T01R` | CG1R | [DONE] Review CG-T01 raw MIR route gate |
+| `CG-T02` | CG2 | [DONE] 收口 runtime type/value primitive LLVM lowering |
 | `CG-T02R` | CG2R | Review CG-T02 runtime value primitive lowering |
 | `CG-T03` | CG3 | 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | Review CG-T03 call/ctor/intrinsic lowering |
@@ -155,7 +155,7 @@
   - 2026-05-07：搜索 `TerminatorKind::Handle` / `TerminatorKind::Perform` / `TerminatorKind::ResumeUnwind` / `CallKind::Resume` / `Rvalue::PerformResult`，命中限于 raw support rejection/gate、受 gate 保护的 generic MIR emitter、refactor fail-fast 分支和 use-collection helpers，未发现绕过 handoff 的 raw route 直接 lowering。
   - 验证通过：`cargo test -p scoopc refactor_llvm_raw_route_gate`、`cargo test -p scoopc raw_mir_effect_control_route`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoopc refactor_mir_codegen_routing_contract`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T02：收口 runtime type/value primitive LLVM lowering
+## [DONE] CG-T02：收口 runtime type/value primitive LLVM lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG2
@@ -183,6 +183,13 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §3.4、§3.5、§3.8、§6.1、§6.2 的 codegen 部分关闭。
 - 依赖：`CG-T01R`，`MIR-T09R`
+
+- 完成记录：
+  - 2026-05-07：refactor LLVM raw/materialized MIR path 支持 `TypeCheck`、`CastOp::As`、`CastOp::AsQ` 与 pattern `is Type` 的 runtime descriptor / itable matching lowering；backend gate 不再把已具备 metadata contract 的 runtime type primitive 统一 late unsupported。
+  - 2026-05-07：`as` lowering 在 MIR 中拆为显式 type-test 成功分支与 `Raise.raise(RuntimeError.ClassCastFailed)` 失败分支，失败路径走 ordinary runtime-error effect boundary；`as?` lowering 构造 `Option<T>` 的 `Some` / `None` enum value。
+  - 2026-05-07：`!!` 非空断言 run-pass fixture 从 expected-fail 回收；合成 `RuntimeError.NullAssertionFailed` 表达式使用显式 `RuntimeError` 类型，避免 late-lowering boundary payload contract 漂移。
+  - 2026-05-07：确认 function type runtime casts 仍由 frontend/typecheck diagnostic 拒绝，未进入 refactor LLVM callable descriptor guess。
+  - 验证通过：`cargo test -p scoopc refactor_mir_value_primitives`、`cargo test -p scoopc refactor_llvm_runtime_type_primitives`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/not_null_assert_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T02R：Review CG-T02 runtime value primitive lowering
 

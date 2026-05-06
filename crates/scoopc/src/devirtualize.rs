@@ -35,10 +35,18 @@ pub(crate) fn try_devirtualize_dispatch_target(
     types: &TypeStore,
     facts: DispatchTargetFacts<'_>,
 ) -> Option<String> {
-    let receiver_fqn = exact_receiver_fqn(receiver_ty, types, facts.known_receiver_subclasses)?;
-
     match kind {
         hir::DispatchCallKind::Virtual => {
+            if let Some(owner_slots) = facts.class_vtables.get(owner_fqn)
+                && !owner_slots.iter().any(|slot| {
+                    slot.name == member_name && slot.params_len == explicit_arg_count as u32
+                })
+            {
+                return Some(format!("{owner_fqn}.{member_name}"));
+            }
+
+            let receiver_fqn =
+                exact_receiver_fqn(receiver_ty, types, facts.known_receiver_subclasses)?;
             if let Some(slots) = facts.class_vtables.get(receiver_fqn)
                 && let Some(slot) = slots.iter().find(|slot| {
                     slot.name == member_name && slot.params_len == explicit_arg_count as u32
@@ -50,6 +58,8 @@ pub(crate) fn try_devirtualize_dispatch_target(
             (receiver_fqn == owner_fqn).then(|| format!("{owner_fqn}.{member_name}"))
         }
         hir::DispatchCallKind::Interface => {
+            let receiver_fqn =
+                exact_receiver_fqn(receiver_ty, types, facts.known_receiver_subclasses)?;
             let iface = facts.interfaces.get(owner_fqn)?;
             let mut slots = iface.method_slots.iter().filter(|slot| {
                 slot.name == member_name && slot.params_len == explicit_arg_count as u32

@@ -5872,7 +5872,7 @@ impl<'a> HirLowering<'a> {
         let perform_span = Span::new(span.start, span.start);
         let error_expr = Expr {
             span,
-            ty: self.builtins.any,
+            ty: self.synth_runtime_error_ty(span),
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self
                     .symbols
@@ -5894,6 +5894,19 @@ impl<'a> HirLowering<'a> {
                 args: vec![CallArg::Positional(error_expr)],
             },
         }
+    }
+
+    fn synth_runtime_error_ty(&mut self, span: Span) -> TypeId {
+        let runtime_error_path = ast::TypePath {
+            span,
+            segments: vec![
+                ast::Ident::synthetic(span, "scoop"),
+                ast::Ident::synthetic(span, "core"),
+                ast::Ident::synthetic(span, "RuntimeError"),
+            ],
+            args: Vec::new(),
+        };
+        self.lower_type_path(&runtime_error_path)
     }
 
     fn synth_raise_runtime_error_effect_ty(&mut self, span: Span) -> TypeId {
