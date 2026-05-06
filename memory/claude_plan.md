@@ -1,41 +1,25 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Guardrails
+## 约束
+- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
+- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 若遇到阻塞当前任务的缺失能力或规格不符，先在 `TODO.md` 中加入最小必要前置任务并提交，不绕过问题。
+- 只在阶段计划本身变化时更新 `PLAN.md`。
+- 完成后必须更新 `TODO.md` 的任务标题和完成记录，并提交所有相关未提交更改。
 
-- Use `TODO.md` as the authoritative task source and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Treat `PLAN.md` as phase-level context only; update it only if phase sequencing or dependencies change.
-- Avoid workarounds or weakened fixtures. If a spec-correct implementation is blocked by a missing prerequisite, record that prerequisite in `TODO.md`, commit, and stop.
-- Preserve unrelated worktree changes and do not revert user edits.
+## 步骤
+1. 读取 `TODO.md`，定位第一个未完成任务，并检查其依赖、验证要求和完成记录格式。
+2. 查看最新提交信息，判断是否显式提到与该任务直接相关的未完成问题。
+3. 基于当前任务范围阅读必要代码和测试，避免开放式历史问题扫查。
+4. 实现当前任务；如发现直接阻塞该任务的真实缺口，改为更新 `TODO.md` 记录前置任务并停止。
+5. 运行任务要求的验证命令；若失败，修复并重跑相关验证。
+6. 将任务标题标记为 `[DONE]`，补全完成记录；必要时更新 `memory/claude_plan.md` 的进度。
+7. 检查 git diff/status，提交本次任务涉及的所有更改。
+8. 停止，不继续下一个任务。
 
-## Initial Plan
-
-1. Read `TODO.md` first to identify the first incomplete task and its validation requirements.
-2. Check the latest commit only for unfinished work directly relevant to that selected task.
-3. Inspect the relevant implementation and tests for that task.
-4. Implement the smallest spec-correct change needed for the selected task.
-5. Run the required task-specific validation and broader relevant tests.
-6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record, or add a concrete prerequisite if blocked.
-7. Update this plan file after key discoveries or changes.
-8. Commit all relevant changes with a task-scoped commit message and stop.
-
-## Progress
-
-- Initial execution plan recorded before inspecting project files.
-- `TODO.md` inspection selected the first incomplete task: `MIR-T12：建立 codegen routing / ABI handoff 守卫`.
-- Latest commit is `[MIR-T11R] Review generic materialization contract`; no directly relevant unfinished `MIR-T12` work was found.
-- Implemented MIR-owned codegen routing facts and verifier, publishing final P4 routing facts from effect facts and exposing route preflight in `dump-mir` / `dump-ir` output.
-- Added `codegen_routing_contracts.scoop` and targeted tests for route publication, raw-route rejection, `NoOutward`/EffectStep ABI drift, and frontend-reject route diagnostics.
-- Updated late-lowered statement classification so `Unsupported` source classifications fail during handoff instead of reaching backend emission.
-- Validation completed so far: `refactor_mir_codegen_routing_contract`, `refactor_materialized_mir_codegen_route_verifier`, `dump-mir` / `dump-ir` / `dump-effect-lowered` on the routing fixture, plus relevant `scoop` dump CLI tests.
-- `TODO.md` now marks `MIR-T12` as `[DONE]` with validation results. `PLAN.md` was not changed because phase-level sequencing did not change.
-- Final validation also passed: `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/codegen_routing_contracts.scoop` and `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`.
-
-## Current Task Plan: MIR-T12
-
-1. Check the latest commit only for unfinished work directly relevant to `MIR-T12`.
-2. Inspect existing MIR materialization, strict verifier, effect-lowered/codegen handoff, and test helpers around routing/ABI facts.
-3. Add MIR-owned codegen routing facts for materialized callables, including unsupported effect/control site classification and ABI publication reason.
-4. Add strict route verifier checks for raw-route unsupported terminators/call kinds, `PerformResult` binding, plain-vs-EffectStep ABI drift, and unsupported source classifications.
-5. Make dump/preflight output expose routing facts enough for downstream codegen tasks.
-6. Add focused tests and the `mir_refactor/codegen_routing_contracts.scoop` fixture covering success and forged-fact negative cases.
-7. Run the task-specified test commands plus minimal relevant regressions, then update `TODO.md`, commit, and stop.
+## 当前状态
+- 已定位并完成当前任务：`MIR-T12R：Review MIR-T12 codegen handoff guard`。
+- 最新提交为 `[MIR-T12] Add codegen routing handoff guard`，与当前 review 直接相关，但未显式声明未完成问题。
+- 已审查 routing/ABI handoff 实现、fixtures、verifier 负例和 effect-lowered source classification fail-fast 路径；未发现需要归回 `MIR-T12` 的阻塞缺口。
+- 已运行 `MIR-T12R` 相关验证命令、最终 clippy，并更新 `TODO.md` 完成记录。
+- 下一步：提交本次 review 记录。
