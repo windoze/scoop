@@ -123,9 +123,9 @@ fn validate_refactor_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLo
         })
 }
 
-pub(crate) fn run(
+fn lower_refactor_mir_stage_unvalidated(
     typed_hir_output: TypedHirStageOutput,
-) -> Result<RefactorMirStageOutput, MirLowerError> {
+) -> (RefactorMirStageOutput, TypeId) {
     let facts = MirLoweringFacts::from_refactor_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
@@ -140,15 +140,33 @@ pub(crate) fn run(
         &lowered_hir.member_funs,
         &facts,
     );
-    validate_refactor_bodies(&file, builtins.unit)?;
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
     let materialized_mir = lowered_hir.into_materialized_mir();
 
-    Ok(RefactorMirStageOutput::new(
-        LoweredMir { file, types },
-        effect_contracts,
-        materialized_mir,
-    ))
+    (
+        RefactorMirStageOutput::new(
+            LoweredMir { file, types },
+            effect_contracts,
+            materialized_mir,
+        ),
+        builtins.unit,
+    )
+}
+
+pub(crate) fn run(
+    typed_hir_output: TypedHirStageOutput,
+) -> Result<RefactorMirStageOutput, MirLowerError> {
+    let (output, unit_ty) = lower_refactor_mir_stage_unvalidated(typed_hir_output);
+    validate_refactor_bodies(output.file(), unit_ty)?;
+    Ok(output)
+}
+
+#[cfg(test)]
+pub(crate) fn run_unvalidated_for_preflight(
+    typed_hir_output: TypedHirStageOutput,
+) -> RefactorMirStageOutput {
+    let (output, _) = lower_refactor_mir_stage_unvalidated(typed_hir_output);
+    output
 }
 
 #[cfg(test)]

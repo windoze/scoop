@@ -625,10 +625,13 @@ impl<'a> HirLowering<'a> {
             ast::Item::TypeAlias(ta) => {
                 decls.push(Decl::TypeAlias(self.lower_typealias_decl(pkg_prefix, ta)));
             }
-            ast::Item::ComptimeIf(ci) => out.push(Item::Todo {
-                span: ci.span,
-                kind: "comptime_if_item",
-            }),
+            ast::Item::ComptimeIf(ci) => {
+                self.record_stage_error(
+                    ci.span,
+                    "untrimmed package-level comptime if cannot enter HIR lowering",
+                    "top-level item",
+                );
+            }
             ast::Item::Type(ty) => {
                 decls.push(Decl::Nominal(self.lower_nominal_decl(pkg_prefix, ty)));
             }

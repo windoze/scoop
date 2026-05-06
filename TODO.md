@@ -203,7 +203,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T03：收口 parser/frontend/HIR placeholder 入口
+## [DONE] MIR-T03：收口 parser/frontend/HIR placeholder 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M2
@@ -233,6 +233,19 @@
   - refactor HIR successful output 不包含必须消除的 placeholder。
   - unsupported/deferred syntax 不能再走到 MIR。
 - 依赖：`MIR-T00`
+
+- 完成记录（2026-05-06）：
+  - HIR placeholder inventory 已改用与 MIR inventory 一致的 disposition 语义；`structured_concurrency_spawn_deferred`、`structured_concurrency_join_deferred`、`comptime_if_item`、`missing_expr` 不再作为 HIR/MIR placeholder inventory entry 保留。
+  - parser/frontend 现在对 user-facing `spawn` / `join` 给出 `scoop::parse::structured_concurrency_deferred` diagnostic，相关 parse/typecheck fixtures 已覆盖。
+  - HIR lowering 对 parser recovery `Missing`、assignment-expression fallback、缺失 splice/with-update contract、未裁剪 package-level `comptime if` 改为记录 HIR stage diagnostic，不再构造 `ExprKind::Missing` 或 `Item::Todo(comptime_if_item)`。
+  - refactor typed HIR stage 通过 `RefactorHirCompletenessVerifier` 在 `TypedHirStageOutput::new(...)` 边界拒绝 `Item::Todo`、`StmtKind::Todo`、`ExprKind::Todo`、`ExprKind::Missing`；HIR preflight 的 MIR smoke 使用 test-only unvalidated lowering 只审计 HIR-origin fallback，不再被后续 `MIR-T05` 的 top-level val strict MIR gap 阻塞。
+  - 新增 `tests/fixtures/resolve/package_level_comptime_if_untrimmed_is_error.scoop`，覆盖 package-level `comptime if` 无法常量裁剪时的 frontend diagnostic。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features parser_hir_surface_gate`。
+  - diagnostics fixtures 通过：`parse/spawn_deferred_is_error.scoop`、`parse/join_deferred_is_error.scoop`、`parse/parser_recovery_missing_stmt_is_error.scoop`、`typecheck/spawn_deferred_is_error.scoop`、`typecheck/join_deferred_is_error.scoop`、`resolve/package_level_comptime_if_untrimmed_is_error.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T04：完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包
 

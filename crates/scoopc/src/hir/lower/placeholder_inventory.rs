@@ -18,11 +18,10 @@ enum PlaceholderSurface {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlaceholderDisposition {
-    ParserShouldReject,
-    TypecheckOrComptimeShouldDiagnose,
-    HirShouldImplement,
-    HirHandoffContractShouldPublish,
-    LegacyOnlyCanIgnore,
+    ImplementInMir,
+    ImplementBeforeMir,
+    RejectBeforeMir,
+    LegacyOnly,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,80 +53,40 @@ const fn entry(
 }
 
 const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
-    PlaceholderDisposition::ParserShouldReject,
-    PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-    PlaceholderDisposition::HirShouldImplement,
-    PlaceholderDisposition::HirHandoffContractShouldPublish,
-    PlaceholderDisposition::LegacyOnlyCanIgnore,
+    PlaceholderDisposition::ImplementInMir,
+    PlaceholderDisposition::ImplementBeforeMir,
+    PlaceholderDisposition::RejectBeforeMir,
+    PlaceholderDisposition::LegacyOnly,
 ];
 
 const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
-        PlaceholderSurface::ExprTodo,
-        "structured_concurrency_spawn_deferred",
-        PlaceholderDisposition::ParserShouldReject,
-        "HIR-T02",
-        true,
-        "Parser emits a deferred-feature diagnostic for user-facing spawn before HIR lowering.",
-    ),
-    entry(
-        PlaceholderSurface::ExprTodo,
-        "structured_concurrency_join_deferred",
-        PlaceholderDisposition::ParserShouldReject,
-        "HIR-T02",
-        true,
-        "Parser emits a deferred-feature diagnostic for user-facing join before HIR lowering.",
-    ),
-    entry(
         PlaceholderSurface::StmtTodo,
         "comptime_block",
-        PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-        "HIR-T03",
+        PlaceholderDisposition::ImplementBeforeMir,
+        "MIR-T04",
         true,
         "Comptime expansion resolves block declarations/generated code before runtime HIR lowering.",
     ),
     entry(
         PlaceholderSurface::StmtTodo,
         "comptime_if",
-        PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-        "HIR-T03",
+        PlaceholderDisposition::ImplementBeforeMir,
+        "MIR-T04",
         true,
         "Comptime expansion evaluates the condition and keeps only the selected runtime branch.",
     ),
     entry(
         PlaceholderSurface::StmtTodo,
         "comptime_for",
-        PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-        "HIR-T03",
+        PlaceholderDisposition::ImplementBeforeMir,
+        "MIR-T04",
         true,
         "Comptime expansion unrolls compile-time iteration into ordinary runtime statements/items.",
     ),
-    entry(
-        PlaceholderSurface::ItemTodo,
-        "comptime_if_item",
-        PlaceholderDisposition::TypecheckOrComptimeShouldDiagnose,
-        "HIR-T03",
-        true,
-        "Package-level comptime if is expanded or diagnosed before top-level HIR items are built.",
-    ),
-    entry(
-        PlaceholderSurface::ExprMissing,
-        "missing_expr",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T01/HIR-T11",
-        true,
-        "Verifier rejects parser-recovery Missing expressions; synthesized Missing receivers must become explicit contracts.",
-    ),
 ];
 
-const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
-    "comptime_block",
-    "comptime_if",
-    "comptime_for",
-    "comptime_if_item",
-    "structured_concurrency_spawn_deferred",
-    "structured_concurrency_join_deferred",
-];
+const REQUIRED_ELIMINATION_REASONS: &[&str] = &["comptime_block", "comptime_if", "comptime_for"];
 
 const EXPR_TODO_PATTERN: &str = concat!("ExprKind", "::Todo(\"");
 const STMT_TODO_PATTERN: &str = concat!("StmtKind", "::Todo(\"");
@@ -168,7 +127,7 @@ fn refactor_hir_placeholder_inventory() {
 
 fn assert_inventory_entries_are_actionable() {
     assert!(
-        ALL_DISPOSITIONS.contains(&PlaceholderDisposition::LegacyOnlyCanIgnore),
+        ALL_DISPOSITIONS.contains(&PlaceholderDisposition::LegacyOnly),
         "inventory classification set must keep the legacy-only bucket explicit even when unused"
     );
 
@@ -185,7 +144,7 @@ fn assert_inventory_entries_are_actionable() {
             "inventory entry lacks handling strategy: {entry:?}"
         );
         assert!(
-            entry.disposition != PlaceholderDisposition::LegacyOnlyCanIgnore
+            entry.disposition != PlaceholderDisposition::LegacyOnly
                 || !entry.must_eliminate_from_refactor_hir,
             "legacy-only entries must not be required refactor eliminations: {entry:?}"
         );

@@ -5,10 +5,7 @@ use crate::mir::{Item as MirItem, Rvalue, StatementKind, TerminatorKind, UnwindA
 use crate::session::{EffectPipelineMode, Session, SessionOptions};
 use crate::source::SourceFile;
 
-use super::{
-    RefactorMirStageOutput, TypedHirStageOutput, load_direct_style_mir_stage_output_for_dump,
-    load_typed_hir_stage_output_for_dump,
-};
+use super::{RefactorMirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for_dump};
 
 const HIR_ONLY: &str = "typed HIR/no-Todo coverage; MIR smoke is limited to representative samples";
 
@@ -306,13 +303,14 @@ fn run_direct_mir_preflight(
     source: &SourceFile,
     fixture: HirCompletenessFixture,
 ) {
-    let output =
-        load_direct_style_mir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
+    let typed_hir_output =
+        load_typed_hir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
             panic!(
-                "direct-style MIR smoke should pass for `{}` without HIR-origin fallback: {err:?}",
+                "typed HIR preflight should pass before MIR smoke for `{}`: {err:?}",
                 fixture.label()
             )
         });
+    let output = super::mir_stage::run_unvalidated_for_preflight(typed_hir_output);
     assert_no_hir_origin_mir_fallbacks(&output, fixture);
 }
 

@@ -272,6 +272,15 @@ fn const_value_splice_field_name(value: &crate::comptime::ConstValue) -> Option<
 }
 
 impl<'a> HirLowering<'a> {
+    fn invalid_expr_kind_after_stage_error(&mut self, _span: Span) -> (ExprKind, TypeId) {
+        (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit)
+    }
+
+    fn invalid_expr_after_stage_error(&mut self, span: Span) -> Expr {
+        let (kind, ty) = self.invalid_expr_kind_after_stage_error(span);
+        Expr { span, ty, kind }
+    }
+
     pub(super) fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
         self.lower_expr_with_expected(pkg_prefix, e, ExpectedExpr::default())
     }
@@ -287,7 +296,14 @@ impl<'a> HirLowering<'a> {
         expected: ExpectedExpr,
     ) -> Expr {
         let (kind, ty) = match &e.kind {
-            ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
+            ast::ExprKind::Missing => {
+                self.record_stage_error(
+                    e.span,
+                    "parser recovery Missing expression cannot enter HIR lowering",
+                    "HIR expression lowering",
+                );
+                self.invalid_expr_kind_after_stage_error(e.span)
+            }
             ast::ExprKind::Annotated { expr, .. } => {
                 return self.lower_expr_with_expected(pkg_prefix, expr, expected);
             }
@@ -984,11 +1000,14 @@ impl<'a> HirLowering<'a> {
                 let task_expr = self.lower_async_task_expr_from_block(pkg_prefix, e.span, body);
                 (task_expr.kind, task_expr.ty)
             }
-            ast::ExprKind::Spawn { .. } => (
-                ExprKind::Todo("structured_concurrency_spawn_deferred"),
-                self.typechecked_expr_ty(e.span)
-                    .unwrap_or(self.builtins.any),
-            ),
+            ast::ExprKind::Spawn { .. } => {
+                self.record_stage_error(
+                    e.span,
+                    "structured concurrency syntax `spawn` is deferred and must be rejected before HIR lowering",
+                    "HIR expression lowering",
+                );
+                self.invalid_expr_kind_after_stage_error(e.span)
+            }
             ast::ExprKind::Await { await_span, expr } => {
                 // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
                 //
@@ -1020,11 +1039,14 @@ impl<'a> HirLowering<'a> {
                     result_ty,
                 )
             }
-            ast::ExprKind::Join { .. } => (
-                ExprKind::Todo("structured_concurrency_join_deferred"),
-                self.typechecked_expr_ty(e.span)
-                    .unwrap_or(self.builtins.any),
-            ),
+            ast::ExprKind::Join { .. } => {
+                self.record_stage_error(
+                    e.span,
+                    "structured concurrency syntax `join` is deferred and must be rejected before HIR lowering",
+                    "HIR expression lowering",
+                );
+                self.invalid_expr_kind_after_stage_error(e.span)
+            }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.lower_member_access_expr(pkg_prefix, receiver, member)
             }
@@ -1132,7 +1154,14 @@ impl<'a> HirLowering<'a> {
                     )
                 }
             }
-            ast::ExprKind::Assign { .. } => (ExprKind::Missing, self.builtins.any),
+            ast::ExprKind::Assign { .. } => {
+                self.record_stage_error(
+                    e.span,
+                    "assignment expression cannot enter HIR lowering",
+                    "HIR expression lowering",
+                );
+                self.invalid_expr_kind_after_stage_error(e.span)
+            }
             ast::ExprKind::TypeCheck {
                 expr,
                 op,
@@ -1531,11 +1560,12 @@ impl<'a> HirLowering<'a> {
     }
 
     fn missing_with_update_expr(&mut self, span: Span) -> Expr {
-        Expr {
+        self.record_stage_error(
             span,
-            ty: self.typechecked_expr_ty(span).unwrap_or(self.builtins.any),
-            kind: ExprKind::Missing,
-        }
+            "with-update expression missing typed aggregate contract",
+            "HIR expression lowering",
+        );
+        self.invalid_expr_after_stage_error(span)
     }
 
     pub(super) fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
@@ -4967,10 +4997,12 @@ impl<'a> HirLowering<'a> {
             .typechecked_splice_field_contract(span)
             .or_else(|| self.comptime_splice_field_contract(span, receiver, field));
         let Some(contract) = contract else {
-            return (
-                ExprKind::Missing,
-                self.typechecked_expr_ty(span).unwrap_or(self.builtins.any),
+            self.record_stage_error(
+                span,
+                "splice field access missing typed/comptime field contract",
+                "HIR expression lowering",
             );
+            return self.invalid_expr_kind_after_stage_error(span);
         };
 
         let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
@@ -5841,23 +5873,12 @@ impl<'a> HirLowering<'a> {
         let error_expr = Expr {
             span,
             ty: self.builtins.any,
-            kind: ExprKind::MemberAccess {
-                receiver: Box::new(Expr {
-                    span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Missing,
-                }),
-                member: MemberAccess {
-                    span,
-                    name: "NullAssertionFailed".to_string(),
-                    resolved: Some(MemberRef::Value {
-                        id: self.symbols.intern_top_level(
-                            Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
-                        ),
-                        fqn: Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
-                    }),
-                },
-            },
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self
+                    .symbols
+                    .intern_top_level(Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string()),
+                fqn: Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
+            }),
         };
         Expr {
             span: perform_span,
