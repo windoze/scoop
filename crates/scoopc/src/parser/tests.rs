@@ -571,6 +571,64 @@ fn parse_call_named_args() {
 }
 
 #[test]
+fn parser_hir_surface_gate() {
+    fn first_error(err: &ParseError) -> &ParseError {
+        match err {
+            ParseError::Many { errors, .. } => errors.first().expect("Many 至少包含一个错误"),
+            other => other,
+        }
+    }
+
+    let spawn = SourceFile::new_virtual("<mem>", "fun f() { val x = spawn { 1 } }");
+    let err = parse_file(&spawn).expect_err("spawn surface 应在 parser 阶段拒绝");
+    assert!(matches!(
+        first_error(&err),
+        ParseError::StructuredConcurrencyDeferred {
+            feature: "spawn",
+            ..
+        }
+    ));
+
+    let join = SourceFile::new_virtual("<mem>", "fun f(task: Task<Int>) { val x = join task }");
+    let err = parse_file(&join).expect_err("join surface 应在 parser 阶段拒绝");
+    assert!(matches!(
+        first_error(&err),
+        ParseError::StructuredConcurrencyDeferred {
+            feature: "join",
+            ..
+        }
+    ));
+
+    let assignment =
+        SourceFile::new_virtual("<mem>", "fun f(box: Box) { val y = (box.value = 1) }");
+    let err = parse_file(&assignment).expect_err("assignment expression 应被拒绝");
+    assert!(matches!(
+        first_error(&err),
+        ParseError::AssignmentExpressionNotAllowed { .. }
+    ));
+
+    let spread = SourceFile::new_virtual("<mem>", "fun f(xs: Array<Int>) { val y = [*xs] }");
+    let err = parse_file(&spread).expect_err("call 外 spread 应被拒绝");
+    assert!(matches!(
+        first_error(&err),
+        ParseError::SpreadArgOutsideCall { .. }
+    ));
+
+    let named = SourceFile::new_virtual("<mem>", "fun f() { val y = [x = 1] }");
+    let err = parse_file(&named).expect_err("call 外 named arg 应被拒绝");
+    assert!(matches!(
+        first_error(&err),
+        ParseError::NamedArgOutsideCall { .. }
+    ));
+
+    let legal = SourceFile::new_virtual(
+        "<mem>",
+        "fun f(xs: Array<Int>) { var x = 0; x = 1; val y = call(a = 1, *xs) }",
+    );
+    parse_file(&legal).expect("assignment statement 与合法 call args 不应被 gate 拒绝");
+}
+
+#[test]
 fn parse_resume_member_call_as_plain_call_shape() {
     let src = SourceFile::new_virtual("<mem>", "package a\nval resumed = k.resume(x)\n");
     let file = parse_file(&src).unwrap();

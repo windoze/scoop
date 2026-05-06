@@ -102,6 +102,44 @@ pub enum ParseError {
         #[label("这里的 `inline` 不再作为声明修饰符解析")]
         span: miette::SourceSpan,
     },
+
+    #[error(
+        "语法错误：structured concurrency 语法 `{feature}` 当前延期，不能进入 HIR；请改用 `async {{ ... }}` / `await` 或显式 runtime API"
+    )]
+    #[diagnostic(code(scoop::parse::structured_concurrency_deferred))]
+    StructuredConcurrencyDeferred {
+        feature: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("语法错误：赋值表达式不能进入 HIR；assignment 当前只能作为语句使用")]
+    #[diagnostic(
+        code(scoop::parse::assignment_expression_not_allowed),
+        help(
+            "将赋值单独写成语句，例如 `x = value`，不要嵌入 initializer、return、条件或参数表达式中"
+        )
+    )]
+    AssignmentExpressionNotAllowed {
+        #[label("这里的赋值位于表达式上下文")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("语法错误：spread 实参 `*arg` 只能出现在调用参数列表中，不能作为普通表达式进入 HIR")]
+    #[diagnostic(code(scoop::parse::spread_arg_outside_call))]
+    SpreadArgOutsideCall {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "语法错误：命名实参 `name = value` 只能出现在调用参数列表中，不能作为普通表达式进入 HIR"
+    )]
+    #[diagnostic(code(scoop::parse::named_arg_outside_call))]
+    NamedArgOutsideCall {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
@@ -175,6 +213,10 @@ impl ParseError {
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
             ParseError::InlineModifierRemoved { span } => Some(*span),
+            ParseError::StructuredConcurrencyDeferred { span, .. } => Some(*span),
+            ParseError::AssignmentExpressionNotAllowed { span } => Some(*span),
+            ParseError::SpreadArgOutsideCall { span } => Some(*span),
+            ParseError::NamedArgOutsideCall { span } => Some(*span),
         }
     }
 }

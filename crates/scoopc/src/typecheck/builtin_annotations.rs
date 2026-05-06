@@ -188,20 +188,11 @@ pub(crate) fn parse_experimental_annotation(
     let mut feature: Option<String> = None;
 
     for arg in &ann.args {
-        let (key_span, value) = match (&arg.name, &arg.value.kind) {
+        let (key_span, value) = match &arg.name {
             // `@Experimental(feature = "...")`：固定 `name = value` 形态。
-            (None, ast::ExprKind::Assign { lhs, rhs, .. }) => {
-                let ast::ExprKind::Ident(id) = &lhs.kind else {
-                    return Err(ExperimentalAnnotationParseError::InvalidArgShape {
-                        span: lhs.span,
-                    });
-                };
-                if source.slice(id.span) != "feature" {
-                    return Err(ExperimentalAnnotationParseError::InvalidArgShape {
-                        span: id.span,
-                    });
-                }
-                (id.span, rhs.as_ref())
+            Some(id) if source.slice(id.span) == "feature" => (id.span, &arg.value),
+            Some(id) => {
+                return Err(ExperimentalAnnotationParseError::InvalidArgShape { span: id.span });
             }
             _ => {
                 return Err(ExperimentalAnnotationParseError::InvalidArgShape { span: arg.span });

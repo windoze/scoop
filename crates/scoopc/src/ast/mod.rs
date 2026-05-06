@@ -490,11 +490,11 @@ pub struct AnnotationUse {
     pub use_site_target: Option<Ident>,
     /// 注解名路径：`@A` / `@A.B`。
     pub path: Vec<Ident>,
-    /// 参数列表（可选）：`@Name(arg1, name: "x")`。
+    /// 参数列表（可选）：`@Name(arg1, name: "x", feature = "gate")`。
     pub args: Vec<AnnotationArg>,
 }
 
-/// 注解参数（仅建模语法）：`name: value` / `value`。
+/// 注解参数（仅建模语法）：`name: value` / `name = value` / `value`。
 #[derive(Clone)]
 pub struct AnnotationArg {
     pub span: Span,

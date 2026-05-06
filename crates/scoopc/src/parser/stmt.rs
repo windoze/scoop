@@ -285,7 +285,7 @@ impl<'a> Parser<'a> {
 
         // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（postfix + 常见二元优先级），
         // 因此语句边界也就天然落在该表达式结束处。
-        if let Some(expr) = self.try_parse_expr()? {
+        if let Some(expr) = self.try_parse_stmt_expr()? {
             let mut span = expr.span;
             let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。

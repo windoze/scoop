@@ -1,7 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::structured_concurrency_deferred
+// EXPECT-ERROR-CODE: scoop::parse::structured_concurrency_deferred
 // EXPECT-ERROR: structured concurrency 语法 `join`
-// EXPECT-ERROR-AT: 13:22
+// EXPECT-ERROR: 不能进入 HIR
+// EXPECT-ERROR-AT: 14:22
 // 目标：T4009c：公开 `join` surface 现已明确留待后续 structured concurrency，不再属于当前 `Task` core。
 
 package fixtures.typecheck

@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::assignment_expression_not_allowed
+// EXPECT-ERROR: 赋值表达式不能进入 HIR
+// EXPECT-ERROR: 只能作为语句
+// EXPECT-ERROR-AT: 10:14
+
+package fixtures.parse
+
+fun f(box: Box) {
+    val y = (box.value = 1)
+}

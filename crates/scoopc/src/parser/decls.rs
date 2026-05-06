@@ -192,14 +192,10 @@ impl<'a> Parser<'a> {
     fn parse_annotation_arg(&mut self) -> Result<ast::AnnotationArg, ParseError> {
         let start = self.peek().span.start;
 
-        // named arg：`name: value`
-        let name = if self.peek_kind(TokenKind::Ident)
-            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Colon)
-            // `String::class`：避免把 `::` 误判为 named arg 的 `:`
-            && self.peek_n(2).kind != TokenKind::Symbol(Symbol::Colon)
-        {
+        // named arg：`name: value` / `name = value`。
+        let name = if self.looks_like_annotation_named_arg() {
             let name_tok = self.bump(); // ident
-            self.bump(); // ':'
+            self.bump(); // ':' / '='
             Some(ast::Ident::new(name_tok.span))
         } else {
             None
@@ -216,6 +212,21 @@ impl<'a> Parser<'a> {
             name,
             value,
         })
+    }
+
+    fn looks_like_annotation_named_arg(&self) -> bool {
+        if !self.peek_kind(TokenKind::Ident) {
+            return false;
+        }
+
+        match self.peek_n(1).kind {
+            TokenKind::Symbol(Symbol::Eq) => true,
+            TokenKind::Symbol(Symbol::Colon) => {
+                // `String::class`：避免把 `::` 误判为 named arg 的 `:`。
+                self.peek_n(2).kind != TokenKind::Symbol(Symbol::Colon)
+            }
+            _ => false,
+        }
     }
 
     fn parse_type_param_list(

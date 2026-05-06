@@ -18,7 +18,6 @@
 //! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
 //! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
 //! - `when` 表达式（T0215）：`when (expr) { ... }`（最小分支子集）
-//! - 赋值表达式（T0227）：`lhs = rhs`（lhs 先限 ident/member）
 //! - 局部 annotated block / closure（T1004/T3103a）：
 //!   `@Unsafe do { ... }` / `@Safe do { ... }` / `@Safe { ... }`
 //!
@@ -41,7 +40,7 @@ impl<'a> Parser<'a> {
     /// - 若当前位置不是表达式的起始 token，则返回 `Ok(None)` 且不消费 token。
     /// - 若能解析出表达式，则返回 `Ok(Some(expr))`。
     pub(super) fn try_parse_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        self.parse_assign_expr()
+        self.parse_expr_without_assignment()
     }
 
     /// `when` 分支 body 的表达式解析（带 arm 边界规则）。
@@ -50,10 +49,35 @@ impl<'a> Parser<'a> {
     /// - 若看到 `is <TypeRef> ->`，优先将其解释为“下一个 arm 的 pattern 起始”，
     ///   而不是把 `is` 当成当前表达式的中缀类型判断运算符。
     fn try_parse_expr_in_when_arm(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        self.parse_assign_expr_in_when_arm()
+        self.parse_expr_without_assignment_in_when_arm()
     }
 
-    fn parse_assign_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+    /// 语句入口保留 assignment statement form；其它表达式入口会拒绝 `=`。
+    pub(super) fn try_parse_stmt_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        self.parse_assign_stmt_expr()
+    }
+
+    fn parse_expr_without_assignment(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(expr) = self.parse_expr_bp(0)? else {
+            return Ok(None);
+        };
+
+        self.reject_assignment_in_expr_context(&expr)?;
+        Ok(Some(expr))
+    }
+
+    fn parse_expr_without_assignment_in_when_arm(
+        &mut self,
+    ) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(expr) = self.parse_expr_bp_in_when_arm(0)? else {
+            return Ok(None);
+        };
+
+        self.reject_assignment_in_expr_context(&expr)?;
+        Ok(Some(expr))
+    }
+
+    fn parse_assign_stmt_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         let Some(lhs) = self.parse_expr_bp(0)? else {
             return Ok(None);
         };
@@ -72,7 +96,7 @@ impl<'a> Parser<'a> {
 
         let eq = self.expect_symbol(Symbol::Eq)?;
         let tok = *self.peek();
-        let rhs = self.parse_assign_expr()?.ok_or(ParseError::Expected {
+        let rhs = self.try_parse_expr()?.ok_or(ParseError::Expected {
             expected: "表达式（赋值右侧）",
             found: tok.kind,
             span: tok.span.into(),
@@ -88,41 +112,28 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_assign_expr_in_when_arm(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        let Some(lhs) = self.parse_expr_bp_in_when_arm(0)? else {
-            return Ok(None);
-        };
-
+    fn reject_assignment_in_expr_context(&self, lhs: &ast::Expr) -> Result<(), ParseError> {
         if !self.peek_symbol(Symbol::Eq) {
-            return Ok(Some(lhs));
+            return Ok(());
         }
 
-        if !is_assignable_lhs(&lhs) {
-            return Err(ParseError::Expected {
-                expected: "可赋值的左值（标识符或成员访问）",
-                found: self.peek().kind,
-                span: lhs.span.into(),
-            });
+        let eq = self.peek();
+        Err(ParseError::AssignmentExpressionNotAllowed {
+            span: Span::new(lhs.span.start, eq.span.end).into(),
+        })
+    }
+
+    fn reject_named_arg_outside_call_if_present(&self) -> Result<(), ParseError> {
+        if !self.peek_kind(TokenKind::Ident) || self.peek_n(1).kind != TokenKind::Symbol(Symbol::Eq)
+        {
+            return Ok(());
         }
 
-        let eq = self.expect_symbol(Symbol::Eq)?;
-        let tok = *self.peek();
-        let rhs = self
-            .parse_assign_expr_in_when_arm()?
-            .ok_or(ParseError::Expected {
-                expected: "表达式（赋值右侧）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
-
-        Ok(Some(ast::Expr {
-            span: Span::new(lhs.span.start, rhs.span.end),
-            kind: ast::ExprKind::Assign {
-                lhs: Box::new(lhs),
-                eq_span: eq.span,
-                rhs: Box::new(rhs),
-            },
-        }))
+        let name = self.peek();
+        let eq = self.peek_n(1);
+        Err(ParseError::NamedArgOutsideCall {
+            span: Span::new(name.span.start, eq.span.end).into(),
+        })
     }
 
     /// 尝试解析一个“postfix 表达式”（当前支持成员访问与函数调用）。
@@ -273,45 +284,25 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_generic_annotated_expr()?));
         }
 
-        // spec §5.7：`spawn { ... }`（为后续 structured concurrency 保留的语法壳）。
-        //
-        // 说明：
-        // - 为避免与 Kotlin 风格 trailing lambda 的 `spawn { ... }`（call + lambda）形态冲突，
-        //   这里把 `spawn` 作为“上下文关键字”在前缀位置优先解析为独立语法节点；
-        // - 当前阶段只负责保留 AST 形状；真正语义由 typecheck 明确报 deferred。
-        if self.peek_ident_text("spawn") {
-            let spawn_kw = self.bump(); // `spawn`（ident）
-            let start = spawn_kw.span.start;
-
-            let body = self.parse_block()?;
-            return Ok(Some(ast::Expr {
-                span: Span::new(start, body.span.end),
-                kind: ast::ExprKind::Spawn { body },
-            }));
+        // HIR-T02：公开 `spawn { ... }` / `join expr` structured concurrency surface
+        // 当前延期，必须在 parser 阶段停止，不能再进入 HIR 形成 placeholder。
+        if self.peek_ident_text("spawn") && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
+        {
+            let spawn = self.bump();
+            return Err(ParseError::StructuredConcurrencyDeferred {
+                feature: "spawn",
+                span: spawn.span.into(),
+            });
         }
 
-        // T0620：`join expr`（为后续 structured concurrency 保留的语法壳）。
-        //
-        // 说明：
-        // - lexer 当前把 `join` 作为 ident（上下文关键字），因此这里通过字面文本判别；
-        // - `join` 仍按前缀操作符建模，便于后续阶段恢复该语法；当前语义由 typecheck
-        //   明确报 deferred，而不是继续落到 `Task` core。
-        if self.peek_ident_text("join") {
-            let join_kw = self.bump(); // `join`（ident）
-            let tok = *self.peek();
-            let expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
-                expected: "表达式（join 的操作数）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
-
-            return Ok(Some(ast::Expr {
-                span: Span::new(join_kw.span.start, expr.span.end),
-                kind: ast::ExprKind::Join {
-                    join_span: join_kw.span,
-                    expr: Box::new(expr),
-                },
-            }));
+        if self.peek_ident_text("join")
+            && token_can_start_deferred_join_operand(self.peek_n(1).kind)
+        {
+            let join = self.bump();
+            return Err(ParseError::StructuredConcurrencyDeferred {
+                feature: "join",
+                span: join.span.into(),
+            });
         }
 
         // spec §5.7：`await expr`（作为 Async effect 的语法糖）。
@@ -359,6 +350,12 @@ impl<'a> Parser<'a> {
         let TokenKind::Symbol(sym) = self.peek().kind else {
             return self.try_parse_expr_postfix();
         };
+
+        if sym == Symbol::Star {
+            return Err(ParseError::SpreadArgOutsideCall {
+                span: self.peek().span.into(),
+            });
+        }
 
         let op = match sym {
             Symbol::Bang => ast::UnaryOp::Not,
@@ -2799,6 +2796,7 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            self.reject_named_arg_outside_call_if_present()?;
             let tok = *self.peek();
             let expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
                 expected: "表达式（数组元素）",
@@ -2947,6 +2945,34 @@ fn is_assignable_lhs(expr: &ast::Expr) -> bool {
     matches!(
         expr.kind,
         ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. }
+    )
+}
+
+fn token_can_start_deferred_join_operand(kind: TokenKind) -> bool {
+    matches!(
+        kind,
+        TokenKind::Ident
+            | TokenKind::IntLiteral
+            | TokenKind::FloatLiteral
+            | TokenKind::CharLiteral
+            | TokenKind::StringLiteral(_)
+            | TokenKind::Keyword(
+                Keyword::If
+                    | Keyword::When
+                    | Keyword::Handle
+                    | Keyword::Try
+                    | Keyword::Async
+                    | Keyword::Do
+                    | Keyword::Perform,
+            )
+            | TokenKind::Symbol(
+                Symbol::At
+                    | Symbol::LBrace
+                    | Symbol::LBracket
+                    | Symbol::Bang
+                    | Symbol::Minus
+                    | Symbol::Tilde,
+            )
     )
 }
 

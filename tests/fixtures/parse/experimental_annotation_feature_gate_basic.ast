@@ -28,23 +28,14 @@ File {
                         args: [
                             AnnotationArg {
                                 span: 117..143,
-                                value: Expr {
-                                    span: 117..143,
-                                    kind: Assign {
-                                        lhs: Expr {
-                                            span: 117..124,
-                                            kind: Ident(
-                                                Ident {
-                                                    span: 117..124,
-                                                },
-                                            ),
-                                        },
-                                        eq_span: 125..126,
-                                        rhs: Expr {
-                                            span: 127..143,
-                                            kind: StringLit,
-                                        },
+                                name: Some(
+                                    Ident {
+                                        span: 117..124,
                                     },
+                                ),
+                                value: Expr {
+                                    span: 127..143,
+                                    kind: StringLit,
                                 },
                             },
                         ],

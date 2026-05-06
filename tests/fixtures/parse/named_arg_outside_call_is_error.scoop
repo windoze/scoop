@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::named_arg_outside_call
+// EXPECT-ERROR: 命名实参 `name = value` 只能出现在调用参数列表中
+// EXPECT-ERROR: 不能作为普通表达式进入 HIR
+// EXPECT-ERROR-AT: 10:14
+
+package fixtures.parse
+
+fun f() {
+    val y = [x = 1]
+}

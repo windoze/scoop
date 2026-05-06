@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::spread_arg_outside_call
+// EXPECT-ERROR: spread 实参 `*arg` 只能出现在调用参数列表中
+// EXPECT-ERROR: 不能作为普通表达式进入 HIR
+// EXPECT-ERROR-AT: 10:14
+
+package fixtures.parse
+
+fun f(xs: Array<Int>) {
+    val y = [*xs]
+}

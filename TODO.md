@@ -110,7 +110,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T00`
 
-## HIR-T02：在 parser 拒绝纯语法延期/非法 surface
+## [DONE] HIR-T02：在 parser 拒绝纯语法延期/非法 surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H1
@@ -138,6 +138,13 @@
 - 完成条件：
   - 上述 surface 不再能触达 refactor HIR lowering。
   - 可进入 `HIR-T03`。
+- 完成记录（2026-05-06）：
+  - parser 新增 HIR surface gate diagnostic：`spawn { ... }` / `join expr` 现在以 `scoop::parse::structured_concurrency_deferred` 在 parser 阶段拒绝，并说明不能进入 HIR。
+  - 表达式入口默认拒绝 assignment expression，assignment 仅保留 block statement form；call 参数列表内的 named/spread args 继续合法。
+  - call 外 spread arg 与数组等普通表达式列表中的 named arg 现在分别以 `scoop::parse::spread_arg_outside_call` / `scoop::parse::named_arg_outside_call` 拒绝。
+  - 注解参数 `name = value` 改为结构化 `AnnotationArg.name`，避免继续把合法注解参数建模为 assignment expression。
+  - 新增 parse negative fixtures：`spawn_deferred_is_error`、`join_deferred_is_error`、`assignment_expression_is_error`、`spread_arg_outside_call_is_error`、`named_arg_outside_call_is_error`；更新既有 spawn/join typecheck fixtures 为 parser diagnostic 期望。
+  - 已运行：`cargo test -p scoopc --no-default-features parser_hir_surface_gate`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse`、受影响 typecheck fixtures（spawn/join/experimental annotation 系列）、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T01`
 
 ## HIR-T03：收口 comptime block/if/for 与 package-level comptime if
