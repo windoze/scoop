@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_base_not_supported
+// EXPECT-ERROR: base 必须是可复制更新的值类型
+// EXPECT-ERROR-AT: 12:18
+// 目标：HIR-T09 `with` base 为非 aggregate 时必须在 typecheck 阶段诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use(x: Int) {
+    val y: Int = x with { value: 1 }
+}

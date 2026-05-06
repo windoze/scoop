@@ -651,6 +651,7 @@ pub struct TypedHirEffectContracts {
     handle_sites: HashMap<CallSite, HandleSiteContract>,
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
+    with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
 }
 
 impl TypedHirEffectContracts {
@@ -672,6 +673,7 @@ impl TypedHirEffectContracts {
             && self.handle_sites.is_empty()
             && self.call_site_kinds.is_empty()
             && self.call_site_contracts.is_empty()
+            && self.with_update_contracts.is_empty()
     }
 
     pub fn function_effects(&self) -> &[FunctionEffectContract] {
@@ -721,6 +723,10 @@ impl TypedHirEffectContracts {
         self.call_site_contracts.get(call_site)
     }
 
+    pub fn with_update_contracts(&self) -> &HashMap<CallSite, ast::WithUpdateContract> {
+        &self.with_update_contracts
+    }
+
     /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
@@ -766,6 +772,14 @@ impl TypedHirEffectContracts {
         let _ = writeln!(out, "    call_site_contracts: [");
         for (call_site, contract) in call_site_contracts {
             format_call_site_contract(&mut out, types, call_site, contract);
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut with_update_contracts = self.with_update_contracts.iter().collect::<Vec<_>>();
+        with_update_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    with_update_contracts: [");
+        for (call_site, contract) in with_update_contracts {
+            format_with_update_contract(&mut out, types, call_site, contract);
         }
         let _ = writeln!(out, "    ],");
 
@@ -1004,6 +1018,7 @@ struct ContractCollector<'a> {
     handle_sites: HashMap<CallSite, HandleSiteContract>,
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
+    with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
 }
 
 impl<'a> ContractCollector<'a> {
@@ -1017,6 +1032,7 @@ impl<'a> ContractCollector<'a> {
             handle_sites: HashMap::new(),
             call_site_kinds: HashMap::new(),
             call_site_contracts: HashMap::new(),
+            with_update_contracts: lowered_hir.with_update_contracts.clone(),
         }
     }
 
@@ -1039,6 +1055,7 @@ impl<'a> ContractCollector<'a> {
             handle_sites: self.handle_sites,
             call_site_kinds: self.call_site_kinds,
             call_site_contracts: self.call_site_contracts,
+            with_update_contracts: self.with_update_contracts,
         })
     }
 
@@ -1696,6 +1713,140 @@ fn format_required_effects(
         terms.push(runtime_error_effect_ty);
     }
     format_effect_row(types, &EffectRow::new(terms))
+}
+
+fn format_with_update_contract(
+    out: &mut String,
+    types: &TypeStore,
+    call_site: &CallSite,
+    contract: &ast::WithUpdateContract,
+) {
+    let _ = writeln!(out, "        WithUpdateContract {{");
+    let _ = writeln!(out, "            span: {:?},", call_site.span);
+    let _ = writeln!(
+        out,
+        "            base_ty: {},",
+        format_type_id_lossy(types, contract.base_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            result_ty: {},",
+        format_type_id_lossy(types, contract.result_ty)
+    );
+    let _ = writeln!(out, "            aggregates: [");
+    for aggregate in &contract.aggregates {
+        let _ = writeln!(out, "                WithUpdateAggregateContract {{");
+        let _ = writeln!(out, "                    prefix: {:?},", aggregate.prefix);
+        let _ = writeln!(
+            out,
+            "                    ty: {},",
+            format_type_id_lossy(types, aggregate.ty)
+        );
+        match &aggregate.kind {
+            ast::WithUpdateAggregateContractKind::Struct { fqn, fields } => {
+                let _ = writeln!(out, "                    kind: Struct,");
+                let _ = writeln!(out, "                    fqn: {:?},", fqn);
+                let _ = writeln!(
+                    out,
+                    "                    fields: [{}],",
+                    fields
+                        .iter()
+                        .map(|field| format!(
+                            "{}: {}",
+                            field.name,
+                            format_type_id_lossy(types, field.ty)
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            ast::WithUpdateAggregateContractKind::Tuple { elements } => {
+                let _ = writeln!(out, "                    kind: Tuple,");
+                let _ = writeln!(
+                    out,
+                    "                    elements: [{}],",
+                    elements
+                        .iter()
+                        .map(|ty| format_type_id_lossy(types, *ty))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            ast::WithUpdateAggregateContractKind::Enum { info } => {
+                let _ = writeln!(out, "                    kind: Enum,");
+                let _ = writeln!(out, "                    enum_fqn: {:?},", info.enum_fqn);
+                let _ = writeln!(
+                    out,
+                    "                    variants: [{}],",
+                    format_with_update_variants(types, &info.variants)
+                );
+            }
+        }
+        let _ = writeln!(out, "                }},");
+    }
+    let _ = writeln!(out, "            ],");
+    let _ = writeln!(out, "            updates: [");
+    for update in &contract.updates {
+        let _ = writeln!(out, "                WithUpdateUpdateContract {{");
+        let _ = writeln!(out, "                    path: {:?},", update.path);
+        let _ = writeln!(
+            out,
+            "                    target_ty: {},",
+            format_type_id_lossy(types, update.target_ty)
+        );
+        let _ = writeln!(
+            out,
+            "                    value_ty: {},",
+            format_type_id_lossy(types, update.value_ty)
+        );
+        let _ = writeln!(out, "                    segments: [");
+        for segment in &update.segments {
+            let _ = writeln!(
+                out,
+                "                        WithUpdatePathSegmentContract {{"
+            );
+            let _ = writeln!(
+                out,
+                "                            aggregate_prefix: {:?},",
+                segment.aggregate_prefix
+            );
+            let _ = writeln!(
+                out,
+                "                            aggregate_ty: {},",
+                format_type_id_lossy(types, segment.aggregate_ty)
+            );
+            let _ = writeln!(
+                out,
+                "                            field_ty: {},",
+                format_type_id_lossy(types, segment.field_ty)
+            );
+            let _ = writeln!(out, "                            kind: {:?},", segment.kind);
+            let _ = writeln!(out, "                        }},");
+        }
+        let _ = writeln!(out, "                    ],");
+        let _ = writeln!(out, "                }},");
+    }
+    let _ = writeln!(out, "            ],");
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_with_update_variants(
+    types: &TypeStore,
+    variants: &[ast::WithUpdateResolvedEnumVariant],
+) -> String {
+    variants
+        .iter()
+        .map(|variant| {
+            let fields = variant
+                .fields
+                .iter()
+                .map(|field| format!("{}: {}", field.name, format_type_id_lossy(types, field.ty)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{}({})", variant.name, fields)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn format_call_site_contract(
@@ -2516,6 +2667,91 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
     }
 
     #[test]
+    fn refactor_hir_with_update_publishes_copy_update_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_with_update.scoop",
+            r#"package sample
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point)
+    Err(val code: Int)
+}
+
+fun use(pair: (Point, (Int, Int)), r: Result): Int {
+    val point: Point = Point { x: 1, y: 2 } with { x: 10 }
+    val tupled: (Point, (Int, Int)) = pair with { _0.x: 20, _1._0: 30 }
+    val result: Result = r with { Ok.point.y: 40, Err.code: 50 }
+    return point.x + tupled._0.y
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("with-update should lower through typed HIR");
+        let contracts = output.effect_contracts().with_update_contracts();
+        assert_eq!(contracts.len(), 3, "{contracts:#?}");
+        assert!(contracts.values().any(|contract| {
+            contract.aggregates.iter().any(|aggregate| {
+                aggregate.prefix.is_empty()
+                    && matches!(
+                        &aggregate.kind,
+                        ast::WithUpdateAggregateContractKind::Struct { .. }
+                    )
+            })
+        }));
+        assert!(contracts.values().any(|contract| {
+            contract.aggregates.iter().any(|aggregate| {
+                aggregate.prefix.is_empty()
+                    && matches!(
+                        &aggregate.kind,
+                        ast::WithUpdateAggregateContractKind::Tuple { .. }
+                    )
+            }) && contract
+                .aggregates
+                .iter()
+                .any(|aggregate| aggregate.prefix == "_0")
+        }));
+        assert!(contracts.values().any(|contract| {
+            contract.aggregates.iter().any(|aggregate| {
+                aggregate.prefix.is_empty()
+                    && matches!(
+                        &aggregate.kind,
+                        ast::WithUpdateAggregateContractKind::Enum { .. }
+                    )
+            }) && contract
+                .updates
+                .iter()
+                .any(|update| update.path == "Ok.point.y")
+        }));
+
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("Todo(\"with_update\")"),
+            "with-update Todo leaked: {dump}"
+        );
+        assert!(
+            dump.contains("WithUpdateContract"),
+            "contract missing: {dump}"
+        );
+        assert!(
+            dump.contains("kind: Struct"),
+            "struct contract missing: {dump}"
+        );
+        assert!(
+            dump.contains("kind: Tuple"),
+            "tuple contract missing: {dump}"
+        );
+        assert!(dump.contains("kind: Enum"), "enum contract missing: {dump}");
+        assert!(
+            dump.contains("path: \"Ok.point.y\""),
+            "enum update path missing: {dump}"
+        );
+    }
+
+    #[test]
     fn refactor_hir_class_literal_and_intrinsic_contracts() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(
@@ -2827,6 +3063,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
             out_effects: Pure,
         },
     ],
+    with_update_contracts: [
+    ],
     continuation_resume_sites: [
         ContinuationResumeSiteContract {
             span: 168..178,
@@ -2922,6 +3160,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
             payload_ty: Int,
             arg_mapping: [0],
         },
+    ],
+    with_update_contracts: [
     ],
     continuation_resume_sites: [
     ],

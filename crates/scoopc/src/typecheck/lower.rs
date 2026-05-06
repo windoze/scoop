@@ -495,6 +495,8 @@ pub(crate) struct TypeLowering<'a> {
     typechecked_member_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
     /// `receiver.[field]` 的 typechecked 静态字段 contract。
     splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
+    /// `base with { ... }` 的 typechecked copy-update contract。
+    with_update_contracts: HashMap<Span, ast::WithUpdateContract>,
     /// typecheck 已确认的 `Continuation.resume` 调用点。
     ///
     /// 用途：
@@ -666,6 +668,7 @@ impl<'a> TypeLowering<'a> {
             safe_member_access_resolutions: HashMap::new(),
             typechecked_member_resolutions: HashMap::new(),
             splice_field_contracts: HashMap::new(),
+            with_update_contracts: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
             zero_arg_unit_call_sugar_sites: HashSet::new(),
@@ -1605,6 +1608,14 @@ impl<'a> TypeLowering<'a> {
         self.splice_field_contracts.insert(expr_span, contract);
     }
 
+    pub(super) fn record_with_update_contract(
+        &mut self,
+        expr_span: Span,
+        contract: ast::WithUpdateContract,
+    ) {
+        self.with_update_contracts.insert(expr_span, contract);
+    }
+
     pub(super) fn emit_deprecated_type_use(&self, fqn: &str, span: Span) {
         if !self.warning_emission_enabled {
             return;
@@ -1824,6 +1835,10 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::SpliceFieldContract> {
         std::mem::take(&mut self.splice_field_contracts)
+    }
+
+    pub(super) fn take_with_update_contracts(&mut self) -> HashMap<Span, ast::WithUpdateContract> {
+        std::mem::take(&mut self.with_update_contracts)
     }
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {

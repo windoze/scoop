@@ -69,12 +69,6 @@ File {
                                     },
                                 },
                             ],
-                            resolved_copy_update_tys: OnceCell(
-                                <uninit>,
-                            ),
-                            resolved_copy_update_enums: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     },
                 ),
@@ -185,12 +179,6 @@ File {
                                     },
                                 },
                             ],
-                            resolved_copy_update_tys: OnceCell(
-                                <uninit>,
-                            ),
-                            resolved_copy_update_enums: OnceCell(
-                                <uninit>,
-                            ),
                         },
                     },
                 ),

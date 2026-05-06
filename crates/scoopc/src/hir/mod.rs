@@ -966,6 +966,9 @@ pub type TopLevelFunCallSiteIndex = HashMap<CallSite, ast::TopLevelFunCallBindin
 /// 由 typecheck 确认的 canonical call-argument 绑定索引：`source_path + expr span` → param slots。
 pub type CallArgBindingSiteIndex = HashMap<CallSite, ast::CallArgBinding>;
 
+/// 由 typecheck 确认并由 HIR lowering 消费的 `with` copy-update 合同。
+pub type WithUpdateSiteIndex = HashMap<CallSite, ast::WithUpdateContract>;
+
 /// 动态 dispatch 调用点索引：`source_path + call span + receiver_ty` → dispatch kind。
 pub type DispatchCallSiteIndex = HashMap<DispatchCallSite, DispatchCallKind>;
 

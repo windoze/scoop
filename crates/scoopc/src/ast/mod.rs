@@ -80,6 +80,11 @@ pub struct File {
     /// 说明：`value.[field]` 必须在进入 HIR 前解析为静态字段名与字段类型；HIR lowering
     /// 只消费这里的 contract 或 comptime 展开值，不再保留 `splice_field` placeholder。
     pub(crate) splice_field_contracts: RefCell<HashMap<Span, SpliceFieldContract>>,
+    /// typecheck 确认的 `with` copy-update contract（按整个 `base with { ... }` 表达式 span 索引）。
+    ///
+    /// 说明：该表发布 base/result 类型、路径上的 aggregate 形状以及每个 update 的字段绑定，
+    /// HIR lowering 只消费这里的 contract，不再从 raw path 重新推断 copy-update 语义。
+    pub(crate) with_update_contracts: RefCell<HashMap<Span, WithUpdateContract>>,
     /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
     ///
     /// 说明：
@@ -232,6 +237,18 @@ impl File {
 
     pub fn splice_field_contract(&self, span: Span) -> Option<SpliceFieldContract> {
         self.splice_field_contracts.borrow().get(&span).cloned()
+    }
+
+    pub fn replace_with_update_contracts(&self, contracts: HashMap<Span, WithUpdateContract>) {
+        *self.with_update_contracts.borrow_mut() = contracts;
+    }
+
+    pub fn with_update_contract(&self, span: Span) -> Option<WithUpdateContract> {
+        self.with_update_contracts.borrow().get(&span).cloned()
+    }
+
+    pub fn with_update_contracts(&self) -> HashMap<Span, WithUpdateContract> {
+        self.with_update_contracts.borrow().clone()
     }
 
     pub fn replace_continuation_resume_call_sites(&self, sites: HashSet<Span>) {
@@ -1258,22 +1275,90 @@ pub struct WithUpdateField {
 /// - key 仍由 `ExprKind::WithUpdate` 中的 path-prefix side table 管理；
 /// - 这里只保存 lowering 需要的“当前 enum 的 concrete variant/field 形状”，
 ///   避免 HIR lowering 再次复刻 enum 泛型实参替换逻辑。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WithUpdateResolvedEnum {
     pub enum_fqn: String,
     pub variants: Vec<WithUpdateResolvedEnumVariant>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WithUpdateResolvedEnumVariant {
     pub name: String,
     pub fields: Vec<WithUpdateResolvedEnumField>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WithUpdateResolvedEnumField {
     pub name: String,
     pub ty: TypeId,
+}
+
+/// typecheck 写回的 `with` copy-update 完整语义合同。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WithUpdateContract {
+    pub base_ty: TypeId,
+    pub result_ty: TypeId,
+    pub aggregates: Vec<WithUpdateAggregateContract>,
+    pub updates: Vec<WithUpdateUpdateContract>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WithUpdateAggregateContract {
+    pub prefix: String,
+    pub ty: TypeId,
+    pub kind: WithUpdateAggregateContractKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WithUpdateAggregateContractKind {
+    Struct {
+        fqn: String,
+        fields: Vec<WithUpdateAggregateFieldContract>,
+    },
+    Tuple {
+        elements: Vec<TypeId>,
+    },
+    Enum {
+        info: WithUpdateResolvedEnum,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WithUpdateAggregateFieldContract {
+    pub name: String,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WithUpdateUpdateContract {
+    pub path: String,
+    pub target_ty: TypeId,
+    pub value_ty: TypeId,
+    pub segments: Vec<WithUpdatePathSegmentContract>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WithUpdatePathSegmentContract {
+    pub aggregate_prefix: String,
+    pub aggregate_ty: TypeId,
+    pub field_ty: TypeId,
+    pub kind: WithUpdatePathSegmentKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WithUpdatePathSegmentKind {
+    StructField {
+        owner_fqn: String,
+        field: String,
+    },
+    TupleElement {
+        index: usize,
+    },
+    EnumVariantField {
+        enum_fqn: String,
+        variant: String,
+        field: String,
+    },
 }
 
 /// struct literal 的字段初始化项：`name: expr`（spec §12）。
@@ -1889,26 +1974,6 @@ pub enum ExprKind {
         base: Box<Expr>,
         with_span: Span,
         updates: Vec<WithUpdateField>,
-        /// typecheck 写回的 copy-update 路径前缀 -> 具体 aggregate type 映射。
-        ///
-        /// 约定：
-        /// - `""` = base 表达式自身的具体值类型；
-        /// - `"start"` / `"_0"` / `"start._0"` = 对应中间路径前缀的具体 aggregate type。
-        ///
-        /// lowering 会把这些 `TypeId` 重新 intern 到自己的 `TypeStore`，从而按 struct/tuple
-        /// /enum 统一重建 aggregate，而不是只靠 struct FQN 特判。
-        /// 使用 `OnceCell` 允许 typecheck 以共享引用写回。
-        resolved_copy_update_tys: OnceCell<std::collections::HashMap<String, TypeId>>,
-        /// typecheck 写回的 enum prefix -> concrete variant/field 形状。
-        ///
-        /// 约定：
-        /// - `""` = base 表达式自身就是 enum；
-        /// - `"Ok.point"` / `"payload.Result"` = 路径前缀落到某个 enum 值时的具体 enum 信息。
-        ///
-        /// lowering 读取后可直接把 enum copy-update 收口为 `when` + variant ctor 重建，
-        /// 而不必在 AST/HIR 之间重复 enum 泛型实参 substitution。
-        resolved_copy_update_enums:
-            OnceCell<std::collections::HashMap<String, WithUpdateResolvedEnum>>,
     },
 }
 

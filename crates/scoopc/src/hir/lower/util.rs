@@ -530,6 +530,7 @@ pub(super) fn collect_object_inits(
     ObjectInitIndex,
     CtorCallSiteIndex,
     crate::hir::DispatchCallSiteIndex,
+    crate::hir::WithUpdateSiteIndex,
 ) {
     let InitCollectionCx {
         source,
@@ -596,7 +597,13 @@ pub(super) fn collect_object_inits(
 
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
-    (out, ctor_call_sites, dispatch_call_sites)
+    let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+    (
+        out,
+        ctor_call_sites,
+        dispatch_call_sites,
+        with_update_contracts,
+    )
 }
 
 fn collect_objects_in_type_decl(
@@ -702,6 +709,7 @@ pub(super) fn collect_class_inits(
     ClassInitIndex,
     CtorCallSiteIndex,
     crate::hir::DispatchCallSiteIndex,
+    crate::hir::WithUpdateSiteIndex,
 ) {
     let InitCollectionCx {
         source,
@@ -767,7 +775,13 @@ pub(super) fn collect_class_inits(
     }
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
     let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
-    (out, ctor_call_sites, dispatch_call_sites)
+    let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
+    (
+        out,
+        ctor_call_sites,
+        dispatch_call_sites,
+        with_update_contracts,
+    )
 }
 
 fn collect_classes_in_type_decl(

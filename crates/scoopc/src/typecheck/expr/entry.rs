@@ -101,6 +101,7 @@ struct CheckFileExprsPassResult {
     safe_member_access_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     typechecked_member_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
+    with_update_contracts: HashMap<Span, ast::WithUpdateContract>,
     continuation_resume_call_sites: HashSet<Span>,
     non_pure_continuation_resume_call_sites: HashSet<Span>,
     zero_arg_unit_call_sugar_sites: HashSet<Span>,
@@ -271,6 +272,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_safe_member_access_resolved(HashMap::new());
     file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_splice_field_contracts(HashMap::new());
+    file.replace_with_update_contracts(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_non_pure_continuation_resume_call_sites(HashSet::new());
     file.replace_zero_arg_unit_call_sugar_sites(HashSet::new());
@@ -290,6 +292,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
     file.replace_safe_member_access_resolved(result.safe_member_access_resolved.clone());
     file.replace_typechecked_member_resolved(result.typechecked_member_resolved.clone());
     file.replace_splice_field_contracts(result.splice_field_contracts.clone());
+    file.replace_with_update_contracts(result.with_update_contracts.clone());
     file.replace_continuation_resume_call_sites(result.continuation_resume_call_sites.clone());
     file.replace_non_pure_continuation_resume_call_sites(
         result.non_pure_continuation_resume_call_sites.clone(),
@@ -444,6 +447,7 @@ fn check_file_exprs_pass(
         safe_member_access_resolved: lower.take_safe_member_access_resolutions(),
         typechecked_member_resolved: lower.take_typechecked_member_resolutions(),
         splice_field_contracts: lower.take_splice_field_contracts(),
+        with_update_contracts: lower.take_with_update_contracts(),
         continuation_resume_call_sites: lower.take_continuation_resume_call_sites(),
         non_pure_continuation_resume_call_sites: lower
             .take_non_pure_continuation_resume_call_sites(),

@@ -87,14 +87,6 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         "Parser rejects assignment in expression context; statement assignment later consumes a typed place contract.",
     ),
     entry(
-        PlaceholderSurface::ExprTodo,
-        "with_update",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T09",
-        true,
-        "Typecheck publishes copy-update aggregate metadata and HIR lowers every supported aggregate shape.",
-    ),
-    entry(
         PlaceholderSurface::StmtTodo,
         "missing_stmt",
         PlaceholderDisposition::ParserShouldReject,
@@ -160,7 +152,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "structured_concurrency_spawn_deferred",
     "structured_concurrency_join_deferred",
     "assign",
-    "with_update",
     "missing_stmt",
     "for_custom_iterator",
 ];

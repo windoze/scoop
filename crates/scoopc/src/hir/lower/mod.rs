@@ -41,7 +41,7 @@ use super::{
     DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl, FieldDecl, FieldOrigin,
     File, FunDecl, Item, MemberFunDecl, NominalDecl, NonPureContinuationResumeCallSiteIndex,
     ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId,
-    TypeAliasDecl, ValDecl, ValueRef,
+    TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
 };
 
 use types::*;
@@ -148,6 +148,8 @@ struct HirLowering<'a> {
     effect_op_call_sites: super::EffectOpCallSiteIndex,
     /// handler arm 多 binder payload tuple 索引：`source_path + op head span` → tuple `TypeId`。
     handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex,
+    /// `with` copy-update 的 typechecked aggregate/update contract。
+    with_update_contracts: WithUpdateSiteIndex,
     /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
     top_level_vars: super::TopLevelVarIndex,
     /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
@@ -303,6 +305,7 @@ impl<'a> HirLowering<'a> {
             dispatch_call_sites: HashMap::new(),
             effect_op_call_sites: HashMap::new(),
             handle_payload_tuple_tys: HashMap::new(),
+            with_update_contracts: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -2161,6 +2164,7 @@ fn collect_compilation_unit_object_and_class_inits(
     ClassInitIndex,
     CtorCallSiteIndex,
     super::DispatchCallSiteIndex,
+    WithUpdateSiteIndex,
 ) {
     let CompilationUnitInitCollectionInputs {
         index,
@@ -2178,6 +2182,7 @@ fn collect_compilation_unit_object_and_class_inits(
     let mut class_inits = ClassInitIndex::new();
     let mut ctor_call_sites = CtorCallSiteIndex::new();
     let mut dispatch_call_sites = super::DispatchCallSiteIndex::new();
+    let mut with_update_contracts = WithUpdateSiteIndex::new();
 
     for (source, file) in compilation_unit {
         let init_collection_cx = InitCollectionCx {
@@ -2194,17 +2199,27 @@ fn collect_compilation_unit_object_and_class_inits(
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
         };
-        let (file_object_inits, file_object_ctor_call_sites, file_object_dispatch_call_sites) =
-            collect_object_inits(init_collection_cx, types);
+        let (
+            file_object_inits,
+            file_object_ctor_call_sites,
+            file_object_dispatch_call_sites,
+            file_object_with_update_contracts,
+        ) = collect_object_inits(init_collection_cx, types);
         object_inits.extend(file_object_inits);
         ctor_call_sites.extend(file_object_ctor_call_sites);
         dispatch_call_sites.extend(file_object_dispatch_call_sites);
+        with_update_contracts.extend(file_object_with_update_contracts);
 
-        let (file_class_inits, file_class_ctor_call_sites, file_class_dispatch_call_sites) =
-            collect_class_inits(init_collection_cx, types);
+        let (
+            file_class_inits,
+            file_class_ctor_call_sites,
+            file_class_dispatch_call_sites,
+            file_class_with_update_contracts,
+        ) = collect_class_inits(init_collection_cx, types);
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
         dispatch_call_sites.extend(file_class_dispatch_call_sites);
+        with_update_contracts.extend(file_class_with_update_contracts);
     }
 
     (
@@ -2212,6 +2227,7 @@ fn collect_compilation_unit_object_and_class_inits(
         class_inits,
         ctor_call_sites,
         dispatch_call_sites,
+        with_update_contracts,
     )
 }
 
@@ -2295,6 +2311,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         mut dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
+        mut with_update_contracts,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -2329,6 +2346,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
+        let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -2340,6 +2358,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
+            with_update_contracts,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2349,25 +2368,31 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T4016T2：sysroot/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
     // 需要从整个 compilation unit 收集 object/class side tables，而不是只看当前 lowering 的文件。
-    let (object_inits, class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
-        collect_compilation_unit_object_and_class_inits(
-            &pairs,
-            CompilationUnitInitCollectionInputs {
-                index: &index,
-                type_kinds: &type_kinds,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
-                typecheck_types: None,
-                materialize_direct_call_targets: false,
-                devirtualize_dispatch_calls: false,
-                builtins,
-            },
-            &mut types,
-        );
+    let (
+        object_inits,
+        class_inits,
+        side_table_ctor_call_sites,
+        side_table_dispatch_call_sites,
+        side_table_with_update_contracts,
+    ) = collect_compilation_unit_object_and_class_inits(
+        &pairs,
+        CompilationUnitInitCollectionInputs {
+            index: &index,
+            type_kinds: &type_kinds,
+            known_receiver_subclasses: &known_receiver_subclasses,
+            class_vtables: &class_vtables,
+            interfaces: &interfaces,
+            class_itables: &class_itables,
+            typecheck_types: None,
+            materialize_direct_call_targets: false,
+            devirtualize_dispatch_calls: false,
+            builtins,
+        },
+        &mut types,
+    );
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
+    with_update_contracts.extend(side_table_with_update_contracts);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -2432,6 +2457,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,
+        with_update_contracts,
         object_inits,
         class_inits,
         class_vtables,
@@ -2614,6 +2640,7 @@ pub fn lower_for_compilation_unit(
         mut dispatch_call_sites,
         effect_op_call_sites,
         handle_payload_tuple_tys,
+        mut with_update_contracts,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -2648,6 +2675,7 @@ pub fn lower_for_compilation_unit(
         let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
         let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
         let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
+        let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -2659,6 +2687,7 @@ pub fn lower_for_compilation_unit(
             dispatch_call_sites,
             effect_op_call_sites,
             handle_payload_tuple_tys,
+            with_update_contracts,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2666,25 +2695,31 @@ pub fn lower_for_compilation_unit(
         )
     };
 
-    let (object_inits, class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
-        collect_compilation_unit_object_and_class_inits(
-            compilation_unit,
-            CompilationUnitInitCollectionInputs {
-                index,
-                type_kinds: &type_kinds,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
-                typecheck_types: None,
-                materialize_direct_call_targets: true,
-                devirtualize_dispatch_calls: false,
-                builtins,
-            },
-            &mut types,
-        );
+    let (
+        object_inits,
+        class_inits,
+        side_table_ctor_call_sites,
+        side_table_dispatch_call_sites,
+        side_table_with_update_contracts,
+    ) = collect_compilation_unit_object_and_class_inits(
+        compilation_unit,
+        CompilationUnitInitCollectionInputs {
+            index,
+            type_kinds: &type_kinds,
+            known_receiver_subclasses: &known_receiver_subclasses,
+            class_vtables: &class_vtables,
+            interfaces: &interfaces,
+            class_itables: &class_itables,
+            typecheck_types: None,
+            materialize_direct_call_targets: true,
+            devirtualize_dispatch_calls: false,
+            builtins,
+        },
+        &mut types,
+    );
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
+    with_update_contracts.extend(side_table_with_update_contracts);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
@@ -2727,6 +2762,7 @@ pub fn lower_for_compilation_unit(
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,
+        with_update_contracts,
         object_inits,
         class_inits,
         class_vtables,
@@ -3059,6 +3095,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let mut dispatch_call_sites: super::DispatchCallSiteIndex = HashMap::new();
     let mut effect_op_call_sites: super::EffectOpCallSiteIndex = HashMap::new();
     let mut handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex = HashMap::new();
+    let mut with_update_contracts: WithUpdateSiteIndex = HashMap::new();
     let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
         ContinuationResumeCallSiteIndex::new();
     let mut non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex =
@@ -3076,6 +3113,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             file_dispatch_call_sites,
             file_effect_op_call_sites,
             file_handle_payload_tuple_tys,
+            file_with_update_contracts,
             file_top_level_vars,
             file_top_level_consts,
             file_top_level_immutable_values,
@@ -3112,6 +3150,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             let dispatch_call_sites = std::mem::take(&mut ctx.dispatch_call_sites);
             let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
             let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
+            let file_with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
@@ -3124,6 +3163,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                 dispatch_call_sites,
                 effect_op_call_sites,
                 handle_payload_tuple_tys,
+                file_with_update_contracts,
                 file_top_level_vars,
                 file_top_level_consts,
                 file_top_level_immutable_values,
@@ -3135,6 +3175,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         dispatch_call_sites.extend(file_dispatch_call_sites);
         effect_op_call_sites.extend(file_effect_op_call_sites);
         handle_payload_tuple_tys.extend(file_handle_payload_tuple_tys);
+        with_update_contracts.extend(file_with_update_contracts);
         continuation_resume_call_sites.extend(
             file.continuation_resume_call_sites()
                 .into_iter()
@@ -3175,25 +3216,31 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
     ));
 
-    let (object_inits, mut class_inits, side_table_ctor_call_sites, side_table_dispatch_call_sites) =
-        collect_compilation_unit_object_and_class_inits(
-            compilation_unit,
-            CompilationUnitInitCollectionInputs {
-                index,
-                type_kinds: &type_kinds,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
-                typecheck_types: Some(typecheck_types),
-                materialize_direct_call_targets,
-                devirtualize_dispatch_calls,
-                builtins,
-            },
-            &mut types,
-        );
+    let (
+        object_inits,
+        mut class_inits,
+        side_table_ctor_call_sites,
+        side_table_dispatch_call_sites,
+        side_table_with_update_contracts,
+    ) = collect_compilation_unit_object_and_class_inits(
+        compilation_unit,
+        CompilationUnitInitCollectionInputs {
+            index,
+            type_kinds: &type_kinds,
+            known_receiver_subclasses: &known_receiver_subclasses,
+            class_vtables: &class_vtables,
+            interfaces: &interfaces,
+            class_itables: &class_itables,
+            typecheck_types: Some(typecheck_types),
+            materialize_direct_call_targets,
+            devirtualize_dispatch_calls,
+            builtins,
+        },
+        &mut types,
+    );
     ctor_call_sites.extend(side_table_ctor_call_sites);
     dispatch_call_sites.extend(side_table_dispatch_call_sites);
+    with_update_contracts.extend(side_table_with_update_contracts);
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
@@ -3332,6 +3379,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,
+        with_update_contracts,
         object_inits,
         class_inits,
         class_vtables,
@@ -5782,7 +5830,7 @@ fun use(pair: (Point, (Int, Int))) {
         let ExprKind::Block(block) = &updated_init.kind else {
             panic!("with-update init should lower to block: {updated_init:#?}");
         };
-        assert_eq!(block.stmts.len(), 2, "{block:#?}");
+        assert_eq!(block.stmts.len(), 4, "{block:#?}");
 
         let StmtKind::Val(base_decl) = &block.stmts[0].kind else {
             panic!(
@@ -5792,10 +5840,10 @@ fun use(pair: (Point, (Int, Int))) {
         };
         assert_eq!(base_decl.name.as_deref(), Some("$with_base"));
 
-        let StmtKind::Expr(rebuilt_expr) = &block.stmts[1].kind else {
+        let StmtKind::Expr(rebuilt_expr) = &block.stmts[3].kind else {
             panic!(
                 "second with-update stmt should be rebuilt value: {:#?}",
-                block.stmts[1]
+                block.stmts[3]
             );
         };
 
@@ -5813,8 +5861,8 @@ fun use(pair: (Point, (Int, Int))) {
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0].name, "x");
         assert!(matches!(
-            fields[0].value.kind,
-            ExprKind::Literal(LiteralKind::Int)
+            &fields[0].value.kind,
+            ExprKind::VarRef(ValueRef::Local { name, .. }) if name.starts_with("__with_update_value")
         ));
         assert_eq!(fields[1].name, "y");
         assert!(matches!(
@@ -5833,8 +5881,8 @@ fun use(pair: (Point, (Int, Int))) {
         };
         assert_eq!(nested_tuple.len(), 2);
         assert!(matches!(
-            nested_tuple[0].kind,
-            ExprKind::Literal(LiteralKind::Int)
+            &nested_tuple[0].kind,
+            ExprKind::VarRef(ValueRef::Local { name, .. }) if name.starts_with("__with_update_value")
         ));
         assert!(matches!(
             nested_tuple[1].kind,
@@ -5895,12 +5943,12 @@ fun use(r: Result) {
         let ExprKind::Block(block) = &updated_init.kind else {
             panic!("enum with-update init should lower to block: {updated_init:#?}");
         };
-        assert_eq!(block.stmts.len(), 2, "{block:#?}");
+        assert_eq!(block.stmts.len(), 4, "{block:#?}");
 
-        let StmtKind::Expr(rebuilt_expr) = &block.stmts[1].kind else {
+        let StmtKind::Expr(rebuilt_expr) = &block.stmts[3].kind else {
             panic!(
                 "second with-update stmt should be rebuilt value: {:#?}",
-                block.stmts[1]
+                block.stmts[3]
             );
         };
 
@@ -5934,8 +5982,8 @@ fun use(r: Result) {
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0].name, "x");
         assert!(matches!(
-            fields[0].value.kind,
-            ExprKind::Literal(LiteralKind::Int)
+            &fields[0].value.kind,
+            ExprKind::VarRef(ValueRef::Local { name, .. }) if name.starts_with("__with_update_value")
         ));
         assert_eq!(fields[1].name, "y");
         assert!(matches!(
@@ -5959,8 +6007,8 @@ fun use(r: Result) {
             panic!("Err arm payload should be positional: {:#?}", args[0]);
         };
         assert!(matches!(
-            err_payload.kind,
-            ExprKind::Literal(LiteralKind::Int)
+            &err_payload.kind,
+            ExprKind::VarRef(ValueRef::Local { name, .. }) if name.starts_with("__with_update_value")
         ));
     }
 

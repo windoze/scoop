@@ -12,7 +12,7 @@ use crate::resolve::{ConstructorOverload, ParamSig, Visibility};
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::HirLowering;
 use super::types::*;
@@ -30,6 +30,12 @@ struct LoweredSpliceFieldContract {
     field_name: String,
     field_fqn: String,
     field_ty: TypeId,
+}
+
+#[derive(Clone)]
+struct WithUpdateGroupedValue {
+    rest: Vec<ast::Ident>,
+    value: Expr,
 }
 
 #[derive(Clone)]
@@ -1171,18 +1177,8 @@ impl<'a> HirLowering<'a> {
                 base,
                 with_span,
                 updates,
-                resolved_copy_update_tys,
-                resolved_copy_update_enums,
             } => {
-                return self.lower_with_update_expr(
-                    pkg_prefix,
-                    e.span,
-                    *with_span,
-                    base,
-                    updates,
-                    resolved_copy_update_tys,
-                    resolved_copy_update_enums,
-                );
+                return self.lower_with_update_expr(pkg_prefix, e.span, *with_span, base, updates);
             }
         };
 
@@ -1442,6 +1438,104 @@ impl<'a> HirLowering<'a> {
             field_fqn: contract.field_fqn,
             field_ty: self.apply_active_type_param_bindings(field_ty),
         })
+    }
+
+    fn typechecked_with_update_contract(&mut self, span: Span) -> Option<ast::WithUpdateContract> {
+        let typecheck_types = self.typecheck_types?;
+        let contract = self.file.with_update_contract(span)?;
+        Some(Self::re_intern_with_update_contract_types(
+            self.types,
+            typecheck_types,
+            contract,
+        ))
+    }
+
+    fn re_intern_with_update_contract_types(
+        types: &mut TypeStore,
+        typecheck_types: &TypeStore,
+        contract: ast::WithUpdateContract,
+    ) -> ast::WithUpdateContract {
+        let re_ty = |types: &mut TypeStore, ty| types.re_intern_from(typecheck_types, ty);
+        ast::WithUpdateContract {
+            base_ty: re_ty(types, contract.base_ty),
+            result_ty: re_ty(types, contract.result_ty),
+            aggregates: contract
+                .aggregates
+                .into_iter()
+                .map(|aggregate| ast::WithUpdateAggregateContract {
+                    prefix: aggregate.prefix,
+                    ty: re_ty(types, aggregate.ty),
+                    kind: match aggregate.kind {
+                        ast::WithUpdateAggregateContractKind::Struct { fqn, fields } => {
+                            ast::WithUpdateAggregateContractKind::Struct {
+                                fqn,
+                                fields: fields
+                                    .into_iter()
+                                    .map(|field| ast::WithUpdateAggregateFieldContract {
+                                        name: field.name,
+                                        ty: re_ty(types, field.ty),
+                                    })
+                                    .collect(),
+                            }
+                        }
+                        ast::WithUpdateAggregateContractKind::Tuple { elements } => {
+                            ast::WithUpdateAggregateContractKind::Tuple {
+                                elements: elements.into_iter().map(|ty| re_ty(types, ty)).collect(),
+                            }
+                        }
+                        ast::WithUpdateAggregateContractKind::Enum { info } => {
+                            ast::WithUpdateAggregateContractKind::Enum {
+                                info: ast::WithUpdateResolvedEnum {
+                                    enum_fqn: info.enum_fqn,
+                                    variants: info
+                                        .variants
+                                        .into_iter()
+                                        .map(|variant| ast::WithUpdateResolvedEnumVariant {
+                                            name: variant.name,
+                                            fields: variant
+                                                .fields
+                                                .into_iter()
+                                                .map(|field| ast::WithUpdateResolvedEnumField {
+                                                    name: field.name,
+                                                    ty: re_ty(types, field.ty),
+                                                })
+                                                .collect(),
+                                        })
+                                        .collect(),
+                                },
+                            }
+                        }
+                    },
+                })
+                .collect(),
+            updates: contract
+                .updates
+                .into_iter()
+                .map(|update| ast::WithUpdateUpdateContract {
+                    path: update.path,
+                    target_ty: re_ty(types, update.target_ty),
+                    value_ty: re_ty(types, update.value_ty),
+                    segments: update
+                        .segments
+                        .into_iter()
+                        .map(|segment| ast::WithUpdatePathSegmentContract {
+                            aggregate_prefix: segment.aggregate_prefix,
+                            aggregate_ty: re_ty(types, segment.aggregate_ty),
+                            field_ty: re_ty(types, segment.field_ty),
+                            kind: segment.kind,
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+
+    fn missing_with_update_expr(&mut self, span: Span) -> Expr {
+        Expr {
+            span,
+            ty: self.typechecked_expr_ty(span).unwrap_or(self.builtins.any),
+            kind: ExprKind::Missing,
+        }
     }
 
     pub(super) fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
@@ -4296,89 +4390,37 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         base: &ast::Expr,
         updates: &[ast::WithUpdateField],
-        resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
-        resolved_copy_update_enums: &std::cell::OnceCell<
-            std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
-        >,
     ) -> Expr {
-        let typecheck_types = match self.typecheck_types {
-            Some(types) => types,
-            None => {
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
-            }
+        let Some(contract) = self.typechecked_with_update_contract(expr_span) else {
+            return self.missing_with_update_expr(expr_span);
         };
 
-        let aggregate_ty_map = match resolved_copy_update_tys.get() {
-            Some(map) => map
-                .iter()
-                .map(|(prefix, ty)| {
-                    (
-                        prefix.clone(),
-                        self.types.re_intern_from(typecheck_types, *ty),
-                    )
-                })
-                .collect::<std::collections::HashMap<_, _>>(),
-            None => {
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
-            }
-        };
+        self.with_update_contracts.insert(
+            super::super::CallSite::new(self.source.path().to_path_buf(), expr_span),
+            contract.clone(),
+        );
 
-        let aggregate_enum_map = match resolved_copy_update_enums.get() {
-            Some(map) => map
-                .iter()
-                .map(|(prefix, info)| {
-                    (
-                        prefix.clone(),
-                        ast::WithUpdateResolvedEnum {
-                            enum_fqn: info.enum_fqn.clone(),
-                            variants: info
-                                .variants
-                                .iter()
-                                .map(|variant| ast::WithUpdateResolvedEnumVariant {
-                                    name: variant.name.clone(),
-                                    fields: variant
-                                        .fields
-                                        .iter()
-                                        .map(|field| ast::WithUpdateResolvedEnumField {
-                                            name: field.name.clone(),
-                                            ty: self
-                                                .types
-                                                .re_intern_from(typecheck_types, field.ty),
-                                        })
-                                        .collect(),
-                                })
-                                .collect(),
-                        },
-                    )
-                })
-                .collect::<std::collections::HashMap<_, _>>(),
-            None => {
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
-            }
-        };
+        let aggregate_ty_map = contract
+            .aggregates
+            .iter()
+            .map(|aggregate| (aggregate.prefix.clone(), aggregate.ty))
+            .collect::<std::collections::HashMap<_, _>>();
+        let aggregate_enum_map = contract
+            .aggregates
+            .iter()
+            .filter_map(|aggregate| match &aggregate.kind {
+                ast::WithUpdateAggregateContractKind::Enum { info } => {
+                    Some((aggregate.prefix.clone(), info.clone()))
+                }
+                ast::WithUpdateAggregateContractKind::Struct { .. }
+                | ast::WithUpdateAggregateContractKind::Tuple { .. } => None,
+            })
+            .collect::<std::collections::HashMap<_, _>>();
 
-        let base_ty = match aggregate_ty_map.get("") {
-            Some(ty) => *ty,
-            None => {
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
-            }
+        let Some(base_ty) = aggregate_ty_map.get("").copied() else {
+            return self.missing_with_update_expr(expr_span);
         };
+        let result_ty = contract.result_ty;
 
         let base_lowered = self.lower_expr(pkg_prefix, base);
         let base_id = self.intern_local_symbol(with_span, false);
@@ -4393,18 +4435,60 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        let mut grouped: std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>> =
+        let val_stmt = Stmt {
+            span: with_span,
+            ty: base_ty,
+            kind: StmtKind::Val(ValDecl {
+                span: with_span,
+                id: Some(base_id),
+                name: Some("$with_base".to_string()),
+                mutable: false,
+                ty: base_ty,
+                init: Some(base_lowered),
+            }),
+        };
+
+        let mut stmts = vec![val_stmt];
+        let mut grouped: std::collections::HashMap<String, Vec<WithUpdateGroupedValue>> =
             std::collections::HashMap::new();
         for u in updates {
             let segs = &u.path.segments;
             if segs.is_empty() {
                 continue;
             }
+            let lowered_value = self.lower_expr(pkg_prefix, &u.value);
+            let value_ty = lowered_value.ty;
+            let (decl_span, value_id, value_name) =
+                self.fresh_synthetic_local(u.value.span, "__with_update_value", false);
+            stmts.push(Stmt {
+                span: u.value.span,
+                ty: value_ty,
+                kind: StmtKind::Val(ValDecl {
+                    span: u.value.span,
+                    id: Some(value_id),
+                    name: Some(value_name.clone()),
+                    mutable: false,
+                    ty: value_ty,
+                    init: Some(lowered_value),
+                }),
+            });
+            let value_ref = Expr {
+                span: u.value.span,
+                ty: value_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id: value_id,
+                    name: value_name,
+                    decl_span,
+                }),
+            };
             let first = self.source.slice(segs[0].span).to_string();
             grouped
                 .entry(first)
                 .or_default()
-                .push((&segs[1..], &u.value));
+                .push(WithUpdateGroupedValue {
+                    rest: segs[1..].to_vec(),
+                    value: value_ref,
+                });
         }
 
         let rebuilt = self.build_with_copy_expr(
@@ -4419,32 +4503,20 @@ impl<'a> HirLowering<'a> {
             "",
         );
 
-        let val_stmt = Stmt {
-            span: with_span,
-            ty: base_ty,
-            kind: StmtKind::Val(ValDecl {
-                span: with_span,
-                id: Some(base_id),
-                name: Some("$with_base".to_string()),
-                mutable: false,
-                ty: base_ty,
-                init: Some(base_lowered),
-            }),
-        };
-
         let result_stmt = Stmt {
             span: expr_span,
-            ty: base_ty,
+            ty: result_ty,
             kind: StmtKind::Expr(rebuilt),
         };
+        stmts.push(result_stmt);
 
         Expr {
             span: expr_span,
-            ty: base_ty,
+            ty: result_ty,
             kind: ExprKind::Block(Block {
                 span: expr_span,
-                ty: base_ty,
-                stmts: vec![val_stmt, result_stmt],
+                ty: result_ty,
+                stmts,
             }),
         }
     }
@@ -4457,7 +4529,7 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         aggregate_ty: TypeId,
         base_access: &Expr,
-        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        grouped: &std::collections::HashMap<String, Vec<WithUpdateGroupedValue>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
@@ -4525,11 +4597,7 @@ impl<'a> HirLowering<'a> {
                 aggregate_enum_map,
                 current_prefix,
             ),
-            LoweringAggregateKind::Unsupported => Expr {
-                span: expr_span,
-                ty: self.builtins.any,
-                kind: ExprKind::Todo("with_update"),
-            },
+            LoweringAggregateKind::Unsupported => self.missing_with_update_expr(expr_span),
         }
     }
 
@@ -4548,7 +4616,7 @@ impl<'a> HirLowering<'a> {
         struct_fqn: &str,
         struct_ty: TypeId,
         base_access: &Expr,
-        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        grouped: &std::collections::HashMap<String, Vec<WithUpdateGroupedValue>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
@@ -4632,7 +4700,7 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         tuple_ty: TypeId,
         base_access: &Expr,
-        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        grouped: &std::collections::HashMap<String, Vec<WithUpdateGroupedValue>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
@@ -4640,11 +4708,7 @@ impl<'a> HirLowering<'a> {
         let element_tys = match self.types.kind(tuple_ty) {
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.to_vec(),
             _ => {
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
+                return self.missing_with_update_expr(expr_span);
             }
         };
 
@@ -4698,17 +4762,13 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         enum_ty: TypeId,
         base_access: &Expr,
-        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        grouped: &std::collections::HashMap<String, Vec<WithUpdateGroupedValue>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
     ) -> Expr {
         let Some(enum_info) = aggregate_enum_map.get(current_prefix) else {
-            return Expr {
-                span: expr_span,
-                ty: self.builtins.any,
-                kind: ExprKind::Todo("with_update"),
-            };
+            return self.missing_with_update_expr(expr_span);
         };
 
         let mut arms: Vec<WhenArm> = Vec::with_capacity(enum_info.variants.len());
@@ -4743,21 +4803,20 @@ impl<'a> HirLowering<'a> {
             let body = if let Some(update_group) = update_group {
                 let mut grouped_by_field: std::collections::HashMap<
                     String,
-                    Vec<(&[ast::Ident], &ast::Expr)>,
+                    Vec<WithUpdateGroupedValue>,
                 > = std::collections::HashMap::new();
-                for (rest, val) in update_group {
-                    if rest.is_empty() {
-                        return Expr {
-                            span: expr_span,
-                            ty: self.builtins.any,
-                            kind: ExprKind::Todo("with_update"),
-                        };
+                for update in update_group {
+                    if update.rest.is_empty() {
+                        return self.missing_with_update_expr(expr_span);
                     }
-                    let next = self.source.slice(rest[0].span).to_string();
+                    let next = self.source.slice(update.rest[0].span).to_string();
                     grouped_by_field
                         .entry(next)
                         .or_default()
-                        .push((&rest[1..], *val));
+                        .push(WithUpdateGroupedValue {
+                            rest: update.rest[1..].to_vec(),
+                            value: update.value.clone(),
+                        });
                 }
 
                 let mut args: Vec<CallArg> = Vec::with_capacity(variant.fields.len());
@@ -4765,11 +4824,7 @@ impl<'a> HirLowering<'a> {
                     let Some((_, field_ref)) =
                         field_refs.iter().find(|(name, _)| name == &field.name)
                     else {
-                        return Expr {
-                            span: expr_span,
-                            ty: self.builtins.any,
-                            kind: ExprKind::Todo("with_update"),
-                        };
+                        return self.missing_with_update_expr(expr_span);
                     };
                     let variant_prefix = if current_prefix.is_empty() {
                         variant.name.clone()
@@ -4844,13 +4899,13 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         field_name: &str,
         field_access: Expr,
-        update_group: &[(&[ast::Ident], &ast::Expr)],
+        update_group: &[WithUpdateGroupedValue],
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
     ) -> Expr {
-        if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
-            return self.lower_expr(pkg_prefix, val_expr);
+        if let Some(update) = update_group.iter().find(|update| update.rest.is_empty()) {
+            return update.value.clone();
         }
 
         let nested_prefix = if current_prefix.is_empty() {
@@ -4860,20 +4915,21 @@ impl<'a> HirLowering<'a> {
         };
 
         let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() else {
-            return field_access;
+            return self.missing_with_update_expr(expr_span);
         };
 
-        let mut nested_grouped: std::collections::HashMap<
-            String,
-            Vec<(&[ast::Ident], &ast::Expr)>,
-        > = std::collections::HashMap::new();
-        for (rest, val) in update_group {
-            if !rest.is_empty() {
-                let next = self.source.slice(rest[0].span).to_string();
+        let mut nested_grouped: std::collections::HashMap<String, Vec<WithUpdateGroupedValue>> =
+            std::collections::HashMap::new();
+        for update in update_group {
+            if !update.rest.is_empty() {
+                let next = self.source.slice(update.rest[0].span).to_string();
                 nested_grouped
                     .entry(next)
                     .or_default()
-                    .push((&rest[1..], *val));
+                    .push(WithUpdateGroupedValue {
+                        rest: update.rest[1..].to_vec(),
+                        value: update.value.clone(),
+                    });
             }
         }
 

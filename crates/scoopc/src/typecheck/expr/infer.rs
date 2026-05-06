@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::ast;
 use crate::source::SourceFile;
@@ -283,20 +283,9 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::Join { join_span, .. } => {
             structured_concurrency_deferred("join", *join_span)
         }
-        ast::ExprKind::WithUpdate {
-            base,
-            updates,
-            resolved_copy_update_tys,
-            resolved_copy_update_enums,
-            ..
-        } => infer_with_update_expr_type(
-            inputs,
-            base,
-            updates,
-            resolved_copy_update_tys,
-            resolved_copy_update_enums,
-            lower,
-        ),
+        ast::ExprKind::WithUpdate { base, updates, .. } => {
+            infer_with_update_expr_type(inputs, expr.span, base, updates, lower)
+        }
         ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(inputs, lhs, rhs, lower),
         ast::ExprKind::Binary {
             lhs,
@@ -2692,12 +2681,9 @@ fn infer_generic_struct_lit_expr_type(
 
 fn infer_with_update_expr_type(
     inputs: ExprInferInputs<'_>,
+    expr_span: Span,
     base: &ast::Expr,
     updates: &[ast::WithUpdateField],
-    resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
-    resolved_copy_update_enums: &std::cell::OnceCell<
-        std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
-    >,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
@@ -2713,15 +2699,13 @@ fn infer_with_update_expr_type(
         });
     };
 
-    // 收集 copy-update 路径上的各层 aggregate 具体类型，供 lowering 统一重建 struct/tuple/enum。
-    let mut aggregate_ty_map: std::collections::HashMap<String, TypeId> =
-        std::collections::HashMap::new();
-    let mut enum_info_map: std::collections::HashMap<String, ast::WithUpdateResolvedEnum> =
-        std::collections::HashMap::new();
-    aggregate_ty_map.insert(String::new(), base_ty);
-    if let WithUpdateAggregateKind::Enum { info } = base_kind {
-        enum_info_map.insert(String::new(), info);
-    }
+    let mut aggregate_contracts: BTreeMap<String, ast::WithUpdateAggregateContract> =
+        BTreeMap::new();
+    aggregate_contracts.insert(
+        String::new(),
+        with_update_aggregate_contract(String::new(), base_ty, &base_kind),
+    );
+    let mut update_contracts: Vec<ast::WithUpdateUpdateContract> = Vec::new();
 
     // `with` 的并行语义：update 之间没有顺序依赖，因此要求：
     // - 完全相同的 path 不能重复出现（否则“谁覆盖谁”会引入顺序）
@@ -2787,12 +2771,14 @@ fn infer_with_update_expr_type(
         let mut current_ty = base_ty;
         let mut current_owner_name = lower.fmt_type(base_ty);
         let mut path_prefix_parts: Vec<String> = Vec::new();
+        let mut path_segment_contracts: Vec<ast::WithUpdatePathSegmentContract> = Vec::new();
         let segments: Vec<String> = u
             .path
             .segments
             .iter()
             .map(|seg| source.slice(seg.span).to_string())
             .collect();
+        let path = segments.join(".");
 
         if u.path.segments.is_empty() {
             // parser 不会产生空路径；这里仅保持健壮性。
@@ -2823,15 +2809,10 @@ fn infer_with_update_expr_type(
 
             let mut consumed_prefix: Vec<String> = Vec::new();
             let (field_name, field_ty, field_span) = match aggregate_kind {
-                WithUpdateAggregateKind::Struct { fqn } => {
+                WithUpdateAggregateKind::Struct { fqn, fields } => {
                     let seg = &u.path.segments[idx];
                     let field = source.slice(seg.span).to_string();
-                    let struct_args = match lower.type_kind(current_ty) {
-                        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
-                        _ => Vec::new(),
-                    };
-                    let field_ty = lower
-                        .lower_struct_direct_field_infos(&fqn, &struct_args, seg.span)?
+                    let field_ty = fields
                         .into_iter()
                         .find(|info| info.name == field)
                         .map(|info| info.ty)
@@ -2840,6 +2821,15 @@ fn infer_with_update_expr_type(
                             field: field.clone(),
                             span: seg.span.into(),
                         })?;
+                    path_segment_contracts.push(ast::WithUpdatePathSegmentContract {
+                        aggregate_prefix: path_prefix_parts.join("."),
+                        aggregate_ty: current_ty,
+                        field_ty,
+                        kind: ast::WithUpdatePathSegmentKind::StructField {
+                            owner_fqn: fqn.clone(),
+                            field: field.clone(),
+                        },
+                    });
                     consumed_prefix.push(field.clone());
                     idx += 1;
                     (field, field_ty, seg.span)
@@ -2861,6 +2851,12 @@ fn infer_with_update_expr_type(
                             span: seg.span.into(),
                         });
                     };
+                    path_segment_contracts.push(ast::WithUpdatePathSegmentContract {
+                        aggregate_prefix: path_prefix_parts.join("."),
+                        aggregate_ty: current_ty,
+                        field_ty,
+                        kind: ast::WithUpdatePathSegmentKind::TupleElement { index: tuple_index },
+                    });
                     consumed_prefix.push(field.clone());
                     idx += 1;
                     (field, field_ty, seg.span)
@@ -2899,6 +2895,16 @@ fn infer_with_update_expr_type(
                             span: field_seg.span.into(),
                         })?;
 
+                    path_segment_contracts.push(ast::WithUpdatePathSegmentContract {
+                        aggregate_prefix: path_prefix_parts.join("."),
+                        aggregate_ty: current_ty,
+                        field_ty,
+                        kind: ast::WithUpdatePathSegmentKind::EnumVariantField {
+                            enum_fqn: info.enum_fqn.clone(),
+                            variant: variant.name.clone(),
+                            field: field.clone(),
+                        },
+                    });
                     current_owner_name = owner_name;
                     consumed_prefix.push(variant.name.clone());
                     consumed_prefix.push(field.clone());
@@ -2938,6 +2944,13 @@ fn infer_with_update_expr_type(
                     });
                 }
 
+                update_contracts.push(ast::WithUpdateUpdateContract {
+                    path: path.clone(),
+                    target_ty: expected_ty,
+                    value_ty: found_ty,
+                    segments: path_segment_contracts,
+                });
+
                 break;
             }
 
@@ -2956,9 +2969,12 @@ fn infer_with_update_expr_type(
             // 记录中间 aggregate 具体类型：path_prefix → TypeId。
             path_prefix_parts.extend(consumed_prefix);
             let prefix_key = path_prefix_parts.join(".");
-            aggregate_ty_map.insert(prefix_key.clone(), field_ty);
-            if let Some(WithUpdateAggregateKind::Enum { info }) = nested_kind {
-                enum_info_map.insert(prefix_key, info);
+            if let Some(nested_kind) = nested_kind {
+                aggregate_contracts
+                    .entry(prefix_key.clone())
+                    .or_insert_with(|| {
+                        with_update_aggregate_contract(prefix_key.clone(), field_ty, &nested_kind)
+                    });
             }
 
             current_ty = field_ty;
@@ -2968,18 +2984,60 @@ fn infer_with_update_expr_type(
         // loop 中在最后一段已完成 value typecheck；这里无需额外动作。
     }
 
-    // 写回所有层级的 aggregate type / enum 形状，供 HIR lowering 统一重建 struct/tuple/enum。
-    let _ = resolved_copy_update_tys.set(aggregate_ty_map);
-    let _ = resolved_copy_update_enums.set(enum_info_map);
+    lower.record_with_update_contract(
+        expr_span,
+        ast::WithUpdateContract {
+            base_ty,
+            result_ty: base_ty,
+            aggregates: aggregate_contracts.into_values().collect(),
+            updates: update_contracts,
+        },
+    );
 
     Ok(base_ty)
 }
 
 #[derive(Clone)]
 enum WithUpdateAggregateKind {
-    Struct { fqn: String },
-    Tuple { elements: Vec<TypeId> },
-    Enum { info: ast::WithUpdateResolvedEnum },
+    Struct {
+        fqn: String,
+        fields: Vec<ast::WithUpdateAggregateFieldContract>,
+    },
+    Tuple {
+        elements: Vec<TypeId>,
+    },
+    Enum {
+        info: ast::WithUpdateResolvedEnum,
+    },
+}
+
+fn with_update_aggregate_contract(
+    prefix: String,
+    ty: TypeId,
+    kind: &WithUpdateAggregateKind,
+) -> ast::WithUpdateAggregateContract {
+    let contract_kind = match kind {
+        WithUpdateAggregateKind::Struct { fqn, fields } => {
+            ast::WithUpdateAggregateContractKind::Struct {
+                fqn: fqn.clone(),
+                fields: fields.clone(),
+            }
+        }
+        WithUpdateAggregateKind::Tuple { elements } => {
+            ast::WithUpdateAggregateContractKind::Tuple {
+                elements: elements.clone(),
+            }
+        }
+        WithUpdateAggregateKind::Enum { info } => {
+            ast::WithUpdateAggregateContractKind::Enum { info: info.clone() }
+        }
+    };
+
+    ast::WithUpdateAggregateContract {
+        prefix,
+        ty,
+        kind: contract_kind,
+    }
 }
 
 fn with_update_aggregate_kind(
@@ -2996,7 +3054,18 @@ fn with_update_aggregate_kind(
                 Some(ast::TypeKind::Struct)
             ) =>
         {
-            Ok(Some(WithUpdateAggregateKind::Struct { fqn: nominal.fqn }))
+            let fields = lower
+                .lower_struct_direct_field_infos(&nominal.fqn, &nominal.args, use_span)?
+                .into_iter()
+                .map(|field| ast::WithUpdateAggregateFieldContract {
+                    name: field.name,
+                    ty: field.ty,
+                })
+                .collect();
+            Ok(Some(WithUpdateAggregateKind::Struct {
+                fqn: nominal.fqn,
+                fields,
+            }))
         }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
             Ok(Some(WithUpdateAggregateKind::Tuple {

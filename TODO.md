@@ -376,7 +376,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_class_literal`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_hir_call_contracts`、`cargo test -p scoop --no-default-features dump_hir`、三个指定 typecheck fixtures、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T07`
 
-## HIR-T09：收口 `with` copy-update aggregate metadata
+## [DONE] HIR-T09：收口 `with` copy-update aggregate metadata
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H7
@@ -403,6 +403,12 @@
 - 完成条件：
   - `ExprKind::Todo("with_update")` 不再可达 refactor HIR。
   - 可进入 `HIR-T10`。
+- 完成记录（2026-05-06）：
+  - `ast::File` 新增 typechecked `WithUpdateContract` side table，typecheck 现在为每个 `base with { ... }` 发布 base/result 类型、路径 aggregate 形状、struct/tuple/enum field/variant path 与 update value/target 类型。
+  - refactor HIR lowering 改为强制消费该 contract：base 先绑定到 `$with_base`，update value 按源码顺序绑定到 `__with_update_value*` 临时，再重建 struct/tuple/enum；缺失或不一致的 metadata 走 HIR verifier 可定位 failure，不再生成 `ExprKind::Todo("with_update")`。
+  - typed HIR stable dump 新增 `with_update_contracts` section，展示 copy-update aggregate/update contract；placeholder inventory 已移除 `with_update` 构造点。
+  - 新增 `refactor_hir_with_update_publishes_copy_update_contracts` 单测覆盖 struct、tuple、enum 与 nested path contract；新增 negative fixture `with_update_base_not_supported_is_error.scoop` 覆盖 unsupported aggregate base 诊断；同步 `with_update_expr` AST golden。
+  - 已运行：`cargo test -p scoopc --no-default-features with_update`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse/with_update_expr.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T08`
 
 ## HIR-T10：建立 assignment LHS / HIR place contract
