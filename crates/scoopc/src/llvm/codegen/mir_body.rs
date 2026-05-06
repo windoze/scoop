@@ -1358,6 +1358,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
     }
 
+    fn runtime_pattern_type_descriptor_is_codegen_supported(
+        &self,
+        mir_types: &TypeStore,
+        metadata: &crate::mir::RuntimePatternTypeTestMetadata,
+    ) -> bool {
+        if !matches!(
+            metadata.descriptor.kind,
+            crate::mir::RuntimeTypeDescriptorKind::Any
+                | crate::mir::RuntimeTypeDescriptorKind::String
+                | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
+        ) {
+            return false;
+        }
+        self.equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
+            .and_then(|target_ty| self.cg_ty_of(target_ty))
+            .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
+    }
+
     fn raw_materialized_mir_member_access_is_supported(
         &mut self,
         span: crate::span::Span,
@@ -2058,12 +2076,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Pattern::Or { pats } => pats.iter().all(|pat| {
                 self.raw_materialized_mir_pattern_is_supported(mir_types, pat, subject_ty)
             }),
-            crate::mir::Pattern::Is { ty, .. } => {
-                matches!(subject_ty, CgTy::Ref | CgTy::String)
-                    && self
-                        .equivalent_codegen_type_id(mir_types, *ty)
-                        .and_then(|target_ty| self.cg_ty_of(target_ty))
-                        .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
+            crate::mir::Pattern::Is { ty, metadata } => {
+                *ty == metadata.target_ty
+                    && metadata.descriptor.ty == metadata.target_ty
+                    && self.raw_materialized_mir_runtime_pattern_type_test_is_supported(
+                        mir_types, subject_ty, metadata,
+                    )
             }
             crate::mir::Pattern::Tuple { elements } => {
                 let CgTy::Tuple(tuple_ty) = subject_ty else {
@@ -2116,6 +2134,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             self.raw_materialized_mir_pattern_is_supported(mir_types, pat, elem_ty)
         })
+    }
+
+    fn raw_materialized_mir_runtime_pattern_type_test_is_supported(
+        &self,
+        mir_types: &TypeStore,
+        subject_ty: CgTy,
+        metadata: &crate::mir::RuntimePatternTypeTestMetadata,
+    ) -> bool {
+        let Some(metadata_subject_ty) = self.cg_ty_of_mir_type(mir_types, metadata.subject_ty)
+        else {
+            return false;
+        };
+        if !self.cg_ty_layout_equivalent(metadata_subject_ty, subject_ty) {
+            return false;
+        }
+
+        match metadata.static_fold {
+            crate::mir::RuntimeTypeStaticFold::AlwaysTrue
+            | crate::mir::RuntimeTypeStaticFold::AlwaysFalse => true,
+            crate::mir::RuntimeTypeStaticFold::Dynamic => {
+                matches!(subject_ty, CgTy::Ref | CgTy::String)
+                    && self
+                        .runtime_pattern_type_descriptor_is_codegen_supported(mir_types, metadata)
+            }
+        }
     }
 
     fn raw_materialized_mir_variant_pattern_is_supported(
@@ -4338,8 +4381,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            crate::mir::Pattern::Is { ty, .. } => {
-                self.codegen_mir_is_pattern_match(span, mir_types, subject, *ty)
+            crate::mir::Pattern::Is { ty, metadata } => {
+                self.codegen_mir_is_pattern_match(span, mir_types, subject, *ty, metadata)
             }
             crate::mir::Pattern::Tuple { elements } => {
                 self.codegen_mir_tuple_pattern_match(span, mir_types, subject, elements)
@@ -4449,9 +4492,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         subject: CgValue<'ctx>,
         target_ty: TypeId,
+        metadata: &crate::mir::RuntimePatternTypeTestMetadata,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        if metadata.target_ty != target_ty || metadata.descriptor.ty != target_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is metadata",
+                at: span.into(),
+            });
+        }
+        let metadata_subject_ty = self
+            .cg_ty_of_mir_type(mir_types, metadata.subject_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is subject metadata",
+                at: span.into(),
+            })?;
+        if !self.cg_ty_layout_equivalent(metadata_subject_ty, subject.ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is subject type drift",
+                at: span.into(),
+            });
+        }
+        match metadata.static_fold {
+            crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
+                return Ok(self.context.bool_type().const_int(1, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::AlwaysFalse => {
+                return Ok(self.context.bool_type().const_int(0, false));
+            }
+            crate::mir::RuntimeTypeStaticFold::Dynamic => {}
+        }
+        if !self.runtime_pattern_type_descriptor_is_codegen_supported(mir_types, metadata) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR pattern is runtime type descriptor",
+                at: span.into(),
+            });
+        }
         let target_ty = self
-            .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
+            .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR pattern is target type",
                 at: span.into(),

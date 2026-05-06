@@ -924,12 +924,20 @@ class Impl() : Base(), IFace {
 }
 class Other() : Base()
 
+fun classifyValue(x: Int): Int {
+    return when (x) {
+        is Int -> 7
+        else -> 9
+    }
+}
+
 fun main(): Int {
     val x: Any = Impl()
     val _is_iface: Bool = x is IFace
     val _not_other: Bool = x !is Other
     val _maybe_iface: IFace? = x as? IFace
     val _maybe_other: Other? = x as? Other
+    val _value_pattern: Int = classifyValue(1)
     val caught: Int = try {
         val _bad: Other = x as Other
         0
@@ -1137,6 +1145,10 @@ fun main(): Int {
         assert!(
             ir.contains("isa_iface") || ir.contains("isa_loop"),
             "runtime type tests should use descriptor/itable matching helpers:\n{ir}"
+        );
+        assert!(
+            ir.contains("@sample.classifyValue"),
+            "pattern `is Type` should codegen through MIR pattern metadata, including static folds:\n{ir}"
         );
     }
 

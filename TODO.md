@@ -17,7 +17,7 @@
 | `CG-T01` | CG1 | [DONE] 收口 raw MIR effect/control route 与 unsupported call kind |
 | `CG-T01R` | CG1R | [DONE] Review CG-T01 raw MIR route gate |
 | `CG-T02` | CG2 | [DONE] 收口 runtime type/value primitive LLVM lowering |
-| `CG-T02R` | CG2R | Review CG-T02 runtime value primitive lowering |
+| `CG-T02R` | CG2R | [DONE] Review CG-T02 runtime value primitive lowering |
 | `CG-T03` | CG3 | 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04` | CG4 | 收口 aggregate/enum/array/closure/boxing transport lowering |
@@ -191,7 +191,7 @@
   - 2026-05-07：确认 function type runtime casts 仍由 frontend/typecheck diagnostic 拒绝，未进入 refactor LLVM callable descriptor guess。
   - 验证通过：`cargo test -p scoopc refactor_mir_value_primitives`、`cargo test -p scoopc refactor_llvm_runtime_type_primitives`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/not_null_assert_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T02R：Review CG-T02 runtime value primitive lowering
+## [DONE] CG-T02R：Review CG-T02 runtime value primitive lowering
 
 - 参考：
   - `CG-T02`
@@ -208,6 +208,11 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T02` 已正确实现；若发现缺口，`CG-T02R` 保持未完成并把修复归回 `CG-T02`。
 - 依赖：`CG-T02`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T02` 的 MIR metadata、refactor LLVM lowering、`as` / `!!` failure boundary 与 function-type cast diagnostic，确认 `TypeCheck`、`CastOp::As`、`CastOp::AsQ`、`Option<T>` construction、parameterized class/interface runtime match 和 function-type cast frontend reject 均按 CG-T02 policy 覆盖。
+  - 2026-05-07：复审中发现 `Pattern::Is` 虽携带 `RuntimePatternTypeTestMetadata`，LLVM pattern support/codegen 仍只读取目标 `ty`，会阻断 value-type static-fold pattern；已修复为验证并消费 pattern metadata，静态折叠直接生成常量，动态 ref-like case 才进入 runtime descriptor / itable matching。
+  - 验证通过：`cargo test -p scoopc refactor_mir_value_primitives`、`cargo test -p scoopc refactor_llvm_runtime_type_primitives`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/not_null_assert_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T03：收口 call/ctor/function-ref/intrinsic/default/interface lowering
 
