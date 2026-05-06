@@ -636,6 +636,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     site_id,
                     kind,
                     args,
+                    ..
                 } => {
                     self.record_block_site(block_id, *site_id);
                     match kind {
@@ -2292,9 +2293,10 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -2319,10 +2321,10 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
             call_kind_mentions_local_for_hidden_namespace(kind, local)
                 || call_args_mention_local_for_hidden_namespace(args, local)
         }
-        Rvalue::MakeTuple { elements } => elements
+        Rvalue::MakeTuple { elements, .. } => elements
             .iter()
             .any(|operand| operand_mentions_local_for_hidden_namespace(operand, local)),
-        Rvalue::StructLit { fields } => fields
+        Rvalue::StructLit { fields, .. } => fields
             .iter()
             .any(|field| operand_mentions_local_for_hidden_namespace(&field.value, local)),
         Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
@@ -2331,7 +2333,9 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
                 operand_mentions_local_for_hidden_namespace(value, local)
             }
         }),
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             operand_mentions_local_for_hidden_namespace(box_operand, local)
                 || operand_mentions_local_for_hidden_namespace(value, local)
         }

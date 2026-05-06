@@ -737,9 +737,10 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -768,12 +769,12 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(&arg.value, out);
             }
         }
-        Rvalue::MakeTuple { elements } => {
+        Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 collect_operand_use(element, out);
             }
         }
-        Rvalue::StructLit { fields } => {
+        Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 collect_operand_use(&field.value, out);
             }
@@ -785,7 +786,9 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 }
             }
         }
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             collect_operand_use(box_operand, out);
             collect_operand_use(value, out);
         }
@@ -1006,7 +1009,12 @@ fn remap_rvalue(
             op: *op,
             rhs: remap_operand(rhs, local_operands, local_map)?,
         }),
-        Rvalue::Call { kind, args, .. } => Some(Rvalue::Call {
+        Rvalue::Call {
+            kind,
+            args,
+            transport,
+            ..
+        } => Some(Rvalue::Call {
             site_id: fresh_cloned_site_id(next_site_id),
             kind: remap_call_kind(
                 kind,
@@ -1015,15 +1023,18 @@ fn remap_rvalue(
                 direct_call_param_provenance,
             )?,
             args: remap_call_args(args, local_operands, local_map)?,
+            transport: transport.clone(),
         }),
         Rvalue::EnumVariant {
             enum_ty,
             variant_name,
             args,
+            payload,
         } => Some(Rvalue::EnumVariant {
             enum_ty: *enum_ty,
             variant_name: variant_name.clone(),
             args: remap_call_args(args, local_operands, local_map)?,
+            payload: payload.clone(),
         }),
         Rvalue::ClassCtor {
             class_fqn,
@@ -1042,14 +1053,19 @@ fn remap_rvalue(
         Rvalue::TypeMetadataLiteral(metadata) => {
             Some(Rvalue::TypeMetadataLiteral(metadata.clone()))
         }
-        Rvalue::StructLit { fields } => Some(Rvalue::StructLit {
+        Rvalue::StructLit { fields, transport } => Some(Rvalue::StructLit {
             fields: remap_struct_lit_fields(fields, local_operands, local_map)?,
+            transport: transport.clone(),
         }),
-        Rvalue::MakeTuple { elements } => Some(Rvalue::MakeTuple {
+        Rvalue::MakeTuple {
+            elements,
+            transport,
+        } => Some(Rvalue::MakeTuple {
             elements: elements
                 .iter()
                 .map(|element| remap_operand(element, local_operands, local_map))
                 .collect::<Option<Vec<_>>>()?,
+            transport: transport.clone(),
         }),
         Rvalue::UnresolvedName { .. }
         | Rvalue::TypeCheck { .. }
@@ -1189,8 +1205,8 @@ fn remap_operand(
 mod tests {
     use super::*;
     use crate::mir::{
-        BasicBlock, BasicBlockId, Item, LocalSourceKind, PerformMetadata, Terminator,
-        materialize_for_dump,
+        BasicBlock, BasicBlockId, CallTransportMetadata, Item, LocalSourceKind, MirTransportKind,
+        PerformMetadata, Terminator, materialize_for_dump,
     };
     use crate::session::Session;
     use crate::source::SourceFile;
@@ -1535,6 +1551,7 @@ fun main(): Int {
                             callee_fqn: "fixtures.inline.seed".to_string(),
                         },
                         args: Vec::new(),
+                        transport: call_transport(builtins.unit),
                     },
                 },
             }],
@@ -1565,6 +1582,7 @@ fun main(): Int {
                             callee_fqn: "fixtures.inline.inner".to_string(),
                         },
                         args: Vec::new(),
+                        transport: call_transport(builtins.unit),
                     },
                 },
             }],
@@ -1643,6 +1661,7 @@ fun main(): Int {
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
+                        payload_transport: Vec::new(),
                         arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),
@@ -1740,5 +1759,9 @@ fun main(): Int {
                 )
             })
         })
+    }
+
+    fn call_transport(result_ty: crate::ty::TypeId) -> CallTransportMetadata {
+        CallTransportMetadata::plain_no_outward(result_ty, MirTransportKind::Unknown)
     }
 }

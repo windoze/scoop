@@ -374,7 +374,7 @@ impl PublishedContinuationProvenance {
                     }
                     StatementKind::Assign {
                         target,
-                        value: Rvalue::MakeTuple { elements },
+                        value: Rvalue::MakeTuple { elements, .. },
                     } => {
                         for (field_index, element) in elements.iter().enumerate() {
                             let Operand::Local(source) = element else {
@@ -3590,9 +3590,10 @@ fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -3611,10 +3612,10 @@ fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
         Rvalue::Call { kind, args, .. } => {
             call_kind_mentions_local(kind, local) || call_args_mention_local(args, local)
         }
-        Rvalue::MakeTuple { elements } => elements
+        Rvalue::MakeTuple { elements, .. } => elements
             .iter()
             .any(|operand| operand_mentions_local(operand, local)),
-        Rvalue::StructLit { fields } => fields
+        Rvalue::StructLit { fields, .. } => fields
             .iter()
             .any(|field| operand_mentions_local(&field.value, local)),
         Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
@@ -3623,9 +3624,9 @@ fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
                 operand_mentions_local(value, local)
             }
         }),
-        Rvalue::CaptureBoxSet { box_operand, value } => {
-            operand_mentions_local(box_operand, local) || operand_mentions_local(value, local)
-        }
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => operand_mentions_local(box_operand, local) || operand_mentions_local(value, local),
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
@@ -4377,7 +4378,7 @@ fn build_known_instance_closure_call_arg_sources(
     );
     let env_sources = match env_operand {
         Operand::Local(local) => match local_assignment(body, *local) {
-            Some(Rvalue::MakeTuple { elements }) if decompose_env_tuple => {
+            Some(Rvalue::MakeTuple { elements, .. }) if decompose_env_tuple => {
                 if elements.len() > expected_components.len() {
                     return Err(invalid_boundary_operand_contract(
                         root_fqn,
@@ -4587,6 +4588,7 @@ fn build_call_boundary_operand_contract(
                         site_id: stmt_site_id,
                         kind,
                         args,
+                        ..
                     },
             } = &stmt.kind
             else {
@@ -4930,6 +4932,7 @@ fn build_resume_boundary_operand_contract(
                                 resume,
                             },
                         args,
+                        ..
                     },
             } = &stmt.kind
             else {

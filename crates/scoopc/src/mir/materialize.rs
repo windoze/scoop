@@ -32,18 +32,20 @@ use crate::typecheck::{
 };
 
 use super::{
-    BasicBlockId, Body, CallArg, CallKind, ConstValue, DeclMemberMetadata, DeclOnlySummaryInput,
-    DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File,
-    FunDecl, HandleMetadata, HandlerArm, InitializerRoot, InstanceRootSummaryInput,
-    InterpolatedStringPart, Item, LocalDecl, MaterializedCallableFamilies,
-    MaterializedCallableFamilyInput, MaterializedMirPassArtifacts, MaterializedMirSummaries,
-    MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory,
-    NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata,
-    PropertyMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
+    AggregateTransportField, AggregateTransportMetadata, ArrayElementTransportMetadata,
+    BasicBlockId, Body, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
+    ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata,
+    DeclOnlySummaryInput, DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
+    FieldMetadata, File, FunDecl, HandleMetadata, HandlerArm, InitializerRoot,
+    InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
+    MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
+    MaterializedMirSummaries, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
+    MirPlaceholderCategory, NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg,
+    PerformMetadata, PropertyMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
     RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeParameterizedMatch,
     RuntimeTypeTestMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
     Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction,
-    build_materialized_summary_table,
+    ValueTransportMetadata, build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -1171,7 +1173,12 @@ fn validate_materialized_rvalue(
             )?;
             validate_materialized_member_metadata(materialized, fqn, block, span, member)
         }
-        Rvalue::EnumVariant { enum_ty, args, .. } => {
+        Rvalue::EnumVariant {
+            enum_ty,
+            args,
+            payload,
+            ..
+        } => {
             validate_materialized_type(
                 materialized,
                 MaterializedValidationContext {
@@ -1182,7 +1189,15 @@ fn validate_materialized_rvalue(
                 },
                 *enum_ty,
             )?;
-            validate_materialized_call_args(materialized, fqn, block, span, locals, args)
+            validate_materialized_call_args(materialized, fqn, block, span, locals, args)?;
+            validate_materialized_aggregate_transport(
+                materialized,
+                fqn,
+                block,
+                span,
+                "enum payload transport",
+                payload,
+            )
         }
         Rvalue::ClassCtor {
             args,
@@ -1201,20 +1216,47 @@ fn validate_materialized_rvalue(
             )?;
             validate_materialized_call_args(materialized, fqn, block, span, locals, args)
         }
-        Rvalue::Call { kind, args, .. } => {
+        Rvalue::Call {
+            kind,
+            args,
+            transport,
+            ..
+        } => {
             validate_materialized_call_args(materialized, fqn, block, span, locals, args)?;
-            validate_materialized_call_kind(materialized, fqn, block, span, locals, kind, root_sets)
+            validate_materialized_call_kind(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                kind,
+                root_sets,
+            )?;
+            validate_materialized_call_transport(materialized, fqn, block, span, transport)
         }
-        Rvalue::MakeTuple { elements } => validate_materialized_operands(
-            materialized,
-            fqn,
-            block,
-            span,
-            "tuple aggregate element",
-            locals,
+        Rvalue::MakeTuple {
             elements,
-        ),
-        Rvalue::StructLit { fields } => {
+            transport,
+        } => {
+            validate_materialized_operands(
+                materialized,
+                fqn,
+                block,
+                span,
+                "tuple aggregate element",
+                locals,
+                elements,
+            )?;
+            validate_materialized_aggregate_transport(
+                materialized,
+                fqn,
+                block,
+                span,
+                "tuple aggregate transport",
+                transport,
+            )
+        }
+        Rvalue::StructLit { fields, transport } => {
             for field in fields {
                 validate_materialized_struct_lit_field(
                     materialized,
@@ -1225,7 +1267,14 @@ fn validate_materialized_rvalue(
                     field,
                 )?;
             }
-            Ok(())
+            validate_materialized_aggregate_transport(
+                materialized,
+                fqn,
+                block,
+                span,
+                "struct aggregate transport",
+                transport,
+            )
         }
         Rvalue::SizeOf { value_ty } => validate_materialized_type(
             materialized,
@@ -1255,25 +1304,38 @@ fn validate_materialized_rvalue(
             locals,
             tuple,
         ),
-        Rvalue::CaptureBoxNew { value } => validate_materialized_operand(
-            materialized,
-            fqn,
-            block,
-            span,
-            "capture box value",
-            locals,
-            value,
-        ),
-        Rvalue::CaptureBoxGet { box_operand } => validate_materialized_operand(
-            materialized,
-            fqn,
-            block,
-            span,
-            "capture box source",
-            locals,
+        Rvalue::CaptureBoxNew { value, contract } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "capture box value",
+                locals,
+                value,
+            )?;
+            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
+        }
+        Rvalue::CaptureBoxGet {
             box_operand,
-        ),
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+            contract,
+        } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "capture box source",
+                locals,
+                box_operand,
+            )?;
+            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
+        }
+        Rvalue::CaptureBoxSet {
+            box_operand,
+            value,
+            contract,
+        } => {
             validate_materialized_operand(
                 materialized,
                 fqn,
@@ -1291,7 +1353,8 @@ fn validate_materialized_rvalue(
                 "capture box value",
                 locals,
                 value,
-            )
+            )?;
+            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
         }
         Rvalue::PatternMatch { subject, pattern } => {
             validate_materialized_operand(
@@ -1314,7 +1377,11 @@ fn validate_materialized_rvalue(
             locals,
             subject,
         ),
-        Rvalue::MakeClosure { env, fn_ptr } => {
+        Rvalue::MakeClosure {
+            env,
+            fn_ptr,
+            env_contract,
+        } => {
             validate_materialized_operand(
                 materialized,
                 fqn,
@@ -1331,7 +1398,8 @@ fn validate_materialized_rvalue(
                 fn_ptr,
                 root_sets.known_roots,
                 root_sets.generic_templates,
-            )
+            )?;
+            validate_materialized_closure_env_contract(materialized, fqn, block, span, env_contract)
         }
         Rvalue::PerformResult { effect_ty, .. } => validate_materialized_type(
             materialized,
@@ -1369,6 +1437,238 @@ fn validate_materialized_type_metadata_literal(
             surface: "type metadata literal source type",
         },
         metadata.source_ty,
+    )
+}
+
+fn validate_materialized_value_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    metadata: &ValueTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface,
+        },
+        metadata.source_ty,
+    )?;
+    if let Some(boxing) = &metadata.boxing {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "transport boxing source type",
+            },
+            boxing.source_ty,
+        )?;
+        if let Some(target_ty) = boxing.target_ty {
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface: "transport boxing target type",
+                },
+                target_ty,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_materialized_aggregate_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    metadata: &AggregateTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface,
+        },
+        metadata.aggregate_ty,
+    )?;
+    for field in &metadata.fields {
+        validate_materialized_aggregate_transport_field(materialized, fqn, block, span, field)?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_aggregate_transport_field(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    field: &AggregateTransportField,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "aggregate transport field type",
+        },
+        field.ty,
+    )?;
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "aggregate transport field value",
+        &field.transport,
+    )
+}
+
+fn validate_materialized_capture_box_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    contract: &CaptureBoxTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "capture box type",
+        },
+        contract.box_ty,
+    )?;
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "capture box value transport",
+        &contract.value,
+    )
+}
+
+fn validate_materialized_closure_env_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    contract: &ClosureEnvTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "closure env type",
+        },
+        contract.env_ty,
+    )?;
+    for capture in &contract.captures {
+        validate_materialized_closure_capture_transport(materialized, fqn, block, span, capture)?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_closure_capture_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    capture: &ClosureCaptureTransportMetadata,
+) -> MaterializeResult<()> {
+    let _ = capture.source_local;
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "closure capture transport",
+        &capture.transport,
+    )
+}
+
+fn validate_materialized_call_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    transport: &CallTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "call result transport",
+        &transport.result,
+    )?;
+    if let Some(aggregate_return) = &transport.aggregate_return {
+        validate_materialized_value_transport(
+            materialized,
+            fqn,
+            block,
+            span,
+            "call aggregate return transport",
+            aggregate_return,
+        )?;
+    }
+    if let Some(array) = &transport.array {
+        validate_materialized_array_transport(materialized, fqn, block, span, array)?;
+    }
+    Ok(())
+}
+
+fn validate_materialized_array_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    array: &ArrayElementTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "array transport array type",
+        },
+        array.array_ty,
+    )?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "array transport element type",
+        },
+        array.element_ty,
+    )?;
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "array element transport",
+        &array.element,
     )
 }
 
@@ -1762,6 +2062,16 @@ fn validate_materialized_perform_metadata(
                 surface: "perform payload component type",
             },
             payload_ty,
+        )?;
+    }
+    for payload in &metadata.payload_transport {
+        validate_materialized_value_transport(
+            materialized,
+            fqn,
+            block,
+            span,
+            "perform payload transport",
+            payload,
         )?;
     }
     Ok(())
@@ -5800,18 +6110,30 @@ impl MirInstanceMaterializer {
                 *receiver = self.rewrite_operand(receiver.clone());
                 self.rewrite_member_access_metadata(member, ctx);
             }
-            Rvalue::Call { kind, args, .. } => {
+            Rvalue::Call {
+                kind,
+                args,
+                transport,
+                ..
+            } => {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
                 self.rewrite_call_kind(stmt_span, block_id, kind, args, ctx)?;
+                self.rewrite_call_transport(transport, ctx.substitution);
             }
-            Rvalue::EnumVariant { enum_ty, args, .. } => {
+            Rvalue::EnumVariant {
+                enum_ty,
+                args,
+                payload,
+                ..
+            } => {
                 *enum_ty =
                     substitute_type_and_effect_params(&mut self.types, *enum_ty, ctx.substitution);
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
+                self.rewrite_aggregate_transport(payload, ctx.substitution);
             }
             Rvalue::ClassCtor {
                 args,
@@ -5829,15 +6151,20 @@ impl MirInstanceMaterializer {
                     })
                     .collect();
             }
-            Rvalue::MakeTuple { elements } => {
+            Rvalue::MakeTuple {
+                elements,
+                transport,
+            } => {
                 for element in elements.iter_mut() {
                     *element = self.rewrite_operand(element.clone());
                 }
+                self.rewrite_aggregate_transport(transport, ctx.substitution);
             }
-            Rvalue::StructLit { fields } => {
+            Rvalue::StructLit { fields, transport } => {
                 for field in fields.iter_mut() {
                     field.value = self.rewrite_operand(field.value.clone());
                 }
+                self.rewrite_aggregate_transport(transport, ctx.substitution);
             }
             Rvalue::InterpolatedString { parts, .. } => {
                 for part in parts.iter_mut() {
@@ -5852,13 +6179,25 @@ impl MirInstanceMaterializer {
                 }
             }
             Rvalue::TupleGet { tuple, .. } => *tuple = self.rewrite_operand(tuple.clone()),
-            Rvalue::CaptureBoxNew { value } => *value = self.rewrite_operand(value.clone()),
-            Rvalue::CaptureBoxGet { box_operand } => {
-                *box_operand = self.rewrite_operand(box_operand.clone());
+            Rvalue::CaptureBoxNew { value, contract } => {
+                *value = self.rewrite_operand(value.clone());
+                self.rewrite_capture_box_contract(contract, ctx.substitution);
             }
-            Rvalue::CaptureBoxSet { box_operand, value } => {
+            Rvalue::CaptureBoxGet {
+                box_operand,
+                contract,
+            } => {
+                *box_operand = self.rewrite_operand(box_operand.clone());
+                self.rewrite_capture_box_contract(contract, ctx.substitution);
+            }
+            Rvalue::CaptureBoxSet {
+                box_operand,
+                value,
+                contract,
+            } => {
                 *box_operand = self.rewrite_operand(box_operand.clone());
                 *value = self.rewrite_operand(value.clone());
+                self.rewrite_capture_box_contract(contract, ctx.substitution);
             }
             Rvalue::PatternMatch { subject, pattern } => {
                 *subject = self.rewrite_operand(subject.clone());
@@ -5868,13 +6207,18 @@ impl MirInstanceMaterializer {
                 *subject = self.rewrite_operand(subject.clone());
                 let _ = path;
             }
-            Rvalue::MakeClosure { env, fn_ptr } => {
+            Rvalue::MakeClosure {
+                env,
+                fn_ptr,
+                env_contract,
+            } => {
                 *env = self.rewrite_operand(env.clone());
                 if let Some(rewritten) =
                     rewrite_family_symbol_name(fn_ptr, ctx.template_root_fqn, ctx.instance_root_fqn)
                 {
                     *fn_ptr = rewritten;
                 }
+                self.rewrite_closure_env_contract(env_contract, ctx.substitution);
             }
             Rvalue::PerformResult { effect_ty, .. } => {
                 *effect_ty = substitute_type_and_effect_params(
@@ -6418,6 +6762,89 @@ impl MirInstanceMaterializer {
         for ty in &mut metadata.payload_component_tys {
             *ty = substitute_type_and_effect_params(&mut self.types, *ty, substitution);
         }
+        for transport in &mut metadata.payload_transport {
+            self.rewrite_value_transport(transport, substitution);
+        }
+    }
+
+    fn rewrite_value_transport(
+        &mut self,
+        transport: &mut ValueTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        transport.source_ty =
+            substitute_type_and_effect_params(&mut self.types, transport.source_ty, substitution);
+        if let Some(boxing) = &mut transport.boxing {
+            boxing.source_ty =
+                substitute_type_and_effect_params(&mut self.types, boxing.source_ty, substitution);
+            boxing.target_ty = boxing
+                .target_ty
+                .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        }
+    }
+
+    fn rewrite_aggregate_transport(
+        &mut self,
+        transport: &mut AggregateTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        transport.aggregate_ty = substitute_type_and_effect_params(
+            &mut self.types,
+            transport.aggregate_ty,
+            substitution,
+        );
+        for field in &mut transport.fields {
+            field.ty = substitute_type_and_effect_params(&mut self.types, field.ty, substitution);
+            self.rewrite_value_transport(&mut field.transport, substitution);
+        }
+    }
+
+    fn rewrite_capture_box_contract(
+        &mut self,
+        contract: &mut CaptureBoxTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        contract.box_ty =
+            substitute_type_and_effect_params(&mut self.types, contract.box_ty, substitution);
+        self.rewrite_value_transport(&mut contract.value, substitution);
+    }
+
+    fn rewrite_closure_env_contract(
+        &mut self,
+        contract: &mut ClosureEnvTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        contract.env_ty =
+            substitute_type_and_effect_params(&mut self.types, contract.env_ty, substitution);
+        for capture in &mut contract.captures {
+            self.rewrite_value_transport(&mut capture.transport, substitution);
+        }
+    }
+
+    fn rewrite_call_transport(
+        &mut self,
+        transport: &mut CallTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        self.rewrite_value_transport(&mut transport.result, substitution);
+        if let Some(aggregate_return) = &mut transport.aggregate_return {
+            self.rewrite_value_transport(aggregate_return, substitution);
+        }
+        if let Some(array) = &mut transport.array {
+            self.rewrite_array_transport(array, substitution);
+        }
+    }
+
+    fn rewrite_array_transport(
+        &mut self,
+        array: &mut ArrayElementTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        array.array_ty =
+            substitute_type_and_effect_params(&mut self.types, array.array_ty, substitution);
+        array.element_ty =
+            substitute_type_and_effect_params(&mut self.types, array.element_ty, substitution);
+        self.rewrite_value_transport(&mut array.element, substitution);
     }
 
     fn rewrite_operand(&mut self, operand: Operand) -> Operand {
@@ -8156,6 +8583,10 @@ fun main(): Int {
                             name: None,
                             value: Operand::Const(ConstValue::Int),
                         }],
+                        transport: CallTransportMetadata::plain_no_outward(
+                            builtins.int,
+                            crate::mir::MirTransportKind::Unknown,
+                        ),
                     },
                 },
             }],

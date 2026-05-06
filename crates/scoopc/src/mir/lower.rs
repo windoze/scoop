@@ -27,12 +27,16 @@ use crate::ty::{
 };
 
 use super::{
-    AccessorMetadata, BasicBlock, BasicBlockId, Body, CallArg, CallKind, ConstValue, CtorMetadata,
+    AccessorMetadata, AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
+    ArrayElementTransportMetadata, ArrayTransportOperation, BasicBlock, BasicBlockId, Body,
+    CallAbiHandoffMetadata, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
+    ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, CtorMetadata,
     CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
     EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
     HandleMetadata, HandlerArm, HandlerArmKind, InitializerDependency, InitializerDependencyKind,
     InitializerRoot, InitializerRootKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
     LocalSourceKind, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
+    MirBoxingIntent, MirBoxingReason, MirTransportKind, MirTransportRequirements,
     MirValidationError, NominalMetadata, ObjectMetadata, Operand, Param, Pattern,
     PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata,
     RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestKind,
@@ -40,7 +44,7 @@ use super::{
     RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, RuntimeTypeTestMetadata, Rvalue, SiteId,
     Statement, StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
     SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata,
-    TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction,
+    TypeMetadataLiteral, TypeMetadataLiteralKind, UnwindAction, ValueTransportMetadata,
 };
 
 /// MIR lowering 需要消费的最小共享事实。
@@ -392,6 +396,7 @@ impl MirLoweringFacts {
                     result_ty: contract.result_ty(),
                     payload_tuple_ty: contract.payload().ty(),
                     payload_component_tys: contract.payload().components().to_vec(),
+                    payload_transport: Vec::new(),
                     arg_mapping: contract.arg_mapping().to_vec(),
                 },
             );
@@ -965,6 +970,14 @@ pub struct LoweredMir {
 const UNTERMINATED: &str = "unterminated";
 /// `var` 可变捕获在 MIR dump 阶段使用的内部 box 类型名（T0714）。
 const CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
+const ARRAY_BUILDER_NEW_FQN: &str = "scoop.core.__scoop_array_builder_new";
+const ARRAY_BUILDER_PUSH_FQN: &str = "scoop.core.__scoop_array_builder_push";
+const ARRAY_BUILDER_PUSH_STRING_FQN: &str = "scoop.core.__scoop_array_builder_push_string";
+const ARRAY_BUILDER_BUILD_ARRAY_FQN: &str = "scoop.core.__scoop_array_builder_build_array";
+const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &str =
+    "scoop.core.__scoop_array_builder_build_mutable_array";
+const ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN: &str =
+    "scoop.core.__scoop_array_builder_build_array_string";
 
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
 ///
@@ -2003,6 +2016,7 @@ impl<'a> FnLowering<'a> {
                     local,
                     Rvalue::CaptureBoxNew {
                         value: Operand::Local(value),
+                        contract: self.capture_box_contract(box_ty, decl.ty),
                     },
                 );
             } else {
@@ -2052,6 +2066,10 @@ impl<'a> FnLowering<'a> {
                         Rvalue::CaptureBoxSet {
                             box_operand: Operand::Local(target),
                             value: Operand::Local(value),
+                            contract: self.capture_box_contract(
+                                self.body.locals[target.as_u32() as usize].ty,
+                                self.body.locals[value.as_u32() as usize].ty,
+                            ),
                         },
                     );
                 } else {
@@ -2133,6 +2151,10 @@ impl<'a> FnLowering<'a> {
                         Rvalue::CaptureBoxSet {
                             box_operand: Operand::Local(target),
                             value: Operand::Local(value),
+                            contract: self.capture_box_contract(
+                                self.body.locals[target.as_u32() as usize].ty,
+                                self.body.locals[value.as_u32() as usize].ty,
+                            ),
                         },
                     );
                 } else {
@@ -2406,14 +2428,23 @@ impl<'a> FnLowering<'a> {
     fn lower_tuple_lit_expr(&mut self, span: Span, ty: TypeId, elements: &[hir::Expr]) -> LocalId {
         let result = self.push_temp_local(span, ty);
         let mut lowered = Vec::with_capacity(elements.len());
+        let mut field_tys = Vec::with_capacity(elements.len());
         for element in elements {
             let local = self.lower_expr_to_local(element);
             if self.current_is_terminated() {
                 return result;
             }
+            field_tys.push((None, self.body.locals[local.as_u32() as usize].ty));
             lowered.push(Operand::Local(local));
         }
-        self.assign(span, result, Rvalue::MakeTuple { elements: lowered });
+        self.assign(
+            span,
+            result,
+            Rvalue::MakeTuple {
+                elements: lowered,
+                transport: self.aggregate_transport(ty, AggregateTransportKind::Tuple, field_tys),
+            },
+        );
         result
     }
 
@@ -2425,18 +2456,30 @@ impl<'a> FnLowering<'a> {
     ) -> LocalId {
         let result = self.push_temp_local(span, ty);
         let mut lowered = Vec::with_capacity(fields.len());
+        let mut field_tys = Vec::with_capacity(fields.len());
         for field in fields {
             let local = self.lower_expr_to_local(&field.value);
             if self.current_is_terminated() {
                 return result;
             }
+            field_tys.push((
+                Some(field.name.clone()),
+                self.body.locals[local.as_u32() as usize].ty,
+            ));
             lowered.push(crate::mir::StructLitField {
                 span: field.value.span,
                 name: field.name.clone(),
                 value: Operand::Local(local),
             });
         }
-        self.assign(span, result, Rvalue::StructLit { fields: lowered });
+        self.assign(
+            span,
+            result,
+            Rvalue::StructLit {
+                fields: lowered,
+                transport: self.aggregate_transport(ty, AggregateTransportKind::Struct, field_tys),
+            },
+        );
         result
     }
 
@@ -3083,6 +3126,11 @@ impl<'a> FnLowering<'a> {
             CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
         );
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
@@ -3090,6 +3138,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
         if terminates_current_block {
@@ -3149,6 +3198,11 @@ impl<'a> FnLowering<'a> {
             },
         };
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
@@ -3156,6 +3210,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
     }
@@ -3252,6 +3307,11 @@ impl<'a> FnLowering<'a> {
             },
         };
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
@@ -3259,6 +3319,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
     }
@@ -3306,6 +3367,316 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn transport_kind_for_ty(&self, ty: TypeId) -> MirTransportKind {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(_)) => MirTransportKind::FunctionValue,
+            TypeKind::Ref(_) => MirTransportKind::Reference,
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => MirTransportKind::Tuple,
+            TypeKind::Value(ValueTypeKind::Option(_)) => MirTransportKind::EnumPayload,
+            TypeKind::Value(ValueTypeKind::Nominal(_)) => MirTransportKind::Struct,
+            TypeKind::Value(_) => MirTransportKind::Scalar,
+            TypeKind::Param(_) | TypeKind::StarProjection(_) => MirTransportKind::Unknown,
+        }
+    }
+
+    fn type_requires_trace(&self, ty: TypeId) -> bool {
+        match self.types.kind(ty) {
+            TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
+            TypeKind::Value(ValueTypeKind::Option(inner)) => self.type_requires_trace(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                elements.iter().any(|ty| self.type_requires_trace(*ty))
+            }
+            // Nominal value fields are not in `TypeKind`; keep the contract conservative and
+            // force later layout to query declaration metadata instead of guessing scalar shape.
+            TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
+            TypeKind::Value(
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_),
+            ) => false,
+        }
+    }
+
+    fn is_aggregate_transport_ty(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Value(
+                ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_) | ValueTypeKind::Option(_)
+            )
+        )
+    }
+
+    fn transport_requirements(&self, ty: TypeId) -> MirTransportRequirements {
+        MirTransportRequirements {
+            trace: self.type_requires_trace(ty),
+            copy: true,
+            drop: self.type_requires_trace(ty) || self.is_aggregate_transport_ty(ty),
+        }
+    }
+
+    fn value_transport_with_kind(
+        &self,
+        ty: TypeId,
+        kind: MirTransportKind,
+    ) -> ValueTransportMetadata {
+        ValueTransportMetadata {
+            source_ty: ty,
+            kind,
+            requirements: self.transport_requirements(ty),
+            boxing: None,
+        }
+    }
+
+    fn value_transport(&self, ty: TypeId) -> ValueTransportMetadata {
+        self.value_transport_with_kind(ty, self.transport_kind_for_ty(ty))
+    }
+
+    fn value_transport_with_boxing_reason(
+        &self,
+        ty: TypeId,
+        kind: MirTransportKind,
+        reason: MirBoxingReason,
+        target_ty: Option<TypeId>,
+    ) -> ValueTransportMetadata {
+        let mut transport = self.value_transport_with_kind(ty, kind);
+        if self.is_aggregate_transport_ty(ty) {
+            transport.boxing = Some(MirBoxingIntent {
+                source_ty: ty,
+                target_ty,
+                reason,
+            });
+        }
+        transport
+    }
+
+    fn aggregate_transport(
+        &self,
+        aggregate_ty: TypeId,
+        kind: AggregateTransportKind,
+        fields: impl IntoIterator<Item = (Option<String>, TypeId)>,
+    ) -> AggregateTransportMetadata {
+        AggregateTransportMetadata {
+            aggregate_ty,
+            kind,
+            fields: fields
+                .into_iter()
+                .enumerate()
+                .map(|(index, (name, ty))| AggregateTransportField {
+                    index,
+                    name,
+                    ty,
+                    transport: self.value_transport(ty),
+                })
+                .collect(),
+        }
+    }
+
+    fn capture_box_contract(
+        &self,
+        box_ty: TypeId,
+        inner_ty: TypeId,
+    ) -> CaptureBoxTransportMetadata {
+        CaptureBoxTransportMetadata {
+            box_ty,
+            value: self.value_transport_with_boxing_reason(
+                inner_ty,
+                self.transport_kind_for_ty(inner_ty),
+                MirBoxingReason::ClosureCapture,
+                Some(box_ty),
+            ),
+        }
+    }
+
+    fn closure_env_contract(
+        &self,
+        env_ty: TypeId,
+        captures: &[ClosureCaptureLayout],
+    ) -> ClosureEnvTransportMetadata {
+        ClosureEnvTransportMetadata {
+            env_ty,
+            captures: captures
+                .iter()
+                .map(|capture| {
+                    let kind = if capture.mutable {
+                        MirTransportKind::CaptureBox
+                    } else {
+                        self.transport_kind_for_ty(capture.ty)
+                    };
+                    let transport = if capture.mutable {
+                        self.value_transport_with_kind(capture.ty, kind)
+                    } else {
+                        self.value_transport_with_boxing_reason(
+                            capture.ty,
+                            kind,
+                            MirBoxingReason::ClosureCapture,
+                            Some(env_ty),
+                        )
+                    };
+                    ClosureCaptureTransportMetadata {
+                        name: capture.name.clone(),
+                        decl_span: capture.decl_span,
+                        mutable: capture.mutable,
+                        source_local: capture.source_local,
+                        transport,
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    fn call_transport_metadata(
+        &self,
+        result_ty: TypeId,
+        kind: &CallKind,
+        args: &[CallArg],
+    ) -> CallTransportMetadata {
+        let result = self.value_transport(result_ty);
+        let aggregate_return = self
+            .is_aggregate_transport_ty(result_ty)
+            .then(|| result.clone());
+        CallTransportMetadata {
+            result,
+            aggregate_return,
+            array: self.array_transport_metadata(result_ty, kind, args),
+            abi: self.call_abi_handoff(kind),
+        }
+    }
+
+    fn call_abi_handoff(&self, kind: &CallKind) -> CallAbiHandoffMetadata {
+        match kind {
+            CallKind::Direct { callee_fqn } if Self::is_plain_no_outward_intrinsic(callee_fqn) => {
+                CallAbiHandoffMetadata::plain_no_outward()
+            }
+            _ => CallAbiHandoffMetadata::deferred_to_effect_facts(),
+        }
+    }
+
+    fn is_plain_no_outward_intrinsic(fqn: &str) -> bool {
+        matches!(
+            fqn,
+            ARRAY_BUILDER_NEW_FQN
+                | ARRAY_BUILDER_PUSH_FQN
+                | ARRAY_BUILDER_PUSH_STRING_FQN
+                | ARRAY_BUILDER_BUILD_ARRAY_FQN
+                | ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN
+                | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN
+        )
+    }
+
+    fn array_transport_metadata(
+        &self,
+        result_ty: TypeId,
+        kind: &CallKind,
+        args: &[CallArg],
+    ) -> Option<ArrayElementTransportMetadata> {
+        let CallKind::Direct { callee_fqn } = kind else {
+            return None;
+        };
+        match callee_fqn.as_str() {
+            ARRAY_BUILDER_PUSH_FQN | ARRAY_BUILDER_PUSH_STRING_FQN => {
+                let builder_ty = args
+                    .first()
+                    .map(|arg| self.operand_ty(&arg.value))
+                    .unwrap_or(self.builtins.any);
+                let element_ty = args
+                    .get(1)
+                    .map(|arg| self.operand_ty(&arg.value))
+                    .unwrap_or(self.builtins.any);
+                Some(ArrayElementTransportMetadata {
+                    operation: ArrayTransportOperation::BuilderPush,
+                    array_ty: builder_ty,
+                    element_ty,
+                    mutable: true,
+                    element: self.value_transport_with_boxing_reason(
+                        element_ty,
+                        MirTransportKind::ArrayElement,
+                        MirBoxingReason::ArrayElement,
+                        Some(builder_ty),
+                    ),
+                })
+            }
+            ARRAY_BUILDER_BUILD_ARRAY_FQN | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN => {
+                let element_ty = self.array_element_ty_from_array_ty(result_ty);
+                Some(ArrayElementTransportMetadata {
+                    operation: ArrayTransportOperation::BuilderBuildArray,
+                    array_ty: result_ty,
+                    element_ty,
+                    mutable: false,
+                    element: self
+                        .value_transport_with_kind(element_ty, MirTransportKind::ArrayElement),
+                })
+            }
+            ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN => {
+                let element_ty = self.array_element_ty_from_array_ty(result_ty);
+                Some(ArrayElementTransportMetadata {
+                    operation: ArrayTransportOperation::BuilderBuildMutableArray,
+                    array_ty: result_ty,
+                    element_ty,
+                    mutable: true,
+                    element: self
+                        .value_transport_with_kind(element_ty, MirTransportKind::ArrayElement),
+                })
+            }
+            _ if callee_fqn.ends_with(".get") => Some(ArrayElementTransportMetadata {
+                operation: ArrayTransportOperation::Get,
+                array_ty: args
+                    .first()
+                    .map(|arg| self.operand_ty(&arg.value))
+                    .unwrap_or(self.builtins.any),
+                element_ty: result_ty,
+                mutable: false,
+                element: self.value_transport_with_kind(result_ty, MirTransportKind::ArrayElement),
+            }),
+            _ if callee_fqn.ends_with(".set") => {
+                let array_ty = args
+                    .first()
+                    .map(|arg| self.operand_ty(&arg.value))
+                    .unwrap_or(self.builtins.any);
+                let element_ty = args
+                    .last()
+                    .map(|arg| self.operand_ty(&arg.value))
+                    .unwrap_or(self.builtins.any);
+                Some(ArrayElementTransportMetadata {
+                    operation: ArrayTransportOperation::Set,
+                    array_ty,
+                    element_ty,
+                    mutable: true,
+                    element: self.value_transport_with_boxing_reason(
+                        element_ty,
+                        MirTransportKind::ArrayElement,
+                        MirBoxingReason::ArrayElement,
+                        Some(array_ty),
+                    ),
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn array_element_ty_from_array_ty(&self, array_ty: TypeId) -> TypeId {
+        match self.types.kind(array_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if matches!(
+                    nominal.fqn.as_str(),
+                    "scoop.core.Array"
+                        | "scoop.core.MutableArray"
+                        | "scoop.core.List"
+                        | "scoop.core.MutableList"
+                ) =>
+            {
+                nominal.args.first().copied().unwrap_or(self.builtins.any)
+            }
+            _ => self.builtins.any,
+        }
+    }
+
     fn canonicalize_perform_args(
         &mut self,
         span: Span,
@@ -3313,7 +3684,7 @@ impl<'a> FnLowering<'a> {
         lowered_args: Vec<CallArg>,
     ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
         let uses_refactor_typed_contracts = self.facts.uses_refactor_typed_contracts();
-        if let Some(metadata) = self
+        if let Some(mut metadata) = self
             .facts
             .refactor_perform_metadata(self.source_path.as_path(), span)
             .filter(|metadata| {
@@ -3353,6 +3724,18 @@ impl<'a> FnLowering<'a> {
                     })
                     .collect::<Vec<_>>()
             };
+            metadata.payload_transport = perform_args
+                .iter()
+                .map(|arg| {
+                    let ty = self.operand_ty(&arg.value);
+                    self.value_transport_with_boxing_reason(
+                        ty,
+                        MirTransportKind::EffectPayload,
+                        MirBoxingReason::EffectPayload,
+                        metadata.payload_tuple_ty,
+                    )
+                })
+                .collect();
             return Some((perform_args, metadata));
         }
 
@@ -3393,6 +3776,18 @@ impl<'a> FnLowering<'a> {
             .iter()
             .map(|arg| self.operand_ty(&arg.value))
             .collect();
+        let payload_transport = perform_args
+            .iter()
+            .map(|arg| {
+                let ty = self.operand_ty(&arg.value);
+                self.value_transport_with_boxing_reason(
+                    ty,
+                    MirTransportKind::EffectPayload,
+                    MirBoxingReason::EffectPayload,
+                    payload_tuple_ty,
+                )
+            })
+            .collect();
 
         Some((
             perform_args,
@@ -3401,6 +3796,7 @@ impl<'a> FnLowering<'a> {
                 result_ty,
                 payload_tuple_ty,
                 payload_component_tys,
+                payload_transport,
                 arg_mapping,
             },
         ))
@@ -3455,6 +3851,13 @@ impl<'a> FnLowering<'a> {
             let Some(args) = self.lower_call_args(args) else {
                 return result;
             };
+            let payload = self.aggregate_transport(
+                ty,
+                AggregateTransportKind::EnumPayload,
+                args.iter()
+                    .map(|arg| (arg.name.clone(), self.operand_ty(&arg.value)))
+                    .collect::<Vec<_>>(),
+            );
             self.assign(
                 span,
                 result,
@@ -3462,6 +3865,7 @@ impl<'a> FnLowering<'a> {
                     enum_ty: ty,
                     variant_name: name.clone(),
                     args,
+                    payload,
                 },
             );
             return result;
@@ -3547,6 +3951,7 @@ impl<'a> FnLowering<'a> {
         );
 
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(result_ty, &kind, &args);
         self.assign(
             span,
             result,
@@ -3554,6 +3959,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
         if terminates_current_block {
@@ -3676,16 +4082,23 @@ impl<'a> FnLowering<'a> {
             }
         });
         let site_id = self.fresh_site_id();
+        let kind = CallKind::Resume {
+            continuation: Operand::Local(continuation_local),
+            resume,
+        };
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
             Rvalue::Call {
                 site_id,
-                kind: CallKind::Resume {
-                    continuation: Operand::Local(continuation_local),
-                    resume,
-                },
+                kind,
                 args,
+                transport,
             },
         );
     }
@@ -3726,16 +4139,24 @@ impl<'a> FnLowering<'a> {
     ) {
         metadata.runtime_error_effect_ty = None;
         let site_id = self.fresh_site_id();
+        let kind = CallKind::Resume {
+            continuation: Operand::Const(ConstValue::Unit),
+            resume: metadata,
+        };
+        let args = Vec::new();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
             Rvalue::Call {
                 site_id,
-                kind: CallKind::Resume {
-                    continuation: Operand::Const(ConstValue::Unit),
-                    resume: metadata,
-                },
-                args: Vec::new(),
+                kind,
+                args,
+                transport,
             },
         );
     }
@@ -3817,6 +4238,11 @@ impl<'a> FnLowering<'a> {
             },
         };
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
@@ -3824,6 +4250,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
         true
@@ -3886,6 +4313,11 @@ impl<'a> FnLowering<'a> {
             },
         };
         let site_id = self.fresh_site_id();
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &kind,
+            &args,
+        );
         self.assign(
             span,
             result,
@@ -3893,6 +4325,7 @@ impl<'a> FnLowering<'a> {
                 site_id,
                 kind,
                 args,
+                transport,
             },
         );
         true
@@ -3957,6 +4390,7 @@ impl<'a> FnLowering<'a> {
                         result_ty: ty,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
+                        payload_transport: Vec::new(),
                         arg_mapping: Vec::new(),
                     },
                     args: perform_args,
@@ -4439,26 +4873,30 @@ impl<'a> FnLowering<'a> {
 
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let site_id = self.fresh_site_id();
+        let kind = CallKind::Direct {
+            callee_fqn: binding.fqn.clone(),
+        };
+        let args = vec![
+            CallArg {
+                span: lhs.span,
+                name: None,
+                value: Operand::Local(lhs_local),
+            },
+            CallArg {
+                span: rhs.span,
+                name: None,
+                value: Operand::Local(rhs_local),
+            },
+        ];
+        let transport = self.call_transport_metadata(self.builtins.int, &kind, &args);
         self.assign(
             span,
             compare_result,
             Rvalue::Call {
                 site_id,
-                kind: CallKind::Direct {
-                    callee_fqn: binding.fqn.clone(),
-                },
-                args: vec![
-                    CallArg {
-                        span: lhs.span,
-                        name: None,
-                        value: Operand::Local(lhs_local),
-                    },
-                    CallArg {
-                        span: rhs.span,
-                        name: None,
-                        value: Operand::Local(rhs_local),
-                    },
-                ],
+                kind,
+                args,
+                transport,
             },
         );
 
@@ -4498,6 +4936,10 @@ impl<'a> FnLowering<'a> {
                         tmp,
                         Rvalue::CaptureBoxGet {
                             box_operand: Operand::Local(local),
+                            contract: self.capture_box_contract(
+                                self.body.locals[local.as_u32() as usize].ty,
+                                ty,
+                            ),
                         },
                     );
                     tmp
@@ -4566,10 +5008,19 @@ impl<'a> FnLowering<'a> {
                         .iter()
                         .map(|c| Operand::Local(c.source_local))
                         .collect(),
+                    transport: self.aggregate_transport(
+                        env_ty,
+                        AggregateTransportKind::ClosureEnv,
+                        captures
+                            .iter()
+                            .map(|c| (Some(c.name.clone()), c.ty))
+                            .collect::<Vec<_>>(),
+                    ),
                 },
             );
             (env_ty, Operand::Local(env_local))
         };
+        let env_contract = self.closure_env_contract(env_ty, &captures);
 
         let (fun, nested) = {
             let types = &mut *self.types;
@@ -4593,6 +5044,7 @@ impl<'a> FnLowering<'a> {
             Rvalue::MakeClosure {
                 env: env_operand,
                 fn_ptr: fqn,
+                env_contract,
             },
         );
         tmp

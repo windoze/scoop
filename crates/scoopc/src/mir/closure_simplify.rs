@@ -161,7 +161,7 @@ impl BlockClosureProvenance {
             return;
         };
         match value {
-            Rvalue::MakeClosure { env, fn_ptr }
+            Rvalue::MakeClosure { env, fn_ptr, .. }
                 if matches!(env, Operand::Const(super::ConstValue::Unit))
                     && proven_non_escaping_single_call_closure(facts, *target, fn_ptr)
                         .is_some() =>
@@ -392,9 +392,10 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -423,12 +424,12 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 collect_operand_use(&arg.value, out);
             }
         }
-        Rvalue::MakeTuple { elements } => {
+        Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 collect_operand_use(element, out);
             }
         }
-        Rvalue::StructLit { fields } => {
+        Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 collect_operand_use(&field.value, out);
             }
@@ -440,7 +441,9 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                 }
             }
         }
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             collect_operand_use(box_operand, out);
             collect_operand_use(value, out);
         }

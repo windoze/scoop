@@ -962,9 +962,10 @@ fn collect_rvalue_uses(
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -995,12 +996,12 @@ fn collect_rvalue_uses(
                 collect_operand_use(&arg.value, defs, uses_before_def, read_states, state_id);
             }
         }
-        Rvalue::MakeTuple { elements } => {
+        Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 collect_operand_use(element, defs, uses_before_def, read_states, state_id);
             }
         }
-        Rvalue::StructLit { fields } => {
+        Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 collect_operand_use(&field.value, defs, uses_before_def, read_states, state_id);
             }
@@ -1012,7 +1013,9 @@ fn collect_rvalue_uses(
                 }
             }
         }
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             collect_operand_use(box_operand, defs, uses_before_def, read_states, state_id);
             collect_operand_use(value, defs, uses_before_def, read_states, state_id);
         }

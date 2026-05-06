@@ -261,11 +261,13 @@ mod tests {
     use super::RefactorMirStageOutput;
     use crate::ast;
     use crate::mir::{
-        CallKind, HandlerArmKind, InitializerDependencyKind, InitializerRootKind, Item,
-        MemberTarget, MetadataRoot, MirLowerError, MirLoweringFacts, MirSiteMetadataKind,
-        MirValidationError, Operand, Pattern, RuntimeCastFailure, RuntimeCastResult,
-        RuntimePatternTypeTestKind, RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch,
-        RuntimeTypeStaticFold, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        AggregateTransportKind, ArrayTransportOperation, CallKind, HandlerArmKind,
+        InitializerDependencyKind, InitializerRootKind, Item, MemberTarget, MetadataRoot,
+        MirBoxingReason, MirCallableAbiKind, MirCallableImplPlan, MirLowerError, MirLoweringFacts,
+        MirSiteMetadataKind, MirTransportKind, MirValidationError, Operand, Pattern,
+        RuntimeCastFailure, RuntimeCastResult, RuntimePatternTypeTestKind,
+        RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue,
+        StatementKind, TerminatorKind, UnwindAction, ValueTransportMetadata,
         lower_hir_file_for_dump_with_facts,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
@@ -914,6 +916,188 @@ fun bad() {
         );
     }
 
+    #[test]
+    fn refactor_mir_aggregate_transport_records_composite_contracts() {
+        let output = run_fixture("mir_refactor", "aggregate_transport.scoop");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("Todo"),
+            "aggregate transport fixture must not leak MIR Todo: {dump}"
+        );
+
+        let mut saw_tuple = false;
+        let mut saw_struct = false;
+        let mut saw_enum_unit = false;
+        let mut saw_enum_nested = false;
+        let mut saw_enum_wide = false;
+        let mut saw_closure_env = false;
+        let mut saw_capture_box = false;
+        let mut saw_array_build = false;
+        let mut saw_array_get = false;
+        let mut saw_array_set = false;
+        let mut saw_array_element_boxing = false;
+        let mut saw_effect_payload = false;
+        let mut saw_effect_payload_boxing = false;
+        let mut saw_fun_value_abi = false;
+        let mut saw_aggregate_return = false;
+
+        for fun in output.file().items.iter().filter_map(|item| match item {
+            Item::Fun(fun) => Some(fun),
+            _ => None,
+        }) {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            body.validate_refactor_direct_style()
+                .unwrap_or_else(|err| panic!("{} should validate: {err}", fun.fqn));
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let StatementKind::Assign { value, .. } = &stmt.kind else {
+                        continue;
+                    };
+                    match value {
+                        Rvalue::MakeTuple {
+                            elements,
+                            transport,
+                        } => {
+                            match transport.kind {
+                                AggregateTransportKind::Tuple => saw_tuple = true,
+                                AggregateTransportKind::ClosureEnv => saw_closure_env = true,
+                                other => panic!("unexpected MakeTuple transport kind: {other:?}"),
+                            }
+                            assert_eq!(transport.fields.len(), elements.len());
+                            assert_transport_fields_are_consistent(&transport.fields);
+                        }
+                        Rvalue::StructLit { fields, transport } => {
+                            saw_struct = true;
+                            assert_eq!(transport.kind, AggregateTransportKind::Struct);
+                            assert_eq!(transport.fields.len(), fields.len());
+                            assert_transport_fields_are_consistent(&transport.fields);
+                        }
+                        Rvalue::EnumVariant {
+                            variant_name,
+                            args,
+                            payload,
+                            ..
+                        } => {
+                            assert_eq!(payload.kind, AggregateTransportKind::EnumPayload);
+                            assert_eq!(payload.fields.len(), args.len());
+                            assert_transport_fields_are_consistent(&payload.fields);
+                            match variant_name.as_str() {
+                                "Empty" if payload.fields.is_empty() => saw_enum_unit = true,
+                                "Nested" if payload.fields.len() == 2 => saw_enum_nested = true,
+                                "Wide" if payload.fields.len() == 1 => saw_enum_wide = true,
+                                _ => {}
+                            }
+                        }
+                        Rvalue::CaptureBoxNew { contract, .. }
+                        | Rvalue::CaptureBoxGet { contract, .. }
+                        | Rvalue::CaptureBoxSet { contract, .. } => {
+                            saw_capture_box = true;
+                            assert_ne!(contract.box_ty, contract.value.source_ty);
+                        }
+                        Rvalue::MakeClosure { env_contract, .. }
+                            if !env_contract.captures.is_empty() =>
+                        {
+                            saw_closure_env = true;
+                            assert!(env_contract.captures.iter().any(|capture| {
+                                capture.mutable
+                                    && capture.transport.kind == MirTransportKind::CaptureBox
+                            }));
+                            assert!(env_contract.captures.iter().any(|capture| {
+                                value_transport_has_boxing(
+                                    &capture.transport,
+                                    MirBoxingReason::ClosureCapture,
+                                )
+                            }));
+                        }
+                        Rvalue::Call {
+                            kind, transport, ..
+                        } => {
+                            if transport.aggregate_return.is_some() {
+                                saw_aggregate_return = true;
+                            }
+                            if let Some(array) = &transport.array {
+                                match array.operation {
+                                    ArrayTransportOperation::BuilderBuildArray
+                                    | ArrayTransportOperation::BuilderBuildMutableArray => {
+                                        saw_array_build = true;
+                                    }
+                                    ArrayTransportOperation::Get => saw_array_get = true,
+                                    ArrayTransportOperation::Set => saw_array_set = true,
+                                    ArrayTransportOperation::BuilderNew
+                                    | ArrayTransportOperation::BuilderPush => {}
+                                }
+                                saw_array_element_boxing |= value_transport_has_boxing(
+                                    &array.element,
+                                    MirBoxingReason::ArrayElement,
+                                );
+                            }
+                            if matches!(kind, CallKind::FunValue { .. }) {
+                                saw_fun_value_abi = true;
+                                assert_eq!(
+                                    transport.abi.callable_abi_kind,
+                                    MirCallableAbiKind::DeferredToEffectFacts
+                                );
+                                assert_eq!(
+                                    transport.abi.impl_plan,
+                                    MirCallableImplPlan::DeferredToEffectFacts
+                                );
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                if let TerminatorKind::Perform { metadata, args, .. } = &block.terminator.kind {
+                    saw_effect_payload = true;
+                    assert_eq!(metadata.payload_transport.len(), args.len());
+                    for transport in &metadata.payload_transport {
+                        assert_eq!(transport.kind, MirTransportKind::EffectPayload);
+                        saw_effect_payload_boxing |=
+                            value_transport_has_boxing(transport, MirBoxingReason::EffectPayload);
+                    }
+                }
+            }
+        }
+
+        assert!(saw_tuple, "tuple aggregate transport missing: {dump}");
+        assert!(saw_struct, "struct aggregate transport missing: {dump}");
+        assert!(saw_enum_unit, "unit enum payload schema missing: {dump}");
+        assert!(
+            saw_enum_nested,
+            "nested enum payload schema missing: {dump}"
+        );
+        assert!(saw_enum_wide, "wide enum payload schema missing: {dump}");
+        assert!(saw_closure_env, "closure env transport missing: {dump}");
+        assert!(
+            saw_capture_box,
+            "mutable capture box transport missing: {dump}"
+        );
+        assert!(saw_array_build, "array build transport missing: {dump}");
+        assert!(saw_array_get, "array get transport missing: {dump}");
+        assert!(saw_array_set, "array set transport missing: {dump}");
+        assert!(
+            saw_array_element_boxing,
+            "array composite element boxing intent missing: {dump}"
+        );
+        assert!(
+            saw_effect_payload,
+            "effect payload transport missing: {dump}"
+        );
+        assert!(
+            saw_effect_payload_boxing,
+            "effect composite payload boxing intent missing: {dump}"
+        );
+        assert!(
+            saw_fun_value_abi,
+            "function-value ABI handoff missing: {dump}"
+        );
+        assert!(
+            saw_aggregate_return,
+            "aggregate return transport missing: {dump}"
+        );
+    }
+
     fn pattern_contains_variant(pattern: &Pattern, expected: &str) -> bool {
         match pattern {
             Pattern::Variant { name, .. } => name == expected,
@@ -933,6 +1117,20 @@ fun bad() {
             | Pattern::StringLit { .. }
             | Pattern::BoolLit { .. } => false,
         }
+    }
+
+    fn assert_transport_fields_are_consistent(fields: &[crate::mir::AggregateTransportField]) {
+        for (index, field) in fields.iter().enumerate() {
+            assert_eq!(field.index, index);
+            assert_eq!(field.ty, field.transport.source_ty);
+        }
+    }
+
+    fn value_transport_has_boxing(
+        transport: &ValueTransportMetadata,
+        reason: MirBoxingReason,
+    ) -> bool {
+        matches!(transport.boxing.as_ref(), Some(boxing) if boxing.reason == reason)
     }
 
     fn collect_pattern_is_metadata(

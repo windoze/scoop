@@ -699,7 +699,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T10：收口 aggregate/array/enum/closure transport 的 MIR contract
+## [DONE] MIR-T10：收口 aggregate/array/enum/closure transport 的 MIR contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M6
@@ -738,6 +738,21 @@
   - composite source values 在 MIR 中有 explicit transport contract。
   - 后续 backend gaps 可以明确归类为 layout/codegen 未实现，而不是 MIR 信息缺失。
 - 依赖：`MIR-T09R`
+
+- 完成记录（2026-05-07）：
+  - 新增 `mir::transport` 元数据模型，覆盖 value transport kind、trace/copy/drop requirements、boxing intent、aggregate field schema、closure env/capture box、array element operation、call transport 与 MIR-side ABI handoff marker。
+  - refactor MIR lowering 现在为 tuple/struct literal、enum payload、closure env、mutable capture box、array build/get/set、call result/aggregate return、function-value/effect-facing call、perform payload 发布 explicit transport contract。
+  - strict production verifier 增加 transport metadata 一致性检查，并拒绝 `StoreMember` continuation route 的 `Ambiguous` publication，避免后端猜测 continuation payload path。
+  - materialized MIR verifier/substitution 覆盖新增 aggregate/closure/capture/call/array/perform transport metadata，防止 generic type/effect param 留在 composite transport contract 中。
+  - 新增 `tests/fixtures/mir_refactor/aggregate_transport.scoop`，覆盖 tuple、struct、unit/nested/wide enum payload、array build/get/set、closure capture、mutable capture box、function-value call 和 effect payload。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_aggregate_transport`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/aggregate_transport.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_call_contract`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T10R：Review MIR-T10 composite transport contract
 

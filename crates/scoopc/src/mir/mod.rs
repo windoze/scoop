@@ -26,6 +26,7 @@ mod pass_view;
 #[cfg(test)]
 mod placeholder_inventory;
 mod summary;
+mod transport;
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
@@ -60,6 +61,13 @@ pub(crate) use summary::{
 pub use summary::{
     InstanceSummary, MaterializedMirSummaries, ParamUseSummary, ResultProvenance,
     ResultProvenanceSource,
+};
+pub use transport::{
+    AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
+    ArrayElementTransportMetadata, ArrayTransportOperation, CallAbiHandoffMetadata,
+    CallTransportMetadata, CaptureBoxTransportMetadata, ClosureCaptureTransportMetadata,
+    ClosureEnvTransportMetadata, MirBoxingIntent, MirBoxingReason, MirCallableAbiKind,
+    MirCallableImplPlan, MirTransportKind, MirTransportRequirements, ValueTransportMetadata,
 };
 
 /// MIR materialization 的 request-root 策略。
@@ -242,6 +250,16 @@ impl File {
                     fqn, body, block, stmt.span, result_ty, value,
                 )
             }
+            StatementKind::StoreMember {
+                continuation_route: StoredContinuationRoutePublication::Ambiguous,
+                ..
+            } => Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: fqn.to_string(),
+                block,
+                span: stmt.span,
+                transport: "member store continuation route",
+                detail: "ambiguous continuation route must be split or rejected before handoff",
+            }),
             StatementKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
                 fqn: fqn.to_string(),
                 block: Some(block),
@@ -273,8 +291,101 @@ impl File {
                 category: MirPlaceholderCategory::Rvalue,
                 reason,
             }),
-            Rvalue::Call { kind, .. } => {
-                self.validate_refactor_production_call_kind(fqn, block, span, kind)
+            Rvalue::Call {
+                kind, transport, ..
+            } => {
+                self.validate_refactor_production_call_kind(fqn, block, span, kind)?;
+                self.validate_refactor_value_transport(
+                    site,
+                    "call result",
+                    result_ty,
+                    &transport.result,
+                )?;
+                if let Some(aggregate_return) = &transport.aggregate_return {
+                    self.validate_refactor_value_transport(
+                        site,
+                        "call aggregate return",
+                        result_ty,
+                        aggregate_return,
+                    )?;
+                }
+                if let Some(array) = &transport.array {
+                    self.validate_refactor_value_transport(
+                        site,
+                        "array element",
+                        Some(array.element_ty),
+                        &array.element,
+                    )?;
+                }
+                Ok(())
+            }
+            Rvalue::EnumVariant {
+                enum_ty,
+                args,
+                payload,
+                ..
+            } => self.validate_refactor_aggregate_transport(
+                site,
+                "enum payload",
+                *enum_ty,
+                AggregateTransportKind::EnumPayload,
+                args.len(),
+                payload,
+            ),
+            Rvalue::MakeTuple {
+                elements,
+                transport,
+            } => self.validate_refactor_aggregate_transport(
+                site,
+                "tuple aggregate",
+                result_ty.unwrap_or(transport.aggregate_ty),
+                transport.kind,
+                elements.len(),
+                transport,
+            ),
+            Rvalue::StructLit { fields, transport } => self.validate_refactor_aggregate_transport(
+                site,
+                "struct aggregate",
+                result_ty.unwrap_or(transport.aggregate_ty),
+                AggregateTransportKind::Struct,
+                fields.len(),
+                transport,
+            ),
+            Rvalue::CaptureBoxNew { value, contract } => self.validate_refactor_value_transport(
+                site,
+                "capture box value",
+                Self::refactor_operand_ty(body, value),
+                &contract.value,
+            ),
+            Rvalue::CaptureBoxGet { contract, .. } => self.validate_refactor_value_transport(
+                site,
+                "capture box value",
+                Some(contract.value.source_ty),
+                &contract.value,
+            ),
+            Rvalue::CaptureBoxSet {
+                value, contract, ..
+            } => self.validate_refactor_value_transport(
+                site,
+                "capture box value",
+                Self::refactor_operand_ty(body, value),
+                &contract.value,
+            ),
+            Rvalue::MakeClosure {
+                env, env_contract, ..
+            } => {
+                if Self::refactor_operand_ty(body, env)
+                    .is_some_and(|env_ty| env_ty != env_contract.env_ty)
+                {
+                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        transport: "closure env",
+                        detail: "closure env type and env operand type disagree",
+                    });
+                }
+                Ok(())
             }
             Rvalue::TypeCheck {
                 value,
@@ -346,6 +457,84 @@ impl File {
                 primitive: "typecheck",
                 detail: "target type and runtime descriptor disagree",
             });
+        }
+        Ok(())
+    }
+
+    fn validate_refactor_value_transport(
+        &self,
+        site: RefactorProductionSiteContext<'_>,
+        transport: &'static str,
+        expected_source_ty: Option<TypeId>,
+        metadata: &ValueTransportMetadata,
+    ) -> Result<(), MirValidationError> {
+        if expected_source_ty.is_some_and(|source_ty| metadata.source_ty != source_ty) {
+            return Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                transport,
+                detail: "source type and operand/local type disagree",
+            });
+        }
+        if metadata
+            .boxing
+            .as_ref()
+            .is_some_and(|boxing| boxing.source_ty != metadata.source_ty)
+        {
+            return Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                transport,
+                detail: "boxing source type and transport source type disagree",
+            });
+        }
+        Ok(())
+    }
+
+    fn validate_refactor_aggregate_transport(
+        &self,
+        site: RefactorProductionSiteContext<'_>,
+        transport: &'static str,
+        expected_aggregate_ty: TypeId,
+        expected_kind: AggregateTransportKind,
+        expected_field_count: usize,
+        metadata: &AggregateTransportMetadata,
+    ) -> Result<(), MirValidationError> {
+        let detail = if metadata.aggregate_ty != expected_aggregate_ty {
+            Some("aggregate transport type and result/source type disagree")
+        } else if metadata.kind != expected_kind {
+            Some("aggregate transport kind is wrong for this MIR node")
+        } else if metadata.fields.len() != expected_field_count {
+            Some("aggregate transport field count does not match lowered values")
+        } else if metadata
+            .fields
+            .iter()
+            .enumerate()
+            .any(|(index, field)| field.index != index || field.ty != field.transport.source_ty)
+        {
+            Some("aggregate transport field metadata is inconsistent")
+        } else {
+            None
+        };
+
+        if let Some(detail) = detail {
+            return Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                transport,
+                detail,
+            });
+        }
+        for field in &metadata.fields {
+            self.validate_refactor_value_transport(
+                site,
+                transport,
+                Some(field.ty),
+                &field.transport,
+            )?;
         }
         Ok(())
     }
@@ -1531,6 +1720,7 @@ pub struct PerformMetadata {
     pub result_ty: TypeId,
     pub payload_tuple_ty: Option<TypeId>,
     pub payload_component_tys: Vec<TypeId>,
+    pub payload_transport: Vec<ValueTransportMetadata>,
     pub arg_mapping: Vec<usize>,
 }
 
@@ -1842,6 +2032,7 @@ pub enum Rvalue {
         enum_ty: TypeId,
         variant_name: String,
         args: Vec<CallArg>,
+        payload: AggregateTransportMetadata,
     },
     /// Class constructor call after typed HIR has identified the nominal result class.
     ClassCtor {
@@ -1858,14 +2049,17 @@ pub enum Rvalue {
         site_id: SiteId,
         kind: CallKind,
         args: Vec<CallArg>,
+        transport: CallTransportMetadata,
     },
     /// 创建一个 tuple 值（最小 aggregate，用于 env struct 等场景）。
     MakeTuple {
         elements: Vec<Operand>,
+        transport: AggregateTransportMetadata,
     },
     /// 创建一个 struct 值。字段值已按源码求值顺序先 lower 为 operand。
     StructLit {
         fields: Vec<StructLitField>,
+        transport: AggregateTransportMetadata,
     },
     /// 编译期 `sizeOf(value)` intrinsic；`value` 本身不求值，只消费静态类型。
     SizeOf {
@@ -1889,10 +2083,12 @@ pub enum Rvalue {
     /// 从而保证 `var` 在内外层的读写具备别名一致性。
     CaptureBoxNew {
         value: Operand,
+        contract: CaptureBoxTransportMetadata,
     },
     /// 从“可变捕获盒”读取当前值（T0714）。
     CaptureBoxGet {
         box_operand: Operand,
+        contract: CaptureBoxTransportMetadata,
     },
     /// 向“可变捕获盒”写入新值（T0714）。
     ///
@@ -1901,6 +2097,7 @@ pub enum Rvalue {
     CaptureBoxSet {
         box_operand: Operand,
         value: Operand,
+        contract: CaptureBoxTransportMetadata,
     },
     /// 一个 `when` arm 的 pattern test（结果为 Bool）。
     PatternMatch {
@@ -1920,6 +2117,7 @@ pub enum Rvalue {
     MakeClosure {
         env: Operand,
         fn_ptr: String,
+        env_contract: ClosureEnvTransportMetadata,
     },
     /// `perform` 被 handler/resume 继续执行后，原表达式位置接收到的结果值 provenance。
     PerformResult {
@@ -2262,6 +2460,16 @@ pub enum MirValidationError {
         primitive: &'static str,
         detail: &'static str,
     },
+    #[error(
+        "refactor production MIR `{fqn}` has incomplete {transport} transport metadata in {block:?} at {span:?}: {detail}"
+    )]
+    RefactorProductionTransportMetadata {
+        fqn: String,
+        block: BasicBlockId,
+        span: Span,
+        transport: &'static str,
+        detail: &'static str,
+    },
 }
 
 impl MirValidationError {
@@ -2271,7 +2479,8 @@ impl MirValidationError {
             | MirValidationError::RefactorProductionBodyContract { fqn, .. }
             | MirValidationError::RefactorProductionMissingReturnValue { fqn, .. }
             | MirValidationError::RefactorProductionSiteMetadata { fqn, .. }
-            | MirValidationError::RefactorProductionRuntimeValueMetadata { fqn, .. } => Some(fqn),
+            | MirValidationError::RefactorProductionRuntimeValueMetadata { fqn, .. }
+            | MirValidationError::RefactorProductionTransportMetadata { fqn, .. } => Some(fqn),
             MirValidationError::EmptyBody
             | MirValidationError::InvalidStartBlock { .. }
             | MirValidationError::InvalidTarget { .. }
@@ -2311,6 +2520,10 @@ mod tests {
 
     fn test_span() -> Span {
         Span::new(10, 20)
+    }
+
+    fn test_call_transport(result_ty: TypeId) -> CallTransportMetadata {
+        CallTransportMetadata::plain_no_outward(result_ty, MirTransportKind::Unknown)
     }
 
     fn production_file(return_ty: TypeId, body: Body) -> File {
@@ -2583,6 +2796,7 @@ mod tests {
                         name: None,
                         value: Operand::Const(ConstValue::Unit),
                     }],
+                    transport: test_call_transport(builtins.unit),
                 },
                 builtins.unit,
             ),
@@ -2718,6 +2932,61 @@ mod tests {
     }
 
     #[test]
+    fn refactor_mir_aggregate_transport_rejects_ambiguous_continuation_route() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let receiver = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("receiver".to_string()),
+            ty: builtins.any,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let value = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("value".to_string()),
+            ty: builtins.any,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: test_span(),
+                kind: StatementKind::StoreMember {
+                    receiver: Operand::Local(receiver),
+                    member: MemberAccessMetadata {
+                        name: "next".to_string(),
+                        receiver_ty: builtins.any,
+                        resolved: None,
+                        hidden_effects: EffectRow::pure(),
+                    },
+                    value: Operand::Local(value),
+                    value_ty: builtins.any,
+                    continuation_route: StoredContinuationRoutePublication::Ambiguous,
+                },
+            }],
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        let file = production_file(builtins.unit, body);
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                transport: "member store continuation route",
+                detail: "ambiguous continuation route must be split or rejected before handoff",
+            })
+        );
+    }
+
+    #[test]
     fn cfg_reachable_two_blocks_ok() {
         let mut types = TypeStore::default();
         let builtins = types.intern_builtins();
@@ -2812,6 +3081,7 @@ mod tests {
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
+                        payload_transport: Vec::new(),
                         arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),
@@ -2886,6 +3156,7 @@ mod tests {
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
+                        payload_transport: Vec::new(),
                         arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),
@@ -2949,6 +3220,7 @@ mod tests {
                             callee_fqn: "sample.helper".to_string(),
                         },
                         args: Vec::new(),
+                        transport: test_call_transport(builtins.unit),
                     },
                 },
             }],
@@ -2962,6 +3234,7 @@ mod tests {
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
+                        payload_transport: Vec::new(),
                         arg_mapping: Vec::new(),
                     },
                     args: Vec::new(),

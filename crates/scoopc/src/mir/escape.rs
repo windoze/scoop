@@ -368,9 +368,10 @@ fn analyze_rvalue_uses(
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
         | Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | Rvalue::PatternMatch {
             subject: operand, ..
@@ -401,12 +402,12 @@ fn analyze_rvalue_uses(
                 mark_operand_use(&arg.value, OperandUse::Escaping, aliases, facts);
             }
         }
-        Rvalue::MakeTuple { elements } => {
+        Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 mark_operand_use(element, OperandUse::Escaping, aliases, facts);
             }
         }
-        Rvalue::StructLit { fields } => {
+        Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 mark_operand_use(&field.value, OperandUse::Escaping, aliases, facts);
             }
@@ -418,7 +419,9 @@ fn analyze_rvalue_uses(
                 }
             }
         }
-        Rvalue::CaptureBoxSet { box_operand, value } => {
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             mark_operand_use(box_operand, OperandUse::Escaping, aliases, facts);
             mark_operand_use(value, OperandUse::Escaping, aliases, facts);
         }
@@ -596,8 +599,9 @@ fn local_name(body: &Body, local: LocalId) -> Option<String> {
 mod tests {
     use super::*;
     use crate::mir::{
-        BasicBlock, CallArg, ConstValue, LocalDecl, LocalSourceKind, ResumeMetadata, SiteId,
-        Statement, Terminator, UnwindAction,
+        BasicBlock, CallArg, CallTransportMetadata, ClosureEnvTransportMetadata, ConstValue,
+        LocalDecl, LocalSourceKind, MirTransportKind, ResumeMetadata, SiteId, Statement,
+        Terminator, UnwindAction,
     };
     use crate::opt::OptLevel;
     use crate::session::Session;
@@ -624,6 +628,7 @@ mod tests {
                         value: Rvalue::MakeClosure {
                             env: Operand::Const(ConstValue::Unit),
                             fn_ptr: "fixtures.escape.lambda".to_string(),
+                            env_contract: ClosureEnvTransportMetadata::empty(builtins.unit),
                         },
                     },
                 },
@@ -638,6 +643,7 @@ mod tests {
                                 fn_ptr: "fixtures.escape.lambda".to_string(),
                             },
                             args: Vec::new(),
+                            transport: call_transport(builtins.int),
                         },
                     },
                 },
@@ -668,6 +674,7 @@ mod tests {
                         value: Rvalue::MakeClosure {
                             env: Operand::Const(ConstValue::Unit),
                             fn_ptr: "fixtures.escape.lambda".to_string(),
+                            env_contract: ClosureEnvTransportMetadata::empty(builtins.unit),
                         },
                     },
                 },
@@ -685,6 +692,7 @@ mod tests {
                                 name: None,
                                 value: Operand::Local(closure),
                             }],
+                            transport: call_transport(builtins.int),
                         },
                     },
                 },
@@ -728,6 +736,7 @@ mod tests {
                             },
                         },
                         args: Vec::new(),
+                        transport: call_transport(builtins.unit),
                     },
                 },
             }],
@@ -851,6 +860,10 @@ fun main(): Int {
             },
             unwind: UnwindAction::NoUnwind,
         }
+    }
+
+    fn call_transport(result_ty: crate::ty::TypeId) -> CallTransportMetadata {
+        CallTransportMetadata::plain_no_outward(result_ty, MirTransportKind::Unknown)
     }
 
     fn continuation_ty(types: &mut TypeStore) -> crate::ty::TypeId {
