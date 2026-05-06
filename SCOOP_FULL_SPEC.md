@@ -477,7 +477,7 @@ Rules:
 - `eff` is a **contextual keyword**: it is only treated as a keyword inside a `<...>` generic parameter/argument list. Outside of generics, `eff` is an ordinary identifier.
 - A generic list may contain **at most one** `eff` clause, and it must appear **last**.
 - In this draft, the `eff` clause introduces (or supplies) **exactly one** effect row parameter/argument.
-- Effect row parameters are **compile-time only**. They do not affect memory layout, runtime type identity, or code generation specialization. (They are erased after type checking.)
+- Effect row parameters are **runtime-erased**: they are not stored in object layouts, runtime type descriptors, or function value objects, and they are not recoverable by runtime casts or reflection. However, after type checking the compiler may use the closed `allowed_row` of a concrete callable/function-type instantiation as part of its compile-time specialization and lowering identity. In particular, effect-aware lowering may specialize facts, adapters, and `Step` ABI schemas by effect row; this does not make the row a runtime value or a runtime type component.
 
 ## 4. Pattern Matching
 
@@ -1507,7 +1507,7 @@ This allows a pure function to be passed where a more effectful function is expe
 
 #### Effect erasure and casts to `Any`
 
-Effect rows are **compile-time only** and are not preserved at runtime (see §5.8.3). In particular, the runtime representation of a function value does not carry enough information to reliably enforce or validate its declared effect row.
+Effect rows are not preserved in runtime function values (see §5.8.3). The compiler may specialize lowering by a callable's closed `allowed_row`, but the runtime representation of a function value does not carry enough information to reliably enforce, recover, or validate its declared effect row after erasure.
 
 As a consequence, casting/boxing a function value to `Any` is only permitted when the function type has the **closed** effect row `Pure!`:
 

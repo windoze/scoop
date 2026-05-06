@@ -13,7 +13,7 @@
 - HIR/MIR lowering 仍会为若干合法或半合法表面生成 `Todo(...)` 节点。
 - refactor direct-style MIR validator 明确不要求全 body 无 Todo，materialization 也会透传 Todo。
 - raw MIR LLVM codegen 对 `Handle`、`ResumeUnwind`、`TypeCheck`、`Cast`、`Virtual/Interface/Resume` call kind、cleanup perform 等核心 MIR 结构不支持。
-- effect-refactor late-lowering 依赖 P4/P5/P6 发布完整 boundary/ABI contract；缺 contract 时不是 fail-fast 于 MIR 边界，而是晚到 LLVM lowering 或 runtime helper 才失败。
+- effect-refactor late-lowering 依赖 P4/P5/P6 发布完整 boundary/ABI contract；ABI kind 必须由 actual outward effect set 决定：空集对外就是 plain function，即使函数内部使用并处理了 effect/control。
 - 泛型、effect-row generic、default/named args、aggregate boxing、enum/array composite payload、function value/closure ABI 仍存在形状限制。
 - spec/typecheck 已有证据的 `!!`、runtime reflection fallback、`@Extern` global variable、runtime `is/as/as?` 等表面还没有在新 MIR/refactor 主线下完全闭合。
 
@@ -621,12 +621,12 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 
 影响：
 
-合法 effectful function value、effectful closure、返回 aggregate 的 effect-typed function value 需要完整 Step adapter/boundary；缺失时无法进入 plain dynamic call path。
+合法 effectful function value、effectful closure、返回 aggregate 的 effect-typed function value 需要按 materialized actual outward effect set 选择 plain 或 Step adapter/boundary。actual outward 为空的 callable/function value 不应因为 surface type 或内部已处理 effect/control 被强制走 Step；actual outward 非空或 effect row 未能闭合时，才需要完整 Step adapter/boundary。
 
 修复方向：
 
-- 完成 effect-step adapter for aggregate return。
-- call facts 必须标明 callee may-outward-effect 并发布 boundary。
+- 完成 actual-outward 非空 callable 的 effect-step adapter for aggregate return。
+- call facts 必须标明可 materialize 的 callee actual outward effect row；outward 空集发布 plain ABI，非空才发布 boundary/adapter。
 
 ### 3.13 `StoreMember` continuation route ambiguous 会失败
 
@@ -735,7 +735,7 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 
 ## 5. Effect Refactor / Late-Lowered State Graph 缺口
 
-### 5.1 refactor plain callable 拒绝 effect/control terminator
+### 5.1 ABI routing 仍可能按内部 effect/control 形状而非 actual outward effect set 分类
 
 严重程度：高。
 
@@ -745,12 +745,13 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 
 影响：
 
-任何 direct-style effect/control MIR 必须被 P5/P6 转成 local-effect-control 或 Step graph。若 facts/boundary 发布不完整，plain body codegen 无法兜底。
+函数 ABI 不应由 body 内是否出现 direct-style effect/control MIR 决定，而应由 actual outward effect set 决定。actual outward effect set 为空的函数对外必须表现为 plain function；内部使用并完全处理的 effect/control 应在 late lowering 中被消化为 plain body 可发射的局部控制流。如果这类函数仍被路由到 Step ABI，或 plain body emission 仍看到残留 `Perform` / `Handle` / `ResumeUnwind`，说明 handled-effect elimination、effect facts 或 ABI routing 不闭合。
 
 修复方向：
 
-- routing 阶段严格保证带 effect/control 的 body 不走 plain callable path。
-- missing boundary 应在 late lowering verifier 阶段 fail-fast。
+- routing 阶段按 actual outward effect set 选择 ABI：空集为 plain，非空才为 Step/effect boundary。
+- 对 outward 为空但内部有 handled effect/control 的函数，late lowering 必须先消除或局部化 residual effect/control terminator，再进入 plain body emission。
+- verifier 应拒绝两类漂移：outward 为空却发布 Step ABI；plain ABI body 中仍残留未消化的 effect/control terminator。
 
 ### 5.2 unsupported source classification 被 verifier 放行，lowering 才失败
 
@@ -787,22 +788,26 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 - 定义 unwind payload carrier。
 - 将 cleanup continuation、pending completion、origin/resume-state 纳入 published contract。
 
-### 5.4 effect-step `main(args: Array<String>)` wrapper 未支持
+### 5.4 outward-empty callable 不应被路由为 effect-step entry；`main(args)` 是当前症状
 
 严重程度：中高。
 
 证据：
 
 - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs:380-384` 如果入口是 effect-step callable 且有 argv array，报 `refactor LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI`。
+- `SCOOP_FULL_SPEC.md:1104-1110` 规定 program boundary 必须 outward `Pure!`；effects 只能在 entry point 内部被完全处理。
+- `crates/scoopc/src/typecheck/expr/stmt.rs:380-399` 和 `448-485` 对 `ProgramBoundaryKind::Main` 强制 closed pure row。
 
 影响：
 
-合法 `main(args: Array<String>)` 如果本体需要 effect-step entry，就无法作为程序入口 codegen。
+任何 actual outward effect set 为空的函数，即使内部使用并完全处理了 effect/control，对外也应表现为 plain callable。`main(args: Array<String>) / Pure!` 只是当前最显眼的症状：如果 pipeline 把它分类为 effect-step callable，backend 会在 argv Step ABI 处晚期报错；但真正缺口是 outward-effect facts、handled-effect elimination 或 plain/step ABI routing 不闭合，不是需要给 `main` 或 outward-empty 函数增加 Step ABI 支持。
 
 修复方向：
 
-- Step direct entry args ABI 支持 argv tuple。
-- main wrapper 构造 argv array 后按 Step ABI 传入。
+- 修正 effect facts / late-lowering / ABI routing：actual outward effect set 为空的 callable 一律发布 plain ABI。
+- 已被函数体完全处理的 effect/control 不应影响该函数对外 ABI；若 plain body emission 仍看到 residual effect/control terminator，应在 verifier 阶段作为 lowering 缺口 fail-fast。
+- `main` wrapper 只接受 outward `Pure!` 的 plain entry；如果 ABI contract 仍显示 program boundary 有 outward cases，应在 verifier/codegen handoff fail-fast。
+- `main(args)` 的 argv array 继续通过 plain entry ABI 传入；不要为 program boundary 或 outward-empty callable 引入 Step argv ABI 作为语义主线。
 
 ### 5.5 cross-thread resume 只支持 u64 payload
 

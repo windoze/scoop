@@ -16,6 +16,7 @@
 - production verifier 和 dump/debug verifier 必须分离。debug/legacy dump 可以继续容忍历史占位；refactor production MIR stage 与 materialized snapshot 必须 strict no-placeholder。
 - 新实现不得在旧 `mir::*` 业务函数中加入 pipeline 分支。若共享代码不能成为完全中立的单一 API，应在 refactor stage 附近建立独立 wrapper、strict verifier 或复制实现。
 - MIR stage 输出必须对后续阶段语义闭包。P4/P5/P6 只能消费 refactor MIR stage output、materialized MIR snapshot、MIR metadata/facts 以及 target/session config；不得回看 AST/HIR 私有 side table 来补语义。
+- 后续 ABI routing 必须由 callable 的 actual outward effect set 决定：空集对外就是 plain function；函数内部已完全处理的 effect/control 不得让该函数对外发布 Step/effect ABI。
 - 本阶段不要求 full fixtures，因为后续 codegen/runtime 仍有缺口。验证以 parser/typecheck diagnostics、HIR/MIR preflight、`dump-mir` golden、MIR unit tests、materialization unit tests 和少量定向 fixture smoke 为主。
 
 ## 1. 顺序总览
@@ -28,7 +29,7 @@
 6. M5：call/ctor/dispatch/resume/perform/handle typed contract 收口。
 7. M6：MIR value primitive 与 spec-supported runtime surface 收口。
 8. M7：generic/materialized MIR 完整性收口。
-9. M8：MIR-only 验证矩阵与阶段退出审计。
+9. M8：codegen-facing handoff 守卫、MIR-only 验证矩阵与阶段退出审计。
 
 执行顺序调整（2026-05-06）：`MIR-T04` 的指定 splice-field `dump-mir` 验证依赖 top-level `const val`/`val` 不再生成 MIR item placeholder；因此 `MIR-T05` 先于 `MIR-T04` 执行，完成 top-level roots 后再关闭剩余 M2 surface。
 
@@ -250,7 +251,7 @@
 阶段输出：
 
 - call-like MIR 不再依赖 `ValueOrigin::UnknownCallable` 的 guess 才能选择语义。
-- P4/P5/P6 可以仅凭 MIR call/site metadata 做 facts、late lowering 和 backend routing。
+- P4/P5/P6 可以仅凭 MIR call/site metadata 做 facts、late lowering 和 backend routing；routing 以 materialized actual outward effect set 为准，空集必须走 plain ABI。
 
 验证：
 
@@ -338,17 +339,23 @@
 
 - materialized MIR snapshot 的完整性由 stage gate 强制保证。
 
-### M8. MIR-only 验证矩阵与阶段退出审计
+### M8. codegen-facing handoff 守卫、MIR-only 验证矩阵与阶段退出审计
 
-参考：[`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §9。
+参考：[`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.1、§3.2、§3.3、§3.6、§5.1、§5.2、§5.3、§5.4、§5.6、§7.1、§7.6、§9。
 
 目标：
 
 - 用 MIR-only 验证证明第一阶段完成，而不被 later-stage LLVM/runtime gaps 阻塞。
+- 为后续 codegen 发布 routing / ABI / policy handoff，确保 backend 缺口有明确 owner，不再靠 LLVM emitter 猜语义。
 - 将所有 HIR/MIR gap 的代表样本纳入 refactor MIR preflight 或 golden。
 
 实现：
 
+- 发布并校验 codegen routing facts：raw-safe plain、plain local-control handoff、EffectStep lowering、frontend reject。
+- ABI routing facts 必须按 actual outward effect set 选择 plain vs EffectStep；outward 空集不得发布 body `Step_F` 或 Step argv ABI。
+- 对 raw MIR backend 不支持的 effect/control terminator、`PerformResult`、`Virtual` / `Interface` / `Resume` call kind，MIR handoff 必须有 route verifier 或明确 codegen owner。
+- 对 `Unsupported` source classification、`ResumeUnwind` cleanup/unwind contract、cross-thread non-complete policy、or-pattern binder、GC pin/handle intrinsic surface，要么发布 MIR-facing contract，要么由 frontend diagnostic 拒绝。
+- 将 LLVM/runtime 实现工作链接到 [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md)，不得在 MIR 阶段实现 backend workaround。
 - 建立 `mir_refactor` fixture/golden 矩阵，覆盖：
   - comptime expansion、splice field、class literal policy、with update。
   - top-level val/object/typealias/extern global roots。
@@ -358,7 +365,7 @@
   - generic materialization/effect-row args/no naked params。
 - 将 `effect_refactor_pipeline::hir_preflight` 从“代表性 MIR smoke”升级为“所有合法 HIR completeness fixtures 都必须通过 MIR no-placeholder smoke”。
 - 为 parser/frontend reject 负例建立 diagnostics fixtures。
-- 建立阶段退出 review，逐项核对 `PIPELINE_GAPS.md` §1/§2 中每个 gap 的状态。
+- 建立阶段退出 review，逐项核对 `PIPELINE_GAPS.md` §1/§2 中每个 gap 的状态，并核对 §3-§7 中需要 MIR contract、routing policy 或 frontend reject 的 gap 是否已有 owner。
 
 验证：
 
@@ -377,7 +384,7 @@
 - refactor MIR stage 对所有合法代表样本产出 no-placeholder direct-style MIR。
 - materialized MIR snapshot 对所有需要单态化的代表样本 no-placeholder/no-param。
 - 所有 unsupported/deferred surface 由 parser/frontend diagnostics 捕获。
-- `PIPELINE_GAPS.md` 中 MIR stage 相关 gap 已有测试或明确转为 later-stage backend gap。
+- `PIPELINE_GAPS.md` 中 MIR stage 相关 gap 已有测试或明确转为 later-stage backend/runtime gap，并链接到 codegen TODO owner。
 
 ## 3. 阶段切换门槛
 
@@ -402,4 +409,5 @@
 5. top-level values、object/type metadata、extern globals、generic callable roots 都能从 MIR stage output 查询。
 6. assignment place、call/ctor/dispatch/resume/perform/handle 都由 typed contract 驱动，不再靠 HIR shape/string/span fallback。
 7. runtime cast/typecheck/not-null/pattern/function value/closure/aggregate/array/enum payload 在 MIR 中语义完整，即使 LLVM/runtime 实现仍属于后续阶段。
-8. 验证矩阵只依赖 MIR/unit/dump/materialization 定向测试，不要求 full fixture suite。
+8. codegen-facing routing / ABI / policy handoff 能明确区分 MIR contract 缺口和 later-stage backend/runtime 缺口。
+9. 验证矩阵只依赖 MIR/unit/dump/materialization 定向测试，不要求 full fixture suite。

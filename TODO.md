@@ -20,11 +20,21 @@
 | `MIR-T04` | M2 | 完成 comptime、splice field、class literal、with-update 的 MIR 前置闭包 |
 | `MIR-T06` | M4 | 建立 unified place/lvalue contract 并清理 assignment Todo |
 | `MIR-T07` | M5 | 收口 call/ctor/default/named/intrinsic typed call-site contract |
+| `MIR-T07R` | M5R | Review MIR-T07 typed call-site contract |
 | `MIR-T08` | M5 | 收口 dispatch/resume/perform/handle site contract |
+| `MIR-T08R` | M5R | Review MIR-T08 dispatch/resume/perform/handle contract |
 | `MIR-T09` | M6 | 收口 runtime value primitives 的 MIR 表达 |
+| `MIR-T09R` | M6R | Review MIR-T09 runtime value primitives |
 | `MIR-T10` | M6 | 收口 aggregate/array/enum/closure transport 的 MIR contract |
+| `MIR-T10R` | M6R | Review MIR-T10 composite transport contract |
 | `MIR-T11` | M7 | 收口 generic root、effect-row args 与 materialization substitution |
-| `MIR-T12` | M8 | 建立 MIR-only 验证矩阵并完成阶段退出审计 |
+| `MIR-T11R` | M7R | Review MIR-T11 generic materialization contract |
+| `MIR-T12` | M8 | 建立 codegen routing / ABI handoff 守卫 |
+| `MIR-T12R` | M8R | Review MIR-T12 codegen handoff guard |
+| `MIR-T13` | M8 | 收口 remaining MIR-facing frontend/runtime policy gates |
+| `MIR-T13R` | M8R | Review MIR-T13 policy gates |
+| `MIR-T14` | M8 | 建立 MIR-only 验证矩阵并完成阶段退出审计 |
+| `MIR-T14R` | M8R | Review MIR-T14 phase exit audit |
 
 ## 全局约束
 
@@ -33,6 +43,8 @@
 - 每个任务完成时都必须保证 refactor production MIR 不新增任何 placeholder。
 - 不允许新增 `Todo(...)` reason 后再“稍后处理”；必须先更新 inventory、指定 owner task 和 disposition。
 - 不允许让 P4/P5/P6 回 AST/HIR 私有 side table 补语义；本阶段必须把 semantic source of truth 固定在 MIR stage output / materialized MIR / MIR metadata 上。
+- 后续涉及 ABI routing、function-value adapter 或 boundary contract 的未完成任务，必须消费 effect facts 中的 `resolved_outward_cases` / `impl_plan` / `CallableAbiKind` 决定 ABI：`impl_plan = NoOutward` 或 `resolved_outward_cases = ∅` 的 body 对外发布 plain ABI；只有 `CallableAbiKind::EffectStep` body 或独立 effect-typed adapter publication 使用 Step/effect ABI。
+- 本文件新增的 codegen-facing MIR 任务只发布/校验 handoff contract 与 routing policy；LLVM/runtime 实现任务归 [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md)。
 - 验证以定向命令为准，不运行 full fixtures。
 - 明确禁止在本阶段要求通过：`cargo test --all`、`cargo run -p scoop -- test`、P7/P8 GC/full regression 矩阵。
 
@@ -463,6 +475,24 @@
   - materializer 可以从 call metadata 构造完整 instance key。
 - 依赖：`MIR-T06`
 
+## MIR-T07R：Review MIR-T07 typed call-site contract
+
+- 参考：
+  - `MIR-T07`
+  - [`PLAN.md`](./PLAN.md) §2/M5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.7、§2.6、§3.7、§3.9、§3.10、§6.3
+- 重点：
+  - typed handoff 是否完整发布 selected callable/ctor/intrinsic、receiver、complete args、named/default/vararg binding、generic/effect-row args、hidden ordinary effects。
+  - MIR lowering 是否不再从 HIR call syntax、FQN 字符串、span fallback 或 backend guess 恢复调用语义。
+  - class ctor、top-level function reference、runtime fallback intrinsic 是否都有 no-placeholder contract。
+- 验证：
+  1. 重跑 `MIR-T07` 的全部验证命令。
+  2. 抽查 `mir_refactor/call_contracts.scoop` 的 MIR dump/golden，确认 metadata 足够 codegen 消费。
+  3. 搜索 `call callee lowering pending`、`ctor call lowering pending`、`sizeOf intrinsic requires one positional arg`，确认 refactor production path 不再命中。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T07` 已正确实现；若发现缺口，`MIR-T07R` 保持未完成并把修复归回 `MIR-T07`。
+- 依赖：`MIR-T07`
+
 ## MIR-T08：收口 dispatch/resume/perform/handle site contract
 
 - 参考：
@@ -498,7 +528,25 @@
 
 - 完成条件：
   - effect/control-sensitive site 的 MIR metadata 可独立驱动 P4 facts。
-- 依赖：`MIR-T07`
+- 依赖：`MIR-T07R`
+
+## MIR-T08R：Review MIR-T08 dispatch/resume/perform/handle contract
+
+- 参考：
+  - `MIR-T08`
+  - [`PLAN.md`](./PLAN.md) §2/M5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.8、§1.9、§1.10、§1.11、§6.5
+- 重点：
+  - dispatch、resume、perform、handle site 是否都有 stable `SiteId`、source span、typed semantic identity 和 payload/result metadata。
+  - continuation resume 是否支持别名、function value、wrapper、extension 等合法 callee shape，只依赖 typed contract。
+  - successful MIR 中是否仍残留 canonical-shape-only placeholder 或 contract-missing diagnostic。
+- 验证：
+  1. 重跑 `MIR-T08` 的全部验证命令。
+  2. 抽查 `mir_refactor/dispatch_and_resume_call.scoop`、`handle_perform.scoop`、`handle_finally_boundary.scoop` 的 MIR dump。
+  3. 搜索 `resume lowering requires canonical callee shape`、`refactor perform contract missing`、`refactor handle contract missing`，确认 refactor production path 不再命中。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T08` 已正确实现；若发现缺口，`MIR-T08R` 保持未完成并把修复归回 `MIR-T08`。
+- 依赖：`MIR-T08`
 
 ## MIR-T09：收口 runtime value primitives 的 MIR 表达
 
@@ -534,13 +582,31 @@
 
 - 完成条件：
   - runtime type/cast/not-null/pattern surface 在 MIR no-placeholder 且 metadata 完整。
-- 依赖：`MIR-T08`
+- 依赖：`MIR-T08R`
+
+## MIR-T09R：Review MIR-T09 runtime value primitives
+
+- 参考：
+  - `MIR-T09`
+  - [`PLAN.md`](./PLAN.md) §2/M6
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.4、§3.5、§3.8、§6.1、§6.2、§7.2
+- 重点：
+  - `is` / `!is` / `as` / `as?` / `!!` / pattern `is Type` 的 MIR metadata 是否足以表达 runtime descriptor、failure behavior、ordinary `Raise<RuntimeError>` 和 `Option<T>` result。
+  - function type runtime cast 是否固定为 frontend/typecheck diagnostic，而不是留下 MIR 或 codegen placeholder。
+  - cast/typecheck/not-null failure 是否没有 default value、panic-only path 或 late unsupported。
+- 验证：
+  1. 重跑 `MIR-T09` 的全部验证命令。
+  2. 抽查 `mir_refactor/runtime_typecheck_cast.scoop`、`not_null_assert.scoop`、`pattern_is_type.scoop`。
+  3. 负例确认 unsupported function type cast 不进入 MIR。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T09` 已正确实现；若发现缺口，`MIR-T09R` 保持未完成并把修复归回 `MIR-T09`。
+- 依赖：`MIR-T09`
 
 ## MIR-T10：收口 aggregate/array/enum/closure transport 的 MIR contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M6
-  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.11、§3.12、§4.1、§4.2、§4.3、§4.4、§4.5、§5.5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.11、§3.12、§3.13、§4.1、§4.2、§4.3、§4.4、§4.5、§5.5
 - 目标：
   - aggregate/array/enum/closure/effect payload 在 MIR 中都有完整 transport intent。
   - 后续 stage 不需要从 HIR 或 LLVM type lowering 反推 composite value 语义。
@@ -558,7 +624,7 @@
   4. array element transport：
      - MIR array get/set/build contract 包含 element type、copy/trace requirements、composite element support。
   5. effect/function-value adapter surface：
-     - MIR call metadata 标明 callee may-outward-effect、aggregate return、adapter/boundary need。
+     - MIR call metadata 标明可 materialize 的 callee `resolved_outward_cases` / `impl_plan` / `CallableAbiKind` facts、aggregate return、adapter/boundary need；`NoOutward` plain body 不得要求 Step/effect body ABI。
   6. `StoreMember` continuation route：
      - ambiguous route 必须在 MIR stage 或 effect solver handoff 前拆解/诊断，不留给 backend。
 
@@ -574,7 +640,25 @@
 - 完成条件：
   - composite source values 在 MIR 中有 explicit transport contract。
   - 后续 backend gaps 可以明确归类为 layout/codegen 未实现，而不是 MIR 信息缺失。
-- 依赖：`MIR-T09`
+- 依赖：`MIR-T09R`
+
+## MIR-T10R：Review MIR-T10 composite transport contract
+
+- 参考：
+  - `MIR-T10`
+  - [`PLAN.md`](./PLAN.md) §2/M6
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.11、§3.12、§3.13、§4.1、§4.2、§4.3、§4.4、§4.5、§5.5
+- 重点：
+  - closure env、value boxing、enum payload、array element、effect/function-value adapter surface 和 `StoreMember` continuation route 是否都有 source value transport contract。
+  - GC trace/copy/drop、boxed representation、aggregate return、adapter/boundary need 是否能从 MIR/effect facts materialize。
+  - ambiguous continuation route 是否已在 MIR/effect solver handoff 前拆解或诊断。
+- 验证：
+  1. 重跑 `MIR-T10` 的全部验证命令。
+  2. 抽查 `mir_refactor/aggregate_transport.scoop` 的 tuple/struct/enum/array/closure capture/effect payload 样本。
+  3. 检查 materialized MIR 中 aggregate/closure/effect metadata 没有裸 type param 或 source-shape fallback。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T10` 已正确实现；若发现缺口，`MIR-T10R` 保持未完成并把修复归回 `MIR-T10`。
+- 依赖：`MIR-T10`
 
 ## MIR-T11：收口 generic root、effect-row args 与 materialization substitution
 
@@ -624,9 +708,150 @@
 - 完成条件：
   - materialized MIR snapshot 完整替换所有 generic/effect params。
   - P4/P5/P6 不再需要 generic HIR template side table 补语义。
-- 依赖：`MIR-T10`
+- 依赖：`MIR-T10R`
 
-## MIR-T12：建立 MIR-only 验证矩阵并完成阶段退出审计
+## MIR-T11R：Review MIR-T11 generic materialization contract
+
+- 参考：
+  - `MIR-T11`
+  - [`PLAN.md`](./PLAN.md) §2/M7
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §2.5、§2.6、§2.7、§2.8、§7.3
+- 重点：
+  - generic root index 是否覆盖 top-level/member/extension/ctor/object side-table callable。
+  - `InstanceKey` / materialization key 是否包含 type args、effect-row args、receiver/owner identity、callable version，并与 spec 的 runtime-erased effect-row 语义不冲突。
+  - substitution 是否覆盖 call/dispatch/resume/perform/handle/cast/typecheck/aggregate/closure/top-level roots 等 MIR metadata。
+- 验证：
+  1. 重跑 `MIR-T11` 的全部验证命令。
+  2. 抽查 `mir_refactor/generic_materialization.scoop` 的 materialized MIR。
+  3. 负例确认 Todo template、missing root、裸 type param、effect-row arg 缺失均被 verifier 拒绝。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T11` 已正确实现；若发现缺口，`MIR-T11R` 保持未完成并把修复归回 `MIR-T11`。
+- 依赖：`MIR-T11`
+
+## MIR-T12：建立 codegen routing / ABI handoff 守卫
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/M8
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.1、§3.2、§3.3、§3.6、§5.1、§5.2、§5.4
+  - [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md) CG-T01、CG-T05、CG-T06
+- 目标：
+  - 防止 direct-style effect/control MIR 或 unsupported call kind 误入 raw MIR LLVM path。
+  - 让 ABI handoff 明确表达 plain vs EffectStep，且只由 P5/P6 发布的 `resolved_outward_cases`、`impl_plan` 和 `CallableAbiKind` 决定。
+  - 把 unsupported source classification 和 ABI 漂移前移到 MIR/effect-lowered handoff verifier，而不是 LLVM body emission 才失败。
+
+- 必须实现的内容：
+  1. 为每个 materialized callable 发布 codegen routing facts：
+     - 是否含 `Handle`、`ResumeUnwind`、`Perform`、`PerformResult`、`Virtual`、`Interface`、`Resume` call kind。
+     - 允许的 backend route：plain raw MIR、plain local-control handoff、EffectStep lowering、或 frontend reject。
+     - route 选择理由和 source span / body FQN。
+  2. strict handoff verifier 必须拒绝：
+     - raw MIR route 中仍有 raw backend 不支持的 effect/control terminator 或 call kind。
+     - `PerformResult` 没有 resume payload injection / binding contract 却进入 raw value emission。
+     - plain ABI body 中残留未局部化的 `Perform` / `Handle` / `ResumeUnwind`。
+     - `impl_plan = NoOutward` 或 `resolved_outward_cases = ∅` 的 body 发布 EffectStep body ABI，或 `CallableAbiKind::EffectStep` 缺 boundary/adapter contract。
+  3. ABI publication 必须坚持 effect facts 规则：
+     - `impl_plan = NoOutward` 或 `resolved_outward_cases = ∅` 的 body 发布 plain ABI。
+     - 非空 `resolved_outward_cases` 的 body 才能按 `CallableAbiKind::EffectStep` 发布 EffectStep body 或 effect boundary。
+     - effect-typed adapter 是独立 publication，可以把 plain body 返回值包装为 `Step_F::Complete`，但不改变 plain body ABI。
+     - `main(args: Array<String>) / Pure!` 继续使用 plain argv ABI；不得为 `NoOutward` plain body 引入 Step argv ABI。
+  4. late-lowered source classifications：
+     - `Unsupported` 默认在 verifier fail-fast。
+     - 若存在 intentional elide/skip，必须带 explicit reason、source span 和 owner task，不能作为 production success path 静默通过。
+  5. `dump-mir` / materialized MIR / effect-lowered preflight 要能显示 routing facts 与 ABI kind，供 codegen TODO 接续实现。
+
+- 必须遵从的约束：
+  - 本任务不实现 LLVM lowering；只发布/校验 MIR-to-codegen handoff contract。
+  - 不允许 backend 回 HIR、span guess、legacy handler-stack 或 old callable wrapper 补语义。
+  - 不允许用 complete-only `Step_F` 代表 `NoOutward` plain body。
+
+- 验证：
+  1. 运行：`cargo test -p scoopc --no-default-features refactor_mir_codegen_routing_contract`
+  2. 运行：`cargo test -p scoopc --no-default-features refactor_materialized_mir_codegen_route_verifier`
+  3. 新增/更新 `mir_refactor/codegen_routing_contracts.scoop`，覆盖 raw-safe plain、plain-local effect/control、EffectStep boundary、dynamic dispatch、resume、perform-result。
+  4. 负例覆盖 `NoOutward` body 发布 EffectStep、raw route 含 unsupported terminator/call kind、unsupported source classification 被 verifier 拒绝。
+
+- 完成条件：
+  - raw MIR / refactor LLVM route selection 已由 materialized facts 与 ABI handoff 驱动。
+  - `PIPELINE_GAPS.md` §3.1、§3.2、§3.3、§3.6、§5.1、§5.2、§5.4 的 MIR-facing 部分有明确 verifier 或 publication。
+  - 剩余实现工作可无歧义转交 codegen task。
+- 依赖：`MIR-T11R`
+
+## MIR-T12R：Review MIR-T12 codegen handoff guard
+
+- 参考：
+  - `MIR-T12`
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.3、§3.5、§5.4、§5.6、§8
+  - [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md) CG-T01、CG-T05、CG-T06
+- 重点：
+  - routing facts 是否足以阻止 direct-style effect/control MIR 或 unsupported call kind 误入 raw MIR LLVM path。
+  - ABI handoff 是否只消费 `resolved_outward_cases`、`impl_plan`、`CallableAbiKind`，并正确区分 plain body、plain-local handoff、EffectStep body、effect-typed adapter。
+  - `Unsupported` source classification、residual effect/control terminator、Step argv ABI 漂移是否都在 verifier 阶段 fail-fast。
+- 验证：
+  1. 重跑 `MIR-T12` 的全部验证命令。
+  2. 抽查 `mir_refactor/codegen_routing_contracts.scoop` 的 materialized MIR / effect-lowered output。
+  3. 负例确认 `NoOutward` body 发布 EffectStep、raw route 含 unsupported terminator/call kind、unsupported source classification 均被拒绝。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T12` 已正确实现；若发现缺口，`MIR-T12R` 保持未完成并把修复归回 `MIR-T12`。
+- 依赖：`MIR-T12`
+
+## MIR-T13：收口 remaining MIR-facing frontend/runtime policy gates
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/M8
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §5.3、§5.6、§7.1、§7.6
+  - [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md) CG-T06、CG-T07
+- 目标：
+  - 对仍会影响 MIR/codegen coverage 的 frontend/runtime policy gap 给出明确 contract 或早期 diagnostic。
+  - 避免 `ResumeUnwind`、cross-thread effect propagation、or-pattern binder、GC pin/handle intrinsic 在后端变成 late fatal 或 shape guess。
+
+- 必须实现的内容：
+  1. `ResumeUnwind` / cleanup / finally pending completion：
+     - MIR 或 late-lowered handoff 必须发布 unwind payload carrier、cleanup continuation、pending completion、origin/resume-state provenance。
+     - 若某路径暂不支持，必须在 verifier 阶段给出 contract-missing diagnostic，不允许 LLVM body emission 才发现。
+  2. cross-thread resume 后 non-complete Step：
+     - 若语言当前不支持跨线程继续向外传播 effect，type/effect checker 或 MIR handoff 必须拒绝该 surface。
+     - 若允许，则必须发布 cross-thread effect propagation contract，交给 codegen/runtime task 实现。
+  3. or-pattern binder：
+     - 维持 frontend reject 时，diagnostic fixture 必须覆盖且说明不能进入 HIR/MIR。
+     - 若改为支持，HIR/MIR pattern contract 必须发布 binder identity、scope、dominance 与 payload type，不允许后端推断。
+  4. GC pin/handle intrinsic surface：
+     - 若当前支持，MIR intrinsic metadata 必须包含 root lifetime、pin/unpin pairing、unsafe requirement、trace/copy constraints。
+     - 若当前延期，parser/typecheck 诊断必须在进入 MIR 前触发。
+  5. 更新 MIR preflight denylist/allowlist，确保上述 policy gap 要么有 MIR contract，要么有 frontend diagnostic fixture。
+
+- 必须遵从的约束：
+  - 不把 runtime/codegen 尚未实现写成 MIR `Todo` 或 late LLVM unsupported。
+  - 不通过缩小 fixture、legacy selector 或 hidden fallback 绕过 policy 决策。
+
+- 验证：
+  1. 运行：`cargo test -p scoopc --no-default-features refactor_mir_policy_gates`
+  2. 新增 diagnostics fixtures 覆盖 or-pattern binder、unsupported cross-thread outward propagation、unsupported GC pin/handle surface。
+  3. 新增 MIR/effect-lowered smoke 覆盖已支持的 `ResumeUnwind` / cleanup contract 样本。
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §5.3、§5.6、§7.1、§7.6 的 MIR-facing 部分已归类为 published contract 或 frontend diagnostic。
+  - codegen/runtime 后续任务不需要猜测这些 surface 的 source semantics。
+- 依赖：`MIR-T12R`
+
+## MIR-T13R：Review MIR-T13 policy gates
+
+- 参考：
+  - `MIR-T13`
+  - [`SCOOP_FULL_SPEC.md`](./SCOOP_FULL_SPEC.md) §4、§5、§15.10
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6、§8
+- 重点：
+  - `ResumeUnwind` / cleanup / finally pending completion 是否发布 enough handoff，或以明确 contract-missing diagnostic 拒绝暂不支持路径。
+  - cross-thread resume、or-pattern binder、GC pin/handle intrinsic surface 是否已归类为 spec-compatible contract 或 frontend diagnostic，不再晚到 backend 猜 shape。
+  - 所有 diagnostics fixture 是否说明 surface 为什么不能进入 HIR/MIR。
+- 验证：
+  1. 重跑 `MIR-T13` 的全部验证命令。
+  2. 抽查新增 diagnostics fixtures 与 MIR/effect-lowered smoke。
+  3. 检查 preflight denylist/allowlist 不把 runtime/codegen 缺口写成 MIR `Todo`。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T13` 已正确实现；若发现缺口，`MIR-T13R` 保持未完成并把修复归回 `MIR-T13`。
+- 依赖：`MIR-T13`
+
+## MIR-T14：建立 MIR-only 验证矩阵并完成阶段退出审计
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M8、§4
@@ -643,7 +868,7 @@
   5. 写阶段退出审计记录，逐项核对：
      - `PIPELINE_GAPS.md` §1 每个 HIR/MIR lowering gap。
      - `PIPELINE_GAPS.md` §2 每个 handoff/materialization gap。
-     - §3-§6 中需要 MIR contract 的 backend gap 是否已有 MIR 表达或 frontend reject。
+     - §3-§7 中需要 MIR contract、routing policy 或 frontend reject 的 gap 是否已有明确 owner。
   6. 更新本文件任务状态或完成记录，确保每个 task 有验证命令和结果。
 
 - 必须遵从的约束：
@@ -661,6 +886,24 @@
 - 完成条件：
   - refactor direct-style MIR 和 materialized MIR 对验证矩阵 no Todo/no unresolved generic param。
   - 所有 unsupported/deferred surface 均有 frontend diagnostic fixture。
-  - `PIPELINE_GAPS.md` 中 MIR-stage scope 的 gap 已关闭或重分类为 later-stage backend/runtime gap。
+  - `PIPELINE_GAPS.md` 中 MIR-stage scope 的 gap 已关闭或重分类为 later-stage backend/runtime gap，并链接到 codegen TODO owner。
   - 可以进入下一阶段，不再担心 Todo placeholder 流入 P4/P5/P6。
-- 依赖：`MIR-T11`
+- 依赖：`MIR-T13R`
+
+## MIR-T14R：Review MIR-T14 phase exit audit
+
+- 参考：
+  - `MIR-T14`
+  - [`PLAN.md`](./PLAN.md) §4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §9
+- 重点：
+  - MIR-only 验证矩阵是否覆盖所有未完成 owner task 的代表样本和本阶段拒绝的 diagnostics surface。
+  - 阶段退出审计是否逐项核对 `PIPELINE_GAPS.md` §1-§2，并为 §3-§7 中 MIR-facing contract / routing policy / frontend reject gap 标明 owner。
+  - later-stage LLVM/runtime gap 是否已链接到 codegen TODO，而不是通过降低 MIR golden 或删除样本绕过。
+- 验证：
+  1. 重跑 `MIR-T14` 的全部验证命令。
+  2. 复查阶段退出审计记录与本文件任务完成记录。
+  3. 抽查新增/更新的 `tests/fixtures/mir_refactor/**` 和 diagnostics fixtures。
+- 完成条件：
+  - Review 结论明确说明 `MIR-T14` 已正确实现，MIR 阶段可以交接到 codegen 阶段；若发现缺口，`MIR-T14R` 保持未完成并把修复归回 `MIR-T14`。
+- 依赖：`MIR-T14`
