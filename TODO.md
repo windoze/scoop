@@ -1029,7 +1029,7 @@
   - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T13R：Review MIR-T13 policy gates
+## [DONE] MIR-T13R：Review MIR-T13 policy gates
 
 - 参考：
   - `MIR-T13`
@@ -1046,6 +1046,20 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T13` 已正确实现；若发现缺口，`MIR-T13R` 保持未完成并把修复归回 `MIR-T13`。
 - 依赖：`MIR-T13`
+
+- 完成记录（2026-05-07）：
+  - Review 结论：`MIR-T13` policy gates 已按任务要求正确实现；未发现需要归回 `MIR-T13` 的阻塞缺口。
+  - 审查覆盖 GC pin/handle intrinsic MIR transport metadata、production/materialized verifier 与 substitution，确认 `GC.pin` / `GC.unpin` / `GC.handleNew` / `GC.handleGet` / `GC.handleDrop` 均发布 root lifetime、pairing、unsafe requirement、subject type 与 trace/copy/drop transport contract。
+  - 审查覆盖内部 `__scoop_thread_spawn_join_resume_u64` non-`Pure` continuation policy、or-pattern binder policy、HIR/MIR preflight policy denylist，以及 `ResumeUnwind` / cleanup / finally pending completion handoff；对应 diagnostics fixture 注释均说明 surface 不得进入 HIR/MIR 或后端猜 shape。
+  - MIR/effect-lowered smoke 抽查确认 `handle_finally_boundary.scoop` 直接 MIR 保留 cleanup `ResumeUnwind` block，effect-lowered dump 暴露 `pending_completions`、`pending_completion_origins`、`pending_payload_transports`、cleanup state 与 `ResumeUnwind` route。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_policy_gates`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - diagnostics fixtures 通过：`typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`typecheck/gc_handle_new_value_type_is_error.scoop`、`typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`。
+  - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T14：建立 MIR-only 验证矩阵并完成阶段退出审计
 
