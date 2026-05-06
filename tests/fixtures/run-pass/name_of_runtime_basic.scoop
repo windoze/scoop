@@ -1,0 +1,14 @@
+// EXPECT: pass
+// RUN-STDOUT: name_of_runtime_basic.stdout
+//
+// CG-T03: `nameOf<T>()` lowers from the typed MIR intrinsic contract to a runtime string value.
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun main(): Int {
+    val name: String = nameOf<Point>()
+    println(name != "")
+    return 0
+}

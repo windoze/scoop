@@ -19,7 +19,7 @@
 | `CG-T02` | CG2 | [DONE] 收口 runtime type/value primitive LLVM lowering |
 | `CG-T02R` | CG2R | [DONE] Review CG-T02 runtime value primitive lowering |
 | `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
-| `CG-T03R` | CG3R | Review CG-T03 call/ctor/intrinsic lowering |
+| `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04` | CG4 | 收口 aggregate/enum/array/closure/boxing transport lowering |
 | `CG-T04R` | CG4R | Review CG-T04 composite transport lowering |
 | `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
@@ -248,7 +248,7 @@
   - 2026-05-07：`getPlatform()` 在 LLVM codegen 中 lower 为 `scoop.core.Platform` literal；`sizeOf<T>()` / `nameOf<T>()` 的 refactor MIR intrinsic contract 保持通过 MIR primitive 覆盖，top-level function reference 继续由 HIR/MIR function-value closure contract 覆盖。
   - 验证通过：`cargo test -p scoopc refactor_llvm_call_contract_lowering`、`cargo test -p scoopc refactor_mir_call_contract_lowers_typed_call_sites`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/get_platform_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/intrinsic_size_of_int_word.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T03R：Review CG-T03 call/ctor/intrinsic lowering
+## [DONE] CG-T03R：Review CG-T03 call/ctor/intrinsic lowering
 
 - 参考：
   - `CG-T03`
@@ -265,6 +265,11 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T03` 已正确实现；若发现缺口，`CG-T03R` 保持未完成并把修复归回 `CG-T03`。
 - 依赖：`CG-T03`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T03` 的 selected ctor / ordered args contract、top-level function value lowering、`getPlatform` / `sizeOf` / `nameOf` reflection intrinsic lowering、interface default dispatch 与 `rsplit_once` / backend default-arg 搜索面，确认 refactor LLVM 路径消费 MIR/typed contract，不在 codegen 现场补 named/default 语义或用 owner/member 字符串拆分作为 interface dispatch source of truth。
+  - 2026-05-07：复审中发现显式类型实参形式的 `nameOf<T>()` 在 generic materialized MIR path 中仍会退化成 declaration-only direct call；已修复为在 MIR intrinsic lowering 中规范化 generic/overload 后缀，并让 materialization fallback 从 top-level call binding 生成 `TypeMetadataLiteral`，同时补充 `tests/fixtures/run-pass/name_of_runtime_basic.scoop` 回归。
+  - 验证通过：`cargo test -p scoopc refactor_mir_call_contract_lowers_typed_call_sites`、`cargo test -p scoopc refactor_llvm_call_contract_lowering`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/get_platform_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/intrinsic_size_of_int_word.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/name_of_runtime_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04：收口 aggregate/enum/array/closure/boxing transport lowering
 

@@ -74,12 +74,10 @@ fn frontend_error(message: String) -> LlvmEmitError {
 }
 
 fn mir_direct_call_base_fqn(fqn: &str) -> &str {
-    fqn.rsplit_once("::<")
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    base.split_once("$overload")
         .map(|(base, _)| base)
-        .unwrap_or(fqn)
-        .split_once("$overload")
-        .map(|(base, _)| base)
-        .unwrap_or(fqn)
+        .unwrap_or(base)
 }
 
 fn decompose_target_triple(triple: &str) -> (String, String, String, String) {

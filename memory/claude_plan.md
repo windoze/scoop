@@ -1,29 +1,34 @@
-# Current Invocation Plan
+# Claude Execution Plan
 
 ## Scope
+
 - Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after completing and committing that one task, or after committing a required blocker/prerequisite update.
+- Identify the first task whose title is not prefixed with `[DONE]`.
+- Complete exactly that one task, then stop.
+- If the task is blocked by a concrete prerequisite, update `TODO.md`, commit the bookkeeping change, and stop.
 
-## Execution Steps
-1. Read `TODO.md` to identify the first incomplete task and its requirements.
-2. Check the latest commit message only for directly relevant unfinished context for that task.
-3. Inspect the minimal code, fixtures, and docs needed to understand the selected task.
-4. Implement the task without narrowing scope or introducing workarounds.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task's required validation plus relevant targeted checks.
-7. If validation exposes a task-blocking implementation gap, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
-8. If the task is complete, prefix its `TODO.md` heading with `[DONE]`, update its completion record, and avoid routine `PLAN.md` edits unless phase-level sequencing changed.
-9. Commit all relevant uncommitted changes with a descriptive task-tagged message.
-10. Stop without starting the next task.
+## Steps
 
-## Progress Log
-- Initial plan recorded before running repository commands.
-- Read `TODO.md`; first incomplete task is `CG-T03: 收口 call/ctor/function-ref/intrinsic/default/interface lowering`.
-- Next step is to inspect the latest commit for directly relevant unfinished context, then examine only the code paths needed for CG-T03.
-- Latest commit is `[CG-T02R] Review runtime value primitive lowering`; no directly relevant unfinished CG-T03 note found.
-- Initial code exploration found likely CG-T03 gaps: `getPlatform()` lacks refactor runtime lowering, class ctor MIR lacks selected ctor/complete ordered args metadata, interface dispatch metadata lacks selected slot/default target, and tests need a `refactor_llvm_call_contract_lowering` coverage point.
-- Implementation plan refined: extend MIR `ClassCtor` with selected ctor span and expected ordered param count, extend `DispatchMetadata` with selected member FQN/span, add interface slot declaration identity, make refactor ctor codegen reject incomplete/named args instead of selecting/defaulting in backend, add `getPlatform()` literal lowering, then add targeted unit/fixture coverage.
-- Implemented the main CG-T03 changes and added targeted fixtures. `cargo test -p scoopc refactor_llvm_call_contract_lowering` now passes; next step is to run the MIR contract test and run-pass/build fixtures for ctor defaults, platform intrinsic, interface default dispatch, function references, and reflection/sizeOf coverage.
-- Targeted validations passed for `refactor_llvm_call_contract_lowering`, MIR call contracts, class ctor named/default/delegation, `getPlatform()` runtime, interface default dispatch, top-level function value, sizeOf codegen, codegen gap inventory, and backend gate. Next step is `cargo clippy --all-targets -- -D warnings`, then TODO completion record and commit.
-- `cargo clippy --all-targets -- -D warnings` passed. `TODO.md` was updated to mark `CG-T03` as `[DONE]` with the completion record and validation list. Next step is to commit all relevant changes for this invocation.
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent Git history only for directly relevant unfinished work tied to that task.
+3. Inspect the smallest relevant part of the codebase needed for the selected task.
+4. Implement the task without weakening scope or using fixture-only workarounds.
+5. Run the task-specified validation and any directly relevant tests.
+6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record.
+7. Update this plan file when the concrete task, major progress, blockers, or verification results change.
+8. Commit all relevant changes with a descriptive task-tagged message.
+
+## Current Status
+
+- Selected task: `CG-T03R` (`Review CG-T03 call/ctor/intrinsic lowering`).
+- Review focus: class constructor lowering contract, top-level function references, runtime reflection/platform intrinsics, interface default dispatch, and removal of backend semantic guessing via string splitting or default-arg fallback.
+- Latest commit is `[CG-T03] Lower call contracts in LLVM`; no directly relevant unfinished issue was found in the commit summary.
+- Code review checkpoints inspected: MIR call/ctor metadata definitions, typed call lowering, refactor LLVM class ctor lowering, platform/type metadata/sizeOf lowering, plain interface dispatch target resolution, top-level function value lowering, and the `rsplit_once` search surface.
+- Initial review result: the main call/ctor/interface/default checks passed, but the new minimal `nameOf<T>()` run-pass fixture failed with a non-zero process exit.
+- Validation progress before this failure: `refactor_llvm_call_contract_lowering`, `refactor_mir_call_contract_lowers_typed_call_sites`, the ctor/getPlatform/interface-default/top-level-function-value/sizeOf fixtures, `codegen_gap_inventory`, `refactor_llvm_backend_gate`, and `cargo clippy --all-targets -- -D warnings` passed.
+- Current blocker: diagnose and fix the `nameOf<T>()` runtime/codegen failure, because it is directly relevant to `CG-T03`'s reflection intrinsic requirement.
+- Fix applied: MIR reflection intrinsic lowering now canonicalizes typed intrinsic FQNs by stripping generic/overload suffixes before matching `sizeOf`/`nameOf`; the generic materialization fallback now lowers `nameOf<T>()` from top-level call binding to `TypeMetadataLiteral`; the LLVM MIR direct-call base helper was corrected to preserve the stripped base.
+- Final validation status: new `nameOf` fixture, `refactor_mir_call_contract_lowers_typed_call_sites`, `refactor_llvm_call_contract_lowering`, ctor/getPlatform/interface-default/top-level-function-value/sizeOf fixtures, `codegen_gap_inventory`, `refactor_llvm_backend_gate`, `cargo fmt`, and final `cargo clippy --all-targets -- -D warnings` all passed.
+- `TODO.md` updated: `CG-T03R` is now prefixed with `[DONE]` in both the task index and heading, with a completion record covering the review conclusion, `nameOf<T>()` fix, added fixture, and validation commands.
+- Next step: inspect the final diff and commit the completed task.
+- Note: an exploratory build of `tests/fixtures/mir_refactor/call_contracts.scoop` failed on unrelated closure-call lowering (`refactor plain closure callee type`); this is not part of `CG-T03R`'s validation target and does not invalidate the reviewed call/ctor/intrinsic/interface contracts.

@@ -1004,6 +1004,13 @@ const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &str =
 const ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN: &str =
     "scoop.core.__scoop_array_builder_build_array_string";
 
+fn intrinsic_base_fqn(fqn: &str) -> &str {
+    let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+    base.split_once("$overload")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
 ///
 /// 当前阶段 pipeline：
@@ -3412,7 +3419,8 @@ impl<'a> FnLowering<'a> {
         callee_fqn: &str,
         args: &[hir::CallArg],
     ) -> bool {
-        match (kind, callee_fqn) {
+        let intrinsic_fqn = intrinsic_base_fqn(callee_fqn);
+        match (kind, intrinsic_fqn) {
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.sizeOf") if name == "sizeOf" => {
                 let value_ty = args
                     .first()
@@ -4111,7 +4119,7 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        if self.lower_size_of_intrinsic_call_expr(span, result, args) {
+        if self.lower_reflection_intrinsic_call_expr(span, result, args) {
             return result;
         }
 
@@ -4271,7 +4279,7 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    fn lower_size_of_intrinsic_call_expr(
+    fn lower_reflection_intrinsic_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -4283,24 +4291,49 @@ impl<'a> FnLowering<'a> {
         else {
             return false;
         };
-        if binding.fqn != "scoop.core.sizeOf" || !binding.is_intrinsic {
+        if !binding.is_intrinsic {
             return false;
         }
-        let value_ty = match args {
-            [hir::CallArg::Positional(value)] => Some(value.ty),
-            [] => binding.type_args.first().copied(),
-            _ => None,
-        };
-        let Some(value_ty) = value_ty else {
-            self.assign(
-                span,
-                result,
-                Rvalue::Todo("sizeOf intrinsic requires value or type arg"),
-            );
-            return true;
-        };
-        self.assign(span, result, Rvalue::SizeOf { value_ty });
-        true
+        match intrinsic_base_fqn(&binding.fqn) {
+            "scoop.core.sizeOf" => {
+                let value_ty = match args {
+                    [hir::CallArg::Positional(value)] => Some(value.ty),
+                    [] => binding.type_args.first().copied(),
+                    _ => None,
+                };
+                let Some(value_ty) = value_ty else {
+                    self.assign(
+                        span,
+                        result,
+                        Rvalue::Todo("sizeOf intrinsic requires value or type arg"),
+                    );
+                    return true;
+                };
+                self.assign(span, result, Rvalue::SizeOf { value_ty });
+                true
+            }
+            "scoop.core.nameOf" => {
+                let Some(source_ty) = binding.type_args.first().copied() else {
+                    self.assign(
+                        span,
+                        result,
+                        Rvalue::Todo("nameOf intrinsic requires type arg"),
+                    );
+                    return true;
+                };
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::TypeMetadataLiteral(TypeMetadataLiteral {
+                        source_ty,
+                        source_fqn: self.nominal_fqn_for_ty(source_ty),
+                        kind: TypeMetadataLiteralKind::TypeNameString,
+                    }),
+                );
+                true
+            }
+            _ => false,
+        }
     }
 
     fn lower_resume_call_expr(
