@@ -22,8 +22,8 @@ use crate::typecheck::{
 
 use super::super::{
     AssignPlaceSiteIndex, CallArgBindingSiteIndex, ClassInitIndex, ContinuationResumeCallSiteIndex,
-    CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, File, FunDecl,
-    NominalKindIndex, NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex,
+    CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, ExternGlobalIndex,
+    File, FunDecl, NominalKindIndex, NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex,
     ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelFunCallSiteIndex,
     TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex, WithUpdateSiteIndex,
 };
@@ -332,6 +332,8 @@ pub struct LoweredHir {
     pub enum_layouts: EnumLayoutIndex,
     /// `@Extern` 外部函数信息（供 LLVM codegen 声明正确的符号名与 ABI）。
     pub extern_funs: ExternFunIndex,
+    /// `@Extern` 顶层变量信息（供 refactor HIR/MIR handoff 显式发布 extern global roots）。
+    pub extern_globals: ExternGlobalIndex,
     /// 链接阶段需要额外加入的外部库（来自 `@Extern(lib = "...")`；去重 + 稳定排序）。
     ///
     /// 说明：
@@ -474,6 +476,7 @@ impl LoweredHir {
             struct_layouts: self.struct_layouts.clone(),
             enum_layouts: self.enum_layouts.clone(),
             extern_funs: self.extern_funs.clone(),
+            extern_globals: self.extern_globals.clone(),
             extern_libs: self.extern_libs.clone(),
             top_level_vars: self.top_level_vars.clone(),
             top_level_consts: self.top_level_consts.clone(),

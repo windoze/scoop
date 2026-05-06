@@ -41,7 +41,8 @@ use super::{
     Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
     FieldDecl, FieldOrigin, File, FunDecl, Item, MemberFunDecl, NominalDecl,
     NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt,
-    StmtKind, SupertypeDecl, SymbolId, TypeAliasDecl, ValDecl, ValueRef, WithUpdateSiteIndex,
+    StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl, ValDecl, ValueRef,
+    WithUpdateSiteIndex,
 };
 
 use types::*;
@@ -154,6 +155,8 @@ struct HirLowering<'a> {
     assign_place_contracts: AssignPlaceSiteIndex,
     /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
     top_level_vars: super::TopLevelVarIndex,
+    /// `@Extern` 顶层变量索引。
+    extern_globals: super::ExternGlobalIndex,
     /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
     top_level_consts: super::TopLevelConstIndex,
     /// 普通顶层 immutable value 索引：供后端生成 once-init + 稳定读取主线。
@@ -312,6 +315,7 @@ impl<'a> HirLowering<'a> {
             with_update_contracts: HashMap::new(),
             assign_place_contracts: HashMap::new(),
             top_level_vars: HashMap::new(),
+            extern_globals: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
@@ -1563,7 +1567,28 @@ impl<'a> HirLowering<'a> {
         if scope == ValScope::TopLevel
             && let Some(fqn) = top_level_fqn.as_ref()
         {
-            if v.modifiers.contains(&ast::Modifier::Const) && v.kind == ast::ValKind::Val {
+            let extern_symbol = name
+                .as_deref()
+                .and_then(|default_name| self.extern_global_symbol(v, default_name));
+            if let Some(symbol) = extern_symbol.clone() {
+                self.extern_globals.insert(
+                    fqn.clone(),
+                    super::ExternGlobal {
+                        fqn: fqn.clone(),
+                        source_path: self.source.path().to_path_buf(),
+                        span: v.span,
+                        ty,
+                        mutable: v.kind == ast::ValKind::Var,
+                        symbol,
+                        linkage: super::ExternGlobalLinkage::External,
+                        storage: self
+                            .top_level_var_storage_from_annotations(v)
+                            .unwrap_or(TopLevelVarStorage::Global),
+                        initializer_absent: v.init.is_none(),
+                        unsafe_required: true,
+                    },
+                );
+            } else if v.modifiers.contains(&ast::Modifier::Const) && v.kind == ast::ValKind::Val {
                 self.top_level_consts.insert(
                     fqn.clone(),
                     super::TopLevelConst {
@@ -1588,40 +1613,21 @@ impl<'a> HirLowering<'a> {
             }
 
             // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
-            if v.kind == ast::ValKind::Var {
-                const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
-                const GLOBAL_FQN: &str = "scoop.core.Global";
-
-                let is_thread_local = v
-                    .annotations
-                    .iter()
-                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, THREAD_LOCAL_FQN));
-                let is_global = v
-                    .annotations
-                    .iter()
-                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, GLOBAL_FQN));
-
-                let storage = if is_thread_local {
-                    Some(super::TopLevelVarStorage::ThreadLocal)
-                } else if is_global {
-                    Some(super::TopLevelVarStorage::Global)
-                } else {
-                    None
-                };
-
-                if let Some(storage) = storage {
-                    self.top_level_vars.insert(
-                        fqn.clone(),
-                        super::TopLevelVar {
-                            fqn: fqn.clone(),
-                            source_path: self.source.path().to_path_buf(),
-                            span: v.span,
-                            storage,
-                            ty,
-                            init: init.clone(),
-                        },
-                    );
-                }
+            if extern_symbol.is_none()
+                && v.kind == ast::ValKind::Var
+                && let Some(storage) = self.top_level_var_storage_from_annotations(v)
+            {
+                self.top_level_vars.insert(
+                    fqn.clone(),
+                    super::TopLevelVar {
+                        fqn: fqn.clone(),
+                        source_path: self.source.path().to_path_buf(),
+                        span: v.span,
+                        storage,
+                        ty,
+                        init: init.clone(),
+                    },
+                );
             }
         }
 
@@ -1632,6 +1638,35 @@ impl<'a> HirLowering<'a> {
             mutable: v.kind == ast::ValKind::Var,
             ty,
             init,
+        }
+    }
+
+    fn extern_global_symbol(&self, v: &ast::ValDecl, default_name: &str) -> Option<String> {
+        v.annotations
+            .iter()
+            .find_map(|ann| extern_annotation_symbol(self.source, ann, default_name))
+    }
+
+    fn top_level_var_storage_from_annotations(
+        &self,
+        v: &ast::ValDecl,
+    ) -> Option<TopLevelVarStorage> {
+        const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
+        const GLOBAL_FQN: &str = "scoop.core.Global";
+
+        if v.annotations
+            .iter()
+            .any(|ann| self.annotation_use_resolves_to_fqn(ann, THREAD_LOCAL_FQN))
+        {
+            Some(TopLevelVarStorage::ThreadLocal)
+        } else if v
+            .annotations
+            .iter()
+            .any(|ann| self.annotation_use_resolves_to_fqn(ann, GLOBAL_FQN))
+        {
+            Some(TopLevelVarStorage::Global)
+        } else {
+            None
         }
     }
 
@@ -2350,6 +2385,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         mut with_update_contracts,
         mut assign_place_contracts,
         top_level_vars,
+        extern_globals,
         top_level_consts,
         top_level_immutable_values,
         when_pat_binding_tys,
@@ -2394,6 +2430,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
         let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+        let extern_globals = std::mem::take(&mut ctx.extern_globals);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
@@ -2407,6 +2444,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             with_update_contracts,
             assign_place_contracts,
             top_level_vars,
+            extern_globals,
             top_level_consts,
             top_level_immutable_values,
             when_pat_binding_tys,
@@ -2500,6 +2538,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         struct_layouts,
         enum_layouts,
         extern_funs,
+        extern_globals,
         extern_libs,
         top_level_vars,
         top_level_consts,
@@ -2693,6 +2732,7 @@ pub fn lower_for_compilation_unit(
         mut with_update_contracts,
         mut assign_place_contracts,
         top_level_vars,
+        extern_globals,
         top_level_consts,
         top_level_immutable_values,
         when_pat_binding_tys,
@@ -2737,6 +2777,7 @@ pub fn lower_for_compilation_unit(
         let with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
         let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+        let extern_globals = std::mem::take(&mut ctx.extern_globals);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
@@ -2750,6 +2791,7 @@ pub fn lower_for_compilation_unit(
             with_update_contracts,
             assign_place_contracts,
             top_level_vars,
+            extern_globals,
             top_level_consts,
             top_level_immutable_values,
             when_pat_binding_tys,
@@ -2819,6 +2861,7 @@ pub fn lower_for_compilation_unit(
         struct_layouts,
         enum_layouts,
         extern_funs,
+        extern_globals,
         extern_libs,
         top_level_vars,
         top_level_consts,
@@ -3166,6 +3209,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let mut non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex =
         NonPureContinuationResumeCallSiteIndex::new();
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
+    let mut extern_globals: super::ExternGlobalIndex = HashMap::new();
     let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
     let mut top_level_immutable_values: super::TopLevelImmutableValueIndex = HashMap::new();
     let mut when_pat_binding_tys: super::WhenPatBindingTypeIndex = HashMap::new();
@@ -3181,6 +3225,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             file_with_update_contracts,
             file_assign_place_contracts,
             file_top_level_vars,
+            file_extern_globals,
             file_top_level_consts,
             file_top_level_immutable_values,
             file_when_pat_binding_tys,
@@ -3227,6 +3272,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
             let file_with_update_contracts = std::mem::take(&mut ctx.with_update_contracts);
             let file_assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+            let file_extern_globals = std::mem::take(&mut ctx.extern_globals);
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
                 std::mem::take(&mut ctx.top_level_immutable_values);
@@ -3241,6 +3287,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                 file_with_update_contracts,
                 file_assign_place_contracts,
                 file_top_level_vars,
+                file_extern_globals,
                 file_top_level_consts,
                 file_top_level_immutable_values,
                 file_when_pat_binding_tys,
@@ -3265,6 +3312,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         );
 
         top_level_vars.extend(file_top_level_vars);
+        extern_globals.extend(file_extern_globals);
         top_level_consts.extend(file_top_level_consts);
         top_level_immutable_values.extend(file_top_level_immutable_values);
         when_pat_binding_tys.extend(file_when_pat_binding_tys);
@@ -3452,6 +3500,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         struct_layouts,
         enum_layouts,
         extern_funs,
+        extern_globals,
         extern_libs,
         top_level_vars,
         top_level_consts,

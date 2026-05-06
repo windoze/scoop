@@ -1,0 +1,173 @@
+File {
+    decls: [
+        Object(
+            ObjectDecl {
+                span: 366..412,
+                fqn: "fixtures.hir_init.Holder",
+                name: "Holder",
+                kind: Object,
+                supertypes: [],
+                interfaces: [],
+                initializer_root: "fixtures.hir_init.Holder",
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 390..395,
+                            fqn: "fixtures.hir_init.Holder.value",
+                            name: "value",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: BodyProperty,
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
+    items: [
+        Val(
+            ValDecl {
+                span: 220..243,
+                id: Some(
+                    S0,
+                ),
+                name: Some(
+                    "Base",
+                ),
+                mutable: false,
+                ty: TypeId(
+                    5,
+                ),
+                init: Some(
+                    Expr {
+                        span: 242..243,
+                        ty: TypeId(
+                            5,
+                        ),
+                        kind: Literal(
+                            Int,
+                        ),
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 244..271,
+                id: Some(
+                    S1,
+                ),
+                name: Some(
+                    "Runtime",
+                ),
+                mutable: false,
+                ty: TypeId(
+                    5,
+                ),
+                init: Some(
+                    Expr {
+                        span: 263..271,
+                        ty: TypeId(
+                            5,
+                        ),
+                        kind: Binary {
+                            lhs: Expr {
+                                span: 263..267,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                kind: VarRef(
+                                    TopLevel {
+                                        id: S0,
+                                        fqn: "fixtures.hir_init.Base",
+                                    },
+                                ),
+                            },
+                            op: Add,
+                            op_span: 268..269,
+                            rhs: Expr {
+                                span: 270..271,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                kind: Literal(
+                                    Int,
+                                ),
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 273..307,
+                id: Some(
+                    S2,
+                ),
+                name: Some(
+                    "Counter",
+                ),
+                mutable: true,
+                ty: TypeId(
+                    5,
+                ),
+                init: Some(
+                    Expr {
+                        span: 300..307,
+                        ty: TypeId(
+                            5,
+                        ),
+                        kind: VarRef(
+                            TopLevel {
+                                id: S1,
+                                fqn: "fixtures.hir_init.Runtime",
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 309..364,
+                id: Some(
+                    S3,
+                ),
+                name: Some(
+                    "NativeCounter",
+                ),
+                mutable: true,
+                ty: TypeId(
+                    5,
+                ),
+                init: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 414..427,
+                fqn: "fixtures.hir_init.main",
+                name: "main",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Block {
+                        span: 425..427,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

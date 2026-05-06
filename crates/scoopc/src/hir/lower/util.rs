@@ -661,6 +661,7 @@ fn collect_object_decl_inits(
     let fqn = join_prefix(owner_prefix, &name);
     let mut init = ObjectInit {
         fqn: fqn.clone(),
+        span: obj.span,
         source_path: ctx.source.path().to_path_buf(),
         properties: HashMap::new(),
         steps: Vec::new(),
@@ -1810,6 +1811,18 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<ExternF
     }
 
     None
+}
+
+pub(super) fn extern_annotation_symbol(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+    default_name: &str,
+) -> Option<String> {
+    if !is_builtin_extern_annotation(source, ann) {
+        return None;
+    }
+    let args = parse_extern_annotation_args(source, ann);
+    Some(args.name.unwrap_or_else(|| default_name.to_string()))
 }
 
 pub(super) fn collect_extern_libs(pairs: &[(&SourceFile, &ast::File)]) -> Vec<String> {

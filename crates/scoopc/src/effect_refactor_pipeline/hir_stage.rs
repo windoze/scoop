@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir::{
-    AssignPlaceContract, AssignPlaceKind, CallArg, CallSite, Decl, DispatchCallKind, Expr,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, Decl, DispatchCallKind, Expr,
     ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item, LoweredHir, Stmt,
     StmtKind, ValueRef,
 };
@@ -120,6 +120,176 @@ impl FunctionEffectContract {
 
     pub fn effects_closed(&self) -> bool {
         self.effects_closed
+    }
+}
+
+/// Typed HIR handoff root for top-level initialization/storage ordering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopLevelInitRootContract {
+    fqn: String,
+    source_path: PathBuf,
+    span: Span,
+    kind: TopLevelInitRootKind,
+    ty: Option<TypeId>,
+    has_initializer: bool,
+    dependencies: Vec<TopLevelInitDependency>,
+}
+
+impl TopLevelInitRootContract {
+    fn new(
+        fqn: String,
+        source_path: PathBuf,
+        span: Span,
+        kind: TopLevelInitRootKind,
+        ty: Option<TypeId>,
+        has_initializer: bool,
+        dependencies: Vec<TopLevelInitDependency>,
+    ) -> Self {
+        Self {
+            fqn,
+            source_path,
+            span,
+            kind,
+            ty,
+            has_initializer,
+            dependencies,
+        }
+    }
+
+    pub fn fqn(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn source_path(&self) -> &Path {
+        &self.source_path
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn kind(&self) -> TopLevelInitRootKind {
+        self.kind
+    }
+
+    pub fn ty(&self) -> Option<TypeId> {
+        self.ty
+    }
+
+    pub fn has_initializer(&self) -> bool {
+        self.has_initializer
+    }
+
+    pub fn dependencies(&self) -> &[TopLevelInitDependency] {
+        &self.dependencies
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopLevelInitRootKind {
+    ConstVal,
+    RuntimeImmutableVal,
+    RuntimeMutableVar {
+        storage: crate::hir::TopLevelVarStorage,
+    },
+    ObjectSingleton,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopLevelInitDependency {
+    fqn: String,
+    kind: TopLevelInitDependencyKind,
+}
+
+impl TopLevelInitDependency {
+    fn new(fqn: String, kind: TopLevelInitDependencyKind) -> Self {
+        Self { fqn, kind }
+    }
+
+    pub fn fqn(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn kind(&self) -> TopLevelInitDependencyKind {
+        self.kind
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopLevelInitDependencyKind {
+    TopLevelValue,
+    ObjectSingleton,
+}
+
+/// Typed HIR handoff contract for an `@Extern` top-level variable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternGlobalContract {
+    fqn: String,
+    source_path: PathBuf,
+    span: Span,
+    ty: TypeId,
+    mutable: bool,
+    symbol: String,
+    linkage: crate::hir::ExternGlobalLinkage,
+    storage: crate::hir::TopLevelVarStorage,
+    initializer_absent: bool,
+    unsafe_required: bool,
+}
+
+impl ExternGlobalContract {
+    fn from_hir(global: &crate::hir::ExternGlobal) -> Self {
+        Self {
+            fqn: global.fqn.clone(),
+            source_path: global.source_path.clone(),
+            span: global.span,
+            ty: global.ty,
+            mutable: global.mutable,
+            symbol: global.symbol.clone(),
+            linkage: global.linkage,
+            storage: global.storage,
+            initializer_absent: global.initializer_absent,
+            unsafe_required: global.unsafe_required,
+        }
+    }
+
+    pub fn fqn(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn source_path(&self) -> &Path {
+        &self.source_path
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn ty(&self) -> TypeId {
+        self.ty
+    }
+
+    pub fn mutable(&self) -> bool {
+        self.mutable
+    }
+
+    pub fn symbol(&self) -> &str {
+        &self.symbol
+    }
+
+    pub fn linkage(&self) -> crate::hir::ExternGlobalLinkage {
+        self.linkage
+    }
+
+    pub fn storage(&self) -> crate::hir::TopLevelVarStorage {
+        self.storage
+    }
+
+    pub fn initializer_absent(&self) -> bool {
+        self.initializer_absent
+    }
+
+    pub fn unsafe_required(&self) -> bool {
+        self.unsafe_required
     }
 }
 
@@ -654,6 +824,8 @@ pub struct TypedHirEffectContracts {
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
     with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
     assign_place_contracts: HashMap<CallSite, AssignPlaceContract>,
+    top_level_init_roots: Vec<TopLevelInitRootContract>,
+    extern_global_contracts: Vec<ExternGlobalContract>,
 }
 
 impl TypedHirEffectContracts {
@@ -677,6 +849,8 @@ impl TypedHirEffectContracts {
             && self.call_site_contracts.is_empty()
             && self.with_update_contracts.is_empty()
             && self.assign_place_contracts.is_empty()
+            && self.top_level_init_roots.is_empty()
+            && self.extern_global_contracts.is_empty()
     }
 
     pub fn function_effects(&self) -> &[FunctionEffectContract] {
@@ -732,6 +906,14 @@ impl TypedHirEffectContracts {
 
     pub fn assign_place_contracts(&self) -> &HashMap<CallSite, AssignPlaceContract> {
         &self.assign_place_contracts
+    }
+
+    pub fn top_level_init_roots(&self) -> &[TopLevelInitRootContract] {
+        &self.top_level_init_roots
+    }
+
+    pub fn extern_global_contracts(&self) -> &[ExternGlobalContract] {
+        &self.extern_global_contracts
     }
 
     /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
@@ -797,6 +979,22 @@ impl TypedHirEffectContracts {
             format_assign_place_contract(&mut out, types, call_site, contract);
         }
         let _ = writeln!(out, "    ],");
+
+        if !self.top_level_init_roots.is_empty() {
+            let _ = writeln!(out, "    top_level_init_roots: [");
+            for root in &self.top_level_init_roots {
+                format_top_level_init_root(&mut out, types, root);
+            }
+            let _ = writeln!(out, "    ],");
+        }
+
+        if !self.extern_global_contracts.is_empty() {
+            let _ = writeln!(out, "    extern_global_contracts: [");
+            for contract in &self.extern_global_contracts {
+                format_extern_global_contract(&mut out, types, contract);
+            }
+            let _ = writeln!(out, "    ],");
+        }
 
         let mut continuation_resume_sites =
             self.continuation_resume_sites.iter().collect::<Vec<_>>();
@@ -1035,6 +1233,8 @@ struct ContractCollector<'a> {
     call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
     with_update_contracts: HashMap<CallSite, ast::WithUpdateContract>,
     assign_place_contracts: HashMap<CallSite, AssignPlaceContract>,
+    top_level_init_roots: Vec<TopLevelInitRootContract>,
+    extern_global_contracts: Vec<ExternGlobalContract>,
 }
 
 impl<'a> ContractCollector<'a> {
@@ -1050,6 +1250,8 @@ impl<'a> ContractCollector<'a> {
             call_site_contracts: HashMap::new(),
             with_update_contracts: lowered_hir.with_update_contracts.clone(),
             assign_place_contracts: lowered_hir.assign_place_contracts.clone(),
+            top_level_init_roots: collect_top_level_init_roots(lowered_hir),
+            extern_global_contracts: collect_extern_global_contracts(lowered_hir),
         }
     }
 
@@ -1074,6 +1276,8 @@ impl<'a> ContractCollector<'a> {
             call_site_contracts: self.call_site_contracts,
             with_update_contracts: self.with_update_contracts,
             assign_place_contracts: self.assign_place_contracts,
+            top_level_init_roots: self.top_level_init_roots,
+            extern_global_contracts: self.extern_global_contracts,
         })
     }
 
@@ -1714,6 +1918,342 @@ fn continuation_receiver_contract(
     ))
 }
 
+fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRootContract> {
+    let dependency_kinds = top_level_dependency_kinds(lowered_hir);
+    let lowered_object_fqns = lowered_object_decl_fqns(lowered_hir);
+    let mut roots = Vec::new();
+
+    for konst in lowered_hir.top_level_consts.values() {
+        roots.push(TopLevelInitRootContract::new(
+            konst.fqn.clone(),
+            konst.source_path.clone(),
+            konst.span,
+            TopLevelInitRootKind::ConstVal,
+            Some(konst.ty),
+            konst.init.is_some(),
+            dependencies_for_expr(konst.fqn.as_str(), konst.init.as_ref(), &dependency_kinds),
+        ));
+    }
+
+    for value in lowered_hir.top_level_immutable_values.values() {
+        roots.push(TopLevelInitRootContract::new(
+            value.fqn.clone(),
+            value.source_path.clone(),
+            value.span,
+            TopLevelInitRootKind::RuntimeImmutableVal,
+            Some(value.ty),
+            value.init.is_some(),
+            dependencies_for_expr(value.fqn.as_str(), value.init.as_ref(), &dependency_kinds),
+        ));
+    }
+
+    for var in lowered_hir.top_level_vars.values() {
+        roots.push(TopLevelInitRootContract::new(
+            var.fqn.clone(),
+            var.source_path.clone(),
+            var.span,
+            TopLevelInitRootKind::RuntimeMutableVar {
+                storage: var.storage,
+            },
+            Some(var.ty),
+            var.init.is_some(),
+            dependencies_for_expr(var.fqn.as_str(), var.init.as_ref(), &dependency_kinds),
+        ));
+    }
+
+    for object in lowered_hir
+        .object_inits
+        .values()
+        .filter(|object| lowered_object_fqns.contains(&object.fqn))
+    {
+        roots.push(TopLevelInitRootContract::new(
+            object.fqn.clone(),
+            object.source_path.clone(),
+            object.span,
+            TopLevelInitRootKind::ObjectSingleton,
+            None,
+            !object.steps.is_empty(),
+            dependencies_for_object(object.fqn.as_str(), object, &dependency_kinds),
+        ));
+    }
+
+    roots.sort_by(|lhs, rhs| {
+        lhs.fqn
+            .cmp(&rhs.fqn)
+            .then(lhs.span.start.cmp(&rhs.span.start))
+    });
+    roots
+}
+
+fn lowered_object_decl_fqns(lowered_hir: &LoweredHir) -> HashSet<String> {
+    let mut out = HashSet::new();
+    for decl in &lowered_hir.file.decls {
+        collect_object_decl_fqns(decl, &mut out);
+    }
+    out
+}
+
+fn collect_object_decl_fqns(decl: &Decl, out: &mut HashSet<String>) {
+    match decl {
+        Decl::Object(object) => {
+            out.insert(object.fqn.clone());
+            for member in &object.members {
+                if let crate::hir::DeclMember::Nested(nested) = member {
+                    collect_object_decl_fqns(nested, out);
+                }
+            }
+        }
+        Decl::Nominal(nominal) => {
+            for member in &nominal.members {
+                if let crate::hir::DeclMember::Nested(nested) = member {
+                    collect_object_decl_fqns(nested, out);
+                }
+            }
+        }
+        Decl::TypeAlias(_) | Decl::ExtensionProperty(_) => {}
+    }
+}
+
+fn collect_extern_global_contracts(lowered_hir: &LoweredHir) -> Vec<ExternGlobalContract> {
+    let mut contracts = lowered_hir
+        .extern_globals
+        .values()
+        .map(ExternGlobalContract::from_hir)
+        .collect::<Vec<_>>();
+    contracts.sort_by(|lhs, rhs| {
+        lhs.fqn
+            .cmp(&rhs.fqn)
+            .then(lhs.span.start.cmp(&rhs.span.start))
+    });
+    contracts
+}
+
+fn top_level_dependency_kinds(
+    lowered_hir: &LoweredHir,
+) -> HashMap<String, TopLevelInitDependencyKind> {
+    let mut out = HashMap::new();
+    for fqn in lowered_hir.top_level_consts.keys() {
+        out.insert(fqn.clone(), TopLevelInitDependencyKind::TopLevelValue);
+    }
+    for fqn in lowered_hir.top_level_immutable_values.keys() {
+        out.insert(fqn.clone(), TopLevelInitDependencyKind::TopLevelValue);
+    }
+    for fqn in lowered_hir.top_level_vars.keys() {
+        out.insert(fqn.clone(), TopLevelInitDependencyKind::TopLevelValue);
+    }
+    for fqn in lowered_hir.object_inits.keys() {
+        out.insert(fqn.clone(), TopLevelInitDependencyKind::ObjectSingleton);
+    }
+    out
+}
+
+fn dependencies_for_expr(
+    owner_fqn: &str,
+    expr: Option<&Expr>,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+) -> Vec<TopLevelInitDependency> {
+    let mut out = Vec::new();
+    if let Some(expr) = expr {
+        collect_expr_dependencies(expr, owner_fqn, dependency_kinds, &mut out);
+    }
+    stable_dependencies(out)
+}
+
+fn dependencies_for_object(
+    owner_fqn: &str,
+    object: &crate::hir::ObjectInit,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+) -> Vec<TopLevelInitDependency> {
+    let mut out = Vec::new();
+    for step in &object.steps {
+        match step {
+            crate::hir::ObjectInitStep::PropertyInit { init, .. } => {
+                collect_expr_dependencies(init, owner_fqn, dependency_kinds, &mut out);
+            }
+            crate::hir::ObjectInitStep::InitBlock { block } => {
+                collect_block_dependencies(block, owner_fqn, dependency_kinds, &mut out);
+            }
+        }
+    }
+    stable_dependencies(out)
+}
+
+fn stable_dependencies(
+    mut dependencies: Vec<TopLevelInitDependency>,
+) -> Vec<TopLevelInitDependency> {
+    dependencies.sort_by(|lhs, rhs| {
+        lhs.fqn
+            .cmp(&rhs.fqn)
+            .then((lhs.kind as u8).cmp(&(rhs.kind as u8)))
+    });
+    dependencies.dedup_by(|lhs, rhs| lhs.fqn == rhs.fqn && lhs.kind == rhs.kind);
+    dependencies
+}
+
+fn push_top_level_dependency(
+    fqn: &str,
+    owner_fqn: &str,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    if fqn == owner_fqn {
+        return;
+    }
+    if let Some(kind) = dependency_kinds.get(fqn).copied() {
+        out.push(TopLevelInitDependency::new(fqn.to_string(), kind));
+    }
+}
+
+fn collect_block_dependencies(
+    block: &Block,
+    owner_fqn: &str,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    for stmt in &block.stmts {
+        collect_stmt_dependencies(stmt, owner_fqn, dependency_kinds, out);
+    }
+}
+
+fn collect_stmt_dependencies(
+    stmt: &Stmt,
+    owner_fqn: &str,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    match &stmt.kind {
+        StmtKind::Empty
+        | StmtKind::Break { .. }
+        | StmtKind::Continue { .. }
+        | StmtKind::Todo(_) => {}
+        StmtKind::Expr(expr) => collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out),
+        StmtKind::Val(val) => {
+            if let Some(init) = &val.init {
+                collect_expr_dependencies(init, owner_fqn, dependency_kinds, out);
+            }
+        }
+        StmtKind::Assign { lhs, rhs, .. } => {
+            collect_expr_dependencies(lhs, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(rhs, owner_fqn, dependency_kinds, out);
+        }
+        StmtKind::While { cond, body } => {
+            collect_expr_dependencies(cond, owner_fqn, dependency_kinds, out);
+            collect_block_dependencies(body, owner_fqn, dependency_kinds, out);
+        }
+        StmtKind::Return { value } => {
+            if let Some(value) = value {
+                collect_expr_dependencies(value, owner_fqn, dependency_kinds, out);
+            }
+        }
+    }
+}
+
+fn collect_expr_dependencies(
+    expr: &Expr,
+    owner_fqn: &str,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    match &expr.kind {
+        ExprKind::Missing
+        | ExprKind::Literal(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::ClassLiteral(_)
+        | ExprKind::Todo(_) => {}
+        ExprKind::VarRef(ValueRef::Local { .. }) => {}
+        ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
+            push_top_level_dependency(fqn, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_expr_dependencies(&field.value, owner_fqn, dependency_kinds, out);
+            }
+        }
+        ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_expr_dependencies(element, owner_fqn, dependency_kinds, out);
+            }
+        }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+                }
+            }
+        }
+        ExprKind::Unary { expr, .. }
+        | ExprKind::TypeCheck { expr, .. }
+        | ExprKind::Cast { expr, .. } => {
+            collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_expr_dependencies(lhs, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(rhs, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::Block(block) => {
+            collect_block_dependencies(block, owner_fqn, dependency_kinds, out)
+        }
+        ExprKind::Closure(_) => {}
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_expr_dependencies(cond, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(then_branch, owner_fqn, dependency_kinds, out);
+            if let Some(else_branch) = else_branch {
+                collect_expr_dependencies(else_branch, owner_fqn, dependency_kinds, out);
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_expr_dependencies(subject, owner_fqn, dependency_kinds, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_dependencies(guard, owner_fqn, dependency_kinds, out);
+                }
+                collect_expr_dependencies(&arm.body, owner_fqn, dependency_kinds, out);
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. } => {
+            collect_expr_dependencies(receiver, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::Call { callee, args } => {
+            collect_expr_dependencies(callee, owner_fqn, dependency_kinds, out);
+            collect_call_arg_dependencies(args, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::Perform { args, .. } => {
+            collect_call_arg_dependencies(args, owner_fqn, dependency_kinds, out);
+        }
+        ExprKind::Handle(handle) => {
+            collect_block_dependencies(&handle.body, owner_fqn, dependency_kinds, out);
+            for arm in &handle.arms {
+                collect_expr_dependencies(&arm.body, owner_fqn, dependency_kinds, out);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_block_dependencies(finally, owner_fqn, dependency_kinds, out);
+            }
+        }
+    }
+}
+
+fn collect_call_arg_dependencies(
+    args: &[CallArg],
+    owner_fqn: &str,
+    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    for arg in args {
+        match arg {
+            CallArg::Positional(expr) => {
+                collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+            }
+            CallArg::Named { value, .. } => {
+                collect_expr_dependencies(value, owner_fqn, dependency_kinds, out);
+            }
+        }
+    }
+}
+
 fn compare_call_sites(lhs: &CallSite, rhs: &CallSite) -> Ordering {
     lhs.source_path
         .cmp(&rhs.source_path)
@@ -1836,6 +2376,69 @@ fn format_assign_write_barrier(
             format!("StorageSlot({})", format_type_id_lossy(types, *slot_ty))
         }
     }
+}
+
+fn format_top_level_init_root(
+    out: &mut String,
+    types: &TypeStore,
+    root: &TopLevelInitRootContract,
+) {
+    let _ = writeln!(out, "        TopLevelInitRootContract {{");
+    let _ = writeln!(out, "            span: {:?},", root.span());
+    let _ = writeln!(out, "            fqn: {:?},", root.fqn());
+    let _ = writeln!(out, "            kind: {:?},", root.kind());
+    match root.ty() {
+        Some(ty) => {
+            let _ = writeln!(out, "            ty: {},", format_type_id_lossy(types, ty));
+        }
+        None => {
+            let _ = writeln!(out, "            ty: None,");
+        }
+    }
+    let _ = writeln!(
+        out,
+        "            has_initializer: {},",
+        root.has_initializer()
+    );
+    let _ = writeln!(out, "            dependencies: [");
+    for dependency in root.dependencies() {
+        let _ = writeln!(out, "                TopLevelInitDependency {{");
+        let _ = writeln!(out, "                    fqn: {:?},", dependency.fqn());
+        let _ = writeln!(out, "                    kind: {:?},", dependency.kind());
+        let _ = writeln!(out, "                }},");
+    }
+    let _ = writeln!(out, "            ],");
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_extern_global_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &ExternGlobalContract,
+) {
+    let _ = writeln!(out, "        ExternGlobalContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.span());
+    let _ = writeln!(out, "            fqn: {:?},", contract.fqn());
+    let _ = writeln!(out, "            symbol: {:?},", contract.symbol());
+    let _ = writeln!(out, "            linkage: {:?},", contract.linkage());
+    let _ = writeln!(out, "            storage: {:?},", contract.storage());
+    let _ = writeln!(
+        out,
+        "            ty: {},",
+        format_type_id_lossy(types, contract.ty())
+    );
+    let _ = writeln!(out, "            mutable: {},", contract.mutable());
+    let _ = writeln!(
+        out,
+        "            initializer_absent: {},",
+        contract.initializer_absent()
+    );
+    let _ = writeln!(
+        out,
+        "            unsafe_required: {},",
+        contract.unsafe_required()
+    );
+    let _ = writeln!(out, "        }},");
 }
 
 fn format_with_update_contract(
@@ -2378,6 +2981,7 @@ mod tests {
             "sample.Singleton".to_string(),
             crate::hir::ObjectInit {
                 fqn: "sample.Singleton".to_string(),
+                span: test_span(),
                 source_path: source_path.clone(),
                 properties: HashMap::new(),
                 steps: vec![crate::hir::ObjectInitStep::PropertyInit {
@@ -3067,6 +3671,85 @@ fun use(xs: MyIterable) {
         );
         assert_eq!(err.owner(), "HIR for-loop lowering");
         assert_eq!(err.source_path(), source.path());
+    }
+
+    #[test]
+    fn refactor_hir_top_level_init_publishes_storage_and_extern_roots() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_top_level_init.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+const val Base: Int = 1
+val Runtime: Int = Base + 1
+
+@Global
+var Counter: Int = Runtime
+
+@Extern(name = "native_counter")
+var NativeCounter: Int
+
+object Holder {
+    val value: Int = Runtime
+}
+
+fun main() {}
+"#,
+        );
+
+        let output = run(&session, &source).expect("top-level init roots should lower");
+        let roots = output.effect_contracts().top_level_init_roots();
+        assert!(roots.iter().any(|root| {
+            root.fqn() == "sample.Base" && root.kind() == TopLevelInitRootKind::ConstVal
+        }));
+        assert!(roots.iter().any(|root| {
+            root.fqn() == "sample.Runtime"
+                && root.kind() == TopLevelInitRootKind::RuntimeImmutableVal
+                && root
+                    .dependencies()
+                    .iter()
+                    .any(|dep| dep.fqn() == "sample.Base")
+        }));
+        assert!(roots.iter().any(|root| {
+            root.fqn() == "sample.Counter"
+                && matches!(
+                    root.kind(),
+                    TopLevelInitRootKind::RuntimeMutableVar {
+                        storage: crate::hir::TopLevelVarStorage::Global
+                    }
+                )
+                && root
+                    .dependencies()
+                    .iter()
+                    .any(|dep| dep.fqn() == "sample.Runtime")
+        }));
+        assert!(roots.iter().any(|root| {
+            root.fqn() == "sample.Holder"
+                && root.kind() == TopLevelInitRootKind::ObjectSingleton
+                && root
+                    .dependencies()
+                    .iter()
+                    .any(|dep| dep.fqn() == "sample.Runtime")
+        }));
+
+        let externs = output.effect_contracts().extern_global_contracts();
+        assert_eq!(externs.len(), 1, "{externs:#?}");
+        let native = &externs[0];
+        assert_eq!(native.fqn(), "sample.NativeCounter");
+        assert_eq!(native.symbol(), "native_counter");
+        assert_eq!(native.linkage(), crate::hir::ExternGlobalLinkage::External);
+        assert_eq!(native.storage(), crate::hir::TopLevelVarStorage::Global);
+        assert!(native.initializer_absent());
+        assert!(native.unsafe_required());
+        assert!(native.mutable());
+
+        let dump = output.stable_dump();
+        assert!(
+            dump.contains("top_level_init_roots") && dump.contains("extern_global_contracts"),
+            "init/storage roots should be visible in typed HIR dump: {dump}"
+        );
     }
 
     #[test]

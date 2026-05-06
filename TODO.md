@@ -481,7 +481,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_for_loop`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse`、custom iterator ok/error typecheck fixtures、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/for_loop_iter_protocol_ok.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T10`
 
-## HIR-T12：建立 top-level init/storage/object metadata handoff
+## [DONE] HIR-T12：建立 top-level init/storage/object metadata handoff
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H8
@@ -509,6 +509,11 @@
 - 完成条件：
   - HIR handoff 已完整发布 top-level init/storage/object metadata。
   - 可进入 `HIR-T13`。
+- 完成记录（2026-05-06）：
+  - `LoweredHir` 新增 `extern_globals` side table，HIR lowering 现在为 `@Extern` 顶层 `val/var` 发布外部符号名、external linkage、TLS/global storage、initializer absence 与 unsafe access requirement；`@Extern` 顶层值不再被误归入 runtime top-level init root。
+  - refactor typed HIR contract 新增 `top_level_init_roots` 与 `extern_global_contracts`，覆盖 `const val`、runtime immutable `val`、runtime mutable `@Global/@ThreadLocal var`、当前 lowering 文件中的 object singleton init root，以及每个 root 的直接 dependency ordering facts。
+  - `dump-hir --effect-pipeline refactor` 的 typed contract section 现在显示 init/storage roots 与 extern global contract；新增 `tests/fixtures/hir/refactor_top_level_init.scoop/.hir` 覆盖 top-level val/var、const val、object init 与 extern global。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_top_level_init`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_top_level_init.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/refactor_top_level_init.scoop`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T11`
 
 ## HIR-T13：建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR

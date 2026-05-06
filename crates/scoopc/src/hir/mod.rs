@@ -1079,7 +1079,33 @@ pub enum ExternAbi {
 /// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type ExternFunIndex = HashMap<String, ExternFun>;
 
-/// 顶层可变全局变量（`@ThreadLocal` / `@Global`）的最小后端视图（TODO T1023）。
+/// 外部顶层变量（`@Extern val/var`）的 HIR handoff contract。
+///
+/// 说明：该 side table 把外部符号、链接语义与 unsafe access requirement 显式交给后续阶段，
+/// 避免 MIR/LLVM 重新回 AST 或注解语法推断 extern global 语义。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternGlobal {
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub symbol: String,
+    pub linkage: ExternGlobalLinkage,
+    pub storage: TopLevelVarStorage,
+    pub initializer_absent: bool,
+    pub unsafe_required: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternGlobalLinkage {
+    External,
+}
+
+/// `extern global FQN -> ExternGlobal` 的索引（由 HIR lowering 构建，供后续阶段查询）。
+pub type ExternGlobalIndex = HashMap<String, ExternGlobal>;
+
+/// 顶层可变全局变量（`@ThreadLocal` / `@Global`）的最小后端视图。
 ///
 /// 说明：
 /// - 这些变量在 typecheck 阶段已被门禁为 GC-free，因此当前不需要参与 GC roots 扫描；
@@ -1148,6 +1174,7 @@ pub type TopLevelImmutableValueIndex = HashMap<String, TopLevelImmutableValue>;
 #[derive(Debug, Clone)]
 pub struct ObjectInit {
     pub fqn: String,
+    pub span: Span,
     /// object 声明所在源文件路径；供初始化表达式 codegen 回查源码字面量。
     pub source_path: PathBuf,
     /// object 体内声明的属性（按 name 索引）。
