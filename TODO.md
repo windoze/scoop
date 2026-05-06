@@ -101,7 +101,7 @@
   - 搜索审计已执行：`rg 'Todo\(|Item::Todo|StatementKind::Todo|Rvalue::Todo|TerminatorKind::Todo|UnwindAction::Todo' crates/scoopc/src`；命中已归入 inventory、HIR inventory、现有 verifier/preflight/summary/pass/codegen consumer、materializer no-op 或 legacy/effect-lowered consumer。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T01：落地 refactor production MIR strict verifier
+## [DONE] MIR-T01：落地 refactor production MIR strict verifier
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M1
@@ -146,6 +146,15 @@
   - refactor MIR stage 无法产出含 Todo 的 successful output。
   - 负例 diagnostics 不再晚到 LLVM/raw MIR codegen。
 - 依赖：`MIR-T00`
+
+- 完成记录（2026-05-06）：
+  - 新增 `MirFile::validate_refactor_production(...)`，在现有 direct-style CFG/site verifier 之后执行 production-only no-placeholder、非 `Unit` 空返回、effect-sensitive site metadata 完整性检查。
+  - strict verifier 现在拒绝 `Item::Todo`、`StatementKind::Todo`、`Rvalue::Todo`、`TerminatorKind::Todo`、`UnwindAction::Todo`，并在诊断中携带 body FQN、block、span、placeholder category/reason 或 site metadata 缺失原因。
+  - `effect_refactor_pipeline::mir_stage::run(...)` 已改为调用 production verifier；debug/body-level `validate_refactor_direct_style()` 保留为 direct-style 结构 verifier。
+  - 新增 `refactor_mir_no_todo_*` 单测，覆盖所有 Todo surface、非 `Unit` `Return { value: None }`、resume runtime-error metadata 缺失，以及 stage validator 拒绝 item Todo。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T02：落地 materialized MIR strict verifier 与 no-param gate
 

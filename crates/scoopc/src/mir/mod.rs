@@ -147,6 +147,361 @@ pub struct File {
     pub items: Vec<Item>,
 }
 
+#[derive(Clone, Copy)]
+struct RefactorProductionSiteContext<'a> {
+    fqn: &'a str,
+    block: BasicBlockId,
+    span: Span,
+}
+
+impl File {
+    /// Production verifier for refactor MIR stage output.
+    ///
+    /// Dump/debug paths may still inspect incomplete MIR, but the production refactor stage must
+    /// not successfully hand off executable placeholders or ambiguous return/site contracts.
+    pub fn validate_refactor_production(&self, unit_ty: TypeId) -> Result<(), MirValidationError> {
+        for item in &self.items {
+            match item {
+                Item::Fun(fun) => self.validate_refactor_production_fun(fun, unit_ty)?,
+                Item::Todo { span, kind } => {
+                    return Err(MirValidationError::RefactorProductionTodo {
+                        fqn: "<file>".to_string(),
+                        block: None,
+                        span: *span,
+                        category: MirPlaceholderCategory::Item,
+                        reason: kind,
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_refactor_production_fun(
+        &self,
+        fun: &FunDecl,
+        unit_ty: TypeId,
+    ) -> Result<(), MirValidationError> {
+        let Some(body) = &fun.body else {
+            return Ok(());
+        };
+
+        body.validate_refactor_direct_style()
+            .map_err(|error| match error {
+                MirValidationError::RefactorTodo {
+                    block,
+                    span,
+                    category,
+                    reason,
+                } => MirValidationError::RefactorProductionTodo {
+                    fqn: fun.fqn.clone(),
+                    block: Some(block),
+                    span,
+                    category,
+                    reason,
+                },
+                other => MirValidationError::RefactorProductionBodyContract {
+                    fqn: fun.fqn.clone(),
+                    error: Box::new(other),
+                },
+            })?;
+
+        for (index, block) in body.blocks.iter().enumerate() {
+            let block_id = BasicBlockId(index as u32);
+
+            for stmt in &block.stmts {
+                self.validate_refactor_production_statement(&fun.fqn, block_id, stmt)?;
+            }
+
+            self.validate_refactor_production_unwind(
+                &fun.fqn,
+                block_id,
+                block.terminator.span,
+                &block.terminator.unwind,
+            )?;
+            self.validate_refactor_production_terminator(fun, block_id, block, unit_ty)?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_refactor_production_statement(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        stmt: &Statement,
+    ) -> Result<(), MirValidationError> {
+        match &stmt.kind {
+            StatementKind::Assign { value, .. } => {
+                self.validate_refactor_production_rvalue(fqn, block, stmt.span, value)
+            }
+            StatementKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+                fqn: fqn.to_string(),
+                block: Some(block),
+                span: stmt.span,
+                category: MirPlaceholderCategory::Statement,
+                reason,
+            }),
+            StatementKind::Nop
+            | StatementKind::StoreMember { .. }
+            | StatementKind::StoreTopLevelVar { .. } => Ok(()),
+        }
+    }
+
+    fn validate_refactor_production_rvalue(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        value: &Rvalue,
+    ) -> Result<(), MirValidationError> {
+        match value {
+            Rvalue::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+                fqn: fqn.to_string(),
+                block: Some(block),
+                span,
+                category: MirPlaceholderCategory::Rvalue,
+                reason,
+            }),
+            Rvalue::Call { kind, .. } => {
+                self.validate_refactor_production_call_kind(fqn, block, span, kind)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn validate_refactor_production_call_kind(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        kind: &CallKind,
+    ) -> Result<(), MirValidationError> {
+        match kind {
+            CallKind::Direct { callee_fqn } if callee_fqn.is_empty() => {
+                Err(MirValidationError::RefactorProductionSiteMetadata {
+                    fqn: fqn.to_string(),
+                    block,
+                    span,
+                    site: MirSiteMetadataKind::Call,
+                    detail: "direct call is missing callee identity",
+                })
+            }
+            CallKind::Closure { fn_ptr, .. } if fn_ptr.is_empty() => {
+                Err(MirValidationError::RefactorProductionSiteMetadata {
+                    fqn: fqn.to_string(),
+                    block,
+                    span,
+                    site: MirSiteMetadataKind::Call,
+                    detail: "closure call is missing invoke function identity",
+                })
+            }
+            CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. }
+                if dispatch.owner_fqn.is_empty() || dispatch.member_name.is_empty() =>
+            {
+                Err(MirValidationError::RefactorProductionSiteMetadata {
+                    fqn: fqn.to_string(),
+                    block,
+                    span,
+                    site: MirSiteMetadataKind::Call,
+                    detail: "dispatch call is missing owner/member identity",
+                })
+            }
+            CallKind::Resume { resume, .. } if resume.runtime_error_effect_ty.is_none() => {
+                Err(MirValidationError::RefactorProductionSiteMetadata {
+                    fqn: fqn.to_string(),
+                    block,
+                    span,
+                    site: MirSiteMetadataKind::Resume,
+                    detail: "resume call is missing runtime-error effect metadata",
+                })
+            }
+            CallKind::Direct { .. }
+            | CallKind::Closure { .. }
+            | CallKind::FunValue { .. }
+            | CallKind::Virtual { .. }
+            | CallKind::Interface { .. }
+            | CallKind::Resume { .. } => Ok(()),
+        }
+    }
+
+    fn validate_refactor_production_unwind(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        unwind: &UnwindAction,
+    ) -> Result<(), MirValidationError> {
+        match unwind {
+            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+                fqn: fqn.to_string(),
+                block: Some(block),
+                span,
+                category: MirPlaceholderCategory::UnwindAction,
+                reason,
+            }),
+            UnwindAction::NoUnwind | UnwindAction::Propagate | UnwindAction::Cleanup { .. } => {
+                Ok(())
+            }
+        }
+    }
+
+    fn validate_refactor_production_terminator(
+        &self,
+        fun: &FunDecl,
+        block_id: BasicBlockId,
+        block: &BasicBlock,
+        unit_ty: TypeId,
+    ) -> Result<(), MirValidationError> {
+        match &block.terminator.kind {
+            TerminatorKind::Return { value: None } if fun.return_ty != unit_ty => {
+                Err(MirValidationError::RefactorProductionMissingReturnValue {
+                    fqn: fun.fqn.clone(),
+                    block: block_id,
+                    span: block.terminator.span,
+                    return_ty: fun.return_ty,
+                })
+            }
+            TerminatorKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+                fqn: fun.fqn.clone(),
+                block: Some(block_id),
+                span: block.terminator.span,
+                category: MirPlaceholderCategory::Terminator,
+                reason,
+            }),
+            TerminatorKind::Perform {
+                op_fqn,
+                metadata,
+                args,
+                ..
+            } => {
+                let site = RefactorProductionSiteContext {
+                    fqn: &fun.fqn,
+                    block: block_id,
+                    span: block.terminator.span,
+                };
+                self.validate_refactor_production_perform(
+                    site,
+                    op_fqn,
+                    metadata,
+                    args,
+                    &block.terminator.unwind,
+                )
+            }
+            TerminatorKind::Handle {
+                metadata,
+                arms,
+                has_finally,
+                ..
+            } => self.validate_refactor_production_handle(
+                &fun.fqn,
+                block_id,
+                block.terminator.span,
+                metadata,
+                arms,
+                *has_finally,
+            ),
+            TerminatorKind::Return { value: Some(_) }
+            | TerminatorKind::Return { value: None }
+            | TerminatorKind::ResumeUnwind
+            | TerminatorKind::Goto { .. }
+            | TerminatorKind::CondBr { .. }
+            | TerminatorKind::Unreachable => Ok(()),
+        }
+    }
+
+    fn validate_refactor_production_perform(
+        &self,
+        site: RefactorProductionSiteContext<'_>,
+        op_fqn: &str,
+        metadata: &PerformMetadata,
+        args: &[PerformArg],
+        unwind: &UnwindAction,
+    ) -> Result<(), MirValidationError> {
+        let detail = if op_fqn.is_empty() {
+            Some("perform terminator is missing effect operation identity")
+        } else if metadata.arg_mapping.len() != args.len() {
+            Some("perform metadata arg mapping does not match lowered payload args")
+        } else if metadata.payload_component_tys.len() != args.len() {
+            Some("perform metadata payload component types do not match lowered payload args")
+        } else if metadata
+            .arg_mapping
+            .iter()
+            .copied()
+            .ne(args.iter().map(|arg| arg.source_arg_index))
+        {
+            Some("perform metadata arg mapping disagrees with lowered payload args")
+        } else if matches!(unwind, UnwindAction::NoUnwind) {
+            Some("perform terminator is missing an explicit unwind action")
+        } else {
+            None
+        };
+
+        if let Some(detail) = detail {
+            return Err(MirValidationError::RefactorProductionSiteMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                site: MirSiteMetadataKind::Perform,
+                detail,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn validate_refactor_production_handle(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        metadata: &HandleMetadata,
+        arms: &[HandlerArm],
+        has_finally: bool,
+    ) -> Result<(), MirValidationError> {
+        let mut detail = None;
+        if has_finally && metadata.finally_result_ty.is_none() {
+            detail = Some("handle metadata is missing finally result type");
+        } else if !has_finally && metadata.finally_result_ty.is_some() {
+            detail = Some("handle metadata has finally result type without a finally boundary");
+        } else {
+            for arm in arms {
+                if arm.op_fqn.is_empty() {
+                    detail = Some("handle arm is missing effect operation identity");
+                    break;
+                }
+                if arm.binder_count != arm.binder_locals.len() {
+                    detail = Some("handle arm binder metadata does not match binder locals");
+                    break;
+                }
+                if arm.payload_component_tys.len() != arm.binder_count {
+                    detail = Some("handle arm payload component metadata does not match binders");
+                    break;
+                }
+                if arm.kind == HandlerArmKind::EscapeContinuation
+                    && arm.continuation_local.is_none()
+                {
+                    detail = Some("escaping handle arm is missing continuation binder local");
+                    break;
+                }
+            }
+        }
+
+        if let Some(detail) = detail {
+            return Err(MirValidationError::RefactorProductionSiteMetadata {
+                fqn: fqn.to_string(),
+                block,
+                span,
+                site: MirSiteMetadataKind::Handle,
+                detail,
+            });
+        }
+
+        Ok(())
+    }
+}
+
 /// 顶层条目（top-level items）。
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -379,8 +734,16 @@ impl Body {
                 }
             }
 
-            self.validate_refactor_unwind(block_id, &block.terminator.unwind)?;
-            self.validate_refactor_terminator(block_id, &block.terminator.kind)?;
+            self.validate_refactor_unwind(
+                block_id,
+                block.terminator.span,
+                &block.terminator.unwind,
+            )?;
+            self.validate_refactor_terminator(
+                block_id,
+                block.terminator.span,
+                &block.terminator.kind,
+            )?;
             if let Some(site_id) = block.terminator.kind.site_id()
                 && let Some(first_block) = seen_site_ids.insert(site_id, block_id)
             {
@@ -402,11 +765,18 @@ impl Body {
     ) -> Result<(), MirValidationError> {
         match &stmt.kind {
             StatementKind::Nop => Ok(()),
-            StatementKind::Assign { value, .. } => self.validate_refactor_rvalue(block, value),
+            StatementKind::Assign { value, .. } => {
+                self.validate_refactor_rvalue(block, stmt.span, value)
+            }
             StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => Ok(()),
             StatementKind::Todo(reason) => {
                 if is_forbidden_refactor_effect_todo(reason) {
-                    return Err(MirValidationError::RefactorTodo { block, reason });
+                    return Err(MirValidationError::RefactorTodo {
+                        block,
+                        span: stmt.span,
+                        category: MirPlaceholderCategory::Statement,
+                        reason,
+                    });
                 }
                 Ok(())
             }
@@ -416,12 +786,18 @@ impl Body {
     fn validate_refactor_rvalue(
         &self,
         block: BasicBlockId,
+        span: Span,
         value: &Rvalue,
     ) -> Result<(), MirValidationError> {
         if let Rvalue::Todo(reason) = value
             && is_forbidden_refactor_effect_todo(reason)
         {
-            return Err(MirValidationError::RefactorTodo { block, reason });
+            return Err(MirValidationError::RefactorTodo {
+                block,
+                span,
+                category: MirPlaceholderCategory::Rvalue,
+                reason,
+            });
         }
         Ok(())
     }
@@ -429,6 +805,7 @@ impl Body {
     fn validate_refactor_unwind(
         &self,
         block: BasicBlockId,
+        span: Span,
         unwind: &UnwindAction,
     ) -> Result<(), MirValidationError> {
         match unwind {
@@ -442,13 +819,19 @@ impl Body {
                 }
                 Ok(())
             }
-            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorTodo { block, reason }),
+            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorTodo {
+                block,
+                span,
+                category: MirPlaceholderCategory::UnwindAction,
+                reason,
+            }),
         }
     }
 
     fn validate_refactor_terminator(
         &self,
         block: BasicBlockId,
+        span: Span,
         kind: &TerminatorKind,
     ) -> Result<(), MirValidationError> {
         match kind {
@@ -492,7 +875,12 @@ impl Body {
                 Ok(())
             }
             TerminatorKind::Todo(reason) if is_forbidden_refactor_effect_todo(reason) => {
-                Err(MirValidationError::RefactorTodo { block, reason })
+                Err(MirValidationError::RefactorTodo {
+                    block,
+                    span,
+                    category: MirPlaceholderCategory::Terminator,
+                    reason,
+                })
             }
             TerminatorKind::Return { .. }
             | TerminatorKind::ResumeUnwind
@@ -1167,6 +1555,46 @@ impl Terminator {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MirPlaceholderCategory {
+    Item,
+    Statement,
+    Rvalue,
+    Terminator,
+    UnwindAction,
+}
+
+impl fmt::Display for MirPlaceholderCategory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MirPlaceholderCategory::Item => write!(f, "item"),
+            MirPlaceholderCategory::Statement => write!(f, "statement"),
+            MirPlaceholderCategory::Rvalue => write!(f, "rvalue"),
+            MirPlaceholderCategory::Terminator => write!(f, "terminator"),
+            MirPlaceholderCategory::UnwindAction => write!(f, "unwind action"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MirSiteMetadataKind {
+    Call,
+    Resume,
+    Perform,
+    Handle,
+}
+
+impl fmt::Display for MirSiteMetadataKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MirSiteMetadataKind::Call => write!(f, "call"),
+            MirSiteMetadataKind::Resume => write!(f, "resume"),
+            MirSiteMetadataKind::Perform => write!(f, "perform"),
+            MirSiteMetadataKind::Handle => write!(f, "handle"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum MirValidationError {
     /// MIR body 为空（没有任何基本块）。
@@ -1221,11 +1649,71 @@ pub enum MirValidationError {
         target: BasicBlockId,
         blocks_len: usize,
     },
-    #[error("refactor MIR still contains forbidden effect/control todo `{reason}` in {block:?}")]
+    #[error(
+        "refactor MIR still contains forbidden {category} todo `{reason}` in {block:?} at {span:?}"
+    )]
     RefactorTodo {
         block: BasicBlockId,
+        span: Span,
+        category: MirPlaceholderCategory,
         reason: &'static str,
     },
+    #[error(
+        "refactor production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}"
+    )]
+    RefactorProductionTodo {
+        fqn: String,
+        block: Option<BasicBlockId>,
+        span: Span,
+        category: MirPlaceholderCategory,
+        reason: &'static str,
+    },
+    #[error("refactor production MIR `{fqn}` failed direct-style contract: {error}")]
+    RefactorProductionBodyContract {
+        fqn: String,
+        #[source]
+        error: Box<MirValidationError>,
+    },
+    #[error(
+        "refactor production MIR `{fqn}` has non-Unit return type {return_ty:?} but returns no value in {block:?} at {span:?}"
+    )]
+    RefactorProductionMissingReturnValue {
+        fqn: String,
+        block: BasicBlockId,
+        span: Span,
+        return_ty: TypeId,
+    },
+    #[error(
+        "refactor production MIR `{fqn}` has incomplete {site} site metadata in {block:?} at {span:?}: {detail}"
+    )]
+    RefactorProductionSiteMetadata {
+        fqn: String,
+        block: BasicBlockId,
+        span: Span,
+        site: MirSiteMetadataKind,
+        detail: &'static str,
+    },
+}
+
+impl MirValidationError {
+    pub fn refactor_body_fqn(&self) -> Option<&str> {
+        match self {
+            MirValidationError::RefactorProductionTodo { fqn, .. }
+            | MirValidationError::RefactorProductionBodyContract { fqn, .. }
+            | MirValidationError::RefactorProductionMissingReturnValue { fqn, .. }
+            | MirValidationError::RefactorProductionSiteMetadata { fqn, .. } => Some(fqn),
+            MirValidationError::EmptyBody
+            | MirValidationError::InvalidStartBlock { .. }
+            | MirValidationError::InvalidTarget { .. }
+            | MirValidationError::DuplicateSiteId { .. }
+            | MirValidationError::CleanupTargetNotMarked { .. }
+            | MirValidationError::InvalidHandleArmTargetCount { .. }
+            | MirValidationError::InvalidHandleFinallyTarget { .. }
+            | MirValidationError::HandleFinallyTargetNotCleanup { .. }
+            | MirValidationError::InvalidHandleExitTarget { .. }
+            | MirValidationError::RefactorTodo { .. } => None,
+        }
+    }
 }
 
 fn is_forbidden_refactor_effect_todo(reason: &str) -> bool {
@@ -1250,6 +1738,262 @@ mod tests {
     use crate::session::Session;
     use crate::source::SourceFile;
     use crate::ty::{TypeKind, TypeStore};
+
+    const TEST_FQN: &str = "sample.main";
+
+    fn test_span() -> Span {
+        Span::new(10, 20)
+    }
+
+    fn production_file(return_ty: TypeId, body: Body) -> File {
+        File {
+            items: vec![Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: TEST_FQN.to_string(),
+                name: "main".to_string(),
+                ty: return_ty,
+                params: Vec::new(),
+                return_ty,
+                body: Some(body),
+            })],
+        }
+    }
+
+    fn single_block_body(
+        stmts: Vec<Statement>,
+        kind: TerminatorKind,
+        unwind: UnwindAction,
+    ) -> Body {
+        let mut body = Body::new_empty();
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts,
+            terminator: Terminator {
+                span: test_span(),
+                kind,
+                unwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    fn body_with_assign(value: Rvalue, local_ty: TypeId) -> Body {
+        let mut body = Body::new_empty();
+        let local = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("tmp0".to_string()),
+            ty: local_ty,
+            source: LocalSourceKind::CompilerTemporary,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: test_span(),
+                kind: StatementKind::Assign {
+                    target: local,
+                    value,
+                },
+            }],
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_item_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = File {
+            items: vec![Item::Todo {
+                span: test_span(),
+                kind: "top-level val",
+            }],
+        };
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTodo {
+                fqn: "<file>".to_string(),
+                block: None,
+                span: test_span(),
+                category: MirPlaceholderCategory::Item,
+                reason: "top-level val",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_statement_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let stmt = Statement {
+            span: test_span(),
+            kind: StatementKind::Todo("assign lhs lowering pending"),
+        };
+        let file = production_file(
+            builtins.unit,
+            single_block_body(
+                vec![stmt],
+                TerminatorKind::Return { value: None },
+                UnwindAction::NoUnwind,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTodo {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                category: MirPlaceholderCategory::Statement,
+                reason: "assign lhs lowering pending",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_rvalue_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            body_with_assign(Rvalue::Todo("missing expr"), builtins.unit),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTodo {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                category: MirPlaceholderCategory::Rvalue,
+                reason: "missing expr",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_terminator_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            single_block_body(
+                Vec::new(),
+                TerminatorKind::Todo("unterminated"),
+                UnwindAction::NoUnwind,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTodo {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                category: MirPlaceholderCategory::Terminator,
+                reason: "unterminated",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_unwind_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            single_block_body(
+                Vec::new(),
+                TerminatorKind::Return { value: None },
+                UnwindAction::Todo("perform unwind pending"),
+            ),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionTodo {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                category: MirPlaceholderCategory::UnwindAction,
+                reason: "perform unwind pending",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_rejects_non_unit_empty_return() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.int,
+            single_block_body(
+                Vec::new(),
+                TerminatorKind::Return { value: None },
+                UnwindAction::NoUnwind,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionMissingReturnValue {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                return_ty: builtins.int,
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_requires_resume_runtime_error_metadata() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            body_with_assign(
+                Rvalue::Call {
+                    site_id: SiteId::from_raw(0),
+                    kind: CallKind::Resume {
+                        continuation: Operand::Const(ConstValue::Unit),
+                        resume: ResumeMetadata {
+                            continuation_ty: builtins.unit,
+                            resume_ty: builtins.unit,
+                            answer_ty: builtins.unit,
+                            return_ty: builtins.unit,
+                            out_effects: EffectRow::pure(),
+                            runtime_error_effect_ty: None,
+                            suspends_outward: false,
+                        },
+                    },
+                    args: vec![CallArg {
+                        span: test_span(),
+                        name: None,
+                        value: Operand::Const(ConstValue::Unit),
+                    }],
+                },
+                builtins.unit,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionSiteMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                site: MirSiteMetadataKind::Resume,
+                detail: "resume call is missing runtime-error effect metadata",
+            })
+        );
+    }
 
     #[test]
     fn cfg_reachable_two_blocks_ok() {

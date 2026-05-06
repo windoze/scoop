@@ -4,7 +4,7 @@ use crate::mir::{
     File as MirFile, FunDecl as MirFunDecl, Item as MirItem, LoweredMir, MaterializedMir,
     MirLowerError, MirLoweringFacts, lower_hir_file_for_dump_with_facts,
 };
-use crate::ty::TypeStore;
+use crate::ty::{TypeId, TypeStore};
 
 use super::{TypedHirEffectContracts, TypedHirStageOutput};
 
@@ -115,22 +115,12 @@ fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
     indices
 }
 
-fn validate_refactor_bodies(file: &MirFile) -> Result<(), MirLowerError> {
-    for item in &file.items {
-        let MirItem::Fun(fun) = item else {
-            continue;
-        };
-        let Some(body) = &fun.body else {
-            continue;
-        };
-        body.validate_refactor_direct_style().map_err(|error| {
-            MirLowerError::InvalidRefactorMir {
-                fqn: fun.fqn.clone(),
-                error,
-            }
-        })?;
-    }
-    Ok(())
+fn validate_refactor_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError> {
+    file.validate_refactor_production(unit_ty)
+        .map_err(|error| MirLowerError::InvalidRefactorMir {
+            fqn: error.refactor_body_fqn().unwrap_or("<file>").to_string(),
+            error,
+        })
 }
 
 pub(crate) fn run(
@@ -150,7 +140,7 @@ pub(crate) fn run(
         &lowered_hir.member_funs,
         &facts,
     );
-    validate_refactor_bodies(&file)?;
+    validate_refactor_bodies(&file, builtins.unit)?;
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
     let materialized_mir = lowered_hir.into_materialized_mir();
 
@@ -246,6 +236,24 @@ mod tests {
         assert!(output.callable_body("sample.main").is_some());
         assert_eq!(output.effect_contracts().function_effects().len(), 2);
         assert!(output.stable_dump().contains("FunDecl"));
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_stage_validator_rejects_item_todo() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = crate::mir::File {
+            items: vec![crate::mir::Item::Todo {
+                span: crate::span::Span::new(0, 1),
+                kind: "top-level val",
+            }],
+        };
+
+        let err = super::validate_refactor_bodies(&file, builtins.unit)
+            .expect_err("production stage validator should reject item Todo");
+        let rendered = err.to_string();
+        assert!(rendered.contains("<file>"));
+        assert!(rendered.contains("top-level val"));
     }
 
     #[test]
