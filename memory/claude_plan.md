@@ -1,26 +1,47 @@
-# Current Invocation Plan
+# Claude Execution Plan
 
-This file records the execution plan and progress for the current autonomous task invocation. It intentionally contains a concise, reviewable plan rather than private reasoning.
+Date: 2026-05-06
 
-## Plan
+This file records the operational plan and progress for the current invocation. It summarizes intended actions and decisions without exposing private chain-of-thought.
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for unfinished work directly relevant to that selected task.
-3. Inspect the task requirements, dependencies, and validation instructions from `TODO.md`.
-4. Implement the selected task completely without changing scope or relying on workarounds.
-5. If a concrete blocker or missing prerequisite is found, update `TODO.md` with the minimum required prerequisite task, commit that bookkeeping change, and stop.
-6. Run the relevant tests and quality checks required by the task, fixing issues that are in scope.
-7. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record.
-8. Update this file when key steps complete or if the plan changes.
-9. Commit all changes for this task with a clear task-tagged message.
-10. Stop after completing exactly one task.
+## Scope
 
-## Progress
+- Use `TODO.md` as the authoritative task list.
+- Complete exactly the first incomplete task whose heading is not prefixed with `[DONE]`.
+- Do not proceed to later tasks after completing or blocking the current task.
+- Avoid workarounds, fixture-only hacks, or spec deviations.
+- Update `TODO.md` completion records and task heading when the task is complete.
+- Update `PLAN.md` only if the phase-level plan or dependencies change.
+- Commit the completed task or blocker/task-list update before stopping.
 
-- Plan initialized before reading task details or running commands.
-- Identified first incomplete task: `HIR-T02` (`在 parser 拒绝纯语法延期/非法 surface`).
-- Implemented parser-side gates for deferred `spawn`/`join`, assignment expressions, spread args outside calls, and named args outside calls.
-- Added parse fixtures for the five HIR surface gate cases and updated existing spawn/join negative fixture expectations to parser diagnostics.
-- Fixed legal annotation `name = value` parsing so annotation arguments no longer rely on assignment-expression AST.
-- Verified the task with the targeted parser unit test, refactor parse fixtures, affected typecheck fixtures, and strict clippy.
-- Marked `HIR-T02` as `[DONE]` in `TODO.md` with a completion record.
+## Initial Plan
+
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit message only for directly relevant unfinished work tied to that task.
+3. Inspect the minimum necessary code, fixtures, and docs for the selected task.
+4. Implement the task as written, using the smallest correct code changes.
+5. Add or update tests/fixtures required by the task.
+6. Run the task-specified validation commands and any relevant focused tests.
+7. Fix any failures that are in scope for the current task.
+8. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record.
+9. Update this file with key progress and any plan changes.
+10. Commit all relevant changes with a task-tagged message.
+11. Stop after the commit.
+
+## Progress Log
+
+- Plan file initialized before reading project task files or running commands.
+- Identified first incomplete task: `HIR-T03` (`收口 comptime block/if/for 与 package-level comptime if`).
+- Next step: inspect only directly relevant recent commit context and current comptime/HIR implementation before editing.
+- Relevant context found: latest commit is `[HIR-T02] Gate parser-only HIR surfaces`; no unfinished directly relevant note.
+- Existing package-level `comptime if` trim already runs before resolve/typecheck in HIR dump paths.
+- Current HIR-T03 gap: statement-level `ComptimeBlock`, `ComptimeIf`, and `ComptimeFor` are still lowered to `StmtKind::Todo(...)` in `hir/lower/stmt.rs`.
+- Implementation approach: add a comptime expansion pass that consumes the typed/resolved AST after typecheck and before refactor typed HIR lowering, then lower only the expanded ordinary statements.
+- Implemented draft code for `RuntimeComptimePlan` plus refactor HIR lowering consumption: selected `comptime if` branches are inlined, `comptime for` bodies are unrolled, and primitive compile-time loop binders can lower to HIR literals.
+- Next step: compile focused tests, fix type/API issues, then add HIR-T03 regression tests.
+- Added `refactor_hir_comptime_expands_block_if_for_and_package_if` and `tests/fixtures/hir/refactor_comptime_control_flow.{scoop,hir}`.
+- Validation run so far: `cargo test -p scoopc --no-default-features refactor_hir_comptime`, new HIR fixture, `refactor_hir_no_todo`, `cargo test -p scoop --no-default-features dump_hir`, and clippy all pass.
+- The task-listed `dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop` command still fails before HIR with existing `scoop::typecheck::missing_type_annotation` for top-level `P`; this is outside the comptime placeholder eliminated by HIR-T03 and will be recorded in `TODO.md`.
+- Marked `HIR-T03` as `[DONE]` in `TODO.md` with completion record and validation notes.
+- Re-ran focused `refactor_hir_comptime`, the new HIR fixture, and clippy after formatting; all passed.
+- Next step: inspect git diff/status and create the HIR-T03 commit.

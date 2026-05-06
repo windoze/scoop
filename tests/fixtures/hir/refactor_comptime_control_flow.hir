@@ -1,0 +1,508 @@
+File {
+    items: [
+        Val(
+            ValDecl {
+                span: 215..246,
+                id: Some(
+                    S0,
+                ),
+                name: Some(
+                    "ENABLED",
+                ),
+                mutable: false,
+                ty: TypeId(
+                    4,
+                ),
+                init: Some(
+                    Expr {
+                        span: 241..246,
+                        ty: TypeId(
+                            4,
+                        ),
+                        kind: Literal(
+                            Bool(
+                                false,
+                            ),
+                        ),
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 273..312,
+                fqn: "fixtures.hir_comptime.packageSelected",
+                name: "packageSelected",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 300..312,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 302..310,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 309..310,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                Int,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 369..431,
+                fqn: "fixtures.hir_comptime.fromBlock",
+                name: "fromBlock",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 390..431,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 415..423,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 422..423,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                Int,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 433..543,
+                fqn: "fixtures.hir_comptime.selectedBranch",
+                name: "selectedBranch",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 459..543,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 527..535,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 534..535,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                Int,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 545..663,
+                fqn: "fixtures.hir_comptime.unrolled",
+                name: "unrolled",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 565..663,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 571..587,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 571..587,
+                                        id: Some(
+                                            S1,
+                                        ),
+                                        name: Some(
+                                            "acc",
+                                        ),
+                                        mutable: true,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 586..587,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 627..640,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Assign {
+                                    lhs: Expr {
+                                        span: 627..630,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S1,
+                                                name: "acc",
+                                                decl_span: 575..578,
+                                            },
+                                        ),
+                                    },
+                                    eq_span: 631..632,
+                                    rhs: Expr {
+                                        span: 633..640,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Binary {
+                                            lhs: Expr {
+                                                span: 633..636,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S1,
+                                                        name: "acc",
+                                                        decl_span: 575..578,
+                                                    },
+                                                ),
+                                            },
+                                            op: Add,
+                                            op_span: 637..638,
+                                            rhs: Expr {
+                                                span: 639..640,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            Stmt {
+                                span: 627..640,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Assign {
+                                    lhs: Expr {
+                                        span: 627..630,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S1,
+                                                name: "acc",
+                                                decl_span: 575..578,
+                                            },
+                                        ),
+                                    },
+                                    eq_span: 631..632,
+                                    rhs: Expr {
+                                        span: 633..640,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Binary {
+                                            lhs: Expr {
+                                                span: 633..636,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S1,
+                                                        name: "acc",
+                                                        decl_span: 575..578,
+                                                    },
+                                                ),
+                                            },
+                                            op: Add,
+                                            op_span: 637..638,
+                                            rhs: Expr {
+                                                span: 639..640,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            Stmt {
+                                span: 627..640,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Assign {
+                                    lhs: Expr {
+                                        span: 627..630,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S1,
+                                                name: "acc",
+                                                decl_span: 575..578,
+                                            },
+                                        ),
+                                    },
+                                    eq_span: 631..632,
+                                    rhs: Expr {
+                                        span: 633..640,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Binary {
+                                            lhs: Expr {
+                                                span: 633..636,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S1,
+                                                        name: "acc",
+                                                        decl_span: 575..578,
+                                                    },
+                                                ),
+                                            },
+                                            op: Add,
+                                            op_span: 637..638,
+                                            rhs: Expr {
+                                                span: 639..640,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            Stmt {
+                                span: 651..661,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 658..661,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: VarRef(
+                                                Local {
+                                                    id: S1,
+                                                    name: "acc",
+                                                    decl_span: 575..578,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 665..768,
+                fqn: "fixtures.hir_comptime.returnsIterationValue",
+                name: "returnsIterationValue",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Block {
+                        span: 698..768,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 739..747,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 746..747,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                SynthInt(
+                                                    1,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                            Stmt {
+                                span: 739..747,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 746..747,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                SynthInt(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                            Stmt {
+                                span: 739..747,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 746..747,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                SynthInt(
+                                                    3,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                            Stmt {
+                                span: 758..766,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 765..766,
+                                            ty: TypeId(
+                                                5,
+                                            ),
+                                            kind: Literal(
+                                                Int,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

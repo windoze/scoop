@@ -571,6 +571,7 @@ pub(super) fn collect_object_inits(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan: None,
         },
     );
 
@@ -742,6 +743,7 @@ pub(super) fn collect_class_inits(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan: None,
         },
     );
 

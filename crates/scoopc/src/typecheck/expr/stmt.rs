@@ -1117,6 +1117,35 @@ fn check_stmt_exprs_with_mode(
             }
         }
         ast::StmtKind::ComptimeFor(cf) => {
+            let iter_ty =
+                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, &cf.iter)?;
+            let elem_ty = match lower.type_kind(iter_ty) {
+                TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                    elements.first().copied().unwrap_or(shared.builtins.any)
+                }
+                _ => try_extract_nominal_fqn_and_args(iter_ty, lower)
+                    .and_then(|(iter_fqn, iter_args)| {
+                        if iter_fqn == "scoop.core.Array"
+                            || iter_fqn == "scoop.core.MutableArray"
+                            || iter_fqn == "scoop.core.ComptimeList"
+                        {
+                            Some(iter_args.first().copied().unwrap_or(shared.builtins.any))
+                        } else if iter_fqn == "scoop.core.IntProgression" {
+                            Some(shared.builtins.int)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(shared.builtins.any),
+            };
+
+            let saved_locals = state.locals.clone();
+            let saved_stable = state.stable_bindings.clone();
+            let saved_mutable = state.mutable_bindings.clone();
+
+            state.locals.insert(cf.binder.span, elem_ty);
+            state.stable_bindings.insert(cf.binder.span);
+
             check_block_exprs_with_mode(
                 shared,
                 &cf.body,
@@ -1129,6 +1158,10 @@ fn check_stmt_exprs_with_mode(
                 },
                 call_mode,
             )?;
+
+            *state.locals = saved_locals;
+            *state.stable_bindings = saved_stable;
+            *state.mutable_bindings = saved_mutable;
         }
         ast::StmtKind::Empty | ast::StmtKind::Missing => {}
     }

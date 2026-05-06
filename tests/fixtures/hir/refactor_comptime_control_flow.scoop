@@ -1,0 +1,42 @@
+// EXPECT: pass
+// EXPECT-HIR: refactor_comptime_control_flow.hir
+// 目标：HIR-T03，refactor typed HIR 阶段展开 runtime comptime block/if/for 与 package-level comptime if。
+
+package fixtures.hir_comptime
+
+const val ENABLED: Bool = false
+
+comptime if (true) {
+    fun packageSelected(): Int { return 3 }
+} else {
+    fun packageSelected(): Int { return 4 }
+}
+
+fun fromBlock(): Int {
+    comptime {
+        return 7
+    }
+}
+
+fun selectedBranch(): Int {
+    comptime if (ENABLED) {
+        return 1
+    } else {
+        return 2
+    }
+}
+
+fun unrolled(): Int {
+    var acc: Int = 0
+    comptime for (i in 1..3) {
+        acc = acc + 1
+    }
+    return acc
+}
+
+fun returnsIterationValue(): Int {
+    comptime for (i in 1..3) {
+        return i
+    }
+    return 0
+}

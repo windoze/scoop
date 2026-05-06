@@ -4089,6 +4089,13 @@ impl<'a> HirLowering<'a> {
             );
         }
 
+        if let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = id.resolved.as_ref()
+            && let Some(value) = self.comptime_value_for_decl_span(*decl_span).cloned()
+            && let Some(lowered) = self.lower_comptime_const_value_expr(id.span, value)
+        {
+            return lowered;
+        }
+
         let Some(resolved) = id.resolved.as_ref() else {
             // 典型场景：enum variant ctor 的 callee（`Some(1)`）/0-参数 variant 值（`None`）；
             // resolver 会保留为“未 resolve”，让 typecheck 在期望类型语境下决议。
@@ -4104,7 +4111,7 @@ impl<'a> HirLowering<'a> {
             ast::ResolvedValueRef::Local { name, decl_span } => ValueRef::Local {
                 id: self.intern_local_symbol(*decl_span, false),
                 name: name.clone(),
-                decl_span: *decl_span,
+                decl_span: self.remap_local_decl_span(*decl_span),
             },
             ast::ResolvedValueRef::TopLevel { fqn } => ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(fqn.clone()),
@@ -4123,6 +4130,49 @@ impl<'a> HirLowering<'a> {
         };
 
         (ExprKind::VarRef(resolved), ty)
+    }
+
+    fn lower_comptime_const_value_expr(
+        &mut self,
+        span: Span,
+        value: crate::comptime::ConstValue,
+    ) -> Option<(ExprKind, TypeId)> {
+        match value {
+            crate::comptime::ConstValue::Unit => {
+                Some((ExprKind::Literal(LiteralKind::Unit), self.builtins.unit))
+            }
+            crate::comptime::ConstValue::Bool(value) => Some((
+                ExprKind::Literal(LiteralKind::Bool(value)),
+                self.builtins.bool_,
+            )),
+            crate::comptime::ConstValue::Char(value) => Some((
+                ExprKind::Literal(LiteralKind::Char(value)),
+                self.builtins.char_,
+            )),
+            crate::comptime::ConstValue::Int(value) => {
+                let int_value = if value.ty.signed {
+                    i64::try_from(value.as_i128()).ok()?
+                } else {
+                    i64::try_from(value.as_u128()).ok()?
+                };
+                let ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.int);
+                Some((ExprKind::Literal(LiteralKind::SynthInt(int_value)), ty))
+            }
+            crate::comptime::ConstValue::Float(value) => match value {
+                crate::comptime::ConstFloat::Float64(bits) => Some((
+                    ExprKind::Literal(LiteralKind::Float64(f64::from_bits(bits))),
+                    self.builtins.float64,
+                )),
+                crate::comptime::ConstFloat::Float32(bits) => Some((
+                    ExprKind::Literal(LiteralKind::Float32(f32::from_bits(bits))),
+                    self.builtins.float32,
+                )),
+            },
+            crate::comptime::ConstValue::String(_)
+            | crate::comptime::ConstValue::Tuple(_)
+            | crate::comptime::ConstValue::Struct(_)
+            | crate::comptime::ConstValue::Enum(_) => None,
+        }
     }
 
     fn synth_object_singleton_value_expr(&mut self, fqn: &str, span: Span) -> Expr {

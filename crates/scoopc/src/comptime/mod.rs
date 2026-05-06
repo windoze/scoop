@@ -23,8 +23,8 @@ mod value;
 
 pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
 pub use interpreter::{
-    ConstBinding, ConstEvalOptions, eval_const_bindings_in_compilation_unit,
-    eval_const_bindings_in_file, trim_package_level_comptime_ifs,
+    ConstBinding, ConstEvalOptions, RuntimeComptimePlan, eval_const_bindings_in_compilation_unit,
+    eval_const_bindings_in_file, plan_runtime_comptime_in_file, trim_package_level_comptime_ifs,
     trim_package_level_comptime_ifs_in_compilation_unit,
     trim_package_level_comptime_ifs_in_indexed_compilation_unit,
 };

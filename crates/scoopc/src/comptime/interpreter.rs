@@ -50,6 +50,60 @@ pub struct ConstBinding {
     pub value: ConstValue,
 }
 
+/// 语句级 runtime `comptime` 展开的求值计划。
+///
+/// HIR lowering 消费该计划，只把已选择/已展开的普通 runtime statements 交给后续阶段。
+#[derive(Debug, Clone, Default)]
+pub struct RuntimeComptimePlan {
+    comptime_if_conditions: HashMap<Span, bool>,
+    comptime_for_iterations: HashMap<Span, Vec<ConstValue>>,
+}
+
+impl RuntimeComptimePlan {
+    pub fn is_empty(&self) -> bool {
+        self.comptime_if_conditions.is_empty() && self.comptime_for_iterations.is_empty()
+    }
+
+    pub fn comptime_if_condition(&self, span: Span) -> Option<bool> {
+        self.comptime_if_conditions.get(&span).copied()
+    }
+
+    pub fn comptime_for_iterations(&self, span: Span) -> Option<&[ConstValue]> {
+        self.comptime_for_iterations.get(&span).map(Vec::as_slice)
+    }
+}
+
+/// 为 runtime HIR lowering 预先求值语句级 `comptime` 控制流。
+///
+/// 该入口要求调用方已经完成 package-level `comptime if` 裁剪、resolver 和 typecheck；
+/// 解释器只负责把仍留在函数/成员 body 中的 `comptime if/for` 求值成 HIR 可消费的展开计划。
+pub fn plan_runtime_comptime_in_file<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    compilation_unit: &[(&'a SourceFile, &'a ast::File)],
+    types: &TypeStore,
+) -> Result<RuntimeComptimePlan, ConstEvalError> {
+    let mut interp = ConstInterpreter::with_types(
+        ConstEvalCtx::new(source),
+        file,
+        ConstEvalOptions::default(),
+        types.clone(),
+    );
+    for (unit_source, unit_file) in compilation_unit.iter().copied() {
+        interp.register_file(unit_source, unit_file);
+    }
+    for item in &file.items {
+        interp.maybe_eval_top_level_const_val(item)?;
+    }
+
+    let mut planner = RuntimeComptimePlanner {
+        interp,
+        plan: RuntimeComptimePlan::default(),
+    };
+    planner.plan_file(file)?;
+    Ok(planner.plan)
+}
+
 /// 计算一个文件中所有 `const val` 的 initializer。
 ///
 /// 说明：
@@ -747,6 +801,259 @@ fn trim_package_level_items<'a>(
     }
 
     Ok(())
+}
+
+struct RuntimeComptimePlanner<'a> {
+    interp: ConstInterpreter<'a>,
+    plan: RuntimeComptimePlan,
+}
+
+impl<'a> RuntimeComptimePlanner<'a> {
+    fn plan_file(&mut self, file: &'a ast::File) -> Result<(), ConstEvalError> {
+        for item in &file.items {
+            self.plan_item(item)?;
+        }
+        Ok(())
+    }
+
+    fn plan_item(&mut self, item: &'a ast::Item) -> Result<(), ConstEvalError> {
+        match item {
+            ast::Item::Fun(fun) => self.plan_fun(fun),
+            ast::Item::Type(ty) => self.plan_type_decl(ty),
+            ast::Item::Object(obj) => self.plan_object_decl(obj),
+            ast::Item::ExtensionProperty(prop) => {
+                if let Some(getter) = &prop.getter {
+                    self.plan_accessor(getter)?;
+                }
+                if let Some(setter) = &prop.setter {
+                    self.plan_accessor(setter)?;
+                }
+                Ok(())
+            }
+            ast::Item::TypeAlias(_) | ast::Item::Val(_) | ast::Item::ComptimeIf(_) => Ok(()),
+        }
+    }
+
+    fn plan_type_decl(&mut self, decl: &'a ast::TypeDecl) -> Result<(), ConstEvalError> {
+        let Some(body) = &decl.body else {
+            return Ok(());
+        };
+        self.plan_type_body(body)
+    }
+
+    fn plan_object_decl(&mut self, decl: &'a ast::ObjectDecl) -> Result<(), ConstEvalError> {
+        let Some(body) = &decl.body else {
+            return Ok(());
+        };
+        self.plan_type_body(body)
+    }
+
+    fn plan_type_body(&mut self, body: &'a ast::TypeBody) -> Result<(), ConstEvalError> {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(prop) => {
+                    if let Some(getter) = &prop.getter {
+                        self.plan_accessor(getter)?;
+                    }
+                    if let Some(setter) = &prop.setter {
+                        self.plan_accessor(setter)?;
+                    }
+                }
+                ast::TypeMember::InitBlock(init) => self.plan_block(&init.body)?,
+                ast::TypeMember::SecondaryCtor(ctor) => self.plan_block(&ctor.body)?,
+                ast::TypeMember::Fun(fun) => self.plan_fun(fun)?,
+                ast::TypeMember::Type(ty) => self.plan_type_decl(ty)?,
+                ast::TypeMember::Object(obj) => self.plan_object_decl(obj)?,
+                ast::TypeMember::EnumVariant(_) => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn plan_fun(&mut self, fun: &'a ast::FunDecl) -> Result<(), ConstEvalError> {
+        match &fun.body {
+            ast::FunBody::Block(block) => self.plan_block(block),
+            ast::FunBody::Missing => Ok(()),
+        }
+    }
+
+    fn plan_accessor(&mut self, accessor: &'a ast::AccessorDecl) -> Result<(), ConstEvalError> {
+        match &accessor.body {
+            ast::AccessorBody::Block(block) => self.plan_block(block),
+            ast::AccessorBody::Expr(_) | ast::AccessorBody::Missing => Ok(()),
+        }
+    }
+
+    fn plan_block(&mut self, block: &'a ast::Block) -> Result<(), ConstEvalError> {
+        for stmt in &block.stmts {
+            self.plan_stmt(stmt)?;
+        }
+        Ok(())
+    }
+
+    fn plan_stmt(&mut self, stmt: &'a ast::Stmt) -> Result<(), ConstEvalError> {
+        match &stmt.kind {
+            ast::StmtKind::ComptimeBlock { body, .. } => {
+                self.interp.push_scope();
+                let result = self.plan_block(body);
+                self.interp.pop_scope();
+                result
+            }
+            ast::StmtKind::ComptimeIf(ci) => self.plan_comptime_if(ci),
+            ast::StmtKind::ComptimeFor(cf) => self.plan_comptime_for(cf),
+            ast::StmtKind::While { body, .. } | ast::StmtKind::For(ast::ForStmt { body, .. }) => {
+                self.plan_block(body)
+            }
+            ast::StmtKind::Expr(_)
+            | ast::StmtKind::Val(_)
+            | ast::StmtKind::Return { .. }
+            | ast::StmtKind::Break { .. }
+            | ast::StmtKind::Continue { .. }
+            | ast::StmtKind::Empty
+            | ast::StmtKind::Missing => Ok(()),
+        }
+    }
+
+    fn plan_comptime_if(&mut self, ci: &'a ast::ComptimeIf) -> Result<(), ConstEvalError> {
+        let cond = self.eval_bool_expr(&ci.cond)?;
+        self.plan.comptime_if_conditions.insert(ci.span, cond);
+        if cond {
+            return self.plan_block(&ci.then_branch);
+        }
+
+        match &ci.else_branch {
+            None => Ok(()),
+            Some(else_branch) => match &**else_branch {
+                ast::ComptimeIfElse::Block(block) => self.plan_block(block),
+                ast::ComptimeIfElse::If(next) => self.plan_comptime_if(next),
+            },
+        }
+    }
+
+    fn plan_comptime_for(&mut self, cf: &'a ast::ComptimeFor) -> Result<(), ConstEvalError> {
+        let iterations = self.eval_iter_values(&cf.iter)?;
+        self.plan
+            .comptime_for_iterations
+            .insert(cf.span, iterations.clone());
+        for value in iterations {
+            self.interp.push_scope();
+            let binder_ty = self
+                .interp
+                .current_file()
+                .inferred_binding_ty(cf.binder.span);
+            self.interp.define_local(
+                cf.binder.text(self.interp.current_source()).to_string(),
+                value,
+                false,
+                binder_ty,
+            );
+            let result = self.plan_block(&cf.body);
+            self.interp.pop_scope();
+            result?;
+        }
+        Ok(())
+    }
+
+    fn eval_bool_expr(&mut self, expr: &ast::Expr) -> Result<bool, ConstEvalError> {
+        let value = self.eval_expr_value(expr)?;
+        let ConstValue::Bool(value) = value else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Bool",
+                found: value_kind(&value),
+                span: expr.span.into(),
+            });
+        };
+        Ok(value)
+    }
+
+    fn eval_expr_value(&mut self, expr: &ast::Expr) -> Result<ConstValue, ConstEvalError> {
+        match eval_const_expr_flow_with_host(self.interp.current_ctx(), &mut self.interp, expr)? {
+            ControlFlow::Continue(value) => Ok(value),
+            ControlFlow::Break(_) => Err(ConstEvalError::UnsupportedExpr {
+                kind: "control flow in runtime comptime expression",
+                span: expr.span.into(),
+            }),
+        }
+    }
+
+    fn eval_iter_values(&mut self, iter: &ast::Expr) -> Result<Vec<ConstValue>, ConstEvalError> {
+        if let ast::ExprKind::Binary {
+            lhs,
+            op: ast::BinaryOp::RangeInclusive,
+            rhs,
+            ..
+        } = &iter.kind
+        {
+            return self.eval_inclusive_int_range_values(iter.span, lhs, rhs);
+        }
+
+        let iter_v = self.eval_expr_value(iter)?;
+        let ConstValue::Tuple(items) = iter_v else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Tuple（可迭代）",
+                found: value_kind(&iter_v),
+                span: iter.span.into(),
+            });
+        };
+        Ok(items)
+    }
+
+    fn eval_inclusive_int_range_values(
+        &mut self,
+        range_span: Span,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Result<Vec<ConstValue>, ConstEvalError> {
+        let lv = self.eval_expr_value(lhs)?;
+        let ConstValue::Int(li) = lv else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "整数",
+                found: value_kind(&lv),
+                span: lhs.span.into(),
+            });
+        };
+
+        let rv = self.eval_expr_value(rhs)?;
+        let ConstValue::Int(ri) = rv else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "整数",
+                found: value_kind(&rv),
+                span: rhs.span.into(),
+            });
+        };
+
+        if li.ty != ri.ty {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "相同的整数类型",
+                found: "不同位宽/符号位的整数",
+                span: range_span.into(),
+            });
+        }
+
+        let mut out = Vec::new();
+        if li.ty.signed {
+            let mut cur = li.as_i128();
+            let end = ri.as_i128();
+            while cur <= end {
+                out.push(ConstValue::Int(super::ConstInt::new(li.ty, cur as u128)));
+                let Some(next) = cur.checked_add(1) else {
+                    break;
+                };
+                cur = next;
+            }
+        } else {
+            let mut cur = li.as_u128();
+            let end = ri.as_u128();
+            while cur <= end {
+                out.push(ConstValue::Int(super::ConstInt::new(li.ty, cur)));
+                let Some(next) = cur.checked_add(1) else {
+                    break;
+                };
+                cur = next;
+            }
+        }
+        Ok(out)
+    }
 }
 
 fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {

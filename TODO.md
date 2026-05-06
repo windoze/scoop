@@ -147,7 +147,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features parser_hir_surface_gate`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/parse`、受影响 typecheck fixtures（spawn/join/experimental annotation 系列）、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T01`
 
-## HIR-T03：收口 comptime block/if/for 与 package-level comptime if
+## [DONE] HIR-T03：收口 comptime block/if/for 与 package-level comptime if
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H3
@@ -176,6 +176,13 @@
 - 完成条件：
   - `comptime_block`、`comptime_if`、`comptime_for`、`comptime_if_item` 不再出现在 refactor HIR handoff。
   - 可进入 `HIR-T04`。
+- 完成记录（2026-05-06）：
+  - 新增 `RuntimeComptimePlan` 与 `plan_runtime_comptime_in_file`，在 refactor typed HIR lowering 前基于已 resolved/typechecked AST 求值语句级 `comptime if` 条件与 `comptime for` 迭代集合。
+  - refactor typed HIR lowering 现在消费该计划：`comptime block` 直接内联生成语句，`comptime if` 只 lower 选中分支，`comptime for` 按编译期迭代值展开 body；基础编译期 loop binder 可 lower 为 HIR 合成 literal，并为 unroll body 内局部声明重映射 synthetic span，避免重复 SymbolId。
+  - typecheck 为 `comptime for` body 注入 binder 类型（覆盖 `IntProgression`、`Array`/`MutableArray`、`ComptimeList` 与 tuple 的当前可推导元素类型），使展开体中的 binder 引用能进入 typed HIR。
+  - 新增单测 `refactor_hir_comptime_expands_block_if_for_and_package_if`，覆盖 function body `comptime block/if/for`、package-level `comptime if`、以及 `comptime for` binder literal lowering；新增 HIR fixture `tests/fixtures/hir/refactor_comptime_control_flow.{scoop,hir}`。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_comptime`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_comptime_control_flow.scoop`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
+  - 已尝试任务列出的 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`；当前仍在进入 HIR 前以既有 `scoop::typecheck::missing_type_annotation`（顶层 `P`）诊断失败，未生成 comptime placeholder。该 fixture 的 splice/type declaration HIR 收口仍归后续 `HIR-T04`/`HIR-T05`。
 - 依赖：`HIR-T02`
 
 ## HIR-T04：收口 splice field `value.[field]`

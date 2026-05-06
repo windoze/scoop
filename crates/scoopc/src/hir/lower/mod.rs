@@ -156,6 +156,12 @@ struct HirLowering<'a> {
     materialize_direct_call_targets: bool,
     /// 是否在 explicit MIR instance lowering 的 HIR 兼容前端上执行 exact-receiver devirtualization。
     devirtualize_dispatch_calls: bool,
+    /// refactor typed HIR 的语句级 `comptime` 展开计划。
+    runtime_comptime_plan: Option<&'a crate::comptime::RuntimeComptimePlan>,
+    /// 当前 `comptime for` 展开迭代中的编译期值绑定（decl span -> const value）。
+    comptime_value_scopes: Vec<HashMap<Span, crate::comptime::ConstValue>>,
+    /// 当前展开体中需要重映射的局部声明 span，避免同一源码 body 多次 unroll 后局部 SymbolId 冲突。
+    local_decl_span_overrides: Vec<HashMap<Span, Span>>,
 }
 
 /// 构造 `HirLowering` 时用到的非必需上下文集合。
@@ -178,6 +184,7 @@ struct HirLoweringSetup<'a> {
     class_itables: &'a crate::itable::ClassItableIndex,
     materialize_direct_call_targets: bool,
     devirtualize_dispatch_calls: bool,
+    runtime_comptime_plan: Option<&'a crate::comptime::RuntimeComptimePlan>,
 }
 
 #[derive(Clone)]
@@ -234,6 +241,7 @@ impl<'a> HirLowering<'a> {
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan,
         } = setup;
         Self {
             source,
@@ -270,10 +278,14 @@ impl<'a> HirLowering<'a> {
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan,
+            comptime_value_scopes: Vec::new(),
+            local_decl_span_overrides: Vec::new(),
         }
     }
 
     fn intern_local_symbol(&mut self, decl_span: Span, mutable: bool) -> SymbolId {
+        let decl_span = self.remap_local_decl_span(decl_span);
         let id = self.symbols.intern_local(self.source.path(), decl_span);
         match self.local_mutability.get(&id).copied() {
             // 同一 decl_span 不应出现冲突的 mutability，但为了降低与 resolver 交互时的脆弱性：
@@ -287,6 +299,52 @@ impl<'a> HirLowering<'a> {
             }
         }
         id
+    }
+
+    fn remap_local_decl_span(&self, decl_span: Span) -> Span {
+        for scope in self.local_decl_span_overrides.iter().rev() {
+            if let Some(remapped) = scope.get(&decl_span) {
+                return *remapped;
+            }
+        }
+        decl_span
+    }
+
+    fn with_local_decl_span_overrides<T>(
+        &mut self,
+        overrides: HashMap<Span, Span>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        self.local_decl_span_overrides.push(overrides);
+        let result = f(self);
+        let _ = self.local_decl_span_overrides.pop();
+        result
+    }
+
+    fn with_comptime_value_binding<T>(
+        &mut self,
+        decl_span: Span,
+        value: crate::comptime::ConstValue,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let mut scope = HashMap::new();
+        scope.insert(decl_span, value);
+        self.comptime_value_scopes.push(scope);
+        let result = f(self);
+        let _ = self.comptime_value_scopes.pop();
+        result
+    }
+
+    fn comptime_value_for_decl_span(
+        &self,
+        decl_span: Span,
+    ) -> Option<&crate::comptime::ConstValue> {
+        for scope in self.comptime_value_scopes.iter().rev() {
+            if let Some(value) = scope.get(&decl_span) {
+                return Some(value);
+            }
+        }
+        None
     }
 
     fn record_when_pat_binding_ty(&mut self, decl_span: Span, ty: TypeId) {
@@ -2212,6 +2270,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 class_itables: &class_itables,
                 materialize_direct_call_targets: false,
                 devirtualize_dispatch_calls: false,
+                runtime_comptime_plan: None,
             },
         );
         let file = ctx.lower_file();
@@ -2417,6 +2476,16 @@ pub fn lower_typed_for_dump(
     }
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
+    let runtime_comptime_plan = crate::comptime::plan_runtime_comptime_in_file(
+        source,
+        &ast,
+        &compilation_unit,
+        &typecheck_types,
+    )?;
+    let mut runtime_comptime_plans = HashMap::new();
+    if !runtime_comptime_plan.is_empty() {
+        runtime_comptime_plans.insert(source.path().to_path_buf(), runtime_comptime_plan);
+    }
 
     lower_for_compilation_unit_multi_files_internal(
         &index,
@@ -2425,7 +2494,8 @@ pub fn lower_typed_for_dump(
         &[],
         Some(&env),
         &typecheck_types,
-        CompilationUnitLoweringOptions::generic_template_only(),
+        CompilationUnitLoweringOptions::generic_template_only()
+            .with_runtime_comptime_plans(&runtime_comptime_plans),
     )
 }
 
@@ -2516,6 +2586,7 @@ pub fn lower_for_compilation_unit(
                 class_itables: &class_itables,
                 materialize_direct_call_targets: true,
                 devirtualize_dispatch_calls: false,
+                runtime_comptime_plan: None,
             },
         );
         let file_hir = ctx.lower_file();
@@ -2818,6 +2889,7 @@ enum CompilationUnitInstanceMode<'a> {
 struct CompilationUnitLoweringOptions<'a> {
     instance_mode: CompilationUnitInstanceMode<'a>,
     devirtualize_dispatch_calls: bool,
+    runtime_comptime_plans: &'a HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
@@ -2825,6 +2897,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
         Self {
             instance_mode: CompilationUnitInstanceMode::LegacyEagerHir,
             devirtualize_dispatch_calls: false,
+            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
     }
 
@@ -2839,6 +2912,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
                 instance_types,
             },
             devirtualize_dispatch_calls,
+            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
     }
 
@@ -2846,7 +2920,19 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
         Self {
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
             devirtualize_dispatch_calls: false,
+            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
+    }
+
+    fn with_runtime_comptime_plans(
+        mut self,
+        runtime_comptime_plans: &'a HashMap<
+            std::path::PathBuf,
+            crate::comptime::RuntimeComptimePlan,
+        >,
+    ) -> Self {
+        self.runtime_comptime_plans = runtime_comptime_plans;
+        self
     }
 
     fn materialize_direct_call_targets(&self) -> bool {
@@ -2855,6 +2941,14 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             CompilationUnitInstanceMode::GenericTemplateOnly
         )
     }
+}
+
+fn empty_runtime_comptime_plans()
+-> &'static HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan> {
+    static EMPTY: std::sync::OnceLock<
+        HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
+    > = std::sync::OnceLock::new();
+    EMPTY.get_or_init(HashMap::new)
 }
 
 fn lower_for_compilation_unit_multi_files_internal<'a>(
@@ -2870,6 +2964,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let CompilationUnitLoweringOptions {
         instance_mode,
         devirtualize_dispatch_calls,
+        runtime_comptime_plans,
     } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
@@ -2950,6 +3045,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     class_itables: &class_itables,
                     materialize_direct_call_targets,
                     devirtualize_dispatch_calls,
+                    runtime_comptime_plan: runtime_comptime_plans.get(source.path()),
                 },
             );
             let file_hir = ctx.lower_file();
@@ -3310,6 +3406,7 @@ fn lower_fun_with_bindings_and_mir_facts(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan: None,
         },
     );
     let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
@@ -3416,6 +3513,7 @@ pub(crate) fn lower_member_fun_with_bindings(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan: None,
         },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
@@ -3509,6 +3607,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
+            runtime_comptime_plan: None,
         },
     );
     let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();
@@ -3535,6 +3634,7 @@ mod tests {
     use crate::hir::LiteralKind;
     use crate::hir::{CallArg, CallSite, ClassInitStep, ObjectInitStep, WhenPat};
     use crate::resolve::Index;
+    use crate::session::{EffectPipelineMode, SessionOptions};
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
     use std::collections::HashSet;
@@ -4076,6 +4176,157 @@ mod tests {
             &types,
         )
         .unwrap()
+    }
+
+    fn refactor_session() -> Session {
+        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    }
+
+    fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {
+        lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == fqn => Some(fun),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected HIR fun {fqn}"))
+    }
+
+    #[test]
+    fn refactor_hir_comptime_expands_block_if_for_and_package_if() {
+        let sess = refactor_session();
+        let src = SourceFile::new_virtual(
+            "<mem>/refactor_hir_comptime.scoop",
+            r#"
+package fixtures.hir_comptime
+
+const val ENABLED: Bool = false
+
+comptime if (true) {
+    fun packageSelected(): Int { return 3 }
+} else {
+    fun packageSelected(): Int { return 4 }
+}
+
+fun fromBlock(): Int {
+    comptime {
+        return 7
+    }
+}
+
+fun selectedBranch(): Int {
+    comptime if (ENABLED) {
+        return 1
+    } else {
+        return 2
+    }
+}
+
+fun unrolled(): Int {
+    var acc: Int = 0
+    comptime for (i in 1..3) {
+        acc = acc + 1
+    }
+    return acc
+}
+
+fun returnsIterationValue(): Int {
+    comptime for (i in 1..3) {
+        return i
+    }
+    return 0
+}
+"#,
+        );
+
+        let lowered = crate::effect_refactor_pipeline::lower_typed_hir_for_dump(&sess, &src)
+            .expect("refactor HIR stage should accept expanded comptime control flow");
+        let dump = format!("{:#?}", lowered.file);
+        assert!(
+            !dump.contains("Todo"),
+            "expanded HIR must not contain Todo: {dump}"
+        );
+        assert!(
+            !dump.contains("comptime_"),
+            "expanded HIR must not retain comptime placeholder reasons: {dump}"
+        );
+
+        let selected = find_fun(&lowered, "fixtures.hir_comptime.selectedBranch");
+        let selected_body = selected.body.as_ref().expect("selectedBranch has body");
+        let [selected_stmt] = selected_body.stmts.as_slice() else {
+            panic!(
+                "selectedBranch should contain exactly the chosen return, got {:?}",
+                selected_body.stmts
+            );
+        };
+        let StmtKind::Return { value: Some(expr) } = &selected_stmt.kind else {
+            panic!("selectedBranch should lower to a return, got {selected_stmt:?}");
+        };
+        assert_eq!(src.slice(expr.span), "2");
+
+        let package_selected = find_fun(&lowered, "fixtures.hir_comptime.packageSelected");
+        let package_body = package_selected
+            .body
+            .as_ref()
+            .expect("packageSelected has body");
+        let [package_stmt] = package_body.stmts.as_slice() else {
+            panic!(
+                "packageSelected should contain one selected return, got {:?}",
+                package_body.stmts
+            );
+        };
+        let StmtKind::Return { value: Some(expr) } = &package_stmt.kind else {
+            panic!("packageSelected should lower to a return, got {package_stmt:?}");
+        };
+        assert_eq!(src.slice(expr.span), "3");
+
+        let from_block = find_fun(&lowered, "fixtures.hir_comptime.fromBlock");
+        let from_block_body = from_block.body.as_ref().expect("fromBlock has body");
+        assert!(
+            matches!(
+                from_block_body.stmts.as_slice(),
+                [Stmt {
+                    kind: StmtKind::Return { .. },
+                    ..
+                }]
+            ),
+            "comptime block should inline its generated return: {:?}",
+            from_block_body.stmts
+        );
+
+        let unrolled = find_fun(&lowered, "fixtures.hir_comptime.unrolled");
+        let unrolled_body = unrolled.body.as_ref().expect("unrolled has body");
+        let assign_count = unrolled_body
+            .stmts
+            .iter()
+            .filter(|stmt| matches!(stmt.kind, StmtKind::Assign { .. }))
+            .count();
+        assert_eq!(assign_count, 3, "comptime for should unroll three copies");
+
+        let returns_iteration_value =
+            find_fun(&lowered, "fixtures.hir_comptime.returnsIterationValue");
+        let returns_body = returns_iteration_value
+            .body
+            .as_ref()
+            .expect("returnsIterationValue has body");
+        let first_return = returns_body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Return { value: Some(expr) } => Some(expr),
+                _ => None,
+            })
+            .expect("unrolled comptime for should emit returns");
+        assert!(
+            matches!(
+                first_return.kind,
+                ExprKind::Literal(LiteralKind::SynthInt(1))
+            ),
+            "comptime for binder should lower to a synthesized literal, got {:?}",
+            first_return.kind
+        );
     }
 
     fn lower_typed_single_source_file_via_mir_instance_collection(
