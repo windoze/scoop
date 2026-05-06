@@ -36,12 +36,12 @@ use crate::ty::{
 
 use super::EFFECT_ROW_PARAM_DECL_FILE;
 use super::{
-    AccessorContract, Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex,
-    CtorCallSiteIndex, CtorDecl, CtorParamDecl, Decl, DeclMember, DeclTypeParam, EnumVariantDecl,
-    Expr, ExprKind, ExtensionPropertyDecl, FieldDecl, FieldOrigin, File, FunDecl, Item,
-    MemberFunDecl, NominalDecl, NonPureContinuationResumeCallSiteIndex, ObjectDecl,
-    ObjectInitIndex, Param, PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TypeAliasDecl,
-    ValDecl, ValueRef,
+    AccessorContract, Block, CallArg, CallArgBindingSiteIndex, CallSite, ClassInitIndex,
+    ContinuationResumeCallSiteIndex, CtorCallSiteIndex, CtorDecl, CtorParamDecl, Decl, DeclMember,
+    DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl, FieldDecl, FieldOrigin,
+    File, FunDecl, Item, MemberFunDecl, NominalDecl, NonPureContinuationResumeCallSiteIndex,
+    ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId,
+    TypeAliasDecl, ValDecl, ValueRef,
 };
 
 use types::*;
@@ -53,6 +53,47 @@ fn collect_top_level_fun_call_sites(
     let mut sites = HashMap::new();
     for (source, file) in files {
         for (span, binding) in file.top_level_fun_call_bindings() {
+            sites.insert(CallSite::new(source.path().to_path_buf(), span), binding);
+        }
+    }
+    sites
+}
+
+fn collect_top_level_fun_call_sites_with_type_remap(
+    files: &[(&SourceFile, &ast::File)],
+    typecheck_types: Option<&TypeStore>,
+    types: &mut TypeStore,
+) -> crate::hir::TopLevelFunCallSiteIndex {
+    let mut sites = collect_top_level_fun_call_sites(files);
+    let Some(typecheck_types) = typecheck_types else {
+        return sites;
+    };
+    for binding in sites.values_mut() {
+        binding.type_args = binding
+            .type_args
+            .iter()
+            .map(|&ty| types.re_intern_from(typecheck_types, ty))
+            .collect();
+        binding.eff_args = binding
+            .eff_args
+            .iter()
+            .map(|row| {
+                crate::ty::EffectRow::new(
+                    row.terms
+                        .iter()
+                        .map(|&ty| types.re_intern_from(typecheck_types, ty))
+                        .collect(),
+                )
+            })
+            .collect();
+    }
+    sites
+}
+
+fn collect_call_arg_bindings(files: &[(&SourceFile, &ast::File)]) -> CallArgBindingSiteIndex {
+    let mut sites = HashMap::new();
+    for (source, file) in files {
+        for (span, binding) in file.typechecked_call_arg_bindings() {
             sites.insert(CallSite::new(source.path().to_path_buf(), span), binding);
         }
     }
@@ -2376,6 +2417,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ci
     };
     let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
+    let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     Ok(LoweredHir {
         file,
         member_funs,
@@ -2389,6 +2431,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        call_arg_bindings,
         object_inits,
         class_inits,
         class_vtables,
@@ -2668,6 +2711,7 @@ pub fn lower_for_compilation_unit(
         ci
     };
     let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
+    let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
 
     Ok(LoweredHir {
         file: file_hir,
@@ -2682,6 +2726,7 @@ pub fn lower_for_compilation_unit(
         top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        call_arg_bindings,
         object_inits,
         class_inits,
         class_vtables,
@@ -3266,7 +3311,12 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         CompilationUnitInstanceMode::GenericTemplateOnly => {}
     }
 
-    let top_level_fun_call_sites = collect_top_level_fun_call_sites(files_to_lower);
+    let top_level_fun_call_sites = collect_top_level_fun_call_sites_with_type_remap(
+        files_to_lower,
+        Some(typecheck_types),
+        &mut types,
+    );
+    let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
 
     Ok(LoweredHir {
         file: File { decls, items },
@@ -3281,6 +3331,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
+        call_arg_bindings,
         object_inits,
         class_inits,
         class_vtables,

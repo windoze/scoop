@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use crate::ast;
 use crate::hir::{
-    CallArg, CallSite, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
-    LoweredHir, Stmt, StmtKind, ValueRef,
+    CallArg, CallSite, Decl, DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind,
+    HirLowerError, HirStageError, Item, LoweredHir, Stmt, StmtKind, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -302,9 +303,309 @@ impl HandleSiteContract {
 /// P2 typed HIR 已显式区分出的调用点 kind。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypedCallSiteKind {
+    DirectTopLevel,
+    MemberDirect,
+    Extension,
+    Constructor,
+    Closure,
+    FunValue,
+    FunPtr,
+    Virtual,
+    Interface,
+    Intrinsic,
+    EffectOp,
     DirectCall,
     ContinuationResume,
     Perform,
+}
+
+/// 编译器/运行时 intrinsic 在 typed HIR call contract 中的稳定分类。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypedIntrinsicKind {
+    Reflection { name: String },
+    Platform { name: String },
+    Gc { name: String },
+    Runtime { name: String },
+    Compiler { name: String },
+}
+
+impl TypedIntrinsicKind {
+    fn from_fqn(fqn: &str) -> Self {
+        let name = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
+        match fqn {
+            "scoop.core.nameOf"
+            | "scoop.core.sizeOf"
+            | "scoop.core.alignOf"
+            | "scoop.core.fieldsOf"
+            | "scoop.core.variantsOf"
+            | "scoop.core.superTypesOf"
+            | "scoop.core.paramsOf" => Self::Reflection { name },
+            "scoop.core.getPlatform" => Self::Platform { name },
+            "scoop.core.GC.pin"
+            | "scoop.core.GC.unpin"
+            | "scoop.core.GC.handleNew"
+            | "scoop.core.GC.handleGet"
+            | "scoop.core.GC.handleDrop" => Self::Gc { name },
+            _ if fqn.starts_with("scoop.core.__") => Self::Runtime { name },
+            _ => Self::Compiler { name },
+        }
+    }
+}
+
+/// 一个实参 slot 与源码实参/默认值/receiver 的归一化绑定关系。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallArgBindingContract {
+    params: Vec<CallArgParamContract>,
+}
+
+impl CallArgBindingContract {
+    pub fn params(&self) -> &[CallArgParamContract] {
+        &self.params
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallArgParamContract {
+    Receiver,
+    Explicit(CallArgElementContract),
+    Default,
+    Vararg(Vec<CallArgElementContract>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallArgElementContract {
+    arg_index: usize,
+    spread: bool,
+}
+
+impl CallArgElementContract {
+    pub fn arg_index(&self) -> usize {
+        self.arg_index
+    }
+
+    pub fn spread(&self) -> bool {
+        self.spread
+    }
+}
+
+/// 一个 resolved function target 的声明身份与实例化参数。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionTargetContract {
+    fqn: String,
+    decl_file: Option<PathBuf>,
+    decl_span: Option<Span>,
+    type_args: Vec<TypeId>,
+    eff_args: Vec<EffectRow>,
+    arg_binding: Option<CallArgBindingContract>,
+}
+
+impl FunctionTargetContract {
+    fn from_binding(
+        types: &TypeStore,
+        binding: &ast::TopLevelFunCallBinding,
+        arg_binding: Option<CallArgBindingContract>,
+    ) -> Self {
+        Self {
+            fqn: binding.fqn.clone(),
+            decl_file: Some(binding.decl_file.clone()),
+            decl_span: Some(binding.decl_span),
+            type_args: binding
+                .type_args
+                .iter()
+                .copied()
+                .filter(|ty| type_id_in_store(types, *ty))
+                .collect(),
+            eff_args: binding
+                .eff_args
+                .iter()
+                .map(|row| {
+                    EffectRow::new(
+                        row.terms
+                            .iter()
+                            .copied()
+                            .filter(|ty| type_id_in_store(types, *ty))
+                            .collect(),
+                    )
+                })
+                .collect(),
+            arg_binding,
+        }
+    }
+
+    fn synthetic(fqn: String) -> Self {
+        Self {
+            fqn,
+            decl_file: None,
+            decl_span: None,
+            type_args: Vec::new(),
+            eff_args: Vec::new(),
+            arg_binding: None,
+        }
+    }
+
+    pub fn fqn(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn decl_file(&self) -> Option<&Path> {
+        self.decl_file.as_deref()
+    }
+
+    pub fn decl_span(&self) -> Option<Span> {
+        self.decl_span
+    }
+
+    pub fn type_args(&self) -> &[TypeId] {
+        &self.type_args
+    }
+
+    pub fn eff_args(&self) -> &[EffectRow] {
+        &self.eff_args
+    }
+
+    pub fn arg_binding(&self) -> Option<&CallArgBindingContract> {
+        self.arg_binding.as_ref()
+    }
+}
+
+/// 成员调用的结构化 owner/member 绑定。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemberCallTargetContract {
+    owner_fqn: String,
+    member_name: String,
+    member_fqn: String,
+    receiver_ty: TypeId,
+    function: FunctionTargetContract,
+}
+
+impl MemberCallTargetContract {
+    fn new(
+        owner_fqn: String,
+        member_name: String,
+        member_fqn: String,
+        receiver_ty: TypeId,
+        function: FunctionTargetContract,
+    ) -> Self {
+        Self {
+            owner_fqn,
+            member_name,
+            member_fqn,
+            receiver_ty,
+            function,
+        }
+    }
+
+    pub fn owner_fqn(&self) -> &str {
+        &self.owner_fqn
+    }
+
+    pub fn member_name(&self) -> &str {
+        &self.member_name
+    }
+
+    pub fn member_fqn(&self) -> &str {
+        &self.member_fqn
+    }
+
+    pub fn receiver_ty(&self) -> TypeId {
+        self.receiver_ty
+    }
+
+    pub fn function(&self) -> &FunctionTargetContract {
+        &self.function
+    }
+}
+
+/// constructor 调用的 typed HIR provenance。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstructorCallTargetContract {
+    owner_fqn: String,
+    ctor_span: Option<Span>,
+    result_ty: TypeId,
+    arg_mapping: Vec<Option<usize>>,
+}
+
+impl ConstructorCallTargetContract {
+    fn new(
+        owner_fqn: String,
+        ctor_span: Option<Span>,
+        result_ty: TypeId,
+        arg_mapping: Vec<Option<usize>>,
+    ) -> Self {
+        Self {
+            owner_fqn,
+            ctor_span,
+            result_ty,
+            arg_mapping,
+        }
+    }
+
+    pub fn owner_fqn(&self) -> &str {
+        &self.owner_fqn
+    }
+
+    pub fn ctor_span(&self) -> Option<Span> {
+        self.ctor_span
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub fn arg_mapping(&self) -> &[Option<usize>] {
+        &self.arg_mapping
+    }
+}
+
+/// 每个 call-like HIR site 对下游暴露的结构化 provenance。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypedCallSiteContract {
+    DirectTopLevel(FunctionTargetContract),
+    MemberDirect(MemberCallTargetContract),
+    Extension {
+        receiver_ty: TypeId,
+        function: FunctionTargetContract,
+    },
+    Constructor(ConstructorCallTargetContract),
+    Closure {
+        callee_ty: TypeId,
+        return_ty: TypeId,
+    },
+    FunValue {
+        callee_ty: TypeId,
+        return_ty: TypeId,
+    },
+    FunPtr {
+        callee_ty: TypeId,
+        return_ty: TypeId,
+    },
+    Virtual(MemberCallTargetContract),
+    Interface(MemberCallTargetContract),
+    Intrinsic {
+        kind: TypedIntrinsicKind,
+        function: FunctionTargetContract,
+    },
+    EffectOp(PerformSiteContract),
+    ContinuationResume(ContinuationResumeSiteContract),
+}
+
+impl TypedCallSiteContract {
+    pub fn kind(&self) -> TypedCallSiteKind {
+        match self {
+            Self::DirectTopLevel(_) => TypedCallSiteKind::DirectTopLevel,
+            Self::MemberDirect(_) => TypedCallSiteKind::MemberDirect,
+            Self::Extension { .. } => TypedCallSiteKind::Extension,
+            Self::Constructor(_) => TypedCallSiteKind::Constructor,
+            Self::Closure { .. } => TypedCallSiteKind::Closure,
+            Self::FunValue { .. } => TypedCallSiteKind::FunValue,
+            Self::FunPtr { .. } => TypedCallSiteKind::FunPtr,
+            Self::Virtual(_) => TypedCallSiteKind::Virtual,
+            Self::Interface(_) => TypedCallSiteKind::Interface,
+            Self::Intrinsic { .. } => TypedCallSiteKind::Intrinsic,
+            Self::EffectOp(_) => TypedCallSiteKind::EffectOp,
+            Self::ContinuationResume(_) => TypedCallSiteKind::ContinuationResume,
+        }
+    }
 }
 
 /// refactor typed HIR stage 显式输出的 effect / continuation contract side tables。
@@ -315,10 +616,14 @@ pub struct TypedHirEffectContracts {
     perform_sites: HashMap<CallSite, PerformSiteContract>,
     handle_sites: HashMap<CallSite, HandleSiteContract>,
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
+    call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
 }
 
 impl TypedHirEffectContracts {
-    fn from_lowered_hir(lowered_hir: &LoweredHir, source_path: &Path) -> Self {
+    fn from_lowered_hir(
+        lowered_hir: &LoweredHir,
+        source_path: &Path,
+    ) -> Result<Self, HirStageError> {
         ContractCollector::new(lowered_hir).collect(source_path)
     }
 
@@ -332,6 +637,7 @@ impl TypedHirEffectContracts {
             && self.perform_sites.is_empty()
             && self.handle_sites.is_empty()
             && self.call_site_kinds.is_empty()
+            && self.call_site_contracts.is_empty()
     }
 
     pub fn function_effects(&self) -> &[FunctionEffectContract] {
@@ -373,6 +679,14 @@ impl TypedHirEffectContracts {
         self.call_site_kinds.get(call_site).copied()
     }
 
+    pub fn call_site_contracts(&self) -> &HashMap<CallSite, TypedCallSiteContract> {
+        &self.call_site_contracts
+    }
+
+    pub fn call_site_contract(&self, call_site: &CallSite) -> Option<&TypedCallSiteContract> {
+        self.call_site_contracts.get(call_site)
+    }
+
     /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
@@ -410,6 +724,14 @@ impl TypedHirEffectContracts {
             let _ = writeln!(out, "            span: {:?},", call_site.span);
             let _ = writeln!(out, "            kind: {:?},", kind);
             let _ = writeln!(out, "        }},");
+        }
+        let _ = writeln!(out, "    ],");
+
+        let mut call_site_contracts = self.call_site_contracts.iter().collect::<Vec<_>>();
+        call_site_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+        let _ = writeln!(out, "    call_site_contracts: [");
+        for (call_site, contract) in call_site_contracts {
+            format_call_site_contract(&mut out, types, call_site, contract);
         }
         let _ = writeln!(out, "    ],");
 
@@ -580,15 +902,25 @@ pub struct TypedHirStageOutput {
 impl TypedHirStageOutput {
     pub(crate) fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         RefactorHirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
-        Ok(Self::new_unchecked(lowered_hir, source_path))
+        Self::new_checked(lowered_hir, source_path)
     }
 
     pub(crate) fn new_unchecked(lowered_hir: LoweredHir, source_path: &Path) -> Self {
-        let effect_contracts = TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path);
+        let effect_contracts = TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)
+            .unwrap_or_default();
         Self {
             lowered_hir,
             effect_contracts,
         }
+    }
+
+    fn new_checked(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+        let effect_contracts =
+            TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)?;
+        Ok(Self {
+            lowered_hir,
+            effect_contracts,
+        })
     }
 
     pub fn hir_file(&self) -> &crate::hir::File {
@@ -637,6 +969,7 @@ struct ContractCollector<'a> {
     perform_sites: HashMap<CallSite, PerformSiteContract>,
     handle_sites: HashMap<CallSite, HandleSiteContract>,
     call_site_kinds: HashMap<CallSite, TypedCallSiteKind>,
+    call_site_contracts: HashMap<CallSite, TypedCallSiteContract>,
 }
 
 impl<'a> ContractCollector<'a> {
@@ -649,43 +982,46 @@ impl<'a> ContractCollector<'a> {
             perform_sites: HashMap::new(),
             handle_sites: HashMap::new(),
             call_site_kinds: HashMap::new(),
+            call_site_contracts: HashMap::new(),
         }
     }
 
-    fn collect(mut self, source_path: &Path) -> TypedHirEffectContracts {
+    fn collect(mut self, source_path: &Path) -> Result<TypedHirEffectContracts, HirStageError> {
         for item in &self.lowered_hir.file.items {
-            self.collect_item(source_path, item);
+            self.collect_item(source_path, item)?;
         }
 
         for member_fun in &self.lowered_hir.member_funs {
             self.record_function_effect_contract(member_fun);
-            self.collect_fun(member_fun);
+            self.collect_fun(member_fun)?;
         }
 
         self.function_effects
             .sort_by(compare_function_effect_contracts);
-        TypedHirEffectContracts {
+        Ok(TypedHirEffectContracts {
             function_effects: self.function_effects,
             continuation_resume_sites: self.continuation_resume_sites,
             perform_sites: self.perform_sites,
             handle_sites: self.handle_sites,
             call_site_kinds: self.call_site_kinds,
-        }
+            call_site_contracts: self.call_site_contracts,
+        })
     }
 
-    fn collect_item(&mut self, source_path: &Path, item: &Item) {
+    fn collect_item(&mut self, source_path: &Path, item: &Item) -> Result<(), HirStageError> {
         match item {
             Item::Fun(fun) => {
                 self.record_function_effect_contract(fun);
-                self.collect_fun(fun);
+                self.collect_fun(fun)?;
             }
             Item::Val(val) => {
                 if let Some(init) = &val.init {
-                    self.collect_expr(source_path, init);
+                    self.collect_expr(source_path, init)?;
                 }
             }
             Item::Todo { .. } => {}
         }
+        Ok(())
     }
 
     fn record_function_effect_contract(&mut self, fun: &FunDecl) {
@@ -704,47 +1040,54 @@ impl<'a> ContractCollector<'a> {
         ));
     }
 
-    fn collect_fun(&mut self, fun: &FunDecl) {
+    fn collect_fun(&mut self, fun: &FunDecl) -> Result<(), HirStageError> {
         if let Some(body) = &fun.body {
-            self.collect_block(&fun.source_path, body);
+            self.collect_block(&fun.source_path, body)?;
         }
+        Ok(())
     }
 
-    fn collect_block(&mut self, source_path: &Path, block: &crate::hir::Block) {
+    fn collect_block(
+        &mut self,
+        source_path: &Path,
+        block: &crate::hir::Block,
+    ) -> Result<(), HirStageError> {
         for stmt in &block.stmts {
-            self.collect_stmt(source_path, stmt);
+            self.collect_stmt(source_path, stmt)?;
         }
+        Ok(())
     }
 
-    fn collect_stmt(&mut self, source_path: &Path, stmt: &Stmt) {
+    fn collect_stmt(&mut self, source_path: &Path, stmt: &Stmt) -> Result<(), HirStageError> {
         match &stmt.kind {
             StmtKind::Empty
             | StmtKind::Break { .. }
             | StmtKind::Continue { .. }
             | StmtKind::Todo(_) => {}
-            StmtKind::Expr(expr) => self.collect_expr(source_path, expr),
+            StmtKind::Expr(expr) => self.collect_expr(source_path, expr)?,
             StmtKind::Val(val) => {
                 if let Some(init) = &val.init {
-                    self.collect_expr(source_path, init);
+                    self.collect_expr(source_path, init)?;
                 }
             }
             StmtKind::Assign { lhs, rhs, .. } => {
-                self.collect_expr(source_path, lhs);
-                self.collect_expr(source_path, rhs);
+                self.collect_expr(source_path, lhs)?;
+                self.collect_expr(source_path, rhs)?;
             }
             StmtKind::While { cond, body } => {
-                self.collect_expr(source_path, cond);
-                self.collect_block(source_path, body);
+                self.collect_expr(source_path, cond)?;
+                self.collect_block(source_path, body)?;
             }
             StmtKind::Return { value } => {
                 if let Some(value) = value {
-                    self.collect_expr(source_path, value);
+                    self.collect_expr(source_path, value)?;
                 }
             }
         }
+        Ok(())
     }
 
-    fn collect_expr(&mut self, source_path: &Path, expr: &Expr) {
+    fn collect_expr(&mut self, source_path: &Path, expr: &Expr) -> Result<(), HirStageError> {
         match &expr.kind {
             ExprKind::Missing
             | ExprKind::Literal(_)
@@ -753,18 +1096,18 @@ impl<'a> ContractCollector<'a> {
             | ExprKind::Todo(_) => {}
             ExprKind::StructLit { fields, .. } => {
                 for field in fields {
-                    self.collect_expr(source_path, &field.value);
+                    self.collect_expr(source_path, &field.value)?;
                 }
             }
             ExprKind::TupleLit { elements } => {
                 for element in elements {
-                    self.collect_expr(source_path, element);
+                    self.collect_expr(source_path, element)?;
                 }
             }
             ExprKind::InterpolatedString { parts, .. } => {
                 for part in parts {
                     if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
-                        self.collect_expr(source_path, expr);
+                        self.collect_expr(source_path, expr)?;
                     }
                 }
             }
@@ -772,39 +1115,39 @@ impl<'a> ContractCollector<'a> {
             | ExprKind::TypeCheck { expr, .. }
             | ExprKind::Cast { expr, .. }
             | ExprKind::MemberAccess { receiver: expr, .. } => {
-                self.collect_expr(source_path, expr);
+                self.collect_expr(source_path, expr)?;
             }
             ExprKind::Binary { lhs, rhs, .. } => {
-                self.collect_expr(source_path, lhs);
-                self.collect_expr(source_path, rhs);
+                self.collect_expr(source_path, lhs)?;
+                self.collect_expr(source_path, rhs)?;
             }
-            ExprKind::Block(block) => self.collect_block(source_path, block),
-            ExprKind::Closure(closure) => self.collect_expr(source_path, &closure.body),
+            ExprKind::Block(block) => self.collect_block(source_path, block)?,
+            ExprKind::Closure(closure) => self.collect_expr(source_path, &closure.body)?,
             ExprKind::If {
                 cond,
                 then_branch,
                 else_branch,
             } => {
-                self.collect_expr(source_path, cond);
-                self.collect_expr(source_path, then_branch);
+                self.collect_expr(source_path, cond)?;
+                self.collect_expr(source_path, then_branch)?;
                 if let Some(else_branch) = else_branch {
-                    self.collect_expr(source_path, else_branch);
+                    self.collect_expr(source_path, else_branch)?;
                 }
             }
             ExprKind::When { subject, arms } => {
-                self.collect_expr(source_path, subject);
+                self.collect_expr(source_path, subject)?;
                 for arm in arms {
                     if let Some(guard) = &arm.guard {
-                        self.collect_expr(source_path, guard);
+                        self.collect_expr(source_path, guard)?;
                     }
-                    self.collect_expr(source_path, &arm.body);
+                    self.collect_expr(source_path, &arm.body)?;
                 }
             }
             ExprKind::Call { callee, args } => {
-                self.record_call_contract(source_path, expr, callee, args);
-                self.collect_expr(source_path, callee);
+                self.record_call_contract(source_path, expr, callee, args)?;
+                self.collect_expr(source_path, callee)?;
                 for arg in args {
-                    self.collect_call_arg_expr(source_path, arg);
+                    self.collect_call_arg_expr(source_path, arg)?;
                 }
             }
             ExprKind::Perform {
@@ -814,27 +1157,33 @@ impl<'a> ContractCollector<'a> {
             } => {
                 self.record_perform_contract(source_path, expr, *effect_ty, op, args);
                 for arg in args {
-                    self.collect_call_arg_expr(source_path, arg);
+                    self.collect_call_arg_expr(source_path, arg)?;
                 }
             }
             ExprKind::Handle(handle) => {
                 self.record_handle_contract(source_path, expr, handle);
-                self.collect_block(source_path, &handle.body);
+                self.collect_block(source_path, &handle.body)?;
                 for arm in &handle.arms {
-                    self.collect_expr(source_path, &arm.body);
+                    self.collect_expr(source_path, &arm.body)?;
                 }
                 if let Some(finally) = &handle.finally {
-                    self.collect_block(source_path, finally);
+                    self.collect_block(source_path, finally)?;
                 }
             }
         }
+        Ok(())
     }
 
-    fn collect_call_arg_expr(&mut self, source_path: &Path, arg: &CallArg) {
+    fn collect_call_arg_expr(
+        &mut self,
+        source_path: &Path,
+        arg: &CallArg,
+    ) -> Result<(), HirStageError> {
         match arg {
-            CallArg::Positional(expr) => self.collect_expr(source_path, expr),
-            CallArg::Named { value, .. } => self.collect_expr(source_path, value),
+            CallArg::Positional(expr) => self.collect_expr(source_path, expr)?,
+            CallArg::Named { value, .. } => self.collect_expr(source_path, value)?,
         }
+        Ok(())
     }
 
     fn record_call_contract(
@@ -843,18 +1192,197 @@ impl<'a> ContractCollector<'a> {
         expr: &Expr,
         callee: &Expr,
         args: &[CallArg],
-    ) {
+    ) -> Result<(), HirStageError> {
         let call_site = self.call_site(source_path, expr.span);
         if let Some(contract) = self.continuation_resume_contract(expr, callee, args) {
             self.continuation_resume_sites
-                .insert(call_site.clone(), contract);
+                .insert(call_site.clone(), contract.clone());
             self.call_site_kinds
-                .insert(call_site, TypedCallSiteKind::ContinuationResume);
-            return;
+                .insert(call_site.clone(), TypedCallSiteKind::ContinuationResume);
+            self.call_site_contracts.insert(
+                call_site,
+                TypedCallSiteContract::ContinuationResume(contract),
+            );
+            return Ok(());
         }
 
-        self.call_site_kinds
-            .insert(call_site, TypedCallSiteKind::DirectCall);
+        if let Some(info) = self.lowered_hir.ctor_call_sites.get(&call_site) {
+            let contract = TypedCallSiteContract::Constructor(ConstructorCallTargetContract::new(
+                info.class_fqn.clone(),
+                info.ctor_span,
+                expr.ty,
+                info.arg_mapping.clone(),
+            ));
+            self.call_site_kinds
+                .insert(call_site.clone(), contract.kind());
+            self.call_site_contracts.insert(call_site, contract);
+            return Ok(());
+        }
+
+        if let Some(binding) = self.lowered_hir.top_level_fun_call_sites.get(&call_site) {
+            let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
+            let function = FunctionTargetContract::from_binding(
+                &self.lowered_hir.types,
+                binding,
+                arg_binding.clone(),
+            );
+
+            let contract = if binding.is_intrinsic {
+                TypedCallSiteContract::Intrinsic {
+                    kind: TypedIntrinsicKind::from_fqn(&binding.fqn),
+                    function,
+                }
+            } else if let Some((dispatch_kind, receiver_ty)) =
+                self.dispatch_kind_and_receiver_ty(source_path, expr.span)
+            {
+                let (owner_fqn, member_name) =
+                    self.member_binding_for_fqn(&binding.fqn).ok_or_else(|| {
+                        HirStageError::new(
+                            source_path.to_path_buf(),
+                            expr.span,
+                            format!(
+                                "dispatch call contract missing owner/member binding for `{}`",
+                                binding.fqn
+                            ),
+                            "typed HIR call contract",
+                        )
+                    })?;
+                let member = MemberCallTargetContract::new(
+                    owner_fqn,
+                    member_name,
+                    binding.fqn.clone(),
+                    receiver_ty,
+                    function,
+                );
+                match dispatch_kind {
+                    DispatchCallKind::Virtual => TypedCallSiteContract::Virtual(member),
+                    DispatchCallKind::Interface => TypedCallSiteContract::Interface(member),
+                }
+            } else if let Some(receiver_ty) =
+                receiver_ty_from_arg_binding(arg_binding.as_ref(), args)
+            {
+                if let Some((owner_fqn, member_name)) = self.member_binding_for_fqn(&binding.fqn) {
+                    TypedCallSiteContract::MemberDirect(MemberCallTargetContract::new(
+                        owner_fqn,
+                        member_name,
+                        binding.fqn.clone(),
+                        receiver_ty,
+                        function,
+                    ))
+                } else {
+                    TypedCallSiteContract::Extension {
+                        receiver_ty,
+                        function,
+                    }
+                }
+            } else {
+                TypedCallSiteContract::DirectTopLevel(function)
+            };
+
+            self.call_site_kinds
+                .insert(call_site.clone(), contract.kind());
+            self.call_site_contracts.insert(call_site, contract);
+            return Ok(());
+        }
+
+        let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            let function = FunctionTargetContract::synthetic(fqn.clone());
+            if fqn.starts_with("scoop.core.__") || fqn.starts_with("scoop.core.GC.") {
+                Some(TypedCallSiteContract::Intrinsic {
+                    kind: TypedIntrinsicKind::from_fqn(fqn),
+                    function,
+                })
+            } else {
+                Some(TypedCallSiteContract::DirectTopLevel(function))
+            }
+        } else if matches!(callee.kind, ExprKind::Closure(_)) {
+            Some(TypedCallSiteContract::Closure {
+                callee_ty: callee.ty,
+                return_ty: expr.ty,
+            })
+        } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
+            Some(TypedCallSiteContract::FunPtr {
+                callee_ty: callee.ty,
+                return_ty: expr.ty,
+            })
+        } else if is_function_ty(&self.lowered_hir.types, callee.ty) {
+            Some(TypedCallSiteContract::FunValue {
+                callee_ty: callee.ty,
+                return_ty: expr.ty,
+            })
+        } else {
+            None
+        };
+
+        if let Some(contract) = contract {
+            self.call_site_kinds
+                .insert(call_site.clone(), contract.kind());
+            self.call_site_contracts.insert(call_site, contract);
+        }
+
+        Ok(())
+    }
+
+    fn call_arg_binding_contract(
+        &self,
+        source_path: &Path,
+        span: Span,
+    ) -> Option<CallArgBindingContract> {
+        self.lowered_hir
+            .call_arg_bindings
+            .get(&self.call_site(source_path, span))
+            .map(|binding| CallArgBindingContract {
+                params: binding
+                    .params
+                    .iter()
+                    .map(|param| match param {
+                        ast::CallArgParamBinding::Receiver => CallArgParamContract::Receiver,
+                        ast::CallArgParamBinding::Explicit(element) => {
+                            CallArgParamContract::Explicit(CallArgElementContract {
+                                arg_index: element.arg_index,
+                                spread: element.spread,
+                            })
+                        }
+                        ast::CallArgParamBinding::Default => CallArgParamContract::Default,
+                        ast::CallArgParamBinding::Vararg(elements) => CallArgParamContract::Vararg(
+                            elements
+                                .iter()
+                                .map(|element| CallArgElementContract {
+                                    arg_index: element.arg_index,
+                                    spread: element.spread,
+                                })
+                                .collect(),
+                        ),
+                    })
+                    .collect(),
+            })
+    }
+
+    fn dispatch_kind_and_receiver_ty(
+        &self,
+        source_path: &Path,
+        span: Span,
+    ) -> Option<(DispatchCallKind, TypeId)> {
+        self.lowered_hir
+            .dispatch_call_sites
+            .iter()
+            .find(|(site, _)| site.source_path == source_path && site.span == span)
+            .map(|(site, kind)| (*kind, site.receiver_ty))
+    }
+
+    fn member_binding_for_fqn(&self, fqn: &str) -> Option<(String, String)> {
+        let mut owners = self
+            .lowered_hir
+            .nominal_kinds
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        collect_decl_owner_fqns(&self.lowered_hir.file.decls, &mut owners);
+        owners.sort_by_key(|owner| std::cmp::Reverse(owner.len()));
+        owners.into_iter().find_map(|owner| {
+            let suffix = fqn.strip_prefix(&owner)?.strip_prefix('.')?;
+            (!suffix.is_empty()).then(|| (owner, suffix.to_string()))
+        })
     }
 
     fn record_perform_contract(
@@ -880,17 +1408,18 @@ impl<'a> ContractCollector<'a> {
             _ => info.and_then(|binding| binding.payload_tuple_ty),
         };
 
-        self.perform_sites.insert(
-            call_site.clone(),
-            PerformSiteContract::new(
-                effect_ty,
-                op.fqn.clone(),
-                PayloadTypeContract::new(payload_ty, payload_components),
-                arg_mapping,
-            ),
+        let contract = PerformSiteContract::new(
+            effect_ty,
+            op.fqn.clone(),
+            PayloadTypeContract::new(payload_ty, payload_components),
+            arg_mapping,
         );
+        self.perform_sites
+            .insert(call_site.clone(), contract.clone());
         self.call_site_kinds
-            .insert(call_site, TypedCallSiteKind::Perform);
+            .insert(call_site.clone(), TypedCallSiteKind::EffectOp);
+        self.call_site_contracts
+            .insert(call_site, TypedCallSiteContract::EffectOp(contract));
     }
 
     fn record_handle_contract(
@@ -987,6 +1516,59 @@ fn call_arg_value_ty(arg: &CallArg) -> TypeId {
     }
 }
 
+fn receiver_ty_from_arg_binding(
+    binding: Option<&CallArgBindingContract>,
+    args: &[CallArg],
+) -> Option<TypeId> {
+    let binding = binding?;
+    for param in binding.params() {
+        if matches!(param, CallArgParamContract::Receiver) {
+            return args.first().map(call_arg_value_ty);
+        }
+    }
+    None
+}
+
+fn collect_decl_owner_fqns(decls: &[Decl], owners: &mut Vec<String>) {
+    for decl in decls {
+        match decl {
+            Decl::TypeAlias(_) | Decl::ExtensionProperty(_) => {}
+            Decl::Nominal(nominal) => {
+                owners.push(nominal.fqn.clone());
+                collect_decl_member_owner_fqns(&nominal.members, owners);
+            }
+            Decl::Object(object) => {
+                owners.push(object.fqn.clone());
+                collect_decl_member_owner_fqns(&object.members, owners);
+            }
+        }
+    }
+}
+
+fn collect_decl_member_owner_fqns(members: &[crate::hir::DeclMember], owners: &mut Vec<String>) {
+    for member in members {
+        if let crate::hir::DeclMember::Nested(nested) = member {
+            collect_decl_owner_fqns(std::slice::from_ref(nested), owners);
+        }
+    }
+}
+
+fn is_function_ty(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
+}
+
+fn is_funptr_ty(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(
+        types.kind(ty),
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1
+    )
+}
+
+fn type_id_in_store(types: &TypeStore, ty: TypeId) -> bool {
+    (ty.as_u32() as usize) < types.len()
+}
+
 fn function_effect_contract(types: &TypeStore, fun_ty: TypeId) -> Option<(EffectRow, bool)> {
     let TypeKind::Ref(RefTypeKind::Function(function)) = types.kind(fun_ty) else {
         return None;
@@ -1079,6 +1661,197 @@ fn format_required_effects(
         terms.push(runtime_error_effect_ty);
     }
     format_effect_row(types, &EffectRow::new(terms))
+}
+
+fn format_call_site_contract(
+    out: &mut String,
+    types: &TypeStore,
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) {
+    let _ = writeln!(out, "        CallSiteContract {{");
+    let _ = writeln!(out, "            span: {:?},", call_site.span);
+    let _ = writeln!(out, "            kind: {:?},", contract.kind());
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function) => {
+            format_function_target(out, types, function, "target");
+        }
+        TypedCallSiteContract::MemberDirect(member) => {
+            format_member_target(out, types, member, "member");
+        }
+        TypedCallSiteContract::Extension {
+            receiver_ty,
+            function,
+        } => {
+            let _ = writeln!(
+                out,
+                "            receiver_ty: {},",
+                types.display(*receiver_ty)
+            );
+            format_function_target(out, types, function, "target");
+        }
+        TypedCallSiteContract::Constructor(ctor) => {
+            let _ = writeln!(out, "            owner_fqn: {:?},", ctor.owner_fqn());
+            let _ = writeln!(out, "            ctor_span: {:?},", ctor.ctor_span());
+            let _ = writeln!(
+                out,
+                "            result_ty: {},",
+                types.display(ctor.result_ty())
+            );
+            let _ = writeln!(out, "            arg_mapping: {:?},", ctor.arg_mapping());
+        }
+        TypedCallSiteContract::Closure {
+            callee_ty,
+            return_ty,
+        }
+        | TypedCallSiteContract::FunValue {
+            callee_ty,
+            return_ty,
+        }
+        | TypedCallSiteContract::FunPtr {
+            callee_ty,
+            return_ty,
+        } => {
+            let _ = writeln!(out, "            callee_ty: {},", types.display(*callee_ty));
+            let _ = writeln!(out, "            return_ty: {},", types.display(*return_ty));
+        }
+        TypedCallSiteContract::Virtual(member) | TypedCallSiteContract::Interface(member) => {
+            format_member_target(out, types, member, "dispatch");
+        }
+        TypedCallSiteContract::Intrinsic { kind, function } => {
+            let _ = writeln!(out, "            intrinsic_kind: {:?},", kind);
+            format_function_target(out, types, function, "target");
+        }
+        TypedCallSiteContract::EffectOp(perform) => {
+            let _ = writeln!(
+                out,
+                "            effect_ty: {},",
+                types.display(perform.effect_ty())
+            );
+            let _ = writeln!(out, "            op_fqn: {:?},", perform.op_fqn());
+            let _ = writeln!(
+                out,
+                "            payload_ty: {},",
+                perform.payload().display(types)
+            );
+            let _ = writeln!(out, "            arg_mapping: {:?},", perform.arg_mapping());
+        }
+        TypedCallSiteContract::ContinuationResume(resume) => {
+            let _ = writeln!(
+                out,
+                "            receiver_ty: {},",
+                types.display(resume.receiver_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            resume_ty: {},",
+                types.display(resume.resume_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            answer_ty: {},",
+                types.display(resume.answer_ty())
+            );
+            let _ = writeln!(
+                out,
+                "            out_effects: {},",
+                format_effect_row(types, resume.out_effects())
+            );
+        }
+    }
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_member_target(
+    out: &mut String,
+    types: &TypeStore,
+    member: &MemberCallTargetContract,
+    label: &str,
+) {
+    let _ = writeln!(
+        out,
+        "            {label}_owner_fqn: {:?},",
+        member.owner_fqn()
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_member_name: {:?},",
+        member.member_name()
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_member_fqn: {:?},",
+        member.member_fqn()
+    );
+    let _ = writeln!(
+        out,
+        "            receiver_ty: {},",
+        types.display(member.receiver_ty())
+    );
+    format_function_target(out, types, member.function(), "target");
+}
+
+fn format_function_target(
+    out: &mut String,
+    types: &TypeStore,
+    function: &FunctionTargetContract,
+    label: &str,
+) {
+    let _ = writeln!(out, "            {label}_fqn: {:?},", function.fqn());
+    let _ = writeln!(
+        out,
+        "            {label}_decl_span: {:?},",
+        function.decl_span()
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_type_args: [{}],",
+        format_type_args(types, function.type_args())
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_eff_args: [{}],",
+        format_eff_args(types, function.eff_args())
+    );
+    if let Some(binding) = function.arg_binding() {
+        let _ = writeln!(
+            out,
+            "            {label}_arg_binding: {:?},",
+            binding.params()
+        );
+    }
+}
+
+fn format_type_args(types: &TypeStore, args: &[TypeId]) -> String {
+    args.iter()
+        .map(|ty| format_type_id_lossy(types, *ty))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_eff_args(types: &TypeStore, args: &[EffectRow]) -> String {
+    args.iter()
+        .map(|row| {
+            if row.is_pure() {
+                "Pure".to_string()
+            } else {
+                row.terms
+                    .iter()
+                    .map(|ty| format_type_id_lossy(types, *ty))
+                    .collect::<Vec<_>>()
+                    .join(" + ")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_type_id_lossy(types: &TypeStore, ty: TypeId) -> String {
+    if type_id_in_store(types, ty) {
+        types.display(ty).to_string()
+    } else {
+        format!("TypeId({})", ty.as_u32())
+    }
 }
 
 #[cfg(test)]
@@ -1580,6 +2353,124 @@ fun main(): Int {
         );
     }
 
+    #[test]
+    fn refactor_hir_call_contracts_record_callable_provenance() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_call_contracts.scoop",
+            r#"package sample
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Boom {
+    fun boom(value: Int): Int
+}
+
+fun direct(x: Int): Int { return x }
+
+fun Int.ext(delta: Int): Int { return this + delta }
+
+open class Base() {
+    open fun ping(): Int { return 1 }
+}
+
+interface IFace {
+    fun foo(): Int
+}
+
+class Box(val value: Int)
+
+object Singleton {
+    fun get(): Int { return 3 }
+}
+
+@Extern("native_get_funptr")
+fun getFunPtr(): FunPtr<() -> Int>
+
+fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<RuntimeError> {
+    val d: Int = direct(1)
+    val e: Int = 1.ext(2)
+    val m: Int = Singleton.get()
+    val box: Box = Box(3)
+    val v: Int = b.ping()
+    val iface: Int = i.foo()
+    val c: (Int) -> Int = { x -> x + 1 }
+    val fv: Int = c(4)
+    val cl: Int = ({ x: Int -> x + 2 })(5)
+    val n: String = nameOf<Box>()
+    val fp: FunPtr<() -> Int> = @Unsafe do { getFunPtr() }
+    val p: Int = @Unsafe do { fp() }
+    k.resume(1)
+    val handled: Int = handle { Boom.boom(1) } with { Boom.boom(value: Int) -> value }
+    return d + e + m + box.value + v + iface + fv + cl + p + handled
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("call contract fixture should lower");
+        let contracts = output.effect_contracts().call_site_contracts();
+
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::DirectTopLevel(target)
+                if target.fqn() == "sample.direct"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Extension { function, .. }
+                if function.fqn() == "sample.ext"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::MemberDirect(member)
+                if member.owner_fqn() == "sample.Singleton" && member.member_name() == "get"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Constructor(ctor) if ctor.owner_fqn() == "sample.Box"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Virtual(member)
+                if member.owner_fqn() == "sample.Base" && member.member_name() == "ping"
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Interface(member)
+                if member.owner_fqn() == "sample.IFace" && member.member_name() == "foo"
+        )));
+        assert!(
+            contracts
+                .values()
+                .any(|contract| matches!(contract, TypedCallSiteContract::FunValue { .. }))
+        );
+        assert!(
+            contracts
+                .values()
+                .any(|contract| matches!(contract, TypedCallSiteContract::Closure { .. }))
+        );
+        assert!(
+            contracts
+                .values()
+                .any(|contract| matches!(contract, TypedCallSiteContract::FunPtr { .. }))
+        );
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Intrinsic { function, .. }
+                if function.fqn() == "scoop.core.nameOf"
+        )));
+        assert!(
+            contracts
+                .values()
+                .any(|contract| matches!(contract, TypedCallSiteContract::ContinuationResume(_)))
+        );
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::EffectOp(perform)
+                if perform.op_fqn() == "sample.Boom.boom"
+        )));
+    }
+
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
         let session = refactor_session();
         let source = load_hir_fixture(name);
@@ -1732,15 +2623,59 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         },
         TypedCallSiteContract {
             span: 200..211,
-            kind: DirectCall,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 216..229,
-            kind: DirectCall,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 330..349,
             kind: ContinuationResume,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 168..178,
+            kind: ContinuationResume,
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            out_effects: Pure,
+        },
+        CallSiteContract {
+            span: 183..195,
+            kind: ContinuationResume,
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            out_effects: Pure,
+        },
+        CallSiteContract {
+            span: 200..211,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.takesUnit",
+            target_decl_span: Some(47..56),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+        CallSiteContract {
+            span: 216..229,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.takesUnit",
+            target_decl_span: Some(47..56),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+        CallSiteContract {
+            span: 330..349,
+            kind: ContinuationResume,
+            receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
+            resume_ty: (Int, String),
+            answer_ty: Unit,
+            out_effects: Pure,
         },
     ],
     continuation_resume_sites: [
@@ -1826,7 +2761,17 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     call_site_kinds: [
         TypedCallSiteContract {
             span: 64..78,
-            kind: Perform,
+            kind: EffectOp,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 64..78,
+            kind: EffectOp,
+            effect_ty: scoop.core.Raise<Int>,
+            op_fqn: "scoop.core.Raise.raise",
+            payload_ty: Int,
+            arg_mapping: [0],
         },
     ],
     continuation_resume_sites: [
@@ -1883,7 +2828,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
             .expect("应收集到 perform site");
         assert_eq!(
             contracts.call_site_kind(perform_site),
-            Some(TypedCallSiteKind::Perform)
+            Some(TypedCallSiteKind::EffectOp)
         );
         assert_eq!(perform_contract.op_fqn(), "scoop.core.Raise.raise");
         assert_eq!(perform_contract.payload().components().len(), 1);

@@ -304,7 +304,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_call_args`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_call_args.scoop`、相关 array/named/default/vararg typecheck fixtures、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T04`
 
-## HIR-T07：发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract
+## [DONE] HIR-T07：发布 callable callee provenance 与 dispatch/ctor/intrinsic HIR contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H5
@@ -331,6 +331,12 @@
 - 完成条件：
   - 所有 call-like HIR site 都有下游可消费 provenance。
   - 可进入 `HIR-T08`。
+- 完成记录（2026-05-06）：
+  - `TypedHirEffectContracts` 新增结构化 `call_site_contracts`，覆盖 direct top-level、member direct、extension、constructor、closure、fun value、FunPtr、virtual/interface dispatch、intrinsic、effect-op 与 `Continuation.resume`；stable dump 现在展示各调用点 kind、target、receiver/owner/member、ctor arg mapping、payload/typed effect contract 等关键字段。
+  - HIR lowering 产物新增 canonical call-arg binding side table；typed HIR call contract 可消费 typecheck 写回的 receiver/default/vararg 参数槽信息，并避免把 named/default/spread 语义留给后端猜测。
+  - refactor MIR dispatch lowering 现在从 typed HIR call contract 读取 owner/member/receiver dispatch metadata，不再在 refactor path 对 callee FQN 做 `rsplit_once('.')` 作为 authoritative dispatch 来源；legacy fallback 保持原行为。
+  - 新增 `refactor_hir_call_contracts_record_callable_provenance` 单测与 `tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`，覆盖 direct、member、extension、ctor、closure、fun value、FunPtr、virtual、interface、resume、perform/handle 与 reflection intrinsic。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_call_contracts`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features dispatch_and_resume`、`cargo test -p scoop --no-default-features dump_hir`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T06`
 
 ## HIR-T08：收口 class literal 与 reflection/platform intrinsic HIR contract

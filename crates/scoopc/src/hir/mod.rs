@@ -945,6 +945,9 @@ pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
 ///   backend 现场猜目标的前提下，恢复 operator overload、`compareTo` 等语法糖的真实 callee。
 pub type TopLevelFunCallSiteIndex = HashMap<CallSite, ast::TopLevelFunCallBinding>;
 
+/// 由 typecheck 确认的 canonical call-argument 绑定索引：`source_path + expr span` → param slots。
+pub type CallArgBindingSiteIndex = HashMap<CallSite, ast::CallArgBinding>;
+
 /// 动态 dispatch 调用点索引：`source_path + call span + receiver_ty` → dispatch kind。
 pub type DispatchCallSiteIndex = HashMap<DispatchCallSite, DispatchCallKind>;
 

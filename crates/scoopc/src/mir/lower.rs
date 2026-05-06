@@ -13,7 +13,9 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::effect_refactor_pipeline::{HandleArmContractKind, TypedHirEffectContracts};
+use crate::effect_refactor_pipeline::{
+    HandleArmContractKind, MemberCallTargetContract, TypedCallSiteContract, TypedHirEffectContracts,
+};
 use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -52,6 +54,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_resume_sites: HashMap<hir::CallSite, ResumeMetadata>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
+    refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
     top_level_ref_hidden_effects: HashMap<String, EffectRow>,
@@ -72,6 +75,7 @@ impl Default for MirLoweringFacts {
             refactor_resume_sites: HashMap::new(),
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
+            refactor_dispatch_sites: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
             top_level_ref_hidden_effects: HashMap::new(),
@@ -99,6 +103,26 @@ struct PerformCallSiteInfo {
 struct RefactorHandleSiteInfo {
     metadata: HandleMetadata,
     arms: Vec<HandlerArm>,
+}
+
+#[derive(Debug, Clone)]
+struct RefactorDispatchCallInfo {
+    kind: DispatchTargetKind,
+    owner_fqn: String,
+    member_name: String,
+    receiver_ty: TypeId,
+}
+
+fn refactor_dispatch_call_info(
+    kind: DispatchTargetKind,
+    member: &MemberCallTargetContract,
+) -> RefactorDispatchCallInfo {
+    RefactorDispatchCallInfo {
+        kind,
+        owner_fqn: member.owner_fqn().to_string(),
+        member_name: member.member_name().to_string(),
+        receiver_ty: member.receiver_ty(),
+    }
 }
 
 impl MirLoweringFacts {
@@ -294,6 +318,7 @@ impl MirLoweringFacts {
         self.refactor_resume_sites.clear();
         self.refactor_perform_sites.clear();
         self.refactor_handle_sites.clear();
+        self.refactor_dispatch_sites.clear();
 
         for (call_site, contract) in contracts.continuation_resume_sites() {
             self.refactor_resume_sites.insert(
@@ -356,6 +381,16 @@ impl MirLoweringFacts {
             );
         }
 
+        for (call_site, contract) in contracts.call_site_contracts() {
+            let (kind, member) = match contract {
+                TypedCallSiteContract::Virtual(member) => (DispatchTargetKind::Virtual, member),
+                TypedCallSiteContract::Interface(member) => (DispatchTargetKind::Interface, member),
+                _ => continue,
+            };
+            self.refactor_dispatch_sites
+                .insert(call_site.clone(), refactor_dispatch_call_info(kind, member));
+        }
+
         self
     }
 
@@ -376,6 +411,15 @@ impl MirLoweringFacts {
                 receiver_ty,
             ))
             .copied()
+    }
+
+    fn refactor_dispatch_contract(
+        &self,
+        source_path: &std::path::Path,
+        call_span: Span,
+    ) -> Option<&RefactorDispatchCallInfo> {
+        self.refactor_dispatch_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
     fn top_level_fun_call_binding(
@@ -2687,6 +2731,10 @@ impl<'a> FnLowering<'a> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> bool {
+        if self.facts.uses_refactor_typed_contracts() {
+            return self.lower_refactor_dispatch_call_expr(span, result, callee, args);
+        }
+
         let dispatch_target = match &callee.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 let Some((receiver_arg, remaining_args)) = args.split_first() else {
@@ -2743,6 +2791,75 @@ impl<'a> FnLowering<'a> {
             receiver_ty,
         };
         let kind = match dispatch_kind {
+            DispatchTargetKind::Virtual => CallKind::Virtual {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+            DispatchTargetKind::Interface => CallKind::Interface {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+        };
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
+        true
+    }
+
+    fn lower_refactor_dispatch_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> bool {
+        let Some(dispatch_info) = self
+            .facts
+            .refactor_dispatch_contract(self.source_path.as_path(), span)
+            .cloned()
+        else {
+            return false;
+        };
+        let (receiver_expr, call_args) = match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
+                let Some((receiver_arg, remaining_args)) = args.split_first() else {
+                    return false;
+                };
+                let receiver_expr = match receiver_arg {
+                    hir::CallArg::Positional(expr) => expr,
+                    hir::CallArg::Named { value, .. } => value,
+                };
+                (receiver_expr, remaining_args)
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args),
+            _ => return false,
+        };
+
+        let receiver_local = self.lower_expr_to_local(receiver_expr);
+        if self.current_is_terminated() {
+            return true;
+        }
+        let Some(args) = self.lower_call_args(call_args) else {
+            return true;
+        };
+        let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+        let dispatch = DispatchMetadata {
+            owner_fqn: dispatch_info.owner_fqn,
+            member_name: dispatch_info.member_name,
+            receiver_ty: if receiver_ty == dispatch_info.receiver_ty {
+                receiver_ty
+            } else {
+                dispatch_info.receiver_ty
+            },
+        };
+        let kind = match dispatch_info.kind {
             DispatchTargetKind::Virtual => CallKind::Virtual {
                 receiver: Operand::Local(receiver_local),
                 dispatch,

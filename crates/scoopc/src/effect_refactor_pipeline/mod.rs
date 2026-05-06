@@ -23,9 +23,11 @@ pub use ast_stage::AstStageOutput;
 pub use effect_facts_stage::RefactorEffectFactsStageOutput;
 pub use effect_lowering_stage::RefactorEffectLoweredStageOutput;
 pub use hir_stage::{
-    ContinuationResumeSiteContract, FunctionEffectContract, HandleArmContractKind,
-    HandleArmSiteContract, HandleSiteContract, PayloadTypeContract, PerformSiteContract,
-    TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput,
+    CallArgBindingContract, CallArgElementContract, CallArgParamContract,
+    ConstructorCallTargetContract, ContinuationResumeSiteContract, FunctionEffectContract,
+    FunctionTargetContract, HandleArmContractKind, HandleArmSiteContract, HandleSiteContract,
+    MemberCallTargetContract, PayloadTypeContract, PerformSiteContract, TypedCallSiteContract,
+    TypedCallSiteKind, TypedHirEffectContracts, TypedHirStageOutput, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{RefactorLlvmCodegenStageInput, RefactorLlvmCodegenStageOutput};

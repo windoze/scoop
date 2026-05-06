@@ -21,11 +21,11 @@ use crate::typecheck::{
 };
 
 use super::super::{
-    ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
-    EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
-    NonPureContinuationResumeCallSiteIndex, ObjectInitIndex, StructLayoutIndex, SymbolId,
-    TopLevelConstIndex, TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex, TopLevelVarIndex,
-    WhenPatBindingTypeIndex,
+    CallArgBindingSiteIndex, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex,
+    DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex,
+    NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
+    StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelFunCallSiteIndex,
+    TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -351,6 +351,8 @@ pub struct LoweredHir {
     /// - generic MIR lowering / production reachability 会用它恢复 operator overload /
     ///   `compareTo` 等语法糖调用点的真实 callee 身份。
     pub top_level_fun_call_sites: TopLevelFunCallSiteIndex,
+    /// typecheck 已确认的 canonical call-argument 参数槽绑定。
+    pub call_arg_bindings: CallArgBindingSiteIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
@@ -473,6 +475,7 @@ impl LoweredHir {
             top_level_consts: self.top_level_consts.clone(),
             top_level_immutable_values: self.top_level_immutable_values.clone(),
             top_level_fun_call_sites: self.top_level_fun_call_sites.clone(),
+            call_arg_bindings: self.call_arg_bindings.clone(),
             object_inits: self.object_inits.clone(),
             class_inits: self.class_inits.clone(),
             class_vtables: self.class_vtables.clone(),

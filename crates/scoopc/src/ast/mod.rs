@@ -305,6 +305,10 @@ impl File {
             .cloned()
     }
 
+    pub fn typechecked_call_arg_bindings(&self) -> HashMap<Span, CallArgBinding> {
+        self.typechecked_call_arg_bindings.borrow().clone()
+    }
+
     pub fn replace_typechecked_effect_op_call_bindings(
         &self,
         bindings: HashMap<Span, EffectOpCallBinding>,
