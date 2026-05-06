@@ -74,7 +74,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`rg "ExprKind::Todo|StmtKind::Todo|Item::Todo" crates/scoopc/src/hir`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 - 依赖：无
 
-## HIR-T01：建立 refactor HIR no-Todo verifier 与 stage error 通道
+## [DONE] HIR-T01：建立 refactor HIR no-Todo verifier 与 stage error 通道
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H0, §2/H2
@@ -102,6 +102,12 @@
 - 完成条件：
   - refactor HIR stage 不可能成功产出含 Todo handoff。
   - 可进入 `HIR-T02`。
+- 完成记录（2026-05-06）：
+  - 新增 `crates/scoopc/src/effect_refactor_pipeline/hir_completeness.rs`，实现 `RefactorHirCompletenessVerifier`，默认扫描 refactor typed HIR `File.items`、member fun side table、top-level init roots、object init roots、class init/ctor roots中的所有 HIR body。
+  - 新增结构化 `HirStageError` 并接入 `HirLowerError::Stage`，错误携带 source path、span、reason 与所属 item/function；`TypedHirStageOutput::new`、refactor `hir_stage::run`、refactor LLVM handoff 入口默认执行 verifier，legacy wrapper 保留 unchecked 构造以维持 legacy 行为。
+  - 新增 no-Todo 单测覆盖当前 placeholder inventory 中的 `Item::Todo`、`StmtKind::Todo`、`ExprKind::Todo`、`ExprKind::Missing` reason，并覆盖 member fun、top-level init、object init、class init roots；新增真实 `typealias` 输入验证 stage diagnostic。
+  - 调整 `dump-hir` parity 测试 fixture，避免继续用会被 no-Todo gate 正确拒绝的 declaration-placeholder run-pass 输入证明成功路径。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T00`
 
 ## HIR-T02：在 parser 拒绝纯语法延期/非法 surface

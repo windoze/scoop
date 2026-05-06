@@ -1,19 +1,38 @@
-# 执行计划
+# Claude Execution Plan
 
-1. 阅读 `TODO.md`，按标题是否带 `[DONE]` 识别第一个未完成任务，并检查任务正文、依赖、验证要求和完成记录。
-2. 查看最新提交信息，仅在其明确提到与当前任务直接相关的未完成问题时，将其纳入当前任务或作为前置项记录到 `TODO.md`。
-3. 基于当前任务定位相关代码、测试和规格说明，避免开放式历史问题排查。
-4. 以最小正确改动完成当前任务；如果发现阻塞当前任务的规格不匹配或缺失能力，先在 `TODO.md` 插入最小必要前置任务并停止。
-5. 运行当前任务要求的验证以及必要的回归测试；若失败，修复后重测。
-6. 完成后更新 `TODO.md`：在任务标题前加 `[DONE]`，补充完成记录；仅当阶段级计划变化时更新 `PLAN.md`。
-7. 检查工作区变更，提交本次任务相关改动，并在提交后停止，不继续下一个任务。
+## Scope
 
-## 当前状态
+- Follow `TODO.md` as the authoritative task list.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Do not proceed to later tasks after completing or blocking the current task.
+- Keep this file updated with the current plan, key discoveries, plan changes, validation results, and final status.
 
-- 已识别第一个未完成任务：`HIR-T00：审计并冻结 refactor HIR placeholder inventory`。
-- 最新提交 `365dd1ad Update plan` 未明确提到与 `HIR-T00` 直接相关的未完成问题。
-- 已新增 `crates/scoopc/src/hir/lower/placeholder_inventory.rs` 测试模块，冻结 `src/hir/**` 中的 HIR placeholder 构造点、分类和处理任务。
-- 该测试同时记录 refactor typed HIR stage 当前不携带 legacy `lower_for_dump` dump-only fallback。
-- 已修复 no-default-features 测试编译中的既有 dead-code warning：`LateLoweredSurfaceResumeDispatchInventoryEntry::new` 仅在 `all(test, feature = "llvm")` 下编译。
-- 已通过验证：`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`rg "ExprKind::Todo|StmtKind::Todo|Item::Todo" crates/scoopc/src/hir`、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
-- 已将 `TODO.md` 中 `HIR-T00` 标记为 `[DONE]` 并补充完成记录；下一步检查 git 变更并提交后停止。
+## Initial Plan
+
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Inspect only the code and tests needed to implement that task correctly.
+4. Implement the smallest spec-correct change without workarounds.
+5. Run the task-required tests and relevant broader checks.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in the completion record, or add a concrete prerequisite task if blocked.
+7. Update this plan file with completion or blocker details.
+8. Commit all relevant changes with a task-specific message.
+9. Stop after the commit.
+
+## Progress Log
+
+- Started: preparing to identify the first incomplete task from `TODO.md`.
+- Identified first incomplete task: `HIR-T01` (`建立 refactor HIR no-Todo verifier 与 stage error 通道`).
+- Latest commit is `[HIR-T00] Freeze HIR placeholder inventory`; it is directly relevant as the dependency and does not introduce a separate unfinished prerequisite.
+- Next step: inspect the refactor HIR stage, HIR data structures, existing placeholder inventory tests, and `dump-hir` test wiring before editing.
+- Inspected `effect_refactor_pipeline/hir_stage.rs`: `TypedHirStageOutput::new` currently collects effect contracts and traversal deliberately ignores `Item::Todo`, `StmtKind::Todo`, `ExprKind::Todo`, and `ExprKind::Missing`.
+- Implementation direction: add a refactor HIR completeness verifier in the typed HIR stage, expose a structured `HirStageError` through `HirLowerError`, and make both `hir_stage::run` and direct `TypedHirStageOutput` construction validate by default.
+- Implemented the verifier and initial tests. First targeted compile run failed because `HirStageError` was defined but not re-exported from `hir::lower`; fixed the export and will rerun formatting/tests.
+- `cargo test -p scoopc --no-default-features refactor_hir_no_todo` passed.
+- `cargo test -p scoop --no-default-features dump_hir` exposed an obsolete parity test fixture that now contains local effect declarations and is correctly rejected by the no-Todo verifier. Updated that test to use an existing continuation HIR fixture without declaration placeholders.
+- Final validation passed:
+  - `cargo test -p scoopc --no-default-features refactor_hir_no_todo`
+  - `cargo test -p scoopc --no-default-features refactor_typed_hir`
+  - `cargo test -p scoop --no-default-features dump_hir`
+  - `cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`
+- Updated `TODO.md`: marked `HIR-T01` as `[DONE]` and recorded implementation details plus validation commands.

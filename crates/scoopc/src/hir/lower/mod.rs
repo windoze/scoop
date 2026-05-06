@@ -17,7 +17,7 @@ mod block;
 mod expr;
 mod stmt;
 
-pub use types::{HirLowerError, LoweredHir};
+pub use types::{HirLowerError, HirStageError, LoweredHir};
 pub use util::mangle_nominal_fqn;
 
 use std::collections::{HashMap, HashSet};

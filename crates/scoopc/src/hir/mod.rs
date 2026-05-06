@@ -25,8 +25,8 @@ use crate::ty::TypeId;
 
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
 pub use lower::{
-    HirLowerError, LoweredHir, MirInstanceCollectionOptions, lower_for_compilation_unit,
-    lower_for_compilation_unit_multi_files,
+    HirLowerError, HirStageError, LoweredHir, MirInstanceCollectionOptions,
+    lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
     lower_for_compilation_unit_multi_files_via_mir_instance_collection,
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level,
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources,

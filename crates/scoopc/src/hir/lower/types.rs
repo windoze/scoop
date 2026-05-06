@@ -125,6 +125,52 @@ pub(super) enum DelegatedPropertyInfo<'a> {
 
 pub(super) type DelegatedPropertyIndex<'a> = HashMap<String, DelegatedPropertyInfo<'a>>;
 
+/// refactor typed HIR stage 的结构化错误。
+///
+/// 该错误固定 source path、span、placeholder/contract reason 与所属 item/function，避免 HIR
+/// completeness gate 退化成无定位的后端 unsupported 报错。
+#[derive(Debug, Clone, PartialEq, Eq, Error, Diagnostic)]
+#[error("refactor HIR stage failed for `{owner}` at {source_path:?}:{span:?}: {reason}")]
+#[diagnostic(code(scoop::hir::stage_error))]
+pub struct HirStageError {
+    source_path: PathBuf,
+    span: Span,
+    reason: String,
+    owner: String,
+}
+
+impl HirStageError {
+    pub fn new(
+        source_path: impl Into<PathBuf>,
+        span: Span,
+        reason: impl Into<String>,
+        owner: impl Into<String>,
+    ) -> Self {
+        Self {
+            source_path: source_path.into(),
+            span,
+            reason: reason.into(),
+            owner: owner.into(),
+        }
+    }
+
+    pub fn source_path(&self) -> &Path {
+        &self.source_path
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn reason(&self) -> &str {
+        &self.reason
+    }
+
+    pub fn owner(&self) -> &str {
+        &self.owner
+    }
+}
+
 /// 一个顶层函数的“默认参数信息”（用于在 HIR lowering 阶段做 call-site 默认参数补齐）。
 ///
 /// 说明：
@@ -200,6 +246,10 @@ pub enum HirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     ExprType(Box<ExprTypeError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Stage(#[from] HirStageError),
 
     #[error("{message}")]
     Frontend { message: String },

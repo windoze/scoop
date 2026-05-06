@@ -224,8 +224,10 @@ fn refactor_ast_stage_parity_unit_zero_arg_sugar() {
 #[test]
 fn dump_hir_cli_legacy_and_refactor_both_succeed_after_typed_split() {
     // P2-T01 起，refactor `dump-hir` 改走 typed HIR stage，因此这里不再要求 stdout parity。
+    // HIR-T01 起，refactor `dump-hir` 会拒绝仍含 declaration placeholder 的输入；这里使用
+    // 已完整进入 HIR 的 continuation fixture 保留 legacy/refactor CLI 成功路径对齐断言。
     let fixture = workspace_path(
-        "tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop",
+        "tests/fixtures/hir/continuation_resume_surface_named_tuple_and_unit_basic.scoop",
     );
     let legacy = observe_dump_cli(dump_cli_args("legacy", "dump-hir", &fixture));
     let refactor = observe_dump_cli(dump_cli_args("refactor", "dump-hir", &fixture));

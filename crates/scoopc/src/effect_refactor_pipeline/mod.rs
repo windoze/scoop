@@ -8,6 +8,7 @@
 mod ast_stage;
 mod effect_facts_stage;
 mod effect_lowering_stage;
+mod hir_completeness;
 mod hir_stage;
 mod legacy;
 #[cfg(feature = "llvm")]
@@ -202,7 +203,7 @@ pub fn load_typed_hir_stage_output_for_dump(
     match dispatcher.entry {
         StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| {
             crate::hir::lower_typed_for_dump(session, source)
-                .map(|lowered| TypedHirStageOutput::new(lowered, source.path()))
+                .map(|lowered| TypedHirStageOutput::new_unchecked(lowered, source.path()))
         }),
         StageEntry::Refactor(entry) => entry.lower_typed_hir_stage_output(session, source),
     }

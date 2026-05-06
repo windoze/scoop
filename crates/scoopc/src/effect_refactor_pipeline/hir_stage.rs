@@ -4,13 +4,15 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::hir::{
-    CallArg, CallSite, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, Item, LoweredHir,
-    Stmt, StmtKind, ValueRef,
+    CallArg, CallSite, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
+    LoweredHir, Stmt, StmtKind, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+
+use super::hir_completeness::RefactorHirCompletenessVerifier;
 
 /// 单个 `Continuation.resume(...)` 调用点的 typed contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -576,7 +578,12 @@ pub struct TypedHirStageOutput {
 }
 
 impl TypedHirStageOutput {
-    pub(crate) fn new(lowered_hir: LoweredHir, source_path: &Path) -> Self {
+    pub(crate) fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+        RefactorHirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
+        Ok(Self::new_unchecked(lowered_hir, source_path))
+    }
+
+    pub(crate) fn new_unchecked(lowered_hir: LoweredHir, source_path: &Path) -> Self {
         let effect_contracts = TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path);
         Self {
             lowered_hir,
@@ -619,7 +626,7 @@ pub(crate) fn run(
     source: &SourceFile,
 ) -> Result<TypedHirStageOutput, HirLowerError> {
     let lowered_hir = crate::hir::lower_typed_for_dump(session, source)?;
-    Ok(TypedHirStageOutput::new(lowered_hir, source.path()))
+    TypedHirStageOutput::new(lowered_hir, source.path()).map_err(HirLowerError::from)
 }
 
 struct ContractCollector<'a> {
@@ -1077,6 +1084,7 @@ fn format_required_effects(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
     use crate::session::{EffectPipelineMode, SessionOptions};
@@ -1090,6 +1098,257 @@ mod tests {
             .join("../../tests/fixtures/hir")
             .join(name);
         SourceFile::load(&path).expect("fixture 应可加载")
+    }
+
+    fn clean_lowered_hir() -> (LoweredHir, PathBuf) {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_no_todo_clean.scoop",
+            "package sample\nfun main() {}\n",
+        );
+        let source_path = source.path().to_path_buf();
+        let lowered = crate::hir::lower_typed_for_dump(&session, &source).unwrap();
+        (lowered, source_path)
+    }
+
+    fn stage_error_for(lowered: LoweredHir, source_path: &std::path::Path) -> HirStageError {
+        TypedHirStageOutput::new(lowered, source_path)
+            .expect_err("refactor HIR completeness verifier 应拒绝 placeholder")
+    }
+
+    fn test_span() -> Span {
+        Span::new(21, 22)
+    }
+
+    fn expr_with_kind(lowered: &LoweredHir, kind: ExprKind) -> Expr {
+        Expr {
+            span: test_span(),
+            ty: lowered.builtins.unit,
+            kind,
+        }
+    }
+
+    fn stmt_with_kind(lowered: &LoweredHir, kind: StmtKind) -> Stmt {
+        Stmt {
+            span: test_span(),
+            ty: lowered.builtins.unit,
+            kind,
+        }
+    }
+
+    fn replace_main_body_with_stmt(lowered: &mut LoweredHir, stmt: Stmt) {
+        let fun = lowered
+            .file
+            .items
+            .iter_mut()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun),
+                _ => None,
+            })
+            .expect("clean fixture 应包含 sample.main");
+        fun.body = Some(crate::hir::Block {
+            span: test_span(),
+            ty: lowered.builtins.unit,
+            stmts: vec![stmt],
+        });
+    }
+
+    fn main_fun_clone(lowered: &LoweredHir) -> FunDecl {
+        lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun.clone()),
+                _ => None,
+            })
+            .expect("clean fixture 应包含 sample.main")
+    }
+
+    #[test]
+    fn refactor_hir_no_todo_rejects_current_placeholder_reasons() {
+        const EXPR_REASONS: &[&str] = &[
+            "array_lit",
+            "class_lit",
+            "spread_arg",
+            "named_arg",
+            "structured_concurrency_spawn_deferred",
+            "structured_concurrency_join_deferred",
+            "splice_field",
+            "assign",
+            "with_update",
+        ];
+        for reason in EXPR_REASONS {
+            let (mut lowered, source_path) = clean_lowered_hir();
+            let stmt = stmt_with_kind(
+                &lowered,
+                StmtKind::Expr(expr_with_kind(&lowered, ExprKind::Todo(reason))),
+            );
+            replace_main_body_with_stmt(&mut lowered, stmt);
+
+            let err = stage_error_for(lowered, &source_path);
+            let expected = format!("ExprKind::Todo({reason})");
+            assert_eq!(err.reason(), expected);
+            assert_eq!(err.owner(), "fun sample.main");
+            assert_eq!(err.span(), test_span());
+            assert_eq!(err.source_path(), source_path.as_path());
+        }
+
+        const STMT_REASONS: &[&str] = &[
+            "missing_stmt",
+            "comptime_block",
+            "comptime_if",
+            "comptime_for",
+            "for_custom_iterator",
+        ];
+        for reason in STMT_REASONS {
+            let (mut lowered, source_path) = clean_lowered_hir();
+            let stmt = stmt_with_kind(&lowered, StmtKind::Todo(reason));
+            replace_main_body_with_stmt(&mut lowered, stmt);
+
+            let err = stage_error_for(lowered, &source_path);
+            let expected = format!("StmtKind::Todo({reason})");
+            assert_eq!(err.reason(), expected);
+            assert_eq!(err.owner(), "fun sample.main");
+            assert_eq!(err.span(), test_span());
+            assert_eq!(err.source_path(), source_path.as_path());
+        }
+
+        const ITEM_REASONS: &[&str] = &[
+            "typealias",
+            "comptime_if_item",
+            "type",
+            "object",
+            "extension_property_no_getter",
+        ];
+        for reason in ITEM_REASONS {
+            let (mut lowered, source_path) = clean_lowered_hir();
+            lowered.file.items = vec![Item::Todo {
+                span: test_span(),
+                kind: reason,
+            }];
+
+            let err = stage_error_for(lowered, &source_path);
+            let expected = format!("Item::Todo({reason})");
+            assert_eq!(err.reason(), expected);
+            assert_eq!(err.owner(), "top-level item");
+            assert_eq!(err.span(), test_span());
+            assert_eq!(err.source_path(), source_path.as_path());
+        }
+
+        let (mut lowered, source_path) = clean_lowered_hir();
+        let stmt = stmt_with_kind(
+            &lowered,
+            StmtKind::Expr(expr_with_kind(&lowered, ExprKind::Missing)),
+        );
+        replace_main_body_with_stmt(&mut lowered, stmt);
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "ExprKind::Missing");
+        assert_eq!(err.owner(), "fun sample.main");
+        assert_eq!(err.span(), test_span());
+        assert_eq!(err.source_path(), source_path.as_path());
+    }
+
+    #[test]
+    fn refactor_hir_no_todo_scans_member_fun_and_init_roots() {
+        let (mut lowered, source_path) = clean_lowered_hir();
+        let mut member_fun = main_fun_clone(&lowered);
+        member_fun.fqn = "sample.Box.member".to_string();
+        member_fun.name = "member".to_string();
+        let stmt = stmt_with_kind(
+            &lowered,
+            StmtKind::Expr(expr_with_kind(&lowered, ExprKind::Todo("array_lit"))),
+        );
+        member_fun.body = Some(crate::hir::Block {
+            span: test_span(),
+            ty: lowered.builtins.unit,
+            stmts: vec![stmt],
+        });
+        lowered.member_funs.push(member_fun);
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "ExprKind::Todo(array_lit)");
+        assert_eq!(err.owner(), "member fun sample.Box.member");
+
+        let (mut lowered, source_path) = clean_lowered_hir();
+        lowered.top_level_vars.insert(
+            "sample.global".to_string(),
+            crate::hir::TopLevelVar {
+                fqn: "sample.global".to_string(),
+                source_path: source_path.clone(),
+                span: test_span(),
+                storage: crate::hir::TopLevelVarStorage::Global,
+                ty: lowered.builtins.unit,
+                init: Some(expr_with_kind(&lowered, ExprKind::Todo("array_lit"))),
+            },
+        );
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "ExprKind::Todo(array_lit)");
+        assert_eq!(err.owner(), "top-level var sample.global");
+
+        let (mut lowered, source_path) = clean_lowered_hir();
+        lowered.object_inits.insert(
+            "sample.Singleton".to_string(),
+            crate::hir::ObjectInit {
+                fqn: "sample.Singleton".to_string(),
+                source_path: source_path.clone(),
+                properties: HashMap::new(),
+                steps: vec![crate::hir::ObjectInitStep::PropertyInit {
+                    name: "x".to_string(),
+                    init: expr_with_kind(&lowered, ExprKind::Todo("array_lit")),
+                }],
+            },
+        );
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "ExprKind::Todo(array_lit)");
+        assert_eq!(err.owner(), "object sample.Singleton");
+
+        let (mut lowered, source_path) = clean_lowered_hir();
+        lowered.class_inits.insert(
+            "sample.Box".to_string(),
+            crate::hir::ClassInit {
+                fqn: "sample.Box".to_string(),
+                source_path: source_path.clone(),
+                super_class_fqn: None,
+                super_ctor_args_span: None,
+                super_ctor_call: None,
+                super_ctor_args: Vec::new(),
+                this_id: crate::hir::SymbolId::from_raw(1),
+                fields: Vec::new(),
+                field_indices: HashMap::new(),
+                steps: vec![crate::hir::ClassInitStep::PropertyInit {
+                    field_fqn: "sample.Box.x".to_string(),
+                    init: expr_with_kind(&lowered, ExprKind::Todo("array_lit")),
+                }],
+                ctors: Vec::new(),
+            },
+        );
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "ExprKind::Todo(array_lit)");
+        assert_eq!(err.owner(), "class sample.Box");
+    }
+
+    #[test]
+    fn refactor_hir_no_todo_stage_reports_source_diagnostic_for_real_input() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/typealias_placeholder.scoop",
+            "package sample\ntypealias Alias = Int\nfun main() {}\n",
+        );
+
+        let err = run(&session, &source).expect_err("typealias placeholder 应被 HIR stage 拒绝");
+        let HirLowerError::Stage(stage_error) = err else {
+            panic!("应返回结构化 HirStageError")
+        };
+
+        assert_eq!(stage_error.reason(), "Item::Todo(typealias)");
+        assert_eq!(stage_error.owner(), "top-level item");
+        assert_eq!(stage_error.source_path(), source.path());
+        assert!(!stage_error.span().is_empty());
     }
 
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
@@ -1150,11 +1409,7 @@ package fixtures.hirstage
 
 import scoop.core.*
 
-effect Boom {
-    fun next(): Int
-}
-
-fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
+fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<Int> + Raise<RuntimeError>) {
     return k.resume(1)
 }
 "#,
@@ -1177,7 +1432,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<
         );
         assert_eq!(
             output.types().display(contract.receiver_ty()).to_string(),
-            "scoop.core.Continuation<Int, Int, eff fixtures.hirstage.Boom>"
+            "scoop.core.Continuation<Int, Int, eff scoop.core.Raise<Int>>"
         );
         assert_eq!(
             output.types().display(contract.resume_ty()).to_string(),
@@ -1197,7 +1452,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<
                 .types()
                 .display(contract.out_effects().terms[0])
                 .to_string(),
-            "fixtures.hirstage.Boom"
+            "scoop.core.Raise<Int>"
         );
         assert_eq!(
             output
@@ -1300,50 +1555,29 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<
     }
 
     #[test]
-    fn refactor_typed_hir_runtime_error_contract_dump_snapshot() {
-        assert_fixture_effect_contract_dump(
-            "continuation_runtime_error_surface_basic.scoop",
-            r#"TypedHirEffectContracts {
-    function_effects: [
-        FunctionEffectContract {
-            span: 61..76,
-            fqn: "fixtures.hir.Boom.next",
-            return_ty: Int,
-            allowed_effects: Pure,
-            effects_closed: false,
-        },
-        FunctionEffectContract {
-            span: 80..194,
-            fqn: "fixtures.hir.resumeWithEffects",
-            return_ty: Int,
-            allowed_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
-            effects_closed: false,
-        },
-    ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 181..192,
-            kind: ContinuationResume,
-        },
-    ],
-    continuation_resume_sites: [
-        ContinuationResumeSiteContract {
-            span: 181..192,
-            receiver_ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
-            resume_ty: Int,
-            answer_ty: Int,
-            return_ty: Int,
-            out_effects: fixtures.hir.Boom,
-            required_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
-            includes_runtime_error_effect: true,
-        },
-    ],
-    perform_sites: [
-    ],
-    handle_sites: [
-    ],
-}"#,
+    fn refactor_typed_hir_runtime_error_contract_dump_records_required_effect() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/runtime_error_contract.scoop",
+            r#"
+package fixtures.hir
+
+import scoop.core.*
+
+fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<Int> + Raise<RuntimeError>) {
+    return k.resume(1)
+}
+"#,
         );
+
+        let output = run(&session, &source).unwrap();
+        let rendered = output.effect_contracts().stable_dump(output.types());
+
+        assert!(rendered.contains("out_effects: scoop.core.Raise<Int>"));
+        assert!(rendered.contains(
+            "required_effects: scoop.core.Raise<Int> + scoop.core.Raise<scoop.core.RuntimeError>"
+        ));
+        assert!(rendered.contains("includes_runtime_error_effect: true"));
     }
 
     #[test]
