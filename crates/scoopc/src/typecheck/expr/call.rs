@@ -8868,6 +8868,7 @@ fn try_infer_where_bound_method_call(
         builtins,
         locals,
         lambda_this_decl_span: None,
+        comptime_bindings: None,
         top_level_types,
         top_level_funs,
         member_mutabilities: None,

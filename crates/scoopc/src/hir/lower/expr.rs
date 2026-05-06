@@ -21,6 +21,24 @@ use super::super::{
     MemberRef, Param, Stmt, StmtKind, StructLitField, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
+#[derive(Clone)]
+struct LoweredSpliceFieldContract {
+    field_name: String,
+    field_fqn: String,
+    field_ty: TypeId,
+}
+
+fn const_value_splice_field_name(value: &crate::comptime::ConstValue) -> Option<String> {
+    match value {
+        crate::comptime::ConstValue::String(name) => Some(name.clone()),
+        crate::comptime::ConstValue::Struct(value) => match value.fields.get("name") {
+            Some(crate::comptime::ConstValue::String(name)) => Some(name.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 impl<'a> HirLowering<'a> {
     pub(super) fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
         self.lower_expr_with_expected(pkg_prefix, e, ExpectedExpr::default())
@@ -617,8 +635,8 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.lower_member_access_expr(pkg_prefix, receiver, member)
             }
-            ast::ExprKind::SpliceField { .. } => {
-                (ExprKind::Todo("splice_field"), self.builtins.any)
+            ast::ExprKind::SpliceField { receiver, field } => {
+                self.lower_splice_field_expr(pkg_prefix, e.span, receiver, field)
             }
             ast::ExprKind::SafeMemberAccess {
                 receiver,
@@ -1021,6 +1039,22 @@ impl<'a> HirLowering<'a> {
         let ty = self.file.inferred_expr_ty(span)?;
         let ty = self.types.re_intern_from(typecheck_types, ty);
         Some(self.apply_active_type_param_bindings(ty))
+    }
+
+    fn typechecked_splice_field_contract(
+        &mut self,
+        span: Span,
+    ) -> Option<LoweredSpliceFieldContract> {
+        let typecheck_types = self.typecheck_types?;
+        let contract = self.file.splice_field_contract(span)?;
+        let field_ty = self
+            .types
+            .re_intern_from(typecheck_types, contract.field_ty);
+        Some(LoweredSpliceFieldContract {
+            field_name: contract.field_name,
+            field_fqn: contract.field_fqn,
+            field_ty: self.apply_active_type_param_bindings(field_ty),
+        })
     }
 
     pub(super) fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
@@ -3832,6 +3866,75 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let receiver = self.lower_expr(pkg_prefix, receiver);
         self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member)
+    }
+
+    fn lower_splice_field_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        receiver: &ast::Expr,
+        field: &ast::Expr,
+    ) -> (ExprKind, TypeId) {
+        let contract = self
+            .typechecked_splice_field_contract(span)
+            .or_else(|| self.comptime_splice_field_contract(span, receiver, field));
+        let Some(contract) = contract else {
+            return (
+                ExprKind::Missing,
+                self.typechecked_expr_ty(span).unwrap_or(self.builtins.any),
+            );
+        };
+
+        let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let ty = contract.field_ty;
+        let member = MemberAccess {
+            span: field.span,
+            name: contract.field_name,
+            resolved: Some(MemberRef::Value {
+                id: self.symbols.intern_top_level(contract.field_fqn.clone()),
+                fqn: contract.field_fqn,
+            }),
+        };
+
+        (ExprKind::MemberAccess { receiver, member }, ty)
+    }
+
+    fn comptime_splice_field_contract(
+        &mut self,
+        span: Span,
+        receiver: &ast::Expr,
+        field: &ast::Expr,
+    ) -> Option<LoweredSpliceFieldContract> {
+        let field_name = self.comptime_splice_field_name(field)?;
+        let receiver_ty = self.typechecked_expr_ty(receiver.span)?;
+        let owner_fqn = self.nominal_fqn_for_ty(receiver_ty)?;
+        let field_fqn = format!("{owner_fqn}.{field_name}");
+        let field_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+        Some(LoweredSpliceFieldContract {
+            field_name,
+            field_fqn,
+            field_ty,
+        })
+    }
+
+    fn comptime_splice_field_name(&self, field: &ast::Expr) -> Option<String> {
+        let ast::ExprKind::Ident(id) = &field.kind else {
+            return None;
+        };
+        let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = id.resolved.as_ref() else {
+            return None;
+        };
+        let value = self.comptime_value_for_decl_span(*decl_span)?;
+        const_value_splice_field_name(value)
+    }
+
+    fn nominal_fqn_for_ty(&self, ty: TypeId) -> Option<String> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(n)) | TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+                Some(n.fqn.clone())
+            }
+            _ => None,
+        }
     }
 
     fn lower_member_access_expr_from_receiver(

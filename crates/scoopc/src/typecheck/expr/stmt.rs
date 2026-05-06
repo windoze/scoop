@@ -47,6 +47,7 @@ pub(super) struct StmtExprState<'a> {
     pub(super) locals: &'a mut HashMap<Span, TypeId>,
     pub(super) stable_bindings: &'a mut HashSet<Span>,
     pub(super) mutable_bindings: &'a mut HashSet<Span>,
+    pub(super) comptime_bindings: &'a mut HashSet<Span>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -89,6 +90,7 @@ where
         builtins: shared.builtins,
         locals,
         lambda_this_decl_span: None,
+        comptime_bindings: None,
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -100,7 +102,7 @@ where
 
 pub(super) fn expr_infer_inputs_with_flow<'a, 'b>(
     shared: StmtExprShared<'a>,
-    locals: &'b HashMap<Span, TypeId>,
+    state: &'b StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> ExprInferInputs<'b>
 where
@@ -109,8 +111,9 @@ where
     ExprInferInputs {
         source: shared.source,
         builtins: shared.builtins,
-        locals,
+        locals: state.locals,
         lambda_this_decl_span: flow.lambda_this_decl_span,
+        comptime_bindings: Some(state.comptime_bindings),
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -133,6 +136,7 @@ fn check_lambda_expr_stmt_body(
     let mut lambda_locals = state.locals.clone();
     let mut lambda_stable = state.stable_bindings.clone();
     let mut lambda_mutable = state.mutable_bindings.clone();
+    let mut lambda_comptime = state.comptime_bindings.clone();
 
     // required effects（T0604）：lambda body 的 effect 属于该函数值，不计入外层函数立即执行的 effects。
     lower.with_effect_collection_suspended(|lower| {
@@ -143,6 +147,7 @@ fn check_lambda_expr_stmt_body(
                     locals: &mut lambda_locals,
                     stable_bindings: &mut lambda_stable,
                     mutable_bindings: &mut lambda_mutable,
+                    comptime_bindings: &mut lambda_comptime,
                 };
                 check_expr_stmt_with_mode(
                     shared,
@@ -195,7 +200,7 @@ fn check_call_expr_stmt_fallback(
         && shared.source.slice(member.span) == "resume"
     {
         let receiver_ty =
-            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow).infer(lower, receiver)?;
+            expr_infer_inputs_with_flow(shared, state, ctx.flow).infer(lower, receiver)?;
         let is_safe_continuation_resume = match lower.type_kind(receiver_ty) {
             TypeKind::Value(ValueTypeKind::Option(inner)) => matches!(
                 lower.type_kind(inner),
@@ -223,7 +228,7 @@ fn check_call_expr_stmt_fallback(
 
     let effect_op_taken_over = if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
         infer_effect_op_call_expr_type(
-            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr_infer_inputs_with_flow(shared, state, ctx.flow),
             expr,
             member,
             args,
@@ -243,7 +248,7 @@ fn check_call_expr_stmt_fallback(
             .collect::<Result<Vec<_>, _>>()?;
 
         infer_effect_op_call_expr_type(
-            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr_infer_inputs_with_flow(shared, state, ctx.flow),
             expr,
             member,
             args,
@@ -259,7 +264,7 @@ fn check_call_expr_stmt_fallback(
     // 否则像 `Echo.resume(...)` 这类 effect op 名称碰撞会误入 builtin resume helper。
     if !effect_op_taken_over {
         let _ = infer_continuation_resume_call_expr_type(
-            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr_infer_inputs_with_flow(shared, state, ctx.flow),
             expr,
             callee,
             args,
@@ -557,6 +562,7 @@ pub(super) fn check_fun_body_exprs(
             let mut stable_bindings: HashSet<Span> = HashSet::new();
             // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
             let mut mutable_bindings: HashSet<Span> = HashSet::new();
+            let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
             // 扩展函数：为 `this` 注入隐式绑定（resolver 将 `this` 解析到 receiver 的 decl_span）。
             if let Some(receiver) = &fun.receiver {
@@ -638,6 +644,7 @@ pub(super) fn check_fun_body_exprs(
                                 locals: &mut locals,
                                 stable_bindings: &mut stable_bindings,
                                 mutable_bindings: &mut mutable_bindings,
+                                comptime_bindings: &mut comptime_bindings,
                             };
                             try_infer_fun_return_ty_from_block(shared, b, lower, &mut state, 0)?
                         }
@@ -688,6 +695,7 @@ pub(super) fn check_fun_body_exprs(
                         locals: &mut locals,
                         stable_bindings: &mut stable_bindings,
                         mutable_bindings: &mut mutable_bindings,
+                        comptime_bindings: &mut comptime_bindings,
                     };
                     check_block_exprs(
                         shared,
@@ -847,7 +855,7 @@ fn check_stmt_exprs_with_mode(
 
             match value {
                 Some(v) => {
-                    let found = expr_infer_inputs_with_flow(shared, state.locals, flow)
+                    let found = expr_infer_inputs_with_flow(shared, state, flow)
                         .infer_in_expected(
                             lower,
                             v,
@@ -890,8 +898,7 @@ fn check_stmt_exprs_with_mode(
             }
         }
         ast::StmtKind::While { cond, body, .. } => {
-            let cond_ty =
-                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, cond)?;
+            let cond_ty = expr_infer_inputs_with_flow(shared, state, flow).infer(lower, cond)?;
 
             if !is_type_assignable(cond_ty, shared.builtins.bool_, lower, shared.builtins) {
                 return Err(ExprTypeError::WhileConditionNotBool {
@@ -933,8 +940,7 @@ fn check_stmt_exprs_with_mode(
             // - `Iter.next(): Option<Elem>`
             //
             // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
-            let iter_ty =
-                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, &f.iter)?;
+            let iter_ty = expr_infer_inputs_with_flow(shared, state, flow).infer(lower, &f.iter)?;
 
             let Some((iter_fqn, iter_args)) = try_extract_nominal_fqn_and_args(iter_ty, lower)
             else {
@@ -1118,7 +1124,7 @@ fn check_stmt_exprs_with_mode(
         }
         ast::StmtKind::ComptimeFor(cf) => {
             let iter_ty =
-                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, &cf.iter)?;
+                expr_infer_inputs_with_flow(shared, state, flow).infer(lower, &cf.iter)?;
             let elem_ty = match lower.type_kind(iter_ty) {
                 TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
                     elements.first().copied().unwrap_or(shared.builtins.any)
@@ -1142,9 +1148,11 @@ fn check_stmt_exprs_with_mode(
             let saved_locals = state.locals.clone();
             let saved_stable = state.stable_bindings.clone();
             let saved_mutable = state.mutable_bindings.clone();
+            let saved_comptime = state.comptime_bindings.clone();
 
             state.locals.insert(cf.binder.span, elem_ty);
             state.stable_bindings.insert(cf.binder.span);
+            state.comptime_bindings.insert(cf.binder.span);
 
             check_block_exprs_with_mode(
                 shared,
@@ -1162,6 +1170,7 @@ fn check_stmt_exprs_with_mode(
             *state.locals = saved_locals;
             *state.stable_bindings = saved_stable;
             *state.mutable_bindings = saved_mutable;
+            *state.comptime_bindings = saved_comptime;
         }
         ast::StmtKind::Empty | ast::StmtKind::Missing => {}
     }
@@ -1195,14 +1204,15 @@ pub(super) fn check_local_val_decl_exprs(
     };
 
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
-    let init_ty = match &v.init {
-        Some(init) => Some(match declared_ty {
-            Some(expected) => expr_infer_inputs_with_flow(shared, state.locals, flow)
-                .infer_in_expected(lower, init, expected, expected_from.clone())?,
-            None => expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, init)?,
-        }),
-        None => None,
-    };
+    let init_ty =
+        match &v.init {
+            Some(init) => Some(match declared_ty {
+                Some(expected) => expr_infer_inputs_with_flow(shared, state, flow)
+                    .infer_in_expected(lower, init, expected, expected_from.clone())?,
+                None => expr_infer_inputs_with_flow(shared, state, flow).infer(lower, init)?,
+            }),
+            None => None,
+        };
 
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
         let init = v.init.as_ref().unwrap();
@@ -1357,7 +1367,7 @@ fn check_expr_stmt_with_mode(
             // - T0427：为每个 arm 建立独立的“局部类型表”快照，并注入 pattern binder 的类型。
             check_expr_stmt_with_mode(shared, subject.as_ref(), lower, state, flow, call_mode)?;
 
-            let subject_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
+            let subject_ty = expr_infer_inputs_with_flow(shared, state, flow)
                 .infer(lower, subject.as_ref())
                 .ok();
 
@@ -1376,6 +1386,7 @@ fn check_expr_stmt_with_mode(
                 let mut arm_locals = state.locals.clone();
                 let mut arm_stable = state.stable_bindings.clone();
                 let mut arm_mutable = state.mutable_bindings.clone();
+                let mut arm_comptime = state.comptime_bindings.clone();
 
                 if let Some(subject_ty) = subject_ty {
                     let bindings = when_pat::infer_when_pat_bindings(
@@ -1396,6 +1407,7 @@ fn check_expr_stmt_with_mode(
                     locals: &mut arm_locals,
                     stable_bindings: &mut arm_stable,
                     mutable_bindings: &mut arm_mutable,
+                    comptime_bindings: &mut arm_comptime,
                 };
                 check_expr_stmt_with_mode(
                     shared,
@@ -1417,7 +1429,7 @@ fn check_expr_stmt_with_mode(
             // - 以便捕获 handler arms 内的类型错误
             // - 以便正确记录 required effects（body 内被 handler 捕获的 effects 不应向外传播）
             let _ = infer_handle_expr_type(
-                expr_infer_inputs_with_flow(shared, state.locals, flow),
+                expr_infer_inputs_with_flow(shared, state, flow),
                 expr,
                 body,
                 arms,
@@ -1434,7 +1446,7 @@ fn check_expr_stmt_with_mode(
             // `!!` 的语义属于“立即执行的表达式”（会在运行期做 null assertion），
             // 因此即使它出现在表达式语句位置，也必须参与 typecheck/required-effects 收集（T0421b）。
             let _ = infer_not_null_assert_expr_type(
-                expr_infer_inputs_with_flow(shared, state.locals, flow),
+                expr_infer_inputs_with_flow(shared, state, flow),
                 inner.as_ref(),
                 *op_span,
                 lower,
@@ -1445,14 +1457,14 @@ fn check_expr_stmt_with_mode(
             // T0152：表达式语句中的调用实参会递归走 `check_expr_stmt`；
             // 若这里跳过 `receiver?.member`，typecheck 就无法补回 safe member access 的解析结果，
             // 后续 lowering/codegen 也拿不到稳定的成员目标。
-            let _ = expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)?;
+            let _ = expr_infer_inputs_with_flow(shared, state, flow).infer(lower, expr)?;
             Ok(())
         }
         ast::ExprKind::Cast { .. } => {
             // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
             // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与
             // required-effects 收集；否则 `/ Pure` 函数体内的 `as` 会被错误放过。
-            match expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr) {
+            match expr_infer_inputs_with_flow(shared, state, flow).infer(lower, expr) {
                 Ok(_) => Ok(()),
                 Err(ExprTypeError::UnsupportedExpr { .. }) => Ok(()),
                 Err(e) => Err(e),
@@ -1467,7 +1479,7 @@ fn check_expr_stmt_with_mode(
             // 会把未单独跟踪的 effect 传播语义变更混入本轮。
             if matches!(call_mode, ExprStmtCallMode::WithUnifiedGate) {
                 match lower.with_effect_collection_suspended(|lower| {
-                    expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)
+                    expr_infer_inputs_with_flow(shared, state, flow).infer(lower, expr)
                 }) {
                     Ok(_) | Err(ExprTypeError::UnsupportedExpr { .. }) => {}
                     Err(e) => return Err(e),
@@ -1507,7 +1519,7 @@ fn check_if_expr_stmt(
     // 条件表达式仍需走完整 `infer`：
     // - 记录 compareTo / operator overload / effect call 等 typed side tables；
     // - 确保 `if` 作为语句出现时不会跳过条件里的表达式检查。
-    let _ = expr_infer_inputs_with_flow(shared, state.locals, ctx.flow).infer(lower, cond)?;
+    let _ = expr_infer_inputs_with_flow(shared, state, ctx.flow).infer(lower, cond)?;
 
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
     // 并且只对“稳定绑定”（参数 + `val`）在对应分支内做类型收窄。
@@ -1518,6 +1530,7 @@ fn check_if_expr_stmt(
     let mut then_locals = state.locals.clone();
     let mut then_stable = state.stable_bindings.clone();
     let mut then_mutable = state.mutable_bindings.clone();
+    let mut then_comptime = state.comptime_bindings.clone();
     if let Some(smart_cast) = smart_cast
         && smart_cast.narrow_in_then
     {
@@ -1527,6 +1540,7 @@ fn check_if_expr_stmt(
         locals: &mut then_locals,
         stable_bindings: &mut then_stable,
         mutable_bindings: &mut then_mutable,
+        comptime_bindings: &mut then_comptime,
     };
     check_expr_stmt_with_mode(
         shared,
@@ -1542,6 +1556,7 @@ fn check_if_expr_stmt(
         let mut else_locals = state.locals.clone();
         let mut else_stable = state.stable_bindings.clone();
         let mut else_mutable = state.mutable_bindings.clone();
+        let mut else_comptime = state.comptime_bindings.clone();
         if let Some(smart_cast) = smart_cast
             && !smart_cast.narrow_in_then
         {
@@ -1552,6 +1567,7 @@ fn check_if_expr_stmt(
             locals: &mut else_locals,
             stable_bindings: &mut else_stable,
             mutable_bindings: &mut else_mutable,
+            comptime_bindings: &mut else_comptime,
         };
         check_expr_stmt_with_mode(
             shared,
@@ -1626,7 +1642,7 @@ fn check_assign_expr_stmt(
             }
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
-            let receiver_inputs = expr_infer_inputs_with_flow(shared, state.locals, flow);
+            let receiver_inputs = expr_infer_inputs_with_flow(shared, state, flow);
             // 先递归 typecheck receiver：保证 `a().b = rhs` 能覆盖 `a()`。
             //
             // 例外：`TypeName.member` 经 companion object 解析时，receiver 不是值表达式；
@@ -1706,7 +1722,7 @@ fn check_assign_expr_stmt(
         )),
         _ => ExpectedTypeFrom::new("赋值目标的类型"),
     };
-    let found_ty = expr_infer_inputs_with_flow(shared, state.locals, flow).infer_in_expected(
+    let found_ty = expr_infer_inputs_with_flow(shared, state, flow).infer_in_expected(
         lower,
         rhs,
         expected_ty,

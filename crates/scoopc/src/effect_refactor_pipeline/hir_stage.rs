@@ -1451,6 +1451,81 @@ fun main() {}
         ));
     }
 
+    #[test]
+    fn refactor_hir_splice_field_lowers_static_contracts_to_member_access() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_splice_field_static.scoop",
+            r#"package sample
+import scoop.core.*
+struct Point(val x: Int, val y: Int)
+fun get_x(p: Point): Int { return p.["x"] }
+fun get_y(p: Point): Int { return p.[FieldMeta { name: "y" }] }
+"#,
+        );
+
+        let output = run(&session, &source).expect("static splice field should lower to HIR");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("splice_field"),
+            "dump must not contain splice Todo: {dump}"
+        );
+        assert!(
+            dump.contains("fqn: \"sample.Point.x\"") && dump.contains("fqn: \"sample.Point.y\""),
+            "splice fields should become resolved member accesses: {dump}"
+        );
+    }
+
+    #[test]
+    fn refactor_hir_splice_field_lowers_reflection_loop_field_meta() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_splice_field_loop.scoop",
+            r#"package sample
+import scoop.core.*
+struct Point(val x: Int, val y: Int)
+fun visit(p: Point) {
+    comptime for (field in fieldsOf<Point>()) {
+        val value = p.[field]
+    }
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("comptime FieldMeta binder should lower to HIR");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("splice_field"),
+            "dump must not contain splice Todo: {dump}"
+        );
+        assert!(
+            dump.contains("fqn: \"sample.Point.x\"") && dump.contains("fqn: \"sample.Point.y\""),
+            "reflection loop should unroll splice fields to concrete accesses: {dump}"
+        );
+    }
+
+    #[test]
+    fn refactor_hir_splice_field_reports_non_static_field_name() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_splice_field_dynamic.scoop",
+            r#"package sample
+import scoop.core.*
+struct Point(val x: Int)
+fun bad(p: Point, name: String): Any { return p.[name] }
+"#,
+        );
+
+        let err = run(&session, &source).expect_err("dynamic splice field should be rejected");
+        let HirLowerError::ExprType(err) = err else {
+            panic!("expected splice field typecheck diagnostic, got {err:?}");
+        };
+        assert!(matches!(
+            *err,
+            crate::typecheck::ExprTypeError::SpliceFieldNameNotStatic { .. }
+        ));
+    }
+
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
         let session = refactor_session();
         let source = load_hir_fixture(name);

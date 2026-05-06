@@ -225,7 +225,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_decls`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、更新后的 HIR snapshot fixtures、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/refactor_decl_graph.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T03`
 
-## HIR-T04：收口 splice field `value.[field]`
+## [DONE] HIR-T04：收口 splice field `value.[field]`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H3
@@ -256,6 +256,14 @@
 - 阻塞记录（2026-05-06）：
   - 指定验证 `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop` 当前先失败于 `scoop::typecheck::missing_type_annotation`（顶层 `P`）；即使补齐注解，同类本地 `struct` splice fixture 也会被 refactor HIR no-Todo verifier 以 `Item::Todo(type)` 拒绝。
   - 该失败属于 `HIR-T05` declaration graph prerequisite，不能通过削弱 splice fixture、跳过 verifier 或保留 `splice_field` placeholder 绕过。
+- 完成记录（2026-05-06）：
+  - `ast::File` 新增 splice field contract side table；typecheck 对字符串字面量与 `FieldMeta { name: "..." }` 发布 receiver type、owner FQN、field FQN、field type 与 mutability contract。
+  - typecheck 现在拒绝无法静态解析的 `value.[field]`，新增 `scoop::typecheck::splice_field_name_not_static` 诊断，错误定位到 field 表达式并说明需要编译期已知字段名。
+  - 语句 typecheck 跟踪 `comptime for` binder；HIR lowering 可消费 runtime comptime expansion 的 FieldMeta/string 常量值，把 reflection loop 中的 `p.[field]` 展开为普通 resolved `MemberAccess`。
+  - HIR lowering 不再构造 `ExprKind::Todo("splice_field")`，placeholder inventory 已移除该构造点；refactor HIR stable dump 中 splice field 现在显示为普通 `MemberAccess`。
+  - 为指定 comptime dump fixture 补齐既有 typecheck 规则要求的顶层 `const val P: Point` 注解；未改变 splice field 覆盖形状。
+  - 新增/更新覆盖：静态 string literal、FieldMeta descriptor、reflection loop FieldMeta、non-static field negative、unknown field negative。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_splice_field`、`cargo test -p scoopc --no-default-features refactor_hir_placeholder_inventory`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_non_static_name_is_error.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/typecheck/splice_field_unknown_field_is_error.scoop`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/comptime/splice_field_access_v0_basic.scoop`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T03`, `HIR-T05`
 
 ## HIR-T06：收口 array literal、named/default/spread args 与 call arg canonicalization

@@ -75,6 +75,11 @@ pub struct File {
     ///   做了晚解析/改写”的场景（例如 receiver lambda 的隐式 `this`）；
     /// - HIR lowering / codegen 应优先读取这张表，而不是盲信 AST 上 `member.resolved` 的初始值。
     pub(crate) typechecked_member_resolved: RefCell<HashMap<Span, ResolvedMemberRef>>,
+    /// typecheck 确认的 splice field contract（按整个 `receiver.[field]` 表达式 span 索引）。
+    ///
+    /// 说明：`value.[field]` 必须在进入 HIR 前解析为静态字段名与字段类型；HIR lowering
+    /// 只消费这里的 contract 或 comptime 展开值，不再保留 `splice_field` placeholder。
+    pub(crate) splice_field_contracts: RefCell<HashMap<Span, SpliceFieldContract>>,
     /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
     ///
     /// 说明：
@@ -214,6 +219,14 @@ impl File {
             .borrow()
             .get(&span)
             .cloned()
+    }
+
+    pub fn replace_splice_field_contracts(&self, contracts: HashMap<Span, SpliceFieldContract>) {
+        *self.splice_field_contracts.borrow_mut() = contracts;
+    }
+
+    pub fn splice_field_contract(&self, span: Span) -> Option<SpliceFieldContract> {
+        self.splice_field_contracts.borrow().get(&span).cloned()
     }
 
     pub fn replace_continuation_resume_call_sites(&self, sites: HashSet<Span>) {
@@ -1518,6 +1531,17 @@ pub enum ResolvedMemberRef {
     ///
     /// 该变体表示 `receiver.member` 并非来自类型体成员，而是来自“同包可见”的扩展声明。
     ExtensionFun { fqn: String },
+}
+
+/// typecheck 发布给 HIR 的 splice field 静态字段合同。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpliceFieldContract {
+    pub receiver_ty: TypeId,
+    pub owner_fqn: String,
+    pub field_name: String,
+    pub field_fqn: String,
+    pub field_ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]

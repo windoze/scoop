@@ -885,6 +885,13 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("splice 字段访问 `.[field]` 要求 `field` 是编译期已知的字段名")]
+    #[diagnostic(code(scoop::typecheck::splice_field_name_not_static))]
+    SpliceFieldNameNotStatic {
+        #[label("该表达式不能静态解析为字段名")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不允许的显式类型转换：{from} -> {to}")]
     #[diagnostic(code(scoop::typecheck::invalid_cast))]
     InvalidCast {

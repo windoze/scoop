@@ -160,6 +160,7 @@ impl<'a> Parser<'a> {
             typechecked_member_resolved: std::cell::RefCell::new(
                 std::collections::HashMap::new(),
             ),
+            splice_field_contracts: std::cell::RefCell::new(std::collections::HashMap::new()),
             continuation_resume_call_sites: std::cell::RefCell::new(
                 std::collections::HashSet::new(),
             ),

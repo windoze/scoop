@@ -4,7 +4,7 @@ use crate::ast;
 use crate::resolve::Visibility;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
-use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::infer::ExpectedTypeFrom;
 use super::util::package_prefix;
@@ -154,57 +154,113 @@ pub(super) fn infer_not_null_assert_expr_type(
 
 pub(super) fn infer_splice_field_expr_type(
     inputs: ExprInferInputs<'_>,
+    expr_span: Span,
     receiver: &ast::Expr,
     field: &ast::Expr,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
     // splice 字段访问：`receiver.[field]`（spec §6.4）
     //
-    // v0 语义（与 TODO T1204 的 fieldsOf v0 保持一致）：
-    // - 当 `field` 为字符串字面量时：等价于普通成员访问 `receiver.<name>` 并返回该字段类型；
-    // - 当 `field` 为“包含 `name: String` 的 struct 描述符”时：
-    //   - 若 `name` 是字符串字面量，同样可恢复精确字段类型；
-    //   - 否则先保守退化为 `Any`，留给后续 comptime 展开/元数据补齐后再做更精确推导；
-    // - 其它情况（例如未来的 comptime for binder）：当前阶段保守退化为 `Any`。
+    // HIR-T04：进入 refactor HIR 前必须得到静态字段 contract；只有 comptime for binder
+    // 这类字段名会在 runtime comptime expansion 中变成具体 FieldMeta 值，因此允许暂缓到 HIR lowering。
     let receiver_ty = inputs.infer(lower, receiver)?;
 
-    let field_name: Option<String> = match &field.kind {
+    let field_name = match infer_static_splice_field_name(inputs, field, lower)? {
+        Some(field_name) => field_name,
+        None => return Ok(inputs.builtins.any),
+    };
+
+    let contract =
+        infer_splice_field_contract(inputs, receiver_ty, &field_name, field.span, lower)?;
+    let field_ty = contract.field_ty;
+    lower.record_splice_field_contract(expr_span, contract);
+    Ok(field_ty)
+}
+
+fn infer_static_splice_field_name(
+    inputs: ExprInferInputs<'_>,
+    field: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<String>, ExprTypeError> {
+    match &field.kind {
         ast::ExprKind::StringLit => {
             let raw = inputs.source.slice(field.span);
             match parse_string_literal_utf8(raw) {
-                Ok(s) => Some(s),
+                Ok(s) => Ok(Some(s)),
                 Err(StringLiteralParseError::Invalid)
                 | Err(StringLiteralParseError::InvalidUtf8)
                 | Err(StringLiteralParseError::Interpolated) => {
-                    return Err(ExprTypeError::UnsupportedExpr {
+                    Err(ExprTypeError::UnsupportedExpr {
                         kind: "splice field access（非法字符串字面量）",
                         span: field.span.into(),
-                    });
+                    })
                 }
             }
         }
-        ast::ExprKind::StructLit { fields, .. } => {
-            infer_splice_field_descriptor_name(inputs, field, fields, lower)?
-        }
+        ast::ExprKind::StructLit { fields, .. } => Ok(infer_splice_field_descriptor_name(
+            inputs, field, fields, lower,
+        )?),
         _ => {
             // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
-            let _ = inputs.infer(lower, field)?;
-            None
+            let field_ty = inputs.infer(lower, field)?;
+            if is_comptime_splice_field_binding(inputs, field)
+                && is_splice_field_descriptor_ty(field_ty, lower, inputs.builtins)
+            {
+                Ok(None)
+            } else {
+                Err(ExprTypeError::SpliceFieldNameNotStatic {
+                    span: field.span.into(),
+                })
+            }
         }
-    };
+    }
+}
 
-    let Some(field_name) = field_name else {
-        return Ok(inputs.builtins.any);
-    };
+fn infer_splice_field_contract(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: TypeId,
+    field_name: &str,
+    field_span: Span,
+    lower: &mut TypeLowering<'_>,
+) -> Result<ast::SpliceFieldContract, ExprTypeError> {
+    let (owner_fqn, field_ty) =
+        resolve_splice_field_target(inputs, receiver_ty, field_name, field_span, lower)?;
+    let field_fqn = format!("{owner_fqn}.{field_name}");
+    let mutable = inputs
+        .member_mutabilities
+        .and_then(|member_mutabilities| member_mutabilities.get(&field_fqn))
+        .copied()
+        .unwrap_or(false);
 
+    Ok(ast::SpliceFieldContract {
+        receiver_ty,
+        owner_fqn,
+        field_name: field_name.to_string(),
+        field_fqn,
+        field_ty,
+        mutable,
+    })
+}
+
+fn resolve_splice_field_target(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: TypeId,
+    field_name: &str,
+    field_span: Span,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(String, TypeId), ExprTypeError> {
     let receiver_fqn = match lower.type_kind(receiver_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn.clone(),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn.clone(),
-        TypeKind::Param(_) => return Ok(inputs.builtins.any),
+        TypeKind::Param(_) => {
+            return Err(ExprTypeError::SpliceFieldNameNotStatic {
+                span: field_span.into(),
+            });
+        }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "splice field access（receiver 必须为名义类型）",
-                span: receiver.span.into(),
+                span: field_span.into(),
             });
         }
     };
@@ -213,17 +269,48 @@ pub(super) fn infer_splice_field_expr_type(
 
     // sysroot 跨文件特判：Pinned.value（与 infer_member_access_expr_type 保持一致）。
     if field_fqn == "scoop.core.Pinned.value" {
-        return Ok(inputs.builtins.any);
+        return Ok((receiver_fqn, inputs.builtins.any));
     }
 
-    inputs
+    let field_ty = inputs
         .struct_field_types
         .get(&field_fqn)
         .copied()
         .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
-            fqn: field_fqn,
-            span: field.span.into(),
-        })
+            fqn: field_fqn.clone(),
+            span: field_span.into(),
+        })?;
+    let field_ty = instantiate_member_value_type_from_receiver_ty(receiver_ty, &field_fqn, lower)?
+        .unwrap_or(field_ty);
+
+    Ok((receiver_fqn, field_ty))
+}
+
+fn is_comptime_splice_field_binding(inputs: ExprInferInputs<'_>, field: &ast::Expr) -> bool {
+    let ast::ExprKind::Ident(id) = &field.kind else {
+        return false;
+    };
+    let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = id.resolved.as_ref() else {
+        return false;
+    };
+    inputs
+        .comptime_bindings
+        .is_some_and(|bindings| bindings.contains(decl_span))
+}
+
+fn is_splice_field_descriptor_ty(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    ty == builtins.string
+        || ty == builtins.any
+        || matches!(
+            lower.type_kind(ty),
+            TypeKind::Value(ValueTypeKind::Nominal(n))
+                | TypeKind::Ref(RefTypeKind::Nominal(n))
+                if n.fqn == "scoop.core.FieldMeta" || n.fqn == "FieldMeta"
+        )
 }
 
 fn infer_splice_field_descriptor_name(
@@ -265,20 +352,24 @@ fn infer_splice_field_descriptor_name(
                 });
             }
 
-            if matches!(field.value.kind, ast::ExprKind::StringLit) {
-                let raw = source.slice(field.value.span);
-                literal_name = Some(match parse_string_literal_utf8(raw) {
-                    Ok(s) => s,
-                    Err(StringLiteralParseError::Invalid)
-                    | Err(StringLiteralParseError::InvalidUtf8)
-                    | Err(StringLiteralParseError::Interpolated) => {
-                        return Err(ExprTypeError::UnsupportedExpr {
-                            kind: "splice field access（非法字符串字面量）",
-                            span: field.value.span.into(),
-                        });
-                    }
+            if !matches!(field.value.kind, ast::ExprKind::StringLit) {
+                return Err(ExprTypeError::SpliceFieldNameNotStatic {
+                    span: field.value.span.into(),
                 });
             }
+
+            let raw = source.slice(field.value.span);
+            literal_name = Some(match parse_string_literal_utf8(raw) {
+                Ok(s) => s,
+                Err(StringLiteralParseError::Invalid)
+                | Err(StringLiteralParseError::InvalidUtf8)
+                | Err(StringLiteralParseError::Interpolated) => {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "splice field access（非法字符串字面量）",
+                        span: field.value.span.into(),
+                    });
+                }
+            });
         } else {
             let _ = inputs.infer(lower, &field.value)?;
         }

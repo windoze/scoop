@@ -129,9 +129,13 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::MemberAccess { receiver, member } => {
             infer_member_access_expr_type(inputs, receiver.as_ref(), member, lower)
         }
-        ast::ExprKind::SpliceField { receiver, field } => {
-            infer_splice_field_expr_type(inputs, receiver.as_ref(), field.as_ref(), lower)
-        }
+        ast::ExprKind::SpliceField { receiver, field } => infer_splice_field_expr_type(
+            inputs,
+            expr.span,
+            receiver.as_ref(),
+            field.as_ref(),
+            lower,
+        ),
         ast::ExprKind::SafeMemberAccess {
             receiver, member, ..
         } => infer_safe_member_access_expr_type(inputs, receiver.as_ref(), member, lower),
@@ -636,6 +640,10 @@ fn infer_block_value_type_with_expected(
     let mut block_locals = inputs.locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    let mut comptime_bindings: HashSet<Span> = inputs
+        .comptime_bindings
+        .cloned()
+        .unwrap_or_else(HashSet::new);
     let empty_member_mutabilities: HashMap<String, bool> = HashMap::new();
     let shared = StmtExprShared {
         source: inputs.source,
@@ -667,6 +675,7 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
+                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_local_val_decl_exprs(shared, v, lower, &mut state, flow)?;
             }
@@ -711,6 +720,7 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
+                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
                 if normal_completion_reachable && is_last {
@@ -724,6 +734,7 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
+                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
                 if normal_completion_reachable {

@@ -112,14 +112,6 @@ const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::ExprTodo,
-        "splice_field",
-        PlaceholderDisposition::HirHandoffContractShouldPublish,
-        "HIR-T04",
-        true,
-        "Typecheck/comptime publishes a static field contract so HIR can emit normal member/place access.",
-    ),
-    entry(
-        PlaceholderSurface::ExprTodo,
         "assign",
         PlaceholderDisposition::ParserShouldReject,
         "HIR-T02/HIR-T10",
@@ -197,7 +189,6 @@ const REQUIRED_ELIMINATION_REASONS: &[&str] = &[
     "comptime_if",
     "comptime_for",
     "comptime_if_item",
-    "splice_field",
     "class_lit",
     "array_lit",
     "spread_arg",

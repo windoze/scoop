@@ -100,6 +100,7 @@ struct CheckFileExprsPassResult {
     inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
     safe_member_access_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     typechecked_member_resolved: HashMap<Span, ast::ResolvedMemberRef>,
+    splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
     continuation_resume_call_sites: HashSet<Span>,
     non_pure_continuation_resume_call_sites: HashSet<Span>,
     zero_arg_unit_call_sugar_sites: HashSet<Span>,
@@ -268,6 +269,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_inferred_handle_arm_effect_tys(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
     file.replace_typechecked_member_resolved(HashMap::new());
+    file.replace_splice_field_contracts(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_non_pure_continuation_resume_call_sites(HashSet::new());
     file.replace_zero_arg_unit_call_sugar_sites(HashSet::new());
@@ -285,6 +287,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
     file.replace_inferred_handle_arm_effect_tys(result.inferred_handle_arm_effect_tys.clone());
     file.replace_safe_member_access_resolved(result.safe_member_access_resolved.clone());
     file.replace_typechecked_member_resolved(result.typechecked_member_resolved.clone());
+    file.replace_splice_field_contracts(result.splice_field_contracts.clone());
     file.replace_continuation_resume_call_sites(result.continuation_resume_call_sites.clone());
     file.replace_non_pure_continuation_resume_call_sites(
         result.non_pure_continuation_resume_call_sites.clone(),
@@ -437,6 +440,7 @@ fn check_file_exprs_pass(
         inferred_handle_arm_effect_tys: lower.take_inferred_handle_arm_effect_tys(),
         safe_member_access_resolved: lower.take_safe_member_access_resolutions(),
         typechecked_member_resolved: lower.take_typechecked_member_resolutions(),
+        splice_field_contracts: lower.take_splice_field_contracts(),
         continuation_resume_call_sites: lower.take_continuation_resume_call_sites(),
         non_pure_continuation_resume_call_sites: lower
             .take_non_pure_continuation_resume_call_sites(),
@@ -918,6 +922,7 @@ fn check_class_member_fun_body_exprs(
             let mut locals: HashMap<Span, TypeId> = HashMap::new();
             let mut stable_bindings: HashSet<Span> = HashSet::new();
             let mut mutable_bindings: HashSet<Span> = HashSet::new();
+            let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
             // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
             locals.insert(shared.this_decl_span, shared.this_ty);
@@ -996,6 +1001,7 @@ fn check_class_member_fun_body_exprs(
                                 locals: &mut locals,
                                 stable_bindings: &mut stable_bindings,
                                 mutable_bindings: &mut mutable_bindings,
+                                comptime_bindings: &mut comptime_bindings,
                             };
                             try_infer_fun_return_ty_from_block(
                                 shared.stmt_shared(),
@@ -1022,6 +1028,7 @@ fn check_class_member_fun_body_exprs(
                         locals: &mut locals,
                         stable_bindings: &mut stable_bindings,
                         mutable_bindings: &mut mutable_bindings,
+                        comptime_bindings: &mut comptime_bindings,
                     };
                     check_block_exprs(
                         shared.stmt_shared(),
@@ -1437,12 +1444,14 @@ fn check_class_init_block_exprs(
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
     let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
+    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
+        comptime_bindings: &mut comptime_bindings,
     };
     check_block_exprs(
         shared.stmt_shared(),
@@ -1467,11 +1476,13 @@ fn check_object_init_block_exprs(
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
+        comptime_bindings: &mut comptime_bindings,
     };
     check_block_exprs(
         shared.stmt_shared(),
@@ -1565,6 +1576,7 @@ fn check_class_secondary_ctor_exprs(
     }
 
     let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
+    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     // 次构造器参数：作为函数参数语义处理（稳定绑定；不可赋值）。
     for p in &ctor.params {
@@ -1581,6 +1593,7 @@ fn check_class_secondary_ctor_exprs(
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
+        comptime_bindings: &mut comptime_bindings,
     };
     check_block_exprs(
         shared.stmt_shared(),
@@ -1656,6 +1669,7 @@ fn check_top_level_val_initializer(
             builtins,
             locals: &empty_locals,
             lambda_this_decl_span: None,
+            comptime_bindings: None,
             top_level_types,
             top_level_funs,
             member_mutabilities: None,
@@ -1669,6 +1683,7 @@ fn check_top_level_val_initializer(
             builtins,
             locals: &empty_locals,
             lambda_this_decl_span: None,
+            comptime_bindings: None,
             top_level_types,
             top_level_funs,
             member_mutabilities: None,

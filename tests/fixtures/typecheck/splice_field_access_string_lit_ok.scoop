@@ -1,7 +1,7 @@
 // EXPECT: pass
 // 目标：T1205 splice 字段访问（`value.[field]`）最小实现：
 // - 当 `field` 为字符串字面量时，typecheck 将其视为 `value.<field>` 并推导字段类型；
-// - 当 `field` 不是字面量时，当前阶段先退化为 `Any`（留给后续 comptime 展开/FieldMeta 补齐）。
+// - 当 `field` 为包含字面量 `name` 的 FieldMeta 描述符时，同样生成静态字段 contract。
 
 package fixtures.typecheck
 
@@ -13,7 +13,6 @@ fun get_x(p: Point): Int {
     return p.["x"]
 }
 
-fun get_by_name_v0(p: Point, name: String): Any {
-    return p.[name]
+fun get_by_meta(p: Point): Int {
+    return p.[FieldMeta { name: "y" }]
 }
-

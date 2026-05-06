@@ -9,7 +9,6 @@ import scoop.core.*
 
 struct Point(val x: Int, val y: Int)
 
-const val P = Point { x: 1, y: 2 }
+const val P: Point = Point { x: 1, y: 2 }
 const val X: Int = P.["x"]
 const val Y: Int = P.[FieldMeta { name: "y" }]
-

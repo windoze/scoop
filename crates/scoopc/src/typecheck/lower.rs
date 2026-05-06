@@ -493,6 +493,8 @@ pub(crate) struct TypeLowering<'a> {
     /// - 解决 resolver 初始决议与 typecheck 晚解析结果不一致时的语义分裂，
     ///   例如 receiver lambda 中隐式 `this` 触发的 late-bound member resolution。
     typechecked_member_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
+    /// `receiver.[field]` 的 typechecked 静态字段 contract。
+    splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
     /// typecheck 已确认的 `Continuation.resume` 调用点。
     ///
     /// 用途：
@@ -659,6 +661,7 @@ impl<'a> TypeLowering<'a> {
             inferred_handle_arm_effect_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
             typechecked_member_resolutions: HashMap::new(),
+            splice_field_contracts: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
             zero_arg_unit_call_sugar_sites: HashSet::new(),
@@ -1589,6 +1592,14 @@ impl<'a> TypeLowering<'a> {
             .insert(member_span, resolved);
     }
 
+    pub(super) fn record_splice_field_contract(
+        &mut self,
+        expr_span: Span,
+        contract: ast::SpliceFieldContract,
+    ) {
+        self.splice_field_contracts.insert(expr_span, contract);
+    }
+
     pub(super) fn emit_deprecated_type_use(&self, fqn: &str, span: Span) {
         if !self.warning_emission_enabled {
             return;
@@ -1793,6 +1804,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::ResolvedMemberRef> {
         std::mem::take(&mut self.typechecked_member_resolutions)
+    }
+
+    pub(super) fn take_splice_field_contracts(
+        &mut self,
+    ) -> HashMap<Span, ast::SpliceFieldContract> {
+        std::mem::take(&mut self.splice_field_contracts)
     }
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
