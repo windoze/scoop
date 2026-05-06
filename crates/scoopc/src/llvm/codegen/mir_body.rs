@@ -4350,6 +4350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_plain_dynamic_call_with_policy(
         &mut self,
         span: crate::span::Span,

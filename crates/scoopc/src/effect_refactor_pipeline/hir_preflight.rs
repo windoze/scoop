@@ -52,7 +52,9 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "typecheck",
         name: "refactor_hir_class_literal_runtime_ok.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
-        mir: MirPreflightMode::HirOnly("class literal HIR contract is complete; direct MIR support is a later stage"),
+        mir: MirPreflightMode::HirOnly(
+            "class literal HIR contract is complete; direct MIR support is a later stage",
+        ),
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -168,9 +170,8 @@ impl HirCompletenessFixture {
             .join("../../tests/fixtures")
             .join(self.phase)
             .join(self.name);
-        SourceFile::load(&path).unwrap_or_else(|err| {
-            panic!("preflight fixture `{}` should load: {err}", self.label())
-        })
+        SourceFile::load(&path)
+            .unwrap_or_else(|err| panic!("preflight fixture `{}` should load: {err}", self.label()))
     }
 }
 
@@ -267,27 +268,29 @@ fn assert_required_contract(
 ) {
     let present = match requirement {
         RequiredHirContract::DeclarationGraph => !output.hir_file().decls.is_empty(),
-        RequiredHirContract::CallSite => !output.effect_contracts().call_site_contracts().is_empty(),
-        RequiredHirContract::ContinuationResume => {
-            !output
-                .effect_contracts()
-                .continuation_resume_sites()
-                .is_empty()
+        RequiredHirContract::CallSite => {
+            !output.effect_contracts().call_site_contracts().is_empty()
         }
+        RequiredHirContract::ContinuationResume => !output
+            .effect_contracts()
+            .continuation_resume_sites()
+            .is_empty(),
         RequiredHirContract::Perform => !output.effect_contracts().perform_sites().is_empty(),
         RequiredHirContract::Handle => !output.effect_contracts().handle_sites().is_empty(),
-        RequiredHirContract::AssignPlace => {
-            !output.effect_contracts().assign_place_contracts().is_empty()
-        }
+        RequiredHirContract::AssignPlace => !output
+            .effect_contracts()
+            .assign_place_contracts()
+            .is_empty(),
         RequiredHirContract::WithUpdate => {
             !output.effect_contracts().with_update_contracts().is_empty()
         }
         RequiredHirContract::TopLevelInitRoot => {
             !output.effect_contracts().top_level_init_roots().is_empty()
         }
-        RequiredHirContract::ExternGlobal => {
-            !output.effect_contracts().extern_global_contracts().is_empty()
-        }
+        RequiredHirContract::ExternGlobal => !output
+            .effect_contracts()
+            .extern_global_contracts()
+            .is_empty(),
     };
 
     assert!(
@@ -303,12 +306,13 @@ fn run_direct_mir_preflight(
     source: &SourceFile,
     fixture: HirCompletenessFixture,
 ) {
-    let output = load_direct_style_mir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
-        panic!(
-            "direct-style MIR smoke should pass for `{}` without HIR-origin fallback: {err:?}",
-            fixture.label()
-        )
-    });
+    let output =
+        load_direct_style_mir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
+            panic!(
+                "direct-style MIR smoke should pass for `{}` without HIR-origin fallback: {err:?}",
+                fixture.label()
+            )
+        });
     assert_no_hir_origin_mir_fallbacks(&output, fixture);
 }
 
@@ -355,11 +359,7 @@ fn assert_no_hir_origin_mir_fallbacks(
     }
 }
 
-fn assert_not_hir_origin_mir_fallback(
-    reason: &str,
-    fixture: HirCompletenessFixture,
-    fqn: &str,
-) {
+fn assert_not_hir_origin_mir_fallback(reason: &str, fixture: HirCompletenessFixture, fqn: &str) {
     assert!(
         !HIR_ORIGIN_MIR_FALLBACK_REASONS.contains(&reason),
         "direct-style MIR preflight fixture `{}` leaked HIR-origin fallback `{}` in `{}`",

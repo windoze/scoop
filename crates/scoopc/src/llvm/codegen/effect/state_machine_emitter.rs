@@ -7204,6 +7204,7 @@ fun raiseSub(): Int / Raise<Sub> {
             hir::ExprKind::Closure(closure) => first_handle_in_expr(&closure.body),
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Todo(_) => None,
@@ -7341,6 +7342,7 @@ fun raiseSub(): Int / Raise<Sub> {
             hir::ExprKind::Closure(closure) => first_perform_in_expr(&closure.body),
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Todo(_) => None,

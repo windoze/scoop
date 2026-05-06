@@ -2065,7 +2065,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let value_cg = self
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
-                    .unwrap_or_else(|| match callee_fqn {
+                    .unwrap_or(match callee_fqn {
                         "scoop.core.__scoop_array_builder_push_string" => CgTy::String,
                         _ => CgTy::Int(value_word),
                     });

@@ -6,7 +6,7 @@
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_dynamic_invoke__fixtures_build_unitWorker()
 // BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_direct_invoke__fixtures_build_unitWorker()
-// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_resume__fixtures_build_unitWorker__case0(ptr addrspace(1))
+// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_resume__fixtures_build_unitWorker__case0(
 // BUILD-LLVM-CONTAINS: %scoop.refactor.StepCase__fixtures_build_unitWorker__case0 = type { ptr addrspace(1) }
 package fixtures.build
 

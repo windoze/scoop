@@ -5666,24 +5666,30 @@ fun main(): Int {
             })
             .expect("应收集到 helper_sum");
         let helper_sum_body = helper_sum.body.as_ref().expect("helper_sum 应有 body");
-        let ctor_call_span = match helper_sum_body.stmts.as_slice() {
-            [
-                Stmt {
-                    kind: StmtKind::Val(val_decl),
-                    ..
-                },
-                ..,
-            ] => match val_decl.init.as_ref().map(|expr| &expr.kind) {
-                Some(ExprKind::Call { .. }) => {
-                    val_decl.init.as_ref().expect("box 应有 initializer").span
-                }
-                other => panic!(
-                    "helper_sum 的首个 val 应由 ctor call 初始化，实际为 {:?}",
-                    other
-                ),
-            },
-            stmts => panic!("helper_sum body 形态不符合预期: {:?}", stmts),
-        };
+        fn find_call_span_in_expr(expr: &Expr) -> Option<Span> {
+            if let ExprKind::Call { .. } = &expr.kind {
+                return Some(expr.span);
+            }
+            if let ExprKind::Block(block) = &expr.kind {
+                return block.stmts.iter().find_map(find_call_span_in_stmt);
+            }
+            None
+        }
+
+        fn find_call_span_in_stmt(stmt: &Stmt) -> Option<Span> {
+            match &stmt.kind {
+                StmtKind::Expr(expr) => find_call_span_in_expr(expr),
+                StmtKind::Val(val_decl) => val_decl.init.as_ref().and_then(find_call_span_in_expr),
+                StmtKind::Return { value } => value.as_ref().and_then(find_call_span_in_expr),
+                _ => None,
+            }
+        }
+
+        let ctor_call_span = helper_sum_body
+            .stmts
+            .iter()
+            .find_map(find_call_span_in_stmt)
+            .expect("helper_sum 应包含 ctor call initializer");
         assert!(
             lowered.ctor_call_sites.contains_key(&CallSite::new(
                 src_helper.path().to_path_buf(),

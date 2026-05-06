@@ -5423,11 +5423,7 @@ impl<'a> HirLowering<'a> {
             .map(CallArg::Positional)
             .collect();
         let payload_tuple_ty = if args.len() > 1 {
-            let mut elements = Vec::with_capacity(arg_mapping.len());
-            for &arg_idx in &arg_mapping {
-                let arg = args.get(arg_idx)?;
-                elements.push(Self::call_arg_value_ty(arg));
-            }
+            let elements = args.iter().map(Self::call_arg_value_ty).collect();
             Some(self.types.ty_tuple(elements))
         } else {
             None

@@ -82,6 +82,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: expr.span.into(),
             }),
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
+            hir::ExprKind::ClassLiteral(class_lit) => match class_lit.metadata_kind {
+                hir::TypeMetadataLiteralKind::TypeNameString => {
+                    let type_name = class_lit
+                        .source_fqn
+                        .clone()
+                        .unwrap_or_else(|| self.types.display(class_lit.source_ty).to_string());
+                    self.codegen_string_literal_from_text(expr.span, &type_name)
+                }
+            },
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
             hir::ExprKind::StructLit { ty, fields } => {
                 self.codegen_struct_lit(expr.span, *ty, fields)

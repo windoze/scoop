@@ -348,57 +348,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 });
             };
-            if element_tys.len() != info.arg_mapping.len() {
+            if element_tys.len() != args.len() || info.arg_mapping.len() != args.len() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "perform payload tuple mapping",
                     at: span.into(),
                 });
             }
 
-            let mut arg_param_mapping: Vec<Option<usize>> = vec![None; args.len()];
-            for (param_idx, arg_idx) in info.arg_mapping.iter().copied().enumerate() {
-                let Some(slot) = arg_param_mapping.get_mut(arg_idx) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "perform payload arg mapping index",
-                        at: span.into(),
-                    });
-                };
-                *slot = Some(param_idx);
-            }
-
-            let mut evaluated_args: Vec<Option<CgValue<'ctx>>> = vec![None; args.len()];
-            for (arg_idx, arg) in args.iter().enumerate() {
-                let param_idx = arg_param_mapping
-                    .get(arg_idx)
-                    .and_then(|slot| *slot)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "perform payload arg mapping",
-                        at: span.into(),
-                    })?;
-                let expected_ty = self.cg_ty_of(element_tys[param_idx]).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "perform payload expected type",
-                        at: span.into(),
-                    },
-                )?;
+            let mut ordered = Vec::with_capacity(args.len());
+            for (arg, &element_ty) in args.iter().zip(element_tys) {
+                let expected_ty =
+                    self.cg_ty_of(element_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "perform payload expected type",
+                            at: span.into(),
+                        })?;
                 let expr = Self::call_arg_expr(arg);
                 let value = self.codegen_expr_in_expected_context(expr, Some(expected_ty))?;
-                evaluated_args[arg_idx] = Some(self.coerce_value(expr.span, value, expected_ty)?);
+                ordered.push(self.coerce_value(expr.span, value, expected_ty)?);
             }
-
-            let ordered = info
-                .arg_mapping
-                .iter()
-                .copied()
-                .map(|arg_idx| {
-                    evaluated_args.get(arg_idx).and_then(|value| *value).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "perform payload ordered arg",
-                            at: span.into(),
-                        },
-                    )
-                })
-                .collect::<Result<Vec<_>, _>>()?;
             return self.build_tuple_cg_value_from_values(span, tuple_ty, &ordered);
         }
 

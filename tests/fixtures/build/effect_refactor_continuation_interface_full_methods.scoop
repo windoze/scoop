@@ -4,8 +4,8 @@
 // - 对应的 resume vtable 仍必须同时发布 `hit$ret` / `pong$ret` 两个 method slot。
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: @__scoop_refactor_resume_vtable_layout__fixtures_build_continuationCarrier__fixtures_build_Ping = internal constant %scoop.refactor.ResumeVtable__fixtures_build_continuationCarrier__fixtures_build_Ping zeroinitializer
-// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case0(
-// BUILD-LLVM-CONTAINS: declare %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case1(
+// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case0(
+// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case1(
 package fixtures.build
 
 effect Ping {

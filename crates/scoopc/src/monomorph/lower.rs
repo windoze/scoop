@@ -437,9 +437,9 @@ fun entry(): Int / Pair {
         assert!(metadata.payload_tuple_ty.is_some());
         assert_eq!(args.len(), 2);
         assert_eq!(args[0].source_arg_index, 1);
-        assert_eq!(args[0].name.as_deref(), Some("a"));
+        assert_eq!(args[0].name.as_deref(), None);
         assert_eq!(args[1].source_arg_index, 0);
-        assert_eq!(args[1].name.as_deref(), Some("b"));
+        assert_eq!(args[1].name.as_deref(), None);
 
         let (result_op_fqn, result_effect_ty) = block
             .stmts

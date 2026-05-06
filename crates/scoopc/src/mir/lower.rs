@@ -2529,29 +2529,47 @@ impl<'a> FnLowering<'a> {
         span: Span,
         lowered_args: Vec<CallArg>,
     ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
+        let uses_refactor_typed_contracts = self.facts.uses_refactor_typed_contracts();
         if let Some(metadata) = self
             .facts
             .refactor_perform_metadata(self.source_path.as_path(), span)
             .filter(|metadata| {
-                metadata
-                    .arg_mapping
-                    .iter()
-                    .all(|idx| *idx < lowered_args.len())
+                if uses_refactor_typed_contracts {
+                    metadata.arg_mapping.len() == lowered_args.len()
+                } else {
+                    metadata
+                        .arg_mapping
+                        .iter()
+                        .all(|idx| *idx < lowered_args.len())
+                }
             })
             .cloned()
         {
-            let perform_args = metadata
-                .arg_mapping
-                .iter()
-                .copied()
-                .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
-                .map(|(source_arg_index, arg)| PerformArg {
-                    span: arg.span,
-                    source_arg_index,
-                    name: arg.name.clone(),
-                    value: arg.value.clone(),
-                })
-                .collect::<Vec<_>>();
+            let perform_args = if uses_refactor_typed_contracts {
+                lowered_args
+                    .iter()
+                    .enumerate()
+                    .map(|(param_idx, arg)| PerformArg {
+                        span: arg.span,
+                        source_arg_index: metadata.arg_mapping[param_idx],
+                        name: arg.name.clone(),
+                        value: arg.value.clone(),
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                metadata
+                    .arg_mapping
+                    .iter()
+                    .copied()
+                    .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
+                    .map(|(source_arg_index, arg)| PerformArg {
+                        span: arg.span,
+                        source_arg_index,
+                        name: arg.name.clone(),
+                        value: arg.value.clone(),
+                    })
+                    .collect::<Vec<_>>()
+            };
             return Some((perform_args, metadata));
         }
 
@@ -2562,17 +2580,16 @@ impl<'a> FnLowering<'a> {
         let info = self.facts.legacy_perform_site_info(span);
         let arg_mapping = info
             .map(|site| site.arg_mapping.as_slice())
-            .filter(|mapping| mapping.iter().all(|idx| *idx < lowered_args.len()))
+            .filter(|mapping| mapping.len() == lowered_args.len())
             .map(|mapping| mapping.to_vec())
             .unwrap_or_else(|| (0..lowered_args.len()).collect());
 
-        let perform_args = arg_mapping
+        let perform_args = lowered_args
             .iter()
-            .copied()
-            .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
-            .map(|(source_arg_index, arg)| PerformArg {
+            .enumerate()
+            .map(|(param_idx, arg)| PerformArg {
                 span: arg.span,
-                source_arg_index,
+                source_arg_index: arg_mapping[param_idx],
                 name: arg.name.clone(),
                 value: arg.value.clone(),
             })

@@ -374,6 +374,7 @@ impl<'a> ReachabilityCollector<'a> {
         match &expr.kind {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
+            | hir::ExprKind::ClassLiteral(_)
             | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Todo(_) => false,
@@ -760,7 +761,9 @@ impl<'a> ReachabilityCollector<'a> {
     fn scan_expr(&mut self, expr: &hir::Expr) {
         match &expr.kind {
             hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Literal(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::Literal(_)
+            | hir::ExprKind::ClassLiteral(_)
+            | hir::ExprKind::UnresolvedIdent { .. } => {}
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 self.scan_top_level_value_ref(fqn);
             }

@@ -1696,10 +1696,7 @@ impl<'a> ContractCollector<'a> {
         let arg_mapping = info
             .map(|binding| binding.arg_mapping.clone())
             .unwrap_or_else(|| (0..args.len()).collect());
-        let payload_components = arg_mapping
-            .iter()
-            .filter_map(|&arg_idx| args.get(arg_idx).map(call_arg_value_ty))
-            .collect::<Vec<_>>();
+        let payload_components = args.iter().map(call_arg_value_ty).collect::<Vec<_>>();
         let payload_ty = match payload_components.as_slice() {
             [] => Some(self.lowered_hir.builtins.unit),
             [single] => Some(*single),
