@@ -9,6 +9,8 @@ mod ast_stage;
 mod effect_facts_stage;
 mod effect_lowering_stage;
 mod hir_completeness;
+#[cfg(test)]
+mod hir_preflight;
 mod hir_stage;
 mod legacy;
 #[cfg(feature = "llvm")]

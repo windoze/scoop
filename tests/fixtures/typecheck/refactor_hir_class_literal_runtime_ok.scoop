@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：HIR-T13 preflight 覆盖 runtime class literal HIR contract。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+val PointClassName: String = Point::class
+
+fun runtime(): String {
+    return Point::class
+}

@@ -516,7 +516,7 @@
   - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_top_level_init`、`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/hir/refactor_top_level_init.scoop`、`cargo run -q -p scoop --no-default-features -- --effect-pipeline refactor dump-hir tests/fixtures/hir/refactor_top_level_init.scoop`、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoopc --no-default-features refactor_typed_hir`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T11`
 
-## HIR-T13：建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR
+## [DONE] HIR-T13：建立 HIR -> next-stage preflight，阻止 HIR gap 流入 MIR
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/H9
@@ -544,6 +544,13 @@
 - 完成条件：
   - preflight 能阻止 HIR-origin Todo / missing contract 进入下一阶段。
   - 可进入 `HIR-T14`。
+- 完成记录（2026-05-06）：
+  - 新增 `effect_refactor_pipeline::hir_preflight` 测试入口，`refactor_hir_preflight` 会对 HIR completeness fixture set 逐个执行 refactor typed HIR stage 与 no-Todo verifier。
+  - preflight fixture set 覆盖 comptime control flow、declaration graph、splice field、call arg canonicalization、call/resume/perform/handle contracts、runtime class literal、reflection/platform intrinsics、with-update、assignment place、custom iterator for-loop、top-level init roots 与 extern global contract。
+  - preflight 对每个 fixture 的关键 typed side table 做显式断言：call/resume/perform/handle/place/copy-update/top-level init/extern global/declaration graph；HIR-only fixture 明确记录不进入 MIR smoke 的原因。
+  - preflight 对代表性样本运行 refactor direct-style MIR stage，并扫描 MIR 输出，禁止 HIR-origin Todo / missing contract fallback（如 assignment place、call/resume/perform/handle contract missing、legacy HIR placeholder reason）流入下一阶段。
+  - 新增 typecheck pass fixtures：`refactor_hir_assignment_places_ok.scoop` 与 `refactor_hir_class_literal_runtime_ok.scoop`，补齐 preflight 文件级覆盖。
+  - 已运行：`cargo test -p scoopc --no-default-features refactor_hir_preflight`、HIR completeness fixture set 的 `dump-hir --effect-pipeline refactor`、代表性 `dump-mir --effect-pipeline refactor` smoke、新增 typecheck fixtures、`cargo test -p scoopc --no-default-features refactor_hir_no_todo`、`cargo test -p scoop --no-default-features dump_hir`、`cargo clippy -p scoopc -p scoop --no-default-features --all-targets -- -D warnings`。
 - 依赖：`HIR-T12`
 
 ## HIR-T14：冻结 HIR completeness 验证矩阵与阶段完成记录

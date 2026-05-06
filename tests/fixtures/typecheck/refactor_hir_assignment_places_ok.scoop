@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：HIR-T13 preflight 覆盖 assignment place typed contract。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@ThreadLocal
+var G: Int = 0
+
+class Box(var value: Int)
+
+fun use(box: Box): Int {
+    var local: Int = 1
+    local = 2
+    G = local
+    box.value = G
+    return box.value
+}
