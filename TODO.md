@@ -662,7 +662,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T09R：Review MIR-T09 runtime value primitives
+## [DONE] MIR-T09R：Review MIR-T09 runtime value primitives
 
 - 参考：
   - `MIR-T09`
@@ -679,6 +679,25 @@
 - 完成条件：
   - Review 结论明确说明 `MIR-T09` 已正确实现；若发现缺口，`MIR-T09R` 保持未完成并把修复归回 `MIR-T09`。
 - 依赖：`MIR-T09`
+
+- 完成记录（2026-05-07）：
+  - Review 结论：`MIR-T09` runtime value primitives 在本次 review 修复 verifier 缺口后已按任务要求正确实现；未发现剩余需要归回 `MIR-T09` 的阻塞缺口。
+  - 审查覆盖 `Rvalue::TypeCheck` / `Rvalue::Cast` / pattern `is Type` metadata 构造、production verifier、materialized MIR verifier/substitution、`!!` HIR 前置展开，以及 unsupported function type cast frontend/typecheck diagnostic。
+  - Review 修复：production verifier 现在额外校验 typecheck/cast metadata 的 `source_ty` 与实际 operand 类型一致、`as?` optional result type 与 assignment target local 一致、顶层 pattern `is` metadata 的 `subject_ty` 与 subject operand 一致；新增 forged metadata 负例防止不一致 metadata 通过 strict MIR boundary。
+  - MIR dump 抽查确认 `runtime_typecheck_cast.scoop` 中 `is` / `!is` / `as` / `as?` 均携带 runtime descriptor、parameterized match、raise/none result contract；`not_null_assert.scoop` 中 `!!` 展开为 `Some` payload extract 与 `Raise.raise(RuntimeError.NullAssertionFailed)` failure path；`pattern_is_type.scoop` 中 pattern `is String` / `is Box` 携带 subject/target descriptor 与 match kind。
+  - function type runtime cast 负例确认在 typecheck/frontend 阶段拒绝，不进入 MIR。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_value_metadata`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_value_primitives`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/not_null_assert.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/pattern_is_type.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T10：收口 aggregate/array/enum/closure transport 的 MIR contract
 

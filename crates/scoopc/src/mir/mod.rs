@@ -213,7 +213,7 @@ impl File {
             let block_id = BasicBlockId(index as u32);
 
             for stmt in &block.stmts {
-                self.validate_refactor_production_statement(&fun.fqn, block_id, stmt)?;
+                self.validate_refactor_production_statement(&fun.fqn, body, block_id, stmt)?;
             }
 
             self.validate_refactor_production_unwind(
@@ -231,12 +231,16 @@ impl File {
     fn validate_refactor_production_statement(
         &self,
         fqn: &str,
+        body: &Body,
         block: BasicBlockId,
         stmt: &Statement,
     ) -> Result<(), MirValidationError> {
         match &stmt.kind {
-            StatementKind::Assign { value, .. } => {
-                self.validate_refactor_production_rvalue(fqn, block, stmt.span, value)
+            StatementKind::Assign { target, value } => {
+                let result_ty = Self::refactor_local_ty(body, *target);
+                self.validate_refactor_production_rvalue(
+                    fqn, body, block, stmt.span, result_ty, value,
+                )
             }
             StatementKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
                 fqn: fqn.to_string(),
@@ -254,10 +258,13 @@ impl File {
     fn validate_refactor_production_rvalue(
         &self,
         fqn: &str,
+        body: &Body,
         block: BasicBlockId,
         span: Span,
+        result_ty: Option<TypeId>,
         value: &Rvalue,
     ) -> Result<(), MirValidationError> {
+        let site = RefactorProductionSiteContext { fqn, block, span };
         match value {
             Rvalue::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
                 fqn: fqn.to_string(),
@@ -270,35 +277,72 @@ impl File {
                 self.validate_refactor_production_call_kind(fqn, block, span, kind)
             }
             Rvalue::TypeCheck {
-                test_ty, metadata, ..
-            } => self.validate_refactor_type_test_metadata(fqn, block, span, *test_ty, metadata),
+                value,
+                test_ty,
+                metadata,
+                ..
+            } => self.validate_refactor_type_test_metadata(
+                site,
+                Self::refactor_operand_ty(body, value),
+                *test_ty,
+                metadata,
+            ),
             Rvalue::Cast {
                 op,
+                value,
                 target_ty,
                 metadata,
                 ..
-            } => self.validate_refactor_cast_metadata(fqn, block, span, *op, *target_ty, metadata),
-            Rvalue::PatternMatch { pattern, .. } => {
-                self.validate_refactor_pattern_metadata(fqn, block, span, pattern)
-            }
+            } => self.validate_refactor_cast_metadata(
+                site,
+                *op,
+                Self::refactor_operand_ty(body, value),
+                *target_ty,
+                result_ty,
+                metadata,
+            ),
+            Rvalue::PatternMatch { subject, pattern } => self.validate_refactor_pattern_metadata(
+                site,
+                Self::refactor_operand_ty(body, subject),
+                pattern,
+            ),
             _ => Ok(()),
+        }
+    }
+
+    fn refactor_local_ty(body: &Body, local: LocalId) -> Option<TypeId> {
+        body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
+    }
+
+    fn refactor_operand_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
+        match operand {
+            Operand::Local(local) => Self::refactor_local_ty(body, *local),
+            Operand::Const(_) => None,
         }
     }
 
     fn validate_refactor_type_test_metadata(
         &self,
-        fqn: &str,
-        block: BasicBlockId,
-        span: Span,
+        site: RefactorProductionSiteContext<'_>,
+        expected_source_ty: Option<TypeId>,
         expected_target_ty: TypeId,
         metadata: &RuntimeTypeTestMetadata,
     ) -> Result<(), MirValidationError> {
+        if expected_source_ty.is_some_and(|source_ty| metadata.source_ty != source_ty) {
+            return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                primitive: "typecheck",
+                detail: "source type and operand type disagree",
+            });
+        }
         if metadata.target_ty != expected_target_ty || metadata.descriptor.ty != expected_target_ty
         {
             return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
-                fqn: fqn.to_string(),
-                block,
-                span,
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
                 primitive: "typecheck",
                 detail: "target type and runtime descriptor disagree",
             });
@@ -308,17 +352,16 @@ impl File {
 
     fn validate_refactor_cast_metadata(
         &self,
-        fqn: &str,
-        block: BasicBlockId,
-        span: Span,
+        site: RefactorProductionSiteContext<'_>,
         op: ast::CastOp,
+        expected_source_ty: Option<TypeId>,
         expected_target_ty: TypeId,
+        expected_result_ty: Option<TypeId>,
         metadata: &RuntimeCastMetadata,
     ) -> Result<(), MirValidationError> {
         self.validate_refactor_type_test_metadata(
-            fqn,
-            block,
-            span,
+            site,
+            expected_source_ty,
             expected_target_ty,
             &metadata.test,
         )?;
@@ -328,16 +371,34 @@ impl File {
                 ast::CastOp::As,
                 RuntimeCastFailure::Raise { .. },
                 RuntimeCastResult::Target { ty },
-            ) if *ty == expected_target_ty => Ok(()),
+            ) if *ty == expected_target_ty
+                && expected_result_ty.is_none_or(|result_ty| result_ty == expected_target_ty) =>
+            {
+                Ok(())
+            }
             (
                 ast::CastOp::AsQ,
                 RuntimeCastFailure::ReturnNone,
                 RuntimeCastResult::Option { some_ty, .. },
-            ) if *some_ty == expected_target_ty => Ok(()),
+            ) if *some_ty == expected_target_ty => {
+                if let (Some(result_ty), RuntimeCastResult::Option { option_ty, .. }) =
+                    (expected_result_ty, &metadata.result)
+                    && *option_ty != result_ty
+                {
+                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                        fqn: site.fqn.to_string(),
+                        block: site.block,
+                        span: site.span,
+                        primitive: "cast",
+                        detail: "optional result type and assignment target disagree",
+                    });
+                }
+                Ok(())
+            }
             _ => Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
-                fqn: fqn.to_string(),
-                block,
-                span,
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
                 primitive: "cast",
                 detail: "failure/result contract does not match cast operator",
             }),
@@ -346,18 +407,26 @@ impl File {
 
     fn validate_refactor_pattern_metadata(
         &self,
-        fqn: &str,
-        block: BasicBlockId,
-        span: Span,
+        site: RefactorProductionSiteContext<'_>,
+        expected_subject_ty: Option<TypeId>,
         pattern: &Pattern,
     ) -> Result<(), MirValidationError> {
         match pattern {
             Pattern::Is { ty, metadata } => {
+                if expected_subject_ty.is_some_and(|subject_ty| metadata.subject_ty != subject_ty) {
+                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                        fqn: site.fqn.to_string(),
+                        block: site.block,
+                        span: site.span,
+                        primitive: "pattern type test",
+                        detail: "subject type and operand type disagree",
+                    });
+                }
                 if metadata.target_ty != *ty || metadata.descriptor.ty != *ty {
                     return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
-                        fqn: fqn.to_string(),
-                        block,
-                        span,
+                        fqn: site.fqn.to_string(),
+                        block: site.block,
+                        span: site.span,
                         primitive: "pattern type test",
                         detail: "target type and runtime descriptor disagree",
                     });
@@ -366,19 +435,19 @@ impl File {
             }
             Pattern::Or { pats } => {
                 for pat in pats {
-                    self.validate_refactor_pattern_metadata(fqn, block, span, pat)?;
+                    self.validate_refactor_pattern_metadata(site, expected_subject_ty, pat)?;
                 }
                 Ok(())
             }
             Pattern::Tuple { elements } => {
                 for element in elements {
-                    self.validate_refactor_pattern_metadata(fqn, block, span, element)?;
+                    self.validate_refactor_pattern_metadata(site, None, element)?;
                 }
                 Ok(())
             }
             Pattern::Variant { args, .. } => {
                 for arg in args {
-                    self.validate_refactor_pattern_metadata(fqn, block, span, arg)?;
+                    self.validate_refactor_pattern_metadata(site, None, arg)?;
                 }
                 Ok(())
             }
@@ -2304,6 +2373,43 @@ mod tests {
         body
     }
 
+    fn body_with_source_assign(
+        source_ty: TypeId,
+        target_ty: TypeId,
+        value: impl FnOnce(LocalId) -> Rvalue,
+    ) -> Body {
+        let mut body = Body::new_empty();
+        let source = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("source".to_string()),
+            ty: source_ty,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let target = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("target".to_string()),
+            ty: target_ty,
+            source: LocalSourceKind::CompilerTemporary,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![Statement {
+                span: test_span(),
+                kind: StatementKind::Assign {
+                    target,
+                    value: value(source),
+                },
+            }],
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return { value: None },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        body
+    }
+
     #[test]
     fn refactor_mir_no_todo_rejects_item_todo() {
         let mut types = TypeStore::new();
@@ -2490,6 +2596,123 @@ mod tests {
                 span: test_span(),
                 site: MirSiteMetadataKind::Resume,
                 detail: "resume call is missing runtime-error effect metadata",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_value_metadata_rejects_typecheck_source_mismatch() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            body_with_source_assign(builtins.int, builtins.bool_, |source| Rvalue::TypeCheck {
+                value: Operand::Local(source),
+                op: ast::TypeCheckOp::Is,
+                test_ty: builtins.string,
+                metadata: RuntimeTypeTestMetadata {
+                    source_ty: builtins.unit,
+                    target_ty: builtins.string,
+                    descriptor: RuntimeTypeDescriptorKey {
+                        ty: builtins.string,
+                        kind: RuntimeTypeDescriptorKind::String,
+                    },
+                    static_fold: RuntimeTypeStaticFold::Dynamic,
+                    parameterized: RuntimeTypeParameterizedMatch::None,
+                },
+            }),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                primitive: "typecheck",
+                detail: "source type and operand type disagree",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_value_metadata_rejects_asq_result_mismatch() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let option_int = types.ty_option(builtins.int);
+        let file = production_file(
+            builtins.unit,
+            body_with_source_assign(builtins.any, builtins.bool_, |source| Rvalue::Cast {
+                value: Operand::Local(source),
+                op: ast::CastOp::AsQ,
+                target_ty: builtins.int,
+                metadata: RuntimeCastMetadata {
+                    test: RuntimeTypeTestMetadata {
+                        source_ty: builtins.any,
+                        target_ty: builtins.int,
+                        descriptor: RuntimeTypeDescriptorKey {
+                            ty: builtins.int,
+                            kind: RuntimeTypeDescriptorKind::Value,
+                        },
+                        static_fold: RuntimeTypeStaticFold::Dynamic,
+                        parameterized: RuntimeTypeParameterizedMatch::None,
+                    },
+                    failure: RuntimeCastFailure::ReturnNone,
+                    result: RuntimeCastResult::Option {
+                        option_ty: option_int,
+                        some_ty: builtins.int,
+                    },
+                },
+            }),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                primitive: "cast",
+                detail: "optional result type and assignment target disagree",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_value_metadata_rejects_pattern_subject_mismatch() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            body_with_source_assign(builtins.any, builtins.bool_, |source| {
+                Rvalue::PatternMatch {
+                    subject: Operand::Local(source),
+                    pattern: Pattern::Is {
+                        ty: builtins.string,
+                        metadata: RuntimePatternTypeTestMetadata {
+                            subject_ty: builtins.int,
+                            target_ty: builtins.string,
+                            descriptor: RuntimeTypeDescriptorKey {
+                                ty: builtins.string,
+                                kind: RuntimeTypeDescriptorKind::String,
+                            },
+                            match_kind: RuntimePatternTypeTestKind::RuntimeRef,
+                            static_fold: RuntimeTypeStaticFold::Dynamic,
+                            parameterized: RuntimeTypeParameterizedMatch::None,
+                        },
+                    },
+                }
+            }),
+        );
+
+        assert_eq!(
+            file.validate_refactor_production(builtins.unit),
+            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                fqn: TEST_FQN.to_string(),
+                block: BasicBlockId(0),
+                span: test_span(),
+                primitive: "pattern type test",
+                detail: "subject type and operand type disagree",
             })
         );
     }
