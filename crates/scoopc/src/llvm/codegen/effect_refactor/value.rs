@@ -116,9 +116,10 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
         | mir::Rvalue::TypeCheck { value: operand, .. }
         | mir::Rvalue::Cast { value: operand, .. }
         | mir::Rvalue::TupleGet { tuple: operand, .. }
-        | mir::Rvalue::CaptureBoxNew { value: operand }
+        | mir::Rvalue::CaptureBoxNew { value: operand, .. }
         | mir::Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | mir::Rvalue::PatternMatch {
             subject: operand, ..
@@ -137,22 +138,23 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
         mir::Rvalue::Call { kind, args, .. } => {
             call_kind_mentions_local(kind, local) || call_args_mention_local(args, local)
         }
-        mir::Rvalue::MakeTuple { elements } => elements
+        mir::Rvalue::MakeTuple { elements, .. } => elements
             .iter()
             .any(|operand| operand_mentions_local(operand, local)),
-        mir::Rvalue::StructLit { fields } => fields
+        mir::Rvalue::StructLit { fields, .. } => fields
             .iter()
             .any(|field| operand_mentions_local(&field.value, local)),
         mir::Rvalue::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
             mir::InterpolatedStringPart::Text { .. } => false,
             mir::InterpolatedStringPart::Expr { value, .. } => operand_mentions_local(value, local),
         }),
-        mir::Rvalue::CaptureBoxSet { box_operand, value } => {
-            operand_mentions_local(box_operand, local) || operand_mentions_local(value, local)
-        }
+        mir::Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => operand_mentions_local(box_operand, local) || operand_mentions_local(value, local),
         mir::Rvalue::TopLevelRef(_)
         | mir::Rvalue::UnresolvedName { .. }
         | mir::Rvalue::SizeOf { .. }
+        | mir::Rvalue::TypeMetadataLiteral(_)
         | mir::Rvalue::PerformResult { .. }
         | mir::Rvalue::Todo(_) => false,
     }
@@ -438,7 +440,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             mir::Rvalue::Call { kind, args, .. } => {
                 self.lower_refactor_pure_direct_call(span, kind, args, target_cg, target_local)
             }
-            mir::Rvalue::MakeClosure { env, fn_ptr } => {
+            mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
                 let env_cg = self
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, env)
@@ -456,7 +458,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
             }
-            mir::Rvalue::StructLit { fields } => {
+            mir::Rvalue::StructLit { fields, .. } => {
                 self.install_effect_typed_plain_closure_adapters_for_struct_fields(
                     span, fields, target_cg,
                 )?;
@@ -520,7 +522,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 if *target != local {
                     return None;
                 }
-                let mir::Rvalue::MakeClosure { env, fn_ptr } = value else {
+                let mir::Rvalue::MakeClosure { env, fn_ptr, .. } = value else {
                     return None;
                 };
                 Some((env.clone(), fn_ptr.clone()))

@@ -974,7 +974,7 @@
   - 额外回归通过：`cargo test -p scoop --no-default-features dump_ir`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features dump_effect`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T13：收口 remaining MIR-facing frontend/runtime policy gates
+## [DONE] MIR-T13：收口 remaining MIR-facing frontend/runtime policy gates
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M8
@@ -982,15 +982,15 @@
   - [`TODO-pipeline-gaps-codegen.md`](./TODO-pipeline-gaps-codegen.md) CG-T06、CG-T07
 - 目标：
   - 对仍会影响 MIR/codegen coverage 的 frontend/runtime policy gap 给出明确 contract 或早期 diagnostic。
-  - 避免 `ResumeUnwind`、cross-thread effect propagation、or-pattern binder、GC pin/handle intrinsic 在后端变成 late fatal 或 shape guess。
+  - 避免 `ResumeUnwind`、内部 thread-resume helper 的 non-complete Step propagation、or-pattern binder、GC pin/handle intrinsic 在后端变成 late fatal 或 shape guess。
 
 - 必须实现的内容：
   1. `ResumeUnwind` / cleanup / finally pending completion：
      - MIR 或 late-lowered handoff 必须发布 unwind payload carrier、cleanup continuation、pending completion、origin/resume-state provenance。
      - 若某路径暂不支持，必须在 verifier 阶段给出 contract-missing diagnostic，不允许 LLVM body emission 才发现。
-  2. cross-thread resume 后 non-complete Step：
-     - 若语言当前不支持跨线程继续向外传播 effect，type/effect checker 或 MIR handoff 必须拒绝该 surface。
-     - 若允许，则必须发布 cross-thread effect propagation contract，交给 codegen/runtime task 实现。
+  2. 内部 `__scoop_thread_spawn_join_resume_u64` helper 后 non-complete Step：
+     - 该 helper 不是稳定用户态线程/effect surface；当前只实现 spawn worker、resume、join 的 complete-only runtime boundary。
+     - 若允许 non-`Pure` continuation，则必须发布该 helper 专用的 non-complete Step propagation contract，交给 codegen/runtime task 实现；否则 type/effect checker 或 MIR handoff 必须拒绝该 helper 调用。
   3. or-pattern binder：
      - 维持 frontend reject 时，diagnostic fixture 必须覆盖且说明不能进入 HIR/MIR。
      - 若改为支持，HIR/MIR pattern contract 必须发布 binder identity、scope、dominance 与 payload type，不允许后端推断。
@@ -1013,6 +1013,22 @@
   - codegen/runtime 后续任务不需要猜测这些 surface 的 source semantics。
 - 依赖：`MIR-T12R`
 
+- 完成记录（2026-05-07）：
+  - `CallTransportMetadata` 新增 GC intrinsic policy contract，`GC.pin` / `GC.unpin` / `GC.handleNew` / `GC.handleGet` / `GC.handleDrop` 现在在 MIR call transport 中发布 callee identity、root lifetime、pin/unpin 或 handle drop pairing、unsafe requirement、subject type 与 trace/copy/drop transport constraints；production/materialized verifier 与 substitution 覆盖该 metadata。
+  - 内部测试 helper `__scoop_thread_spawn_join_resume_u64` 仅承诺 complete-only spawn/resume/join boundary；对 non-`Pure` continuation 的 outward effect propagation 现在在 typecheck 阶段以 `scoop::typecheck::cross_thread_resume_outward_effects_unsupported` 拒绝，不再允许进入 MIR/codegen 后以该 helper 的 non-complete Step fatal 兜底。
+  - `ResumeUnwind` / cleanup / finally pending completion 的现有 late-lowered handoff 已用 `refactor_mir_policy_gates` 验证锁定，dump 中显式暴露 pending completions、origins、payload transports 与 cleanup `ResumeUnwind` state。
+  - or-pattern binder policy 维持 frontend reject，并更新 diagnostic fixture 说明 binder identity/scope/dominance 缺失时不得进入 HIR/MIR；新增 diagnostics fixtures 覆盖内部 thread-resume helper 的 unsupported outward propagation 与 unsupported GC handle value-type surface。
+  - MIR preflight denylist 增加 remaining policy gate fallback reasons，防止后续把 or-pattern/cross-thread/GC policy gap 写回 MIR placeholder。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_policy_gates`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - diagnostics fixtures 通过：`typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`typecheck/gc_handle_new_value_type_is_error.scoop`、`typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`。
+  - 验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop`。
+  - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - smoke 通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+
 ## MIR-T13R：Review MIR-T13 policy gates
 
 - 参考：
@@ -1021,7 +1037,7 @@
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §5.6、§8
 - 重点：
   - `ResumeUnwind` / cleanup / finally pending completion 是否发布 enough handoff，或以明确 contract-missing diagnostic 拒绝暂不支持路径。
-  - cross-thread resume、or-pattern binder、GC pin/handle intrinsic surface 是否已归类为 spec-compatible contract 或 frontend diagnostic，不再晚到 backend 猜 shape。
+  - 内部 thread-resume helper 的 non-complete Step propagation、or-pattern binder、GC pin/handle intrinsic surface 是否已归类为 spec-compatible contract 或 frontend diagnostic，不再晚到 backend 猜 shape。
   - 所有 diagnostics fixture 是否说明 surface 为什么不能进入 HIR/MIR。
 - 验证：
   1. 重跑 `MIR-T13` 的全部验证命令。

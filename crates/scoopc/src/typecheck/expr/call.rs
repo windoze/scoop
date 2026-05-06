@@ -14,7 +14,8 @@ use super::ops::{
     literal_absorbs_to_expected, try_extract_nominal_fqn_and_args,
 };
 use super::util::{
-    expr_kind_name, fmt_overload_signature, join_overload_signatures, short_name_from_fqn,
+    expr_kind_name, fmt_effect_row, fmt_overload_signature, join_overload_signatures,
+    short_name_from_fqn,
 };
 
 use super::collect::build_fun_where_constraints_from_resolve_sig;
@@ -2662,6 +2663,13 @@ pub(super) fn infer_call_expr_type(
                     )?;
                     checked_arg_tys[arg_idx] = found_ty;
                 }
+                check_cross_thread_resume_policy(
+                    &callee_fqn,
+                    &call_args,
+                    &checked_arg_tys,
+                    &mapping_pairs,
+                    lower,
+                )?;
 
                 // T0509/T0624：推断 `eff` row 参数：
                 // - T0509：从 lambda body 的 required effects 推断 `E`；
@@ -8684,6 +8692,49 @@ fn nominal_eff_row_from_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<Eff
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.eff,
         // nullable（`T?`）在 lowering 阶段会变成 `Option<T>`；这里递归剥一层便于推断 `E`。
         TypeKind::Value(ValueTypeKind::Option(inner)) => nominal_eff_row_from_type(inner, lower),
+        _ => None,
+    }
+}
+
+fn check_cross_thread_resume_policy(
+    callee_fqn: &str,
+    call_args: &[CallArgInfo<'_>],
+    checked_arg_tys: &[TypeId],
+    mapping_pairs: &[(usize, usize)],
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if callee_fqn != "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+        return Ok(());
+    }
+    let Some(arg_idx) = mapping_pairs
+        .iter()
+        .find_map(|(param_idx, arg_idx)| (*param_idx == 0).then_some(*arg_idx))
+    else {
+        return Ok(());
+    };
+    let Some(found_ty) = checked_arg_tys.get(arg_idx).copied() else {
+        return Ok(());
+    };
+    let Some(row) = continuation_effect_row(found_ty, lower) else {
+        return Ok(());
+    };
+    if row.is_pure() {
+        return Ok(());
+    }
+    Err(ExprTypeError::CrossThreadResumeOutwardEffectsUnsupported {
+        effects: fmt_effect_row(&row, lower),
+        span: call_args[arg_idx].expr.span.into(),
+    })
+}
+
+fn continuation_effect_row(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.core.Continuation" =>
+        {
+            Some(nominal.eff.unwrap_or_else(EffectRow::pure))
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => continuation_effect_row(inner, lower),
         _ => None,
     }
 }

@@ -277,6 +277,13 @@ fun leaf(): Unit / Ping {
         )
     }
 
+    fn handle_finally_boundary_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/handle_finally_boundary.scoop",
+            include_str!("../../../../tests/fixtures/mir_refactor/handle_finally_boundary.scoop"),
+        )
+    }
+
     #[test]
     fn refactor_effect_lowered_stage_output_is_constructible() {
         let output = run_sample();
@@ -476,6 +483,27 @@ fun leaf(): Unit / Ping {
             assert!(
                 dump.contains(needle),
                 "run-pass fixture dump 应直接暴露 non-object authoritative dispatch source: {needle}\n{dump}"
+            );
+        }
+    }
+
+    #[test]
+    fn refactor_mir_policy_gates_dump_resume_unwind_pending_completion_contract() {
+        let source = handle_finally_boundary_fixture_source();
+        let dump = run_stage_with_opt_level(&source, OptLevel::O0).stable_dump();
+
+        for needle in [
+            "handle_contract:",
+            "pending_completions:",
+            "ContinueToExit",
+            "ReturnFromFunction",
+            "pending_completion_origins:",
+            "pending_payload_transports:",
+            "ResumeUnwind",
+        ] {
+            assert!(
+                dump.contains(needle),
+                "policy gate dump should expose cleanup/finally pending completion contract: {needle}\n{dump}"
             );
         }
     }

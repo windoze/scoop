@@ -542,6 +542,7 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
             | mir::Rvalue::SizeOf { .. }
+            | mir::Rvalue::TypeMetadataLiteral(_)
             | mir::Rvalue::MakeTuple { .. }
             | mir::Rvalue::StructLit { .. }
             | mir::Rvalue::InterpolatedString { .. }
@@ -639,9 +640,10 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TypeCheck { value: operand, .. }
             | mir::Rvalue::Cast { value: operand, .. }
             | mir::Rvalue::TupleGet { tuple: operand, .. }
-            | mir::Rvalue::CaptureBoxNew { value: operand }
+            | mir::Rvalue::CaptureBoxNew { value: operand, .. }
             | mir::Rvalue::CaptureBoxGet {
                 box_operand: operand,
+                ..
             }
             | mir::Rvalue::PatternMatch {
                 subject: operand, ..
@@ -654,6 +656,7 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::PerformResult { .. }
             | mir::Rvalue::UnresolvedName { .. }
             | mir::Rvalue::SizeOf { .. }
+            | mir::Rvalue::TypeMetadataLiteral(_)
             | mir::Rvalue::Todo(_) => {}
             mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
                 self.scan_top_level_value_ref(fqn)
@@ -681,12 +684,12 @@ impl<'a> ReachabilityCollector<'a> {
                     self.scan_mir_operand(&arg.value);
                 }
             }
-            mir::Rvalue::MakeTuple { elements } => {
+            mir::Rvalue::MakeTuple { elements, .. } => {
                 for element in elements {
                     self.scan_mir_operand(element);
                 }
             }
-            mir::Rvalue::StructLit { fields } => {
+            mir::Rvalue::StructLit { fields, .. } => {
                 for field in fields {
                     self.scan_mir_operand(&field.value);
                 }
@@ -698,11 +701,13 @@ impl<'a> ReachabilityCollector<'a> {
                     }
                 }
             }
-            mir::Rvalue::CaptureBoxSet { box_operand, value } => {
+            mir::Rvalue::CaptureBoxSet {
+                box_operand, value, ..
+            } => {
                 self.scan_mir_operand(box_operand);
                 self.scan_mir_operand(value);
             }
-            mir::Rvalue::MakeClosure { env, fn_ptr } => {
+            mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
                 self.scan_mir_operand(env);
                 self.enqueue_fun(fn_ptr.clone());
             }

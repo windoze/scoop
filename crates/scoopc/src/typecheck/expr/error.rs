@@ -504,6 +504,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("跨线程 resume 当前阶段只支持 `Pure` continuation，不能传播 effect row：{effects}")]
+    #[diagnostic(code(scoop::typecheck::cross_thread_resume_outward_effects_unsupported))]
+    CrossThreadResumeOutwardEffectsUnsupported {
+        effects: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {

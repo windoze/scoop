@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::cross_thread_resume_outward_effects_unsupported
+// EXPECT-ERROR-AT: 16:42
+// EXPECT-ERROR: 跨线程 resume 当前阶段只支持 `Pure` continuation
+// 目标：MIR-T13 将跨线程 non-complete Step / outward effect propagation 固定为前端诊断，不能进入 MIR/codegen 后再 fatal。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun reject(k: Continuation<Int, Unit, eff Boom>): Unit {
+    __scoop_thread_spawn_join_resume_u64(k, 1)
+}

@@ -280,14 +280,14 @@ mod tests {
     use super::RefactorMirStageOutput;
     use crate::ast;
     use crate::mir::{
-        AggregateTransportKind, ArrayTransportOperation, CallKind, HandlerArmKind,
-        InitializerDependencyKind, InitializerRootKind, Item, MemberTarget, MetadataRoot,
-        MirBoxingReason, MirCallableAbiKind, MirCallableImplPlan, MirLowerError, MirLoweringFacts,
-        MirSiteMetadataKind, MirTransportKind, MirValidationError, Operand, Pattern,
-        RuntimeCastFailure, RuntimeCastResult, RuntimePatternTypeTestKind,
-        RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue,
-        StatementKind, TerminatorKind, UnwindAction, ValueTransportMetadata,
-        lower_hir_file_for_dump_with_facts,
+        AggregateTransportKind, ArrayTransportOperation, CallKind, GcIntrinsicOperation,
+        GcIntrinsicPairing, GcRootLifetime, HandlerArmKind, InitializerDependencyKind,
+        InitializerRootKind, Item, MemberTarget, MetadataRoot, MirBoxingReason, MirCallableAbiKind,
+        MirCallableImplPlan, MirLowerError, MirLoweringFacts, MirSiteMetadataKind,
+        MirTransportKind, MirValidationError, Operand, Pattern, RuntimeCastFailure,
+        RuntimeCastResult, RuntimePatternTypeTestKind, RuntimeTypeDescriptorKind,
+        RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue, StatementKind,
+        TerminatorKind, UnwindAction, ValueTransportMetadata, lower_hir_file_for_dump_with_facts,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -1695,6 +1695,125 @@ fun entry(): Int / Raise<Int> {
             perform.terminator.unwind,
             UnwindAction::Cleanup { target } if raised.blocks[target.as_u32() as usize].is_cleanup
         ));
+    }
+
+    #[test]
+    fn refactor_mir_policy_gates_keep_resume_unwind_cleanup_contract() {
+        let output = run_fixture("mir_refactor", "handle_finally_boundary.scoop");
+        let raised = validated_callable_body(&output, "fixtures.mir_refactor.handled_raise");
+
+        let perform = raised
+            .blocks
+            .iter()
+            .find(|block| matches!(block.terminator.kind, TerminatorKind::Perform { .. }))
+            .expect("policy fixture should contain a perform that can unwind through finally");
+        let cleanup_target = match perform.terminator.unwind {
+            UnwindAction::Cleanup { target } => target,
+            ref other => panic!("perform should publish cleanup unwind action, got {other:?}"),
+        };
+        assert!(raised.blocks[cleanup_target.as_u32() as usize].is_cleanup);
+        assert!(raised.blocks.iter().any(|block| {
+            block.is_cleanup && matches!(block.terminator.kind, TerminatorKind::ResumeUnwind)
+        }));
+    }
+
+    #[test]
+    fn refactor_mir_policy_gates_publish_gc_pin_handle_intrinsic_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/gc_policy_gates.scoop",
+            r#"package fixtures.mir_refactor
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+fun main(): Unit {
+    @Unsafe do {
+        val box: Box = Box(value = 1)
+        val pinned: Pinned = GC.pin(box)
+        GC.unpin(pinned)
+        val gcHandle: GcHandle = GC.handleNew(box)
+        val anyRef: Any = GC.handleGet(gcHandle)
+        GC.handleDrop(gcHandle)
+    }
+}
+"#,
+        );
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source)
+                .expect("GC policy fixture should typecheck before MIR");
+        let output = super::run(typed_hir_output).expect("GC policy fixture should lower to MIR");
+        let body = callable_body(&output, "fixtures.mir_refactor.main");
+        let call_contracts = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .filter_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::Call { transport, .. },
+                    ..
+                } => transport
+                    .gc
+                    .as_ref()
+                    .map(|gc| (gc.callee_fqn.as_str(), Some(gc))),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let find_gc = |callee: &str| {
+            call_contracts
+                .iter()
+                .find_map(|(found, gc)| {
+                    (*found == callee).then_some(gc.expect("GC call must publish metadata"))
+                })
+                .unwrap_or_else(|| {
+                    panic!("missing GC intrinsic contract for {callee}: {call_contracts:?}")
+                })
+        };
+
+        let pin = find_gc("scoop.core.GC.pin");
+        assert_eq!(pin.operation, GcIntrinsicOperation::Pin);
+        assert_eq!(pin.root_lifetime, GcRootLifetime::PinnedUntilUnpin);
+        assert_eq!(pin.pairing, GcIntrinsicPairing::PinMustPairUnpin);
+        assert!(pin.unsafe_required);
+        assert!(pin.subject.requirements.trace);
+
+        let unpin = find_gc("scoop.core.GC.unpin");
+        assert_eq!(unpin.operation, GcIntrinsicOperation::Unpin);
+        assert_eq!(unpin.root_lifetime, GcRootLifetime::EndsPinnedRoot);
+        assert_eq!(unpin.pairing, GcIntrinsicPairing::UnpinMatchesPin);
+
+        let handle_new = find_gc("scoop.core.GC.handleNew");
+        assert_eq!(handle_new.operation, GcIntrinsicOperation::HandleNew);
+        assert_eq!(
+            handle_new.root_lifetime,
+            GcRootLifetime::StableHandleUntilDrop
+        );
+        assert_eq!(
+            handle_new.pairing,
+            GcIntrinsicPairing::HandleNewMustPairDrop
+        );
+        assert!(handle_new.subject.requirements.trace);
+
+        let handle_get = find_gc("scoop.core.GC.handleGet");
+        assert_eq!(handle_get.operation, GcIntrinsicOperation::HandleGet);
+        assert_eq!(
+            handle_get.root_lifetime,
+            GcRootLifetime::BorrowedFromStableHandle
+        );
+        assert_eq!(
+            handle_get.pairing,
+            GcIntrinsicPairing::HandleGetRequiresLiveHandle
+        );
+
+        let handle_drop = find_gc("scoop.core.GC.handleDrop");
+        assert_eq!(handle_drop.operation, GcIntrinsicOperation::HandleDrop);
+        assert_eq!(handle_drop.root_lifetime, GcRootLifetime::EndsStableHandle);
+        assert_eq!(
+            handle_drop.pairing,
+            GcIntrinsicPairing::HandleDropMatchesHandleNew
+        );
     }
 
     #[test]

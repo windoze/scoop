@@ -1,25 +1,24 @@
-# 当前执行计划
+# 执行计划
 
-## 约束
-- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
-- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 若遇到阻塞当前任务的缺失能力或规格不符，先在 `TODO.md` 中加入最小必要前置任务并提交，不绕过问题。
-- 只在阶段计划本身变化时更新 `PLAN.md`。
-- 完成后必须更新 `TODO.md` 的任务标题和完成记录，并提交所有相关未提交更改。
+本文件记录当前调用的可检查执行计划与进度。不会记录内部推理细节。
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个未完成任务，并检查其依赖、验证要求和完成记录格式。
-2. 查看最新提交信息，判断是否显式提到与该任务直接相关的未完成问题。
-3. 基于当前任务范围阅读必要代码和测试，避免开放式历史问题扫查。
-4. 实现当前任务；如发现直接阻塞该任务的真实缺口，改为更新 `TODO.md` 记录前置任务并停止。
-5. 运行任务要求的验证命令；若失败，修复并重跑相关验证。
-6. 将任务标题标记为 `[DONE]`，补全完成记录；必要时更新 `memory/claude_plan.md` 的进度。
-7. 检查 git diff/status，提交本次任务涉及的所有更改。
-8. 停止，不继续下一个任务。
+## 计划
 
-## 当前状态
-- 已定位并完成当前任务：`MIR-T12R：Review MIR-T12 codegen handoff guard`。
-- 最新提交为 `[MIR-T12] Add codegen routing handoff guard`，与当前 review 直接相关，但未显式声明未完成问题。
-- 已审查 routing/ABI handoff 实现、fixtures、verifier 负例和 effect-lowered source classification fail-fast 路径；未发现需要归回 `MIR-T12` 的阻塞缺口。
-- 已运行 `MIR-T12R` 相关验证命令、最终 clippy，并更新 `TODO.md` 完成记录。
-- 下一步：提交本次 review 记录。
+1. 读取 `TODO.md`，按文件顺序识别第一个标题未带 `[DONE]` 的任务。
+2. 检查最新提交与该任务是否存在直接相关的未完成事项。
+3. 阅读该任务相关代码、测试与规范，确定最小正确实现范围。
+4. 实现首个未完成任务；如发现阻塞该任务的具体前置缺口，按要求更新 `TODO.md` 并停止。
+5. 运行该任务要求的验证命令和必要的回归测试，修复失败项。
+6. 在 `TODO.md` 中给完成任务标题加 `[DONE]`，更新完成记录。
+7. 运行最终状态检查，提交本次任务涉及的全部更改。
+8. 停止，不继续处理下一个任务。
+
+## 当前进度
+
+- 已读取 `TODO.md`，首个未完成任务为 `MIR-T13：收口 remaining MIR-facing frontend/runtime policy gates`。
+- 最新提交为 `MIR-T12R` review，无直接相关未完成事项。
+- 已定位 `MIR-T13` 相关实现：finally/ResumeUnwind pending completion contract 已存在但缺命名验证；GC pin/handle 作为 direct intrinsic call 进入 MIR 但缺少 MIR-owned policy metadata；cross-thread non-Pure continuation 需要明确 typecheck diagnostic。
+- 当前实现计划：扩展 `CallTransportMetadata` 的 GC intrinsic policy contract；在 typecheck 中拒绝 cross-thread outward propagation；添加 `refactor_mir_policy_gates` 测试、diagnostics fixtures 与 preflight denylist 维护；运行定向验证与 lint。
+- 已实现 `MIR-T13`：GC pin/handle call transport 发布 MIR-owned policy metadata；cross-thread non-Pure continuation 在 typecheck 阶段拒绝；ResumeUnwind/finally pending completion handoff 增加 `refactor_mir_policy_gates` 验证；or-pattern binder、cross-thread outward propagation、GC handle unsupported surface 均有 diagnostics fixture。
+- 已通过验证：`cargo test -p scoopc --no-default-features refactor_mir_policy_gates`、`cargo test -p scoopc --no-default-features refactor_hir_preflight`、`cargo test -p scoopc --no-default-features refactor_materialized_mir`、`cargo test -p scoopc --no-default-features refactor_mir_no_todo`、三个 diagnostics fixtures、`dump-mir`/`dump-effect-lowered` handle policy smoke、`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
+- 已更新 `TODO.md` 完成记录，下一步提交本次任务全部更改。

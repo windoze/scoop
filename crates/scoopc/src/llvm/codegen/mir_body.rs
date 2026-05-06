@@ -1152,9 +1152,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         body, mir_types, subject, path, target_cg,
                     )
             }
-            crate::mir::Rvalue::MakeTuple { elements } => self
+            crate::mir::Rvalue::MakeTuple { elements, .. } => self
                 .raw_materialized_mir_make_tuple_is_supported(body, mir_types, elements, target_cg),
-            crate::mir::Rvalue::StructLit { fields } => self
+            crate::mir::Rvalue::StructLit { fields, .. } => self
                 .raw_materialized_mir_make_struct_is_supported(body, mir_types, fields, target_cg),
             crate::mir::Rvalue::InterpolatedString { parts, .. } => self
                 .raw_materialized_mir_interpolated_string_is_supported(
@@ -1163,29 +1163,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.raw_materialized_mir_tuple_get_is_supported(body, mir_types, tuple, *index)
             }
-            crate::mir::Rvalue::MakeClosure { env, fn_ptr } => self
+            crate::mir::Rvalue::MakeClosure { env, fn_ptr, .. } => self
                 .raw_materialized_mir_make_closure_is_supported(
                     body, mir_types, env, fn_ptr, target_cg,
                 ),
-            crate::mir::Rvalue::CaptureBoxNew { value } => self
+            crate::mir::Rvalue::CaptureBoxNew { value, .. } => self
                 .raw_materialized_mir_capture_box_new_is_supported(
                     body, mir_types, value, target_cg,
                 ),
-            crate::mir::Rvalue::CaptureBoxGet { box_operand } => self
+            crate::mir::Rvalue::CaptureBoxGet { box_operand, .. } => self
                 .raw_materialized_mir_capture_box_get_is_supported(
                     body,
                     mir_types,
                     box_operand,
                     target_cg,
                 ),
-            crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => self
-                .raw_materialized_mir_capture_box_set_is_supported(
-                    body,
-                    mir_types,
-                    box_operand,
-                    value,
-                    target_cg,
-                ),
+            crate::mir::Rvalue::CaptureBoxSet {
+                box_operand, value, ..
+            } => self.raw_materialized_mir_capture_box_set_is_supported(
+                body,
+                mir_types,
+                box_operand,
+                value,
+                target_cg,
+            ),
             crate::mir::Rvalue::PerformResult { effect_ty, .. } => {
                 target_cg.is_some()
                     && self
@@ -1200,6 +1201,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
+                ..
             } => self.raw_materialized_mir_enum_variant_is_supported(
                 span,
                 body,
@@ -2410,7 +2412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::PatternExtract { subject, path } => {
                 self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
             }
-            crate::mir::Rvalue::MakeTuple { elements } => {
+            crate::mir::Rvalue::MakeTuple { elements, .. } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
             }
             crate::mir::Rvalue::SizeOf { value_ty } => {
@@ -2419,7 +2421,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields } => {
+            crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
             crate::mir::Rvalue::InterpolatedString { raw, parts } => {
@@ -2428,7 +2430,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
-            crate::mir::Rvalue::MakeClosure { env, fn_ptr } => {
+            crate::mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
                 let env_cg = self.mir_operand_cg_ty(body, mir_types, env).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "pass MIR closure env type",
@@ -2437,20 +2439,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 self.codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, slots)
             }
-            crate::mir::Rvalue::CaptureBoxNew { value } => {
+            crate::mir::Rvalue::CaptureBoxNew { value, .. } => {
                 self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
             }
-            crate::mir::Rvalue::CaptureBoxGet { box_operand } => self.codegen_mir_capture_box_get(
-                span,
-                box_operand,
-                body,
-                mir_types,
-                target_cg,
-                slots,
-            ),
-            crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
-                self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots)
-            }
+            crate::mir::Rvalue::CaptureBoxGet { box_operand, .. } => self
+                .codegen_mir_capture_box_get(span, box_operand, body, mir_types, target_cg, slots),
+            crate::mir::Rvalue::CaptureBoxSet {
+                box_operand, value, ..
+            } => self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots),
             crate::mir::Rvalue::PerformResult { effect_ty, .. } => {
                 let _ = self.codegen_mir_effect_instance_key(span, mir_types, *effect_ty)?;
                 self.default_value(span, target_cg)
@@ -2472,6 +2468,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
+                ..
             } => self.codegen_mir_enum_variant_ctor_call(
                 span,
                 *enum_ty,
@@ -2555,7 +2552,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::PatternExtract { subject, path } => {
                 self.codegen_mir_pattern_extract(span, subject, path, slots, target_cg)
             }
-            crate::mir::Rvalue::MakeTuple { elements } => {
+            crate::mir::Rvalue::MakeTuple { elements, .. } => {
                 self.codegen_mir_make_tuple(span, body, mir_types, elements, target_cg, slots)
             }
             crate::mir::Rvalue::SizeOf { value_ty } => {
@@ -2564,7 +2561,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TypeMetadataLiteral(metadata) => {
                 self.codegen_mir_type_metadata_literal(span, metadata, mir_types)
             }
-            crate::mir::Rvalue::StructLit { fields } => {
+            crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
             crate::mir::Rvalue::InterpolatedString { raw, parts } => {
@@ -2573,20 +2570,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
-            crate::mir::Rvalue::CaptureBoxNew { value } => {
+            crate::mir::Rvalue::CaptureBoxNew { value, .. } => {
                 self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
             }
-            crate::mir::Rvalue::CaptureBoxGet { box_operand } => self.codegen_mir_capture_box_get(
-                span,
-                box_operand,
-                body,
-                mir_types,
-                target_cg,
-                slots,
-            ),
-            crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
-                self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots)
-            }
+            crate::mir::Rvalue::CaptureBoxGet { box_operand, .. } => self
+                .codegen_mir_capture_box_get(span, box_operand, body, mir_types, target_cg, slots),
+            crate::mir::Rvalue::CaptureBoxSet {
+                box_operand, value, ..
+            } => self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots),
             crate::mir::Rvalue::MemberAccess {
                 receiver, member, ..
             } => self.codegen_mir_member_access(
@@ -2604,6 +2595,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
+                ..
             } => self.codegen_mir_enum_variant_ctor_call(
                 span,
                 *enum_ty,
@@ -7976,9 +7968,10 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
             receiver: operand, ..
         }
         | crate::mir::Rvalue::TupleGet { tuple: operand, .. }
-        | crate::mir::Rvalue::CaptureBoxNew { value: operand }
+        | crate::mir::Rvalue::CaptureBoxNew { value: operand, .. }
         | crate::mir::Rvalue::CaptureBoxGet {
             box_operand: operand,
+            ..
         }
         | crate::mir::Rvalue::PatternMatch {
             subject: operand, ..
@@ -8006,12 +7999,12 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
                 collect_mir_operand_use(&arg.value, out);
             }
         }
-        crate::mir::Rvalue::MakeTuple { elements } => {
+        crate::mir::Rvalue::MakeTuple { elements, .. } => {
             for element in elements {
                 collect_mir_operand_use(element, out);
             }
         }
-        crate::mir::Rvalue::StructLit { fields } => {
+        crate::mir::Rvalue::StructLit { fields, .. } => {
             for field in fields {
                 collect_mir_operand_use(&field.value, out);
             }
@@ -8023,7 +8016,9 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
                 }
             }
         }
-        crate::mir::Rvalue::CaptureBoxSet { box_operand, value } => {
+        crate::mir::Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
             collect_mir_operand_use(box_operand, out);
             collect_mir_operand_use(value, out);
         }
@@ -8031,6 +8026,7 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         crate::mir::Rvalue::TopLevelRef(_)
         | crate::mir::Rvalue::UnresolvedName { .. }
         | crate::mir::Rvalue::SizeOf { .. }
+        | crate::mir::Rvalue::TypeMetadataLiteral(_)
         | crate::mir::Rvalue::PerformResult { .. }
         | crate::mir::Rvalue::Todo(_) => {}
     }

@@ -71,8 +71,10 @@ pub use transport::{
     AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, CallAbiHandoffMetadata,
     CallTransportMetadata, CaptureBoxTransportMetadata, ClosureCaptureTransportMetadata,
-    ClosureEnvTransportMetadata, MirBoxingIntent, MirBoxingReason, MirCallableAbiKind,
-    MirCallableImplPlan, MirTransportKind, MirTransportRequirements, ValueTransportMetadata,
+    ClosureEnvTransportMetadata, GcIntrinsicOperation, GcIntrinsicPairing,
+    GcIntrinsicTransportMetadata, GcRootLifetime, MirBoxingIntent, MirBoxingReason,
+    MirCallableAbiKind, MirCallableImplPlan, MirTransportKind, MirTransportRequirements,
+    ValueTransportMetadata,
 };
 
 /// MIR materialization 的 request-root 策略。
@@ -166,6 +168,17 @@ struct RefactorProductionSiteContext<'a> {
     fqn: &'a str,
     block: BasicBlockId,
     span: Span,
+}
+
+fn gc_intrinsic_operation(callee_fqn: &str) -> Option<GcIntrinsicOperation> {
+    match callee_fqn {
+        "scoop.core.GC.pin" => Some(GcIntrinsicOperation::Pin),
+        "scoop.core.GC.unpin" => Some(GcIntrinsicOperation::Unpin),
+        "scoop.core.GC.handleNew" => Some(GcIntrinsicOperation::HandleNew),
+        "scoop.core.GC.handleGet" => Some(GcIntrinsicOperation::HandleGet),
+        "scoop.core.GC.handleDrop" => Some(GcIntrinsicOperation::HandleDrop),
+        _ => None,
+    }
 }
 
 impl File {
@@ -322,6 +335,7 @@ impl File {
                         &array.element,
                     )?;
                 }
+                self.validate_refactor_gc_intrinsic_transport(site, kind, result_ty, transport)?;
                 Ok(())
             }
             Rvalue::EnumVariant {
@@ -524,6 +538,113 @@ impl File {
             });
         }
         Ok(())
+    }
+
+    fn validate_refactor_gc_intrinsic_transport(
+        &self,
+        site: RefactorProductionSiteContext<'_>,
+        kind: &CallKind,
+        result_ty: Option<TypeId>,
+        transport: &CallTransportMetadata,
+    ) -> Result<(), MirValidationError> {
+        let direct_operation = match kind {
+            CallKind::Direct { callee_fqn } => gc_intrinsic_operation(callee_fqn),
+            CallKind::Closure { .. }
+            | CallKind::FunValue { .. }
+            | CallKind::Virtual { .. }
+            | CallKind::Interface { .. }
+            | CallKind::Resume { .. } => None,
+        };
+
+        let Some(gc) = &transport.gc else {
+            if direct_operation.is_some() {
+                return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    fqn: site.fqn.to_string(),
+                    block: site.block,
+                    span: site.span,
+                    transport: "GC intrinsic",
+                    detail: "GC intrinsic call is missing pin/handle policy metadata",
+                });
+            }
+            return Ok(());
+        };
+
+        let Some(expected_operation) = gc_intrinsic_operation(&gc.callee_fqn) else {
+            return Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                transport: "GC intrinsic",
+                detail: "GC intrinsic metadata is missing callee identity",
+            });
+        };
+
+        let detail = if direct_operation.is_some_and(|operation| operation != expected_operation) {
+            Some("direct GC call metadata does not match callee")
+        } else if gc.operation != expected_operation {
+            Some("GC intrinsic operation does not match callee")
+        } else if !gc.unsafe_required {
+            Some("GC intrinsic metadata must preserve unsafe requirement")
+        } else if gc.subject.source_ty != gc.subject_ty {
+            Some("GC intrinsic subject transport type disagrees with subject type")
+        } else if result_ty.is_some_and(|ty| transport.result.source_ty != ty) {
+            Some("GC intrinsic result transport type disagrees with assignment target")
+        } else {
+            match gc.operation {
+                GcIntrinsicOperation::Pin
+                    if gc.root_lifetime != GcRootLifetime::PinnedUntilUnpin
+                        || gc.pairing != GcIntrinsicPairing::PinMustPairUnpin
+                        || gc.token_ty.is_none() =>
+                {
+                    Some("GC.pin metadata must publish pinned lifetime and unpin pairing")
+                }
+                GcIntrinsicOperation::Unpin
+                    if gc.root_lifetime != GcRootLifetime::EndsPinnedRoot
+                        || gc.pairing != GcIntrinsicPairing::UnpinMatchesPin =>
+                {
+                    Some("GC.unpin metadata must publish pinned-root release pairing")
+                }
+                GcIntrinsicOperation::HandleNew
+                    if gc.root_lifetime != GcRootLifetime::StableHandleUntilDrop
+                        || gc.pairing != GcIntrinsicPairing::HandleNewMustPairDrop
+                        || gc.token_ty.is_none() =>
+                {
+                    Some(
+                        "GC.handleNew metadata must publish stable-handle lifetime and drop pairing",
+                    )
+                }
+                GcIntrinsicOperation::HandleGet
+                    if gc.root_lifetime != GcRootLifetime::BorrowedFromStableHandle
+                        || gc.pairing != GcIntrinsicPairing::HandleGetRequiresLiveHandle =>
+                {
+                    Some("GC.handleGet metadata must require a live stable handle")
+                }
+                GcIntrinsicOperation::HandleDrop
+                    if gc.root_lifetime != GcRootLifetime::EndsStableHandle
+                        || gc.pairing != GcIntrinsicPairing::HandleDropMatchesHandleNew =>
+                {
+                    Some("GC.handleDrop metadata must publish stable-handle release pairing")
+                }
+                _ => None,
+            }
+        };
+
+        if let Some(detail) = detail {
+            return Err(MirValidationError::RefactorProductionTransportMetadata {
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
+                transport: "GC intrinsic",
+                detail,
+            });
+        }
+
+        self.validate_refactor_value_transport(
+            site,
+            "GC intrinsic subject",
+            Some(gc.subject_ty),
+            &gc.subject,
+        )
     }
 
     fn validate_refactor_aggregate_transport(

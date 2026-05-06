@@ -142,6 +142,10 @@ const HIR_ORIGIN_MIR_FALLBACK_REASONS: &[&str] = &[
     "ctor call lowering pending",
     "resume lowering requires canonical callee shape",
     "dispatch callee lowering pending",
+    "or_pattern_binder",
+    "cross_thread_resume_outward",
+    "gc_pin_intrinsic",
+    "gc_handle_intrinsic",
     "unbound local ref",
 ];
 

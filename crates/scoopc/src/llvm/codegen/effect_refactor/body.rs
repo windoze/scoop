@@ -3035,6 +3035,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     site_id,
                     kind,
                     args,
+                    ..
                 },
         } = &stmt.kind
         else {

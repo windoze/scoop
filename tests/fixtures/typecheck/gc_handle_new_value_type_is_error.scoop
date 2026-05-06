@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::gc_handle_new_requires_ref
+// EXPECT-ERROR-AT: 13:41
+// EXPECT-ERROR: 仅支持引用类型
+// 目标：MIR-T13 将 unsupported GC handle surface 前置为 typecheck diagnostic，避免缺少 MIR pin/handle contract 的调用进入后端。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Unit {
+    @Unsafe do {
+        val _h: GcHandle = GC.handleNew(1)
+    }
+}

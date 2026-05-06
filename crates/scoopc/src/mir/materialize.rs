@@ -36,8 +36,8 @@ use super::{
     BasicBlockId, Body, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
     ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata,
     DeclOnlySummaryInput, DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
-    FieldMetadata, File, FunDecl, HandleMetadata, HandlerArm, InitializerRoot,
-    InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
+    FieldMetadata, File, FunDecl, GcIntrinsicTransportMetadata, HandleMetadata, HandlerArm,
+    InitializerRoot, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
     MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
     MaterializedMirSummaries, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
     MirPlaceholderCategory, NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg,
@@ -1632,7 +1632,49 @@ fn validate_materialized_call_transport(
     if let Some(array) = &transport.array {
         validate_materialized_array_transport(materialized, fqn, block, span, array)?;
     }
+    if let Some(gc) = &transport.gc {
+        validate_materialized_gc_intrinsic_transport(materialized, fqn, block, span, gc)?;
+    }
     Ok(())
+}
+
+fn validate_materialized_gc_intrinsic_transport(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    gc: &GcIntrinsicTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "GC intrinsic subject type",
+        },
+        gc.subject_ty,
+    )?;
+    if let Some(token_ty) = gc.token_ty {
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "GC intrinsic token type",
+            },
+            token_ty,
+        )?;
+    }
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "GC intrinsic subject transport",
+        &gc.subject,
+    )
 }
 
 fn validate_materialized_array_transport(
@@ -7298,6 +7340,22 @@ impl MirInstanceMaterializer {
         if let Some(array) = &mut transport.array {
             self.rewrite_array_transport(array, substitution);
         }
+        if let Some(gc) = &mut transport.gc {
+            self.rewrite_gc_intrinsic_transport(gc, substitution);
+        }
+    }
+
+    fn rewrite_gc_intrinsic_transport(
+        &mut self,
+        gc: &mut GcIntrinsicTransportMetadata,
+        substitution: &InstanceSubstitution,
+    ) {
+        gc.subject_ty =
+            substitute_type_and_effect_params(&mut self.types, gc.subject_ty, substitution);
+        gc.token_ty = gc
+            .token_ty
+            .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        self.rewrite_value_transport(&mut gc.subject, substitution);
     }
 
     fn rewrite_array_transport(

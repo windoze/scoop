@@ -33,6 +33,7 @@ use super::{
     ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, CtorMetadata,
     CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
     EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
+    GcIntrinsicOperation, GcIntrinsicPairing, GcIntrinsicTransportMetadata, GcRootLifetime,
     HandleMetadata, HandlerArm, HandlerArmKind, InitializerDependency, InitializerDependencyKind,
     InitializerRoot, InitializerRootKind, InterpolatedStringPart, Item, LocalDecl, LocalId,
     LocalSourceKind, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
@@ -1398,6 +1399,28 @@ enum ValueOrigin {
     MemberAccess { member: MemberAccessMetadata },
     UnresolvedName { name: String },
     UnknownCallable,
+}
+
+fn gc_intrinsic_callee_from_origin(origin: Option<&ValueOrigin>) -> Option<&str> {
+    let Some(ValueOrigin::MemberAccess {
+        member:
+            MemberAccessMetadata {
+                resolved: Some(MemberTarget::Fun { fqn } | MemberTarget::ExtensionFun { fqn }),
+                ..
+            },
+    }) = origin
+    else {
+        return None;
+    };
+    matches!(
+        fqn.as_str(),
+        "scoop.core.GC.pin"
+            | "scoop.core.GC.unpin"
+            | "scoop.core.GC.handleNew"
+            | "scoop.core.GC.handleGet"
+            | "scoop.core.GC.handleDrop"
+    )
+    .then_some(fqn.as_str())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3130,6 +3153,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -3188,6 +3212,8 @@ impl<'a> FnLowering<'a> {
             return;
         };
         let origin = self.value_origins.get(&callee_local).cloned();
+        let gc_intrinsic_callee =
+            gc_intrinsic_callee_from_origin(origin.as_ref()).map(str::to_string);
         let kind = match (prefer_closure_kind, origin) {
             (true, Some(ValueOrigin::Closure { fn_ptr })) => CallKind::Closure {
                 callee: Operand::Local(callee_local),
@@ -3202,6 +3228,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            gc_intrinsic_callee.as_deref(),
         );
         self.assign(
             span,
@@ -3311,6 +3338,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -3536,6 +3564,7 @@ impl<'a> FnLowering<'a> {
         result_ty: TypeId,
         kind: &CallKind,
         args: &[CallArg],
+        gc_intrinsic_callee: Option<&str>,
     ) -> CallTransportMetadata {
         let result = self.value_transport(result_ty);
         let aggregate_return = self
@@ -3545,7 +3574,87 @@ impl<'a> FnLowering<'a> {
             result,
             aggregate_return,
             array: self.array_transport_metadata(result_ty, kind, args),
+            gc: self.gc_intrinsic_transport_metadata(result_ty, kind, args, gc_intrinsic_callee),
             abi: self.call_abi_handoff(kind),
+        }
+    }
+
+    fn gc_intrinsic_transport_metadata(
+        &self,
+        result_ty: TypeId,
+        kind: &CallKind,
+        args: &[CallArg],
+        gc_intrinsic_callee: Option<&str>,
+    ) -> Option<GcIntrinsicTransportMetadata> {
+        let callee_fqn = match gc_intrinsic_callee {
+            Some(callee_fqn) => callee_fqn,
+            None => match kind {
+                CallKind::Direct { callee_fqn } => callee_fqn.as_str(),
+                CallKind::Closure { .. }
+                | CallKind::FunValue { .. }
+                | CallKind::Virtual { .. }
+                | CallKind::Interface { .. }
+                | CallKind::Resume { .. } => return None,
+            },
+        };
+        let subject_ty = args
+            .first()
+            .map(|arg| self.operand_ty(&arg.value))
+            .unwrap_or(self.builtins.any);
+        let subject = self.value_transport(subject_ty);
+
+        match callee_fqn {
+            "scoop.core.GC.pin" => Some(GcIntrinsicTransportMetadata {
+                callee_fqn: callee_fqn.to_string(),
+                operation: GcIntrinsicOperation::Pin,
+                root_lifetime: GcRootLifetime::PinnedUntilUnpin,
+                pairing: GcIntrinsicPairing::PinMustPairUnpin,
+                unsafe_required: true,
+                subject_ty,
+                token_ty: Some(result_ty),
+                subject,
+            }),
+            "scoop.core.GC.unpin" => Some(GcIntrinsicTransportMetadata {
+                callee_fqn: callee_fqn.to_string(),
+                operation: GcIntrinsicOperation::Unpin,
+                root_lifetime: GcRootLifetime::EndsPinnedRoot,
+                pairing: GcIntrinsicPairing::UnpinMatchesPin,
+                unsafe_required: true,
+                subject_ty,
+                token_ty: Some(subject_ty),
+                subject,
+            }),
+            "scoop.core.GC.handleNew" => Some(GcIntrinsicTransportMetadata {
+                callee_fqn: callee_fqn.to_string(),
+                operation: GcIntrinsicOperation::HandleNew,
+                root_lifetime: GcRootLifetime::StableHandleUntilDrop,
+                pairing: GcIntrinsicPairing::HandleNewMustPairDrop,
+                unsafe_required: true,
+                subject_ty,
+                token_ty: Some(result_ty),
+                subject,
+            }),
+            "scoop.core.GC.handleGet" => Some(GcIntrinsicTransportMetadata {
+                callee_fqn: callee_fqn.to_string(),
+                operation: GcIntrinsicOperation::HandleGet,
+                root_lifetime: GcRootLifetime::BorrowedFromStableHandle,
+                pairing: GcIntrinsicPairing::HandleGetRequiresLiveHandle,
+                unsafe_required: true,
+                subject_ty,
+                token_ty: Some(subject_ty),
+                subject,
+            }),
+            "scoop.core.GC.handleDrop" => Some(GcIntrinsicTransportMetadata {
+                callee_fqn: callee_fqn.to_string(),
+                operation: GcIntrinsicOperation::HandleDrop,
+                root_lifetime: GcRootLifetime::EndsStableHandle,
+                pairing: GcIntrinsicPairing::HandleDropMatchesHandleNew,
+                unsafe_required: true,
+                subject_ty,
+                token_ty: Some(subject_ty),
+                subject,
+            }),
+            _ => None,
         }
     }
 
@@ -3951,7 +4060,10 @@ impl<'a> FnLowering<'a> {
         );
 
         let site_id = self.fresh_site_id();
-        let transport = self.call_transport_metadata(result_ty, &kind, &args);
+        let gc_intrinsic_callee =
+            gc_intrinsic_callee_from_origin(callee_origin.as_ref()).map(str::to_string);
+        let transport =
+            self.call_transport_metadata(result_ty, &kind, &args, gc_intrinsic_callee.as_deref());
         self.assign(
             span,
             result,
@@ -4090,6 +4202,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -4148,6 +4261,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -4242,6 +4356,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -4317,6 +4432,7 @@ impl<'a> FnLowering<'a> {
             self.body.locals[result.as_u32() as usize].ty,
             &kind,
             &args,
+            None,
         );
         self.assign(
             span,
@@ -4888,7 +5004,7 @@ impl<'a> FnLowering<'a> {
                 value: Operand::Local(rhs_local),
             },
         ];
-        let transport = self.call_transport_metadata(self.builtins.int, &kind, &args);
+        let transport = self.call_transport_metadata(self.builtins.int, &kind, &args, None);
         self.assign(
             span,
             compare_result,

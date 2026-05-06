@@ -147,6 +147,45 @@ pub struct ArrayElementTransportMetadata {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcIntrinsicOperation {
+    Pin,
+    Unpin,
+    HandleNew,
+    HandleGet,
+    HandleDrop,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcRootLifetime {
+    PinnedUntilUnpin,
+    EndsPinnedRoot,
+    StableHandleUntilDrop,
+    BorrowedFromStableHandle,
+    EndsStableHandle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcIntrinsicPairing {
+    PinMustPairUnpin,
+    UnpinMatchesPin,
+    HandleNewMustPairDrop,
+    HandleGetRequiresLiveHandle,
+    HandleDropMatchesHandleNew,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GcIntrinsicTransportMetadata {
+    pub callee_fqn: String,
+    pub operation: GcIntrinsicOperation,
+    pub root_lifetime: GcRootLifetime,
+    pub pairing: GcIntrinsicPairing,
+    pub unsafe_required: bool,
+    pub subject_ty: TypeId,
+    pub token_ty: Option<TypeId>,
+    pub subject: ValueTransportMetadata,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirCallableAbiKind {
     Plain,
     EffectStep,
@@ -195,6 +234,7 @@ pub struct CallTransportMetadata {
     pub result: ValueTransportMetadata,
     pub aggregate_return: Option<ValueTransportMetadata>,
     pub array: Option<ArrayElementTransportMetadata>,
+    pub gc: Option<GcIntrinsicTransportMetadata>,
     pub abi: CallAbiHandoffMetadata,
 }
 
@@ -204,6 +244,7 @@ impl CallTransportMetadata {
             result: ValueTransportMetadata::plain(result_ty, kind),
             aggregate_return: None,
             array: None,
+            gc: None,
             abi: CallAbiHandoffMetadata::plain_no_outward(),
         }
     }
