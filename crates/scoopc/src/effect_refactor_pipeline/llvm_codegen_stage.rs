@@ -1210,7 +1210,7 @@ fun main(args: Array<String>): Int {
     }
 
     #[test]
-    fn refactor_llvm_codegen_stage_lowers_effectful_handle_body() {
+    fn refactor_llvm_backend_gate_smoke_lowers_effectful_handle_body_without_legacy() {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join("effect.ll");

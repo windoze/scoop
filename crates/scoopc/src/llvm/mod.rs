@@ -25,6 +25,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 mod codegen;
+pub(crate) mod codegen_gap_inventory;
 mod emit;
 mod frontend;
 mod pipeline;
@@ -94,6 +95,24 @@ fn configure_llvm_global_options_once() {
     }
 }
 
+/// Backend gate diagnostic emitted before an unsupported MIR shape enters LLVM body emission.
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "LLVM backend gate 拒绝 `{body_fqn}` 进入 {route}：{detail}（gap {gap_id}, owner {owner_task}, suggested owner {suggested_owner}, source_span={source_span:?}）"
+)]
+#[diagnostic(code(scoop::llvm::refactor_backend_gate))]
+pub struct RefactorBackendGateError {
+    pub(crate) body_fqn: String,
+    pub(crate) source_span: Span,
+    pub(crate) gap_id: &'static str,
+    pub(crate) owner_task: &'static str,
+    pub(crate) suggested_owner: &'static str,
+    pub(crate) route: &'static str,
+    pub(crate) detail: &'static str,
+    #[label("这里")]
+    pub(crate) at: miette::SourceSpan,
+}
+
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmEmitError {
@@ -142,6 +161,10 @@ pub enum LlvmEmitError {
         callable: String,
         unsupported_paths: String,
     },
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    RefactorBackendGate(#[from] Box<RefactorBackendGateError>),
 
     #[error(
         "入口函数 `{entry}` 存在多个合法候选（{count} 个）；可执行程序必须且只能有一个 entry main"

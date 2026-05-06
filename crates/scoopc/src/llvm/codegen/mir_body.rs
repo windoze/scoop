@@ -142,6 +142,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "pass MIR cfg",
                 at: mir_fun.span.into(),
             })?;
+        if let Some(failure) = crate::llvm::codegen_gap_inventory::raw_mir_backend_gate_failure(
+            &mir_fun.fqn,
+            mir_fun.span,
+            body,
+        ) {
+            return Err(failure.into_llvm_error());
+        }
 
         self.current_source_id =
             self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;

@@ -12,7 +12,7 @@
 
 | ID | 阶段 | 标题 |
 | --- | --- | --- |
-| `CG-T00` | CG0 | 建立 codegen gap inventory 与 backend gate |
+| `CG-T00` | CG0 | [DONE] 建立 codegen gap inventory 与 backend gate |
 | `CG-T00R` | CG0R | Review CG-T00 codegen inventory 与 backend gate |
 | `CG-T01` | CG1 | 收口 raw MIR effect/control route 与 unsupported call kind |
 | `CG-T01R` | CG1R | Review CG-T01 raw MIR route gate |
@@ -40,7 +40,7 @@
 - 若缺少 upstream MIR contract，必须 fail fast 并回填 [`TODO.md`](./TODO.md)，不得在 backend 现场猜 shape。
 - 每个任务完成时必须列出实际运行的定向测试；只有 `CG-T08` 要求 full regression。
 
-## CG-T00：建立 codegen gap inventory 与 backend gate
+## [DONE] CG-T00：建立 codegen gap inventory 与 backend gate
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG0
@@ -68,6 +68,12 @@
   - 所有 codegen-stage gap 都有唯一 owner task。
   - 后续 codegen 任务可以用 inventory 判断是否真正消除对应 gap。
 - 依赖：无
+
+- 完成记录：
+  - 2026-05-07：新增 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`，把 `PIPELINE_GAPS.md` codegen-stage scope 的 gap 记录为可测试 inventory，包含 gap id、owner task、route、upstream contract need、production blocker 与 trigger。
+  - 2026-05-07：新增 `scoop::llvm::refactor_backend_gate` 诊断，并在 raw MIR body emission 前 gate 掉 Todo、缺 routing facts 的 effect/control/call-kind、PerformResult、runtime type primitive、class ctor named/default、pattern `is Type`、ambiguous continuation route 等已登记缺口，错误包含 body FQN、source span、gap id 与 suggested owner。
+  - 2026-05-07：将 refactor LLVM smoke 纳入 `refactor_llvm_backend_gate` 过滤，确认 refactor stage 生成 effectful handle body IR 且不回 legacy handler-stack/outcome runtime。
+  - 验证通过：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、搜索 `UnsupportedMainBody|pass MIR|refactor .*unsupported` 与 `runtime fatal helper` 命中 inventory trigger 且带 owner、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T00R：Review CG-T00 codegen inventory 与 backend gate
 

@@ -1,32 +1,27 @@
-# Execution Plan
+# 当前执行计划
 
-## Constraints
+## 约束
+- 以 `TODO.md` 为唯一任务排序与完成状态来源。
+- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
+- 如遇到阻塞当前任务的实现缺口，不用 workaround；在 `TODO.md` 中新增最小必要前置任务并停止。
+- 完成任务后更新 `TODO.md`、运行相关验证、提交 Git commit。
 
-- `TODO.md` is the authoritative task source.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Do not skip review tasks or tasks with completion notes but no `[DONE]` prefix.
-- Do not use workarounds for spec mismatches; if a concrete prerequisite is required, add the minimum prerequisite task to `TODO.md`, commit that bookkeeping, and stop.
-- Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria change.
-- Mark the completed task by prefixing its title with `[DONE]` and updating its completion record.
-- Commit all relevant uncommitted files after finishing or after recording a blocker.
+## 步骤
+1. 读取 `TODO.md`，定位第一个未完成任务及其验证要求。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
+3. 读取当前任务涉及的代码、测试与文档，限定调查范围。
+4. 实现任务或在发现硬性阻塞时更新 `TODO.md` 添加前置任务。
+5. 运行任务要求的验证与必要的回归测试，修复当前任务引入的问题。
+6. 更新 `TODO.md`：为完成任务标题加 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 更新本文件记录关键进度。
+8. 提交所有与本次任务相关的变更，然后停止。
 
-## Step-by-Step Plan
-
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Inspect only the files and context relevant to that task, including recent git state if needed to detect directly relevant unfinished work.
-3. Implement the task as written, without narrowing scope or introducing fixture-only behavior.
-4. Add or update the smallest relevant tests or fixtures required by the task.
-5. Run the task-specified validation commands and any directly relevant regression tests.
-6. If validation fails, fix the cause when it is in scope; if a concrete prerequisite blocks the task, update `TODO.md` with that prerequisite and stop after committing.
-7. Update this plan file after key milestones or any plan change.
-8. When the task is complete, update `TODO.md` with `[DONE]` and a completion record.
-9. Run final relevant validation, inspect git status/diff, and commit the completed task with a clear task-tagged message.
-10. Stop without starting the next task.
-
-## Progress Log
-
-- Initial execution plan recorded before project commands.
-- First incomplete task identified: `MIR-T14R` (`Review MIR-T14 phase exit audit`). This invocation will perform only that review task, rerun its required validations, update `TODO.md` with the review conclusion if successful, commit, and stop.
-- Static review completed: `MIR_REFACTOR_PHASE_EXIT_AUDIT.md`, `PLAN.md` M8/§4, `PIPELINE_GAPS.md` §9, fixture/golden coverage, diagnostics comments, stable dump sharing, and codegen owner links were checked.
-- Validation completed successfully: `refactor_hir_preflight`, `refactor_mir_no_todo`, `refactor_materialized_mir`, `dump_mir`, `mir_refactor` fixture matrix, 16 diagnostics fixtures, and `clippy` for `scoopc`/`scoop` with warnings denied all passed.
-- `TODO.md` updated: `MIR-T14R` is marked `[DONE]` with the review conclusion, audit coverage, fixture checks, diagnostics checks, validation commands, and lint results.
+## 当前状态
+- 已定位第一个未完成任务：`CG-T00：建立 codegen gap inventory 与 backend gate`。
+- 最近提交 `ba02261c Update plan` 未直接指向 `CG-T00` 的未完成实现问题。
+- 已确认现有后端入口主要在 `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/codegen/mir_body.rs`，refactor smoke 已集中在 `effect_refactor_pipeline/llvm_codegen_stage.rs` 与 `scoop` CLI 测试。
+- 当前实施方案：新增 `llvm::codegen_gap_inventory` 静态 owner map；在 `codegen_top_level_mir_fun` 进入 raw MIR body emission 前调用 backend gate；补 `codegen_gap_inventory*` 与 `refactor_llvm_backend_gate*` 单测。
+- 已完成实现：新增 inventory、`RefactorBackendGate` 诊断、raw MIR backend gate，并将 refactor LLVM smoke 测试纳入 `refactor_llvm_backend_gate` 过滤名称。
+- 已完成验证：`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、inventory trigger 搜索、`cargo clippy --all-targets -- -D warnings`。
+- 已更新 `TODO.md`，将 `CG-T00` 标记为 `[DONE]` 并写入完成记录。
+- 下一步提交本次任务变更，然后停止。
