@@ -1640,6 +1640,7 @@ fun main(): Int {
                     op_fqn: "scoop.core.Raise.raise".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,
+                        result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
                         arg_mapping: Vec::new(),

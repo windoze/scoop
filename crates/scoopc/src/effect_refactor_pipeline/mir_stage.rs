@@ -261,7 +261,9 @@ mod tests {
     use super::RefactorMirStageOutput;
     use crate::mir::{
         CallKind, HandlerArmKind, InitializerDependencyKind, InitializerRootKind, Item,
-        MemberTarget, MetadataRoot, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        MemberTarget, MetadataRoot, MirLowerError, MirLoweringFacts, MirSiteMetadataKind,
+        MirValidationError, Operand, Rvalue, StatementKind, TerminatorKind, UnwindAction,
+        lower_hir_file_for_dump_with_facts,
     };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
@@ -733,7 +735,7 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_lowering_contract_keeps_direct_dispatch_and_resume_sites_explicit() {
+    fn refactor_mir_effect_site_contract_keeps_dispatch_and_resume_sites_explicit() {
         let direct_output = run_fixture("mir", "direct_and_fun_value_call.scoop");
         let main_body = callable_body(&direct_output, "a.main");
         let main_calls = main_body
@@ -898,7 +900,7 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_lowering_contract_records_perform_and_handle_metadata() {
+    fn refactor_mir_effect_site_contract_records_perform_and_handle_metadata() {
         let output = run_fixture("mir", "handle_perform.scoop");
         let body = callable_body(&output, "a.main");
         let entry = &body.blocks[body.start.as_u32() as usize].terminator.kind;
@@ -954,6 +956,13 @@ fun main() {}
                 .to_string(),
             "scoop.core.Raise<Int>"
         );
+        assert_eq!(
+            output
+                .types()
+                .display(perform_metadata.result_ty)
+                .to_string(),
+            "Nothing"
+        );
         assert_eq!(perform_metadata.arg_mapping, vec![0]);
         assert_eq!(perform_metadata.payload_component_tys.len(), 1);
         assert_eq!(
@@ -968,7 +977,53 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_lowering_contract_canonicalizes_resume_unit_sugar() {
+    fn refactor_mir_effect_site_contract_missing_perform_contract_is_stage_error() {
+        let source = SourceFile::new_virtual(
+            "<mem>/missing_perform_contract.scoop",
+            r#"package sample
+import scoop.core.Raise
+
+fun entry(): Int / Raise<Int> {
+    Raise.raise(1)
+    return 0
+}
+"#,
+        );
+        let (file, unit_ty) = lower_with_empty_refactor_contracts(&source);
+        let dump = format!("{file:#?}");
+        let old_reason = ["refactor perform", " contract missing"].concat();
+        assert!(
+            !dump.contains(&old_reason) && !dump.contains("Todo"),
+            "missing typed perform contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
+        );
+
+        assert_site_metadata_error(
+            super::validate_refactor_bodies(&file, unit_ty)
+                .expect_err("missing perform contract should fail stage validation"),
+            MirSiteMetadataKind::Perform,
+        );
+    }
+
+    #[test]
+    fn refactor_mir_effect_site_contract_missing_handle_contract_is_stage_error() {
+        let source = load_fixture("mir_refactor", "handle_perform.scoop");
+        let (file, unit_ty) = lower_with_empty_refactor_contracts(&source);
+        let dump = format!("{file:#?}");
+        let old_reason = ["refactor handle", " contract missing"].concat();
+        assert!(
+            !dump.contains(&old_reason) && !dump.contains("Todo"),
+            "missing typed handle contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
+        );
+
+        assert_site_metadata_error(
+            super::validate_refactor_bodies(&file, unit_ty)
+                .expect_err("missing handle contract should fail stage validation"),
+            MirSiteMetadataKind::Handle,
+        );
+    }
+
+    #[test]
+    fn refactor_mir_effect_site_contract_canonicalizes_resume_unit_sugar() {
         let output = run_fixture("mir_refactor", "continuation_resume_unit_sugar.scoop");
         let body = callable_body(&output, "fixtures.mir_refactor.resumeUnit");
 
@@ -1033,6 +1088,37 @@ fun main() {}
                 .stable_dump()
                 .contains("resume callee lowering pending")
         );
+    }
+
+    fn lower_with_empty_refactor_contracts(
+        source: &SourceFile,
+    ) -> (crate::mir::File, crate::ty::TypeId) {
+        let session = refactor_session();
+        let typed_hir_output = super::super::load_typed_hir_stage_output_for_dump(&session, source)
+            .expect("typed HIR should pass before forged contract lowering");
+        let facts = MirLoweringFacts::default()
+            .with_refactor_typed_contracts(&TypedHirEffectContracts::default());
+        let mut lowered_hir = typed_hir_output.into_lowered_hir();
+        let builtins = lowered_hir.types.intern_builtins();
+        let file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+        (file, builtins.unit)
+    }
+
+    fn assert_site_metadata_error(error: MirLowerError, expected_site: MirSiteMetadataKind) {
+        let MirLowerError::InvalidRefactorMir { error, .. } = error else {
+            panic!("expected refactor MIR validation error, got {error:?}");
+        };
+        let MirValidationError::RefactorProductionSiteMetadata { site, detail, .. } = error else {
+            panic!("expected site metadata validation error, got {error:?}");
+        };
+        assert_eq!(site, expected_site);
+        assert!(!detail.is_empty());
     }
 
     #[test]

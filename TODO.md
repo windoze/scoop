@@ -520,7 +520,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T08：收口 dispatch/resume/perform/handle site contract
+## [DONE] MIR-T08：收口 dispatch/resume/perform/handle site contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M5
@@ -554,8 +554,25 @@
   3. 添加负例：删除/伪造 typed contract 时 MIR stage diagnostic 清晰。
 
 - 完成条件：
-  - effect/control-sensitive site 的 MIR metadata 可独立驱动 P4 facts。
+   - effect/control-sensitive site 的 MIR metadata 可独立驱动 P4 facts。
 - 依赖：`MIR-T07R`
+
+- 完成记录（2026-05-06）：
+  - typed HIR continuation resume contract 现在发布 receiver route 与 payload arg indices；refactor MIR resume lowering 消费该 route，不再从 canonical callee shape 恢复 continuation receiver/payload。
+  - typed perform contract 与 MIR `PerformMetadata` 现在发布 `result_ty`；materialized MIR verifier/substitution 覆盖 perform result type。
+  - refactor perform/handle 缺 contract 路径不再构造 `Rvalue::Todo` / `TerminatorKind::Todo`，改由 strict production verifier 以 site metadata diagnostic 拒绝 forged/missing contract。
+  - MIR placeholder inventory 已将 resume/dispatch 旧 placeholder 归入 `LegacyOnly`，并移除 refactor perform/handle contract-missing placeholder entries；搜索确认 perform/handle contract-missing Todo 构造已不存在。
+  - 新增/重命名 `refactor_mir_effect_site_contract*` 定向测试，覆盖 dispatch、resume、perform、handle metadata，以及缺失 perform/handle typed contract 的 stage error 负例。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_effect_site_contract`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_perform.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_call_contract`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T08R：Review MIR-T08 dispatch/resume/perform/handle contract
 

@@ -142,8 +142,6 @@ const HIR_ORIGIN_MIR_FALLBACK_REASONS: &[&str] = &[
     "ctor call lowering pending",
     "resume lowering requires canonical callee shape",
     "dispatch callee lowering pending",
-    "refactor perform contract missing",
-    "refactor handle contract missing",
     "unbound local ref",
 ];
 

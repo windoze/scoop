@@ -1694,6 +1694,16 @@ fn validate_materialized_perform_metadata(
         },
         metadata.effect_ty,
     )?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span,
+            surface: "perform result type",
+        },
+        metadata.result_ty,
+    )?;
     if let Some(payload_tuple_ty) = metadata.payload_tuple_ty {
         validate_materialized_type(
             materialized,
@@ -6016,6 +6026,8 @@ impl MirInstanceMaterializer {
     ) {
         metadata.effect_ty =
             substitute_type_and_effect_params(&mut self.types, metadata.effect_ty, substitution);
+        metadata.result_ty =
+            substitute_type_and_effect_params(&mut self.types, metadata.result_ty, substitution);
         metadata.payload_tuple_ty = metadata
             .payload_tuple_ty
             .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));

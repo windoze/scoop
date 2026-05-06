@@ -167,66 +167,23 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Rvalue,
         "resume lowering requires canonical callee shape",
         "PIPELINE_GAPS.md §1.9",
-        PlaceholderDisposition::ImplementInMir,
+        PlaceholderDisposition::LegacyOnly,
         "MIR-T08",
-        true,
-        "Resume calls must be driven by typed resume-site metadata, not canonical callee shape.",
+        false,
+        "Only the legacy non-refactor resume fallback constructs this placeholder; refactor MIR consumes typed receiver/payload routes.",
     ),
     entry(
         PlaceholderSurface::Rvalue,
         "dispatch callee lowering pending",
         "PIPELINE_GAPS.md §1.8",
-        PlaceholderDisposition::ImplementInMir,
+        PlaceholderDisposition::LegacyOnly,
         "MIR-T08",
-        true,
-        "Dispatch metadata must come from structured owner/member bindings.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "refactor perform contract missing",
-        "PIPELINE_GAPS.md §1.10",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T08",
-        true,
-        "Typed handoff must publish perform-site payload/result/resume metadata.",
-    ),
-    entry(
-        PlaceholderSurface::Terminator,
-        "refactor perform contract missing",
-        "PIPELINE_GAPS.md §1.10",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T08",
-        true,
-        "Missing perform metadata must be a stage diagnostic rather than a terminator Todo.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "refactor handle contract missing",
-        "PIPELINE_GAPS.md §1.11",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T08",
-        true,
-        "Typed handoff must publish handle-site body/arm/finally metadata.",
-    ),
-    entry(
-        PlaceholderSurface::Terminator,
-        "refactor handle contract missing",
-        "PIPELINE_GAPS.md §1.11",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T08",
-        true,
-        "Missing handle metadata must be a stage diagnostic rather than a terminator Todo.",
+        false,
+        "Only the legacy non-refactor dispatch fallback recovers owner/member from a callee string; refactor MIR consumes structured dispatch contracts.",
     ),
 ];
 
-const REQUIRED_KNOWN_MIR_REASONS: &[&str] = &[
-    "top-level val",
-    "resume lowering requires canonical callee shape",
-    "dispatch callee lowering pending",
-    "refactor perform contract missing",
-    "refactor handle contract missing",
-    "missing expr",
-];
+const REQUIRED_KNOWN_MIR_REASONS: &[&str] = &["top-level val", "missing expr"];
 
 const ITEM_TODO_PATTERN: &str = concat!("Item", "::Todo");
 const STATEMENT_TODO_PATTERN: &str = concat!("StatementKind", "::Todo(\"");

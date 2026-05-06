@@ -14,9 +14,9 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::effect_refactor_pipeline::{
-    ExternGlobalContract, HandleArmContractKind, MemberCallTargetContract,
-    TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
-    TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
+    ContinuationResumeReceiverRoute, ExternGlobalContract, HandleArmContractKind,
+    MemberCallTargetContract, TopLevelInitDependencyKind, TopLevelInitRootContract,
+    TopLevelInitRootKind, TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
 };
 use crate::hir;
 use crate::session::Session;
@@ -58,7 +58,7 @@ pub(crate) struct MirLoweringFacts {
     legacy_resume_site_spans: HashSet<Span>,
     legacy_outward_resume_site_spans: HashSet<Span>,
     legacy_perform_sites: HashMap<Span, PerformCallSiteInfo>,
-    refactor_resume_sites: HashMap<hir::CallSite, ResumeMetadata>,
+    refactor_resume_sites: HashMap<hir::CallSite, RefactorResumeCallInfo>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
@@ -121,6 +121,13 @@ struct RefactorHandleSiteInfo {
 }
 
 #[derive(Debug, Clone)]
+struct RefactorResumeCallInfo {
+    receiver_route: ContinuationResumeReceiverRoute,
+    payload_arg_indices: Vec<usize>,
+    metadata: ResumeMetadata,
+}
+
+#[derive(Debug, Clone)]
 struct RefactorDispatchCallInfo {
     kind: DispatchTargetKind,
     owner_fqn: String,
@@ -137,6 +144,13 @@ fn refactor_dispatch_call_info(
         owner_fqn: member.owner_fqn().to_string(),
         member_name: member.member_name().to_string(),
         receiver_ty: member.receiver_ty(),
+    }
+}
+
+fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
+    match arg {
+        hir::CallArg::Positional(expr) => expr,
+        hir::CallArg::Named { value, .. } => value,
     }
 }
 
@@ -342,14 +356,18 @@ impl MirLoweringFacts {
         for (call_site, contract) in contracts.continuation_resume_sites() {
             self.refactor_resume_sites.insert(
                 call_site.clone(),
-                ResumeMetadata {
-                    continuation_ty: contract.receiver_ty(),
-                    resume_ty: contract.resume_ty(),
-                    answer_ty: contract.answer_ty(),
-                    return_ty: contract.return_ty(),
-                    out_effects: contract.out_effects().clone(),
-                    runtime_error_effect_ty: contract.runtime_error_effect_ty(),
-                    suspends_outward: !contract.out_effects().is_pure(),
+                RefactorResumeCallInfo {
+                    receiver_route: contract.receiver_route(),
+                    payload_arg_indices: contract.payload_arg_indices().to_vec(),
+                    metadata: ResumeMetadata {
+                        continuation_ty: contract.receiver_ty(),
+                        resume_ty: contract.resume_ty(),
+                        answer_ty: contract.answer_ty(),
+                        return_ty: contract.return_ty(),
+                        out_effects: contract.out_effects().clone(),
+                        runtime_error_effect_ty: contract.runtime_error_effect_ty(),
+                        suspends_outward: !contract.out_effects().is_pure(),
+                    },
                 },
             );
         }
@@ -359,6 +377,7 @@ impl MirLoweringFacts {
                 call_site.clone(),
                 PerformMetadata {
                     effect_ty: contract.effect_ty(),
+                    result_ty: contract.result_ty(),
                     payload_tuple_ty: contract.payload().ty(),
                     payload_component_tys: contract.payload().components().to_vec(),
                     arg_mapping: contract.arg_mapping().to_vec(),
@@ -489,11 +508,11 @@ impl MirLoweringFacts {
         self.legacy_perform_sites.get(&span)
     }
 
-    fn refactor_resume_metadata(
+    fn refactor_resume_call_info(
         &self,
         source_path: &std::path::Path,
         span: Span,
-    ) -> Option<&ResumeMetadata> {
+    ) -> Option<&RefactorResumeCallInfo> {
         self.refactor_resume_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
@@ -3090,6 +3109,7 @@ impl<'a> FnLowering<'a> {
     fn canonicalize_perform_args(
         &mut self,
         span: Span,
+        result_ty: TypeId,
         lowered_args: Vec<CallArg>,
     ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
         let uses_refactor_typed_contracts = self.facts.uses_refactor_typed_contracts();
@@ -3178,6 +3198,7 @@ impl<'a> FnLowering<'a> {
             perform_args,
             PerformMetadata {
                 effect_ty: self.builtins.any,
+                result_ty,
                 payload_tuple_ty,
                 payload_component_tys,
                 arg_mapping,
@@ -3195,12 +3216,12 @@ impl<'a> FnLowering<'a> {
         let result_ty = self.call_result_ty_from_callee(span, callee).unwrap_or(ty);
         let result = self.push_temp_local(span, result_ty);
 
-        if let Some(resume_metadata) = self
+        if let Some(resume_info) = self
             .facts
-            .refactor_resume_metadata(self.source_path.as_path(), span)
+            .refactor_resume_call_info(self.source_path.as_path(), span)
             .cloned()
         {
-            self.lower_resume_call_expr(span, result, callee, args, Some(resume_metadata));
+            self.lower_resume_call_expr(span, result, callee, args, Some(resume_info));
             return result;
         }
 
@@ -3388,30 +3409,44 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee: &hir::Expr,
         args: &[hir::CallArg],
-        resume_metadata: Option<ResumeMetadata>,
+        resume_info: Option<RefactorResumeCallInfo>,
     ) {
-        let (receiver, payload_args) = match &callee.kind {
-            hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args),
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
-                let Some((hir::CallArg::Positional(receiver), payload_args)) = args.split_first()
-                else {
+        let (receiver, payload_args, metadata) = if let Some(info) = resume_info {
+            let Some(receiver) = self.resume_receiver_from_contract(callee, args, &info) else {
+                self.lower_malformed_refactor_resume_call(span, result, info.metadata);
+                return;
+            };
+            let Some(payload_args) = self.resume_payload_args_from_contract(args, &info) else {
+                self.lower_malformed_refactor_resume_call(span, result, info.metadata);
+                return;
+            };
+            (receiver, payload_args, Some(info.metadata))
+        } else {
+            let (receiver, payload_args) = match &callee.kind {
+                hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args.to_vec()),
+                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
+                    let Some((hir::CallArg::Positional(receiver), payload_args)) =
+                        args.split_first()
+                    else {
+                        self.assign(
+                            span,
+                            result,
+                            Rvalue::Todo("resume lowering requires canonical callee shape"),
+                        );
+                        return;
+                    };
+                    (receiver, payload_args.to_vec())
+                }
+                _ => {
                     self.assign(
                         span,
                         result,
                         Rvalue::Todo("resume lowering requires canonical callee shape"),
                     );
                     return;
-                };
-                (receiver, payload_args)
-            }
-            _ => {
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::Todo("resume lowering requires canonical callee shape"),
-                );
-                return;
-            }
+                }
+            };
+            (receiver, payload_args, None)
         };
 
         let continuation_local = self.lower_expr_to_local(receiver);
@@ -3419,11 +3454,11 @@ impl<'a> FnLowering<'a> {
             return;
         }
 
-        let Some(args) = self.lower_call_args(payload_args) else {
+        let Some(args) = self.lower_call_args(&payload_args) else {
             return;
         };
         let continuation_ty = self.body.locals[continuation_local.as_u32() as usize].ty;
-        let resume = resume_metadata.unwrap_or_else(|| {
+        let resume = metadata.unwrap_or_else(|| {
             let (resume_ty, answer_ty, out_effects) = continuation_contract_from_type(
                 self.types,
                 continuation_ty,
@@ -3451,6 +3486,56 @@ impl<'a> FnLowering<'a> {
                     resume,
                 },
                 args,
+            },
+        );
+    }
+
+    fn resume_receiver_from_contract<'b>(
+        &self,
+        callee: &'b hir::Expr,
+        args: &'b [hir::CallArg],
+        info: &RefactorResumeCallInfo,
+    ) -> Option<&'b hir::Expr> {
+        match info.receiver_route {
+            ContinuationResumeReceiverRoute::CallArg { index } => {
+                args.get(index).map(call_arg_expr)
+            }
+            ContinuationResumeReceiverRoute::MemberReceiver => match &callee.kind {
+                hir::ExprKind::MemberAccess { receiver, .. } => Some(receiver.as_ref()),
+                _ => None,
+            },
+        }
+    }
+
+    fn resume_payload_args_from_contract(
+        &self,
+        args: &[hir::CallArg],
+        info: &RefactorResumeCallInfo,
+    ) -> Option<Vec<hir::CallArg>> {
+        info.payload_arg_indices
+            .iter()
+            .map(|index| args.get(*index).cloned())
+            .collect()
+    }
+
+    fn lower_malformed_refactor_resume_call(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        mut metadata: ResumeMetadata,
+    ) {
+        metadata.runtime_error_effect_ty = None;
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind: CallKind::Resume {
+                    continuation: Operand::Const(ConstValue::Unit),
+                    resume: metadata,
+                },
+                args: Vec::new(),
             },
         );
     }
@@ -3645,19 +3730,41 @@ impl<'a> FnLowering<'a> {
             return self.push_temp_local(span, ty);
         }
 
-        let Some((perform_args, mut metadata)) = self.canonicalize_perform_args(span, lowered_args)
+        let Some((perform_args, mut metadata)) =
+            self.canonicalize_perform_args(span, ty, lowered_args)
         else {
             let result = self.push_temp_local(span, ty);
             self.assign(
                 span,
                 result,
-                Rvalue::Todo("refactor perform contract missing"),
+                Rvalue::PerformResult {
+                    op_fqn: op.fqn.clone(),
+                    effect_ty,
+                },
             );
-            self.set_terminator(
+            let perform_args = Vec::new();
+            let resume_target = self.push_block(span);
+            let site_id = self.fresh_site_id();
+            let unwind = self.build_perform_unwind_action(span);
+            self.set_terminator_with_unwind(
                 self.current_bb,
                 span,
-                TerminatorKind::Todo("refactor perform contract missing"),
+                TerminatorKind::Perform {
+                    site_id,
+                    op_fqn: String::new(),
+                    metadata: PerformMetadata {
+                        effect_ty,
+                        result_ty: ty,
+                        payload_tuple_ty: None,
+                        payload_component_tys: Vec::new(),
+                        arg_mapping: Vec::new(),
+                    },
+                    args: perform_args,
+                    resume_target,
+                },
+                unwind,
             );
+            self.current_bb = resume_target;
             return result;
         };
         metadata.effect_ty = effect_ty;
@@ -3715,16 +3822,30 @@ impl<'a> FnLowering<'a> {
             Some(self.lower_handle_contract_from_hir(ty, handle))
         };
         let Some((metadata, mut arms)) = handle_contract else {
-            self.assign(
-                span,
-                result,
-                Rvalue::Todo("refactor handle contract missing"),
-            );
+            let body_bb = self.push_block(handle.body.span);
+            let exit_bb = self.push_block(span);
+            let site_id = self.fresh_site_id();
             self.set_terminator(
                 outer_bb,
                 span,
-                TerminatorKind::Todo("refactor handle contract missing"),
+                TerminatorKind::Handle {
+                    site_id,
+                    metadata: HandleMetadata {
+                        result_ty: ty,
+                        body_result_ty: handle.body.ty,
+                        finally_result_ty: Some(ty),
+                    },
+                    arms: Vec::new(),
+                    has_finally: false,
+                    body_target: body_bb,
+                    arm_targets: Vec::new(),
+                    finally_target: None,
+                    exit_target: exit_bb,
+                },
             );
+            self.current_bb = body_bb;
+            self.set_terminator(body_bb, span, TerminatorKind::Goto { target: exit_bb });
+            self.current_bb = exit_bb;
             return result;
         };
         for (hir_arm, lowered_arm) in handle.arms.iter().zip(arms.iter_mut()) {

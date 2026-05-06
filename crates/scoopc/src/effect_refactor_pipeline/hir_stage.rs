@@ -16,9 +16,20 @@ use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKi
 
 use super::hir_completeness::RefactorHirCompletenessVerifier;
 
+/// MIR lowering should not rediscover the continuation receiver from callee syntax.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContinuationResumeReceiverRoute {
+    /// The receiver is carried as a canonical call argument at this index.
+    CallArg { index: usize },
+    /// The receiver is still the member-call receiver expression.
+    MemberReceiver,
+}
+
 /// 单个 `Continuation.resume(...)` 调用点的 typed contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContinuationResumeSiteContract {
+    receiver_route: ContinuationResumeReceiverRoute,
+    payload_arg_indices: Vec<usize>,
     receiver_ty: TypeId,
     resume_ty: TypeId,
     answer_ty: TypeId,
@@ -28,22 +39,12 @@ pub struct ContinuationResumeSiteContract {
 }
 
 impl ContinuationResumeSiteContract {
-    fn new(
-        receiver_ty: TypeId,
-        resume_ty: TypeId,
-        answer_ty: TypeId,
-        return_ty: TypeId,
-        out_effects: EffectRow,
-        runtime_error_effect_ty: Option<TypeId>,
-    ) -> Self {
-        Self {
-            receiver_ty,
-            resume_ty,
-            answer_ty,
-            return_ty,
-            out_effects,
-            runtime_error_effect_ty,
-        }
+    pub fn receiver_route(&self) -> ContinuationResumeReceiverRoute {
+        self.receiver_route
+    }
+
+    pub fn payload_arg_indices(&self) -> &[usize] {
+        &self.payload_arg_indices
     }
 
     pub fn receiver_ty(&self) -> TypeId {
@@ -339,6 +340,7 @@ impl PayloadTypeContract {
 pub struct PerformSiteContract {
     effect_ty: TypeId,
     op_fqn: String,
+    result_ty: TypeId,
     payload: PayloadTypeContract,
     arg_mapping: Vec<usize>,
 }
@@ -347,12 +349,14 @@ impl PerformSiteContract {
     fn new(
         effect_ty: TypeId,
         op_fqn: String,
+        result_ty: TypeId,
         payload: PayloadTypeContract,
         arg_mapping: Vec<usize>,
     ) -> Self {
         Self {
             effect_ty,
             op_fqn,
+            result_ty,
             payload,
             arg_mapping,
         }
@@ -364,6 +368,10 @@ impl PerformSiteContract {
 
     pub fn op_fqn(&self) -> &str {
         &self.op_fqn
+    }
+
+    pub fn result_ty(&self) -> TypeId {
+        self.result_ty
     }
 
     pub fn payload(&self) -> &PayloadTypeContract {
@@ -1005,6 +1013,16 @@ impl TypedHirEffectContracts {
             let _ = writeln!(out, "            span: {:?},", call_site.span);
             let _ = writeln!(
                 out,
+                "            receiver_route: {:?},",
+                contract.receiver_route()
+            );
+            let _ = writeln!(
+                out,
+                "            payload_arg_indices: {:?},",
+                contract.payload_arg_indices()
+            );
+            let _ = writeln!(
+                out,
                 "            receiver_ty: {},",
                 types.display(contract.receiver_ty())
             );
@@ -1058,6 +1076,11 @@ impl TypedHirEffectContracts {
                 types.display(contract.effect_ty())
             );
             let _ = writeln!(out, "            op_fqn: {:?},", contract.op_fqn());
+            let _ = writeln!(
+                out,
+                "            result_ty: {},",
+                types.display(contract.result_ty())
+            );
             let _ = writeln!(
                 out,
                 "            payload_ty: {},",
@@ -1706,6 +1729,7 @@ impl<'a> ContractCollector<'a> {
         let contract = PerformSiteContract::new(
             effect_ty,
             op.fqn.clone(),
+            expr.ty,
             PayloadTypeContract::new(payload_ty, payload_components),
             arg_mapping,
         );
@@ -1776,27 +1800,47 @@ impl<'a> ContractCollector<'a> {
         callee: &Expr,
         args: &[CallArg],
     ) -> Option<ContinuationResumeSiteContract> {
-        let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
-            return None;
+        let (receiver_route, receiver_ty, payload_arg_indices) = match &callee.kind {
+            ExprKind::VarRef(ValueRef::TopLevel { fqn, .. })
+                if fqn == "scoop.core.Continuation.resume" =>
+            {
+                let receiver = args.first()?;
+                (
+                    ContinuationResumeReceiverRoute::CallArg { index: 0 },
+                    call_arg_value_ty(receiver),
+                    (1..args.len()).collect(),
+                )
+            }
+            ExprKind::MemberAccess { receiver, member }
+                if member.name == "resume"
+                    && matches!(
+                        member.resolved.as_ref(),
+                        Some(crate::hir::MemberRef::Fun { fqn, .. })
+                            if fqn == "scoop.core.Continuation.resume"
+                    ) =>
+            {
+                (
+                    ContinuationResumeReceiverRoute::MemberReceiver,
+                    receiver.ty,
+                    (0..args.len()).collect(),
+                )
+            }
+            _ => return None,
         };
-        if fqn != "scoop.core.Continuation.resume" {
-            return None;
-        }
 
-        let Some(CallArg::Positional(receiver)) = args.first() else {
-            return None;
-        };
         let (resume_ty, answer_ty, out_effects) =
-            continuation_receiver_contract(&self.lowered_hir.types, receiver.ty)?;
+            continuation_receiver_contract(&self.lowered_hir.types, receiver_ty)?;
 
-        Some(ContinuationResumeSiteContract::new(
-            receiver.ty,
+        Some(ContinuationResumeSiteContract {
+            receiver_route,
+            payload_arg_indices,
+            receiver_ty,
             resume_ty,
             answer_ty,
-            expr.ty,
+            return_ty: expr.ty,
             out_effects,
-            self.runtime_error_effect_ty,
-        ))
+            runtime_error_effect_ty: self.runtime_error_effect_ty,
+        })
     }
 
     fn call_site(&self, source_path: &Path, span: Span) -> CallSite {
@@ -2650,12 +2694,27 @@ fn format_call_site_contract(
             let _ = writeln!(out, "            op_fqn: {:?},", perform.op_fqn());
             let _ = writeln!(
                 out,
+                "            result_ty: {},",
+                types.display(perform.result_ty())
+            );
+            let _ = writeln!(
+                out,
                 "            payload_ty: {},",
                 perform.payload().display(types)
             );
             let _ = writeln!(out, "            arg_mapping: {:?},", perform.arg_mapping());
         }
         TypedCallSiteContract::ContinuationResume(resume) => {
+            let _ = writeln!(
+                out,
+                "            receiver_route: {:?},",
+                resume.receiver_route()
+            );
+            let _ = writeln!(
+                out,
+                "            payload_arg_indices: {:?},",
+                resume.payload_arg_indices()
+            );
             let _ = writeln!(
                 out,
                 "            receiver_ty: {},",
@@ -4021,6 +4080,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         CallSiteContract {
             span: 168..178,
             kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
@@ -4029,6 +4090,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         CallSiteContract {
             span: 183..195,
             kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
@@ -4055,6 +4118,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         CallSiteContract {
             span: 330..349,
             kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
             resume_ty: (Int, String),
             answer_ty: Unit,
@@ -4068,6 +4133,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     continuation_resume_sites: [
         ContinuationResumeSiteContract {
             span: 168..178,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
@@ -4078,6 +4145,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         },
         ContinuationResumeSiteContract {
             span: 183..195,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
@@ -4088,6 +4157,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         },
         ContinuationResumeSiteContract {
             span: 330..349,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
             receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
             resume_ty: (Int, String),
             answer_ty: Unit,
@@ -4157,6 +4228,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
             kind: EffectOp,
             effect_ty: scoop.core.Raise<Int>,
             op_fqn: "scoop.core.Raise.raise",
+            result_ty: Nothing,
             payload_ty: Int,
             arg_mapping: [0],
         },
@@ -4172,6 +4244,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
             span: 64..78,
             effect_ty: scoop.core.Raise<Int>,
             op_fqn: "scoop.core.Raise.raise",
+            result_ty: Nothing,
             payload_ty: Int,
             payload_components: [
                 Int,

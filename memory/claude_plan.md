@@ -1,12 +1,14 @@
 # Claude Execution Plan
 
-## Scope
+## Previous Invocation History
+
+### Scope
 
 - Follow `TODO.md` as the authoritative source.
 - Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
 - Do not proceed to the next task after completing or blocking the current one.
 
-## Step-by-Step Plan
+### Step-by-Step Plan
 
 1. Read `TODO.md` and identify the first incomplete task by heading prefix.
 2. Check the latest commit only for unfinished work directly relevant to that task.
@@ -19,7 +21,7 @@
 9. Update this plan file after major progress or any plan change.
 10. Commit all relevant changes with a descriptive task-tagged message.
 
-## Progress
+### Progress
 
 - Initial plan recorded before running repository commands.
 - New invocation started on 2026-05-06: re-read `TODO.md`; `MIR-T06` is already marked `[DONE]`, and the first incomplete task is `MIR-T07`.
@@ -32,18 +34,18 @@
 - Validation completed: `refactor_mir_call_contract`, call-contract `dump-mir`, `refactor_mir_placeholder_inventory`, `refactor_mir_no_todo`, `refactor_hir_preflight`, `refactor_hir_call_contracts_record_callable_provenance`, and `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings` passed.
 - `TODO.md` updated: `MIR-T07` is marked `[DONE]` with completion record. Next step: inspect git diff/status, commit `MIR-T07`, then stop.
 
-## Current Invocation: MIR-T07R
+### Current Invocation: MIR-T07R
 
 This section records the actionable plan and progress for the current invocation. It intentionally contains a concise, reviewable rationale and step-by-step plan rather than hidden chain-of-thought.
 
-## Current Objective
+### Current Objective
 
 - Complete exactly the first incomplete task in `TODO.md`, then stop.
 - First incomplete task identified: `MIR-T07R` (`Review MIR-T07 typed call-site contract`).
 - Treat `TODO.md` as the source of truth for task order, requirements, dependencies, validation, and completion records.
 - Update this file whenever the plan changes or a key step is completed.
 
-## Initial Plan
+### Initial Plan
 
 1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
 2. Check the latest commit message only for directly relevant unfinished work tied to that task.
@@ -56,7 +58,7 @@ This section records the actionable plan and progress for the current invocation
 9. Commit all relevant changes with a clear task-tagged commit message.
 10. Stop without starting the next task.
 
-## Progress Log
+### Progress Log
 
 - Plan file initialized before reading project task details.
 - Read `TODO.md` and identified `MIR-T07R` as the first task without `[DONE]` in its heading.
@@ -68,7 +70,7 @@ This section records the actionable plan and progress for the current invocation
 - Search audit found the MIR-T07 forbidden reason strings only in legacy fallback code, inventory/preflight audit lists, and tests; the refactor production dump did not contain them.
 - Marked `MIR-T07R` as `[DONE]` in `TODO.md` and added the completion record.
 
-## Task-Specific Plan: MIR-T07R
+### Task-Specific Plan: MIR-T07R
 
 1. Check the latest commit message for unfinished work directly relevant to `MIR-T07R`.
 2. Inspect the `MIR-T07` implementation and related call-site contract code paths.
@@ -77,3 +79,62 @@ This section records the actionable plan and progress for the current invocation
 5. Search for `call callee lowering pending`, `ctor call lowering pending`, and `sizeOf intrinsic requires one positional arg` and verify they are not reachable from refactor production MIR.
 6. If review passes, mark `MIR-T07R` `[DONE]` in `TODO.md`, add a completion record, commit the changes, and stop.
 7. If review finds a gap, keep `MIR-T07R` incomplete, update `TODO.md` to route the fix back to `MIR-T07`, commit the bookkeeping, and stop.
+
+## Current Invocation: MIR-T08
+
+## Current Objective
+
+Complete exactly the first incomplete task in `TODO.md`, then stop after verification, documentation update, and commit.
+
+Selected task: `MIR-T08` - close dispatch/resume/perform/handle site contract gaps.
+
+## Constraints
+
+- Treat `TODO.md` as the source of truth for task order and completion state.
+- A task is complete only if its title is prefixed with `[DONE]`.
+- Do not perform broad historical triage before selecting the first incomplete task.
+- Do not use workarounds for spec mismatches or implementation gaps.
+- If a blocker prevents the selected task, add the minimum prerequisite task in `TODO.md`, commit, and stop.
+- Update `PLAN.md` only if phase-level sequencing or criteria change.
+- Commit all changes for the completed task before stopping.
+
+## Step-by-Step Plan
+
+1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Inspect the task details, dependencies, and validation requirements.
+4. Implement the selected task without changing task scope or using a workaround.
+5. Add or update the smallest relevant tests or fixtures required by the task.
+6. Run the task-specified validation and any directly relevant broader checks.
+7. If validation fails, fix the failure and rerun the relevant checks.
+8. Update `TODO.md` by prefixing the task title with `[DONE]` and filling its completion record.
+9. Update this file with the outcome and validation commands.
+10. Commit all relevant uncommitted changes with a task-specific message.
+11. Stop without starting the next task.
+
+## Progress Log
+
+- Plan initialized before reading task files.
+- Identified `MIR-T08` as the first incomplete task in `TODO.md`.
+- Latest commit `[MIR-T07R] Review typed call-site contract` has no directly relevant unfinished blocker.
+- Current implementation already lowers basic dispatch/resume/perform/handle fixtures, but target test filter has no tests and target placeholder constructors still exist in MIR lowering.
+- Implemented typed resume receiver/payload routing, perform result type metadata, and no-Todo missing contract diagnostics for refactor perform/handle sites.
+- Added `refactor_mir_effect_site_contract*` tests and updated HIR contract snapshots / MIR placeholder inventory.
+- Validation passed: `cargo test -p scoopc --no-default-features refactor_mir_effect_site_contract`.
+- Validation passed: `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`.
+- Validation passed: `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_perform.scoop`.
+- Validation passed: `cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/handle_finally_boundary.scoop`.
+- Regression passed: `cargo test -p scoopc --no-default-features refactor_hir_preflight`.
+- Regression passed: `cargo test -p scoopc --no-default-features refactor_materialized_mir`.
+- Regression passed: `cargo test -p scoopc --no-default-features refactor_mir_no_todo`.
+- Regression passed: `cargo test -p scoopc --no-default-features refactor_mir_call_contract`.
+- Regression passed: `cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`.
+- Lint passed: `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`.
+- Marked `MIR-T08` as `[DONE]` in `TODO.md`.
+
+## Implementation Notes
+
+- Add typed continuation resume receiver/payload routing to the HIR handoff and consume it in MIR lowering.
+- Add perform result type metadata to typed handoff and MIR metadata.
+- Keep legacy fallback behavior for non-refactor MIR, but remove refactor-reachable `Todo` construction for missing perform/handle contracts.
+- Add `refactor_mir_effect_site_contract*` tests covering dispatch, resume, perform, handle, and forged/missing contract diagnostics.
