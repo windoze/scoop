@@ -1,0 +1,38 @@
+// EXPECT: pass
+// 目标：MIR-T07 refactor MIR 直接消费 typed call-site contract。
+
+package mir_refactor.call_contracts
+
+import scoop.core.*
+
+fun direct(x: Int): Int { return x }
+
+fun generic<T>(value: T): T { return value }
+
+fun namedDefault(value: Int = 1, extra: Int): Int { return value + extra }
+
+fun Int.ext(delta: Int = 1): Int { return this + delta }
+
+class Box(val value: Int)
+
+object Singleton {
+    fun get(): Int { return 3 }
+}
+
+fun apply(f: (Int) -> Int, x: Int): Int { return f(x) }
+
+fun main(): Int {
+    val d: Int = direct(1)
+    val g: Int = generic<Int>(2)
+    val n: Int = namedDefault(extra = 3)
+    val e: Int = 1.ext()
+    val m: Int = Singleton.get()
+    val box: Box = Box(value = 4)
+    val f: (Int) -> Int = direct
+    val fv: Int = apply(f, 5)
+    val cl: Int = ({ x: Int -> x + 2 })(6)
+    val typeName: String = nameOf<Box>()
+    val bytes: Int = sizeOf<Box>()
+    val platform: Platform = getPlatform()
+    return d + g + n + e + m + box.value + fv + cl + bytes
+}

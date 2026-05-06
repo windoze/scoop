@@ -22,14 +22,12 @@
 ## Progress
 
 - Initial plan recorded before running repository commands.
-- Current task identified: `MIR-T06` (`建立 unified place/lvalue contract 并清理 assignment Todo`).
-- Latest commit checked: `[MIR-T04] Complete MIR preclosure surfaces`; no directly relevant unfinished issue was identified.
-- Next step: inspect current assignment/place lowering, HIR handoff metadata, and existing placeholder inventory entries before editing.
-- Inspection complete: typed HIR already publishes local/top-level/member assignment contracts, and frontend typecheck already rejects illegal break/continue.
-- Planned implementation update: remove refactor-reachable assignment/place placeholder constructors from MIR lowering by treating missing contracts/symbols as HIR-stage invariants, reject local declarations without initializer before MIR, and keep any remaining legacy-only assignment fallback explicitly classified in the inventory.
-- Implementation update completed: MIR refactor assignment lowering no longer constructs missing-contract/local/member/boxed-init/unbound-local placeholders; local declarations without initializer are rejected in typecheck.
-- Added validation coverage: `tests/fixtures/mir_refactor/assignment_places.scoop`, parse/typecheck diagnostics fixtures, and `refactor_mir_place_contract_*` tests.
-- Validation passed: `cargo test -p scoopc --no-default-features refactor_mir_place_contract`.
-- Additional validation passed: assignment fixture `dump-mir`, MIR placeholder inventory, no-Todo verifier tests, HIR preflight, and the new parse/typecheck diagnostic fixtures.
-- `TODO.md` updated: `MIR-T06` is marked `[DONE]` with completion record and validation log.
-- Next step: inspect git diff/status, commit all relevant changes for `MIR-T06`, then stop.
+- New invocation started on 2026-05-06: re-read `TODO.md`; `MIR-T06` is already marked `[DONE]`, and the first incomplete task is `MIR-T07`.
+- Verified git state before starting: prior `MIR-T06` work is already committed; latest commit `1fcdb1aa Update plan` did not mention an unfinished issue relevant to `MIR-T07`.
+- Current task identified: `MIR-T07` (`收口 call/ctor/default/named/intrinsic typed call-site contract`).
+- Execution plan for `MIR-T07`: inspect existing typed HIR call-site metadata, MIR call/ctor/intrinsic lowering, materializer call metadata, placeholder inventory, and current call fixtures; implement the smallest spec-correct call-site contract closure; add `refactor_mir_call_contract` coverage and `mir_refactor/call_contracts.scoop`; run the required dump and targeted tests; then mark `MIR-T07` `[DONE]`, update completion records, commit, and stop.
+- Inspection update: typed HIR already publishes `TypedCallSiteContract` with selected direct/member/extension/ctor/intrinsic/function-value provenance and canonical arg binding, but refactor MIR currently only consumes dispatch/resume plus the older top-level binding side table. Implementation will make refactor call lowering consume the typed contract first, lower `nameOf<T>()` / `sizeOf<T>()` as explicit value primitives, lower constructor calls from selected ctor contracts, and keep the old call/ctor/sizeOf Todo constructors classified as legacy-only inventory entries.
+- Implementation completed: refactor MIR call lowering now consumes typed call-site contracts for direct/member/extension/constructor/closure/fun-value/FunPtr/dispatch/intrinsic sites; `nameOf<T>()` lowers to `TypeMetadataLiteral`, `sizeOf<T>()` lowers to `SizeOf`, constructor calls use selected ctor contracts, and MIR-T07 placeholder inventory entries are legacy-only.
+- Added `tests/fixtures/mir_refactor/call_contracts.scoop`, `refactor_mir_call_contract_lowers_typed_call_sites`, and upgraded reflection/getPlatform preflight samples to MIR smoke.
+- Validation completed: `refactor_mir_call_contract`, call-contract `dump-mir`, `refactor_mir_placeholder_inventory`, `refactor_mir_no_todo`, `refactor_hir_preflight`, `refactor_hir_call_contracts_record_callable_provenance`, and `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings` passed.
+- `TODO.md` updated: `MIR-T07` is marked `[DONE]` with completion record. Next step: inspect git diff/status, commit `MIR-T07`, then stop.

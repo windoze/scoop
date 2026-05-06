@@ -426,7 +426,7 @@
   - diagnostics fixtures 通过：`parse/assignment_call_lhs_is_error.scoop`、`typecheck/local_var_missing_initializer_is_error.scoop`、`typecheck/break_not_in_loop_is_error.scoop`、`typecheck/continue_not_in_loop_is_error.scoop`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T07：收口 call/ctor/default/named/intrinsic typed call-site contract
+## [DONE] MIR-T07：收口 call/ctor/default/named/intrinsic typed call-site contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M5
@@ -474,6 +474,21 @@
   - call/ctor/intrinsic 相关 Todo reason 不再可能出现在 refactor production MIR。
   - materializer 可以从 call metadata 构造完整 instance key。
 - 依赖：`MIR-T06`
+
+- 完成记录（2026-05-06）：
+  - refactor MIR call lowering 现在优先消费 typed HIR `TypedCallSiteContract`，覆盖 direct top-level、member direct、extension、constructor、closure、function value、FunPtr、virtual/interface dispatch 和 intrinsic call sites；旧 callee-shape fallback 仅保留给 legacy non-refactor path。
+  - `nameOf<T>()` 降为 `Rvalue::TypeMetadataLiteral`，`sizeOf<T>()` / `sizeOf(value)` 降为 `Rvalue::SizeOf`，`getPlatform()` 以 typed intrinsic contract 驱动 direct intrinsic call，不再经过 `sizeOf intrinsic requires one positional arg` 或普通 callee fallback Todo。
+  - constructor lowering 现在从 selected constructor contract 生成 `Rvalue::ClassCtor`，并消费 canonical ordered args；named/default/extension receiver args 在 HIR canonicalization 后以 positional MIR `CallArg` 进入调用节点。
+  - MIR placeholder inventory 已将 `call callee lowering pending`、`ctor call lowering pending`、`sizeOf intrinsic requires one positional arg` 归入 legacy-only bucket；refactor production no-Todo verifier 继续拒绝这些 reason 泄漏。
+  - 新增 `tests/fixtures/mir_refactor/call_contracts.scoop` 和 `refactor_mir_call_contract_lowers_typed_call_sites`，覆盖 direct、generic、named/default、extension、object member、class ctor、top-level function reference/function value、closure、`nameOf`、`sizeOf`、`getPlatform`。
+  - `reflection_runtime_fallback_v0.scoop` 与 `get_platform_runtime_ok.scoop` 的 HIR preflight 已升级为 MIR smoke。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_call_contract`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/call_contracts.scoop`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_placeholder_inventory`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_hir_preflight`。
+  - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_hir_call_contracts_record_callable_provenance`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T07R：Review MIR-T07 typed call-site contract
 

@@ -55,13 +55,13 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         phase: "typecheck",
         name: "reflection_runtime_fallback_v0.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",
         name: "get_platform_runtime_ok.scoop",
         requirements: &[RequiredHirContract::CallSite],
-        mir: MirPreflightMode::HirOnly(HIR_ONLY),
+        mir: MirPreflightMode::Run,
     },
     HirCompletenessFixture {
         phase: "typecheck",

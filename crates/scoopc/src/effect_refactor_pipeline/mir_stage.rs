@@ -561,6 +561,130 @@ fun main() {}
     }
 
     #[test]
+    fn refactor_mir_call_contract_lowers_typed_call_sites() {
+        let output = run_fixture("mir_refactor", "call_contracts.scoop");
+        let dump = output.stable_dump();
+        for forbidden in [
+            "call callee lowering pending",
+            "ctor call lowering pending",
+            "sizeOf intrinsic requires one positional arg",
+        ] {
+            assert!(
+                !dump.contains(forbidden),
+                "refactor MIR call lowering leaked `{forbidden}`: {dump}"
+            );
+        }
+
+        let main = validated_callable_body(&output, "mir_refactor.call_contracts.main");
+        let apply = validated_callable_body(&output, "mir_refactor.call_contracts.apply");
+        let mut direct_fqns = Vec::new();
+        let mut saw_get_platform = false;
+        let mut saw_class_ctor = false;
+        let mut saw_size_of = false;
+        let mut saw_name_of_metadata = false;
+        let mut saw_closure_call = false;
+
+        for stmt in main.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            match &stmt.kind {
+                StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
+                            ..
+                        },
+                    ..
+                } => {
+                    assert!(
+                        args.iter().all(|arg| arg.name.is_none()),
+                        "named/default args should be canonical positional MIR args: {stmt:#?}"
+                    );
+                    if callee_fqn == "scoop.core.getPlatform" {
+                        saw_get_platform = true;
+                    }
+                    direct_fqns.push(callee_fqn.as_str());
+                }
+                StatementKind::Assign {
+                    value:
+                        Rvalue::ClassCtor {
+                            class_fqn, args, ..
+                        },
+                    ..
+                } if class_fqn == "mir_refactor.call_contracts.Box" && args.len() == 1 => {
+                    saw_class_ctor = true;
+                }
+                StatementKind::Assign {
+                    value: Rvalue::SizeOf { value_ty },
+                    ..
+                } if output.types().display(*value_ty).to_string()
+                    == "mir_refactor.call_contracts.Box" =>
+                {
+                    saw_size_of = true;
+                }
+                StatementKind::Assign {
+                    value: Rvalue::TypeMetadataLiteral(metadata),
+                    ..
+                } if metadata.source_fqn.as_deref() == Some("mir_refactor.call_contracts.Box") => {
+                    saw_name_of_metadata = true;
+                }
+                StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Closure { .. },
+                            ..
+                        },
+                    ..
+                } => {
+                    saw_closure_call = true;
+                }
+                _ => {}
+            }
+        }
+
+        for expected in [
+            "mir_refactor.call_contracts.direct",
+            "mir_refactor.call_contracts.generic",
+            "mir_refactor.call_contracts.namedDefault",
+            "mir_refactor.call_contracts.ext",
+            "mir_refactor.call_contracts.Singleton.get",
+            "mir_refactor.call_contracts.apply",
+        ] {
+            assert!(
+                direct_fqns.contains(&expected),
+                "missing direct call `{expected}` in {direct_fqns:?}\n{dump}"
+            );
+        }
+
+        assert!(
+            saw_get_platform,
+            "getPlatform intrinsic call missing: {dump}"
+        );
+        assert!(saw_class_ctor, "class ctor contract missing: {dump}");
+        assert!(saw_size_of, "sizeOf<T>() MIR primitive missing: {dump}");
+        assert!(
+            saw_name_of_metadata,
+            "nameOf<T>() type metadata primitive missing: {dump}"
+        );
+        assert!(saw_closure_call, "immediate closure call missing: {dump}");
+        assert!(
+            apply
+                .blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .any(|stmt| matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Call {
+                            kind: CallKind::FunValue { .. },
+                            ..
+                        },
+                        ..
+                    }
+                ))
+        );
+    }
+
+    #[test]
     fn refactor_mir_no_todo_stage_validator_rejects_item_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();

@@ -16,7 +16,7 @@ use crate::ast;
 use crate::effect_refactor_pipeline::{
     ExternGlobalContract, HandleArmContractKind, MemberCallTargetContract,
     TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
-    TypedCallSiteContract, TypedHirEffectContracts,
+    TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
 };
 use crate::hir;
 use crate::session::Session;
@@ -62,6 +62,7 @@ pub(crate) struct MirLoweringFacts {
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
     refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
+    refactor_call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
     refactor_assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
@@ -86,6 +87,7 @@ impl Default for MirLoweringFacts {
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
             refactor_dispatch_sites: HashMap::new(),
+            refactor_call_sites: HashMap::new(),
             refactor_assign_places: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
@@ -332,6 +334,7 @@ impl MirLoweringFacts {
         self.refactor_perform_sites.clear();
         self.refactor_handle_sites.clear();
         self.refactor_dispatch_sites.clear();
+        self.refactor_call_sites.clear();
         self.refactor_assign_places.clear();
         self.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
         self.refactor_extern_global_contracts = contracts.extern_global_contracts().to_vec();
@@ -398,6 +401,8 @@ impl MirLoweringFacts {
         }
 
         for (call_site, contract) in contracts.call_site_contracts() {
+            self.refactor_call_sites
+                .insert(call_site.clone(), contract.clone());
             let (kind, member) = match contract {
                 TypedCallSiteContract::Virtual(member) => (DispatchTargetKind::Virtual, member),
                 TypedCallSiteContract::Interface(member) => (DispatchTargetKind::Interface, member),
@@ -448,6 +453,15 @@ impl MirLoweringFacts {
     ) -> Option<&hir::AssignPlaceContract> {
         self.refactor_assign_places
             .get(&hir::CallSite::new(source_path.to_path_buf(), assign_span))
+    }
+
+    fn refactor_call_site_contract(
+        &self,
+        source_path: &std::path::Path,
+        call_span: Span,
+    ) -> Option<&TypedCallSiteContract> {
+        self.refactor_call_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
     fn top_level_fun_call_binding(
@@ -2761,6 +2775,304 @@ impl<'a> FnLowering<'a> {
         Some(out)
     }
 
+    fn lower_refactor_typed_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> bool {
+        let Some(contract) = self
+            .facts
+            .refactor_call_site_contract(self.source_path.as_path(), span)
+            .cloned()
+        else {
+            return false;
+        };
+
+        match contract {
+            TypedCallSiteContract::DirectTopLevel(function) => {
+                self.lower_refactor_direct_call_expr(span, result, function.fqn(), args);
+                true
+            }
+            TypedCallSiteContract::MemberDirect(member) => {
+                self.lower_refactor_direct_call_expr(span, result, member.function().fqn(), args);
+                true
+            }
+            TypedCallSiteContract::Extension { function, .. } => {
+                self.lower_refactor_direct_call_expr(span, result, function.fqn(), args);
+                true
+            }
+            TypedCallSiteContract::Constructor(ctor) => {
+                self.lower_refactor_constructor_call_expr(span, result, &ctor, args);
+                true
+            }
+            TypedCallSiteContract::Closure { .. } => {
+                self.lower_refactor_callable_value_call_expr(span, result, callee, args, true);
+                true
+            }
+            TypedCallSiteContract::FunValue { .. } | TypedCallSiteContract::FunPtr { .. } => {
+                self.lower_refactor_callable_value_call_expr(span, result, callee, args, false);
+                true
+            }
+            TypedCallSiteContract::Virtual(member) => {
+                self.lower_refactor_dispatch_call_expr_from_contract(
+                    span,
+                    result,
+                    callee,
+                    args,
+                    DispatchTargetKind::Virtual,
+                    &member,
+                );
+                true
+            }
+            TypedCallSiteContract::Interface(member) => {
+                self.lower_refactor_dispatch_call_expr_from_contract(
+                    span,
+                    result,
+                    callee,
+                    args,
+                    DispatchTargetKind::Interface,
+                    &member,
+                );
+                true
+            }
+            TypedCallSiteContract::Intrinsic { kind, function } => {
+                self.lower_refactor_intrinsic_call_expr(span, result, &kind, function.fqn(), args)
+            }
+            TypedCallSiteContract::EffectOp(_) | TypedCallSiteContract::ContinuationResume(_) => {
+                false
+            }
+        }
+    }
+
+    fn lower_refactor_direct_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee_fqn: &str,
+        args: &[hir::CallArg],
+    ) {
+        let Some(args) = self.lower_call_args(args) else {
+            return;
+        };
+        let kind = CallKind::Direct {
+            callee_fqn: callee_fqn.to_string(),
+        };
+        let terminates_current_block = matches!(
+            &kind,
+            CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
+        );
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
+        if terminates_current_block {
+            self.set_terminator(self.current_bb, span, TerminatorKind::Unreachable);
+        }
+    }
+
+    fn lower_refactor_constructor_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        ctor: &crate::effect_refactor_pipeline::ConstructorCallTargetContract,
+        args: &[hir::CallArg],
+    ) {
+        let Some(args) = self.lower_call_args(args) else {
+            return;
+        };
+        let hidden_effects = self
+            .facts
+            .class_ctor_hidden_effects(self.source_path.as_path(), span);
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::ClassCtor {
+                site_id,
+                class_fqn: ctor.owner_fqn().to_string(),
+                args,
+                hidden_effects,
+            },
+        );
+    }
+
+    fn lower_refactor_callable_value_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+        prefer_closure_kind: bool,
+    ) {
+        let callee_local = self.lower_expr_to_local(callee);
+        if self.current_is_terminated() {
+            return;
+        }
+        let Some(args) = self.lower_call_args(args) else {
+            return;
+        };
+        let origin = self.value_origins.get(&callee_local).cloned();
+        let kind = match (prefer_closure_kind, origin) {
+            (true, Some(ValueOrigin::Closure { fn_ptr })) => CallKind::Closure {
+                callee: Operand::Local(callee_local),
+                fn_ptr,
+            },
+            _ => CallKind::FunValue {
+                callee: Operand::Local(callee_local),
+            },
+        };
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
+    }
+
+    fn lower_refactor_intrinsic_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        kind: &TypedIntrinsicKind,
+        callee_fqn: &str,
+        args: &[hir::CallArg],
+    ) -> bool {
+        match (kind, callee_fqn) {
+            (TypedIntrinsicKind::Reflection { name }, "scoop.core.sizeOf") if name == "sizeOf" => {
+                let value_ty = args
+                    .first()
+                    .map(|arg| match arg {
+                        hir::CallArg::Positional(value) => value.ty,
+                        hir::CallArg::Named { value, .. } => value.ty,
+                    })
+                    .or_else(|| {
+                        self.facts
+                            .refactor_call_site_contract(self.source_path.as_path(), span)
+                            .and_then(|contract| match contract {
+                                TypedCallSiteContract::Intrinsic { function, .. } => {
+                                    function.type_args().first().copied()
+                                }
+                                _ => None,
+                            })
+                    })
+                    .expect("typed sizeOf intrinsic must publish a value or type argument");
+                self.assign(span, result, Rvalue::SizeOf { value_ty });
+                true
+            }
+            (TypedIntrinsicKind::Reflection { name }, "scoop.core.nameOf") if name == "nameOf" => {
+                let source_ty = self
+                    .facts
+                    .refactor_call_site_contract(self.source_path.as_path(), span)
+                    .and_then(|contract| match contract {
+                        TypedCallSiteContract::Intrinsic { function, .. } => {
+                            function.type_args().first().copied()
+                        }
+                        _ => None,
+                    })
+                    .expect("typed nameOf intrinsic must publish a type argument");
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::TypeMetadataLiteral(TypeMetadataLiteral {
+                        source_ty,
+                        source_fqn: self.nominal_fqn_for_ty(source_ty),
+                        kind: TypeMetadataLiteralKind::TypeNameString,
+                    }),
+                );
+                true
+            }
+            _ => {
+                self.lower_refactor_direct_call_expr(span, result, callee_fqn, args);
+                true
+            }
+        }
+    }
+
+    fn lower_refactor_dispatch_call_expr_from_contract(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+        dispatch_kind: DispatchTargetKind,
+        member: &MemberCallTargetContract,
+    ) {
+        let (receiver_expr, call_args) = self.dispatch_receiver_and_args(callee, args);
+        let receiver_local = self.lower_expr_to_local(receiver_expr);
+        if self.current_is_terminated() {
+            return;
+        }
+        let Some(args) = self.lower_call_args(call_args) else {
+            return;
+        };
+        let dispatch = DispatchMetadata {
+            owner_fqn: member.owner_fqn().to_string(),
+            member_name: member.member_name().to_string(),
+            receiver_ty: member.receiver_ty(),
+        };
+        let kind = match dispatch_kind {
+            DispatchTargetKind::Virtual => CallKind::Virtual {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+            DispatchTargetKind::Interface => CallKind::Interface {
+                receiver: Operand::Local(receiver_local),
+                dispatch,
+            },
+        };
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+            },
+        );
+    }
+
+    fn dispatch_receiver_and_args<'b>(
+        &self,
+        callee: &'b hir::Expr,
+        args: &'b [hir::CallArg],
+    ) -> (&'b hir::Expr, &'b [hir::CallArg]) {
+        match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
+                let Some((receiver_arg, remaining_args)) = args.split_first() else {
+                    panic!("typed dispatch call contract must include a receiver argument")
+                };
+                let receiver_expr = match receiver_arg {
+                    hir::CallArg::Positional(expr) => expr,
+                    hir::CallArg::Named { value, .. } => value,
+                };
+                (receiver_expr, remaining_args)
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args),
+            _ => panic!("typed dispatch call contract must match a dispatch callee shape"),
+        }
+    }
+
+    fn nominal_fqn_for_ty(&self, ty: TypeId) -> Option<String> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.clone()),
+            _ => None,
+        }
+    }
+
     fn operand_ty(&self, operand: &Operand) -> TypeId {
         match operand {
             Operand::Local(local) => self.body.locals[local.as_u32() as usize].ty,
@@ -2896,6 +3208,12 @@ impl<'a> FnLowering<'a> {
             && self.facts.legacy_resume_site_matches(span)
         {
             self.lower_resume_call_expr(span, result, callee, args, None);
+            return result;
+        }
+
+        if self.facts.uses_refactor_typed_contracts()
+            && self.lower_refactor_typed_call_expr(span, result, callee, args)
+        {
             return result;
         }
 
