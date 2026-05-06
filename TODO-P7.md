@@ -738,7 +738,7 @@
   - 修复验证过程中暴露的 composed call-boundary replay 过度重放：当同一 source tail 后续还有会捕获 continuation 的 resuming boundary 时，不再在 callee resume 前重放已执行过的 caller prefix；仍保留 nested block mixed replay 中需要的 prefix 重放，避免破坏 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`。
   - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo test -p scoopc --lib refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines -- --nocapture`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
 
-## P7-T02Zd：闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞
+## [DONE] P7-T02Zd：闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞
 
 - 参考：
   - [`TODO-P7.md`](./TODO-P7.md) P7-T02Z / P7-T03
@@ -780,7 +780,11 @@
   - 没有 hidden legacy fallback、fixture 降级、case-tag 偶然映射或 runtime-only workaround。
 - 依赖：P7-T02Zc
 - 完成记录：
-  - 待完成。
+  - 2026-05-06：完成 resumed-body raise 穿过 finally pending completion 的 composition/origin contract 修复。late-lowered `HandleDispatch` contract 新增 `LateLoweredHandlePendingCompletionOrigin`，按 pending completion + boundary + owner state + resume state 发布 origin-aware handoff；dump 显式渲染 `pending_completion_origins`，opt/state redirect 与 ABI materializer 均保留该 origin 维度。
+  - refactor LLVM ABI materializer 现在为 `PropagateOutward(case)` 分配 origin-specific completion tag，而不是用 case 级单 tag；finally finish dispatch 消费 origin tag 与 origin resume state 创建 outward continuation，并继续复用 case 级 pending payload transport，避免同一 case 来自多个 resume state 时 fail-fast 或选错 continuation。
+  - composed resume dispatch 允许同一 caller resume state 对同一 boundary / callee surface schema 发布多个 input-case composition，并把实际 input case 留给 Step dispatch；当 callee surface-resume owner dispatch 已经执行当前 handle site 的 finally 时，原 resume boundary 会跳过该内层 pending completion 并继续查找外层 handle routing，避免 finally 重复执行或直接返回未处理 Step。
+  - 新增 `effect_lowered::materialize::tests::refactor_handle_dispatch_contract_publishes_origin_aware_pending_completion`，覆盖 `effect_resume_finally_body_raise_after_resume.scoop` 中同一 `Raise<Int>` pending completion 对应多个 origin/resume-state 的 handoff。
+  - 验证通过：`cargo fmt --all`；`cargo check -p scoopc`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`；`cargo test -p scoopc --lib refactor_handle_dispatch_contract_publishes_origin_aware_pending_completion`；`cargo test -p scoopc --lib effect_lowered`；`cargo test -p scoopc --lib llvm::codegen::effect_refactor`；`cargo test -p scoopc --lib llvm::tests`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P7-T02Z：闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级
 

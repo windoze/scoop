@@ -548,6 +548,18 @@ fn redirect_handle_dispatch_contract(
         contract.finally_outward_cases().to_vec(),
         contract.outward_emissions().to_vec(),
         contract.pending_completions().to_vec(),
+        contract
+            .pending_completion_origins()
+            .iter()
+            .map(|origin| {
+                crate::effect_lowered::ir::LateLoweredHandlePendingCompletionOrigin::new(
+                    origin.completion(),
+                    origin.boundary_id(),
+                    redirect_state_id(origin.owner_state(), redirects),
+                    redirect_state_id(origin.resume_state(), redirects),
+                )
+            })
+            .collect(),
         contract.pending_payload_transports().to_vec(),
         contract
             .state_regions()

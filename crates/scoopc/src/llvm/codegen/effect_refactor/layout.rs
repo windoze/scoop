@@ -4817,19 +4817,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     contract,
                     &expected_boundary_routings,
                 )?;
+                validate_published_handle_pending_completion_origins(
+                    callable.root_fqn(),
+                    *site_id,
+                    contract,
+                )?;
 
                 let mut completion_tags = BTreeMap::new();
+                let mut pending_completion_origin_tags = BTreeMap::new();
                 let mut next_completion_tag = 1u32;
                 for pending in contract.pending_completions() {
-                    if let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = pending
-                        && contract.outward_emission(*case_tag).is_none()
-                    {
-                        return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending completion c{} 缺少 outward emission",
-                            callable.root_fqn(),
-                            site_id.as_u32(),
-                            case_tag.as_u32(),
-                        )));
+                    if matches!(
+                        pending,
+                        LateLoweredHandlePendingCompletion::PropagateOutward(_)
+                    ) {
+                        continue;
                     }
                     if completion_tags
                         .insert(*pending, next_completion_tag)
@@ -4840,6 +4842,38 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             callable.root_fqn(),
                             site_id.as_u32(),
                             pending,
+                        )));
+                    }
+                    next_completion_tag = next_completion_tag.saturating_add(1);
+                }
+                for origin in contract.pending_completion_origins() {
+                    let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) =
+                        origin.completion()
+                    else {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending origin {:?} 不是 outward completion",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            origin,
+                        )));
+                    };
+                    if contract.outward_emission(case_tag).is_none() {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending completion origin {:?} 缺少 outward emission",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            origin,
+                        )));
+                    }
+                    if pending_completion_origin_tags
+                        .insert(*origin, next_completion_tag)
+                        .is_some()
+                    {
+                        return Err(frontend_error(format!(
+                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion origin {:?}",
+                            callable.root_fqn(),
+                            site_id.as_u32(),
+                            origin,
                         )));
                     }
                     next_completion_tag = next_completion_tag.saturating_add(1);
@@ -4870,6 +4904,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         completion_tag_field_index,
                         payload_carrier_field_index,
                         completion_tags,
+                        pending_completion_origin_tags,
                         pending_payload_transports,
                         published_handled_arms,
                     ),
@@ -6601,6 +6636,44 @@ fn validate_published_handle_boundary_routings(
     Ok(())
 }
 
+fn validate_published_handle_pending_completion_origins(
+    owner_root_fqn: &str,
+    site_id: crate::mir::SiteId,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) -> Result<(), LlvmEmitError> {
+    let mut expected = BTreeSet::new();
+    for routing in contract.boundary_routings() {
+        for case in routing.case_routings() {
+            let crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion {
+                completion,
+            } = case.action()
+            else {
+                continue;
+            };
+            expected.insert(
+                crate::effect_lowered::ir::LateLoweredHandlePendingCompletionOrigin::new(
+                    completion,
+                    routing.boundary_id(),
+                    routing.owner_state(),
+                    routing.resume_state(),
+                ),
+            );
+        }
+    }
+    let published = contract
+        .pending_completion_origins()
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if published != expected {
+        return Err(frontend_error(format!(
+            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 pending completion origin contract 漂移：published={published:?}，expected={expected:?}",
+            site_id.as_u32(),
+        )));
+    }
+    Ok(())
+}
+
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
@@ -7697,6 +7770,7 @@ mod tests {
             contract.finally_outward_cases().to_vec(),
             contract.outward_emissions().to_vec(),
             contract.pending_completions().to_vec(),
+            contract.pending_completion_origins().to_vec(),
             contract.pending_payload_transports().to_vec(),
             contract.state_regions().to_vec(),
             contract.boundary_routings().to_vec(),
@@ -7720,6 +7794,7 @@ mod tests {
             contract.finally_outward_cases().to_vec(),
             contract.outward_emissions().to_vec(),
             contract.pending_completions().to_vec(),
+            contract.pending_completion_origins().to_vec(),
             contract.pending_payload_transports().to_vec(),
             state_regions,
             boundary_routings,
@@ -10721,6 +10796,7 @@ fun propagate_before_finally(): Int {
                     contract.finally_outward_cases().to_vec(),
                     contract.outward_emissions().to_vec(),
                     contract.pending_completions().to_vec(),
+                    contract.pending_completion_origins().to_vec(),
                     Vec::new(),
                     contract.state_regions().to_vec(),
                     contract.boundary_routings().to_vec(),
@@ -11226,6 +11302,7 @@ fun main(): Int {
                     contract.finally_outward_cases().to_vec(),
                     contract.outward_emissions().to_vec(),
                     contract.pending_completions().to_vec(),
+                    contract.pending_completion_origins().to_vec(),
                     contract.pending_payload_transports().to_vec(),
                     contract.state_regions().to_vec(),
                     contract.boundary_routings().to_vec(),

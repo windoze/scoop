@@ -2829,6 +2829,50 @@ pub enum LateLoweredHandlePendingCompletion {
     PropagateOutward(CaseTag),
 }
 
+/// `HandleDispatch` 经 cleanup/finally 延迟传播 outward case 时的来源。
+///
+/// 同一个 outward case 可以来自多个 boundary / resume state；只用 case tag
+/// 无法在 finally 结束后恢复正确 continuation。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LateLoweredHandlePendingCompletionOrigin {
+    completion: LateLoweredHandlePendingCompletion,
+    boundary_id: BoundaryId,
+    owner_state: StateId,
+    resume_state: StateId,
+}
+
+impl LateLoweredHandlePendingCompletionOrigin {
+    pub(crate) fn new(
+        completion: LateLoweredHandlePendingCompletion,
+        boundary_id: BoundaryId,
+        owner_state: StateId,
+        resume_state: StateId,
+    ) -> Self {
+        Self {
+            completion,
+            boundary_id,
+            owner_state,
+            resume_state,
+        }
+    }
+
+    pub fn completion(&self) -> LateLoweredHandlePendingCompletion {
+        self.completion
+    }
+
+    pub fn boundary_id(&self) -> BoundaryId {
+        self.boundary_id
+    }
+
+    pub fn owner_state(&self) -> StateId {
+        self.owner_state
+    }
+
+    pub fn resume_state(&self) -> StateId {
+        self.resume_state
+    }
+}
+
 /// `HandleDispatch` 需要消费的 compiler-owned system carrier。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LateLoweredHandleDispatchCarrierContract {
@@ -3177,6 +3221,7 @@ pub struct LateLoweredHandleDispatchContract {
     finally_outward_cases: Vec<CaseTag>,
     outward_emissions: Vec<LateLoweredStepCaseEmission>,
     pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+    pending_completion_origins: Vec<LateLoweredHandlePendingCompletionOrigin>,
     pending_payload_transports: Vec<LateLoweredHandlePendingPayloadTransport>,
     state_regions: Vec<LateLoweredHandleStateRegionEntry>,
     boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
@@ -3196,6 +3241,7 @@ impl LateLoweredHandleDispatchContract {
         finally_outward_cases: Vec<CaseTag>,
         outward_emissions: Vec<LateLoweredStepCaseEmission>,
         pending_completions: Vec<LateLoweredHandlePendingCompletion>,
+        pending_completion_origins: Vec<LateLoweredHandlePendingCompletionOrigin>,
         pending_payload_transports: Vec<LateLoweredHandlePendingPayloadTransport>,
         state_regions: Vec<LateLoweredHandleStateRegionEntry>,
         boundary_routings: Vec<LateLoweredHandleBoundaryRouting>,
@@ -3212,6 +3258,7 @@ impl LateLoweredHandleDispatchContract {
             finally_outward_cases,
             outward_emissions,
             pending_completions,
+            pending_completion_origins,
             pending_payload_transports,
             state_regions,
             boundary_routings,
@@ -3235,6 +3282,7 @@ impl LateLoweredHandleDispatchContract {
             arm_complete_target,
             finally_complete_target,
             None,
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -3302,6 +3350,10 @@ impl LateLoweredHandleDispatchContract {
 
     pub fn pending_completions(&self) -> &[LateLoweredHandlePendingCompletion] {
         &self.pending_completions
+    }
+
+    pub fn pending_completion_origins(&self) -> &[LateLoweredHandlePendingCompletionOrigin] {
+        &self.pending_completion_origins
     }
 
     pub fn pending_payload_transports(&self) -> &[LateLoweredHandlePendingPayloadTransport] {

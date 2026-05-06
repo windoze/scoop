@@ -22,11 +22,11 @@ use crate::effect_lowered::ir::{
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
     LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationResumeBody, LateLoweredHandleBoundaryCaseRoutingAction,
-    LateLoweredHandlePendingCompletion, LateLoweredHandleStateRegion, LateLoweredOperandSource,
-    LateLoweredOperandValueSource, LateLoweredPlainBodySlice, LateLoweredPlainCallable,
-    LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
-    LateLoweredState, LateLoweredStateRole, LateLoweredStateTerminator,
-    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
+    LateLoweredHandlePendingCompletion, LateLoweredHandlePendingCompletionOrigin,
+    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
+    LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
+    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
+    LateLoweredStateTerminator, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
     LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
 };
@@ -93,6 +93,7 @@ struct RefactorHandlePendingPayloadRuntime {
 
 #[derive(Clone)]
 struct RefactorHandlePendingCompletionRuntime {
+    site_id: SiteId,
     completion: LateLoweredHandlePendingCompletion,
     completion_tag_value: u32,
     completion_tag_field_index: u32,
@@ -3829,18 +3830,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let mut cases = Vec::with_capacity(composition_entries.len());
         let mut seen_states = BTreeMap::new();
         for (boundary, call_lowering, dispatch, compositions, composition) in composition_entries {
-            if let Some(existing) = seen_states.insert(
-                composition.caller_resume_state(),
-                composition.input_case_tag(),
-            ) {
-                return Err(frontend_error(format!(
-                    "refactor callable `{}` resume state st{} 存在多义 call-boundary continuation composition：c{} 与 c{}",
-                    self.callable.root_fqn(),
-                    composition.caller_resume_state().as_u32(),
-                    existing.as_u32(),
-                    composition.input_case_tag().as_u32(),
-                )));
+            let resume_state = composition.caller_resume_state();
+            let candidate = (
+                boundary.boundary_id(),
+                composition.callee_continuation_schema(),
+                composition.input_step_schema(),
+            );
+            if let Some(existing) = seen_states.get(&resume_state) {
+                if *existing != candidate {
+                    return Err(frontend_error(format!(
+                        "refactor callable `{}` resume state st{} 存在多义 call-boundary continuation composition origin：{:?} 与 {:?}",
+                        self.callable.root_fqn(),
+                        resume_state.as_u32(),
+                        existing,
+                        candidate,
+                    )));
+                }
+                continue;
             }
+            seen_states.insert(resume_state, candidate);
             let bb = self.codegen.context.append_basic_block(
                 self.function,
                 &format!(
@@ -5987,7 +5995,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         self.sync_frame_slots_from_locals()?;
-        match self.handle_boundary_action(boundary.boundary_id(), case_tag)? {
+        let mut routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
+        let skip_finalized_site =
+            if let Some(RefactorHandleBoundaryRuntimeAction::PendingCompletion(action)) =
+                &routed_action
+            {
+                self.composed_resume_already_ran_handle_finally(action, composition)?
+                    .then_some(action.site_id)
+            } else {
+                None
+            };
+        if let Some(site_id) = skip_finalized_site {
+            routed_action = self.handle_boundary_action_excluding(
+                boundary.boundary_id(),
+                case_tag,
+                Some(site_id),
+            )?;
+        }
+        match routed_action {
             Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) => {
                 if let Some(binder) = action.continuation_binder {
                     let continuation = if composition.is_some() {
@@ -6036,6 +6061,40 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             continuation,
         )?;
         self.return_step(step)
+    }
+
+    fn composed_resume_already_ran_handle_finally(
+        &self,
+        action: &RefactorHandlePendingCompletionRuntime,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
+    ) -> Result<bool, LlvmEmitError> {
+        let Some(composition) = composition else {
+            return Ok(false);
+        };
+        let dispatch = self
+            .abi
+            .surface_resume_dispatch_layout(composition.callee_continuation_schema())?;
+        for target in dispatch.target().owner_trampolines() {
+            if target
+                .handle_binder_routes()
+                .iter()
+                .any(|route| route.site_id() == action.site_id)
+            {
+                return Ok(true);
+            }
+            if let Some(projection) = target.wrapper_projection()
+                && matches!(
+                    projection.underlying_route().publication(),
+                    LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                        site_id,
+                        ..
+                    } if *site_id == action.site_id
+                )
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     fn return_step(&mut self, step: BasicValueEnum<'ctx>) -> Result<(), LlvmEmitError> {
@@ -6552,6 +6611,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ))
         })?;
         Ok(Some(RefactorHandlePendingCompletionRuntime {
+            site_id,
             completion,
             completion_tag_value,
             completion_tag_field_index: layout.completion_tag_field_index(),
@@ -6565,6 +6625,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         boundary_id: BoundaryId,
         case_tag: CaseTag,
     ) -> Result<Option<RefactorHandleBoundaryRuntimeAction>, LlvmEmitError> {
+        self.handle_boundary_action_excluding(boundary_id, case_tag, None)
+    }
+
+    fn handle_boundary_action_excluding(
+        &self,
+        boundary_id: BoundaryId,
+        case_tag: CaseTag,
+        excluded_site: Option<SiteId>,
+    ) -> Result<Option<RefactorHandleBoundaryRuntimeAction>, LlvmEmitError> {
         let mut matched = None::<(usize, RefactorHandleBoundaryRuntimeAction)>;
         for state in self.callable.state_graph().states() {
             let LateLoweredStateTerminator::HandleDispatch {
@@ -6573,6 +6642,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             else {
                 continue;
             };
+            if excluded_site.is_some_and(|excluded| excluded == *site_id) {
+                continue;
+            }
             let Some(routing) = contract.boundary_routing(boundary_id) else {
                 continue;
             };
@@ -6620,13 +6692,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     )
                 }
                 LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
-                    let completion_tag_value = layout.completion_tag_value(completion).ok_or_else(|| {
+                    let origin = LateLoweredHandlePendingCompletionOrigin::new(
+                        completion,
+                        routing.boundary_id(),
+                        routing.owner_state(),
+                        routing.resume_state(),
+                    );
+                    let completion_tag_value = layout.pending_completion_origin_tag_value(origin).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 pending completion tag {:?}",
+                            "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 pending completion origin tag {:?}",
                             site_id.as_u32(),
                             boundary_id.as_u32(),
                             case_tag.as_u32(),
-                            completion
+                            origin
                         ))
                     })?;
                     let finally_state = handle_finally_state(contract).ok_or_else(|| {
@@ -6638,6 +6716,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     })?;
                     RefactorHandleBoundaryRuntimeAction::PendingCompletion(
                         RefactorHandlePendingCompletionRuntime {
+                            site_id: *site_id,
                             completion,
                             completion_tag_value,
                             completion_tag_field_index: layout.completion_tag_field_index(),
@@ -6740,40 +6819,42 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })?;
         let return_payload_source = handle_finally_return_payload_source(contract)?;
         let mut propagate_outward = Vec::new();
-        for completion in contract.pending_completions() {
-            let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) = completion else {
+        for origin in contract.pending_completion_origins() {
+            let LateLoweredHandlePendingCompletion::PropagateOutward(case_tag) =
+                origin.completion()
+            else {
                 continue;
             };
-            let emission = contract.outward_emission(*case_tag).ok_or_else(|| {
+            let emission = contract.outward_emission(case_tag).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor HandleDispatch site{} pending outward c{} 缺少 outward emission",
                     site_id.as_u32(),
                     case_tag.as_u32()
                 ))
             })?;
-            let resume_state = pending_completion_resume_state(contract, *completion)?;
-            let completion_tag_value =
-                layout.completion_tag_value(*completion).ok_or_else(|| {
+            let completion_tag_value = layout
+                .pending_completion_origin_tag_value(*origin)
+                .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor HandleDispatch site{} 缺少 pending outward completion tag {:?}",
+                        "refactor HandleDispatch site{} 缺少 pending outward origin tag {:?}",
                         site_id.as_u32(),
-                        completion
+                        origin
                     ))
                 })?;
             let boundary_id = self.handle_boundary_for_site(site_id)?.boundary_id();
             propagate_outward.push(RefactorHandleOutwardCompletionRuntime {
                 boundary_id,
                 completion_tag_value,
-                case_tag: *case_tag,
+                case_tag,
                 payload_tuple_ty: emission.payload_tuple_ty(),
-                resume_state,
-                payload_transport: layout.pending_payload_transport_layout(*completion).map(
-                    |transport| RefactorHandlePendingPayloadRuntime {
+                resume_state: origin.resume_state(),
+                payload_transport: layout
+                    .pending_payload_transport_layout(origin.completion())
+                    .map(|transport| RefactorHandlePendingPayloadRuntime {
                         completion: transport.completion(),
                         payload_tuple_ty: transport.payload_tuple_ty(),
                         frame_field_index: transport.frame_field_index(),
-                    },
-                ),
+                    }),
             });
         }
         Ok(RefactorHandleFinallyRuntime {
@@ -6852,9 +6933,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let bb = self.codegen.context.append_basic_block(
                 function,
                 &format!(
-                    "handle{}_propagate_c{}",
+                    "handle{}_propagate_c{}_st{}",
                     finally.site_id.as_u32(),
-                    outward.case_tag.as_u32()
+                    outward.case_tag.as_u32(),
+                    outward.resume_state.as_u32()
                 ),
             );
             cases.push((
@@ -8565,43 +8647,6 @@ fn handle_finally_return_payload_source(
         }
     }
     Ok(published)
-}
-
-fn pending_completion_resume_state(
-    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
-    completion: LateLoweredHandlePendingCompletion,
-) -> Result<StateId, LlvmEmitError> {
-    let mut resume_state: Option<StateId> = None;
-    for routing in contract.boundary_routings() {
-        for case in routing.case_routings() {
-            if !matches!(
-                case.action(),
-                LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion {
-                    completion: action_completion,
-                } if action_completion == completion
-            ) {
-                continue;
-            }
-            match resume_state {
-                Some(existing) if existing != routing.resume_state() => {
-                    return Err(frontend_error(format!(
-                        "refactor HandleDispatch pending completion {:?} 对应多个 resume state：st{} 与 st{}",
-                        completion,
-                        existing.as_u32(),
-                        routing.resume_state().as_u32()
-                    )));
-                }
-                Some(_) => {}
-                None => resume_state = Some(routing.resume_state()),
-            }
-        }
-    }
-    resume_state.ok_or_else(|| {
-        frontend_error(format!(
-            "refactor HandleDispatch pending completion {:?} 缺少 boundary routing resume state",
-            completion
-        ))
-    })
 }
 
 fn boundary_complete_result_local(boundary: &LateLoweredBoundary) -> Option<LocalId> {

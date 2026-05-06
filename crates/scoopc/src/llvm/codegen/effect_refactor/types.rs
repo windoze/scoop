@@ -13,12 +13,12 @@ use crate::effect_lowered::ir::{
     LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
     LateLoweredContinuationMethodReachability, LateLoweredHandleBoundaryRouting,
     LateLoweredHandleDispatchContract, LateLoweredHandlePendingCompletion,
-    LateLoweredHandlePendingPayloadTransport, LateLoweredHandleStateRegion,
-    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeBoundaryOperandContract, LateLoweredResumePayloadBinding,
-    LateLoweredSurfaceResumeDispatchSourceKind, LateLoweredSurfaceResumeWrapperProjection,
-    ResumeInterfaceId, StateId, SystemSlotKind,
+    LateLoweredHandlePendingCompletionOrigin, LateLoweredHandlePendingPayloadTransport,
+    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryOperandContract,
+    LateLoweredResumePayloadBinding, LateLoweredSurfaceResumeDispatchSourceKind,
+    LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{InstanceKey, LocalId, SiteId};
@@ -1288,6 +1288,7 @@ pub(super) struct RefactorHandleDispatchLayout {
     completion_tag_field_index: u32,
     payload_carrier_field_index: u32,
     completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+    pending_completion_origin_tags: BTreeMap<LateLoweredHandlePendingCompletionOrigin, u32>,
     pending_payload_transports:
         BTreeMap<LateLoweredHandlePendingCompletion, RefactorHandlePendingPayloadTransportLayout>,
     handled_arms: Vec<RefactorHandleArmLayout>,
@@ -1341,6 +1342,7 @@ impl RefactorHandleDispatchLayout {
         completion_tag_field_index: u32,
         payload_carrier_field_index: u32,
         completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
+        pending_completion_origin_tags: BTreeMap<LateLoweredHandlePendingCompletionOrigin, u32>,
         pending_payload_transports: BTreeMap<
             LateLoweredHandlePendingCompletion,
             RefactorHandlePendingPayloadTransportLayout,
@@ -1355,6 +1357,7 @@ impl RefactorHandleDispatchLayout {
             completion_tag_field_index,
             payload_carrier_field_index,
             completion_tags,
+            pending_completion_origin_tags,
             pending_payload_transports,
             handled_arms,
         }
@@ -1393,6 +1396,19 @@ impl RefactorHandleDispatchLayout {
 
     pub(super) fn completion_tags(&self) -> &BTreeMap<LateLoweredHandlePendingCompletion, u32> {
         &self.completion_tags
+    }
+
+    pub(super) fn pending_completion_origin_tag_value(
+        &self,
+        origin: LateLoweredHandlePendingCompletionOrigin,
+    ) -> Option<u32> {
+        self.pending_completion_origin_tags.get(&origin).copied()
+    }
+
+    pub(super) fn pending_completion_origin_tags(
+        &self,
+    ) -> &BTreeMap<LateLoweredHandlePendingCompletionOrigin, u32> {
+        &self.pending_completion_origin_tags
     }
 
     pub(super) fn pending_payload_transport_layout(

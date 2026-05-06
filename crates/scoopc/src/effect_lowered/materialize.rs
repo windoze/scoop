@@ -30,17 +30,18 @@ use super::ir::{
     LateLoweredHandleBoundaryRouting, LateLoweredHandleContinuationBinder,
     LateLoweredHandleDispatchCarrierContract, LateLoweredHandleDispatchContract,
     LateLoweredHandlePayloadBinder, LateLoweredHandlePendingCompletion,
-    LateLoweredHandlePendingPayloadTransport, LateLoweredHandleStateRegion,
-    LateLoweredHandleStateRegionEntry, LateLoweredLocalRuntimeErrorTerminalAction,
-    LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredPerformBoundaryLowering,
-    LateLoweredPerformBoundaryOperandContract, LateLoweredPublishedRuntimeEntry,
-    LateLoweredResumeBoundaryLowering, LateLoweredResumeBoundaryOperandContract,
-    LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
-    LateLoweredRuntimeErrorBoundaryLowering, LateLoweredSourceStatementClassification,
-    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateGraph,
-    LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
-    LateLoweredStepCaseEmission, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredStepType, ResumeInterfaceId, StateId,
+    LateLoweredHandlePendingCompletionOrigin, LateLoweredHandlePendingPayloadTransport,
+    LateLoweredHandleStateRegion, LateLoweredHandleStateRegionEntry,
+    LateLoweredLocalRuntimeErrorTerminalAction, LateLoweredOneShotPolicy, LateLoweredOperandSource,
+    LateLoweredPerformBoundaryLowering, LateLoweredPerformBoundaryOperandContract,
+    LateLoweredPublishedRuntimeEntry, LateLoweredResumeBoundaryLowering,
+    LateLoweredResumeBoundaryOperandContract, LateLoweredResumeInterface, LateLoweredResumeMethod,
+    LateLoweredResumePayloadBinding, LateLoweredRuntimeErrorBoundaryLowering,
+    LateLoweredSourceStatementClassification, LateLoweredSourceStatementClassificationKind,
+    LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateSlice,
+    LateLoweredStateTerminator, LateLoweredStepCase, LateLoweredStepCaseEmission,
+    LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan, LateLoweredStepType,
+    ResumeInterfaceId, StateId,
 };
 use super::ir::{
     LateLoweredBodyVersionKey, LateLoweredBoundarySource, LateLoweredContinuationRoute,
@@ -1840,6 +1841,12 @@ fn build_handle_dispatch_contract(
         &outward_emissions,
         frame_schema,
     )?;
+    let pending_completion_origins = build_handle_pending_completion_origins(
+        root_fqn,
+        site_id,
+        &pending_completions,
+        &boundary_routings,
+    )?;
 
     Ok(LateLoweredHandleDispatchContract::new(
         LateLoweredHandleDispatchCarrierContract::new(
@@ -1856,6 +1863,7 @@ fn build_handle_dispatch_contract(
         finally_outward_cases,
         outward_emissions,
         pending_completions,
+        pending_completion_origins,
         pending_payload_transports,
         state_regions,
         boundary_routings,
@@ -2452,6 +2460,65 @@ fn build_handle_pending_payload_transports(
     }
 
     Ok(transports)
+}
+
+fn build_handle_pending_completion_origins(
+    root_fqn: &str,
+    site_id: SiteId,
+    pending_completions: &[LateLoweredHandlePendingCompletion],
+    boundary_routings: &[LateLoweredHandleBoundaryRouting],
+) -> Result<Vec<LateLoweredHandlePendingCompletionOrigin>, EffectLoweringError> {
+    let published_completions = pending_completions.iter().copied().collect::<BTreeSet<_>>();
+    let mut origins = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for routing in boundary_routings {
+        for case in routing.case_routings() {
+            let LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } =
+                case.action()
+            else {
+                continue;
+            };
+            if !published_completions.contains(&completion) {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "boundary bd{} case c{} 引用未发布的 pending completion {:?}",
+                        routing.boundary_id().as_u32(),
+                        case.case_tag().as_u32(),
+                        completion,
+                    ),
+                ));
+            }
+            if !matches!(
+                completion,
+                LateLoweredHandlePendingCompletion::PropagateOutward(_)
+            ) {
+                return Err(invalid_handle_dispatch_contract(
+                    root_fqn,
+                    site_id,
+                    format!(
+                        "boundary bd{} case c{} 的 pending completion {:?} 不是 outward propagation",
+                        routing.boundary_id().as_u32(),
+                        case.case_tag().as_u32(),
+                        completion,
+                    ),
+                ));
+            }
+            let origin = LateLoweredHandlePendingCompletionOrigin::new(
+                completion,
+                routing.boundary_id(),
+                routing.owner_state(),
+                routing.resume_state(),
+            );
+            if seen.insert(origin) {
+                origins.push(origin);
+            }
+        }
+    }
+
+    Ok(origins)
 }
 
 fn collect_handle_region_states(
@@ -5372,7 +5439,7 @@ fn is_runtime_error_raise_case(case: &LateLoweredStepCase, types: &TypeStore) ->
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::path::PathBuf;
 
     use crate::effect_facts::{
@@ -7991,6 +8058,50 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
+    fn refactor_handle_dispatch_contract_publishes_origin_aware_pending_completion() {
+        let output = load_output(&load_fixture(
+            "run-pass",
+            "effect_resume_finally_body_raise_after_resume.scoop",
+        ));
+        let callable = callable(&output, "main");
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(2));
+        let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
+        else {
+            panic!("指定 state 应保持 HandleDispatch terminator");
+        };
+        let body_raise_case = *contract
+            .body_outward_cases()
+            .first()
+            .expect("fixture 应发布 resumed-body outward case");
+        let completion = LateLoweredHandlePendingCompletion::PropagateOutward(body_raise_case);
+
+        let mut origins_by_completion = BTreeMap::new();
+        for origin in contract.pending_completion_origins() {
+            origins_by_completion
+                .entry(origin.completion())
+                .or_insert_with(BTreeSet::new)
+                .insert((origin.boundary_id(), origin.resume_state()));
+        }
+        let origins = origins_by_completion
+            .get(&completion)
+            .expect("resumed-body raise 应发布 pending completion origins");
+
+        assert!(
+            origins.len() >= 2,
+            "同一 Raise<Int> pending completion 必须保留多个 origin/resume-state，而不是按 case 合并：{origins:?}"
+        );
+        assert!(
+            origins
+                .iter()
+                .map(|(_, resume_state)| *resume_state)
+                .collect::<BTreeSet<_>>()
+                .len()
+                >= 2,
+            "pending completion origin 必须区分不同 resume state：{origins:?}"
+        );
+    }
+
+    #[test]
     fn refactor_handle_dispatch_contract_dump_exposes_published_completion_state() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_contract_dump.scoop",
@@ -8028,6 +8139,7 @@ fun propagate_before_finally(): Int {
 
         assert!(dump.contains("handle_contract:"));
         assert!(dump.contains("pending_completions:"));
+        assert!(dump.contains("pending_completion_origins:"));
         assert!(dump.contains("pending_payload_transports:"));
         assert!(dump.contains("state_regions:"));
         assert!(dump.contains("boundary_routings:"));

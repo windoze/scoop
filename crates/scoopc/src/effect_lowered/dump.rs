@@ -914,6 +914,22 @@ fn render_handle_dispatch_contract(
             .unwrap();
         }
     }
+    writeln!(rendered, "              pending_completion_origins:").unwrap();
+    if contract.pending_completion_origins().is_empty() {
+        writeln!(rendered, "                <none>").unwrap();
+    } else {
+        for origin in contract.pending_completion_origins() {
+            writeln!(
+                rendered,
+                "                - {} via bd{} owner=st{} resume=st{}",
+                render_handle_pending_completion(origin.completion()),
+                origin.boundary_id().as_u32(),
+                origin.owner_state().as_u32(),
+                origin.resume_state().as_u32(),
+            )
+            .unwrap();
+        }
+    }
     writeln!(rendered, "              pending_payload_transports:").unwrap();
     if contract.pending_payload_transports().is_empty() {
         writeln!(rendered, "                <none>").unwrap();
