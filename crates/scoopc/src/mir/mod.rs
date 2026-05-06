@@ -18,6 +18,7 @@
 
 mod callables;
 mod closure_simplify;
+mod codegen_route;
 mod escape;
 mod inline;
 mod lower;
@@ -40,6 +41,10 @@ use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
+pub use codegen_route::{
+    MirCodegenAbiPublication, MirCodegenBackendRoute, MirCodegenRouteError, MirCodegenRouteFeature,
+    MirCodegenRoutingFact, MirCodegenRoutingFacts,
+};
 pub use escape::{
     CallableEscapeFacts, ClosureEscapeFact, ContinuationEscapeFact, EscapeStatus,
     MaterializedEscapeFacts,

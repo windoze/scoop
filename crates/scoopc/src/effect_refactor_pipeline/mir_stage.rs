@@ -3,8 +3,9 @@ use std::collections::BTreeMap;
 use crate::mir::{
     ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
     InitializerRoot as MirInitializerRoot, Item as MirItem, LoweredMir, MaterializedMir,
-    MetadataRoot as MirMetadataRoot, MirLowerError, MirLoweringFacts,
-    lower_hir_file_for_dump_with_facts,
+    MetadataRoot as MirMetadataRoot, MirCallableAbiKind, MirCallableImplPlan,
+    MirCodegenAbiPublication, MirCodegenRoutingFact, MirCodegenRoutingFacts, MirLowerError,
+    MirLoweringFacts, lower_hir_file_for_dump_with_facts,
 };
 use crate::ty::{TypeId, TypeStore};
 
@@ -147,7 +148,25 @@ impl RefactorMirStageOutput {
     ///   的关键 metadata；
     /// - 不能在 CLI、fixture runner、或单测之间各自拼接不同文本。
     pub fn stable_dump(&self) -> String {
-        format!("{:#?}\n", self.file())
+        let mut out = format!("{:#?}\n", self.file());
+        let route_facts = self
+            .callable_body_indices
+            .values()
+            .filter_map(|&item_index| match self.file().items.get(item_index) {
+                Some(MirItem::Fun(fun)) => Some(MirCodegenRoutingFact::from_materialized_fun(
+                    fun,
+                    MirCodegenAbiPublication {
+                        callable_abi_kind: MirCallableAbiKind::DeferredToEffectFacts,
+                        resolved_outward_cases: Vec::new(),
+                        impl_plan: MirCallableImplPlan::DeferredToEffectFacts,
+                        adapter_required: false,
+                        step_schema_published: false,
+                    },
+                )),
+                _ => None,
+            });
+        out.push_str(&MirCodegenRoutingFacts::new(route_facts).stable_dump());
+        out
     }
 
     pub fn into_lowered_mir(self) -> LoweredMir {

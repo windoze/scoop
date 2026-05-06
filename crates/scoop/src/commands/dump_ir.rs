@@ -13,6 +13,29 @@ use std::fmt::Write as _;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use scoopc::session::SessionOptions;
 
+fn render_codegen_route_preflight(materialized: &scoopc::mir::MaterializedMir) -> String {
+    let pass_view = materialized.pass_view();
+    let facts = pass_view.instances().map(|family| {
+        let abi = scoopc::mir::MirCodegenAbiPublication {
+            callable_abi_kind: scoopc::mir::MirCallableAbiKind::DeferredToEffectFacts,
+            resolved_outward_cases: Vec::new(),
+            impl_plan: scoopc::mir::MirCallableImplPlan::DeferredToEffectFacts,
+            adapter_required: false,
+            step_schema_published: false,
+        };
+        if let Some(fun) = family.root_body() {
+            scoopc::mir::MirCodegenRoutingFact::from_materialized_fun(fun, abi)
+        } else {
+            scoopc::mir::MirCodegenRoutingFact::declaration_only(
+                family.root_fqn().to_string(),
+                family.key().template.decl_span,
+                abi,
+            )
+        }
+    });
+    scoopc::mir::MirCodegenRoutingFacts::new(facts).stable_dump()
+}
+
 fn load_input_source(input: PathBuf) -> Result<scoopc::source::SourceFile> {
     let input = input
         .canonicalize()
@@ -61,7 +84,11 @@ pub(super) fn render_dump_output(
 
     let session = scoopc::session::Session::with_options(session_options)?;
     let lowered = load_materialized_mir_for_dump(&session, &file)?;
-    Ok(format!("{:#?}\n", lowered))
+    Ok(format!(
+        "{:#?}\n{}",
+        lowered,
+        render_codegen_route_preflight(&lowered)
+    ))
 }
 
 #[cfg(test)]

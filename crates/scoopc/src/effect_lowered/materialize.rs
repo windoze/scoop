@@ -3249,6 +3249,16 @@ pub(crate) fn materialize_source_statement_classifications(
                     &handle_binder_locals,
                     &mut matched_boundary_statement_anchors,
                 );
+                if let LateLoweredSourceStatementClassificationKind::Unsupported { reason } = kind {
+                    return Err(invalid_source_slice_classification_contract(
+                        root_fqn,
+                        format!(
+                            "source-slice statement bb{} stmt{} has unsupported source classification: {reason}",
+                            source_slice.block_id().as_u32(),
+                            stmt_index,
+                        ),
+                    ));
+                }
                 classifications.push(LateLoweredSourceStatementClassification::new(
                     source_slice,
                     stmt_index,

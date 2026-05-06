@@ -1,0 +1,54 @@
+// EXPECT: pass
+// 目标：MIR-T12 codegen routing / ABI handoff contract。
+
+package mir_refactor.codegen_routing_contracts
+
+import scoop.core.*
+
+effect Ping {
+    fun hit(): Unit
+}
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+interface IFace {
+    fun foo(): Int
+}
+
+fun rawSafe(): Int {
+    val x = 1
+    return x + 1
+}
+
+fun callVirtual(b: Base): Int {
+    return b.ping()
+}
+
+fun callInterface(i: IFace): Int {
+    return i.foo()
+}
+
+fun resumeBoom(k: Continuation<Int, Unit, eff Ping>): Unit / (Raise<RuntimeError> + Ping) {
+    k.resume(1)
+}
+
+fun handled(): Int {
+    return handle {
+        Ping.hit()
+        0
+    } with {
+        Ping.hit() -> 2
+    }
+}
+
+fun outward(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main(): Int {
+    return rawSafe() + handled()
+}

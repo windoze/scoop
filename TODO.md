@@ -878,7 +878,7 @@
   - 额外回归通过：`cargo test -p scoopc --no-default-features refactor_mir_no_todo`。
   - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
-## MIR-T12：建立 codegen routing / ABI handoff 守卫
+## [DONE] MIR-T12：建立 codegen routing / ABI handoff 守卫
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/M8
@@ -925,6 +925,21 @@
   - `PIPELINE_GAPS.md` §3.1、§3.2、§3.3、§3.6、§5.1、§5.2、§5.4 的 MIR-facing 部分有明确 verifier 或 publication。
   - 剩余实现工作可无歧义转交 codegen task。
 - 依赖：`MIR-T11R`
+
+- 完成记录（2026-05-07）：
+  - 新增 MIR-owned codegen routing facts / verifier，按 materialized callable 发布 raw-safe plain、plain local-control handoff、EffectStep lowering、frontend reject 这几类 route，并记录 body FQN、source span、route reason、Handle/ResumeUnwind/Perform/PerformResult/Virtual/Interface/Resume feature set、ABI kind、`impl_plan`、`resolved_outward_cases`、Step schema publication。
+  - P4 effect-facts stage 现在从 canonical materialized pass view + solved effect facts 构建并校验 final routing facts；`NoOutward` 或空 outward cases 必须发布 Plain ABI，EffectStep body 必须有非空 outward cases 和 body Step schema，raw MIR route 会拒绝 effect/control terminator 与 unsupported call kind feature。
+  - `dump-mir` / `dump-ir` 现在输出 deferred route preflight；`dump-effect-facts` / `dump-effect-lowered` 输出 final routing facts 和 ABI handoff，供 codegen TODO 继续消费。
+  - late-lowered source statement classification 遇到 `Unsupported` 现在在 handoff 阶段 fail-fast，`PerformResult` 缺 resume payload injection / binding contract 不再能静默进入 backend source-slice emission。
+  - 新增 `tests/fixtures/mir_refactor/codegen_routing_contracts.scoop`，覆盖 raw-safe plain、plain local-control handoff、EffectStep boundary、interface dispatch、resume、perform-result；负例覆盖 raw route unsupported feature、`NoOutward` body 发布 EffectStep ABI、frontend-reject route。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_mir_codegen_routing_contract`。
+  - 验证通过：`cargo test -p scoopc --no-default-features refactor_materialized_mir_codegen_route_verifier`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-mir tests/fixtures/mir_refactor/codegen_routing_contracts.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-ir tests/fixtures/mir_refactor/codegen_routing_contracts.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor dump-effect-lowered tests/fixtures/mir_refactor/codegen_routing_contracts.scoop`。
+  - 验证通过：`cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor/codegen_routing_contracts.scoop`。
+  - 额外回归通过：`cargo test -p scoop --no-default-features dump_ir`、`cargo test -p scoop --no-default-features dump_mir`、`cargo test -p scoop --no-default-features dump_effect`。
+  - 额外 lint 通过：`cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings`。
 
 ## MIR-T12R：Review MIR-T12 codegen handoff guard
 

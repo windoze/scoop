@@ -1,8 +1,14 @@
+use std::fmt::Write;
+
 use crate::effect_facts::{
-    BodyEffectFacts, EffectFactsError, MaterializedEffectFacts, MaterializedEffectFactsBuilder,
-    MaterializedEffectFactsSolver, SiteEffectFacts,
+    BodyEffectFacts, CallableAbiKind, EffectFactsError, ImplPlan, MaterializedEffectFacts,
+    MaterializedEffectFactsBuilder, MaterializedEffectFactsSolver, SiteEffectFacts,
 };
-use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
+use crate::mir::{
+    File as MirFile, MaterializedMir, MaterializedMirPassView, MirCallableAbiKind,
+    MirCallableImplPlan, MirCodegenAbiPublication, MirCodegenRouteError, MirCodegenRoutingFact,
+    MirCodegenRoutingFacts,
+};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::TypeStore;
@@ -22,16 +28,19 @@ use super::RefactorMirStageOutput;
 pub struct RefactorEffectFactsStageOutput {
     mir_stage_output: RefactorMirStageOutput,
     effect_facts: MaterializedEffectFacts,
+    codegen_routing_facts: MirCodegenRoutingFacts,
 }
 
 impl RefactorEffectFactsStageOutput {
     fn new(
         mir_stage_output: RefactorMirStageOutput,
         effect_facts: MaterializedEffectFacts,
+        codegen_routing_facts: MirCodegenRoutingFacts,
     ) -> Self {
         Self {
             mir_stage_output,
             effect_facts,
+            codegen_routing_facts,
         }
     }
 
@@ -61,13 +70,21 @@ impl RefactorEffectFactsStageOutput {
         &self.effect_facts
     }
 
+    pub fn codegen_routing_facts(&self) -> &MirCodegenRoutingFacts {
+        &self.codegen_routing_facts
+    }
+
     /// refactor `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
     ///
     /// 该 dump 明确锁定 P4 -> P5 handoff：只展示 canonical MIR snapshot 绑定到的
     /// `MaterializedEffectFacts`，不回 HIR/typecheck 重建缺失 effect 语义。
     pub fn stable_dump(&self) -> String {
-        self.effect_facts
-            .stable_dump(self.types(), self.materialized_pass_view())
+        let mut out = self
+            .effect_facts
+            .stable_dump(self.types(), self.materialized_pass_view());
+        writeln!(&mut out).unwrap();
+        out.push_str(&self.codegen_routing_facts.stable_dump());
+        out
     }
 }
 
@@ -127,10 +144,65 @@ pub(crate) fn run(
         };
         solver.solve(seeded_facts)
     };
+    let codegen_routing_facts = build_codegen_routing_facts(&mir_stage_output, &effect_facts)?;
     Ok(RefactorEffectFactsStageOutput::new(
         mir_stage_output,
         effect_facts,
+        codegen_routing_facts,
     ))
+}
+
+fn build_codegen_routing_facts(
+    mir_stage_output: &RefactorMirStageOutput,
+    effect_facts: &MaterializedEffectFacts,
+) -> Result<MirCodegenRoutingFacts, MirCodegenRouteError> {
+    let pass_view = mir_stage_output
+        .materialized_mir()
+        .expect("effect facts stage already requires materialized MIR")
+        .pass_view();
+    let mut facts = Vec::new();
+    for family in pass_view.instances() {
+        let Some(callable_facts) = effect_facts.callable_facts().get(family.key()) else {
+            if family.root_body().is_some() {
+                return Err(MirCodegenRouteError::MissingCallableFacts {
+                    body_fqn: family.root_fqn().to_string(),
+                });
+            }
+            continue;
+        };
+        let abi = MirCodegenAbiPublication {
+            callable_abi_kind: match callable_facts.call_abi_kind() {
+                CallableAbiKind::Plain => MirCallableAbiKind::Plain,
+                CallableAbiKind::EffectStep => MirCallableAbiKind::EffectStep,
+            },
+            resolved_outward_cases: callable_facts
+                .resolved_outward_cases()
+                .tags()
+                .iter()
+                .map(|tag| format!("c{}", tag.as_u32()))
+                .collect(),
+            impl_plan: match callable_facts.impl_plan() {
+                ImplPlan::NoOutward => MirCallableImplPlan::NoOutward,
+                ImplPlan::SingleCase(_) => MirCallableImplPlan::SingleCase,
+                ImplPlan::CanonicalFull => MirCallableImplPlan::CanonicalFull,
+            },
+            adapter_required: false,
+            step_schema_published: callable_facts.body_step_schema().is_some(),
+        };
+        let fact = if let Some(fun) = family.root_body() {
+            MirCodegenRoutingFact::from_materialized_fun(fun, abi)
+        } else {
+            MirCodegenRoutingFact::declaration_only(
+                family.root_fqn().to_string(),
+                family.key().template.decl_span,
+                abi,
+            )
+        };
+        facts.push(fact);
+    }
+    let facts = MirCodegenRoutingFacts::new(facts);
+    facts.validate()?;
+    Ok(facts)
 }
 
 fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
@@ -149,7 +221,10 @@ mod tests {
     use super::super::{RefactorMirStageOutput, TypedHirEffectContracts};
     use super::RefactorEffectFactsStageOutput;
     use crate::effect_facts::{CanonicalMirQuerySurface, EffectFactsError, ImplPlan};
-    use crate::mir::{File, LoweredMir};
+    use crate::mir::{
+        File, LoweredMir, MirCallableAbiKind, MirCallableImplPlan, MirCodegenBackendRoute,
+        MirCodegenRouteFeature,
+    };
     use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
@@ -274,6 +349,13 @@ fun callInterface(i: IFace): Int {
     return i.foo()
 }
 "#,
+        )
+    }
+
+    fn codegen_routing_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/codegen_routing_contracts.scoop",
+            include_str!("../../../../tests/fixtures/mir_refactor/codegen_routing_contracts.scoop"),
         )
     }
 
@@ -494,6 +576,85 @@ fun callInterface(i: IFace): Int {
         assert!(dump.contains("kind: Handle"));
         assert!(dump.contains("impl_plan:"));
         assert!(dump.contains("nested_handle_classification:"));
+        assert!(dump.contains("codegen_routing_facts:"));
+    }
+
+    #[test]
+    fn refactor_mir_codegen_routing_contract_publishes_route_and_abi_facts() {
+        let source = codegen_routing_source();
+        let output = run_stage_with_opt_level(&source, crate::opt::OptLevel::O0);
+        let routes = output.codegen_routing_facts();
+
+        let raw = routes
+            .get("mir_refactor.codegen_routing_contracts.rawSafe")
+            .expect("rawSafe route fact should be published");
+        assert_eq!(raw.route, MirCodegenBackendRoute::PlainRawMir);
+        assert_eq!(raw.abi.callable_abi_kind, MirCallableAbiKind::Plain);
+        assert_eq!(raw.abi.impl_plan, MirCallableImplPlan::NoOutward);
+        assert!(raw.features.is_empty());
+
+        let handled = routes
+            .get("mir_refactor.codegen_routing_contracts.handled")
+            .expect("handled route fact should be published");
+        assert_eq!(
+            handled.route,
+            MirCodegenBackendRoute::PlainLocalControlHandoff
+        );
+        assert!(handled.features.contains(&MirCodegenRouteFeature::Handle));
+        assert!(handled.features.contains(&MirCodegenRouteFeature::Perform));
+        assert!(
+            handled
+                .features
+                .contains(&MirCodegenRouteFeature::PerformResult),
+            "handled body should publish PerformResult routing hazard"
+        );
+        assert_eq!(handled.abi.callable_abi_kind, MirCallableAbiKind::Plain);
+        assert!(handled.abi.resolved_outward_cases.is_empty());
+
+        let outward = routes
+            .get("mir_refactor.codegen_routing_contracts.outward")
+            .expect("outward route fact should be published");
+        assert_eq!(outward.route, MirCodegenBackendRoute::EffectStepLowering);
+        assert_eq!(
+            outward.abi.callable_abi_kind,
+            MirCallableAbiKind::EffectStep
+        );
+        assert!(!outward.abi.resolved_outward_cases.is_empty());
+        assert!(outward.abi.step_schema_published);
+
+        let virtual_call = routes
+            .get("mir_refactor.codegen_routing_contracts.callVirtual")
+            .expect("virtual call route fact should be published");
+        assert_eq!(
+            virtual_call.abi.callable_abi_kind,
+            MirCallableAbiKind::Plain,
+            "closed-world pass view may devirtualize the concrete Base.ping call, but routing still publishes the final plain ABI"
+        );
+
+        let interface_call = routes
+            .get("mir_refactor.codegen_routing_contracts.callInterface")
+            .expect("interface call route fact should be published");
+        assert!(
+            interface_call
+                .features
+                .contains(&MirCodegenRouteFeature::InterfaceCall)
+        );
+
+        let resume = routes
+            .get("mir_refactor.codegen_routing_contracts.resumeBoom")
+            .expect("resume route fact should be published");
+        assert!(
+            resume
+                .features
+                .contains(&MirCodegenRouteFeature::ResumeCall)
+        );
+
+        let dump = output.stable_dump();
+        assert!(dump.contains("codegen_routing_facts:"));
+        assert!(dump.contains("route: PlainRawMir"));
+        assert!(dump.contains("route: PlainLocalControlHandoff"));
+        assert!(dump.contains("route: EffectStepLowering"));
+        assert!(dump.contains("abi: EffectStep"));
     }
 
     #[test]
