@@ -1,0 +1,65 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: effect_cross_thread_resume_payload_composite.stdout.txt
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+
+struct Payload(val label: String, val value: Int)
+
+effect AwaitPayload {
+    fun next(): Payload
+}
+
+effect AwaitText {
+    fun nextText(): String
+}
+
+fun main() {
+    var savedPayload: Continuation<Payload, Unit>? = None()
+    var savedText: Continuation<String, Unit>? = None()
+
+    val payloadRun: Unit = handle {
+        val payload: Payload = AwaitPayload.next()
+        __scoop_gc_collect()
+        println(payload.label)
+        println(payload.value)
+    } with {
+        AwaitPayload.next(), k -> {
+            savedPayload = Some(k)
+            println("captured_payload")
+        }
+    }
+
+    val textRun: Unit = handle {
+        val text: String = AwaitText.nextText()
+        __scoop_gc_collect()
+        println(text)
+    } with {
+        AwaitText.nextText(), k -> {
+            savedText = Some(k)
+            println("captured_text")
+        }
+    }
+
+    when (savedPayload) {
+        Some(k) -> {
+            savedPayload = None()
+            __scoop_thread_spawn_join_resume(k, Payload("payload_composite", 77))
+        }
+        None -> println("missing_payload")
+    }
+
+    when (savedText) {
+        Some(k) -> {
+            savedText = None()
+            __scoop_thread_spawn_join_resume(k, "payload_ref")
+        }
+        None -> println("missing_text")
+    }
+
+    println("done")
+}

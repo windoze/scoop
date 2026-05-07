@@ -202,6 +202,7 @@
   X(scoop_thread_register) \
   X(scoop_thread_sleep_millis) \
   X(scoop_thread_spawn) \
+  X(scoop_thread_spawn_join_refactor_resume_transport) \
   X(scoop_thread_spawn_join_refactor_resume_u64) \
   X(scoop_thread_spawn_join_resume_u64) \
   X(scoop_thread_unregister) \

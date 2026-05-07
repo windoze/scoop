@@ -211,6 +211,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(gc) = &transport.gc {
             self.verify_gc_intrinsic_composite_transport_contract(body_fqn, span, mir_types, gc)?;
         }
+        if let Some(thread_resume_payload) = &transport.thread_resume_payload {
+            self.verify_value_composite_transport_contract(
+                body_fqn,
+                span,
+                mir_types,
+                thread_resume_payload,
+            )?;
+        }
         Ok(())
     }
 
@@ -365,11 +373,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (source_ty, cg_ty)
         } else {
             let cg_ty = self.cg_ty_of_mir_type(mir_types, metadata.source_ty).ok_or_else(|| {
+                let detail = if matches!(mir_types.kind(metadata.source_ty), TypeKind::Param(_)) {
+                    "composite transport use site still references an unsubstituted type parameter"
+                } else {
+                    "composite transport use site is missing a materialized layout descriptor type"
+                };
                 composite_transport_gate_error(
                     body_fqn,
                     span,
                     composite_transport_gap_id(metadata),
-                    "composite transport use site is missing a materialized layout descriptor type",
+                    detail,
                 )
             })?;
             (metadata.source_ty, cg_ty)

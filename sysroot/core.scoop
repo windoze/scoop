@@ -491,6 +491,7 @@ interface Continuation<Resume, Answer, eff E = Pure> {
 // - 该 API 用于回归"跨线程 resume"语义（spec §5.5 / TODO T0618）；
 // - 当前阶段不提供调度器：该 helper 会创建一个新线程执行 `resume` 并 join 等待结束；
 // - 仅作为 fixtures 的可执行落点，并不承诺稳定的用户态 API。
+fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
 fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
 
 // Task（spec §5.3 / §5.7）

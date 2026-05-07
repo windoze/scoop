@@ -1541,6 +1541,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_thread_spawn_join_refactor_resume_transport(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_REFACTOR_RESUME_TRANSPORT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_thread_spawn_join_refactor_resume_transport(void* k, uint64_t word, void* gc_ref, const Descriptor* desc, const void* payload, void (*resume_fn)(void*, uint64_t, void*, void*))`
+        let k_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let gc_ref_ty = self.llvm_gc_i8_ptr_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let resume_fn_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 6] = [
+            k_ty.into(),
+            i64_ty.into(),
+            gc_ref_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+            resume_fn_ty.into(),
+        ];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_effect_perform_slot_write_u64(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64;
         if let Some(existing) = self.module.get_function(NAME) {

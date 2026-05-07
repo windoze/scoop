@@ -46,6 +46,13 @@ struct RefactorPlainAdapterLayout<'ctx> {
     return_step_schema: crate::effect_facts::StepSchemaId,
 }
 
+struct RefactorThreadResumeTransportValue<'ctx> {
+    word: IntValue<'ctx>,
+    gc_ref: PointerValue<'ctx>,
+    descriptor: PointerValue<'ctx>,
+    payload_ptr: PointerValue<'ctx>,
+}
+
 fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
     fun_ty
         .receiver
@@ -1176,9 +1183,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) =
-            self.lower_refactor_thread_spawn_join_resume_u64(span, callee_fqn, args)?
-        {
+        if let Some(value) = self.lower_refactor_thread_spawn_join_resume(
+            span,
+            callee_fqn,
+            args,
+            transport.thread_resume_payload.as_deref(),
+        )? {
             return Ok(value);
         }
         if let Some(value) = self.lower_refactor_gc_debug_intrinsic(span, callee_fqn, args)? {
@@ -1828,18 +1838,22 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(ptr)
     }
 
-    fn lower_refactor_thread_spawn_join_resume_u64(
+    fn lower_refactor_thread_spawn_join_resume(
         &mut self,
         span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
+        payload_transport: Option<&mir::ValueTransportMetadata>,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if callee_fqn != "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+        let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
+        let legacy_u64 = dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64";
+        let typed_transport = dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume";
+        if !legacy_u64 && !typed_transport {
             return Ok(None);
         }
         if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume arg contract",
+                kind: "refactor thread spawn+resume transport arg contract",
                 at: span.into(),
             });
         }
@@ -1864,14 +1878,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let resume_ty =
             self.operand_source_ty(&value_arg.value)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor thread spawn+resume value source type",
+                    kind: "refactor thread spawn+resume transport value source type",
                     at: value_arg.span.into(),
                 })?;
         let value_cg = self
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume value type",
+                kind: "refactor thread spawn+resume transport value type",
                 at: value_arg.span.into(),
             })?;
         let value = self.codegen.codegen_mir_operand_expected(
@@ -1881,25 +1895,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             Some(value_cg),
         )?;
         let value = self.codegen.coerce_value(value_arg.span, value, value_cg)?;
-        let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
 
-        let surface = self.abi.unique_surface_resume_layout_for_signature(
-            resume_ty,
-            self.codegen.builtins.unit,
-            "thread spawn+resume u64",
-        )?;
-        if surface.param_count() != 2 {
+        let surface = self
+            .abi
+            .unique_surface_resume_layout_for_equivalent_signature(
+                self.source_types,
+                resume_ty,
+                self.codegen.builtins.unit,
+                "thread spawn+resume transport",
+            )?;
+        let expected_params = if surface.resume_payload_abi().is_elided() {
+            1
+        } else {
+            2
+        };
+        if surface.param_count() != expected_params {
             return Err(frontend_error(format!(
-                "refactor thread spawn+resume u64 需要单 payload surface resume，实际参数数为 {}",
-                surface.param_count()
+                "refactor thread spawn+resume transport surface resume 参数数漂移：expected={}, actual={}",
+                expected_params,
+                surface.param_count(),
             )));
-        }
-        if surface.resume_payload_abi().is_elided()
-            || !matches!(surface.resume_payload_abi().llvm_ty(), BasicTypeEnum::IntType(int_ty) if int_ty == self.codegen.context.i64_type())
-        {
-            return Err(frontend_error(
-                "refactor thread spawn+resume u64 需要 i64 resume payload ABI".to_string(),
-            ));
         }
         let step_layout = self
             .abi
@@ -1910,17 +1925,67 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     surface.return_step_schema().as_u32()
                 ))
             })?;
-        let thunk =
-            get_or_create_refactor_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
-
-        let runtime = self
-            .codegen
-            .declare_runtime_thread_spawn_join_refactor_resume_u64();
         let k_i8 = self.codegen.builder.build_pointer_cast(
             k_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
             "refactor_thread_resume_k_i8",
         )?;
+
+        if legacy_u64 {
+            if surface.resume_payload_abi().is_elided()
+                || !matches!(surface.resume_payload_abi().llvm_ty(), BasicTypeEnum::IntType(int_ty) if int_ty == self.codegen.context.i64_type())
+            {
+                return Err(frontend_error(
+                    "refactor thread spawn+resume u64 需要 i64 resume payload ABI".to_string(),
+                ));
+            }
+            let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
+            let thunk =
+                get_or_create_refactor_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
+            let runtime = self
+                .codegen
+                .declare_runtime_thread_spawn_join_refactor_resume_u64();
+            let thunk_ptr = self.codegen.builder.build_pointer_cast(
+                thunk.as_global_value().as_pointer_value(),
+                self.codegen.context.ptr_type(AddressSpace::default()),
+                "refactor_thread_resume_fn",
+            )?;
+            let _ = self.codegen.build_call_preserving_gc_local_roots(
+                span,
+                runtime,
+                &[k_i8.into(), value_word.into(), thunk_ptr.into()],
+                "refactor_thread_spawn_join_resume_u64",
+            )?;
+            return Ok(Some(CgValue::unit()));
+        }
+
+        let payload_transport = payload_transport.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "refactor thread spawn+resume transport metadata",
+            at: span.into(),
+        })?;
+        if payload_transport.source_ty != resume_ty
+            || payload_transport.kind != mir::MirTransportKind::EffectPayload
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor thread spawn+resume payload transport contract",
+                at: value_arg.span.into(),
+            });
+        }
+        let payload = self.materialize_refactor_thread_resume_transport_payload(
+            value_arg.span,
+            value,
+            value_cg,
+            payload_transport,
+            surface.resume_payload_abi(),
+        )?;
+        let thunk = get_or_create_refactor_thread_resume_transport_thunk(
+            self.codegen,
+            surface,
+            step_layout,
+        )?;
+        let runtime = self
+            .codegen
+            .declare_runtime_thread_spawn_join_refactor_resume_transport();
         let thunk_ptr = self.codegen.builder.build_pointer_cast(
             thunk.as_global_value().as_pointer_value(),
             self.codegen.context.ptr_type(AddressSpace::default()),
@@ -1929,10 +1994,126 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let _ = self.codegen.build_call_preserving_gc_local_roots(
             span,
             runtime,
-            &[k_i8.into(), value_word.into(), thunk_ptr.into()],
-            "refactor_thread_spawn_join_resume",
+            &[
+                k_i8.into(),
+                payload.word.into(),
+                payload.gc_ref.into(),
+                payload.descriptor.into(),
+                payload.payload_ptr.into(),
+                thunk_ptr.into(),
+            ],
+            "refactor_thread_spawn_join_resume_transport",
         )?;
         Ok(Some(CgValue::unit()))
+    }
+
+    fn materialize_refactor_thread_resume_transport_payload(
+        &mut self,
+        span: Span,
+        value: CgValue<'ctx>,
+        value_cg: CgTy,
+        transport: &mir::ValueTransportMetadata,
+        payload_abi: &super::types::RefactorAbiValue<'ctx>,
+    ) -> Result<RefactorThreadResumeTransportValue<'ctx>, LlvmEmitError> {
+        let i64_ty = self.codegen.context.i64_type();
+        let default_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
+        let gc_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let null_default = default_ptr_ty.const_null();
+        let null_gc = gc_ptr_ty.const_null();
+
+        if payload_abi.is_elided() {
+            return Ok(RefactorThreadResumeTransportValue {
+                word: i64_ty.const_zero(),
+                gc_ref: null_gc,
+                descriptor: null_default,
+                payload_ptr: null_default,
+            });
+        }
+
+        match payload_abi.llvm_ty() {
+            BasicTypeEnum::PointerType(_) => {
+                let value = self.codegen.coerce_value(span, value, value_cg)?;
+                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor thread spawn+resume ref payload value",
+                        at: span.into(),
+                    });
+                };
+                let gc_ref = self.codegen.builder.build_pointer_cast(
+                    ptr,
+                    gc_ptr_ty,
+                    "refactor_thread_resume_payload_gc_ref",
+                )?;
+                Ok(RefactorThreadResumeTransportValue {
+                    word: i64_ty.const_zero(),
+                    gc_ref,
+                    descriptor: null_default,
+                    payload_ptr: null_default,
+                })
+            }
+            BasicTypeEnum::IntType(int_ty) if int_ty.get_bit_width() <= 64 => {
+                let word = self.codegen.coerce_u64_word(span, value)?;
+                Ok(RefactorThreadResumeTransportValue {
+                    word,
+                    gc_ref: null_gc,
+                    descriptor: null_default,
+                    payload_ptr: null_default,
+                })
+            }
+            BasicTypeEnum::FloatType(float_ty)
+                if float_ty == self.codegen.context.f32_type()
+                    || float_ty == self.codegen.context.f64_type() =>
+            {
+                let word = self.codegen.coerce_u64_word(span, value)?;
+                Ok(RefactorThreadResumeTransportValue {
+                    word,
+                    gc_ref: null_gc,
+                    descriptor: null_default,
+                    payload_ptr: null_default,
+                })
+            }
+            _ => {
+                let body_fqn = self
+                    .codegen
+                    .function_cx
+                    .current_callable_fqn
+                    .clone()
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                let descriptor = self
+                    .codegen
+                    .get_or_create_value_composite_transport_descriptor_global(
+                        &body_fqn,
+                        span,
+                        self.source_types,
+                        transport,
+                    )?;
+                let slot = self.codegen.create_entry_alloca(
+                    span,
+                    "refactor_thread_resume_payload",
+                    value_cg,
+                )?;
+                let value = self.codegen.coerce_value(span, value, value_cg)?;
+                let _ = self
+                    .codegen
+                    .store_local_value(span, slot, value_cg, value)?;
+                let descriptor = self.codegen.builder.build_pointer_cast(
+                    descriptor.as_pointer_value(),
+                    default_ptr_ty,
+                    "refactor_thread_resume_payload_desc",
+                )?;
+                let payload_ptr = self.codegen.builder.build_pointer_cast(
+                    slot,
+                    default_ptr_ty,
+                    "refactor_thread_resume_payload_ptr",
+                )?;
+                Ok(RefactorThreadResumeTransportValue {
+                    word: i64_ty.const_zero(),
+                    gc_ref: null_gc,
+                    descriptor,
+                    payload_ptr,
+                })
+            }
+        }
     }
 
     fn lower_refactor_atomic_int_intrinsic(
@@ -5263,6 +5444,187 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
         codegen.builder.position_at_end(block);
     }
     Ok(function)
+}
+
+fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
+    codegen: &mut MainCodegen<'a, 'ctx>,
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &RefactorStepLayout<'ctx>,
+) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+    let symbol = format!(
+        "__scoop_refactor_thread_resume_transport__k{}",
+        surface.continuation_schema().as_u32(),
+    );
+    let k_ty = codegen.llvm_gc_i8_ptr_type();
+    let i64_ty = codegen.context.i64_type();
+    let gc_ref_ty = codegen.llvm_gc_i8_ptr_type();
+    let payload_ptr_ty = codegen.llvm_ptr_type(AddressSpace::default());
+    let fn_ty = codegen.context.void_type().fn_type(
+        &[
+            k_ty.into(),
+            i64_ty.into(),
+            gc_ref_ty.into(),
+            payload_ptr_ty.into(),
+        ],
+        false,
+    );
+    let function = codegen
+        .module
+        .get_function(&symbol)
+        .unwrap_or_else(|| codegen.module.add_function(&symbol, fn_ty, None));
+    if function.count_basic_blocks() > 0 {
+        return Ok(function);
+    }
+
+    let restore_block = codegen.builder.get_insert_block();
+    let entry = codegen.context.append_basic_block(function, "entry");
+    let complete = codegen.context.append_basic_block(function, "complete");
+    let non_complete = codegen.context.append_basic_block(function, "non_complete");
+
+    codegen.builder.position_at_end(entry);
+    let continuation = function.get_nth_param(0).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume transport thunk `{symbol}` 缺少 continuation 参数"
+        ))
+    })?;
+    let word = function.get_nth_param(1).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume transport thunk `{symbol}` 缺少 word 参数"
+        ))
+    })?;
+    let gc_ref = function.get_nth_param(2).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume transport thunk `{symbol}` 缺少 gc_ref 参数"
+        ))
+    })?;
+    let payload_ptr = function.get_nth_param(3).ok_or_else(|| {
+        frontend_error(format!(
+            "refactor thread resume transport thunk `{symbol}` 缺少 payload pointer 参数"
+        ))
+    })?;
+    let surface_fun = codegen
+        .module
+        .get_function(surface.symbol_name())
+        .unwrap_or_else(|| {
+            codegen
+                .module
+                .add_function(surface.symbol_name(), surface.llvm_ty(), None)
+        });
+    let mut call_args = vec![continuation.into()];
+    if !surface.resume_payload_abi().is_elided() {
+        let payload_arg = build_refactor_thread_resume_surface_payload_arg(
+            codegen,
+            surface,
+            word.into_int_value(),
+            gc_ref.into_pointer_value(),
+            payload_ptr.into_pointer_value(),
+        )?;
+        call_args.push(payload_arg.into());
+    }
+    let call = codegen.builder.build_call(
+        surface_fun,
+        &call_args,
+        "refactor_thread_surface_resume_transport",
+    )?;
+    let step = call.try_as_basic_value().basic().ok_or_else(|| {
+        frontend_error("refactor thread surface resume transport 未返回 Step_F".to_string())
+    })?;
+    let BasicValueEnum::StructValue(step_struct) = step else {
+        return Err(frontend_error(
+            "refactor thread surface resume transport Step_F 不是 struct".to_string(),
+        ));
+    };
+    if step_struct.get_type() != step_layout.llvm_ty() {
+        return Err(frontend_error(format!(
+            "refactor thread surface resume transport Step_F layout 漂移：surface s{}",
+            surface.return_step_schema().as_u32()
+        )));
+    }
+    let tag = codegen
+        .builder
+        .build_extract_value(step_struct, 0, "refactor_thread_resume_step_tag")?
+        .into_int_value();
+    let is_complete = codegen.builder.build_int_compare(
+        IntPredicate::EQ,
+        tag,
+        codegen.context.i32_type().const_zero(),
+        "refactor_thread_resume_is_complete",
+    )?;
+    codegen
+        .builder
+        .build_conditional_branch(is_complete, complete, non_complete)?;
+
+    codegen.builder.position_at_end(complete);
+    codegen.builder.build_return(None)?;
+
+    codegen.builder.position_at_end(non_complete);
+    let fatal = codegen.declare_runtime_refactor_thread_resume_noncomplete_fatal();
+    let _ = codegen
+        .builder
+        .build_call(fatal, &[], "refactor_thread_resume_noncomplete")?;
+    codegen.builder.build_return(None)?;
+
+    if let Some(block) = restore_block {
+        codegen.builder.position_at_end(block);
+    }
+    Ok(function)
+}
+
+fn build_refactor_thread_resume_surface_payload_arg<'a, 'ctx>(
+    codegen: &mut MainCodegen<'a, 'ctx>,
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    word: IntValue<'ctx>,
+    gc_ref: PointerValue<'ctx>,
+    payload_ptr: PointerValue<'ctx>,
+) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+    let payload_ty = surface.resume_payload_abi().llvm_ty();
+    match payload_ty {
+        BasicTypeEnum::IntType(int_ty) if int_ty.get_bit_width() <= 64 => {
+            if int_ty == codegen.context.i64_type() {
+                Ok(word.into())
+            } else if int_ty.get_bit_width() < 64 {
+                Ok(codegen
+                    .builder
+                    .build_int_truncate(word, int_ty, "refactor_thread_resume_word_trunc")?
+                    .into())
+            } else {
+                Ok(codegen
+                    .builder
+                    .build_int_z_extend(word, int_ty, "refactor_thread_resume_word_zext")?
+                    .into())
+            }
+        }
+        BasicTypeEnum::FloatType(float_ty) if float_ty == codegen.context.f64_type() => Ok(codegen
+            .builder
+            .build_bit_cast(word, float_ty, "refactor_thread_resume_word_f64")?),
+        BasicTypeEnum::FloatType(float_ty) if float_ty == codegen.context.f32_type() => {
+            let bits32 = codegen.builder.build_int_truncate(
+                word,
+                codegen.context.i32_type(),
+                "refactor_thread_resume_word_i32",
+            )?;
+            Ok(codegen.builder.build_bit_cast(
+                bits32,
+                float_ty,
+                "refactor_thread_resume_word_f32",
+            )?)
+        }
+        BasicTypeEnum::PointerType(ptr_ty) => Ok(codegen
+            .builder
+            .build_pointer_cast(gc_ref, ptr_ty, "refactor_thread_resume_gc_ref_cast")?
+            .into()),
+        _ => {
+            let typed_ptr = codegen.builder.build_pointer_cast(
+                payload_ptr,
+                codegen.llvm_ptr_type(AddressSpace::default()),
+                "refactor_thread_resume_payload_typed_ptr",
+            )?;
+            codegen
+                .builder
+                .build_load(payload_ty, typed_ptr, "refactor_thread_resume_payload_load")
+                .map_err(Into::into)
+        }
+    }
 }
 
 fn frontend_error(message: String) -> LlvmEmitError {

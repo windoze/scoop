@@ -1145,6 +1145,54 @@ fun main(): Int {
         )
     }
 
+    fn cross_thread_resume_payload_transport_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_cross_thread_resume_payload_transport_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Point(val x: Int, val label: String)
+
+effect AwaitPoint {
+    fun next(): Point
+}
+
+fun main(): Int {
+    var saved: Continuation<Point, Unit>? = None()
+    var observed: Int = 0
+
+    val handled: Unit = handle {
+        val point: Point = AwaitPoint.next()
+        __scoop_gc_collect()
+        observed = point.x
+    } with {
+        AwaitPoint.next(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    when (saved) {
+        Some(k) -> {
+            saved = None()
+            if (observed < 0) {
+                val ignored: Unit = try {
+                    k.resume(Point(0, "unused"))
+                } catch (e: RuntimeError) {
+                    val unused: RuntimeError = e
+                }
+            }
+            __scoop_thread_spawn_join_resume(k, Point(7, "resume"))
+        }
+        None -> {}
+    }
+    return observed
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1383,6 +1431,33 @@ fun main(): Int {
         assert!(
             ir.contains("__gc_slots"),
             "traceable closure captures should publish GC slot maps\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_cross_thread_resume_payload_transport() {
+        let ir = emit_refactor_ir_for_source(
+            cross_thread_resume_payload_transport_source(),
+            "cross_thread_resume_payload_transport.ll",
+        );
+
+        assert!(
+            ir.contains("@scoop_thread_spawn_join_refactor_resume_transport"),
+            "cross-thread resume should call the typed transport runtime helper\n{ir}"
+        );
+        assert!(
+            ir.contains("__scoop_refactor_thread_resume_transport__"),
+            "cross-thread resume should generate a typed surface-resume thunk\n{ir}"
+        );
+        assert!(
+            ir.contains("__scoop_composite_transport_desc__boxed__sample_Point")
+                && ir.contains("__gc_slots"),
+            "composite resume payload should pass a descriptor with GC slot metadata\n{ir}"
+        );
+        assert!(
+            ir.contains("%refactor_thread_resume_payload")
+                && ir.contains("@scoop_thread_spawn_join_refactor_resume_transport"),
+            "composite resume payload should be passed through an explicit carrier pointer\n{ir}"
         );
     }
 

@@ -2418,6 +2418,50 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         Ok(first)
     }
 
+    pub(super) fn unique_surface_resume_layout_for_equivalent_signature(
+        &self,
+        types: &crate::ty::TypeStore,
+        resume_tuple_ty: TypeId,
+        answer_ty: TypeId,
+        context: &str,
+    ) -> Result<&RefactorContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
+        if let Ok(layout) =
+            self.unique_surface_resume_layout_for_signature(resume_tuple_ty, answer_ty, context)
+        {
+            return Ok(layout);
+        }
+
+        let resume_display = types.display(resume_tuple_ty).to_string();
+        let answer_display = types.display(answer_ty).to_string();
+        let mut matches = self.surface_resume_layouts.values().filter(|layout| {
+            types.display(layout.resume_tuple_ty()).to_string() == resume_display
+                && types.display(layout.answer_ty()).to_string() == answer_display
+        });
+        let Some(first) = matches.next() else {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} ({}) answer_ty=t{} ({})",
+                    resume_tuple_ty.as_u32(),
+                    resume_display,
+                    answer_ty.as_u32(),
+                    answer_display,
+                ),
+            });
+        };
+        if let Some(second) = matches.next() {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "refactor LLVM ABI query 发现 {context} 的等价 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty={} answer_ty={}",
+                    first.continuation_schema().as_u32(),
+                    second.continuation_schema().as_u32(),
+                    resume_display,
+                    answer_display,
+                ),
+            });
+        }
+        Ok(first)
+    }
+
     pub(super) fn surface_resume_dispatch_layout(
         &self,
         continuation_schema: ContinuationSchemaId,

@@ -1854,12 +1854,27 @@ typedef struct ScoopThreadResumeU64Args {
 } ScoopThreadResumeU64Args;
 
 typedef void (*ScoopRefactorResumeU64Fn)(void *continuation, uint64_t resume_value);
+typedef void (*ScoopRefactorResumeTransportFn)(void *continuation,
+                                               uint64_t resume_word,
+                                               void *resume_gc_ref,
+                                               void *payload_storage);
 
 typedef struct ScoopThreadRefactorResumeU64Args {
   uint64_t continuation_handle;
   uint64_t resume_value;
   ScoopRefactorResumeU64Fn resume_fn;
 } ScoopThreadRefactorResumeU64Args;
+
+typedef struct ScoopThreadRefactorResumeTransportArgs {
+  uint64_t continuation_handle;
+  uint64_t resume_word;
+  void *resume_gc_ref;
+  const ScoopCompositeTransportDescriptor *payload_desc;
+  void *payload_storage;
+  ScoopRefactorResumeTransportFn resume_fn;
+  void ***native_root_slots;
+  uint32_t native_root_slots_len;
+} ScoopThreadRefactorResumeTransportArgs;
 
 static void *scoop_thread_entry_resume_u64(void *arg) {
   if (arg == 0) {
@@ -1930,6 +1945,175 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   if (rc != 0) {
     exit(3);
   }
+}
+
+static void scoop_thread_refactor_resume_transport_copy_payload(
+    ScoopThreadRefactorResumeTransportArgs *args,
+    const void *payload_value) {
+  if (args == 0 || args->payload_desc == 0) {
+    return;
+  }
+  const ScoopCompositeTransportDescriptor *desc = args->payload_desc;
+  if (payload_value == 0 || desc->size_bytes == 0 ||
+      desc->size_bytes > (uint64_t)SIZE_MAX) {
+    exit(3);
+  }
+
+  args->payload_storage = malloc((size_t)desc->size_bytes);
+  if (args->payload_storage == 0) {
+    exit(3);
+  }
+  (void)memset(args->payload_storage, 0, (size_t)desc->size_bytes);
+  scoop_composite_copy(desc, args->payload_storage, payload_value);
+}
+
+static void scoop_thread_refactor_resume_transport_prepare_roots(
+    ScoopThreadRefactorResumeTransportArgs *args) {
+  if (args == 0) {
+    return;
+  }
+
+  uint32_t root_count = 0;
+  if (args->resume_gc_ref != 0) {
+    root_count += 1;
+  }
+
+  const ScoopCompositeTransportDescriptor *desc = args->payload_desc;
+  if (desc != 0 && args->payload_storage != 0 && desc->gc_slot_count > 0) {
+    if (desc->gc_slot_offsets == 0 ||
+        desc->gc_slot_count > (UINT32_MAX - root_count)) {
+      exit(3);
+    }
+    root_count += desc->gc_slot_count;
+  }
+
+  args->native_root_slots_len = root_count;
+  if (root_count == 0) {
+    args->native_root_slots = 0;
+    return;
+  }
+
+  args->native_root_slots = (void ***)malloc(sizeof(void **) * root_count);
+  if (args->native_root_slots == 0) {
+    exit(3);
+  }
+
+  uint32_t index = 0;
+  if (args->resume_gc_ref != 0) {
+    args->native_root_slots[index++] = (void **)&args->resume_gc_ref;
+  }
+
+  if (desc != 0 && args->payload_storage != 0 && desc->gc_slot_count > 0) {
+    if (desc->size_bytes > (uint64_t)SIZE_MAX) {
+      exit(3);
+    }
+    size_t size_bytes = (size_t)desc->size_bytes;
+    for (uint32_t i = 0; i < desc->gc_slot_count; i++) {
+      uint64_t raw_off = desc->gc_slot_offsets[i];
+      if (raw_off > (uint64_t)SIZE_MAX) {
+        exit(3);
+      }
+      size_t off = (size_t)raw_off;
+      if (off > size_bytes || (size_bytes - off) < sizeof(void *)) {
+        exit(3);
+      }
+      args->native_root_slots[index++] =
+          (void **)((uint8_t *)args->payload_storage + off);
+    }
+  }
+}
+
+static void scoop_thread_refactor_resume_transport_destroy(
+    ScoopThreadRefactorResumeTransportArgs *args) {
+  if (args == 0) {
+    return;
+  }
+  if (args->payload_desc != 0 && args->payload_storage != 0) {
+    scoop_composite_drop(args->payload_desc, args->payload_storage);
+  }
+  free(args->payload_storage);
+  free(args->native_root_slots);
+  free(args);
+}
+
+static void *scoop_thread_entry_refactor_resume_transport(void *arg) {
+  if (arg == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  ScoopThreadRefactorResumeTransportArgs *args =
+      (ScoopThreadRefactorResumeTransportArgs *)arg;
+  void *continuation = scoop_handle_get(args->continuation_handle);
+  if (args->resume_fn != 0 && continuation != 0) {
+    args->resume_fn(continuation, args->resume_word, args->resume_gc_ref,
+                    args->payload_storage);
+  }
+  if (args->continuation_handle != 0) {
+    scoop_handle_drop(args->continuation_handle);
+    args->continuation_handle = 0;
+  }
+
+  scoop_gc_thread_clear_managed_root_snapshot_current();
+  scoop_thread_unregister();
+
+  return 0;
+}
+
+void scoop_thread_spawn_join_refactor_resume_transport(
+    void *continuation,
+    uint64_t resume_word,
+    void *resume_gc_ref,
+    const ScoopCompositeTransportDescriptor *payload_desc,
+    const void *payload_value,
+    ScoopRefactorResumeTransportFn resume_fn) {
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+  if (resume_fn == 0) {
+    exit(3);
+  }
+
+  ScoopThreadRefactorResumeTransportArgs *args =
+      (ScoopThreadRefactorResumeTransportArgs *)malloc(
+          sizeof(ScoopThreadRefactorResumeTransportArgs));
+  if (args == 0) {
+    exit(3);
+  }
+  (void)memset(args, 0, sizeof(ScoopThreadRefactorResumeTransportArgs));
+  args->continuation_handle = scoop_handle_new(continuation);
+  if (continuation != 0 && args->continuation_handle == 0) {
+    free(args);
+    exit(3);
+  }
+  args->resume_word = resume_word;
+  args->resume_gc_ref = resume_gc_ref;
+  args->payload_desc = payload_desc;
+  args->resume_fn = resume_fn;
+  scoop_thread_refactor_resume_transport_copy_payload(args, payload_value);
+  scoop_thread_refactor_resume_transport_prepare_roots(args);
+
+  pthread_t t;
+  scoop_enter_native(args->native_root_slots, args->native_root_slots_len);
+  int rc = pthread_create(&t, 0, scoop_thread_entry_refactor_resume_transport,
+                          (void *)args);
+  if (rc != 0) {
+    scoop_leave_native();
+    if (args->continuation_handle != 0) {
+      scoop_handle_drop(args->continuation_handle);
+      args->continuation_handle = 0;
+    }
+    scoop_thread_refactor_resume_transport_destroy(args);
+    exit(3);
+  }
+
+  rc = pthread_join(t, 0);
+  scoop_leave_native();
+  if (rc != 0) {
+    exit(3);
+  }
+  scoop_thread_refactor_resume_transport_destroy(args);
 }
 
 static void *scoop_thread_entry_refactor_resume_u64(void *arg) {

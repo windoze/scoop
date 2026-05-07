@@ -26,7 +26,7 @@
 | `CG-T04c` | CG4c | [DONE] 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | [DONE] 收口 array composite element transport lowering |
 | `CG-T04e` | CG4e | [DONE] 收口 closure env/capture transport lowering |
-| `CG-T04f` | CG4f | 收口 cross-thread resume payload transport lowering |
+| `CG-T04f` | CG4f | [DONE] 收口 cross-thread resume payload transport lowering |
 | `CG-T04R` | CG4R | Review CG-T04a-CG-T04f composite transport lowering |
 | `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
 | `CG-T05R` | CG5R | Review CG-T05 adapter 与 NoOutward ABI |
@@ -487,7 +487,7 @@
   - 2026-05-07：新增 `refactor_llvm_closure_env_transport` IR 单测与 `tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`，覆盖 String/ref、struct、tuple、enum、array 与 mutable struct capture box，并在 closure 调用前触发 GC。
   - 验证通过：`cargo test -p scoopc refactor_llvm_closure_env_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_array_composite_transport`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04f：收口 cross-thread resume payload transport lowering
+## [DONE] CG-T04f：收口 cross-thread resume payload transport lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -514,6 +514,13 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §5.5 的 codegen/runtime 部分关闭。
 - 依赖：`CG-T04e`
+
+- 完成记录：
+  - 2026-05-07：新增 generic `__scoop_thread_spawn_join_resume<Resume>` sysroot helper，并让 MIR call transport 为 cross-thread resume value 发布 `EffectPayload` metadata；materialized MIR 会从 continuation contract 恢复 concrete resume payload type，避免 LLVM 从 helper 泛型参数或 call target 现场猜 payload shape。
+  - 2026-05-07：refactor LLVM lowering 新增 typed cross-thread resume transport path，按 surface resume ABI 分流 scalar word、GC ref carrier 与 composite payload alloca，composite/ref payload 会传递 `ScoopCompositeTransportDescriptor`、carrier pointer 和 typed resume thunk；旧 `u64` helper 仅保留 Int payload 兼容路径。
+  - 2026-05-07：runtime C 新增 `scoop_thread_spawn_join_refactor_resume_transport`，enqueue 时用 composite copy hook 复制 payload，join/native 阻塞期间用 descriptor GC slot map 暴露 native root slots，worker resume 完成后执行 drop hook 并释放 carrier；non-Complete Step 仍沿用 `scoop_refactor_thread_resume_noncomplete_fatal`，留给 `CG-T06`。
+  - 2026-05-07：新增 `refactor_llvm_cross_thread_resume_payload_transport` IR 单测与 `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`，覆盖 String ref payload 与含 String field 的 struct composite payload 在 moving/stress/verify-roots 下跨线程 resume。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04R：Review CG-T04a-CG-T04f composite transport lowering
 

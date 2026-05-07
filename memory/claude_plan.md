@@ -1,36 +1,27 @@
-# Claude Plan
+# Claude Execution Plan
 
-## Current Invocation
-- Goal: complete exactly the first incomplete task listed in `TODO.md`, then stop.
-- Source of truth: `TODO.md` for task ordering, requirements, validation, and completion records.
-- Constraints: do not skip incomplete tasks, do not use workarounds for spec mismatches, and only update `PLAN.md` if phase-level planning changes.
+## Scope
+- Follow `TODO.md` as the source of truth.
+- Identify and complete exactly the first task whose title is not prefixed with `[DONE]`.
+- Stop after committing that task or, if blocked, after recording the minimum required prerequisite task and committing that bookkeeping.
 
-## Execution Plan
-1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit only for an explicitly mentioned unfinished issue directly relevant to that first incomplete task.
-3. Inspect the relevant code, fixtures, and docs needed for that task.
-4. Implement the smallest correct change that fully satisfies the task, or add the minimum prerequisite task if a concrete blocker makes implementation impossible.
-5. Run the task-specified validation and any directly relevant tests; fix failures that are in scope.
-6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling/updating its completion record, or record the blocker/prerequisite if blocked.
-7. Update this file after key milestones or plan changes.
-8. Commit all relevant uncommitted changes with a clear task-scoped message.
-9. Stop after this single task is completed or the blocker/prerequisite commit is made.
+## Execution Steps
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for an unfinished issue directly relevant to that task.
+3. Inspect the relevant implementation and tests for the selected task.
+4. Implement the smallest spec-correct change needed for the task.
+5. Run the task's required validation plus any targeted tests needed for confidence.
+6. Fix any regressions or blockers that are directly in scope for the selected task.
+7. Update `TODO.md` by prefixing the task title with `[DONE]` and filling its completion record.
+8. Update this plan file when key steps complete or if the plan changes.
+9. Commit all relevant uncommitted files with a descriptive task-tagged message.
+10. Stop without starting the next task.
 
-## Progress
-- Plan initialized before repository inspection.
-- Identified first incomplete task: `CG-T04e` (closure env/capture transport lowering).
-- Latest commit `82fb727c [CG-T04d] Implement array composite transport lowering` does not explicitly mention an unfinished issue directly relevant to `CG-T04e`.
-- Inspected MIR and LLVM codegen: MIR already carries closure env/capture-box transport metadata; LLVM currently gates closure env fields to scalar/String/ref and MakeClosure lowering does not directly validate the env contract.
-- Implementation adjustment: extend closure env/capture-box lowering to aggregate/float captures and make MakeClosure lowering consume/validate `ClosureEnvTransportMetadata` rather than relying only on tuple shape.
-- First targeted test run exposed an in-scope blocker for array captures: materialized MIR for a closure body using captured `Array<Point>.get` left generic receiver type `T` unresolved. This must be fixed before validating `CG-T04e` instead of weakening the fixture.
-- Implemented closure env/capture lowering changes, repaired materialized member receiver metadata for captured array calls, and added `closure_env_composite_capture_basic.scoop` plus an LLVM IR unit test.
-- Validation passed so far: `cargo test -p scoopc refactor_llvm_closure_env_transport`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`, `cargo test -p scoopc codegen_gap_inventory`, `cargo test -p scoopc refactor_llvm_composite_transport_contract`, `cargo test -p scoopc refactor_llvm_array_composite_transport`, `cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`, and `cargo clippy --all-targets -- -D warnings`.
-
-## Task-Specific Plan: CG-T04e
-1. Inspect existing closure lowering, capture metadata, composite layout verifier, runtime descriptor hooks, and current tests/fixtures.
-2. Determine whether MIR already publishes the required capture schema and capture-box metadata; if a concrete upstream contract blocker is missing, add the minimum prerequisite task before `CG-T04e` and stop.
-3. If contracts exist, implement closure env layout lowering from MIR capture schema and composite layout descriptors for ref/value/composite captures.
-4. Ensure mutable captures use capture boxes with trace/copy/drop/rooting behavior consistent with boxed composite transport.
-5. Add or update targeted tests/fixtures for tuple/struct/enum/array captures and mutable capture behavior.
-6. Run required validation: `cargo test -p scoopc refactor_llvm_closure_env_transport`, relevant run-pass fixtures, `cargo test -p scoopc codegen_gap_inventory`, and clippy if feasible.
-7. Mark `CG-T04e` as `[DONE]` with a completion record if fully implemented, then commit all relevant changes.
+## Current Progress
+- Initial execution plan recorded.
+- `TODO.md` read; first incomplete task is `CG-T04f: 收口 cross-thread resume payload transport lowering`.
+- Latest commit is `[CG-T04e] Implement closure env transport lowering`; no explicit unfinished issue was identified from the subject.
+- Implementation direction selected: add a generic refactor cross-thread resume transport helper that carries word, GC ref, optional composite descriptor, and optional copied payload storage. MIR call metadata will publish an `EffectPayload` transport for the resume value, LLVM will consume that metadata, and runtime will expose descriptor-derived native root slots while the parent thread is blocked in `join`.
+- First targeted LLVM test failed at the composite descriptor verifier because the generic helper's payload transport reached codegen without a concrete materialized layout type. This is in scope for `CG-T04f`; fix the MIR/materialization metadata so LLVM consumes a concrete payload contract instead of inferring it locally.
+- Implemented generic cross-thread resume transport metadata/lowering/runtime helper and added composite/ref runtime_gc coverage. Targeted LLVM test, existing ref payload runtime_gc fixture, new composite runtime_gc fixture, codegen inventory, composite contract, backend gate, and runtime ABI lib allowlist have passed; clippy remains to run before marking the task done.
+- `cargo clippy --all-targets -- -D warnings` passed. `TODO.md` has been updated to mark `CG-T04f` done with the validation record; next step is final git review and commit.

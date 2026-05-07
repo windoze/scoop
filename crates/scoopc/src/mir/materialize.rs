@@ -40,9 +40,10 @@ use super::{
     InitializerRoot, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl, LocalId,
     LocalSourceKind, MaterializedCallableFamilies, MaterializedCallableFamilyInput,
     MaterializedMirPassArtifacts, MaterializedMirSummaries, MemberAccessMetadata,
-    MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory, NominalMetadata,
-    ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata, PropertyMetadata,
-    RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestMetadata,
+    MemberFunMetadata, MemberTarget, MetadataRoot, MirBoxingIntent, MirBoxingReason,
+    MirPlaceholderCategory, MirTransportKind, NominalMetadata, ObjectMetadata, Operand, Param,
+    Pattern, PerformArg, PerformMetadata, PropertyMetadata, RuntimeCastFailure,
+    RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestMetadata,
     RuntimeTypeDescriptorKey, RuntimeTypeParameterizedMatch, RuntimeTypeTestMetadata, Rvalue,
     Statement, StatementKind, StructLitField, SupertypeMetadata, Terminator, TerminatorKind,
     TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction, ValueTransportMetadata,
@@ -6804,6 +6805,7 @@ impl MirInstanceMaterializer {
                 }
                 self.rewrite_call_kind(stmt_span, block_id, kind, args, result_ty, ctx)?;
                 self.rewrite_call_transport(transport, ctx.substitution);
+                self.rewrite_thread_resume_payload_transport_from_args(transport, args, ctx);
             }
             Rvalue::EnumVariant {
                 enum_ty,
@@ -7686,6 +7688,76 @@ impl MirInstanceMaterializer {
         }
         if let Some(gc) = &mut transport.gc {
             self.rewrite_gc_intrinsic_transport(gc, substitution);
+        }
+        if let Some(thread_resume_payload) = &mut transport.thread_resume_payload {
+            self.rewrite_value_transport(thread_resume_payload, substitution);
+        }
+    }
+
+    fn rewrite_thread_resume_payload_transport_from_args(
+        &mut self,
+        transport: &mut CallTransportMetadata,
+        args: &[CallArg],
+        ctx: &RewriteContext<'_>,
+    ) {
+        let Some(payload) = &mut transport.thread_resume_payload else {
+            return;
+        };
+        let Some(payload_ty) = self
+            .rewritten_thread_resume_payload_ty(args, ctx)
+            .or_else(|| {
+                args.get(1)
+                    .and_then(|arg| self.rewritten_operand_ty(&arg.value, ctx))
+            })
+        else {
+            return;
+        };
+        payload.source_ty = payload_ty;
+        payload.kind = MirTransportKind::EffectPayload;
+        payload.requirements = super::lower::mir_transport_requirements(&self.types, payload_ty);
+        payload.boxing = super::lower::mir_is_aggregate_transport_ty(&self.types, payload_ty)
+            .then_some({
+                MirBoxingIntent {
+                    source_ty: payload_ty,
+                    target_ty: Some(payload_ty),
+                    reason: MirBoxingReason::EffectPayload,
+                }
+            });
+    }
+
+    fn rewritten_thread_resume_payload_ty(
+        &mut self,
+        args: &[CallArg],
+        ctx: &RewriteContext<'_>,
+    ) -> Option<TypeId> {
+        let continuation_ty = args
+            .first()
+            .and_then(|arg| self.rewritten_operand_ty(&arg.value, ctx))?;
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(continuation_ty) else {
+            return None;
+        };
+        if nominal.fqn != "scoop.core.Continuation" {
+            return None;
+        }
+        nominal.args.first().copied()
+    }
+
+    fn rewritten_operand_ty(
+        &mut self,
+        operand: &Operand,
+        ctx: &RewriteContext<'_>,
+    ) -> Option<TypeId> {
+        match operand {
+            Operand::Local(local) => ctx.locals.get(local.as_u32() as usize).map(|decl| {
+                substitute_type_and_effect_params(&mut self.types, decl.ty, ctx.substitution)
+            }),
+            Operand::Const(ConstValue::Unit) => Some(self.builtins.unit),
+            Operand::Const(ConstValue::Bool(_)) => Some(self.builtins.bool_),
+            Operand::Const(ConstValue::Int | ConstValue::SynthInt(_)) => Some(self.builtins.int),
+            Operand::Const(ConstValue::Float64) => Some(self.builtins.float64),
+            Operand::Const(ConstValue::Float32) => Some(self.builtins.float32),
+            Operand::Const(ConstValue::Char) => Some(self.builtins.char_),
+            Operand::Const(ConstValue::String) => Some(self.builtins.string),
         }
     }
 

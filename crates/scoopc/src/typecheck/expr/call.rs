@@ -8703,7 +8703,12 @@ fn check_cross_thread_resume_policy(
     mapping_pairs: &[(usize, usize)],
     lower: &TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
-    if callee_fqn != "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+    let base = cross_thread_resume_intrinsic_base(callee_fqn);
+    if !matches!(
+        base,
+        "scoop.core.__scoop_thread_spawn_join_resume"
+            | "scoop.core.__scoop_thread_spawn_join_resume_u64"
+    ) {
         return Ok(());
     }
     let Some(arg_idx) = mapping_pairs
@@ -8725,6 +8730,16 @@ fn check_cross_thread_resume_policy(
         effects: fmt_effect_row(&row, lower),
         span: call_args[arg_idx].expr.span.into(),
     })
+}
+
+fn cross_thread_resume_intrinsic_base(callee_fqn: &str) -> &str {
+    let base = callee_fqn
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(callee_fqn);
+    base.split_once("$overload")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
 }
 
 fn continuation_effect_row(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {
