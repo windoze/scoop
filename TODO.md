@@ -22,7 +22,7 @@
 | `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04a` | CG4a | [DONE] 建立 composite transport layout contract 与 verifier |
 | `CG-T04b0` | CG4b0 | [DONE] 发布 value erasure boxing MIR transport contract |
-| `CG-T04b` | CG4b | 收口 value boxing composite transport lowering |
+| `CG-T04b` | CG4b | [DONE] 收口 value boxing composite transport lowering |
 | `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | 收口 array composite element transport lowering |
 | `CG-T04e` | CG4e | 收口 closure env/capture transport lowering |
@@ -349,7 +349,7 @@
   - 2026-05-07：MIR/materialized MIR verifier 与 downstream use/provenance/reachability paths 识别 `Rvalue::Transport`；raw LLVM route 对 value erasure lowering 保持 `CG-T04b` owner-specific gate，避免 codegen 从 source/target mismatch 反推 boxing。
   - 验证通过：`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04b：收口 value boxing composite transport lowering
+## [DONE] CG-T04b：收口 value boxing composite transport lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -377,8 +377,11 @@
   - `PIPELINE_GAPS.md` §4.1 中 tuple/struct/value type boxing 的 codegen/runtime 部分关闭；payload-bearing enum boxing 由 `CG-T04c` 完成后纳入同一 boxing path。
 - 依赖：`CG-T04b0`
 
-- 阻塞记录：
-  - 2026-05-07：执行 `CG-T04b` 前发现 `MirBoxingReason::AnyErasure` / `RefErasure` 只有 enum 定义，没有 MIR lowering/materialization producer；若继续实现，codegen 必须从 assignment/ABI source-target type mismatch 猜 erasure boxing，违反本阶段 contract。已插入 `CG-T04b0` 作为最小前置任务，`CG-T04b` 保持未完成。
+- 完成记录：
+  - 2026-05-07：`Rvalue::Transport` value erasure lowering 现在消费 `CG-T04b0` 发布的 `ValueTransportMetadata.boxing` 与 `CG-T04a` erased composite layout descriptor；tuple/struct source value 会分配 GC-managed `scoop.mir.value_box$...` carrier、写入 payload，并通过 `__scoop_type_desc_mir_value_box__...` runtime type descriptor 暴露 trace/copy/drop 所需布局。
+  - 2026-05-07：raw/materialized MIR support 与 backend gate 不再把具备 Any/Ref boxing intent 的 tuple/struct erasure 统一拒绝；缺 Any/Ref boxing intent 仍 fail-fast，payload-bearing enum erasure 继续明确 gate 到 `CG-T04c`，不在 boxing path 猜 enum payload layout。
+  - 2026-05-07：新增 `refactor_llvm_value_boxing_transport` IR 单测与 `tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`，覆盖 struct/tuple -> `Any` 的 allocation、descriptor publication 与 payload store。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04c：收口 enum payload composite transport lowering
 

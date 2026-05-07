@@ -1468,7 +1468,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let global_name = format!("__scoop_itable__{}", sanitize_llvm_ident(class_fqn));
+        self.get_or_create_itable_global_from_entries(at, class_fqn, entries)
+    }
+
+    pub(super) fn get_or_create_itable_global_from_entries(
+        &mut self,
+        at: crate::span::Span,
+        owner_key: &str,
+        entries: &[crate::itable::ClassItableEntry],
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        if entries.is_empty() {
+            return Ok(None);
+        }
+
+        let global_name = format!("__scoop_itable__{}", sanitize_llvm_ident(owner_key));
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(Some(existing));
         }
@@ -1501,7 +1514,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 1) 生成 method table：`i8*[]`。
             let methods_gv_name = format!(
                 "__scoop_itable_methods__{}__{:016x}__{:016x}",
-                sanitize_llvm_ident(class_fqn),
+                sanitize_llvm_ident(owner_key),
                 entry.interface_id,
                 entry.interface_type_id,
             );
@@ -1559,7 +1572,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 let match_gv_name = format!(
                     "__scoop_itable_match_ids__{}__{:016x}__{:016x}",
-                    sanitize_llvm_ident(class_fqn),
+                    sanitize_llvm_ident(owner_key),
                     entry.interface_id,
                     entry.interface_type_id,
                 );

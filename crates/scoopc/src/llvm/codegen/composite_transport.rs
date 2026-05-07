@@ -311,7 +311,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !self.value_transport_needs_composite_layout(mir_types, metadata) {
             return Ok(());
         }
+        self.get_or_create_value_composite_transport_descriptor_global(
+            body_fqn, span, mir_types, metadata,
+        )?;
+        Ok(())
+    }
 
+    pub(super) fn get_or_create_value_composite_transport_descriptor_global(
+        &mut self,
+        body_fqn: &str,
+        span: Span,
+        mir_types: &TypeStore,
+        metadata: &ValueTransportMetadata,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
         let descriptor = self
             .composite_layout_descriptor_for_value_transport(body_fqn, span, mir_types, metadata)?;
         if let Err(detail) = descriptor.validate(metadata) {
@@ -322,8 +334,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 detail,
             ));
         }
-        self.get_or_create_composite_transport_descriptor_global(&descriptor)?;
-        Ok(())
+        self.get_or_create_composite_transport_descriptor_global(&descriptor)
     }
 
     fn composite_layout_descriptor_for_value_transport(
@@ -659,7 +670,7 @@ fn composite_transport_descriptor_global_name(
     )
 }
 
-fn composite_transport_gate_error(
+pub(super) fn composite_transport_gate_error(
     body_fqn: &str,
     span: Span,
     gap_id: &'static str,

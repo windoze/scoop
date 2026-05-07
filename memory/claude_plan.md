@@ -4,7 +4,7 @@
 
 ## 目标
 
-完成 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后更新任务记录、运行相关验证、提交 Git，然后停止。
+完成 `TODO.md` 中第一个标题未带 `[DONE]` 的任务：`CG-T04b：收口 value boxing composite transport lowering`。完成后更新任务记录、运行相关验证、提交 Git，然后停止。
 
 ## 步骤
 
@@ -21,21 +21,23 @@
 
 ## 当前进度
 
-- 已写入初始执行计划。
-- 已读取 `TODO.md`：第一个未完成任务是 `CG-T04b0：发布 value erasure boxing MIR transport contract`。
-- 已查看最新提交：`c98f98dd [CG-T04b] Record blocker status`，内容与当前 `CG-T04b0` 前置任务直接相关，将作为当前任务背景处理。
-- 已开始实现 MIR contract：新增显式 value erasure transport rvalue、顶层 initializer source type 记录，并在 local/assignment/return/call-arg 等路径插入 `MirBoxingIntent`。
-- 已补充 `value_boxing_transport.scoop` fixture 与 `refactor_mir_value_boxing_transport_contract` / `refactor_mir_composite_transport_metadata_contracts` 定向测试。
-- 已通过定向验证：`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo clippy --all-targets -- -D warnings`。
-- 已更新 `TODO.md`：`CG-T04b0` 标题和任务索引标记为 `[DONE]`，并填写完成记录。
+- 已读取 `TODO.md`：第一个未完成任务是 `CG-T04b：收口 value boxing composite transport lowering`。
+- 已查看最新提交：`c2d7c038 [CG-T04b0] Publish value erasure boxing contract`；该提交是当前任务直接前置，不显示新的未完成 blocker。
+- 已定位当前 LLVM lowering 的阻塞点：`Rvalue::Transport` 在 `mir_body.rs` raw/effect-neutral lowering 中仍被拒绝，`codegen_gap_inventory` 仍把所有 value erasure transport gate 到 `CG-T04b`。
+- 下一步编辑会复用 `CG-T04a` composite descriptor verifier，为 tuple/struct value erasure 建立 GC-managed boxed object lowering，并继续把 enum payload erasure gate 到 `CG-T04c`。
+- 已实现 `Rvalue::Transport` value erasure LLVM lowering：tuple/struct 通过 `scoop_alloc_typed` 分配 value box、写入 payload，并发布 value-box type descriptor；具备 Any/Ref boxing intent 的 raw/materialized MIR 不再被 `CG-T04b` gate 拒绝。
+- 已保留 payload-bearing enum erasure 的 `CG-T04c` owner gate，避免在 `CG-T04b` 中猜 enum payload layout。
+- 已新增 `refactor_llvm_value_boxing_transport` 单测和 `tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop` run-pass fixture。
+- 已通过验证：`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo clippy --all-targets -- -D warnings`。
+- 已更新 `TODO.md`：`CG-T04b` 在任务索引和标题中标记为 `[DONE]`，并填写完成记录。
 
 ## 当前任务执行计划
 
-1. 定位 MIR value transport / boxing metadata 的数据结构、producer、verifier 和现有测试。
-2. 找出 tuple/struct/value type 到 `Any` / `Ref` / erased carrier 的 initializer、assignment、return、call arg、effect-neutral handoff 生产路径。
-3. 为这些 erasure boundary 发布 `MirBoxingIntent`，保留 `source_ty`、`target_ty`、`MirBoxingReason::{AnyErasure, RefErasure}`，并确保 `ValueTransportMetadata` 保留 source transport kind 与 trace/copy/drop requirements。
-4. 增加 MIR production verifier，拒绝缺 boxing intent 的 aggregate erasure boundary；payload-bearing enum erasure 只标识 metadata，不在本任务猜 enum payload layout。
-5. 补充或更新 `refactor_mir_value_boxing_transport_contract`、`refactor_mir_composite_transport_metadata_contracts` 及必要 fixture/MIR dump 覆盖。
-6. 运行任务要求的定向验证和必要格式化/lint。
-7. 更新 `TODO.md` 将 `CG-T04b0` 标记 `[DONE]` 并填写完成记录。
-8. 检查差异并提交本次任务全部改动，然后停止。
+1. 定位 `Rvalue::Transport`、`ValueTransportMetadata.boxing`、composite layout descriptor、backend verifier 和现有 gate/test 的实现位置。
+2. 跟踪 refactor LLVM raw/materialized MIR lowering 中 value erasure boxing 的当前拒绝点，确认 tuple/struct/value type -> `Any` / `Ref` / erased carrier 应消费的 MIR metadata 与 layout descriptor。
+3. 实现最小正确 lowering：按 `MirBoxingIntent` 与 `CG-T04a` descriptor 分配 boxed composite、写入 descriptor identity、复制/存储 payload，并保留 trace/copy/drop hook 可枚举性；缺 metadata/layout 时 fail-fast。
+4. 保留 payload-bearing enum boxing 的 `CG-T04c` owner-specific gate，不在本任务猜 enum payload schema。
+5. 补充或更新 `refactor_llvm_value_boxing_transport` 测试与 tuple/struct/value type boxing run-pass fixture，确保 `Any` / `Ref` carrier 可用于 runtime type/value 操作或后续 copy/drop。
+6. 运行 `cargo test -p scoopc refactor_llvm_value_boxing_transport`、相关 fixture、`cargo test -p scoopc codegen_gap_inventory`，并按项目要求运行格式化/lint；失败则修复后重跑。
+7. 更新 `TODO.md`，将 `CG-T04b` 标题和任务索引标记 `[DONE]` 并填写完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+8. 检查 Git 状态和差异，提交本次任务涉及的全部改动，然后停止。

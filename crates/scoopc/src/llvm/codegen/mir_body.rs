@@ -877,7 +877,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     crate::mir::Rvalue::Use(operand) => {
                         self.mir_operand_cg_ty(body, mir_types, operand)?
                     }
-                    crate::mir::Rvalue::Transport { .. } => continue,
+                    crate::mir::Rvalue::Transport { value, transport } => {
+                        if !self.raw_materialized_mir_operand_is_supported(value)
+                            || !self.raw_materialized_mir_value_transport_is_supported(
+                                mir_types,
+                                transport,
+                                Some(CgTy::Ref),
+                            )
+                        {
+                            continue;
+                        }
+                        CgTy::Ref
+                    }
                     crate::mir::Rvalue::Unary { operand, .. } => {
                         self.mir_operand_cg_ty(body, mir_types, operand)?
                     }
@@ -1134,7 +1145,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
                 self.raw_materialized_mir_operand_is_supported(operand)
             }
-            crate::mir::Rvalue::Transport { .. } => false,
+            crate::mir::Rvalue::Transport { value, transport } => {
+                self.raw_materialized_mir_operand_is_supported(value)
+                    && self.raw_materialized_mir_value_transport_is_supported(
+                        mir_types, transport, target_cg,
+                    )
+            }
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 self.object_inits.contains_key(fqn)
                     || self.top_level_consts.contains_key(fqn)
@@ -1268,6 +1284,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ),
             crate::mir::Rvalue::Todo(_) => false,
         }
+    }
+
+    fn raw_materialized_mir_value_transport_is_supported(
+        &self,
+        mir_types: &TypeStore,
+        transport: &crate::mir::ValueTransportMetadata,
+        target_cg: Option<CgTy>,
+    ) -> bool {
+        if target_cg != Some(CgTy::Ref)
+            || transport.kind == crate::mir::MirTransportKind::EnumPayload
+        {
+            return false;
+        }
+        let Some(boxing) = transport.boxing.as_ref() else {
+            return false;
+        };
+        if boxing.source_ty != transport.source_ty
+            || !matches!(
+                boxing.reason,
+                crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+            )
+        {
+            return false;
+        }
+        let Some(source_ty) = self.equivalent_codegen_type_id(mir_types, transport.source_ty)
+        else {
+            return false;
+        };
+        matches!(
+            self.cg_ty_of(source_ty),
+            Some(
+                CgTy::Unit
+                    | CgTy::Bool
+                    | CgTy::Int(_)
+                    | CgTy::Tuple(_)
+                    | CgTy::Struct(_)
+                    | CgTy::String
+                    | CgTy::Ref
+                    | CgTy::Enum(_)
+            )
+        )
     }
 
     fn raw_materialized_mir_runtime_type_test_is_supported(
@@ -2539,10 +2596,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::Transport { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport lowering pending CG-T04b",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::Transport { value, transport } => self.codegen_mir_value_transport(
+                span, value, transport, body, mir_types, slots, target_cg,
+            ),
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 if let Some(value) =
                     self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
@@ -2691,10 +2747,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
-            crate::mir::Rvalue::Transport { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport lowering pending CG-T04b",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::Transport { value, transport } => self.codegen_mir_value_transport(
+                span, value, transport, body, mir_types, slots, target_cg,
+            ),
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 if let Some(value) =
                     self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
@@ -2812,6 +2867,170 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_value_transport(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        transport: &crate::mir::ValueTransportMetadata,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(boxing) = transport.boxing.as_ref() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport missing boxing intent",
+                at: span.into(),
+            });
+        };
+        if !matches!(
+            boxing.reason,
+            crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
+        ) || boxing.source_ty != transport.source_ty
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport boxing intent",
+                at: span.into(),
+            });
+        }
+        if target_cg != CgTy::Ref {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport target type",
+                at: span.into(),
+            });
+        }
+        if transport.kind == crate::mir::MirTransportKind::EnumPayload {
+            let body_fqn = self.current_codegen_body_fqn();
+            return Err(super::composite_transport::composite_transport_gate_error(
+                &body_fqn,
+                span,
+                "PIPELINE_GAPS §4.4",
+                "payload-bearing enum value erasure boxing requires CG-T04c enum payload descriptor",
+            ));
+        }
+
+        let body_fqn = self.current_codegen_body_fqn();
+        let _descriptor = self.get_or_create_value_composite_transport_descriptor_global(
+            &body_fqn, span, mir_types, transport,
+        )?;
+
+        let source_ty = self
+            .equivalent_codegen_type_id(mir_types, transport.source_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport source type",
+                at: span.into(),
+            })?;
+        let source_cg = self
+            .cg_ty_of(source_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport source codegen type",
+                at: span.into(),
+            })?;
+
+        match source_cg {
+            CgTy::Tuple(_) | CgTy::Struct(_) => self.codegen_mir_composite_value_box(
+                span, value, source_ty, source_cg, body, mir_types, slots,
+            ),
+            CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref | CgTy::Enum(_) => {
+                let source =
+                    self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
+                let source = self.coerce_value(span, source, source_cg)?;
+                self.coerce_value(span, source, CgTy::Ref)
+            }
+            CgTy::Float64 | CgTy::Float32 | CgTy::Never => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "value erasure transport source kind",
+                    at: span.into(),
+                })
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_composite_value_box(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        source_ty: TypeId,
+        source_cg: CgTy,
+        _body: &crate::mir::Body,
+        _mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let source = self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
+        let source = self.coerce_value(span, source, source_cg)?;
+        let deferred_source =
+            self.defer_gc_sensitive_cg_value(span, "mir_value_box_source", source)?;
+
+        let box_obj_ty = self.mir_value_box_object_type(span, source_ty, source_cg)?;
+        let obj_size_bytes = self.target_data.get_store_size(&box_obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let box_desc =
+            self.get_or_create_mir_value_box_type_desc_global(span, source_ty, box_obj_ty)?;
+        let box_desc_i8 = self.builder.build_pointer_cast(
+            box_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "mir_value_box_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_alloc,
+            &[box_desc_i8.into(), size_v.into()],
+            "rt_alloc_mir_value_box",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed value box return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_i8) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed value box return type",
+                at: span.into(),
+            });
+        };
+
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let obj_ptr =
+            self.builder
+                .build_pointer_cast(obj_i8, obj_ptr_ty, "mir_value_box_obj_ptr")?;
+        let deferred_obj = self.defer_gc_ref_pointer(span, "mir_value_box_obj_root", obj_ptr)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "mir_value_box_obj_reload",
+            &deferred_obj,
+        )?;
+        let payload_gep =
+            self.builder
+                .build_struct_gep(box_obj_ty, obj_ptr, 1, "mir_value_box_payload_gep")?;
+        let payload = self.materialize_deferred_cg_value(
+            span,
+            "mir_value_box_source_reload",
+            deferred_source,
+        )?;
+        let _ = self.store_local_value(span, payload_gep, source_cg, payload)?;
+        let obj_i8 = self.reload_deferred_gc_ref_without_clearing(
+            span,
+            "mir_value_box_return",
+            &deferred_obj,
+        )?;
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(obj_i8.into()),
+        })
+    }
+
+    fn current_codegen_body_fqn(&self) -> String {
+        self.function_cx
+            .current_callable_fqn
+            .clone()
+            .unwrap_or_else(|| "<unknown>".to_string())
     }
 
     fn codegen_mir_type_metadata_literal(
@@ -8163,6 +8382,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(box_ty)
     }
 
+    fn mir_value_box_object_type(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: TypeId,
+        source_cg: CgTy,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let name = format!(
+            "scoop.mir.value_box${}",
+            sanitize_llvm_ident(&self.types.display(source_ty).to_string())
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return Ok(existing);
+        }
+        let box_ty = self.context.opaque_struct_type(&name);
+        let fields = [
+            self.llvm_gc_object_header_type().into(),
+            self.llvm_basic_type_of(at, source_cg)?,
+        ];
+        box_ty.set_body(&fields, false);
+        Ok(box_ty)
+    }
+
     fn get_or_create_mir_closure_env_type_desc_global(
         &mut self,
         at: crate::span::Span,
@@ -8209,6 +8450,120 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             itable: None,
             vtable: None,
         })
+    }
+
+    fn get_or_create_mir_value_box_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: TypeId,
+        box_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let source_name = sanitize_llvm_ident(&self.types.display(source_ty).to_string());
+        let global_name = format!("__scoop_type_desc_mir_value_box__{source_name}");
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+        let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
+        let canonical_name = format!("scoop.runtime.ValueBox<{}>", self.types.display(source_ty));
+        let itable = self
+            .get_or_create_mir_value_box_itable_global(at, source_ty)?
+            .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: &canonical_name,
+            obj_ty: box_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable,
+            vtable: None,
+        })
+    }
+
+    fn get_or_create_mir_value_box_itable_global(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: TypeId,
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+            return Ok(None);
+        };
+        if !self
+            .struct_layouts
+            .contains_key(&self.nominal_layout_key(nominal))
+        {
+            return Ok(None);
+        }
+        let entries = self.mir_value_box_itable_entries(&nominal.fqn)?;
+        if entries.is_empty() {
+            return Ok(None);
+        }
+        let owner_key = format!("mir_value_box__{}", self.types.display(source_ty));
+        self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
+    }
+
+    fn mir_value_box_itable_entries(
+        &self,
+        source_fqn: &str,
+    ) -> Result<Vec<crate::itable::ClassItableEntry>, LlvmEmitError> {
+        let mut interfaces = Vec::new();
+        let mut visiting = HashSet::new();
+        self.collect_mir_value_box_interfaces(source_fqn, &mut interfaces, &mut visiting);
+        interfaces
+            .into_iter()
+            .map(|interface_fqn| {
+                let iface = self.interfaces.get(&interface_fqn).ok_or_else(|| {
+                    frontend_error(format!(
+                        "value box interface `{interface_fqn}` missing interface metadata"
+                    ))
+                })?;
+                let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
+                for slot in &iface.method_slots {
+                    let impl_fqn = format!("{source_fqn}.{}", slot.name);
+                    if self.fun_index.contains_key(impl_fqn.as_str()) {
+                        method_impl_fqns.push(impl_fqn);
+                    } else if slot.has_body {
+                        method_impl_fqns.push(slot.member_fqn.clone());
+                    } else {
+                        return Err(frontend_error(format!(
+                            "value box `{source_fqn}` missing implementation for interface method `{}`",
+                            slot.member_fqn
+                        )));
+                    }
+                }
+                let interface_type_name = iface.fqn.clone();
+                let interface_type_id = stable_hash64(&interface_type_name);
+                Ok(crate::itable::ClassItableEntry {
+                    interface_fqn: iface.fqn.clone(),
+                    interface_id: iface.interface_id,
+                    interface_type_name: interface_type_name.clone(),
+                    interface_type_id,
+                    runtime_match_type_names: vec![interface_type_name],
+                    runtime_match_type_ids: vec![interface_type_id],
+                    method_impl_fqns,
+                })
+            })
+            .collect()
+    }
+
+    fn collect_mir_value_box_interfaces(
+        &self,
+        fqn: &str,
+        out: &mut Vec<String>,
+        visiting: &mut HashSet<String>,
+    ) {
+        if !visiting.insert(fqn.to_string()) {
+            return;
+        }
+        if let Some(supertypes) = self.direct_supertypes.get(fqn) {
+            for super_fqn in supertypes {
+                if self.interfaces.contains_key(super_fqn) && !out.contains(super_fqn) {
+                    out.push(super_fqn.clone());
+                }
+                self.collect_mir_value_box_interfaces(super_fqn, out, visiting);
+            }
+        }
+        visiting.remove(fqn);
     }
 
     fn codegen_mir_unary(

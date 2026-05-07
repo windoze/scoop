@@ -5,8 +5,8 @@
 //! added here before they are allowed to reach LLVM body emission.
 
 use crate::mir::{
-    Body, MirCodegenBackendRoute, MirCodegenRoutingFact, Rvalue, StatementKind,
-    StoredContinuationRoutePublication, TerminatorKind, UnwindAction,
+    Body, MirBoxingReason, MirCodegenBackendRoute, MirCodegenRoutingFact, MirTransportKind, Rvalue,
+    StatementKind, StoredContinuationRoutePublication, TerminatorKind, UnwindAction,
 };
 use crate::span::Span;
 
@@ -603,12 +603,30 @@ fn raw_mir_rvalue_gate_failure(
                 "class constructor selected/ordered argument contract reached backend incomplete",
             ))
         }
-        Rvalue::Transport { .. } => Some(gate_failure(
-            body_fqn,
-            span,
-            "PIPELINE_GAPS §4.1",
-            "value erasure boxing transport reached raw LLVM emission before CG-T04b lowering",
-        )),
+        Rvalue::Transport { transport, .. } if transport.kind == MirTransportKind::EnumPayload => {
+            Some(gate_failure(
+                body_fqn,
+                span,
+                "PIPELINE_GAPS §4.4",
+                "payload-bearing enum value erasure boxing requires CG-T04c enum payload descriptor",
+            ))
+        }
+        Rvalue::Transport { transport, .. }
+            if !transport.boxing.as_ref().is_some_and(|boxing| {
+                matches!(
+                    boxing.reason,
+                    MirBoxingReason::AnyErasure | MirBoxingReason::RefErasure
+                )
+            }) =>
+        {
+            Some(gate_failure(
+                body_fqn,
+                span,
+                "PIPELINE_GAPS §4.1",
+                "value erasure transport reached raw LLVM emission without explicit Any/Ref boxing intent",
+            ))
+        }
+        Rvalue::Transport { .. } => None,
         Rvalue::Use(_)
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }

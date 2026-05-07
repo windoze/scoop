@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：CG-T04b tuple/struct value erasure boxing 走 GC-managed boxed transport。
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun keepAny(value: Any): Unit {}
+
+fun makeAny(named: Named): Any {
+    val localAny: Any = named
+    val tupleAny: Any = (named, Named("tuple", 2))
+    keepAny(tupleAny)
+    return localAny
+}
+
+fun main(): Int {
+    val boxed = makeAny(Named("main", 1))
+    __scoop_gc_collect()
+    keepAny(boxed)
+    return 0
+}
