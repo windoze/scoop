@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_typed_plain_adapter_aggregate_return_basic.stdout
+// EXPECT-EXIT: 0
+//
+// CG-T05: a NoOutward/plain closure returning an aggregate can be used through
+// an effect-typed function value. The adapter must call the plain sret ABI and
+// wrap the aggregate payload as Step_F::Complete.
+
+package fixtures.runpass
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun applyPair(f: (Int) -> (Int, Int) / (Ask), seed: Int): Int / Ask {
+    val pair: (Int, Int) = f(seed)
+    println(pair._0)
+    println(pair._1)
+    return pair._0 + pair._1
+}
+
+fun main(): Int {
+    val purePair: (Int) -> (Int, Int) / (Ask) = { n: Int -> (n + 1, n + 2) }
+    val result: Int = handle {
+        applyPair(purePair, 40)
+    } with {
+        Ask.ask(seed: Int) -> {
+            println("unexpected")
+            seed
+        }
+    }
+    println(result)
+    return 0
+}

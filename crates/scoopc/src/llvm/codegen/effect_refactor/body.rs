@@ -1735,6 +1735,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let Some(owner_case) = owner_step.cases().iter().find(|case| {
                 case.concrete_op_key() == wrapper_case.concrete_op_key()
                     && case.payload_tuple_ty() == wrapper_case.payload_tuple_ty()
+                    && case.answer_ty() == wrapper_case.answer_ty()
             }) else {
                 continue;
             };
@@ -1750,6 +1751,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             candidates.push((callable, continuation_layout, owner_surface));
         }
         if candidates.is_empty() {
+            let entry = self.context.append_basic_block(function, "entry");
+            self.builder.position_at_end(entry);
+            self.builder.build_unreachable()?;
             return Ok(());
         }
 

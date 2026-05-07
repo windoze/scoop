@@ -869,18 +869,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<RefactorPlainAdapterLayout<'ctx>, LlvmEmitError> {
         let expected_args = function_type_source_args(fun_ty);
         let mut matches = self.abi.dynamic_invoke_layouts().filter_map(|layout| {
-            let args = source_carrier_types(self.source_types, layout.invoke_args_tuple_ty())?;
+            let args = source_carrier_types(self.source_types, layout.invoke_args_tuple_ty())?
+                .into_iter()
+                .map(|ty| {
+                    self.codegen
+                        .equivalent_codegen_type_id(self.source_types, ty)
+                })
+                .collect::<Option<Vec<_>>>()?;
             if args != expected_args {
                 return None;
             }
             let step_layout = self.abi.step_layout(layout.return_step_schema())?;
-            (step_layout.complete_variant().payload_source_ty() == fun_ty.return_ty).then_some(
-                RefactorPlainAdapterLayout {
-                    llvm_ty: layout.llvm_ty(),
-                    invoke_args_tuple_ty: layout.invoke_args_tuple_ty(),
-                    return_step_schema: layout.return_step_schema(),
-                },
-            )
+            let payload_ty = self.codegen.equivalent_codegen_type_id(
+                self.source_types,
+                step_layout.complete_variant().payload_source_ty(),
+            )?;
+            (payload_ty == fun_ty.return_ty).then_some(RefactorPlainAdapterLayout {
+                llvm_ty: layout.llvm_ty(),
+                invoke_args_tuple_ty: layout.invoke_args_tuple_ty(),
+                return_step_schema: layout.return_step_schema(),
+            })
         });
         let first = matches.next().ok_or_else(|| {
             frontend_error(format!(
@@ -934,7 +942,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         span: Span,
         fn_ptr: &str,
-        fun_ty: &crate::ty::FunctionType,
+        _fun_ty: &crate::ty::FunctionType,
         adapter: RefactorPlainAdapterLayout<'ctx>,
         function: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -954,24 +962,31 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     plain.direct_entry().symbol_name(),
                 ))
             })?;
-        if self
-            .codegen
-            .hidden_sret_result_ty(
-                span,
-                self.codegen.cg_ty_of(fun_ty.return_ty).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor effect-typed plain adapter return type",
-                        at: span.into(),
-                    },
-                )?,
-            )?
-            .is_some()
-        {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed plain adapter hidden-sret return",
-                at: span.into(),
-            });
-        }
+        let step_layout = self
+            .abi
+            .step_layout(adapter.return_step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect-typed plain adapter 缺少 return step schema s{} layout",
+                    adapter.return_step_schema.as_u32(),
+                ))
+            })?;
+        let complete_variant = step_layout.complete_variant();
+        let complete_payload_ty = if complete_variant.payload_is_elided() {
+            None
+        } else {
+            Some(
+                complete_variant
+                    .payload_ty()
+                    .get_field_type_at_index(0)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor effect-typed plain adapter Step complete payload `{}` 缺少 field#0",
+                            complete_variant.payload_anchor_name(),
+                        ))
+                    })?,
+            )
+        };
 
         let carrier = function
             .get_nth_param(0)
@@ -1000,42 +1015,93 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 "refactor_adapter_env",
             )?
             .into_pointer_value();
+        let explicit_args =
+            self.adapter_explicit_args(span, function, adapter.invoke_args_tuple_ty)?;
+        let plain_arg_count_without_sret = 1 + explicit_args.len();
+        let uses_hidden_sret = match (plain.direct_entry().param_count(), complete_payload_ty) {
+            (count, Some(_)) if count == plain_arg_count_without_sret + 1 => true,
+            (count, _) if count == plain_arg_count_without_sret => false,
+            (count, _) => {
+                return Err(frontend_error(format!(
+                    "refactor effect-typed plain adapter `{}` plain entry param count drift: entry={} expected={} or {}",
+                    fn_ptr,
+                    count,
+                    plain_arg_count_without_sret,
+                    plain_arg_count_without_sret + 1,
+                )));
+            }
+        };
+
         let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
+        let sret_result_slot = if uses_hidden_sret {
+            let result_ty = complete_payload_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor effect-typed plain adapter sret payload type",
+                at: span.into(),
+            })?;
+            let slot = self.codegen.create_entry_alloca_raw(
+                span,
+                "refactor_adapter_plain_sret",
+                result_ty,
+            )?;
+            call_args.push(slot.into());
+            Some((slot, result_ty))
+        } else {
+            None
+        };
         call_args.push(env.into());
-        call_args.extend(self.adapter_explicit_args(
-            span,
-            function,
-            adapter.invoke_args_tuple_ty,
-        )?);
+        call_args.extend(explicit_args);
         let call =
             self.codegen
                 .builder
                 .build_call(plain_fun, &call_args, "refactor_carrier_to_plain")?;
-        let ret_cg =
-            self.codegen
-                .cg_ty_of(fun_ty.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor effect-typed plain adapter return type",
-                    at: span.into(),
-                })?;
-        let payload = match ret_cg {
-            CgTy::Unit | CgTy::Never => None,
-            _ => Some(call.try_as_basic_value().basic().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor effect-typed plain adapter plain return value",
-                    at: span.into(),
-                },
-            )?),
+        if let Some((_, result_ty)) = sret_result_slot {
+            self.codegen.add_sret_attribute_to_call(call, 0, result_ty);
+        }
+        let payload = if let Some(expected_payload_ty) = complete_payload_ty {
+            Some(if let Some((result_ptr, _)) = sret_result_slot {
+                if self
+                    .codegen
+                    .basic_type_contains_gc_ptrs(span, expected_payload_ty)?
+                {
+                    self.codegen.sync_storage_slot_into_explicit_frame(
+                        span,
+                        result_ptr,
+                        expected_payload_ty,
+                        "refactor_adapter_plain_sret",
+                    )?;
+                }
+                let payload = self.codegen.builder.build_load(
+                    expected_payload_ty,
+                    result_ptr,
+                    "refactor_adapter_plain_sret_payload",
+                )?;
+                self.codegen.clear_spill_slot_root_homes(
+                    span,
+                    result_ptr,
+                    expected_payload_ty,
+                    "refactor_adapter_plain_sret",
+                )?;
+                payload
+            } else {
+                let payload = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor effect-typed plain adapter plain return value",
+                        at: span.into(),
+                    },
+                )?;
+                if payload.get_type() != expected_payload_ty {
+                    return Err(frontend_error(format!(
+                        "refactor effect-typed plain adapter `{}` direct payload type drift: expected {:?}, got {:?}",
+                        fn_ptr,
+                        expected_payload_ty,
+                        payload.get_type(),
+                    )));
+                }
+                payload
+            })
+        } else {
+            None
         };
-        let step_layout = self
-            .abi
-            .step_layout(adapter.return_step_schema)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor effect-typed plain adapter 缺少 return step schema s{} layout",
-                    adapter.return_step_schema.as_u32(),
-                ))
-            })?;
         let step = self
             .codegen
             .refactor_build_step_complete(step_layout, payload)
@@ -5745,7 +5811,10 @@ mod tests {
         assert!(value.contains("maybe_build_effect_typed_plain_closure_adapter"));
         assert!(value.contains("__scoop_refactor_plain_adapter__"));
         assert!(value.contains("refactor_carrier_to_plain"));
+        assert!(value.contains("refactor_adapter_plain_sret"));
         assert!(value.contains("refactor_adapter_complete"));
+        let forbidden = concat!("refactor effect-typed plain adapter ", "hidden-sret return");
+        assert!(!value.contains(forbidden));
     }
 
     #[test]

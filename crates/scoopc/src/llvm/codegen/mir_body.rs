@@ -388,11 +388,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_fun: &crate::mir::FunDecl,
         mir_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let param_tys = mir_fun
+            .params
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        self.declare_materialized_mir_closure_fun_with_signature(
+            span,
+            mir_fun,
+            &param_tys,
+            mir_fun.return_ty,
+            mir_types,
+        )
+    }
+
+    pub(super) fn declare_materialized_mir_closure_fun_with_signature(
+        &mut self,
+        span: crate::span::Span,
+        mir_fun: &crate::mir::FunDecl,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        mir_types: &TypeStore,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         if let Some(existing) = self.module.get_function(&mir_fun.fqn) {
             return Ok(existing);
         }
+        if param_tys.len() != mir_fun.params.len() {
+            return Err(frontend_error(format!(
+                "refactor materialized closure `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
+                mir_fun.fqn,
+                param_tys.len(),
+                mir_fun.params.len()
+            )));
+        }
 
-        let ret_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).ok_or(
+        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).ok_or(
             LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR closure return type",
                 at: mir_fun.span.into(),
@@ -414,13 +444,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
-        for param in mir_fun.params.iter().skip(1) {
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
+        for (param, param_ty) in mir_fun.params.iter().skip(1).zip(param_tys.iter().skip(1)) {
+            let param_ty = self
+                .equivalent_codegen_type_id(mir_types, *param_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "pass MIR closure param type",
                     at: param.span.into(),
-                },
-            )?;
+                })?;
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
                     .llvm_param_ty(),

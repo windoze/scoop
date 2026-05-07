@@ -1204,11 +1204,14 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         self.source_types,
                     )?
             } else if mir_fun.name.starts_with("$lambda") {
-                self.codegen.declare_materialized_mir_closure_fun(
-                    mir_fun.span,
-                    &mir_fun,
-                    &self.pass_view.materialized().types,
-                )?
+                self.codegen
+                    .declare_materialized_mir_closure_fun_with_signature(
+                        mir_fun.span,
+                        &mir_fun,
+                        plain.param_tys(),
+                        plain.return_ty(),
+                        self.source_types,
+                    )?
             } else {
                 self.codegen
                     .declare_materialized_mir_plain_fun(&mir_fun, self.source_types)?
