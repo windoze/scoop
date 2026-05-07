@@ -7,7 +7,7 @@
 //! not choose call targets, returns, state transitions, boundary dispatch, or
 //! continuation behavior; those decisions come from published P5/P6 contracts.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{
@@ -45,6 +45,8 @@ struct RefactorPlainAdapterLayout<'ctx> {
     invoke_args_tuple_ty: TypeId,
     return_step_schema: crate::effect_facts::StepSchemaId,
 }
+
+type EffectFamilyMatchKey = (String, Vec<TypeId>);
 
 struct RefactorThreadResumeTransportValue<'ctx> {
     word: IntValue<'ctx>,
@@ -868,6 +870,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<RefactorPlainAdapterLayout<'ctx>, LlvmEmitError> {
         let expected_args = function_type_source_args(fun_ty);
+        let expected_effect_families = self.effect_row_family_match_keys(&fun_ty.effects)?;
         let mut matches = self.abi.dynamic_invoke_layouts().filter_map(|layout| {
             let args = source_carrier_types(self.source_types, layout.invoke_args_tuple_ty())?
                 .into_iter()
@@ -880,6 +883,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 return None;
             }
             let step_layout = self.abi.step_layout(layout.return_step_schema())?;
+            let effect_families = self.step_layout_effect_family_match_keys(step_layout)?;
+            if effect_families != expected_effect_families {
+                return None;
+            }
             let payload_ty = self.codegen.equivalent_codegen_type_id(
                 self.source_types,
                 step_layout.complete_variant().payload_source_ty(),
@@ -892,22 +899,62 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         });
         let first = matches.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor effect-typed plain adapter 缺少匹配 function type args={:?} return=t{} 的 dynamic-invoke layout",
+                "refactor effect-typed plain adapter 缺少匹配 function type args={:?} effects={:?} return=t{} 的 dynamic-invoke layout",
                 expected_args.iter().map(|ty| ty.as_u32()).collect::<Vec<_>>(),
+                expected_effect_families,
                 fun_ty.return_ty.as_u32(),
             ))
         })?;
         if matches.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor effect-typed plain adapter function type args={:?} return=t{} 匹配多个 dynamic-invoke layout",
+                "refactor effect-typed plain adapter function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
                 expected_args
                     .iter()
                     .map(|ty| ty.as_u32())
                     .collect::<Vec<_>>(),
+                expected_effect_families,
                 fun_ty.return_ty.as_u32(),
             )));
         }
         Ok(first)
+    }
+
+    fn effect_row_family_match_keys(
+        &self,
+        row: &crate::ty::EffectRow,
+    ) -> Result<BTreeSet<EffectFamilyMatchKey>, LlvmEmitError> {
+        let mut families = BTreeSet::new();
+        for effect_ty in &row.terms {
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.codegen.types.kind(*effect_ty)
+            else {
+                return Err(frontend_error(format!(
+                    "refactor effect-typed plain adapter effect row term t{} is not a nominal effect type",
+                    effect_ty.as_u32()
+                )));
+            };
+            families.insert((nominal.fqn.clone(), nominal.args.clone()));
+        }
+        Ok(families)
+    }
+
+    fn step_layout_effect_family_match_keys(
+        &self,
+        step_layout: &RefactorStepLayout<'ctx>,
+    ) -> Option<BTreeSet<EffectFamilyMatchKey>> {
+        let mut families = BTreeSet::new();
+        for case in step_layout.cases().values() {
+            let family = case.concrete_op_key().effect_family();
+            let type_args = family
+                .type_args()
+                .iter()
+                .map(|ty| {
+                    self.codegen
+                        .equivalent_codegen_type_id(self.source_types, *ty)
+                })
+                .collect::<Option<Vec<_>>>()?;
+            families.insert((family.effect_fqn().to_string(), type_args));
+        }
+        Some(families)
     }
 
     fn build_effect_typed_plain_closure_adapter(
@@ -5813,6 +5860,7 @@ mod tests {
         assert!(value.contains("refactor_carrier_to_plain"));
         assert!(value.contains("refactor_adapter_plain_sret"));
         assert!(value.contains("refactor_adapter_complete"));
+        assert!(value.contains("step_layout_effect_family_match_keys"));
         let forbidden = concat!("refactor effect-typed plain adapter ", "hidden-sret return");
         assert!(!value.contains(forbidden));
     }

@@ -28,8 +28,8 @@
 | `CG-T04e` | CG4e | [DONE] 收口 closure env/capture transport lowering |
 | `CG-T04f` | CG4f | [DONE] 收口 cross-thread resume payload transport lowering |
 | `CG-T04R` | CG4R | [DONE] Review CG-T04a-CG-T04f composite transport lowering |
-| `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
-| `CG-T05R` | CG5R | Review CG-T05 adapter 与 NoOutward ABI |
+| `CG-T05` | CG5 | [DONE] 收口 effect-typed adapter 与 NoOutward plain ABI |
+| `CG-T05R` | CG5R | [DONE] Review CG-T05 adapter 与 NoOutward ABI |
 | `CG-T06` | CG6 | 收口 source classification、unwind、thread boundary lowering |
 | `CG-T06R` | CG6R | Review CG-T06 unwind/thread boundary lowering |
 | `CG-T07` | CG7 | 收口 extern global 与 GC pin/handle runtime surface |
@@ -587,7 +587,7 @@
   - 2026-05-07：确认 NoOutward/plain callable 继续发布 plain ABI，`main(args: Array<String>)` 继续走 plain argv wrapper，不引入 Step argv ABI 或 complete-only `Step_F` body。
   - 验证通过：`cargo test -p scoopc refactor_llvm_effect_typed_adapter`、`cargo test -p scoopc refactor_llvm_no_outward_plain_abi`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T05R：Review CG-T05 adapter 与 NoOutward ABI
+## [DONE] CG-T05R：Review CG-T05 adapter 与 NoOutward ABI
 
 - 参考：
   - `CG-T05`
@@ -604,6 +604,12 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T05` 已正确实现；若发现缺口，`CG-T05R` 保持未完成并把修复归回 `CG-T05`。
 - 依赖：`CG-T05`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T05` 的 NoOutward/plain ABI publication、effect-typed dynamic surface adapter、hidden-sret aggregate return wrapping 与 `main(args)` plain argv wrapper，确认 plain callable body 不发布 body `Step_F`、Step argv ABI 或 complete-only Step shell；effect-typed surface 通过独立 adapter 将 plain result 包装为 `Step_F::Complete`，不改变 callee body ABI。
+  - 2026-05-07：复审中发现 effect-typed plain adapter layout 只按 args/return shape 匹配 dynamic-invoke layout，多个相同 args/return 但不同 effect row 的 surface 会匹配歧义；已修复为同时匹配 step layout 的 effect-family identity，并新增 `tests/fixtures/run-pass/effect_typed_plain_adapter_multiple_effect_rows_basic.scoop` 覆盖回归。
+  - 2026-05-07：搜索 `complete-only|NoOutward.*Step_F|Step_F.*NoOutward|Step argv|body Step schema`，命中限于 plain ABI guard、route verifier 诊断、handoff 注释与 NoOutward 负向 fixture 说明，未发现合法 NoOutward plain body 依赖 complete-only `Step_F` workaround。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_effect_typed_adapter`、`cargo test -p scoopc refactor_llvm_no_outward_plain_abi`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T06：收口 source classification、unwind、thread boundary lowering
 

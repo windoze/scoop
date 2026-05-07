@@ -1,0 +1,55 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// CG-T05R: identical args/return effect-typed surfaces with different effect
+// rows must get distinct plain adapters instead of matching by shape only.
+
+package fixtures.runpass
+
+import scoop.core.*
+
+effect AskA {
+    fun ask(seed: Int): Int
+}
+
+effect AskB {
+    fun ask(seed: Int): Int
+}
+
+fun applyA(f: (Int) -> (Int, Int) / (AskA), seed: Int): Int / AskA {
+    val pair: (Int, Int) = f(seed)
+    return pair._0 + pair._1
+}
+
+fun applyB(f: (Int) -> (Int, Int) / (AskB), seed: Int): Int / AskB {
+    val pair: (Int, Int) = f(seed)
+    return pair._0 + pair._1
+}
+
+fun main(): Int {
+    val first: (Int) -> (Int, Int) / (AskA) = { n: Int ->
+        (n + 1, n + 2)
+    }
+    val second: (Int) -> (Int, Int) / (AskB) = { n: Int ->
+        (n + 3, n + 4)
+    }
+
+    val a: Int = handle {
+        applyA(first, 10)
+    } with {
+        AskA.ask(seed: Int) -> seed
+    }
+    val b: Int = handle {
+        applyB(second, 20)
+    } with {
+        AskB.ask(seed: Int) -> seed
+    }
+
+    if (a != 23) {
+        return 1
+    }
+    if (b != 47) {
+        return 2
+    }
+    return 0
+}
