@@ -21,6 +21,7 @@
 | `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04a` | CG4a | [DONE] 建立 composite transport layout contract 与 verifier |
+| `CG-T04b0` | CG4b0 | 发布 value erasure boxing MIR transport contract |
 | `CG-T04b` | CG4b | 收口 value boxing composite transport lowering |
 | `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | 收口 array composite element transport lowering |
@@ -311,6 +312,40 @@
   - 2026-05-07：runtime C 新增 `ScoopCompositeTransportDescriptor` 与 composite trace/copy/drop 调用面，并更新 ABI allowlist；`PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 的 inventory owner 保持拆分到 `CG-T04b` 至 `CG-T04f`，未合并为共享 `CG-T04` owner。
   - 验证通过：`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime abi_exports_allowlist`、`cargo test -p scoop_runtime --test gc_immix_nursery`、`cargo clippy --all-targets -- -D warnings`。
 
+## CG-T04b0：发布 value erasure boxing MIR transport contract
+
+- 参考：
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §4.1
+  - [`TODO.md`](./TODO.md) MIR-T10
+  - `CG-T04b`
+- 目标：
+  - MIR / materialized MIR 对 tuple/struct/value type -> `Any` / `Ref` / erased carrier 的隐式 boxing 发布显式 `ValueTransportMetadata.boxing` contract，使 codegen 只消费 metadata，不从 source/target type 现场猜 erasure shape。
+
+- 必须实现的内容：
+  1. 为 refactor LLVM 可达的 value erasure boxing site 发布 `MirBoxingIntent`，至少覆盖 local/top-level initializer、assignment、return/tail return、call arg 与 effect-neutral handoff 中的 tuple/struct/value type -> `Any` / `Ref` / erased carrier。
+  2. `MirBoxingIntent` 必须保留 `source_ty`、`target_ty` 与 `MirBoxingReason::AnyErasure` / `MirBoxingReason::RefErasure`；`ValueTransportMetadata` 必须保留 source transport kind 与 trace/copy/drop requirements。
+  3. MIR production verifier 必须拒绝缺 boxing intent 的 aggregate erasure boundary，避免 `CG-T04b` 从 assignment target 或 ABI target 反推 boxing。
+  4. payload-bearing enum erasure site 可以被 metadata 标识，但不得在本任务中猜 enum payload layout 或绕过 `CG-T04c`；后续 `CG-T04b` 必须能据此保留 owner-specific gate。
+
+- 必须遵从的约束：
+  - 不允许把 `u64`/ref carrier 当作隐式 MIR contract。
+  - 不允许 codegen 通过 source/target type mismatch 自行推断 value erasure boxing。
+  - 不允许用 fixture 私有 shape 绕过 payload-bearing enum boxing 的 `CG-T04c` owner。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_mir_value_boxing_transport_contract`
+  2. `cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`
+  3. MIR dump 或定向 fixture 覆盖 tuple/struct/value type -> `Any` / `Ref` 的 initializer、call arg、return boxing metadata。
+
+- 完成条件：
+  - `MirBoxingReason::AnyErasure` / `RefErasure` 不再只是枚举定义；所有 `CG-T04b` 需要的 erased value boxing site 都有可验证 producer。
+  - `CG-T04b` 可以仅消费 MIR boxing intent 和 `CG-T04a` layout descriptor 实现 lowering。
+- 依赖：`CG-T04a`
+
+- 完成记录：
+  - 待完成。
+
 ## CG-T04b：收口 value boxing composite transport lowering
 
 - 参考：
@@ -337,7 +372,10 @@
 
 - 完成条件：
   - `PIPELINE_GAPS.md` §4.1 中 tuple/struct/value type boxing 的 codegen/runtime 部分关闭；payload-bearing enum boxing 由 `CG-T04c` 完成后纳入同一 boxing path。
-- 依赖：`CG-T04a`
+- 依赖：`CG-T04b0`
+
+- 阻塞记录：
+  - 2026-05-07：执行 `CG-T04b` 前发现 `MirBoxingReason::AnyErasure` / `RefErasure` 只有 enum 定义，没有 MIR lowering/materialization producer；若继续实现，codegen 必须从 assignment/ABI source-target type mismatch 猜 erasure boxing，违反本阶段 contract。已插入 `CG-T04b0` 作为最小前置任务，`CG-T04b` 保持未完成。
 
 ## CG-T04c：收口 enum payload composite transport lowering
 
