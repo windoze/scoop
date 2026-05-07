@@ -31,4 +31,5 @@
 ## Blocker Discovered
 - `MirBoxingReason::AnyErasure` and `MirBoxingReason::RefErasure` exist in `crates/scoopc/src/mir/transport.rs`, but there is no MIR lowering/materialization producer for value-to-`Any`/`Ref` boxing intent.
 - Implementing `CG-T04b` without that contract would require codegen to infer erasure from source/target types, which violates the current task constraints.
-- Next action: insert a minimal prerequisite task before `CG-T04b` in `TODO.md`, keep `CG-T04b` incomplete, commit the task-order update, and stop.
+- Inserted `CG-T04b0` before `CG-T04b` in `TODO.md`, kept `CG-T04b` incomplete, and recorded the blocker there.
+- Committed the task-order update as `58e7b637 [CG-T04b] Add boxing transport prerequisite`.
