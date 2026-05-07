@@ -93,6 +93,55 @@ typedef struct ScoopTypeDescriptor {
   const void *vtable;
 } ScoopTypeDescriptor;
 
+// --- Composite value transport descriptor（CG-T04a） ---
+//
+// 说明：
+// - 该 descriptor 描述“不是单个机器字”的值跨 runtime/codegen 边界时需要的物理布局；
+// - 后续 boxed value、enum payload、array element、closure env 与跨线程 payload 共用该表面；
+// - copy/drop hooks 可为 NULL，表示使用 runtime 的默认 memcpy / no-op drop；traceable value 必须
+//   通过 gc_slot_offsets、type_desc 或 trace_fn 提供真实 trace surface，不能用假 no-op trace 混过。
+typedef struct ScoopCompositeTransportDescriptor ScoopCompositeTransportDescriptor;
+
+typedef uint64_t (*ScoopCompositeTraceFn)(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value,
+    ScoopGcTraceVisitor visitor,
+    void *ctx);
+typedef void (*ScoopCompositeCopyFn)(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *dst,
+    const void *src);
+typedef void (*ScoopCompositeDropFn)(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value);
+
+struct ScoopCompositeTransportDescriptor {
+  uint32_t abi_version;
+  uint32_t storage_kind;
+  uint64_t size_bytes;
+  uint64_t align_bytes;
+  const uint64_t *gc_slot_offsets;
+  uint32_t gc_slot_count;
+  uint32_t _reserved_u32;
+  ScoopCompositeTraceFn trace_fn;
+  ScoopCompositeCopyFn copy_fn;
+  ScoopCompositeDropFn drop_fn;
+  const ScoopTypeDescriptor *type_desc;
+};
+
+uint64_t scoop_composite_trace(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value,
+    ScoopGcTraceVisitor visitor,
+    void *ctx);
+void scoop_composite_copy(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *dst,
+    const void *src);
+void scoop_composite_drop(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value);
+
 // ABI 断言：固化 type descriptor 的关键字段偏移，避免在演进中“悄悄漂移”。
 //
 // 说明：

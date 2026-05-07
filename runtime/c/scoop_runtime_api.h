@@ -131,6 +131,9 @@
   X(scoop_stackmap_registry_reset) \
   X(scoop_bool_to_string) \
   X(scoop_char_to_string) \
+  X(scoop_composite_copy) \
+  X(scoop_composite_drop) \
+  X(scoop_composite_trace) \
   X(scoop_int_to_string) \
   X(scoop_string_char_at) \
   X(scoop_string_compare_to) \

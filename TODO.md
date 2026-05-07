@@ -20,7 +20,7 @@
 | `CG-T02R` | CG2R | [DONE] Review CG-T02 runtime value primitive lowering |
 | `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
-| `CG-T04a` | CG4a | 建立 composite transport layout contract 与 verifier |
+| `CG-T04a` | CG4a | [DONE] 建立 composite transport layout contract 与 verifier |
 | `CG-T04b` | CG4b | 收口 value boxing composite transport lowering |
 | `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | 收口 array composite element transport lowering |
@@ -276,7 +276,7 @@
   - 2026-05-07：复审中发现显式类型实参形式的 `nameOf<T>()` 在 generic materialized MIR path 中仍会退化成 declaration-only direct call；已修复为在 MIR intrinsic lowering 中规范化 generic/overload 后缀，并让 materialization fallback 从 top-level call binding 生成 `TypeMetadataLiteral`，同时补充 `tests/fixtures/run-pass/name_of_runtime_basic.scoop` 回归。
   - 验证通过：`cargo test -p scoopc refactor_mir_call_contract_lowers_typed_call_sites`、`cargo test -p scoopc refactor_llvm_call_contract_lowering`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/get_platform_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/intrinsic_size_of_int_word.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/name_of_runtime_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04a：建立 composite transport layout contract 与 verifier
+## [DONE] CG-T04a：建立 composite transport layout contract 与 verifier
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -304,6 +304,12 @@
   - 后续 `CG-T04b` 至 `CG-T04f` 可以复用同一 explicit layout/descriptor 和 runtime hook surface。
   - `PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 仍保留具体 implementation owner，不再共享一个大 `CG-T04` owner。
 - 依赖：`CG-T03R`，`MIR-T10R`
+
+- 完成记录：
+  - 2026-05-07：新增 refactor LLVM composite transport verifier，规范化 MIR-T10 `ValueTransportMetadata` / aggregate / call / array / closure / capture box / perform payload metadata 为 explicit layout descriptor，覆盖 size、align、inline/boxed/erased storage kind、GC slot map 与 trace/copy/drop hook identity；缺 materialized/codegen layout、traceable value 缺 GC slot/trace hook 或 hook identity 不完整时通过 `scoop::llvm::refactor_backend_gate` fail-fast。
+  - 2026-05-07：refactor plain callable 与 raw materialized MIR body emission 均接入 composite verifier；descriptor global 会发布 `scoop.runtime.ScoopCompositeTransportDescriptor`、GC slot offsets 与 `scoop_composite_trace` / `scoop_composite_copy` / `scoop_composite_drop` runtime hook surface。
+  - 2026-05-07：runtime C 新增 `ScoopCompositeTransportDescriptor` 与 composite trace/copy/drop 调用面，并更新 ABI allowlist；`PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 的 inventory owner 保持拆分到 `CG-T04b` 至 `CG-T04f`，未合并为共享 `CG-T04` owner。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime abi_exports_allowlist`、`cargo test -p scoop_runtime --test gc_immix_nursery`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04b：收口 value boxing composite transport lowering
 

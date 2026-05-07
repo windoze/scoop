@@ -7,6 +7,7 @@
 #include "scoop_gc.h"
 
 #include <stddef.h>
+#include <string.h>
 
 uint32_t scoop_gc_self_check(void) {
   // 说明：
@@ -33,9 +34,9 @@ uint32_t scoop_gc_self_check(void) {
 }
 
 uint64_t scoop_gc_type_descriptor_trace(const ScoopTypeDescriptor *type_desc,
-                                       void *object,
-                                       ScoopGcTraceVisitor visitor,
-                                       void *ctx) {
+                                        void *object,
+                                        ScoopGcTraceVisitor visitor,
+                                        void *ctx) {
   if (type_desc == 0 || object == 0 || visitor == 0) {
     return 0;
   }
@@ -102,3 +103,72 @@ uint64_t scoop_gc_type_descriptor_trace(const ScoopTypeDescriptor *type_desc,
   return visited;
 }
 
+uint64_t scoop_composite_trace(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value,
+    ScoopGcTraceVisitor visitor,
+    void *ctx) {
+  if (descriptor == 0 || value == 0 || visitor == 0) {
+    return 0;
+  }
+
+  if (descriptor->trace_fn != 0 && descriptor->trace_fn != scoop_composite_trace) {
+    return descriptor->trace_fn(descriptor, value, visitor, ctx);
+  }
+
+  if (descriptor->type_desc != 0) {
+    return scoop_gc_type_descriptor_trace(descriptor->type_desc, value, visitor, ctx);
+  }
+
+  if (descriptor->gc_slot_offsets == 0 || descriptor->gc_slot_count == 0) {
+    return 0;
+  }
+  if (descriptor->size_bytes > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+
+  uint64_t visited = 0;
+  size_t size_bytes = (size_t)descriptor->size_bytes;
+  for (uint32_t i = 0; i < descriptor->gc_slot_count; i++) {
+    uint64_t raw_off = descriptor->gc_slot_offsets[i];
+    if (raw_off > (uint64_t)SIZE_MAX) {
+      continue;
+    }
+    size_t off = (size_t)raw_off;
+    if (off > size_bytes || (size_bytes - off) < sizeof(void *)) {
+      continue;
+    }
+    void **slot = (void **)((uint8_t *)value + off);
+    visitor(slot, ctx);
+    visited++;
+  }
+  return visited;
+}
+
+void scoop_composite_copy(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *dst,
+    const void *src) {
+  if (descriptor == 0 || dst == 0 || src == 0) {
+    return;
+  }
+  if (descriptor->copy_fn != 0 && descriptor->copy_fn != scoop_composite_copy) {
+    descriptor->copy_fn(descriptor, dst, src);
+    return;
+  }
+  if (descriptor->size_bytes > (uint64_t)SIZE_MAX) {
+    return;
+  }
+  (void)memcpy(dst, src, (size_t)descriptor->size_bytes);
+}
+
+void scoop_composite_drop(
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *value) {
+  if (descriptor == 0 || value == 0) {
+    return;
+  }
+  if (descriptor->drop_fn != 0 && descriptor->drop_fn != scoop_composite_drop) {
+    descriptor->drop_fn(descriptor, value);
+  }
+}

@@ -951,6 +951,29 @@ fun main(): Int {
         )
     }
 
+    fn composite_transport_contract_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_composite_transport_contract_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun makeNamed(): Named {
+    return Named { name: "hi", score: 1 }
+}
+
+fun main(): Int {
+    val named: Named = makeNamed()
+    __scoop_gc_collect()
+    return named.score
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1046,6 +1069,33 @@ fun main(): Int {
         assert!(
             ir.contains("store i64 %pass_mir_iadd"),
             "member store should use the canonical MIR StoreMember helper:\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals() {
+        let ir = emit_refactor_ir_for_source(
+            composite_transport_contract_source(),
+            "composite_transport_contract.ll",
+        );
+
+        assert!(
+            ir.contains("scoop.runtime.ScoopCompositeTransportDescriptor"),
+            "composite transport contract should define the shared runtime descriptor type\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_composite_transport_desc__inline__sample_Named"),
+            "struct composite transport should publish a normalized layout descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("__gc_slots"),
+            "traceable composite transport should publish an explicit GC slot map\n{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_composite_trace")
+                && ir.contains("@scoop_composite_copy")
+                && ir.contains("@scoop_composite_drop"),
+            "descriptor should register trace/copy/drop runtime hook surface\n{ir}"
         );
     }
 

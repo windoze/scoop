@@ -2,33 +2,40 @@
 
 ## Scope
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose title is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop.
-- If the task is blocked by a concrete prerequisite, update `TODO.md`, commit the bookkeeping change, and stop.
+- Authoritative task source: `TODO.md`.
+- First incomplete task: `CG-T04a` (`建立 composite transport layout contract 与 verifier`).
+- Complete exactly this task, mark it `[DONE]`, commit the result, then stop.
+- This file records the actionable plan and progress checkpoints; it does not include private chain-of-thought.
 
-## Steps
+## Task Requirements
 
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Check recent Git history only for directly relevant unfinished work tied to that task.
-3. Inspect the smallest relevant part of the codebase needed for the selected task.
-4. Implement the task without weakening scope or using fixture-only workarounds.
-5. Run the task-specified validation and any directly relevant tests.
-6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record.
-7. Update this plan file when the concrete task, major progress, blockers, or verification results change.
-8. Commit all relevant changes with a descriptive task-tagged message.
+- Consume or normalize MIR-T10 composite transport/layout metadata in LLVM codegen.
+- Cover size, align, storage kind, trace/copy/drop hook identity, and GC slot map.
+- Add a shared verifier/backend gate so composite transport use sites fail fast when missing layout descriptors.
+- Point gate diagnostics to the owner-specific follow-up tasks `CG-T04b` through `CG-T04f`.
+- Add runtime descriptor plumbing for trace/copy/drop hook registration and call surface.
+- Keep specific boxing, enum payload, array element, closure env, and thread payload lowering unsupported for now, but reject each with explicit owner-specific gates.
+
+## Execution Steps
+
+1. Check the latest commit summary for unfinished work directly relevant to `CG-T04a`.
+2. Inspect the current MIR-T10 metadata surface, existing LLVM backend gates, codegen gap inventory, and runtime descriptor APIs.
+3. Identify existing composite transport use sites for value boxing, enum payloads, arrays, closure env/captures, and cross-thread resume payloads.
+4. Implement the smallest shared composite transport layout descriptor and verifier integration needed by later CG-T04 tasks.
+5. Add runtime hook registration/call plumbing without fake no-op hooks for traceable values.
+6. Add or update targeted tests, including `refactor_llvm_composite_transport_contract` and missing-descriptor negative cases.
+7. Run required validation: `cargo test -p scoopc refactor_llvm_composite_transport_contract` and `cargo test -p scoopc codegen_gap_inventory`; run additional directly relevant tests as needed.
+8. Update `TODO.md` with `[DONE]` on `CG-T04a` and a completion record listing actual validation.
+9. Run formatting/lint checks as needed, inspect the final diff, then commit all relevant changes with a `CG-T04a` message.
 
 ## Current Status
 
-- Selected task: `CG-T03R` (`Review CG-T03 call/ctor/intrinsic lowering`).
-- Review focus: class constructor lowering contract, top-level function references, runtime reflection/platform intrinsics, interface default dispatch, and removal of backend semantic guessing via string splitting or default-arg fallback.
-- Latest commit is `[CG-T03] Lower call contracts in LLVM`; no directly relevant unfinished issue was found in the commit summary.
-- Code review checkpoints inspected: MIR call/ctor metadata definitions, typed call lowering, refactor LLVM class ctor lowering, platform/type metadata/sizeOf lowering, plain interface dispatch target resolution, top-level function value lowering, and the `rsplit_once` search surface.
-- Initial review result: the main call/ctor/interface/default checks passed, but the new minimal `nameOf<T>()` run-pass fixture failed with a non-zero process exit.
-- Validation progress before this failure: `refactor_llvm_call_contract_lowering`, `refactor_mir_call_contract_lowers_typed_call_sites`, the ctor/getPlatform/interface-default/top-level-function-value/sizeOf fixtures, `codegen_gap_inventory`, `refactor_llvm_backend_gate`, and `cargo clippy --all-targets -- -D warnings` passed.
-- Current blocker: diagnose and fix the `nameOf<T>()` runtime/codegen failure, because it is directly relevant to `CG-T03`'s reflection intrinsic requirement.
-- Fix applied: MIR reflection intrinsic lowering now canonicalizes typed intrinsic FQNs by stripping generic/overload suffixes before matching `sizeOf`/`nameOf`; the generic materialization fallback now lowers `nameOf<T>()` from top-level call binding to `TypeMetadataLiteral`; the LLVM MIR direct-call base helper was corrected to preserve the stripped base.
-- Final validation status: new `nameOf` fixture, `refactor_mir_call_contract_lowers_typed_call_sites`, `refactor_llvm_call_contract_lowering`, ctor/getPlatform/interface-default/top-level-function-value/sizeOf fixtures, `codegen_gap_inventory`, `refactor_llvm_backend_gate`, `cargo fmt`, and final `cargo clippy --all-targets -- -D warnings` all passed.
-- `TODO.md` updated: `CG-T03R` is now prefixed with `[DONE]` in both the task index and heading, with a completion record covering the review conclusion, `nameOf<T>()` fix, added fixture, and validation commands.
-- Next step: inspect the final diff and commit the completed task.
-- Note: an exploratory build of `tests/fixtures/mir_refactor/call_contracts.scoop` failed on unrelated closure-call lowering (`refactor plain closure callee type`); this is not part of `CG-T03R`'s validation target and does not invalidate the reviewed call/ctor/intrinsic/interface contracts.
+- Selected task: `CG-T04a`.
+- Initial TODO review complete: `CG-T04a` is the first heading not prefixed with `[DONE]`.
+- Latest commit check complete: `Update plan` does not mention a directly relevant unfinished issue.
+- Implementation complete for first pass: added C runtime composite transport descriptor/call surface and LLVM codegen-side composite layout descriptor verification/emission for MIR transport metadata.
+- Integration fix complete: refactor plain callable codegen now runs the composite transport verifier before lowering body slices, so refactor stage output emits descriptor globals and hook declarations.
+- Final validation passed: `cargo test -p scoopc refactor_llvm_composite_transport_contract`, `cargo test -p scoopc codegen_gap_inventory`, `cargo test -p scoop_runtime abi_exports_allowlist`, `cargo test -p scoop_runtime --test gc_immix_nursery`, and `cargo clippy --all-targets -- -D warnings`.
+- Note: an exploratory full `cargo test -p scoop_runtime` exceeded the 120s command timeout after many tests had passed; targeted runtime ABI/nursery checks above completed successfully.
+- `TODO.md` updated: `CG-T04a` is now `[DONE]` in the task index and heading, with a completion record and validation list.
+- Next step: inspect final diff and commit all relevant changes with a `CG-T04a` message.

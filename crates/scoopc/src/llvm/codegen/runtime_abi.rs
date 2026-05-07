@@ -120,6 +120,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    pub(super) fn llvm_composite_transport_descriptor_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopCompositeTransportDescriptor";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let default_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        ty.set_body(
+            &[
+                i32_ty.into(),         // abi_version
+                i32_ty.into(),         // storage_kind
+                i64_ty.into(),         // size_bytes
+                i64_ty.into(),         // align_bytes
+                default_ptr_ty.into(), // gc_slot_offsets
+                i32_ty.into(),         // gc_slot_count
+                i32_ty.into(),         // _reserved_u32
+                default_ptr_ty.into(), // trace_fn
+                default_ptr_ty.into(), // copy_fn
+                default_ptr_ty.into(), // drop_fn
+                default_ptr_ty.into(), // type_desc
+            ],
+            false,
+        );
+        ty
+    }
+
     pub(super) fn llvm_effect_outcome_struct_type(&self) -> StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopEffectOutcome";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -216,6 +245,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_composite_trace(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_COMPOSITE_TRACE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let fn_ty = i64_ty.fn_type(
+            &[ptr_ty.into(), ptr_ty.into(), ptr_ty.into(), ptr_ty.into()],
+            false,
+        );
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_composite_copy(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_COMPOSITE_COPY;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[ptr_ty.into(), ptr_ty.into(), ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_composite_drop(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_COMPOSITE_DROP;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[ptr_ty.into(), ptr_ty.into()], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

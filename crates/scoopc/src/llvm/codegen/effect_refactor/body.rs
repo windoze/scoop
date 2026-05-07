@@ -599,6 +599,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "refactor plain callable cfg",
                 at: mir_fun.span.into(),
             })?;
+        self.verify_mir_body_composite_transport_contract(
+            callable.root_fqn(),
+            mir_fun.span,
+            body,
+            source_types,
+        )?;
         let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
 
         self.current_source_id = if let Some(hir_fun) = hir_fun {

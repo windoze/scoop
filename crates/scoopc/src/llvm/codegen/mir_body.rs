@@ -157,6 +157,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "pass MIR cfg",
                 at: mir_fun.span.into(),
             })?;
+        let mir_types = self
+            .materialized_pass_view()
+            .map(|view| &view.materialized().types)
+            .unwrap_or(self.types);
         let route_facts = self.codegen_routing_facts();
         if let Some(failure) = crate::llvm::codegen_gap_inventory::raw_mir_backend_gate_failure(
             &mir_fun.fqn,
@@ -167,6 +171,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ) {
             return Err(failure.into_llvm_error());
         }
+        self.verify_mir_body_composite_transport_contract(
+            &mir_fun.fqn,
+            mir_fun.span,
+            body,
+            mir_types,
+        )?;
 
         self.current_source_id =
             self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?;
@@ -211,10 +221,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let (return_bb, return_alloca) =
             self.setup_function_return_context(hir_fun.span, llvm_fun, declared_return_cg)?;
-        let mir_types = self
-            .materialized_pass_view()
-            .map(|view| &view.materialized().types)
-            .unwrap_or(self.types);
         let mut local_slots = self.create_mir_local_slots(body, mir_types)?;
         self.bind_mir_params(
             hir_fun,

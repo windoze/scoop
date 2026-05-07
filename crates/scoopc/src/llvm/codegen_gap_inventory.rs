@@ -822,6 +822,26 @@ mod tests {
     }
 
     #[test]
+    fn codegen_gap_inventory_keeps_composite_transport_owners_split() {
+        for (gap_id, owner) in [
+            ("PIPELINE_GAPS §3.11", "CG-T04e"),
+            ("PIPELINE_GAPS §4.1", "CG-T04b"),
+            ("PIPELINE_GAPS §4.2", "CG-T04c"),
+            ("PIPELINE_GAPS §4.3", "CG-T04c"),
+            ("PIPELINE_GAPS §4.4", "CG-T04c"),
+            ("PIPELINE_GAPS §4.5", "CG-T04d"),
+            ("PIPELINE_GAPS §5.5", "CG-T04f"),
+        ] {
+            let entry = codegen_gap_entry(gap_id).expect("composite gap must remain tracked");
+            assert_eq!(entry.owner_task, owner, "{gap_id} owner drifted");
+            assert_ne!(
+                entry.owner_task, "CG-T04",
+                "{gap_id} must not use a shared CG-T04 owner"
+            );
+        }
+    }
+
+    #[test]
     fn codegen_gap_inventory_covers_required_unsupported_patterns() {
         let triggers = CODEGEN_GAP_INVENTORY
             .iter()

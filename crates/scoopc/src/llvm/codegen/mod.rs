@@ -73,6 +73,7 @@ use super::LlvmEmitError;
 mod call;
 mod class_ctor;
 mod closure;
+mod composite_transport;
 mod control_flow;
 mod effect;
 mod effect_refactor;
