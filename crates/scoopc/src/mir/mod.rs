@@ -2382,9 +2382,8 @@ pub enum Rvalue {
     },
     /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（T0710/T0711）。
     ///
-    /// 当前阶段：
-    /// - `env` 支持 `Unit`（无捕获）或最小 tuple env（T0711）；
-    /// - 更丰富的 env 表示（真正的 struct/layout/heap/GC）会在后续 codegen/runtime 任务补齐。
+    /// 当前阶段：`env` 为 `Unit`（无捕获）或按 MIR capture schema 排列的 tuple env；
+    /// LLVM lowering 必须消费 `env_contract` 与 composite transport metadata，不得从 tuple 形状猜捕获语义。
     MakeClosure {
         env: Operand,
         fn_ptr: String,

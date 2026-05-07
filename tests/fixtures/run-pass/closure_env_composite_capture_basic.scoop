@@ -1,0 +1,46 @@
+// EXPECT: pass
+// EXPECT-EXIT: 30
+
+package fixtures.runpass
+
+import scoop.core.*
+
+struct Point(val x: Int, val label: String)
+
+enum Item {
+    Hit(val point: Point),
+    Pair(val payload: (Point, Int)),
+}
+
+fun keepAny(value: Any): Int {
+    __scoop_gc_collect()
+    return 1
+}
+
+fun score(item: Item): Int {
+    return when (item) {
+        Hit(point) -> point.x
+        Pair(payload) -> payload._0.x + payload._1
+    }
+}
+
+fun callAfterGc(f: () -> Int): Int {
+    __scoop_gc_collect()
+    return f()
+}
+
+fun main(): Int {
+    val title: String = "cap"
+    val point: Point = Point(1, title)
+    val pair: (Point, Int) = (Point(2, "tuple"), 3)
+    val item: Item = Pair((Point(4, "enum"), 5))
+    val points: Array<Point> = [Point(6, "array")]
+    var mutablePoint: Point = Point(7, "box")
+
+    val f: () -> Int = {
+        mutablePoint = Point(mutablePoint.x + 1, title)
+        point.x + pair._0.x + pair._1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+    }
+
+    return callAfterGc(f)
+}

@@ -422,7 +422,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             value: mir::Operand::Local(source_local),
             ..
         } = value
-            && let Some((env, fn_ptr)) = self.local_make_closure_source(*source_local)
+            && let Some((env, fn_ptr, env_contract)) = self.local_make_closure_source(*source_local)
             && let Some(adapter) =
                 self.maybe_build_effect_typed_plain_closure_adapter(span, target_local, &fn_ptr)?
         {
@@ -434,7 +434,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     at: span.into(),
                 })?;
             return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
-                span, &env, &fn_ptr, env_cg, target_cg, self.slots, adapter,
+                span,
+                &env,
+                &fn_ptr,
+                &env_contract,
+                self.source_types,
+                env_cg,
+                target_cg,
+                self.slots,
+                adapter,
             );
         }
 
@@ -452,7 +460,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 target_cg,
                 target_local,
             ),
-            mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
+            mir::Rvalue::MakeClosure {
+                env,
+                fn_ptr,
+                env_contract,
+            } => {
                 let env_cg = self
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, env)
@@ -464,11 +476,27 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.maybe_build_effect_typed_plain_closure_adapter(span, target_local, fn_ptr)?
                 {
                     return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
-                        span, env, fn_ptr, env_cg, target_cg, self.slots, adapter,
+                        span,
+                        env,
+                        fn_ptr,
+                        env_contract,
+                        self.source_types,
+                        env_cg,
+                        target_cg,
+                        self.slots,
+                        adapter,
                     );
                 }
-                self.codegen
-                    .codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, self.slots)
+                self.codegen.codegen_mir_make_closure(
+                    span,
+                    env,
+                    fn_ptr,
+                    env_contract,
+                    self.source_types,
+                    env_cg,
+                    target_cg,
+                    self.slots,
+                )
             }
             mir::Rvalue::StructLit { fields, .. } => {
                 self.install_effect_typed_plain_closure_adapters_for_struct_fields(
@@ -536,7 +564,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn local_make_closure_source(&self, local: LocalId) -> Option<(mir::Operand, String)> {
+    fn local_make_closure_source(
+        &self,
+        local: LocalId,
+    ) -> Option<(mir::Operand, String, mir::ClosureEnvTransportMetadata)> {
         self.body.blocks.iter().find_map(|block| {
             block.stmts.iter().find_map(|stmt| {
                 let mir::StatementKind::Assign { target, value } = &stmt.kind else {
@@ -545,10 +576,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 if *target != local {
                     return None;
                 }
-                let mir::Rvalue::MakeClosure { env, fn_ptr, .. } = value else {
+                let mir::Rvalue::MakeClosure {
+                    env,
+                    fn_ptr,
+                    env_contract,
+                } = value
+                else {
                     return None;
                 };
-                Some((env.clone(), fn_ptr.clone()))
+                Some((env.clone(), fn_ptr.clone(), env_contract.clone()))
             })
         })
     }
@@ -756,7 +792,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             let mir::Operand::Local(source_local) = init.value else {
                 continue;
             };
-            let Some((_env, fn_ptr)) = self.local_make_closure_source(source_local) else {
+            let Some((_env, fn_ptr, _env_contract)) = self.local_make_closure_source(source_local)
+            else {
                 continue;
             };
             let Some(field_ty) = layout_field.ty else {

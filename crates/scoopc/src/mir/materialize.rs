@@ -6261,20 +6261,25 @@ impl MirInstanceMaterializer {
 
         let locals = body.locals.clone();
         let mut member_updates = Vec::new();
-        for block in &body.blocks {
-            for stmt in &block.stmts {
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
                 let StatementKind::Assign {
                     target,
                     value:
                         Rvalue::MemberAccess {
                             receiver, member, ..
                         },
-                } = &stmt.kind
+                } = &mut stmt.kind
                 else {
                     continue;
                 };
                 let receiver_ty = operand_type(&self.types, self.builtins, &locals, receiver)
                     .unwrap_or(member.receiver_ty);
+                if type_contains_param(&self.types, member.receiver_ty)
+                    && !type_contains_param(&self.types, receiver_ty)
+                {
+                    member.receiver_ty = receiver_ty;
+                }
                 if let Some(result_ty) = self.member_value_result_ty(receiver_ty, member) {
                     if type_contains_param(&self.types, result_ty) {
                         continue;

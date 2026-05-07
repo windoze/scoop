@@ -351,9 +351,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         metadata: &ValueTransportMetadata,
     ) -> Result<CompositeTransportLayoutDescriptor, LlvmEmitError> {
-        let source_ty = self
-            .equivalent_codegen_type_id(mir_types, metadata.source_ty)
-            .ok_or_else(|| {
+        let (source_ty, cg_ty) = if let Some(source_ty) =
+            self.equivalent_codegen_type_id(mir_types, metadata.source_ty)
+        {
+            let cg_ty = self.cg_ty_of(source_ty).ok_or_else(|| {
+                composite_transport_gate_error(
+                    body_fqn,
+                    span,
+                    composite_transport_gap_id(metadata),
+                    "composite transport use site is missing a codegen layout descriptor type",
+                )
+            })?;
+            (source_ty, cg_ty)
+        } else {
+            let cg_ty = self.cg_ty_of_mir_type(mir_types, metadata.source_ty).ok_or_else(|| {
                 composite_transport_gate_error(
                     body_fqn,
                     span,
@@ -361,14 +372,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "composite transport use site is missing a materialized layout descriptor type",
                 )
             })?;
-        let cg_ty = self.cg_ty_of(source_ty).ok_or_else(|| {
-            composite_transport_gate_error(
-                body_fqn,
-                span,
-                composite_transport_gap_id(metadata),
-                "composite transport use site is missing a codegen layout descriptor type",
-            )
-        })?;
+            (metadata.source_ty, cg_ty)
+        };
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty).map_err(|_| {
             composite_transport_gate_error(
                 body_fqn,

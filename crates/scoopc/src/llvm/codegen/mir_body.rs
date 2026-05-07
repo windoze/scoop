@@ -2040,9 +2040,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: u32::from(*bits),
                 signed: false,
             })),
-            TypeKind::Value(ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_)) => self
+            TypeKind::Value(ValueTypeKind::Option(_)) => self
                 .equivalent_codegen_type_id(mir_types, ty)
                 .and_then(|codegen_ty| self.cg_ty_of(codegen_ty)),
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => self
+                .equivalent_codegen_type_id(mir_types, ty)
+                .map(CgTy::Tuple)
+                .or(Some(CgTy::Tuple(ty))),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                 self.builtin_nominal_cg_ty(&nominal.fqn).or_else(|| {
                     self.equivalent_codegen_type_id(mir_types, ty)
@@ -2696,14 +2700,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
-            crate::mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
+            crate::mir::Rvalue::MakeClosure {
+                env,
+                fn_ptr,
+                env_contract,
+            } => {
                 let env_cg = self.mir_operand_cg_ty(body, mir_types, env).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "pass MIR closure env type",
                         at: span.into(),
                     },
                 )?;
-                self.codegen_mir_make_closure(span, env, fn_ptr, env_cg, target_cg, slots)
+                self.codegen_mir_make_closure(
+                    span,
+                    env,
+                    fn_ptr,
+                    env_contract,
+                    mir_types,
+                    env_cg,
+                    target_cg,
+                    slots,
+                )
             }
             crate::mir::Rvalue::CaptureBoxNew { value, .. } => {
                 self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
@@ -6923,17 +6940,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match env_cg {
             CgTy::Unit => Some(Vec::new()),
             CgTy::Tuple(tuple_ty) => {
-                let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty)
+                let tuple_types = self.codegen_type_store_for_type_id(tuple_ty)?;
+                let TypeKind::Value(ValueTypeKind::Tuple(elements)) = tuple_types.kind(tuple_ty)
                 else {
                     return None;
                 };
+                let elements = elements.clone();
                 let mut out = Vec::with_capacity(elements.len());
                 for elem_ty in elements {
-                    let cg = self.cg_ty_of(*elem_ty)?;
-                    if !matches!(
-                        cg,
-                        CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-                    ) {
+                    let cg = if std::ptr::eq(tuple_types, self.types) {
+                        self.cg_ty_of(elem_ty)
+                    } else {
+                        self.cg_ty_of_mir_type(tuple_types, elem_ty)
+                    }?;
+                    if !Self::mir_closure_env_capture_cg_is_supported(cg) {
                         return None;
                     }
                     out.push(cg);
@@ -6942,6 +6962,120 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => None,
         }
+    }
+
+    fn mir_closure_env_capture_cg_is_supported(cg_ty: CgTy) -> bool {
+        matches!(
+            cg_ty,
+            CgTy::Unit
+                | CgTy::Bool
+                | CgTy::Float64
+                | CgTy::Float32
+                | CgTy::Int(_)
+                | CgTy::String
+                | CgTy::Ref
+                | CgTy::Tuple(_)
+                | CgTy::Struct(_)
+                | CgTy::Enum(_)
+        )
+    }
+
+    fn mir_closure_env_capture_element_cg_tys_from_contract(
+        &mut self,
+        span: crate::span::Span,
+        body_fqn: &str,
+        mir_types: &TypeStore,
+        env_cg: CgTy,
+        contract: &crate::mir::ClosureEnvTransportMetadata,
+    ) -> Result<Vec<CgTy>, LlvmEmitError> {
+        let contract_env_cg = self.cg_ty_of_mir_type(mir_types, contract.env_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR closure env contract codegen type",
+                at: span.into(),
+            },
+        )?;
+        if contract_env_cg != env_cg {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR closure env contract mismatch",
+                at: span.into(),
+            });
+        }
+
+        let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys(env_cg).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR closure env shape",
+                at: span.into(),
+            },
+        )?;
+        if capture_field_cgs.len() != contract.captures.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR closure env capture schema arity",
+                at: span.into(),
+            });
+        }
+
+        let env_transport = crate::mir::ValueTransportMetadata {
+            source_ty: contract.env_ty,
+            kind: crate::mir::MirTransportKind::ClosureEnv,
+            requirements: self
+                .composite_transport_requirements_for_type(mir_types, contract.env_ty),
+            boxing: None,
+        };
+        self.get_or_create_value_composite_transport_descriptor_global(
+            body_fqn,
+            span,
+            mir_types,
+            &env_transport,
+        )?;
+
+        let env_element_tys = match mir_types.kind(contract.env_ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => &[][..],
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.as_slice(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR closure env contract shape",
+                    at: span.into(),
+                });
+            }
+        };
+
+        for (index, capture) in contract.captures.iter().enumerate() {
+            let env_element_ty =
+                env_element_tys
+                    .get(index)
+                    .copied()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR closure env capture schema element",
+                        at: capture.decl_span.into(),
+                    })?;
+            if mir_types.display(capture.transport.source_ty).to_string()
+                != mir_types.display(env_element_ty).to_string()
+            {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR closure env capture schema type",
+                    at: capture.decl_span.into(),
+                });
+            }
+            if capture.mutable
+                && (capture.transport.kind != crate::mir::MirTransportKind::CaptureBox
+                    || self
+                        .mir_capture_box_inner_type_id(mir_types, capture.transport.source_ty)
+                        .is_none())
+            {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR closure mutable capture box contract",
+                    at: capture.decl_span.into(),
+                });
+            }
+            self.get_or_create_value_composite_transport_descriptor_global(
+                body_fqn,
+                capture.decl_span,
+                mir_types,
+                &capture.transport,
+            )?;
+        }
+
+        Ok(capture_field_cgs)
     }
 
     fn mir_capture_box_inner_type_id(
@@ -6973,7 +7107,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         _body: &crate::mir::Body,
-        _mir_types: &TypeStore,
+        mir_types: &TypeStore,
         elements: &[crate::mir::Operand],
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
@@ -6984,11 +7118,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
-        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple type",
-                at: span.into(),
-            });
+        let (element_tys, use_primary_types) = {
+            let tuple_types = self
+                .codegen_type_store_for_type_id(tuple_ty)
+                .unwrap_or(mir_types);
+            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = tuple_types.kind(tuple_ty)
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR tuple type",
+                    at: span.into(),
+                });
+            };
+            (element_tys.clone(), std::ptr::eq(tuple_types, self.types))
         };
         if element_tys.len() != elements.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -7002,12 +7143,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Vec::with_capacity(elements.len());
 
         for (idx, (operand, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
-            let elem_cg = self
-                .cg_ty_of(*elem_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR tuple element type",
-                    at: span.into(),
-                })?;
+            let elem_cg = if use_primary_types {
+                self.cg_ty_of(*elem_ty)
+            } else {
+                self.cg_ty_of_mir_type(mir_types, *elem_ty)
+            }
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR tuple element type",
+                at: span.into(),
+            })?;
             let value = self.codegen_mir_operand_expected(span, operand, slots, Some(elem_cg))?;
             let coerced = self.coerce_value(span, value, elem_cg)?;
             let deferred = self.defer_gc_sensitive_cg_value(
@@ -7232,16 +7376,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.extract_mir_tuple_element_value(span, tuple_v, index, elem_cg)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn codegen_mir_make_closure(
         &mut self,
         span: crate::span::Span,
         env: &crate::mir::Operand,
         fn_ptr: &str,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.codegen_mir_make_closure_impl(span, env, fn_ptr, env_cg, target_cg, slots, None)
+        self.codegen_mir_make_closure_impl(
+            span,
+            env,
+            fn_ptr,
+            env_contract,
+            mir_types,
+            env_cg,
+            target_cg,
+            slots,
+            None,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -7250,6 +7407,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         env: &crate::mir::Operand,
         fn_ptr: &str,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
@@ -7259,6 +7418,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             span,
             env,
             fn_ptr,
+            env_contract,
+            mir_types,
             env_cg,
             target_cg,
             slots,
@@ -7272,6 +7433,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         env: &crate::mir::Operand,
         fn_ptr: &str,
+        env_contract: &crate::mir::ClosureEnvTransportMetadata,
+        mir_types: &TypeStore,
         env_cg: CgTy,
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
@@ -7284,11 +7447,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys(env_cg).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env shape",
-                at: span.into(),
-            },
+        let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys_from_contract(
+            span,
+            fn_ptr,
+            mir_types,
+            env_cg,
+            env_contract,
         )?;
 
         let deferred_env = if capture_field_cgs.is_empty() {

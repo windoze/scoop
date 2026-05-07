@@ -9,12 +9,21 @@ use inkwell::types::StructType;
 use inkwell::values::GlobalValue;
 
 use crate::hir;
-use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
 use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(super) fn codegen_type_store_for_type_id(&self, ty: TypeId) -> Option<&TypeStore> {
+        if (ty.as_u32() as usize) < self.types.len() {
+            return Some(self.types);
+        }
+        self.materialized_pass_view()
+            .map(|view| &view.materialized().types)
+            .filter(|types| (ty.as_u32() as usize) < types.len())
+    }
+
     pub(super) fn builtin_nominal_cg_ty(&self, fqn: &str) -> Option<CgTy> {
         match fqn {
             "scoop.core.Bool" => Some(CgTy::Bool),
@@ -716,21 +725,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple type id",
-                at: at.into(),
-            });
+        let (elements, use_primary_types) = {
+            let tuple_types = self.codegen_type_store_for_type_id(ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple type id",
+                    at: at.into(),
+                },
+            )?;
+            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = tuple_types.kind(ty) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple type id",
+                    at: at.into(),
+                });
+            };
+            (elements.clone(), std::ptr::eq(tuple_types, self.types))
         };
 
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(elements.len());
         for elem_ty in elements {
-            let elem_cg = self
-                .cg_ty_of(*elem_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element type",
-                    at: at.into(),
-                })?;
+            let elem_cg = if use_primary_types {
+                self.cg_ty_of(elem_ty)
+            } else {
+                let tuple_types = self
+                    .materialized_pass_view()
+                    .map(|view| &view.materialized().types)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "tuple type id",
+                        at: at.into(),
+                    })?;
+                self.cg_ty_of_mir_type(tuple_types, elem_ty)
+            }
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple element type",
+                at: at.into(),
+            })?;
             llvm_fields.push(self.llvm_basic_type_of(at, elem_cg)?);
         }
 

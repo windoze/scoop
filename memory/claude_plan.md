@@ -1,40 +1,36 @@
-# 当前执行计划
+# Claude Plan
 
-## 约束
+## Current Invocation
+- Goal: complete exactly the first incomplete task listed in `TODO.md`, then stop.
+- Source of truth: `TODO.md` for task ordering, requirements, validation, and completion records.
+- Constraints: do not skip incomplete tasks, do not use workarounds for spec mismatches, and only update `PLAN.md` if phase-level planning changes.
 
-- `TODO.md` 是任务顺序和完成状态的权威来源。
-- 本次只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 若当前任务被实现缺口或规格不匹配阻塞，先在 `TODO.md` 中加入最小必要前置任务并提交后停止。
-- 完成任务后需要更新 `TODO.md`、运行相关验证、提交 Git commit。
+## Execution Plan
+1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit only for an explicitly mentioned unfinished issue directly relevant to that first incomplete task.
+3. Inspect the relevant code, fixtures, and docs needed for that task.
+4. Implement the smallest correct change that fully satisfies the task, or add the minimum prerequisite task if a concrete blocker makes implementation impossible.
+5. Run the task-specified validation and any directly relevant tests; fix failures that are in scope.
+6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling/updating its completion record, or record the blocker/prerequisite if blocked.
+7. Update this file after key milestones or plan changes.
+8. Commit all relevant uncommitted changes with a clear task-scoped message.
+9. Stop after this single task is completed or the blocker/prerequisite commit is made.
 
-## 初始步骤
+## Progress
+- Plan initialized before repository inspection.
+- Identified first incomplete task: `CG-T04e` (closure env/capture transport lowering).
+- Latest commit `82fb727c [CG-T04d] Implement array composite transport lowering` does not explicitly mention an unfinished issue directly relevant to `CG-T04e`.
+- Inspected MIR and LLVM codegen: MIR already carries closure env/capture-box transport metadata; LLVM currently gates closure env fields to scalar/String/ref and MakeClosure lowering does not directly validate the env contract.
+- Implementation adjustment: extend closure env/capture-box lowering to aggregate/float captures and make MakeClosure lowering consume/validate `ClosureEnvTransportMetadata` rather than relying only on tuple shape.
+- First targeted test run exposed an in-scope blocker for array captures: materialized MIR for a closure body using captured `Array<Point>.get` left generic receiver type `T` unresolved. This must be fixed before validating `CG-T04e` instead of weakening the fixture.
+- Implemented closure env/capture lowering changes, repaired materialized member receiver metadata for captured array calls, and added `closure_env_composite_capture_basic.scoop` plus an LLVM IR unit test.
+- Validation passed so far: `cargo test -p scoopc refactor_llvm_closure_env_transport`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`, `cargo test -p scoopc codegen_gap_inventory`, `cargo test -p scoopc refactor_llvm_composite_transport_contract`, `cargo test -p scoopc refactor_llvm_array_composite_transport`, `cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`, and `cargo clippy --all-targets -- -D warnings`.
 
-1. 读取 `TODO.md`，定位第一个未完成任务。
-2. 查看最新提交信息，判断是否明确提到与当前任务直接相关的未完成事项。
-3. 读取当前任务涉及的源码、测试和文档，确认需求、依赖和验证命令。
-4. 实现当前任务要求的最小正确变更，不绕开规格或降低测试覆盖。
-5. 运行当前任务要求的验证；若失败，修复与当前任务直接相关的问题。
-6. 将任务标题标记为 `[DONE]` 并更新完成记录。
-7. 提交所有本次任务相关变更，然后停止。
-
-## 进展记录
-
-- 已创建初始执行计划，下一步读取 `TODO.md` 定位当前任务。
-- 已定位当前任务：`CG-T04d：收口 array composite element transport lowering`。
-- 最新提交为 `[CG-T04c] Implement enum payload transport lowering`，与当前任务前置链相关但未提示需要先插入的新阻塞任务。
-- 已确认 MIR `CallTransportMetadata.array` / `ArrayElementTransportMetadata` 已覆盖 builder push/build、get、set，并携带 `ValueTransportMetadata`；当前任务可直接消费该 contract。
-- 已实现 runtime composite array ABI 与 refactor LLVM descriptor-backed lowering，并新增 `refactor_llvm_array_composite_transport` 单测和 `array_composite_transport_basic.scoop` fixture。
-- 定向测试发现 composite `Array.get` 的 materialized MIR 被未具体化的 call-site binding 阻断；已修复 direct-call materialization，使非具体 site binding 会回退到基于参数/结果的实例推断。
-- 继续修复 materialized array call metadata：从 materialized receiver/result 恢复 concrete element type，并把 array set 的泛型 erasure 临时值还原为 concrete source operand，避免 `T` 泄漏到 pass-view frame slot。
-- 已完成验证并将 `TODO.md` 中 `CG-T04d` 标记为 `[DONE]`；最终 clippy 与 array/composite 定向回归均已通过，下一步提交本次任务变更。
-
-## CG-T04d 执行计划
-
-1. 阅读 array lowering、composite transport descriptor、runtime array descriptor 与现有相关测试。
-2. 确认当前 array element metadata 是否已经携带 size、align、trace/copy/drop 与 inline/boxed policy；若缺少 upstream contract，按规则先更新 `TODO.md` 并停止。
-3. 实现 composite array build/get/set lowering，确保 tuple/struct/enum element 不走 `u64`/word 静默截断路径。
-4. 扩展 C runtime array/builder 表示，使 composite element descriptor 驱动 element size/align、trace/copy/drop、get/set copy。
-5. 补充定向 Rust 测试与 run-pass fixture，覆盖 tuple/struct/enum composite element 的 array build/get/set。
-6. 运行 `CG-T04d` 要求的验证命令和必要回归，修复与当前任务直接相关的失败。
-7. 更新 `TODO.md` 将 `CG-T04d` 标记为 `[DONE]` 并记录验证结果。
-8. 提交本次任务全部变更后停止。
+## Task-Specific Plan: CG-T04e
+1. Inspect existing closure lowering, capture metadata, composite layout verifier, runtime descriptor hooks, and current tests/fixtures.
+2. Determine whether MIR already publishes the required capture schema and capture-box metadata; if a concrete upstream contract blocker is missing, add the minimum prerequisite task before `CG-T04e` and stop.
+3. If contracts exist, implement closure env layout lowering from MIR capture schema and composite layout descriptors for ref/value/composite captures.
+4. Ensure mutable captures use capture boxes with trace/copy/drop/rooting behavior consistent with boxed composite transport.
+5. Add or update targeted tests/fixtures for tuple/struct/enum/array captures and mutable capture behavior.
+6. Run required validation: `cargo test -p scoopc refactor_llvm_closure_env_transport`, relevant run-pass fixtures, `cargo test -p scoopc codegen_gap_inventory`, and clippy if feasible.
+7. Mark `CG-T04e` as `[DONE]` with a completion record if fully implemented, then commit all relevant changes.

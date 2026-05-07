@@ -25,7 +25,7 @@
 | `CG-T04b` | CG4b | [DONE] 收口 value boxing composite transport lowering |
 | `CG-T04c` | CG4c | [DONE] 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | [DONE] 收口 array composite element transport lowering |
-| `CG-T04e` | CG4e | 收口 closure env/capture transport lowering |
+| `CG-T04e` | CG4e | [DONE] 收口 closure env/capture transport lowering |
 | `CG-T04f` | CG4f | 收口 cross-thread resume payload transport lowering |
 | `CG-T04R` | CG4R | Review CG-T04a-CG-T04f composite transport lowering |
 | `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
@@ -453,7 +453,7 @@
   - 2026-05-07：materialized MIR 修复 canonical array member intrinsic 与 generic argument transport 的 concrete type 恢复，避免 array set/get/size 的 `T` 泄漏到 pass-view frame slot。
   - 验证通过：`cargo test -p scoopc refactor_llvm_array_composite_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/array_composite_transport_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/array_mutable_array_min_primitive_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_trace_array_string_elements_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo test -p scoopc refactor_llvm_enum_payload_transport`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04e：收口 closure env/capture transport lowering
+## [DONE] CG-T04e：收口 closure env/capture transport lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -480,6 +480,12 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §3.11 的 codegen/runtime 部分关闭。
 - 依赖：`CG-T04d`
+
+- 完成记录：
+  - 2026-05-07：refactor LLVM closure allocation/invoke 现在消费 `ClosureEnvTransportMetadata` capture schema，并通过 composite transport descriptor 校验 closure env 与各 capture；closure env field lowering 支持 tuple/struct/enum/array/ref/value captures，不再限制为 opaque `u64`、裸 pointer 或 scalar-only tuple。
+  - 2026-05-07：mutable capture box lowering 支持 traceable composite values，capture box new/get/set 复用 typed heap object descriptor 与 GC slot tracing；materialized MIR 修复 closure body 内 captured array member call 的 concrete receiver metadata，避免 `Array<T>.get` 在 closure body 中留下 unresolved `T`。
+  - 2026-05-07：新增 `refactor_llvm_closure_env_transport` IR 单测与 `tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`，覆盖 String/ref、struct、tuple、enum、array 与 mutable struct capture box，并在 closure 调用前触发 GC。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_closure_env_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_array_composite_transport`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04f：收口 cross-thread resume payload transport lowering
 

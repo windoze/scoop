@@ -1095,6 +1095,56 @@ fun main(): Int {
         )
     }
 
+    fn closure_env_transport_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_closure_env_transport_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Point(val x: Int, val label: String)
+
+enum Item {
+    Hit(val point: Point),
+    Pair(val payload: (Point, Int)),
+}
+
+fun keepAny(value: Any): Int {
+    __scoop_gc_collect()
+    return 1
+}
+
+fun score(item: Item): Int {
+    return when (item) {
+        Hit(point) -> point.x
+        Pair(payload) -> payload._0.x + payload._1
+    }
+}
+
+fun callAfterGc(f: () -> Int): Int {
+    __scoop_gc_collect()
+    return f()
+}
+
+fun main(): Int {
+    val title: String = "cap"
+    val point: Point = Point(1, title)
+    val pair: (Point, Int) = (Point(2, "tuple"), 3)
+    val item: Item = Pair((Point(4, "enum"), 5))
+    val points: Array<Point> = [Point(6, "array")]
+    var mutablePoint: Point = Point(7, "box")
+
+    val f: () -> Int = {
+        mutablePoint = Point(mutablePoint.x + 1, title)
+        point.x + pair._0.x + pair._1 + score(item) + points.get(0).x + mutablePoint.x + keepAny(title)
+    }
+    return callAfterGc(f)
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1305,6 +1355,34 @@ fun main(): Int {
         assert!(
             ir.contains("@scoop_array_get_composite") && ir.contains("@scoop_array_set_composite"),
             "composite array get/set should copy through descriptor-backed runtime hooks\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_closure_env_transport() {
+        let ir =
+            emit_refactor_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
+
+        assert!(
+            ir.contains("__scoop_composite_transport_desc__boxed") && ir.contains("ClosureEnv"),
+            "closure env lowering should consume the boxed composite transport descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("__scoop_type_desc_mir_closure_env__"),
+            "closure env heap object should publish a runtime type descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("__scoop_type_desc_mir_capture_box__sample_Point"),
+            "mutable struct capture should allocate a typed capture box descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("pass_mir_closure_env_field_gep")
+                && ir.contains("pass_mir_capture_box_set_field_gep"),
+            "closure allocation/invoke should store env fields and mutate through capture boxes\n{ir}"
+        );
+        assert!(
+            ir.contains("__gc_slots"),
+            "traceable closure captures should publish GC slot maps\n{ir}"
         );
     }
 
