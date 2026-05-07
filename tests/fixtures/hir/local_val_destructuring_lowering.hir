@@ -625,12 +625,30 @@ File {
                                                                         ty: TypeId(
                                                                             14,
                                                                         ),
-                                                                        kind: VarRef(
-                                                                            TopLevel {
-                                                                                id: S12,
-                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                        kind: MemberAccess {
+                                                                            receiver: Expr {
+                                                                                span: 314..321,
+                                                                                ty: TypeId(
+                                                                                    14,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S12,
+                                                                                        fqn: "scoop.core.RuntimeError",
+                                                                                    },
+                                                                                ),
                                                                             },
-                                                                        ),
+                                                                            member: MemberAccess {
+                                                                                span: 314..321,
+                                                                                name: "NullAssertionFailed",
+                                                                                resolved: Some(
+                                                                                    Value {
+                                                                                        id: S13,
+                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        },
                                                                     },
                                                                 ),
                                                             ],
@@ -651,7 +669,7 @@ File {
                                     ValDecl {
                                         span: 310..329,
                                         id: Some(
-                                            S14,
+                                            S15,
                                         ),
                                         name: Some(
                                             "v",
@@ -690,7 +708,7 @@ File {
                                                                 args: [
                                                                     Bind {
                                                                         span: 344..345,
-                                                                        id: S13,
+                                                                        id: S14,
                                                                         name: "__destructure_extract_3",
                                                                     },
                                                                 ],
@@ -704,7 +722,7 @@ File {
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
-                                                                        id: S13,
+                                                                        id: S14,
                                                                         name: "__destructure_extract_3",
                                                                         decl_span: 344..345,
                                                                     },
@@ -738,12 +756,30 @@ File {
                                                                                 ty: TypeId(
                                                                                     14,
                                                                                 ),
-                                                                                kind: VarRef(
-                                                                                    TopLevel {
-                                                                                        id: S12,
-                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                kind: MemberAccess {
+                                                                                    receiver: Expr {
+                                                                                        span: 314..321,
+                                                                                        ty: TypeId(
+                                                                                            14,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S12,
+                                                                                                fqn: "scoop.core.RuntimeError",
+                                                                                            },
+                                                                                        ),
                                                                                     },
-                                                                                ),
+                                                                                    member: MemberAccess {
+                                                                                        span: 314..321,
+                                                                                        name: "NullAssertionFailed",
+                                                                                        resolved: Some(
+                                                                                            Value {
+                                                                                                id: S13,
+                                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                },
                                                                             },
                                                                         ),
                                                                     ],

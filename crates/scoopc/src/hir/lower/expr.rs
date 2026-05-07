@@ -5870,16 +5870,10 @@ impl<'a> HirLowering<'a> {
     /// Synthesize `Raise.raise(RuntimeError.NullAssertionFailed)` as a `Perform` node.
     pub(super) fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {
         let perform_span = Span::new(span.start, span.start);
-        let error_expr = Expr {
+        let error_expr = self.synth_runtime_error_unit_variant_expr(
             span,
-            ty: self.synth_runtime_error_ty(span),
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self
-                    .symbols
-                    .intern_top_level(Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string()),
-                fqn: Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
-            }),
-        };
+            Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN,
+        );
         Expr {
             span: perform_span,
             ty: self.builtins.nothing,
@@ -5892,6 +5886,39 @@ impl<'a> HirLowering<'a> {
                     fqn: Self::RAISE_RAISE_FQN.to_string(),
                 },
                 args: vec![CallArg::Positional(error_expr)],
+            },
+        }
+    }
+
+    fn synth_runtime_error_unit_variant_expr(
+        &mut self,
+        span: Span,
+        variant_fqn: &'static str,
+    ) -> Expr {
+        let (owner_fqn, variant_name) = variant_fqn
+            .rsplit_once('.')
+            .expect("runtime error variant helper requires qualified variant fqn");
+        let runtime_error_ty = self.synth_runtime_error_ty(span);
+        Expr {
+            span,
+            ty: runtime_error_ty,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(Expr {
+                    span,
+                    ty: runtime_error_ty,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(owner_fqn.to_string()),
+                        fqn: owner_fqn.to_string(),
+                    }),
+                }),
+                member: MemberAccess {
+                    span,
+                    name: variant_name.to_string(),
+                    resolved: Some(MemberRef::Value {
+                        id: self.symbols.intern_top_level(variant_fqn.to_string()),
+                        fqn: variant_fqn.to_string(),
+                    }),
+                },
             },
         }
     }

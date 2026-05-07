@@ -85,9 +85,19 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 232..232,
+                                span: 232..234,
                                 name: Some(
                                     "tmp4",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 232..232,
+                                name: Some(
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -97,7 +107,7 @@ File {
                             LocalDecl {
                                 span: 218..236,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
                                     6,
@@ -245,10 +255,10 @@ File {
                                     Statement {
                                         span: 232..234,
                                         kind: Assign {
-                                            target: l5,
+                                            target: l6,
                                             value: TopLevelRef(
                                                 TopLevelRef {
-                                                    fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                    fqn: "scoop.core.RuntimeError",
                                                     site_id: None,
                                                     hidden_effects: EffectRow {
                                                         terms: [],
@@ -258,9 +268,35 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 232..234,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l6,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "NullAssertionFailed",
+                                                    receiver_ty: TypeId(
+                                                        4,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
                                         span: 232..232,
                                         kind: Assign {
-                                            target: l6,
+                                            target: l7,
                                             value: PerformResult {
                                                 op_fqn: "scoop.core.Raise.raise",
                                                 effect_ty: TypeId(
@@ -346,7 +382,7 @@ File {
                                             target: l1,
                                             value: Use(
                                                 Local(
-                                                    l6,
+                                                    l7,
                                                 ),
                                             ),
                                         },

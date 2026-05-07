@@ -317,12 +317,30 @@ File {
                                                                             ty: TypeId(
                                                                                 15,
                                                                             ),
-                                                                            kind: VarRef(
-                                                                                TopLevel {
-                                                                                    id: S5,
-                                                                                    fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                            kind: MemberAccess {
+                                                                                receiver: Expr {
+                                                                                    span: 170..172,
+                                                                                    ty: TypeId(
+                                                                                        15,
+                                                                                    ),
+                                                                                    kind: VarRef(
+                                                                                        TopLevel {
+                                                                                            id: S5,
+                                                                                            fqn: "scoop.core.RuntimeError",
+                                                                                        },
+                                                                                    ),
                                                                                 },
-                                                                            ),
+                                                                                member: MemberAccess {
+                                                                                    span: 170..172,
+                                                                                    name: "NullAssertionFailed",
+                                                                                    resolved: Some(
+                                                                                        Value {
+                                                                                            id: S6,
+                                                                                            fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                        },
+                                                                                    ),
+                                                                                },
+                                                                            },
                                                                         },
                                                                     ),
                                                                 ],
