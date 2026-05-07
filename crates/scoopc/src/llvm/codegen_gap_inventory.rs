@@ -603,6 +603,12 @@ fn raw_mir_rvalue_gate_failure(
                 "class constructor selected/ordered argument contract reached backend incomplete",
             ))
         }
+        Rvalue::Transport { .. } => Some(gate_failure(
+            body_fqn,
+            span,
+            "PIPELINE_GAPS §4.1",
+            "value erasure boxing transport reached raw LLVM emission before CG-T04b lowering",
+        )),
         Rvalue::Use(_)
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }

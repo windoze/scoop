@@ -578,6 +578,16 @@ fn validate_materialized_initializer_root(
             ty,
         )?;
     }
+    if let Some(transport) = &root.initializer_transport {
+        validate_materialized_value_transport(
+            materialized,
+            &root.fqn,
+            BasicBlockId::from_raw(0),
+            root.span,
+            "initializer value transport",
+            transport,
+        )?;
+    }
     validate_materialized_effect_row(
         materialized,
         MaterializedValidationContext {
@@ -1062,6 +1072,25 @@ fn validate_materialized_rvalue(
             locals,
             operand,
         ),
+        Rvalue::Transport { value, transport } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "transport value",
+                locals,
+                value,
+            )?;
+            validate_materialized_value_transport(
+                materialized,
+                fqn,
+                block,
+                span,
+                "value erasure transport",
+                transport,
+            )
+        }
         Rvalue::TopLevelRef(top) => {
             validate_materialized_top_level_ref(materialized, fqn, block, span, top, root_sets)
         }
@@ -6470,6 +6499,10 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<()> {
         match value {
             Rvalue::Use(operand) => *operand = self.rewrite_operand(operand.clone()),
+            Rvalue::Transport { value, transport } => {
+                *value = self.rewrite_operand(value.clone());
+                self.rewrite_value_transport(transport, ctx.substitution);
+            }
             Rvalue::TopLevelRef(top) => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
                     &top.fqn,

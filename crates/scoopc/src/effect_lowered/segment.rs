@@ -662,6 +662,7 @@ fn call_kind_mentions_local_for_hidden_namespace(kind: &CallKind, local: LocalId
 fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) -> bool {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }

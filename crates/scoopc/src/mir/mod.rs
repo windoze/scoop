@@ -309,6 +309,54 @@ impl File {
                 category: MirPlaceholderCategory::Rvalue,
                 reason,
             }),
+            Rvalue::Transport { value, transport } => self.validate_refactor_value_transport(
+                site,
+                "value erasure",
+                Self::refactor_operand_ty(body, value),
+                transport,
+            )
+            .and_then(|()| {
+                let Some(boxing) = &transport.boxing else {
+                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        transport: "value erasure",
+                        detail: "value erasure transport is missing boxing intent",
+                    });
+                };
+                if !matches!(
+                    boxing.reason,
+                    MirBoxingReason::AnyErasure | MirBoxingReason::RefErasure
+                ) {
+                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        transport: "value erasure",
+                        detail: "value erasure transport must use AnyErasure or RefErasure reason",
+                    });
+                }
+                if boxing.target_ty.is_none() {
+                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        transport: "value erasure",
+                        detail: "value erasure boxing intent must publish target type",
+                    });
+                }
+                if result_ty.is_some_and(|target_ty| boxing.target_ty != Some(target_ty)) {
+                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                        fqn: fqn.to_string(),
+                        block,
+                        span,
+                        transport: "value erasure",
+                        detail: "value erasure boxing target type and assignment target disagree",
+                    });
+                }
+                Ok(())
+            }),
             Rvalue::Call {
                 kind, transport, ..
             } => {
@@ -1111,6 +1159,7 @@ pub struct InitializerRoot {
     pub source_path: PathBuf,
     pub kind: InitializerRootKind,
     pub ty: Option<TypeId>,
+    pub initializer_transport: Option<ValueTransportMetadata>,
     pub has_initializer: bool,
     pub dependencies: Vec<InitializerDependency>,
     pub hidden_effects: EffectRow,
@@ -2210,6 +2259,14 @@ pub enum StoredContinuationRoutePublication {
 #[derive(Debug, Clone)]
 pub enum Rvalue {
     Use(Operand),
+    /// Explicit value transport/coercion boundary published by MIR lowering.
+    ///
+    /// The metadata owns source layout, target erasure reason, and copy/drop/trace obligations so
+    /// later codegen does not infer boxing from source/target type mismatch.
+    Transport {
+        value: Operand,
+        transport: ValueTransportMetadata,
+    },
     TopLevelRef(TopLevelRef),
     UnresolvedName {
         name: String,
@@ -2491,6 +2548,7 @@ impl Rvalue {
             Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => Some(*site_id),
             Rvalue::TopLevelRef(top_level) => top_level.site_id,
             Rvalue::Use(_)
+            | Rvalue::Transport { .. }
             | Rvalue::UnresolvedName { .. }
             | Rvalue::Unary { .. }
             | Rvalue::Binary { .. }

@@ -175,14 +175,16 @@ impl BlockClosureProvenance {
                     },
                 );
             }
-            Rvalue::Use(operand) => match self.provenance_of_operand(operand).cloned() {
-                Some(provenance) => {
-                    self.locals.insert(*target, provenance);
+            Rvalue::Use(operand) | Rvalue::Transport { value: operand, .. } => {
+                match self.provenance_of_operand(operand).cloned() {
+                    Some(provenance) => {
+                        self.locals.insert(*target, provenance);
+                    }
+                    None => {
+                        self.locals.remove(target);
+                    }
                 }
-                None => {
-                    self.locals.remove(target);
-                }
-            },
+            }
             _ => {
                 self.locals.remove(target);
             }
@@ -351,7 +353,11 @@ fn dead_closure_artifact_assignment(stmt: &Statement, used: &HashSet<LocalId>) -
     let StatementKind::Assign { target, value } = &stmt.kind else {
         return false;
     };
-    !used.contains(target) && matches!(value, Rvalue::MakeClosure { .. } | Rvalue::Use(_))
+    !used.contains(target)
+        && matches!(
+            value,
+            Rvalue::MakeClosure { .. } | Rvalue::Use(_) | Rvalue::Transport { .. }
+        )
 }
 
 fn collect_used_locals(body: &Body) -> HashSet<LocalId> {
@@ -388,6 +394,7 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
 fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }

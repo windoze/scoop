@@ -261,6 +261,7 @@ impl BlockCallableProvenance {
     ) -> Option<CallableProvenance> {
         match value {
             Rvalue::Use(operand) => self.provenance_of_operand(operand).cloned(),
+            Rvalue::Transport { value, .. } => self.provenance_of_operand(value).cloned(),
             Rvalue::TopLevelRef(top) => Some(CallableProvenance::DirectFunction(top.fqn.clone())),
             Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref() {
                 Some(super::MemberTarget::Fun { fqn })
@@ -575,6 +576,7 @@ fn statement_is_pass_publishable(kind: &StatementKind) -> bool {
 fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
     match value {
         Rvalue::Use(_)
+        | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
@@ -623,6 +625,7 @@ fn rvalue_is_inlineable(
 ) -> bool {
     match value {
         Rvalue::Use(_)
+        | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
@@ -733,6 +736,7 @@ fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
 fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
@@ -999,6 +1003,10 @@ fn remap_rvalue(
             local_operands,
             local_map,
         )?)),
+        Rvalue::Transport { value, transport } => Some(Rvalue::Transport {
+            value: remap_operand(value, local_operands, local_map)?,
+            transport: transport.clone(),
+        }),
         Rvalue::TopLevelRef(top) => Some(Rvalue::TopLevelRef(top.clone())),
         Rvalue::Unary { op, operand } => Some(Rvalue::Unary {
             op: *op,

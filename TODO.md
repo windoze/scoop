@@ -21,7 +21,7 @@
 | `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
 | `CG-T04a` | CG4a | [DONE] 建立 composite transport layout contract 与 verifier |
-| `CG-T04b0` | CG4b0 | 发布 value erasure boxing MIR transport contract |
+| `CG-T04b0` | CG4b0 | [DONE] 发布 value erasure boxing MIR transport contract |
 | `CG-T04b` | CG4b | 收口 value boxing composite transport lowering |
 | `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | 收口 array composite element transport lowering |
@@ -312,7 +312,7 @@
   - 2026-05-07：runtime C 新增 `ScoopCompositeTransportDescriptor` 与 composite trace/copy/drop 调用面，并更新 ABI allowlist；`PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 的 inventory owner 保持拆分到 `CG-T04b` 至 `CG-T04f`，未合并为共享 `CG-T04` owner。
   - 验证通过：`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime abi_exports_allowlist`、`cargo test -p scoop_runtime --test gc_immix_nursery`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04b0：发布 value erasure boxing MIR transport contract
+## [DONE] CG-T04b0：发布 value erasure boxing MIR transport contract
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -344,7 +344,10 @@
 - 依赖：`CG-T04a`
 
 - 完成记录：
-  - 待完成。
+  - 2026-05-07：新增 MIR `Rvalue::Transport` value erasure boundary，并让 local/top-level initializer、assignment、return/tail return、call arg 与 effect-neutral merge/handoff 路径在 tuple/struct/value type -> `Any` / `Ref` / erased carrier 时发布 `ValueTransportMetadata.boxing`。
+  - 2026-05-07：`MirBoxingIntent` 现在保留 `source_ty`、`target_ty` 与 `MirBoxingReason::AnyErasure` / `RefErasure`；source transport kind、trace/copy/drop requirements 从 source type 保留，payload-bearing enum erasure 仅标识 `EnumPayload` metadata，不在本任务猜 enum payload layout。
+  - 2026-05-07：MIR/materialized MIR verifier 与 downstream use/provenance/reachability paths 识别 `Rvalue::Transport`；raw LLVM route 对 value erasure lowering 保持 `CG-T04b` owner-specific gate，避免 codegen 从 source/target mismatch 反推 boxing。
+  - 验证通过：`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04b：收口 value boxing composite transport lowering
 

@@ -364,6 +364,9 @@ fn analyze_rvalue_uses(
 ) {
     match value {
         Rvalue::Use(Operand::Local(_)) | Rvalue::Use(Operand::Const(_)) => {}
+        Rvalue::Transport { value, .. } => {
+            mark_operand_use(value, OperandUse::Escaping, aliases, facts)
+        }
         Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }

@@ -1146,6 +1146,103 @@ fun bad() {
         );
     }
 
+    #[test]
+    fn refactor_mir_composite_transport_metadata_contracts() {
+        refactor_mir_aggregate_transport_records_composite_contracts();
+    }
+
+    #[test]
+    fn refactor_mir_value_boxing_transport_contract() {
+        let output = run_fixture("mir_refactor", "value_boxing_transport.scoop");
+        let dump = output.stable_dump();
+        assert!(
+            !dump.contains("Todo"),
+            "value boxing transport fixture must not leak MIR Todo: {dump}"
+        );
+
+        let top = output
+            .initializer_root("mir_refactor.value_boxing_transport.topAny")
+            .expect("top-level Any initializer root must be published");
+        assert_value_erasure_transport(
+            top.initializer_transport.as_ref(),
+            MirBoxingReason::AnyErasure,
+            "top-level initializer",
+            &dump,
+        );
+
+        let mut any_erasure_count = 0usize;
+        let mut ref_erasure_count = 0usize;
+        let mut saw_struct_any = false;
+        let mut saw_tuple_any = false;
+        let mut saw_enum_any = false;
+        let mut saw_struct_ref = false;
+
+        for stmt in output
+            .file()
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => fun.body.as_ref(),
+                _ => None,
+            })
+            .flat_map(|body| body.blocks.iter())
+            .flat_map(|block| block.stmts.iter())
+        {
+            let StatementKind::Assign {
+                value: Rvalue::Transport { transport, .. },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            let boxing = transport
+                .boxing
+                .as_ref()
+                .expect("value erasure transport must publish boxing intent");
+            assert_eq!(boxing.source_ty, transport.source_ty);
+            assert!(boxing.target_ty.is_some());
+            assert!(transport.requirements.copy);
+            match boxing.reason {
+                MirBoxingReason::AnyErasure => {
+                    any_erasure_count += 1;
+                    saw_struct_any |= transport.kind == MirTransportKind::Struct;
+                    saw_tuple_any |= transport.kind == MirTransportKind::Tuple;
+                    saw_enum_any |= transport.kind == MirTransportKind::EnumPayload;
+                }
+                MirBoxingReason::RefErasure => {
+                    ref_erasure_count += 1;
+                    saw_struct_ref |= transport.kind == MirTransportKind::Struct;
+                }
+                other => panic!("unexpected value erasure boxing reason: {other:?}"),
+            }
+        }
+
+        assert!(
+            any_erasure_count >= 6,
+            "initializer/assignment/return/call-arg Any erasure transports missing: {dump}"
+        );
+        assert!(
+            ref_erasure_count >= 2,
+            "local/call-arg Ref erasure transports missing: {dump}"
+        );
+        assert!(
+            saw_struct_any,
+            "struct -> Any boxing transport missing: {dump}"
+        );
+        assert!(
+            saw_tuple_any,
+            "tuple -> Any boxing transport missing: {dump}"
+        );
+        assert!(
+            saw_enum_any,
+            "payload-bearing enum -> Any boxing transport metadata missing: {dump}"
+        );
+        assert!(
+            saw_struct_ref,
+            "struct -> Ref/interface boxing transport missing: {dump}"
+        );
+    }
+
     fn pattern_contains_variant(pattern: &Pattern, expected: &str) -> bool {
         match pattern {
             Pattern::Variant { name, .. } => name == expected,
@@ -1179,6 +1276,23 @@ fun bad() {
         reason: MirBoxingReason,
     ) -> bool {
         matches!(transport.boxing.as_ref(), Some(boxing) if boxing.reason == reason)
+    }
+
+    fn assert_value_erasure_transport(
+        transport: Option<&ValueTransportMetadata>,
+        reason: MirBoxingReason,
+        surface: &str,
+        dump: &str,
+    ) {
+        let transport = transport.unwrap_or_else(|| panic!("{surface} transport missing: {dump}"));
+        let boxing = transport
+            .boxing
+            .as_ref()
+            .unwrap_or_else(|| panic!("{surface} boxing intent missing: {dump}"));
+        assert_eq!(boxing.source_ty, transport.source_ty);
+        assert_eq!(boxing.reason, reason);
+        assert!(boxing.target_ty.is_some());
+        assert!(transport.requirements.copy);
     }
 
     fn collect_pattern_is_metadata(

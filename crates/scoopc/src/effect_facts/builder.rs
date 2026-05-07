@@ -2289,6 +2289,7 @@ fn call_kind_mentions_local_for_hidden_namespace(
 fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir::LocalId) -> bool {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }

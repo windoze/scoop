@@ -132,31 +132,12 @@ pub struct TopLevelInitRootContract {
     span: Span,
     kind: TopLevelInitRootKind,
     ty: Option<TypeId>,
+    initializer_ty: Option<TypeId>,
     has_initializer: bool,
     dependencies: Vec<TopLevelInitDependency>,
 }
 
 impl TopLevelInitRootContract {
-    fn new(
-        fqn: String,
-        source_path: PathBuf,
-        span: Span,
-        kind: TopLevelInitRootKind,
-        ty: Option<TypeId>,
-        has_initializer: bool,
-        dependencies: Vec<TopLevelInitDependency>,
-    ) -> Self {
-        Self {
-            fqn,
-            source_path,
-            span,
-            kind,
-            ty,
-            has_initializer,
-            dependencies,
-        }
-    }
-
     pub fn fqn(&self) -> &str {
         &self.fqn
     }
@@ -175,6 +156,10 @@ impl TopLevelInitRootContract {
 
     pub fn ty(&self) -> Option<TypeId> {
         self.ty
+    }
+
+    pub fn initializer_ty(&self) -> Option<TypeId> {
+        self.initializer_ty
     }
 
     pub fn has_initializer(&self) -> bool {
@@ -1965,41 +1950,56 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
     let mut roots = Vec::new();
 
     for konst in lowered_hir.top_level_consts.values() {
-        roots.push(TopLevelInitRootContract::new(
-            konst.fqn.clone(),
-            konst.source_path.clone(),
-            konst.span,
-            TopLevelInitRootKind::ConstVal,
-            Some(konst.ty),
-            konst.init.is_some(),
-            dependencies_for_expr(konst.fqn.as_str(), konst.init.as_ref(), &dependency_kinds),
-        ));
+        roots.push(TopLevelInitRootContract {
+            fqn: konst.fqn.clone(),
+            source_path: konst.source_path.clone(),
+            span: konst.span,
+            kind: TopLevelInitRootKind::ConstVal,
+            ty: Some(konst.ty),
+            initializer_ty: konst.init.as_ref().map(|init| init.ty),
+            has_initializer: konst.init.is_some(),
+            dependencies: dependencies_for_expr(
+                konst.fqn.as_str(),
+                konst.init.as_ref(),
+                &dependency_kinds,
+            ),
+        });
     }
 
     for value in lowered_hir.top_level_immutable_values.values() {
-        roots.push(TopLevelInitRootContract::new(
-            value.fqn.clone(),
-            value.source_path.clone(),
-            value.span,
-            TopLevelInitRootKind::RuntimeImmutableVal,
-            Some(value.ty),
-            value.init.is_some(),
-            dependencies_for_expr(value.fqn.as_str(), value.init.as_ref(), &dependency_kinds),
-        ));
+        roots.push(TopLevelInitRootContract {
+            fqn: value.fqn.clone(),
+            source_path: value.source_path.clone(),
+            span: value.span,
+            kind: TopLevelInitRootKind::RuntimeImmutableVal,
+            ty: Some(value.ty),
+            initializer_ty: value.init.as_ref().map(|init| init.ty),
+            has_initializer: value.init.is_some(),
+            dependencies: dependencies_for_expr(
+                value.fqn.as_str(),
+                value.init.as_ref(),
+                &dependency_kinds,
+            ),
+        });
     }
 
     for var in lowered_hir.top_level_vars.values() {
-        roots.push(TopLevelInitRootContract::new(
-            var.fqn.clone(),
-            var.source_path.clone(),
-            var.span,
-            TopLevelInitRootKind::RuntimeMutableVar {
+        roots.push(TopLevelInitRootContract {
+            fqn: var.fqn.clone(),
+            source_path: var.source_path.clone(),
+            span: var.span,
+            kind: TopLevelInitRootKind::RuntimeMutableVar {
                 storage: var.storage,
             },
-            Some(var.ty),
-            var.init.is_some(),
-            dependencies_for_expr(var.fqn.as_str(), var.init.as_ref(), &dependency_kinds),
-        ));
+            ty: Some(var.ty),
+            initializer_ty: var.init.as_ref().map(|init| init.ty),
+            has_initializer: var.init.is_some(),
+            dependencies: dependencies_for_expr(
+                var.fqn.as_str(),
+                var.init.as_ref(),
+                &dependency_kinds,
+            ),
+        });
     }
 
     for object in lowered_hir
@@ -2007,15 +2007,16 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
         .values()
         .filter(|object| lowered_object_fqns.contains(&object.fqn))
     {
-        roots.push(TopLevelInitRootContract::new(
-            object.fqn.clone(),
-            object.source_path.clone(),
-            object.span,
-            TopLevelInitRootKind::ObjectSingleton,
-            None,
-            !object.steps.is_empty(),
-            dependencies_for_object(object.fqn.as_str(), object, &dependency_kinds),
-        ));
+        roots.push(TopLevelInitRootContract {
+            fqn: object.fqn.clone(),
+            source_path: object.source_path.clone(),
+            span: object.span,
+            kind: TopLevelInitRootKind::ObjectSingleton,
+            ty: None,
+            initializer_ty: None,
+            has_initializer: !object.steps.is_empty(),
+            dependencies: dependencies_for_object(object.fqn.as_str(), object, &dependency_kinds),
+        });
     }
 
     roots.sort_by(|lhs, rhs| {
@@ -2434,6 +2435,18 @@ fn format_top_level_init_root(
         }
         None => {
             let _ = writeln!(out, "            ty: None,");
+        }
+    }
+    match root.initializer_ty() {
+        Some(ty) => {
+            let _ = writeln!(
+                out,
+                "            initializer_ty: {},",
+                format_type_id_lossy(types, ty)
+            );
+        }
+        None => {
+            let _ = writeln!(out, "            initializer_ty: None,");
         }
     }
     let _ = writeln!(

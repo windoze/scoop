@@ -161,6 +161,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Rvalue::Call { transport, .. } => {
                 self.verify_call_composite_transport_contract(body_fqn, span, mir_types, transport)
             }
+            Rvalue::Transport { transport, .. } => {
+                self.verify_value_composite_transport_contract(body_fqn, span, mir_types, transport)
+            }
             Rvalue::Use(_)
             | Rvalue::TopLevelRef(_)
             | Rvalue::UnresolvedName { .. }

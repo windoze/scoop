@@ -14,9 +14,10 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::effect_refactor_pipeline::{
-    ContinuationResumeReceiverRoute, ExternGlobalContract, HandleArmContractKind,
-    MemberCallTargetContract, TopLevelInitDependencyKind, TopLevelInitRootContract,
-    TopLevelInitRootKind, TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
+    CallArgBindingContract, CallArgParamContract, ContinuationResumeReceiverRoute,
+    ExternGlobalContract, FunctionTargetContract, HandleArmContractKind, MemberCallTargetContract,
+    TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
+    TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
 };
 use crate::hir;
 use crate::session::Session;
@@ -1071,6 +1072,7 @@ impl<'a> MirLowering<'a> {
     /// 把 HIR 文件降到 MIR 文件。
     fn lower_file(&mut self, file: &hir::File, member_funs: &[hir::FunDecl]) -> File {
         let top_level_fun_return_tys = collect_top_level_fun_return_tys(file, member_funs);
+        let top_level_fun_param_tys = collect_top_level_fun_param_tys(file, member_funs);
         let mut items = Vec::with_capacity(file.items.len() + member_funs.len());
         if self.facts.uses_refactor_typed_contracts() {
             items.extend(
@@ -1094,7 +1096,8 @@ impl<'a> MirLowering<'a> {
         for item in &file.items {
             match item {
                 hir::Item::Fun(fun) => {
-                    let (primary, nested) = self.lower_fun(fun, &top_level_fun_return_tys);
+                    let (primary, nested) =
+                        self.lower_fun(fun, &top_level_fun_return_tys, &top_level_fun_param_tys);
                     items.push(Item::Fun(primary));
                     items.extend(nested.into_iter().map(Item::Fun));
                 }
@@ -1110,7 +1113,8 @@ impl<'a> MirLowering<'a> {
         // type/object body 中可 codegen 的 member fun 在 HIR 中以 side table 形式保存；
         // dump-mir / dump-ir 需要把它们也作为真正的 generic MIR root 发射出来。
         for fun in member_funs {
-            let (primary, nested) = self.lower_fun(fun, &top_level_fun_return_tys);
+            let (primary, nested) =
+                self.lower_fun(fun, &top_level_fun_return_tys, &top_level_fun_param_tys);
             items.push(Item::Fun(primary));
             items.extend(nested.into_iter().map(Item::Fun));
         }
@@ -1125,6 +1129,17 @@ impl<'a> MirLowering<'a> {
             source_path: root.source_path().to_path_buf(),
             kind: lower_initializer_root_kind(root.kind()),
             ty: root.ty(),
+            initializer_transport: root.initializer_ty().and_then(|source_ty| {
+                root.ty().and_then(|target_ty| {
+                    value_erasure_transport(
+                        self.builtins,
+                        self.types,
+                        self.facts,
+                        source_ty,
+                        target_ty,
+                    )
+                })
+            }),
             has_initializer: root.has_initializer(),
             dependencies: root
                 .dependencies()
@@ -1140,12 +1155,14 @@ impl<'a> MirLowering<'a> {
         &mut self,
         fun: &hir::FunDecl,
         top_level_fun_return_tys: &HashMap<String, TypeId>,
+        top_level_fun_param_tys: &HashMap<String, Vec<TypeId>>,
     ) -> (FunDecl, Vec<FunDecl>) {
         FnLowering::new(
             self.builtins,
             self.types,
             self.facts,
             top_level_fun_return_tys.clone(),
+            top_level_fun_param_tys.clone(),
             fun.fqn.clone(),
             fun.source_path.clone(),
         )
@@ -1167,6 +1184,132 @@ fn collect_top_level_fun_return_tys(
         return_tys.insert(fun.fqn.clone(), fun.return_ty);
     }
     return_tys
+}
+
+fn collect_top_level_fun_param_tys(
+    file: &hir::File,
+    member_funs: &[hir::FunDecl],
+) -> HashMap<String, Vec<TypeId>> {
+    let mut param_tys = HashMap::new();
+    for item in &file.items {
+        if let hir::Item::Fun(fun) = item {
+            param_tys.insert(
+                fun.fqn.clone(),
+                fun.params.iter().map(|param| param.ty).collect(),
+            );
+        }
+    }
+    for fun in member_funs {
+        param_tys.insert(
+            fun.fqn.clone(),
+            fun.params.iter().map(|param| param.ty).collect(),
+        );
+    }
+    param_tys
+}
+
+fn mir_transport_kind_for_ty(
+    types: &TypeStore,
+    facts: &MirLoweringFacts,
+    ty: TypeId,
+) -> MirTransportKind {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Function(_)) => MirTransportKind::FunctionValue,
+        TypeKind::Ref(_) => MirTransportKind::Reference,
+        TypeKind::Value(ValueTypeKind::Tuple(_)) => MirTransportKind::Tuple,
+        TypeKind::Value(ValueTypeKind::Option(_)) => MirTransportKind::EnumPayload,
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if facts.nominal_kind(&nominal.fqn) == Some(ast::TypeKind::Enum) =>
+        {
+            MirTransportKind::EnumPayload
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(_)) => MirTransportKind::Struct,
+        TypeKind::Value(_) => MirTransportKind::Scalar,
+        TypeKind::Param(_) | TypeKind::StarProjection(_) => MirTransportKind::Unknown,
+    }
+}
+
+fn mir_type_requires_trace(types: &TypeStore, ty: TypeId) -> bool {
+    match types.kind(ty) {
+        TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
+        TypeKind::Value(ValueTypeKind::Option(inner)) => mir_type_requires_trace(types, *inner),
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
+            .iter()
+            .any(|ty| mir_type_requires_trace(types, *ty)),
+        // Nominal value fields are not in `TypeKind`; keep the contract conservative and
+        // force later layout to query declaration metadata instead of guessing scalar shape.
+        TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
+        TypeKind::Value(
+            ValueTypeKind::Unit
+            | ValueTypeKind::Nothing
+            | ValueTypeKind::Bool
+            | ValueTypeKind::Char
+            | ValueTypeKind::Float64
+            | ValueTypeKind::Float32
+            | ValueTypeKind::Int
+            | ValueTypeKind::UInt
+            | ValueTypeKind::IntN(_)
+            | ValueTypeKind::UIntN(_),
+        ) => false,
+    }
+}
+
+fn mir_is_aggregate_transport_ty(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(
+        types.kind(ty),
+        TypeKind::Value(
+            ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_) | ValueTypeKind::Option(_)
+        )
+    )
+}
+
+fn mir_transport_requirements(types: &TypeStore, ty: TypeId) -> MirTransportRequirements {
+    let trace = mir_type_requires_trace(types, ty);
+    MirTransportRequirements {
+        trace,
+        copy: true,
+        drop: trace || mir_is_aggregate_transport_ty(types, ty),
+    }
+}
+
+fn erasure_boxing_reason(
+    builtins: BuiltinTypes,
+    types: &TypeStore,
+    source_ty: TypeId,
+    target_ty: TypeId,
+) -> Option<MirBoxingReason> {
+    if source_ty == target_ty || !matches!(types.kind(source_ty), TypeKind::Value(_)) {
+        return None;
+    }
+    if target_ty == builtins.any {
+        return Some(MirBoxingReason::AnyErasure);
+    }
+    match types.kind(target_ty) {
+        TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => {
+            Some(MirBoxingReason::RefErasure)
+        }
+        TypeKind::Value(_) => None,
+    }
+}
+
+fn value_erasure_transport(
+    builtins: BuiltinTypes,
+    types: &TypeStore,
+    facts: &MirLoweringFacts,
+    source_ty: TypeId,
+    target_ty: TypeId,
+) -> Option<ValueTransportMetadata> {
+    let reason = erasure_boxing_reason(builtins, types, source_ty, target_ty)?;
+    Some(ValueTransportMetadata {
+        source_ty,
+        kind: mir_transport_kind_for_ty(types, facts, source_ty),
+        requirements: mir_transport_requirements(types, source_ty),
+        boxing: Some(MirBoxingIntent {
+            source_ty,
+            target_ty: Some(target_ty),
+            reason,
+        }),
+    })
 }
 
 fn lower_initializer_root_kind(kind: TopLevelInitRootKind) -> InitializerRootKind {
@@ -1389,8 +1532,10 @@ struct FnLowering<'a> {
     types: &'a mut TypeStore,
     facts: &'a MirLoweringFacts,
     top_level_fun_return_tys: HashMap<String, TypeId>,
+    top_level_fun_param_tys: HashMap<String, Vec<TypeId>>,
     owner_fqn: String,
     source_path: std::path::PathBuf,
+    current_return_ty: TypeId,
     body: Body,
     current_bb: BasicBlockId,
     next_temp: u32,
@@ -1488,6 +1633,7 @@ impl<'a> FnLowering<'a> {
         types: &'a mut TypeStore,
         facts: &'a MirLoweringFacts,
         top_level_fun_return_tys: HashMap<String, TypeId>,
+        top_level_fun_param_tys: HashMap<String, Vec<TypeId>>,
         owner_fqn: String,
         source_path: std::path::PathBuf,
     ) -> Self {
@@ -1496,8 +1642,10 @@ impl<'a> FnLowering<'a> {
             types,
             facts,
             top_level_fun_return_tys,
+            top_level_fun_param_tys,
             owner_fqn,
             source_path,
+            current_return_ty: builtins.unit,
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
             next_temp: 0,
@@ -1513,6 +1661,7 @@ impl<'a> FnLowering<'a> {
 
     /// 把一个 HIR 函数声明降到 MIR（当前阶段仅关注 body 的 CFG 形态）。
     fn lower_fun(mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
+        self.current_return_ty = fun.return_ty;
         // 1) 创建入口块。
         let entry = self.push_block(fun.span);
         self.body.start = entry;
@@ -1541,12 +1690,12 @@ impl<'a> FnLowering<'a> {
             } else {
                 let body_result = self.lower_block_as_expr(block);
                 if !self.current_is_terminated() {
+                    let value =
+                        self.operand_for_current_return_ty(fun.span, Operand::Local(body_result));
                     self.set_terminator(
                         self.current_bb,
                         fun.span,
-                        TerminatorKind::Return {
-                            value: Some(Operand::Local(body_result)),
-                        },
+                        TerminatorKind::Return { value: Some(value) },
                     );
                 }
             }
@@ -1778,6 +1927,43 @@ impl<'a> FnLowering<'a> {
         self.push_stmt(span, StatementKind::Assign { target, value });
     }
 
+    fn value_erasure_transport(
+        &self,
+        source_ty: TypeId,
+        target_ty: TypeId,
+    ) -> Option<ValueTransportMetadata> {
+        value_erasure_transport(self.builtins, self.types, self.facts, source_ty, target_ty)
+    }
+
+    fn transporting_use_rvalue(&self, value: Operand, target_ty: TypeId) -> Rvalue {
+        let source_ty = self.operand_ty(&value);
+        if let Some(transport) = self.value_erasure_transport(source_ty, target_ty) {
+            Rvalue::Transport { value, transport }
+        } else {
+            Rvalue::Use(value)
+        }
+    }
+
+    fn assign_use_to_local(&mut self, span: Span, target: LocalId, value: Operand) {
+        let target_ty = self.body.locals[target.as_u32() as usize].ty;
+        let rvalue = self.transporting_use_rvalue(value, target_ty);
+        self.assign(span, target, rvalue);
+    }
+
+    fn operand_for_target_ty(&mut self, span: Span, value: Operand, target_ty: TypeId) -> Operand {
+        let source_ty = self.operand_ty(&value);
+        let Some(transport) = self.value_erasure_transport(source_ty, target_ty) else {
+            return value;
+        };
+        let tmp = self.push_temp_local(span, target_ty);
+        self.assign(span, tmp, Rvalue::Transport { value, transport });
+        Operand::Local(tmp)
+    }
+
+    fn operand_for_current_return_ty(&mut self, span: Span, value: Operand) -> Operand {
+        self.operand_for_target_ty(span, value, self.current_return_ty)
+    }
+
     fn is_function_value_ty(&self, ty: TypeId) -> bool {
         matches!(self.types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
     }
@@ -1816,6 +2002,7 @@ impl<'a> FnLowering<'a> {
             Rvalue::UnresolvedName { name } => {
                 Some(ValueOrigin::UnresolvedName { name: name.clone() })
             }
+            Rvalue::Transport { value, .. } => self.value_origin_from_operand(value),
             Rvalue::Use(operand) => self.value_origin_from_operand(operand).or_else(|| {
                 self.is_callable_value_ty(target_ty)
                     .then_some(ValueOrigin::UnknownCallable)
@@ -1903,7 +2090,7 @@ impl<'a> FnLowering<'a> {
                     if self.current_is_terminated() {
                         return;
                     }
-                    Some(Operand::Local(result))
+                    Some(self.operand_for_current_return_ty(stmt.span, Operand::Local(result)))
                 } else {
                     None
                 };
@@ -2090,7 +2277,7 @@ impl<'a> FnLowering<'a> {
             if self.current_is_terminated() {
                 return;
             }
-            self.assign(decl.span, local, Rvalue::Use(Operand::Local(value)));
+            self.assign_use_to_local(decl.span, local, Operand::Local(value));
         }
     }
 
@@ -2127,7 +2314,7 @@ impl<'a> FnLowering<'a> {
                         },
                     );
                 } else {
-                    self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+                    self.assign_use_to_local(span, target, Operand::Local(value));
                 }
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
@@ -2136,11 +2323,12 @@ impl<'a> FnLowering<'a> {
                     return;
                 }
                 let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
+                let value = self.operand_for_target_ty(span, Operand::Local(value_local), value_ty);
                 self.push_stmt(
                     span,
                     StatementKind::StoreTopLevelVar {
                         fqn: fqn.clone(),
-                        value: Operand::Local(value_local),
+                        value,
                         value_ty,
                     },
                 );
@@ -2156,12 +2344,13 @@ impl<'a> FnLowering<'a> {
                 }
                 let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
                 let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
+                let value = self.operand_for_target_ty(span, Operand::Local(value_local), value_ty);
                 self.push_stmt(
                     span,
                     StatementKind::StoreMember {
                         receiver: Operand::Local(receiver_local),
                         member: self.lower_member_access_metadata(member, receiver_ty),
-                        value: Operand::Local(value_local),
+                        value,
                         value_ty,
                         continuation_route: self.extract_stored_continuation_route(rhs),
                     },
@@ -2212,7 +2401,7 @@ impl<'a> FnLowering<'a> {
                         },
                     );
                 } else {
-                    self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+                    self.assign_use_to_local(span, target, Operand::Local(value));
                 }
             }
             hir::AssignPlaceKind::TopLevel { fqn, .. } => {
@@ -2220,11 +2409,16 @@ impl<'a> FnLowering<'a> {
                 if self.current_is_terminated() {
                     return;
                 }
+                let value = self.operand_for_target_ty(
+                    span,
+                    Operand::Local(value_local),
+                    contract.value_ty,
+                );
                 self.push_stmt(
                     span,
                     StatementKind::StoreTopLevelVar {
                         fqn: fqn.clone(),
-                        value: Operand::Local(value_local),
+                        value,
                         value_ty: contract.value_ty,
                     },
                 );
@@ -2248,6 +2442,11 @@ impl<'a> FnLowering<'a> {
                 if self.current_is_terminated() {
                     return;
                 }
+                let value = self.operand_for_target_ty(
+                    span,
+                    Operand::Local(value_local),
+                    contract.value_ty,
+                );
                 self.push_stmt(
                     span,
                     StatementKind::StoreMember {
@@ -2257,7 +2456,7 @@ impl<'a> FnLowering<'a> {
                             *receiver_ty,
                             resolved.as_ref(),
                         ),
-                        value: Operand::Local(value_local),
+                        value,
                         value_ty: contract.value_ty,
                         continuation_route: self.extract_stored_continuation_route(rhs),
                     },
@@ -2904,7 +3103,7 @@ impl<'a> FnLowering<'a> {
         self.current_bb = rhs_bb;
         let rhs_local = self.lower_expr_to_local(rhs);
         if !self.current_is_terminated() {
-            self.assign(span, result, Rvalue::Use(Operand::Local(rhs_local)));
+            self.assign_use_to_local(span, result, Operand::Local(rhs_local));
             self.set_terminator(rhs_bb, span, TerminatorKind::Goto { target: merge_bb });
         }
 
@@ -3090,7 +3289,7 @@ impl<'a> FnLowering<'a> {
         );
 
         self.current_bb = resume_target;
-        self.assign(span, result, Rvalue::Use(Operand::Local(perform_result)));
+        self.assign_use_to_local(span, result, Operand::Local(perform_result));
         self.set_terminator(
             resume_target,
             span,
@@ -3192,21 +3391,37 @@ impl<'a> FnLowering<'a> {
     }
 
     fn lower_call_args(&mut self, args: &[hir::CallArg]) -> Option<Vec<CallArg>> {
+        self.lower_call_args_with_expected(args, &[])
+    }
+
+    fn lower_call_args_with_expected(
+        &mut self,
+        args: &[hir::CallArg],
+        expected_tys: &[Option<TypeId>],
+    ) -> Option<Vec<CallArg>> {
         let mut out = Vec::with_capacity(args.len());
         for arg in args {
             if self.current_is_terminated() {
                 return None;
             }
+            let arg_index = out.len();
             match arg {
                 hir::CallArg::Positional(expr) => {
                     let value = self.lower_expr_to_local(expr);
                     if self.current_is_terminated() {
                         return None;
                     }
+                    let operand = expected_tys
+                        .get(arg_index)
+                        .and_then(|ty| *ty)
+                        .map(|target_ty| {
+                            self.operand_for_target_ty(expr.span, Operand::Local(value), target_ty)
+                        })
+                        .unwrap_or(Operand::Local(value));
                     out.push(CallArg {
                         span: expr.span,
                         name: None,
-                        value: Operand::Local(value),
+                        value: operand,
                     });
                 }
                 hir::CallArg::Named { name, value, .. } => {
@@ -3214,15 +3429,88 @@ impl<'a> FnLowering<'a> {
                     if self.current_is_terminated() {
                         return None;
                     }
+                    let operand = expected_tys
+                        .get(arg_index)
+                        .and_then(|ty| *ty)
+                        .map(|target_ty| {
+                            self.operand_for_target_ty(
+                                value.span,
+                                Operand::Local(operand_local),
+                                target_ty,
+                            )
+                        })
+                        .unwrap_or(Operand::Local(operand_local));
                     out.push(CallArg {
                         span: value.span,
                         name: Some(name.clone()),
-                        value: Operand::Local(operand_local),
+                        value: operand,
                     });
                 }
             }
         }
         Some(out)
+    }
+
+    fn source_arg_expected_tys_for_function(
+        &self,
+        function: &FunctionTargetContract,
+        explicit_arg_count: usize,
+    ) -> Vec<Option<TypeId>> {
+        let mut expected = vec![None; explicit_arg_count];
+        let Some(param_tys) = self.top_level_fun_param_tys.get(function.fqn()) else {
+            return expected;
+        };
+        if let Some(binding) = function.arg_binding() {
+            self.fill_expected_tys_from_arg_binding(&mut expected, param_tys, binding);
+            return expected;
+        }
+        for (index, target_ty) in param_tys.iter().copied().enumerate().take(expected.len()) {
+            expected[index] = Some(target_ty);
+        }
+        expected
+    }
+
+    fn fill_expected_tys_from_arg_binding(
+        &self,
+        expected: &mut [Option<TypeId>],
+        param_tys: &[TypeId],
+        binding: &CallArgBindingContract,
+    ) {
+        for (param_index, param) in binding.params().iter().enumerate() {
+            let Some(target_ty) = param_tys.get(param_index).copied() else {
+                continue;
+            };
+            match param {
+                CallArgParamContract::Explicit(element) => {
+                    if let Some(slot) = expected.get_mut(element.arg_index()) {
+                        *slot = Some(target_ty);
+                    }
+                }
+                CallArgParamContract::Vararg(elements) => {
+                    for element in elements {
+                        if let Some(slot) = expected.get_mut(element.arg_index()) {
+                            *slot = Some(target_ty);
+                        }
+                    }
+                }
+                CallArgParamContract::Receiver | CallArgParamContract::Default => {}
+            }
+        }
+    }
+
+    fn source_arg_expected_tys_for_callee_ty(
+        &self,
+        callee_ty: TypeId,
+        explicit_arg_count: usize,
+    ) -> Vec<Option<TypeId>> {
+        let mut expected = vec![None; explicit_arg_count];
+        let TypeKind::Ref(RefTypeKind::Function(fun)) = self.types.kind(callee_ty) else {
+            return expected;
+        };
+        for (index, target_ty) in fun.params.iter().copied().enumerate().take(expected.len()) {
+            expected[index] = Some(target_ty);
+        }
+        expected
     }
 
     fn lower_refactor_typed_call_expr(
@@ -3242,15 +3530,33 @@ impl<'a> FnLowering<'a> {
 
         match contract {
             TypedCallSiteContract::DirectTopLevel(function) => {
-                self.lower_refactor_direct_call_expr(span, result, function.fqn(), args);
+                self.lower_refactor_direct_call_expr(
+                    span,
+                    result,
+                    function.fqn(),
+                    args,
+                    Some(&function),
+                );
                 true
             }
             TypedCallSiteContract::MemberDirect(member) => {
-                self.lower_refactor_direct_call_expr(span, result, member.function().fqn(), args);
+                self.lower_refactor_direct_call_expr(
+                    span,
+                    result,
+                    member.function().fqn(),
+                    args,
+                    Some(member.function()),
+                );
                 true
             }
             TypedCallSiteContract::Extension { function, .. } => {
-                self.lower_refactor_direct_call_expr(span, result, function.fqn(), args);
+                self.lower_refactor_direct_call_expr(
+                    span,
+                    result,
+                    function.fqn(),
+                    args,
+                    Some(&function),
+                );
                 true
             }
             TypedCallSiteContract::Constructor(ctor) => {
@@ -3302,8 +3608,12 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee_fqn: &str,
         args: &[hir::CallArg],
+        function: Option<&FunctionTargetContract>,
     ) {
-        let Some(args) = self.lower_call_args(args) else {
+        let expected_tys = function
+            .map(|function| self.source_arg_expected_tys_for_function(function, args.len()))
+            .unwrap_or_else(|| vec![None; args.len()]);
+        let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return;
         };
         let kind = CallKind::Direct {
@@ -3377,7 +3687,9 @@ impl<'a> FnLowering<'a> {
         if self.current_is_terminated() {
             return;
         }
-        let Some(args) = self.lower_call_args(args) else {
+        let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
+        let expected_tys = self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len());
+        let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return;
         };
         let origin = self.value_origins.get(&callee_local).cloned();
@@ -3465,7 +3777,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             _ => {
-                self.lower_refactor_direct_call_expr(span, result, callee_fqn, args);
+                self.lower_refactor_direct_call_expr(span, result, callee_fqn, args, None);
                 true
             }
         }
@@ -3485,7 +3797,9 @@ impl<'a> FnLowering<'a> {
         if self.current_is_terminated() {
             return;
         }
-        let Some(args) = self.lower_call_args(call_args) else {
+        let expected_tys =
+            self.source_arg_expected_tys_for_function(member.function(), call_args.len());
+        let Some(args) = self.lower_call_args_with_expected(call_args, &expected_tys) else {
             return;
         };
         let dispatch = DispatchMetadata {
@@ -3568,57 +3882,15 @@ impl<'a> FnLowering<'a> {
     }
 
     fn transport_kind_for_ty(&self, ty: TypeId) -> MirTransportKind {
-        match self.types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::Function(_)) => MirTransportKind::FunctionValue,
-            TypeKind::Ref(_) => MirTransportKind::Reference,
-            TypeKind::Value(ValueTypeKind::Tuple(_)) => MirTransportKind::Tuple,
-            TypeKind::Value(ValueTypeKind::Option(_)) => MirTransportKind::EnumPayload,
-            TypeKind::Value(ValueTypeKind::Nominal(_)) => MirTransportKind::Struct,
-            TypeKind::Value(_) => MirTransportKind::Scalar,
-            TypeKind::Param(_) | TypeKind::StarProjection(_) => MirTransportKind::Unknown,
-        }
-    }
-
-    fn type_requires_trace(&self, ty: TypeId) -> bool {
-        match self.types.kind(ty) {
-            TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
-            TypeKind::Value(ValueTypeKind::Option(inner)) => self.type_requires_trace(*inner),
-            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
-                elements.iter().any(|ty| self.type_requires_trace(*ty))
-            }
-            // Nominal value fields are not in `TypeKind`; keep the contract conservative and
-            // force later layout to query declaration metadata instead of guessing scalar shape.
-            TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
-            TypeKind::Value(
-                ValueTypeKind::Unit
-                | ValueTypeKind::Nothing
-                | ValueTypeKind::Bool
-                | ValueTypeKind::Char
-                | ValueTypeKind::Float64
-                | ValueTypeKind::Float32
-                | ValueTypeKind::Int
-                | ValueTypeKind::UInt
-                | ValueTypeKind::IntN(_)
-                | ValueTypeKind::UIntN(_),
-            ) => false,
-        }
+        mir_transport_kind_for_ty(self.types, self.facts, ty)
     }
 
     fn is_aggregate_transport_ty(&self, ty: TypeId) -> bool {
-        matches!(
-            self.types.kind(ty),
-            TypeKind::Value(
-                ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_) | ValueTypeKind::Option(_)
-            )
-        )
+        mir_is_aggregate_transport_ty(self.types, ty)
     }
 
     fn transport_requirements(&self, ty: TypeId) -> MirTransportRequirements {
-        MirTransportRequirements {
-            trace: self.type_requires_trace(ty),
-            copy: true,
-            drop: self.type_requires_trace(ty) || self.is_aggregate_transport_ty(ty),
-        }
+        mir_transport_requirements(self.types, ty)
     }
 
     fn value_transport_with_kind(
@@ -4217,10 +4489,6 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        let Some(args) = self.lower_call_args(args) else {
-            return result;
-        };
-
         let kind = match callee_origin.as_ref() {
             Some(ValueOrigin::TopLevelRef { fqn }) => CallKind::Direct {
                 callee_fqn: fqn.clone(),
@@ -4238,6 +4506,30 @@ impl<'a> FnLowering<'a> {
                     callee: Operand::Local(callee_local),
                 }
             }
+        };
+        let expected_tys = match &kind {
+            CallKind::Direct { callee_fqn } => self
+                .top_level_fun_param_tys
+                .get(callee_fqn)
+                .map(|param_tys| {
+                    param_tys
+                        .iter()
+                        .copied()
+                        .map(Some)
+                        .chain(std::iter::repeat(None))
+                        .take(args.len())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_else(|| vec![None; args.len()]),
+            CallKind::Closure { .. } | CallKind::FunValue { .. } => {
+                self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len())
+            }
+            CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => {
+                vec![None; args.len()]
+            }
+        };
+        let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
+            return result;
         };
         let terminates_current_block = matches!(
             &kind,
@@ -4869,11 +5161,7 @@ impl<'a> FnLowering<'a> {
             let _ = self.cleanup_scopes.pop();
         }
         if !self.current_is_terminated() {
-            self.assign(
-                handle.body.span,
-                result,
-                Rvalue::Use(Operand::Local(body_value)),
-            );
+            self.assign_use_to_local(handle.body.span, result, Operand::Local(body_value));
             self.set_terminator(
                 self.current_bb,
                 handle.body.span,
@@ -4895,7 +5183,7 @@ impl<'a> FnLowering<'a> {
             }
             self.restore_shadowed_symbols(shadowed);
             if !self.current_is_terminated() {
-                self.assign(arm.span, result, Rvalue::Use(Operand::Local(arm_value)));
+                self.assign_use_to_local(arm.span, result, Operand::Local(arm_value));
                 self.set_terminator(
                     self.current_bb,
                     arm.span,
@@ -5369,6 +5657,7 @@ impl<'a> FnLowering<'a> {
                 types,
                 self.facts,
                 self.top_level_fun_return_tys.clone(),
+                self.top_level_fun_param_tys.clone(),
                 fqn.clone(),
                 self.source_path.clone(),
             )
@@ -5398,6 +5687,7 @@ impl<'a> FnLowering<'a> {
         env_ty: TypeId,
         captures: &[ClosureCaptureLayout],
     ) -> (FunDecl, Vec<FunDecl>) {
+        self.current_return_ty = closure.body.ty;
         // 0) 预扫描 closure body：本 closure 内部若存在嵌套 closure 捕获 `var`，则需要 box 存储（T0714）。
         self.boxed_symbols = boxed_symbols_in_expr(closure.body.as_ref());
 
@@ -5450,12 +5740,12 @@ impl<'a> FnLowering<'a> {
         // result unless the body already terminated through an explicit control-flow edge.
         let body_result = self.lower_expr_to_local(closure.body.as_ref());
         if !self.current_is_terminated() {
+            let value =
+                self.operand_for_current_return_ty(closure.span, Operand::Local(body_result));
             self.set_terminator(
                 self.current_bb,
                 closure.span,
-                TerminatorKind::Return {
-                    value: Some(Operand::Local(body_result)),
-                },
+                TerminatorKind::Return { value: Some(value) },
             );
         }
 
@@ -5504,11 +5794,7 @@ impl<'a> FnLowering<'a> {
         self.current_bb = then_bb;
         let then_value = self.lower_expr_to_local(then_branch);
         if !self.current_is_terminated() {
-            self.assign(
-                then_branch.span,
-                result,
-                Rvalue::Use(Operand::Local(then_value)),
-            );
+            self.assign_use_to_local(then_branch.span, result, Operand::Local(then_value));
             self.set_terminator(
                 self.current_bb,
                 then_branch.span,
@@ -5522,7 +5808,7 @@ impl<'a> FnLowering<'a> {
             .map(|e| self.lower_expr_to_local(e))
             .unwrap_or_else(|| self.emit_unit(span));
         if !self.current_is_terminated() {
-            self.assign(span, result, Rvalue::Use(Operand::Local(else_value)));
+            self.assign_use_to_local(span, result, Operand::Local(else_value));
             self.set_terminator(
                 self.current_bb,
                 span,
@@ -5769,7 +6055,7 @@ impl<'a> FnLowering<'a> {
 
             let body_value = self.lower_expr_to_local(&arm.body);
             if !self.current_is_terminated() {
-                self.assign(arm.span, result, Rvalue::Use(Operand::Local(body_value)));
+                self.assign_use_to_local(arm.span, result, Operand::Local(body_value));
                 self.set_terminator(
                     self.current_bb,
                     arm.span,

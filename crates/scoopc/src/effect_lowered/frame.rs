@@ -958,6 +958,7 @@ fn collect_rvalue_uses(
 ) {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }

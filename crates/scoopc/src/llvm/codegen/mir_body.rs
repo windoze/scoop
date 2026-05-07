@@ -877,6 +877,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     crate::mir::Rvalue::Use(operand) => {
                         self.mir_operand_cg_ty(body, mir_types, operand)?
                     }
+                    crate::mir::Rvalue::Transport { .. } => continue,
                     crate::mir::Rvalue::Unary { operand, .. } => {
                         self.mir_operand_cg_ty(body, mir_types, operand)?
                     }
@@ -1133,6 +1134,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) | crate::mir::Rvalue::Unary { operand, .. } => {
                 self.raw_materialized_mir_operand_is_supported(operand)
             }
+            crate::mir::Rvalue::Transport { .. } => false,
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 self.object_inits.contains_key(fqn)
                     || self.top_level_consts.contains_key(fqn)
@@ -2537,6 +2539,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
+            crate::mir::Rvalue::Transport { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport lowering pending CG-T04b",
+                at: span.into(),
+            }),
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 if let Some(value) =
                     self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
@@ -2685,6 +2691,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Use(operand) => {
                 self.codegen_mir_operand_expected(span, operand, slots, Some(target_cg))
             }
+            crate::mir::Rvalue::Transport { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport lowering pending CG-T04b",
+                at: span.into(),
+            }),
             crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
                 if let Some(value) =
                     self.try_codegen_qualified_enum_unit_variant_value(span, fqn)?
@@ -8785,6 +8795,7 @@ fn collect_mir_call_kind_uses(kind: &crate::mir::CallKind, out: &mut HashSet<cra
 fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::mir::LocalId>) {
     match value {
         crate::mir::Rvalue::Use(operand)
+        | crate::mir::Rvalue::Transport { value: operand, .. }
         | crate::mir::Rvalue::Unary { operand, .. }
         | crate::mir::Rvalue::TypeCheck { value: operand, .. }
         | crate::mir::Rvalue::Cast { value: operand, .. }

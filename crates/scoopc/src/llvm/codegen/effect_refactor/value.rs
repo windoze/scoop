@@ -112,6 +112,7 @@ fn call_kind_mentions_local(kind: &mir::CallKind, local: LocalId) -> bool {
 fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
     match value {
         mir::Rvalue::Use(operand)
+        | mir::Rvalue::Transport { value: operand, .. }
         | mir::Rvalue::Unary { operand, .. }
         | mir::Rvalue::TypeCheck { value: operand, .. }
         | mir::Rvalue::Cast { value: operand, .. }
@@ -420,7 +421,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
             );
         }
-        if let mir::Rvalue::Use(mir::Operand::Local(source_local)) = value
+        if let mir::Rvalue::Use(mir::Operand::Local(source_local))
+        | mir::Rvalue::Transport {
+            value: mir::Operand::Local(source_local),
+            ..
+        } = value
             && let Some((env, fn_ptr)) = self.local_make_closure_source(*source_local)
             && let Some(adapter) =
                 self.maybe_build_effect_typed_plain_closure_adapter(span, target_local, &fn_ptr)?

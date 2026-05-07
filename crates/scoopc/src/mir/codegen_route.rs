@@ -369,6 +369,7 @@ fn collect_rvalue_features(value: &Rvalue, features: &mut BTreeSet<MirCodegenRou
             features.insert(MirCodegenRouteFeature::PerformResult);
         }
         Rvalue::Use(_)
+        | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::Unary { .. }

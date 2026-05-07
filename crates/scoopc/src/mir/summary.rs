@@ -421,6 +421,9 @@ fn observe_rvalue(
         Rvalue::Use(operand) => {
             observe_operand(operand, OperandUsage::Value, state, param_use_summaries)
         }
+        Rvalue::Transport { value, .. } => {
+            observe_operand(value, OperandUsage::Value, state, param_use_summaries)
+        }
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::TypeMetadataLiteral(_)
@@ -628,6 +631,7 @@ fn rvalue_provenance(
 ) -> LocalProvenance {
     match value {
         Rvalue::Use(operand) => operand_provenance(operand, state),
+        Rvalue::Transport { value, .. } => operand_provenance(value, state),
         Rvalue::TopLevelRef(top) => {
             if is_function_ty(types, target_ty) {
                 known_source(ResultProvenanceSource::DirectFunction(top.fqn.clone()))
@@ -811,6 +815,7 @@ fn statement_cost(kind: &StatementKind) -> u32 {
 fn rvalue_cost(value: &Rvalue) -> u32 {
     match value {
         Rvalue::Use(_)
+        | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }

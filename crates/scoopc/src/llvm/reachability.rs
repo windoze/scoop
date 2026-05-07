@@ -538,6 +538,7 @@ impl<'a> ReachabilityCollector<'a> {
     fn mir_rvalue_requires_hir_compat_scan(&self, value: &mir::Rvalue) -> bool {
         match value {
             mir::Rvalue::Use(_)
+            | mir::Rvalue::Transport { .. }
             | mir::Rvalue::TopLevelRef(_)
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
@@ -636,6 +637,7 @@ impl<'a> ReachabilityCollector<'a> {
     fn scan_mir_rvalue(&mut self, value: &mir::Rvalue) {
         match value {
             mir::Rvalue::Use(operand)
+            | mir::Rvalue::Transport { value: operand, .. }
             | mir::Rvalue::Unary { operand, .. }
             | mir::Rvalue::TypeCheck { value: operand, .. }
             | mir::Rvalue::Cast { value: operand, .. }

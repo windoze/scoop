@@ -980,7 +980,11 @@ fn build_global_value_origins(body: &Body) -> HashMap<LocalId, String> {
                 Rvalue::TopLevelRef(top) => {
                     origins.insert(*target, top.fqn.clone());
                 }
-                Rvalue::Use(Operand::Local(source)) => {
+                Rvalue::Use(Operand::Local(source))
+                | Rvalue::Transport {
+                    value: Operand::Local(source),
+                    ..
+                } => {
                     if let Some(origin) = origins.get(source).cloned() {
                         origins.insert(*target, origin);
                     }
@@ -3505,6 +3509,7 @@ fn classify_effect_neutral_source_statement(
 fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementClassificationKind {
     match value {
         Rvalue::Use(_)
+        | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
@@ -3596,6 +3601,7 @@ fn call_kind_mentions_local(kind: &CallKind, local: LocalId) -> bool {
 fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
     match value {
         Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
         | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
@@ -4347,6 +4353,10 @@ fn resolve_closure_env_operand<'a>(body: &'a Body, callee: &Operand) -> Option<&
         match local_assignment(body, current)? {
             Rvalue::MakeClosure { env, .. } => return Some(env),
             Rvalue::Use(Operand::Local(next)) => current = *next,
+            Rvalue::Transport {
+                value: Operand::Local(next),
+                ..
+            } => current = *next,
             _ => return None,
         }
     }
