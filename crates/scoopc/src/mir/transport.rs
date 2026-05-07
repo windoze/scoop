@@ -1,5 +1,7 @@
 use crate::span::Span;
 use crate::ty::TypeId;
+use crate::ty::layout::{NicheDomain, NicheStorage};
+use crate::ty::{TypeKind, TypeStore, ValueTypeKind};
 
 use super::LocalId;
 
@@ -71,6 +73,87 @@ impl ValueTransportMetadata {
             requirements: MirTransportRequirements::plain_value(),
             boxing: None,
         }
+    }
+}
+
+/// Shared transport trace requirement rule for MIR/authored transport metadata.
+///
+/// `Option<T>` must follow the same physical layout choice used by type/layout/codegen:
+/// tagged-union fallback always carries a GC pointer slot, while niche-optimized `Option<Bool>`
+/// stays scalar and must not claim traceability.
+pub(crate) fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: TypeId) -> bool {
+    match types.kind(ty) {
+        TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            match option_transport_niche_storage(types, *inner) {
+                Some(NicheStorage::Pointer) => true,
+                Some(NicheStorage::U8) => false,
+                None => true,
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
+            .iter()
+            .any(|element| mir_transport_trace_requirement_for_type(types, *element)),
+        // Nominal value fields are not in `TypeKind`; keep the contract conservative and let
+        // later layout/codegen query declaration metadata instead of guessing scalar shape.
+        TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
+        TypeKind::Value(
+            ValueTypeKind::Unit
+            | ValueTypeKind::Nothing
+            | ValueTypeKind::Bool
+            | ValueTypeKind::Char
+            | ValueTypeKind::Float64
+            | ValueTypeKind::Float32
+            | ValueTypeKind::Int
+            | ValueTypeKind::UInt
+            | ValueTypeKind::IntN(_)
+            | ValueTypeKind::UIntN(_),
+        ) => false,
+    }
+}
+
+fn option_transport_niche_storage(types: &TypeStore, inner: TypeId) -> Option<NicheStorage> {
+    let mut domain = transport_niche_domain(types, inner)?;
+    let _none_value = domain.take_one()?;
+    if domain.storage == NicheStorage::Pointer {
+        domain.next = domain.end;
+    }
+    Some(domain.storage)
+}
+
+fn transport_niche_domain(types: &TypeStore, ty: TypeId) -> Option<NicheDomain> {
+    match types.kind(ty) {
+        TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => Some(NicheDomain {
+            storage: NicheStorage::Pointer,
+            next: 0,
+            end: 1,
+        }),
+        TypeKind::Value(ValueTypeKind::Bool) => Some(NicheDomain {
+            storage: NicheStorage::U8,
+            next: 2,
+            end: 256,
+        }),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let mut domain = transport_niche_domain(types, *inner)?;
+            let _none_value = domain.take_one()?;
+            if domain.storage == NicheStorage::Pointer {
+                domain.next = domain.end;
+            }
+            (!domain.is_empty()).then_some(domain)
+        }
+        TypeKind::Value(
+            ValueTypeKind::Unit
+            | ValueTypeKind::Nothing
+            | ValueTypeKind::Char
+            | ValueTypeKind::Float64
+            | ValueTypeKind::Float32
+            | ValueTypeKind::Int
+            | ValueTypeKind::UInt
+            | ValueTypeKind::IntN(_)
+            | ValueTypeKind::UIntN(_)
+            | ValueTypeKind::Tuple(_)
+            | ValueTypeKind::Nominal(_),
+        ) => None,
     }
 }
 
@@ -249,5 +332,53 @@ impl CallTransportMetadata {
             thread_resume_payload: None,
             abi: CallAbiHandoffMetadata::plain_no_outward(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mir_transport_trace_requirement_for_type;
+    use crate::ty::TypeStore;
+
+    #[test]
+    fn option_transport_trace_requirement_tracks_layout_representation() {
+        let mut types = TypeStore::default();
+        let builtins = types.intern_builtins();
+
+        assert!(mir_transport_trace_requirement_for_type(
+            &types,
+            builtins.string
+        ));
+        assert!(!mir_transport_trace_requirement_for_type(
+            &types,
+            builtins.bool_
+        ));
+
+        let option_int = types.ty_option(builtins.int);
+        let option_bool = types.ty_option(builtins.bool_);
+        let option_string = types.ty_option(builtins.string);
+        let nested_option_bool = types.ty_option(option_bool);
+        let nested_option_string = types.ty_option(option_string);
+
+        assert!(
+            mir_transport_trace_requirement_for_type(&types, option_int),
+            "tagged-union Option<Int> must stay traceable because its runtime layout carries a GC slot"
+        );
+        assert!(
+            mir_transport_trace_requirement_for_type(&types, option_string),
+            "pointer-niche Option<String> must stay traceable"
+        );
+        assert!(
+            mir_transport_trace_requirement_for_type(&types, nested_option_string),
+            "nested Option<Option<String>> exhausts pointer niche and falls back to tagged union"
+        );
+        assert!(
+            !mir_transport_trace_requirement_for_type(&types, option_bool),
+            "Option<Bool> keeps scalar niche layout and must not publish trace requirement"
+        );
+        assert!(
+            !mir_transport_trace_requirement_for_type(&types, nested_option_bool),
+            "nested Option<Option<Bool>> still uses U8 niche and must stay non-traceable"
+        );
     }
 }

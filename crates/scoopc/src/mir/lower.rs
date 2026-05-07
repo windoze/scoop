@@ -1319,28 +1319,7 @@ fn mir_transport_kind_for_ty(
 }
 
 fn mir_type_requires_trace(types: &TypeStore, ty: TypeId) -> bool {
-    match types.kind(ty) {
-        TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
-        TypeKind::Value(ValueTypeKind::Option(inner)) => mir_type_requires_trace(types, *inner),
-        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
-            .iter()
-            .any(|ty| mir_type_requires_trace(types, *ty)),
-        // Nominal value fields are not in `TypeKind`; keep the contract conservative and
-        // force later layout to query declaration metadata instead of guessing scalar shape.
-        TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
-        TypeKind::Value(
-            ValueTypeKind::Unit
-            | ValueTypeKind::Nothing
-            | ValueTypeKind::Bool
-            | ValueTypeKind::Char
-            | ValueTypeKind::Float64
-            | ValueTypeKind::Float32
-            | ValueTypeKind::Int
-            | ValueTypeKind::UInt
-            | ValueTypeKind::IntN(_)
-            | ValueTypeKind::UIntN(_),
-        ) => false,
-    }
+    super::mir_transport_trace_requirement_for_type(types, ty)
 }
 
 pub(crate) fn mir_is_aggregate_transport_ty(types: &TypeStore, ty: TypeId) -> bool {
@@ -3611,7 +3590,8 @@ impl<'a> FnLowering<'a> {
         let mut ordered = Vec::with_capacity(args.len());
         for source_arg_idx in ordered_source_indices {
             let source_arg_idx = if source_arg_idx == usize::MAX {
-                receiver_source_arg_idx.expect("receiver slot should exist when placeholder is used")
+                receiver_source_arg_idx
+                    .expect("receiver slot should exist when placeholder is used")
             } else {
                 source_arg_idx
             };
@@ -3700,7 +3680,8 @@ impl<'a> FnLowering<'a> {
         let TypeKind::Ref(RefTypeKind::Function(fun)) = self.types.kind(callee_ty) else {
             return expected;
         };
-        let mut param_tys = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+        let mut param_tys =
+            Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
         if let Some(receiver_ty) = fun.receiver {
             param_tys.push(receiver_ty);
         }
@@ -4790,8 +4771,11 @@ impl<'a> FnLowering<'a> {
                 }
             }
         };
-        let arg_binding = self.facts.call_arg_binding(self.source_path.as_path(), span);
-        let direct_arg_binding = arg_binding.filter(|binding| !call_arg_binding_has_receiver(binding));
+        let arg_binding = self
+            .facts
+            .call_arg_binding(self.source_path.as_path(), span);
+        let direct_arg_binding =
+            arg_binding.filter(|binding| !call_arg_binding_has_receiver(binding));
         let expected_tys = match &kind {
             CallKind::Direct { callee_fqn } => self
                 .top_level_fun_param_tys
@@ -6975,7 +6959,8 @@ fun entry(lhs: Num, rhs: Num): Int {
 
     #[test]
     fn dump_mir_canonicalizes_callable_receiver_named_args_by_binding() {
-        let sess = Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let sess =
+            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
             .canonicalize()

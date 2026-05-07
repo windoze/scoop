@@ -67,6 +67,7 @@ pub use summary::{
     InstanceSummary, MaterializedMirSummaries, ParamUseSummary, ResultProvenance,
     ResultProvenanceSource,
 };
+pub(crate) use transport::mir_transport_trace_requirement_for_type;
 pub use transport::{
     AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, CallAbiHandoffMetadata,

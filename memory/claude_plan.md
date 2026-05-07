@@ -1,31 +1,49 @@
-# 执行计划
+## 当前计划
 
-说明：按安全与隐私要求，这里记录的是可审计的执行计划与进度，不包含内部推理细节。
+说明：按安全与协作约束，此文件记录可公开的执行思路摘要、决策依据与步骤计划，不包含内部私有推理细节。执行过程中若计划变化或关键步骤完成，会持续更新。
 
-## 初始计划
+### 初始步骤
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，并把它视为本次唯一目标。
-2. 检查最近提交是否直接提到与该任务相关且未完成的问题；如果是，则将其并入当前任务范围，或在 `TODO.md` 中记录为当前任务的前置依赖。
-3. 阅读任务条目中列出的要求、依赖、验证方式与完成记录，并据此定位相关代码与测试。
-4. 以最小正确改动完成该任务；如果遇到阻塞当前任务的真实缺口或缺陷，不做变通，而是在 `TODO.md` 中加入最小必要前置任务并停止。
-5. 运行与该任务直接相关的验证；如有需要，再运行更广泛的测试与质量检查，直到结果满足任务要求。
-6. 更新 `memory/claude_plan.md` 记录关键进展；将任务在 `TODO.md` 中标记为 `[DONE]` 并填写完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
-7. 按仓库约定创建一次提交，然后停止，不继续处理下一个任务。
+1. 读取 `TODO.md`，识别标题中第一个未带 `[DONE]` 前缀的任务。
+2. 查看最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若有，将其视为当前任务的一部分或按要求补充为 `TODO.md` 中的前置任务。
+3. 仅围绕当前任务收集必要上下文，避免开放式排查无关历史问题。
+4. 实现当前任务或在遇到真实阻塞时最小化地更新 `TODO.md`/`PLAN.md` 以反映新的前置依赖。
+5. 运行任务要求的验证，以及必要的回归测试、`cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若适用且在当前改动范围内可执行）。
+6. 完成后将任务标题标记为 `[DONE]`，更新完成记录，并创建一次 git 提交。
+7. 完成一个任务后停止，不继续处理后续任务。
 
-## 进度记录
+### 待确认事项
 
-- 已创建本文件并记录初始计划。
-- 2026-05-08：读取 `TODO.md` 后确认首个未完成任务为 `CG-T07S：修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞`。当前计划：先检查最近提交是否直接提到该任务相关未完成问题；随后复现 full-suite 与单 fixture 的差异，定位 transport metadata 漂移来源，再实施最小正确修复并完成任务要求的验证、文档更新与提交。
-- 2026-05-08：检查 `git status` 与 `git diff` 后确认工作区已有一批与 `CG-T07S/CG-T08` 直接相关的未提交改动，包括新增 `CG-T07S` 任务条目、fixture runner session 回归测试、MIR/materialize/type canonicalization 相关代码与更新后的 snapshot。后续会在这些现有改动基础上继续完成任务，并在最终提交时一并纳入。
-- 2026-05-08：已复现当前状态：单跑 `aggregate_transport.scoop` 通过，但 `cargo run -p scoop -- test` 仍在同一 fixture 的 `.mir` snapshot 首次失败；新加的 session-isolation 回归测试也失败，但失败样本落在 `generic_materialization.scoop`。综合当前代码，最可疑点是 `crates/scoopc/src/mir/materialize.rs` 中新增的 transport repair 仍会从 `local.ty` / `payload_transport.source_ty` 反推 array/handle/perform metadata，而这些字段本身可能在不同编译上下文中先发生漂移。接下来将把 repair 改为只消费 authoritative contract（`array_ty`、closure `env_ty`、handle/perform payload schema），并把 mixed-phase 回归测试聚焦到 `aggregate_transport` 场景。
-- 2026-05-08：在 mixed-phase 回归测试中仍复现 `aggregate_transport.mir` 第 1939 行漂移，而且该 fixture 属于 direct-style MIR snapshot；`RefactorMirStageOutput::stable_dump()` 输出的是 `lowered_mir.file`，并不经过 `mir/materialize.rs`。因此当前主因更可能在 `crates/scoopc/src/mir/lower.rs` 或更上游的 typed-HIR/effect-contract producer，而不是 materialized MIR repair。本轮接下来会把排查重点切到 direct-style MIR transport metadata producer。
-- 2026-05-08（本轮继续）：已再次确认首个未完成任务仍是 `CG-T07S`。本轮执行顺序：1）先检查最新提交与当前工作区，确认是否存在与 `CG-T07S` 直接相关且尚未完成的遗留改动；2）复现 `aggregate_transport.scoop` 在单跑与 full-suite 下的差异，并以最小范围读取相关 MIR/fixture runner/typed-HIR 代码；3）修复 cross-fixture transport metadata drift 的真实根因，要求 metadata repair/producer 只消费 authoritative contract，不依赖顺序敏感局部类型或跨 fixture 状态；4）补齐或调整最小回归测试，覆盖 fixture session 隔离与 full-suite snapshot 一致性；5）运行 `CG-T07S` 列出的验证以及必要的 `fmt`/`clippy`；6）若任务完成，则把 `CG-T07S` 标记为 `[DONE]`、填写完成记录并创建一次提交后停止。若发现新的真实前置阻塞，则只更新 `TODO.md`/必要计划并提交后停止。
-- 2026-05-08：本轮复现结果更新：`cargo test -p scoop run_all_recreates_session_between_independent_fixtures` 与 `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure` 当前均通过；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop` 和 `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor` 也通过。根目录 `cargo run -p scoop -- test` 仍失败，但失败点已转移到 `tests/fixtures/mir_refactor/generic_materialization.scoop`，首个不一致行表现为 raw `TypeId` 数字漂移。基于现状，下一步优先补完 `RefactorMirStageOutput::stable_dump()` 的 type-id canonicalization，并用更严格的单测验证“相同类型结构、不同 interning 顺序”时 stable dump 输出一致。
-- 2026-05-08：已查明并修复两条与 `CG-T07S` 直接相关的问题：1）`scoop test --fixtures <mir_refactor 单文件>` 的 phase fallback 之前漏掉 `mir_refactor`，导致验证命令误走 parse phase；2）`MirLoweringFacts::with_member_value_types()` 会把 mangled generic class/struct instance clone 的具体字段类型覆盖到 base field FQN 上，导致 `generic_materialization.actual.raw.mir` 中 `holder.item` 有时被 lower 成模板 `T`、有时成具体 `Int`，进而让 `Transport(Int -> T)` 语句随机出现/消失。修复后 `tests/fixtures/mir_refactor`、`tests/fixtures/effect_facts`、`tests/fixtures/effect_lowered` 目录定向验证恢复通过。
-- 2026-05-08：当前 `CG-T07S` 的最终 blocker 已变化。snapshot drift 本身已基本收口，但默认 `cargo run -p scoop -- test` 继续暴露 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 run-pass/codegen 回归；build 诊断定位到 `CallKind::FunValue` receiver + named-arg lowering 把 `Int` 实参误送到 receiver `String` 槽位。该问题与 `CG-T07S` 不是同一 execution unit，已在 `TODO.md` 中补录为前置任务 `CG-T07S0`，本轮将在更新 TODO/记录后停止并提交。
-- 2026-05-08（本轮继续）：重新读取 `TODO.md` 后确认首个未完成任务现为 `CG-T07S0`，`CG-T07S` 依赖它且必须顺序等待。当前执行顺序：1）复现 `callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 build/test/full-suite 失败并记录准确报错；2）读取 `CallKind::FunValue`、receiver callable value、`FunPtr` direct call 与 named-arg 排槽相关 lowering；3）以 authoritative call-site/callable contract 为准修复 receiver + named-arg 槽位映射，不做 fixture/legacy workaround；4）补最小回归覆盖顶层命名 receiver function value、pattern binder 与 `FunPtr` surface；5）运行 `CG-T07S0` 要求的 build/test/full-suite，并补充必要的 `cargo test` / `cargo clippy`；6）若完成则把 `CG-T07S0` 标记 `[DONE]`、更新完成记录并创建一次提交后停止。
-- 2026-05-08：本轮已完成 callable value / `FunPtr` named-arg 槽位修复本体：typecheck 现在为 callable surface 发布 `call_arg_binding`；typed HIR contract、direct-style MIR lowering、`from_lowered_hir()` facts 及 canonical materialized MIR 都会消费 authoritative binding 规范化参数顺序；新增的 HIR/MIR 定向单测、`callable_value_pattern_binder_receiver_named_args_basic.scoop` build/test、`aggregate_transport.scoop` snapshot 复核以及 `cargo clippy --all-targets -- -D warnings` 均通过。
-- 2026-05-08：默认 `cargo run -p scoop -- test` 已不再停在 callable-value named-arg 回归，而是继续暴露 `tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 的新 blocker；build 诊断为 refactor EffectStep codegen `unsupported main codegen node: top-level value ref`。该问题不属于当前 execution unit 且会阻塞 `CG-T07S0` 的 full-suite 验证，因此已在 `TODO.md` 中新增前置任务 `CG-T07S0a` 并把 `CG-T07S0` 依赖更新到它。本轮接下来只会整理 TODO/记录、检查变更并提交后停止。
-- 2026-05-08（当前执行）：重新读取 `TODO.md` 后确认首个未完成任务现为 `CG-T07S0a`。本轮执行顺序：1）检查最新提交是否直接提到与 `CG-T07S0a` 相关且未完成的问题，并确认当前工作区是否已有需要一并纳入的相关改动；2）复现 `effect_handle_top_level_val_pattern_access_basic.scoop` 的 build / 单 fixture test / 默认 full-suite 失败，精确定位 `top-level value ref` 仍停留在哪个 authoritative lowering handoff 之前；3）阅读 refactor EffectStep/state-machine、top-level once-init/root、pattern binder 与 top-level value reference 相关代码，找出为何该节点未被主线 lowering 消费；4）以最小正确改动修复 handoff / lowering，使顶层 immutable value 与顶层 pattern binder value ref 在 `handle` / `try` state-machine 路径下进入 authoritative once-init/root lowering，并保持 pattern 失败继续走 `Raise.raise(RuntimeError.*)` 而非递归初始化 trap；5）补最小回归测试并运行任务要求的 build/test/full-suite，以及必要的定向单测、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；6）若完成，则将 `CG-T07S0a` 标记为 `[DONE]`、更新完成记录并创建一次提交后停止。若发现真实新前置阻塞，则只更新 `TODO.md`/必要计划并提交后停止。
-- 2026-05-08：已定位真实根因。`readyY/boomY` 自身和隐藏 `__subject/__check` top-level init roots 都已正确发布到 HIR/effect-lowered contract；失败发生在隐藏 pattern-check 里合成的 `Raise.raise(RuntimeError.NullAssertionFailed)`。`synth_raise_null_assertion_failed()` 之前把 `scoop.core.RuntimeError.NullAssertionFailed` 直接造为 `ExprKind::VarRef(ValueRef::TopLevel)`，而顶层 once-init helper 仍走 HIR codegen 路径，这条路径只对 `ExprKind::MemberAccess` 形状支持 enum unit variant lowering。现已把 synthetic runtime-error value 改为与正常源码一致的“receiver=`VarRef(TopLevel RuntimeError)` + `MemberAccess(resolved Value RuntimeError.NullAssertionFailed)`” authoritative HIR 形状，并撤回中途用于定位缺失 `fqn` 的临时诊断补丁。下一步：重跑 build / 单 fixture / full-suite / 质量检查，若全部通过则更新 `TODO.md` 并提交。
-- 2026-05-08：`effect_handle_top_level_val_pattern_access_basic.scoop` 的 build 与单 fixture test 已恢复通过，相关 HIR/MIR snapshot 也已按新的 authoritative `RuntimeError.NullAssertionFailed` member-access 形状更新；但默认 `cargo run -p scoop -- test` 继续前进后暴露了新的独立 blocker：`tests/fixtures/run-pass/elvis_lazy_basic.scoop` 在 raw MIR LLVM backend gate 处因 `Option<Int>` enum payload transport metadata 的 trace requirement 与 composite layout descriptor 漂移而失败（`composite transport layout descriptor has GC slots but MIR trace requirement is false`，source_span=365..373，对应 `Some(41)` / `None()` constructor path）。按当前工作流，已在 `TODO.md` 中新增前置任务 `CG-T07S0a0` 并让 `CG-T07S0a` 显式依赖它；本轮不会继续跨到该新任务实现，而是提交当前修复与任务重排后停止。
+- 当前第一个未完成任务的编号、依赖与验证要求。
+- 最近提交是否显式提到与该任务直接相关的未完成问题。
+
+### 当前任务确认
+
+- 当前第一个未完成任务：`CG-T07S0a0`。
+- 任务目标：修复 `tests/fixtures/run-pass/elvis_lazy_basic.scoop` 暴露的 `Option<Int>` enum payload transport trace metadata 漂移，保持 composite transport verifier 的 authoritative MIR contract 要求不变。
+- 最近提交 `cd9e460917781e648c46239ffb2f4c9ca7ba5fbf` 明确记录了该 blocker，属于当前任务直接范围，无需新增前置任务。
+
+### 当前执行计划
+
+1. 搜索 `Option` enum payload、`AggregateTransportMetadata`、`ValueTransportMetadata`、composite verifier 相关实现与测试，定位 metadata 生成与校验路径。
+2. 复现 `elvis_lazy_basic.scoop` 的 build/test 失败，确认当前诊断与触发点。
+3. 在 authoritative MIR transport contract / lowering 路径修复 generic enum constructor/value 的 trace/copy/drop requirement 发布逻辑，使其与 layout descriptor 一致。
+   - 已完成：新增共享 helper，让 `Option<T>` 的 transport trace requirement 按 niche/tagged-union 实际布局计算；MIR lowering 与 LLVM composite verifier 现共用同一规则。
+4. 补充或调整最小回归测试，优先覆盖 `Option<T>` generic enum value path。
+   - 已完成：新增 `mir/transport.rs` 单测，覆盖 `Option<Int>` tagged-union、`Option<Bool>` niche、`Option<Option<String>>` pointer niche 耗尽回退等情形。
+5. 运行任务要求的验证：单 fixture build、单 fixture test、默认 full suite；再补 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`，必要时追加更窄的相关单测。
+6. 若任务完成，则将 `CG-T07S0a0` 标记为 `[DONE]`、更新完成记录并提交；若遇到真实新 blocker，则按顺序约束最小化更新 `TODO.md` 后提交并停止。
+
+### 当前进展
+
+- `cargo test -p scoopc option_transport_trace_requirement_tracks_layout_representation`：通过。
+- `cargo run -p scoop -- build tests/fixtures/run-pass/elvis_lazy_basic.scoop -o /tmp/elvis_lazy_basic`：通过。
+- `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/elvis_lazy_basic.scoop`：通过。
+- `cargo fmt`、`cargo clippy --all-targets -- -D warnings`：通过。
+- `cargo run -p scoop -- test`：已越过 `elvis_lazy_basic.scoop`，新的首个失败变为 `tests/fixtures/run-pass/fun_call_add_basic.scoop`，build 诊断为 `refactor plain return coercion failed ... unsupported value coercion from Ref to Int(...)`。
+
+### 决策更新
+
+- `CG-T07S0a0` 的目标已完成：默认 full suite 不再在 `elvis_lazy_basic.scoop` 处被 composite transport verifier 阻塞。
+- 由于 full suite 暴露了新的直接前置 blocker，已按顺序约束把它补录为 `CG-T07S0a1`，并将 `CG-T07S0a` 的依赖更新到该新任务。
+- 本次提交将包含：`CG-T07S0a0` 修复代码、验证记录、`TODO.md` 顺序更新，以及 `memory/claude_plan.md`。

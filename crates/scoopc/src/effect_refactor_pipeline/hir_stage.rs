@@ -638,7 +638,10 @@ impl FunctionTargetContract {
         }
     }
 
-    fn synthetic_with_arg_binding(fqn: String, arg_binding: Option<CallArgBindingContract>) -> Self {
+    fn synthetic_with_arg_binding(
+        fqn: String,
+        arg_binding: Option<CallArgBindingContract>,
+    ) -> Self {
         Self {
             fqn,
             decl_file: None,
@@ -1582,8 +1585,10 @@ impl<'a> ContractCollector<'a> {
 
         let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            let function =
-                FunctionTargetContract::synthetic_with_arg_binding(fqn.clone(), arg_binding.clone());
+            let function = FunctionTargetContract::synthetic_with_arg_binding(
+                fqn.clone(),
+                arg_binding.clone(),
+            );
             if let Some((dispatch_kind, receiver_ty)) =
                 self.dispatch_kind_and_receiver_ty(source_path, expr.span)
             {
@@ -3978,7 +3983,8 @@ fun runtime(): String {
             .unwrap();
         let source = SourceFile::load(&fixture).unwrap();
 
-        let output = run(&session, &source).expect("fixture 应发布 callable-value binding contract");
+        let output =
+            run(&session, &source).expect("fixture 应发布 callable-value binding contract");
         let contracts = output.effect_contracts().call_site_contracts();
 
         let when_fun_value = contracts
@@ -4008,7 +4014,9 @@ fun runtime(): String {
             .find_map(|(site, contract)| (site.span == Span::new(1770, 1797)).then_some(contract))
             .expect("top-level FunPtr call contract 应存在");
         let TypedCallSiteContract::DirectTopLevel(function) = top_funptr else {
-            panic!("top-level FunPtr call 应继续通过 synthetic direct contract 发布: {top_funptr:?}");
+            panic!(
+                "top-level FunPtr call 应继续通过 synthetic direct contract 发布: {top_funptr:?}"
+            );
         };
         let binding = function
             .arg_binding()

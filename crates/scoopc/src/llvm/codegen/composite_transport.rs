@@ -486,8 +486,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn type_contains_traceable_ref(&mut self, mir_types: &TypeStore, ty: TypeId) -> bool {
         match mir_types.kind(ty) {
             TypeKind::Ref(_) => true,
-            TypeKind::Value(ValueTypeKind::Option(inner)) => {
-                self.type_contains_traceable_ref(mir_types, *inner)
+            TypeKind::Value(ValueTypeKind::Option(_)) => {
+                crate::mir::mir_transport_trace_requirement_for_type(mir_types, ty)
             }
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
                 .iter()
