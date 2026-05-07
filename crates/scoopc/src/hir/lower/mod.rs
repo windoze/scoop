@@ -852,12 +852,13 @@ impl<'a> HirLowering<'a> {
             fun.effects.as_ref().is_some_and(|r| r.closed),
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
                 if is_async_fun {
                     Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(self.lower_block(pkg_prefix, b))
+                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
                 }
             }
             ast::FunBody::Missing => None,
@@ -933,12 +934,16 @@ impl<'a> HirLowering<'a> {
             false,
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
+
         // Lower getter body.
         let body = match &getter.body {
-            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::AccessorBody::Expr(e) => {
                 // `get() = expr` → synthesize a block with the expression as tail stmt.
-                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let lowered_expr = self.lower_expr_with_expected(pkg_prefix, e, body_expected);
                 let expr_ty = lowered_expr.ty;
                 Some(Block {
                     span: e.span,
@@ -1043,12 +1048,13 @@ impl<'a> HirLowering<'a> {
             fun.effects.as_ref().is_some_and(|r| r.closed),
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
                 if is_async_fun {
                     Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(self.lower_block(pkg_prefix, b))
+                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
                 }
             }
             ast::FunBody::Missing => None,
@@ -1123,10 +1129,13 @@ impl<'a> HirLowering<'a> {
             false,
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &getter.body {
-            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::AccessorBody::Expr(e) => {
-                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let lowered_expr = self.lower_expr_with_expected(pkg_prefix, e, body_expected);
                 let expr_ty = lowered_expr.ty;
                 Some(Block {
                     span: e.span,
@@ -1242,12 +1251,13 @@ impl<'a> HirLowering<'a> {
             fun.effects.as_ref().is_some_and(|r| r.closed),
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
                 if is_async_fun {
                     Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(self.lower_block(pkg_prefix, b))
+                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
                 }
             }
             ast::FunBody::Missing => None,
@@ -1414,10 +1424,13 @@ impl<'a> HirLowering<'a> {
             false,
         );
 
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &getter.body {
-            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::AccessorBody::Expr(e) => {
-                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let lowered_expr = self.lower_expr_with_expected(pkg_prefix, e, body_expected);
                 let expr_ty = lowered_expr.ty;
                 Some(Block {
                     span: e.span,
@@ -4572,6 +4585,63 @@ fun returnsIterationValue(): Int {
             ),
             "comptime for binder should lower to a synthesized literal, got {:?}",
             first_return.kind
+        );
+    }
+
+    #[test]
+    fn refactor_hir_tail_if_uses_declared_return_type_hint() {
+        let sess = refactor_session();
+        let src = SourceFile::new_virtual(
+            "<mem>/refactor_hir_tail_if_return_expected.scoop",
+            r#"
+fun main(): Int {
+    if (true) { 3 } else { 1 }
+}
+"#,
+        );
+
+        let lowered = crate::effect_refactor_pipeline::lower_typed_hir_for_dump(&sess, &src)
+            .expect("refactor HIR stage should lower a tail if with declared return type");
+        let main = find_fun(&lowered, "main");
+        let body = main.body.as_ref().expect("main has body");
+        assert_eq!(
+            body.ty, main.return_ty,
+            "body type should match function return type"
+        );
+
+        let [
+            Stmt {
+                kind: StmtKind::Expr(expr),
+                ..
+            },
+        ] = body.stmts.as_slice()
+        else {
+            panic!(
+                "main should contain a single tail expr stmt, got {:?}",
+                body.stmts
+            );
+        };
+        let ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } = &expr.kind
+        else {
+            panic!("main tail should remain an if expr, got {expr:?}");
+        };
+
+        assert_eq!(
+            expr.ty, main.return_ty,
+            "if expr should inherit function return type"
+        );
+        assert_eq!(
+            then_branch.ty, main.return_ty,
+            "then branch should stay Int"
+        );
+        assert_eq!(
+            else_branch.as_deref().expect("if has else branch").ty,
+            main.return_ty,
+            "else branch should stay Int"
         );
     }
 

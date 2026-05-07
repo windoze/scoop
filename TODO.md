@@ -35,7 +35,8 @@
 | `CG-T07` | CG7 | [DONE] 收口 extern global 与 GC pin/handle runtime surface |
 | `CG-T07R` | CG7R | [DONE] Review CG-T07 extern global 与 GC surface |
 | `CG-T07S0a0` | CG7S0a0 | [DONE] 修复 elvis_lazy_basic 中 Option enum payload transport trace metadata 漂移，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a1` | CG7S0a1 | 修复 fun_call_add_basic 中 refactor plain return coercion 把 `main(): Int` 尾值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a1` | CG7S0a1 | [DONE] 修复 fun_call_add_basic 中 refactor plain return coercion 把 `main(): Int` 尾值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a2` | CG7S0a2 | 修复 gc_array_class_elements_cross_function 中 `println::<String>` arg lowering 把 `String` 值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -765,7 +766,7 @@
   - 2026-05-08：抽出共享 `Option<T>` transport trace requirement 规则，让 MIR lowering/materialize 与 LLVM composite transport verifier 都按实际布局选择计算 trace 需求：tagged-union `Option<Int>` 因固定携带 GC pointer slot 而保持 `trace=true`，niche `Option<Bool>` 仍保持非 traceable。
   - 2026-05-08：验证通过：`cargo test -p scoopc option_transport_trace_requirement_tracks_layout_representation`、`cargo run -p scoop -- build tests/fixtures/run-pass/elvis_lazy_basic.scoop -o /tmp/elvis_lazy_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/elvis_lazy_basic.scoop`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `elvis_lazy_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/fun_call_add_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a1`。
 
-## CG-T07S0a1：修复 fun_call_add_basic 中 refactor plain return coercion 把 `main(): Int` 尾值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a1：修复 fun_call_add_basic 中 refactor plain return coercion 把 `main(): Int` 尾值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T03`
@@ -795,6 +796,41 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a0` 修复后，默认 full-suite 继续前进到 `fun_call_add_basic.scoop`；build 诊断显示 refactor plain return coercion 仍会把 `main(): Int` 尾值路径误判成 `Ref`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：non-async function/getter body lowering 现在会把 declared return type 作为 `ExpectedExpr.value_ty` 传给 tail expression lowering；`if` / `when` 在缺少 typecheck side table 时也会回退消费该 expected type，避免函数尾表达式被错误降成 `Any` 后再在 MIR/LLVM 前端准备阶段走 `Ref -> Int` 非法 coercion。
+  - 2026-05-08：新增 `hir::lower::tests::refactor_hir_tail_if_uses_declared_return_type_hint`，并更新 `tests/fixtures/mir/when_bind_guard.mir` 以匹配修复后的 authoritative direct-style MIR：`when` 尾值结果 local 直接保持声明返回类型，不再经 `AnyErasure` transport。
+  - 2026-05-08：验证通过：`cargo test -p scoopc refactor_hir_tail_if_uses_declared_return_type_hint`、`cargo run -p scoop -- build tests/fixtures/run-pass/fun_call_add_basic.scoop -o /tmp/fun_call_add_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/fun_call_add_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir/when_bind_guard.scoop`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `fun_call_add_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a2`。
+
+## CG-T07S0a2：修复 gc_array_class_elements_cross_function 中 `println::<String>` arg lowering 把 `String` 值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T03`
+  - `CG-T04d`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`
+- 背景：
+  - 在 `CG-T07S0a1` 修复 `fun_call_add_basic.scoop` 的 plain return coercion 漂移后，默认 `cargo run -p scoop -- test` 不再停在 `fun_call_add_basic.scoop`，而是继续暴露 `tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop` 的 build/run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop -o /tmp/gc_array_class_elements_cross_function` 会在 LLVM 前端准备阶段报 `refactor pure assignment ... callee_fqn: "scoop.core.println::<String>" ... unsupported value coercion from Ref to String`，说明 refactor pure assignment / direct-call lowering 在 `Array<String>` 跨函数读取与 `println::<String>` surface 上仍把 `String` 值路径误判成 `Ref`。
+
+- 必须实现的内容：
+  1. 修复 refactor pure assignment / direct-call lowering 对 `String` 值路径的类型归类，确保 `gc_array_class_elements_cross_function.scoop` 中 `println::<String>`、`Array<String>.get`、跨函数 `String` 参数/返回值继续消费 authoritative MIR / call contract，而不是走 `Ref -> String` 的非法 coercion。
+  2. 保持数组元素 transport、`String` runtime surface 与 callable contract 继续由 authoritative HIR/MIR/transport metadata 提供；不得回退到 legacy path，也不得在 LLVM backend 私补 `Ref -> String` 特判掩盖 contract 漂移。
+  3. 补最小回归验证，确保 `gc_array_class_elements_cross_function.scoop` 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许通过改 fixture 形状、移除 `println` / GC collect / cross-function array 读取、或降级到 legacy path 规避该问题。
+  - 不允许把 `String` surface 私补成 backend-only 特判；必须在 authoritative pure assignment / call-lowering 主线上修正。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop -o /tmp/gc_array_class_elements_cross_function`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `gc_array_class_elements_cross_function.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a1`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a1` 修复后，默认 full-suite 继续前进到 `gc_array_class_elements_cross_function.scoop`；build 诊断显示 refactor pure assignment / `println::<String>` arg lowering 仍会把 `String` 值路径误判成 `Ref`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -822,13 +858,14 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
   - 2026-05-08：已修复 `synth_raise_null_assertion_failed()` 生成的 synthetic `RuntimeError.NullAssertionFailed` surface，把它从 `TopLevelRef` 改为与正常源码一致的 `RuntimeError.NullAssertionFailed` member-access authoritative HIR 形状，并同步更新受影响的 HIR/MIR snapshot；`cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 通过。
   - 2026-05-08：默认 full-suite 继续前进后又暴露 `elvis_lazy_basic.scoop` 的 raw MIR composite transport trace metadata blocker；按顺序约束新增 prerequisite `CG-T07S0a0`，本任务保持未完成，等待 `CG-T07S0a0` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a0` 修复后，默认 full-suite 又继续前进到 `fun_call_add_basic.scoop`；build 诊断显示 refactor plain return coercion 仍把 `main(): Int` 尾值路径误判成 `Ref`，按顺序约束新增 prerequisite `CG-T07S0a1`，本任务保持未完成，等待 `CG-T07S0a1` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a1` 修复后，默认 full-suite 又继续前进到 `gc_array_class_elements_cross_function.scoop`；build 诊断显示 refactor pure assignment / `println::<String>` arg lowering 仍把 `String` 值路径误判成 `Ref`，按顺序约束新增 prerequisite `CG-T07S0a2`，本任务保持未完成，等待 `CG-T07S0a2` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

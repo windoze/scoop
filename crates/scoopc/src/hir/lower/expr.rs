@@ -962,6 +962,7 @@ impl<'a> HirLowering<'a> {
                     .map(|e| Box::new(self.lower_expr_with_expected(pkg_prefix, e, expected)));
                 let ty = self
                     .typechecked_expr_ty(e.span)
+                    .or(expected.value_ty)
                     .or(expected.array_lit_ty)
                     .or(expected.struct_lit_ty)
                     .unwrap_or(self.builtins.any);
@@ -982,6 +983,7 @@ impl<'a> HirLowering<'a> {
                     .collect();
                 let ty = self
                     .typechecked_expr_ty(e.span)
+                    .or(expected.value_ty)
                     .or(expected.array_lit_ty)
                     .or(expected.struct_lit_ty)
                     .unwrap_or(self.builtins.any);
@@ -2997,7 +2999,7 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    fn expected_expr_for_param_ty(&mut self, ty: TypeId) -> ExpectedExpr {
+    pub(super) fn expected_expr_for_param_ty(&mut self, ty: TypeId) -> ExpectedExpr {
         ExpectedExpr {
             value_ty: Some(ty),
             array_lit_target: self.array_lit_target_from_type_id(ty),
