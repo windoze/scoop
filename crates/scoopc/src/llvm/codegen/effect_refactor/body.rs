@@ -145,6 +145,14 @@ struct RefactorHandleFinallyRuntime {
     propagate_outward: Vec<RefactorHandleOutwardCompletionRuntime>,
 }
 
+#[derive(Clone, Copy)]
+struct RefactorResumeUnwindOrigin<'a> {
+    suspend_state: StateId,
+    cleanup_state: StateId,
+    resume_state: StateId,
+    boundary_ids: &'a [BoundaryId],
+}
+
 enum RefactorClassCtorBoundarySource<'a> {
     ClassCtor {
         span: crate::span::Span,
@@ -2264,8 +2272,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         match kind {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
-            | LateLoweredSourceStatementClassificationKind::ElidedUnreachable
-            | LateLoweredSourceStatementClassificationKind::Unsupported { .. } => Ok(()),
+            | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => Ok(()),
+            LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
+                Err(frontend_error(format!(
+                    "refactor body verifier 发现 source statement classified unsupported: {reason}；unsupported classification 必须在 late-lowered handoff 前被拒绝或改写为 explicit elide/skip contract"
+                )))
+            }
             LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
                 boundary_id,
             } => self
@@ -2522,16 +2534,226 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     }
 
     fn verify_resume_unwind_contract(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
-        if state.role() == LateLoweredStateRole::Cleanup
-            && self.callable.state_graph().cleanup_state().is_some()
-            && state.successors().is_empty()
-        {
-            return Ok(());
+        if state.role() != LateLoweredStateRole::Cleanup || !state.successors().is_empty() {
+            return Err(frontend_error(format!(
+                "refactor ResumeUnwind state st{} 不是 terminal cleanup state，缺少 published unwind payload / cleanup continuation contract",
+                state.state_id().as_u32()
+            )));
         }
-        Err(frontend_error(format!(
-            "refactor ResumeUnwind state st{} 缺少 published unwind payload / cleanup continuation contract，不能用 placeholder unreachable 表示合法语义",
-            state.state_id().as_u32()
-        )))
+        self.verify_resume_unwind_source(state)?;
+        let origin = self.resume_unwind_cleanup_origin(state.state_id()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor ResumeUnwind state st{} 未由 Suspend cleanup_state 的 published cleanup continuation route 到达，不能作为普通 CFG placeholder",
+                state.state_id().as_u32()
+            ))
+        })?;
+        self.verify_resume_unwind_handle_contract(state.state_id(), origin)
+    }
+
+    fn verify_resume_unwind_source(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
+        if state.source_slices().is_empty() {
+            return Err(frontend_error(format!(
+                "refactor ResumeUnwind state st{} 缺少 canonical MIR cleanup source slice",
+                state.state_id().as_u32()
+            )));
+        }
+        for slice in state.source_slices() {
+            let block = self
+                .body
+                .blocks
+                .get(slice.block_id().as_u32() as usize)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor ResumeUnwind state st{} source slice 指向缺失 block bb{}",
+                        state.state_id().as_u32(),
+                        slice.block_id().as_u32()
+                    ))
+                })?;
+            if !block.is_cleanup || !slice.includes_terminator() {
+                return Err(frontend_error(format!(
+                    "refactor ResumeUnwind state st{} source slice bb{} 未发布 cleanup terminator contract",
+                    state.state_id().as_u32(),
+                    slice.block_id().as_u32()
+                )));
+            }
+            if !matches!(block.terminator.kind, mir::TerminatorKind::ResumeUnwind) {
+                return Err(frontend_error(format!(
+                    "refactor ResumeUnwind state st{} source slice bb{} terminator 不是 canonical MIR ResumeUnwind",
+                    state.state_id().as_u32(),
+                    slice.block_id().as_u32()
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn resume_unwind_cleanup_origin(
+        &self,
+        resume_unwind_state: StateId,
+    ) -> Option<RefactorResumeUnwindOrigin<'_>> {
+        let mut found = None;
+        for state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::Suspend {
+                boundary_ids,
+                resume_state,
+                cleanup_state: Some(cleanup_state),
+                ..
+            } = state.terminator()
+            else {
+                continue;
+            };
+            if !self.cleanup_route_reaches_resume_unwind(*cleanup_state, resume_unwind_state) {
+                continue;
+            }
+            let origin = RefactorResumeUnwindOrigin {
+                suspend_state: state.state_id(),
+                cleanup_state: *cleanup_state,
+                resume_state: *resume_state,
+                boundary_ids,
+            };
+            if found.replace(origin).is_some() {
+                return None;
+            }
+        }
+        found
+    }
+
+    fn cleanup_route_reaches_resume_unwind(&self, start: StateId, target: StateId) -> bool {
+        let mut current = start;
+        let mut seen = BTreeSet::new();
+        loop {
+            if current == target {
+                return true;
+            }
+            if !seen.insert(current) {
+                return false;
+            }
+            let Some(state) = self.callable.state_graph().state(current) else {
+                return false;
+            };
+            if state.role() != LateLoweredStateRole::Cleanup {
+                return false;
+            }
+            match state.terminator() {
+                LateLoweredStateTerminator::Goto { target } => current = *target,
+                LateLoweredStateTerminator::ResumeUnwind => return false,
+                _ => return false,
+            }
+        }
+    }
+
+    fn verify_resume_unwind_handle_contract(
+        &self,
+        state_id: StateId,
+        origin: RefactorResumeUnwindOrigin<'_>,
+    ) -> Result<(), LlvmEmitError> {
+        self.verify_state_exists(origin.cleanup_state, "ResumeUnwind cleanup route start")?;
+        if origin.boundary_ids.is_empty() {
+            return Err(frontend_error(format!(
+                "refactor ResumeUnwind state st{} 的 cleanup continuation 来自 st{}，但 Suspend 缺少 boundary ids",
+                state_id.as_u32(),
+                origin.suspend_state.as_u32()
+            )));
+        }
+        for boundary_id in origin.boundary_ids {
+            let boundary = self.verify_boundary_exists(*boundary_id, "ResumeUnwind boundary")?;
+            if boundary.owner_state() != origin.suspend_state
+                || boundary.resume_state() != origin.resume_state
+            {
+                return Err(frontend_error(format!(
+                    "refactor ResumeUnwind state st{} boundary bd{} 的 origin/resume-state contract 漂移：origin=st{} resume=st{} boundary_owner=st{} boundary_resume=st{}",
+                    state_id.as_u32(),
+                    boundary_id.as_u32(),
+                    origin.suspend_state.as_u32(),
+                    origin.resume_state.as_u32(),
+                    boundary.owner_state().as_u32(),
+                    boundary.resume_state().as_u32(),
+                )));
+            }
+        }
+
+        let mut matched_handle = None::<(usize, SiteId)>;
+        for handle_state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = handle_state.terminator()
+            else {
+                continue;
+            };
+            if matches!(
+                contract.state_region(origin.suspend_state),
+                LateLoweredHandleStateRegion::OutsideHandle
+            ) {
+                continue;
+            }
+            if contract.finally_complete_target().is_none() || !contract.needs_completion_state() {
+                continue;
+            }
+            let layout =
+                self.abi
+                    .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+            let _ = layout
+                .completion_tag_value(LateLoweredHandlePendingCompletion::ContinueToExit)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor ResumeUnwind state st{} HandleDispatch site{} 缺少 ContinueToExit completion tag",
+                        state_id.as_u32(),
+                        site_id.as_u32()
+                    ))
+                })?;
+            let _ = layout
+                .completion_tag_value(LateLoweredHandlePendingCompletion::ReturnFromFunction)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor ResumeUnwind state st{} HandleDispatch site{} 缺少 ReturnFromFunction completion tag",
+                        state_id.as_u32(),
+                        site_id.as_u32()
+                    ))
+                })?;
+            for origin in contract.pending_completion_origins() {
+                if let Some(transport) = contract.pending_payload_transport(origin.completion()) {
+                    let _ = layout
+                        .pending_payload_transport_layout(transport.completion())
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor ResumeUnwind state st{} HandleDispatch site{} pending payload transport {:?} 缺少 ABI layout",
+                                state_id.as_u32(),
+                                site_id.as_u32(),
+                                transport.completion()
+                            ))
+                        })?;
+                }
+                let _ = layout.pending_completion_origin_tag_value(*origin).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor ResumeUnwind state st{} HandleDispatch site{} pending origin {:?} 缺少 completion tag",
+                        state_id.as_u32(),
+                        site_id.as_u32(),
+                        origin
+                    ))
+                })?;
+            }
+            let depth = self.handle_dispatch_nesting_depth(handle_state.state_id());
+            match matched_handle {
+                None => matched_handle = Some((depth, *site_id)),
+                Some((matched_depth, _)) if depth > matched_depth => {
+                    matched_handle = Some((depth, *site_id));
+                }
+                Some((matched_depth, _)) if depth < matched_depth => {}
+                Some(_) => {
+                    return Err(frontend_error(format!(
+                        "refactor ResumeUnwind state st{} 命中多个同层 HandleDispatch cleanup/unwind contract",
+                        state_id.as_u32()
+                    )));
+                }
+            }
+        }
+
+        matched_handle.map(|_| ()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor ResumeUnwind state st{} 缺少 enclosing HandleDispatch pending completion contract",
+                state_id.as_u32()
+            ))
+        })
     }
 
     fn verify_abandon_contract(&self, state: &LateLoweredState) -> Result<(), LlvmEmitError> {
@@ -4673,8 +4895,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         state: &LateLoweredState,
     ) -> Result<(), LlvmEmitError> {
         self.verify_resume_unwind_contract(state)?;
-        // A cleanup unwind terminal has no ordinary `Step_F` result in the P5
-        // state graph; non-cleanup `ResumeUnwind` remains rejected above.
+        // The verified cleanup route is consumed by the surrounding HandleDispatch
+        // pending-completion contract; reaching the terminal directly would mean the
+        // upstream handoff lost the unwind carrier/origin route.
         self.codegen.builder.build_unreachable()?;
         Ok(())
     }
@@ -9064,6 +9287,28 @@ mod tests {
         assert!(body.contains("verify_boundary_contracts"));
         assert!(body.contains("verify_boundary_source_consumption"));
         assert!(body.contains("call_local_runtime_error_contract"));
+    }
+
+    #[test]
+    fn refactor_llvm_source_classification_verifier_rejects_unsupported() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("verify_source_statement_classification"));
+        assert!(body.contains("source statement classified unsupported"));
+        assert!(body.contains("explicit elide/skip contract"));
+        assert!(!body.contains(concat!("Unsupported { .. } => ", "Ok(())")));
+    }
+
+    #[test]
+    fn refactor_llvm_resume_unwind_lowering_consumes_published_contract() {
+        let body = include_str!("body.rs");
+
+        assert!(body.contains("verify_resume_unwind_contract"));
+        assert!(body.contains("verify_resume_unwind_source"));
+        assert!(body.contains("resume_unwind_cleanup_origin"));
+        assert!(body.contains("verify_resume_unwind_handle_contract"));
+        assert!(body.contains("pending-completion contract"));
+        assert!(!body.contains(concat!("placeholder ", "unreachable")));
     }
 
     #[test]

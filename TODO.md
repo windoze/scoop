@@ -30,7 +30,7 @@
 | `CG-T04R` | CG4R | [DONE] Review CG-T04a-CG-T04f composite transport lowering |
 | `CG-T05` | CG5 | [DONE] 收口 effect-typed adapter 与 NoOutward plain ABI |
 | `CG-T05R` | CG5R | [DONE] Review CG-T05 adapter 与 NoOutward ABI |
-| `CG-T06` | CG6 | 收口 source classification、unwind、thread boundary lowering |
+| `CG-T06` | CG6 | [DONE] 收口 source classification、unwind、thread boundary lowering |
 | `CG-T06R` | CG6R | Review CG-T06 unwind/thread boundary lowering |
 | `CG-T07` | CG7 | 收口 extern global 与 GC pin/handle runtime surface |
 | `CG-T07R` | CG7R | Review CG-T07 extern global 与 GC surface |
@@ -611,7 +611,7 @@
   - 2026-05-07：搜索 `complete-only|NoOutward.*Step_F|Step_F.*NoOutward|Step argv|body Step schema`，命中限于 plain ABI guard、route verifier 诊断、handoff 注释与 NoOutward 负向 fixture 说明，未发现合法 NoOutward plain body 依赖 complete-only `Step_F` workaround。
   - 验证通过：`cargo test -p scoopc refactor_llvm_effect_typed_adapter`、`cargo test -p scoopc refactor_llvm_no_outward_plain_abi`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T06：收口 source classification、unwind、thread boundary lowering
+## [DONE] CG-T06：收口 source classification、unwind、thread boundary lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG6
@@ -638,6 +638,13 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §3.13、§5.2、§5.3、§5.6 的 codegen/runtime 部分关闭或有 explicit frontend reject。
 - 依赖：`CG-T05R`，`MIR-T13R`
+
+- 完成记录：
+  - 2026-05-07：refactor body verifier 现在默认拒绝 `LateLoweredSourceStatementClassificationKind::Unsupported`，只接受已发布的 effect-neutral、boundary-consumed、resume/result/completion injection、handle binder 与 explicit `ElidedUnreachable` classification，避免 body emission 才发现 unsupported statement。
+  - 2026-05-07：`ResumeUnwind` lowering 改为先验证 canonical MIR cleanup source slice、Suspend cleanup continuation route、boundary owner/resume-state provenance，以及 enclosing `HandleDispatch` finally pending-completion / origin / payload transport ABI contract；通过验证后才把 terminal cleanup path lower 为 contract-defined unreachable。
+  - 2026-05-07：`StoreMember` continuation route gate 除拒绝 `Ambiguous` 外，也验证 `Unique` route 的 source local 存在且 source type 未漂移，确保 backend 消费 MIR 发布的唯一 owner/source route。
+  - 2026-05-07：跨线程 resume thunk 不再调用 `scoop_refactor_thread_resume_noncomplete_fatal`；codegen 会二次校验 helper operand 是 `Pure` continuation，non-complete `RuntimeError` case 走 ordinary `scoop_runtime_error_fatal` terminal，其他 non-complete case 仅作为 upstream Pure/dispatch contract 下的 unreachable case；移除对应 runtime C fatal helper 与 ABI symbol。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_source_classification_verifier`、`cargo test -p scoopc refactor_llvm_resume_unwind_lowering`、`cargo test -p scoopc refactor_mir_store_member_codegen`、`cargo test -p scoopc refactor_llvm_thread_resume_noncomplete_policy`、`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T06R：Review CG-T06 unwind/thread boundary lowering
 

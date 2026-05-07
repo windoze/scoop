@@ -123,7 +123,6 @@
   X(scoop_print) \
   X(scoop_println) \
   X(scoop_entry_argv_array) \
-  X(scoop_refactor_thread_resume_noncomplete_fatal) \
   X(scoop_runtime_error_fatal) \
   X(scoop_runtime_init) \
   X(scoop_runtime_init_count) \

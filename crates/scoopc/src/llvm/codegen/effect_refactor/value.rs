@@ -30,6 +30,8 @@ use super::types::{
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
 };
 
+const THREAD_RESUME_STEP_TAG_COMPLETE: u64 = 0;
+
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
 pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
     codegen: &'p mut MainCodegen<'a, 'ctx>,
@@ -1986,6 +1988,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: args[0].span.into(),
             });
         };
+        let continuation_ty =
+            self.operand_source_ty(&args[0].value)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor thread spawn+resume continuation source type",
+                    at: args[0].span.into(),
+                })?;
 
         let value_arg = &args[1];
         let resume_ty =
@@ -2038,6 +2046,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     surface.return_step_schema().as_u32()
                 ))
             })?;
+        verify_refactor_thread_resume_surface_policy(
+            self.source_types,
+            dispatch_fqn,
+            surface,
+            step_layout,
+            continuation_ty,
+        )?;
         let k_i8 = self.codegen.builder.build_pointer_cast(
             k_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -5488,8 +5503,6 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
 
     let restore_block = codegen.builder.get_insert_block();
     let entry = codegen.context.append_basic_block(function, "entry");
-    let complete = codegen.context.append_basic_block(function, "complete");
-    let non_complete = codegen.context.append_basic_block(function, "non_complete");
 
     codegen.builder.position_at_end(entry);
     let continuation = function.get_nth_param(0).ok_or_else(|| {
@@ -5529,29 +5542,14 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
             surface.return_step_schema().as_u32()
         )));
     }
-    let tag = codegen
-        .builder
-        .build_extract_value(step_struct, 0, "refactor_thread_resume_step_tag")?
-        .into_int_value();
-    let is_complete = codegen.builder.build_int_compare(
-        IntPredicate::EQ,
-        tag,
-        codegen.context.i32_type().const_zero(),
-        "refactor_thread_resume_is_complete",
+    emit_refactor_thread_resume_step_terminal(
+        codegen,
+        function,
+        surface,
+        step_layout,
+        step,
+        "refactor_thread_resume",
     )?;
-    codegen
-        .builder
-        .build_conditional_branch(is_complete, complete, non_complete)?;
-
-    codegen.builder.position_at_end(complete);
-    codegen.builder.build_return(None)?;
-
-    codegen.builder.position_at_end(non_complete);
-    let fatal = codegen.declare_runtime_refactor_thread_resume_noncomplete_fatal();
-    let _ = codegen
-        .builder
-        .build_call(fatal, &[], "refactor_thread_resume_noncomplete")?;
-    codegen.builder.build_return(None)?;
 
     if let Some(block) = restore_block {
         codegen.builder.position_at_end(block);
@@ -5591,8 +5589,6 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
 
     let restore_block = codegen.builder.get_insert_block();
     let entry = codegen.context.append_basic_block(function, "entry");
-    let complete = codegen.context.append_basic_block(function, "complete");
-    let non_complete = codegen.context.append_basic_block(function, "non_complete");
 
     codegen.builder.position_at_end(entry);
     let continuation = function.get_nth_param(0).ok_or_else(|| {
@@ -5653,34 +5649,193 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
             surface.return_step_schema().as_u32()
         )));
     }
-    let tag = codegen
-        .builder
-        .build_extract_value(step_struct, 0, "refactor_thread_resume_step_tag")?
-        .into_int_value();
-    let is_complete = codegen.builder.build_int_compare(
-        IntPredicate::EQ,
-        tag,
-        codegen.context.i32_type().const_zero(),
-        "refactor_thread_resume_is_complete",
+    emit_refactor_thread_resume_step_terminal(
+        codegen,
+        function,
+        surface,
+        step_layout,
+        step,
+        "refactor_thread_resume_transport",
     )?;
-    codegen
-        .builder
-        .build_conditional_branch(is_complete, complete, non_complete)?;
-
-    codegen.builder.position_at_end(complete);
-    codegen.builder.build_return(None)?;
-
-    codegen.builder.position_at_end(non_complete);
-    let fatal = codegen.declare_runtime_refactor_thread_resume_noncomplete_fatal();
-    let _ = codegen
-        .builder
-        .build_call(fatal, &[], "refactor_thread_resume_noncomplete")?;
-    codegen.builder.build_return(None)?;
 
     if let Some(block) = restore_block {
         codegen.builder.position_at_end(block);
     }
     Ok(function)
+}
+
+fn verify_refactor_thread_resume_surface_policy<'ctx>(
+    types: &TypeStore,
+    dispatch_fqn: &str,
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &RefactorStepLayout<'ctx>,
+    continuation_ty: TypeId,
+) -> Result<(), LlvmEmitError> {
+    match refactor_thread_resume_continuation_ty_is_pure(types, continuation_ty) {
+        Some(true) => Ok(()),
+        Some(false) => Err(frontend_error(format!(
+            "refactor thread spawn+resume `{dispatch_fqn}` received non-Pure continuation type t{} for schema k{} / step s{}; MIR-T13 requires the upstream cross-thread resume diagnostic gate to reject non-Pure continuations before codegen",
+            continuation_ty.as_u32(),
+            surface.continuation_schema().as_u32(),
+            step_layout.step_schema().as_u32(),
+        ))),
+        None => Err(frontend_error(format!(
+            "refactor thread spawn+resume `{dispatch_fqn}` continuation operand type t{} is not a published Continuation type for schema k{} / step s{}",
+            continuation_ty.as_u32(),
+            surface.continuation_schema().as_u32(),
+            step_layout.step_schema().as_u32(),
+        ))),
+    }
+}
+
+fn refactor_thread_resume_continuation_ty_is_pure(types: &TypeStore, ty: TypeId) -> Option<bool> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.core.Continuation" =>
+        {
+            Some(nominal.eff.as_ref().is_none_or(|row| row.is_pure()))
+        }
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            refactor_thread_resume_continuation_ty_is_pure(types, *inner)
+        }
+        _ => None,
+    }
+}
+
+fn refactor_thread_resume_case_is_runtime_error<'ctx>(
+    case: &super::types::RefactorStepCaseLayout<'ctx>,
+) -> bool {
+    case.concrete_op_key()
+        .instance_key()
+        .template
+        .fqn
+        .starts_with("scoop.core.Raise.raise")
+        && case
+            .concrete_op_key()
+            .effect_family()
+            .effect_fqn()
+            .starts_with("scoop.core.Raise")
+}
+
+fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
+    codegen: &mut MainCodegen<'a, 'ctx>,
+    function: FunctionValue<'ctx>,
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &RefactorStepLayout<'ctx>,
+    step: BasicValueEnum<'ctx>,
+    name: &str,
+) -> Result<(), LlvmEmitError> {
+    if step_layout.cases().is_empty() {
+        codegen.builder.build_return(None)?;
+        return Ok(());
+    }
+
+    let BasicValueEnum::StructValue(step_struct) = step else {
+        return Err(frontend_error(format!(
+            "refactor thread resume surface `{}` did not return a Step_F struct",
+            surface.symbol_name()
+        )));
+    };
+    let tag = codegen
+        .builder
+        .build_extract_value(step_struct, 0, &format!("{name}_step_tag"))?
+        .into_int_value();
+    let complete_bb = codegen.context.append_basic_block(function, "complete");
+    let dispatch_bb = codegen
+        .context
+        .append_basic_block(function, "non_complete_dispatch");
+    let invalid_bb = codegen
+        .context
+        .append_basic_block(function, "invalid_non_complete");
+    let mut cases = Vec::new();
+    let mut case_blocks = Vec::new();
+    for case in step_layout.cases().values() {
+        let bb = codegen.context.append_basic_block(
+            function,
+            &format!("runtime_error_c{}", case.case_tag().as_u32()),
+        );
+        cases.push((
+            tag.get_type()
+                .const_int(case.variant().tag_value() as u64, false),
+            bb,
+        ));
+        case_blocks.push((case, bb, refactor_thread_resume_case_is_runtime_error(case)));
+    }
+
+    let is_complete = codegen.builder.build_int_compare(
+        IntPredicate::EQ,
+        tag,
+        tag.get_type()
+            .const_int(THREAD_RESUME_STEP_TAG_COMPLETE, false),
+        &format!("{name}_is_complete"),
+    )?;
+    codegen
+        .builder
+        .build_conditional_branch(is_complete, complete_bb, dispatch_bb)?;
+
+    codegen.builder.position_at_end(complete_bb);
+    codegen.builder.build_return(None)?;
+
+    codegen.builder.position_at_end(dispatch_bb);
+    codegen.builder.build_switch(tag, invalid_bb, &cases)?;
+
+    for (case, bb, is_runtime_error) in case_blocks {
+        codegen.builder.position_at_end(bb);
+        if !is_runtime_error {
+            codegen.builder.build_unreachable()?;
+            continue;
+        }
+        let payload = codegen.refactor_extract_step_payload(
+            step_layout,
+            step,
+            case.variant(),
+            &format!("{name}_runtime_error_payload"),
+        )?;
+        let payload = refactor_thread_resume_runtime_error_payload_ptr(
+            codegen,
+            payload,
+            case.case_tag().as_u32(),
+            name,
+        )?;
+        let payload = codegen.builder.build_pointer_cast(
+            payload,
+            codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_runtime_error_payload_i8"),
+        )?;
+        let fatal = codegen.declare_runtime_error_fatal();
+        let _ = codegen.builder.build_call(
+            fatal,
+            &[payload.into()],
+            &format!("{name}_runtime_error_fatal"),
+        )?;
+        codegen.builder.build_return(None)?;
+    }
+
+    codegen.builder.position_at_end(invalid_bb);
+    codegen.builder.build_unreachable()?;
+    Ok(())
+}
+
+fn refactor_thread_resume_runtime_error_payload_ptr<'a, 'ctx>(
+    codegen: &mut MainCodegen<'a, 'ctx>,
+    payload: Option<BasicValueEnum<'ctx>>,
+    case_tag: u32,
+    name: &str,
+) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+    match payload {
+        Some(BasicValueEnum::PointerValue(payload)) => Ok(payload),
+        Some(payload) => {
+            let slot = codegen.builder.build_alloca(
+                payload.get_type(),
+                &format!("{name}_runtime_error_payload_obj"),
+            )?;
+            codegen.builder.build_store(slot, payload)?;
+            Ok(slot)
+        }
+        None => Err(frontend_error(format!(
+            "refactor thread resume non-complete RuntimeError case c{case_tag} did not carry a RuntimeError ref payload"
+        ))),
+    }
 }
 
 fn build_refactor_thread_resume_surface_payload_arg<'a, 'ctx>(
@@ -5872,5 +6027,22 @@ mod tests {
         assert!(value.contains("mir::StatementKind::StoreMember"));
         assert!(value.contains("codegen_mir_store_member"));
         assert!(value.contains("mir::Rvalue::MemberAccess"));
+    }
+
+    #[test]
+    fn refactor_llvm_thread_resume_noncomplete_policy_consumes_frontend_gate() {
+        let value = include_str!("value.rs");
+
+        assert!(value.contains("verify_refactor_thread_resume_surface_policy"));
+        assert!(
+            value.contains("MIR-T13 requires the upstream cross-thread resume diagnostic gate")
+        );
+        assert!(value.contains("emit_refactor_thread_resume_step_terminal"));
+        assert!(value.contains("declare_runtime_error_fatal"));
+        assert!(!value.contains(concat!(
+            "scoop_refactor_thread_",
+            "resume_noncomplete_fatal"
+        )));
+        assert!(!value.contains(concat!("refactor_thread_", "resume_noncomplete")));
     }
 }

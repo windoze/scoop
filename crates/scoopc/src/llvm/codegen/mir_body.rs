@@ -1533,7 +1533,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         store: MirStoreMemberSupport<'_>,
     ) -> bool {
-        if mir_store_member_continuation_route_is_lowerable(span, store.continuation_route).is_err()
+        if mir_store_member_continuation_route_is_lowerable(span, body, store.continuation_route)
+            .is_err()
             || !self.raw_materialized_mir_operand_is_supported(store.receiver)
             || !self.raw_materialized_mir_operand_is_supported(store.value)
         {
@@ -4118,7 +4119,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
-        mir_store_member_continuation_route_is_lowerable(span, continuation_route)?;
+        mir_store_member_continuation_route_is_lowerable(span, body, continuation_route)?;
 
         let mir_ctx = MirBodyCodegenCtx {
             body,
@@ -9217,6 +9218,7 @@ fn mir_member_value_fqn_for_codegen(
 
 fn mir_store_member_continuation_route_is_lowerable(
     span: crate::span::Span,
+    body: &crate::mir::Body,
     continuation_route: &crate::mir::StoredContinuationRoutePublication,
 ) -> Result<(), LlvmEmitError> {
     match continuation_route {
@@ -9226,8 +9228,22 @@ fn mir_store_member_continuation_route_is_lowerable(
                 at: span.into(),
             })
         }
-        crate::mir::StoredContinuationRoutePublication::None
-        | crate::mir::StoredContinuationRoutePublication::Unique(_) => Ok(()),
+        crate::mir::StoredContinuationRoutePublication::None => Ok(()),
+        crate::mir::StoredContinuationRoutePublication::Unique(route) => {
+            let Some(local) = body.locals.get(route.source_local.as_u32() as usize) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR member continuation route missing source local",
+                    at: span.into(),
+                });
+            };
+            if local.ty != route.source_ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR member continuation route source type drift",
+                    at: span.into(),
+                });
+            }
+            Ok(())
+        }
     }
 }
 
@@ -9511,11 +9527,55 @@ mod tests {
 
     #[test]
     fn refactor_mir_store_member_codegen_rejects_ambiguous_continuation_route() {
+        let body = crate::mir::Body::new_empty();
         let result = mir_store_member_continuation_route_is_lowerable(
             crate::span::Span::new(0, 1),
+            &body,
             &crate::mir::StoredContinuationRoutePublication::Ambiguous,
         );
 
         assert_unsupported_kind(result, "pass MIR ambiguous member continuation route");
+    }
+
+    #[test]
+    fn refactor_mir_store_member_codegen_validates_unique_continuation_route_source() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = crate::mir::Body::new_empty();
+        let source_local = body.push_local(crate::mir::LocalDecl {
+            span: crate::span::Span::new(0, 1),
+            name: Some("k".to_string()),
+            ty: builtins.unit,
+            source: crate::mir::LocalSourceKind::SourceLocal,
+        });
+
+        let ok = mir_store_member_continuation_route_is_lowerable(
+            crate::span::Span::new(0, 1),
+            &body,
+            &crate::mir::StoredContinuationRoutePublication::Unique(
+                crate::mir::StoredContinuationValueRoute {
+                    source_local,
+                    source_ty: builtins.unit,
+                    path: Vec::new(),
+                },
+            ),
+        );
+        assert!(ok.is_ok());
+
+        let drift = mir_store_member_continuation_route_is_lowerable(
+            crate::span::Span::new(0, 1),
+            &body,
+            &crate::mir::StoredContinuationRoutePublication::Unique(
+                crate::mir::StoredContinuationValueRoute {
+                    source_local,
+                    source_ty: builtins.int,
+                    path: Vec::new(),
+                },
+            ),
+        );
+        assert_unsupported_kind(
+            drift,
+            "pass MIR member continuation route source type drift",
+        );
     }
 }
