@@ -1139,6 +1139,11 @@ fn infer_function_type_call_expr_type(
         });
     }
 
+    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
+    if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+    }
+
     // required effects：调用一个带 effect row 的函数值，需要把该 row 计入当前函数体的 required effects。
     for effect in fun.effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
@@ -1360,6 +1365,11 @@ fn infer_funptr_type_call_expr_type(
             found: lower.fmt_type(found_ty),
             span: arg.expr.span.into(),
         });
+    }
+
+    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
+    if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
 
     for effect in fun.effects.terms.iter().copied() {

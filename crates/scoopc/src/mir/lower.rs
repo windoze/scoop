@@ -65,6 +65,7 @@ enum MirSiteContractSource {
 pub(crate) struct MirLoweringFacts {
     site_contract_source: MirSiteContractSource,
     dispatch_call_sites: HashMap<hir::DispatchCallSite, DispatchTargetKind>,
+    call_arg_bindings: HashMap<hir::CallSite, CallArgBindingContract>,
     legacy_resume_site_spans: HashSet<Span>,
     legacy_outward_resume_site_spans: HashSet<Span>,
     legacy_perform_sites: HashMap<Span, PerformCallSiteInfo>,
@@ -92,6 +93,7 @@ impl Default for MirLoweringFacts {
         Self {
             site_contract_source: MirSiteContractSource::LegacyFallbacks,
             dispatch_call_sites: HashMap::new(),
+            call_arg_bindings: HashMap::new(),
             legacy_resume_site_spans: HashSet::new(),
             legacy_outward_resume_site_spans: HashSet::new(),
             legacy_perform_sites: HashMap::new(),
@@ -172,6 +174,43 @@ fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
     }
 }
 
+fn lowered_call_arg_binding_contract(binding: &ast::CallArgBinding) -> CallArgBindingContract {
+    CallArgBindingContract::new(
+        binding
+            .params
+            .iter()
+            .map(|param| match param {
+                ast::CallArgParamBinding::Receiver => CallArgParamContract::Receiver,
+                ast::CallArgParamBinding::Explicit(element) => CallArgParamContract::Explicit(
+                    crate::effect_refactor_pipeline::CallArgElementContract::new(
+                        element.arg_index,
+                        element.spread,
+                    ),
+                ),
+                ast::CallArgParamBinding::Default => CallArgParamContract::Default,
+                ast::CallArgParamBinding::Vararg(elements) => CallArgParamContract::Vararg(
+                    elements
+                        .iter()
+                        .map(|element| {
+                            crate::effect_refactor_pipeline::CallArgElementContract::new(
+                                element.arg_index,
+                                element.spread,
+                            )
+                        })
+                        .collect(),
+                ),
+            })
+            .collect(),
+    )
+}
+
+fn call_arg_binding_has_receiver(binding: &CallArgBindingContract) -> bool {
+    binding
+        .params()
+        .iter()
+        .any(|param| matches!(param, CallArgParamContract::Receiver))
+}
+
 impl MirLoweringFacts {
     pub(crate) fn from_lowered_hir(lowered: &hir::LoweredHir) -> Self {
         Self::from_hir_side_tables_and_resume_spans(
@@ -188,6 +227,7 @@ impl MirLoweringFacts {
             &lowered.when_pat_binding_tys,
             &lowered.top_level_fun_call_sites,
         )
+        .with_call_arg_bindings(lowered)
         .with_member_value_types(lowered)
         .with_nominal_kinds(lowered)
         .with_class_ctor_call_sites(lowered)
@@ -219,6 +259,7 @@ impl MirLoweringFacts {
             .top_level_fun_call_sites
             .extend(lowered.top_level_fun_call_sites.clone());
         facts = facts
+            .with_call_arg_bindings(lowered)
             .with_member_value_types(lowered)
             .with_nominal_kinds(lowered)
             .with_class_ctor_call_sites(lowered)
@@ -312,6 +353,16 @@ impl MirLoweringFacts {
             }
         }
 
+        self
+    }
+
+    fn with_call_arg_bindings(mut self, lowered: &hir::LoweredHir) -> Self {
+        self.call_arg_bindings.extend(
+            lowered
+                .call_arg_bindings
+                .iter()
+                .map(|(site, binding)| (site.clone(), lowered_call_arg_binding_contract(binding))),
+        );
         self
     }
 
@@ -548,6 +599,15 @@ impl MirLoweringFacts {
         call_span: Span,
     ) -> Option<&ast::TopLevelFunCallBinding> {
         self.top_level_fun_call_sites
+            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
+    }
+
+    fn call_arg_binding(
+        &self,
+        source_path: &std::path::Path,
+        call_span: Span,
+    ) -> Option<&CallArgBindingContract> {
+        self.call_arg_bindings
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
@@ -3483,16 +3543,99 @@ impl<'a> FnLowering<'a> {
         Some(out)
     }
 
+    /// 将 HIR side table 发布的 call-arg binding 收口为稳定的 MIR 槽位顺序。
+    ///
+    /// 这里仅处理当前 refactor 主线已显式 contract 化的简单 receiver/explicit case；
+    /// 对 default/vararg/spread 等更复杂形状维持原顺序，避免在 MIR lowering 现场猜测。
+    fn canonicalize_call_args_from_binding(
+        &self,
+        args: Vec<CallArg>,
+        binding: Option<&CallArgBindingContract>,
+    ) -> Vec<CallArg> {
+        let Some(binding) = binding else {
+            return args;
+        };
+
+        let mut claimed_source_args = vec![false; args.len()];
+        let mut ordered_source_indices = Vec::with_capacity(binding.params().len());
+        let mut receiver_slot: Option<usize> = None;
+
+        for (param_idx, param) in binding.params().iter().enumerate() {
+            match param {
+                CallArgParamContract::Explicit(element) => {
+                    if element.spread() {
+                        return args;
+                    }
+                    let source_arg_idx = element.arg_index();
+                    if source_arg_idx >= args.len() || claimed_source_args[source_arg_idx] {
+                        return args;
+                    }
+                    claimed_source_args[source_arg_idx] = true;
+                    ordered_source_indices.push(source_arg_idx);
+                }
+                CallArgParamContract::Receiver => {
+                    if receiver_slot.replace(param_idx).is_some() {
+                        return args;
+                    }
+                    ordered_source_indices.push(usize::MAX);
+                }
+                CallArgParamContract::Default | CallArgParamContract::Vararg(_) => {
+                    return args;
+                }
+            }
+        }
+
+        if ordered_source_indices.len() != args.len() {
+            return args;
+        }
+
+        let receiver_source_arg_idx = if receiver_slot.is_some() {
+            let mut unclaimed = claimed_source_args
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, claimed)| (!*claimed).then_some(idx));
+            let Some(receiver_source_arg_idx) = unclaimed.next() else {
+                return args;
+            };
+            if unclaimed.next().is_some() {
+                return args;
+            }
+            Some(receiver_source_arg_idx)
+        } else {
+            if claimed_source_args.iter().any(|claimed| !*claimed) {
+                return args;
+            }
+            None
+        };
+
+        let mut ordered = Vec::with_capacity(args.len());
+        for source_arg_idx in ordered_source_indices {
+            let source_arg_idx = if source_arg_idx == usize::MAX {
+                receiver_source_arg_idx.expect("receiver slot should exist when placeholder is used")
+            } else {
+                source_arg_idx
+            };
+            let mut arg = args[source_arg_idx].clone();
+            arg.name = None;
+            ordered.push(arg);
+        }
+        ordered
+    }
+
     fn source_arg_expected_tys_for_function(
         &self,
         function: &FunctionTargetContract,
         explicit_arg_count: usize,
+        args_include_receiver: bool,
     ) -> Vec<Option<TypeId>> {
         let mut expected = vec![None; explicit_arg_count];
         let Some(param_tys) = self.top_level_fun_param_tys.get(function.fqn()) else {
             return expected;
         };
         if let Some(binding) = function.arg_binding() {
+            if args_include_receiver && call_arg_binding_has_receiver(binding) {
+                return expected;
+            }
             self.fill_expected_tys_from_arg_binding(&mut expected, param_tys, binding);
             return expected;
         }
@@ -3508,24 +3651,41 @@ impl<'a> FnLowering<'a> {
         param_tys: &[TypeId],
         binding: &CallArgBindingContract,
     ) {
+        let mut claimed_source_args = vec![false; expected.len()];
+        let mut receiver_target_ty = None;
         for (param_index, param) in binding.params().iter().enumerate() {
             let Some(target_ty) = param_tys.get(param_index).copied() else {
                 continue;
             };
             match param {
+                CallArgParamContract::Receiver => receiver_target_ty = Some(target_ty),
                 CallArgParamContract::Explicit(element) => {
                     if let Some(slot) = expected.get_mut(element.arg_index()) {
                         *slot = Some(target_ty);
+                        claimed_source_args[element.arg_index()] = true;
                     }
                 }
                 CallArgParamContract::Vararg(elements) => {
                     for element in elements {
                         if let Some(slot) = expected.get_mut(element.arg_index()) {
                             *slot = Some(target_ty);
+                            claimed_source_args[element.arg_index()] = true;
                         }
                     }
                 }
-                CallArgParamContract::Receiver | CallArgParamContract::Default => {}
+                CallArgParamContract::Default => {}
+            }
+        }
+        if let Some(target_ty) = receiver_target_ty {
+            let mut unclaimed = claimed_source_args
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, claimed)| (!*claimed).then_some(idx));
+            if let Some(receiver_idx) = unclaimed.next()
+                && unclaimed.next().is_none()
+                && let Some(slot) = expected.get_mut(receiver_idx)
+            {
+                *slot = Some(target_ty);
             }
         }
     }
@@ -3534,12 +3694,22 @@ impl<'a> FnLowering<'a> {
         &self,
         callee_ty: TypeId,
         explicit_arg_count: usize,
+        binding: Option<&CallArgBindingContract>,
     ) -> Vec<Option<TypeId>> {
         let mut expected = vec![None; explicit_arg_count];
         let TypeKind::Ref(RefTypeKind::Function(fun)) = self.types.kind(callee_ty) else {
             return expected;
         };
-        for (index, target_ty) in fun.params.iter().copied().enumerate().take(expected.len()) {
+        let mut param_tys = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+        if let Some(receiver_ty) = fun.receiver {
+            param_tys.push(receiver_ty);
+        }
+        param_tys.extend(fun.params.iter().copied());
+        if let Some(binding) = binding {
+            self.fill_expected_tys_from_arg_binding(&mut expected, &param_tys, binding);
+            return expected;
+        }
+        for (index, target_ty) in param_tys.iter().copied().enumerate().take(expected.len()) {
             expected[index] = Some(target_ty);
         }
         expected
@@ -3598,12 +3768,27 @@ impl<'a> FnLowering<'a> {
                 self.lower_refactor_constructor_call_expr(span, result, &ctor, args);
                 true
             }
-            TypedCallSiteContract::Closure { .. } => {
-                self.lower_refactor_callable_value_call_expr(span, result, callee, args, true);
+            TypedCallSiteContract::Closure { arg_binding, .. } => {
+                self.lower_refactor_callable_value_call_expr(
+                    span,
+                    result,
+                    callee,
+                    args,
+                    arg_binding.as_ref(),
+                    true,
+                );
                 true
             }
-            TypedCallSiteContract::FunValue { .. } | TypedCallSiteContract::FunPtr { .. } => {
-                self.lower_refactor_callable_value_call_expr(span, result, callee, args, false);
+            TypedCallSiteContract::FunValue { arg_binding, .. }
+            | TypedCallSiteContract::FunPtr { arg_binding, .. } => {
+                self.lower_refactor_callable_value_call_expr(
+                    span,
+                    result,
+                    callee,
+                    args,
+                    arg_binding.as_ref(),
+                    false,
+                );
                 true
             }
             TypedCallSiteContract::Virtual(member) => {
@@ -3670,12 +3855,16 @@ impl<'a> FnLowering<'a> {
         args: &[hir::CallArg],
         function: Option<&FunctionTargetContract>,
     ) {
+        let arg_binding = function
+            .and_then(FunctionTargetContract::arg_binding)
+            .filter(|binding| !call_arg_binding_has_receiver(binding));
         let expected_tys = function
-            .map(|function| self.source_arg_expected_tys_for_function(function, args.len()))
+            .map(|function| self.source_arg_expected_tys_for_function(function, args.len(), true))
             .unwrap_or_else(|| vec![None; args.len()]);
         let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return;
         };
+        let args = self.canonicalize_call_args_from_binding(args, arg_binding);
         let kind = CallKind::Direct {
             callee_fqn: callee_fqn.to_string(),
         };
@@ -3741,6 +3930,7 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee: &hir::Expr,
         args: &[hir::CallArg],
+        arg_binding: Option<&CallArgBindingContract>,
         prefer_closure_kind: bool,
     ) {
         let callee_local = self.lower_expr_to_local(callee);
@@ -3748,10 +3938,12 @@ impl<'a> FnLowering<'a> {
             return;
         }
         let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
-        let expected_tys = self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len());
+        let expected_tys =
+            self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len(), arg_binding);
         let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return;
         };
+        let args = self.canonicalize_call_args_from_binding(args, arg_binding);
         let origin = self.value_origins.get(&callee_local).cloned();
         let gc_intrinsic_callee =
             gc_intrinsic_callee_from_origin(origin.as_ref()).map(str::to_string);
@@ -3858,7 +4050,7 @@ impl<'a> FnLowering<'a> {
             return;
         }
         let expected_tys =
-            self.source_arg_expected_tys_for_function(member.function(), call_args.len());
+            self.source_arg_expected_tys_for_function(member.function(), call_args.len(), false);
         let Some(args) = self.lower_call_args_with_expected(call_args, &expected_tys) else {
             return;
         };
@@ -4598,6 +4790,8 @@ impl<'a> FnLowering<'a> {
                 }
             }
         };
+        let arg_binding = self.facts.call_arg_binding(self.source_path.as_path(), span);
+        let direct_arg_binding = arg_binding.filter(|binding| !call_arg_binding_has_receiver(binding));
         let expected_tys = match &kind {
             CallKind::Direct { callee_fqn } => self
                 .top_level_fun_param_tys
@@ -4613,7 +4807,7 @@ impl<'a> FnLowering<'a> {
                 })
                 .unwrap_or_else(|| vec![None; args.len()]),
             CallKind::Closure { .. } | CallKind::FunValue { .. } => {
-                self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len())
+                self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len(), arg_binding)
             }
             CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => {
                 vec![None; args.len()]
@@ -4622,6 +4816,14 @@ impl<'a> FnLowering<'a> {
         let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return result;
         };
+        let args = self.canonicalize_call_args_from_binding(
+            args,
+            if matches!(kind, CallKind::Direct { .. }) {
+                direct_arg_binding
+            } else {
+                arg_binding
+            },
+        );
         let terminates_current_block = matches!(
             &kind,
             CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
@@ -6445,7 +6647,7 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
 mod tests {
     use super::*;
     use crate::effect_refactor_pipeline::TypedHirEffectContracts;
-    use crate::session::Session;
+    use crate::session::{EffectPipelineMode, Session, SessionOptions};
     use crate::source::SourceFile;
     use std::path::PathBuf;
 
@@ -6769,6 +6971,52 @@ fun entry(lhs: Num, rhs: Num): Int {
                 .any(|binding| binding.fqn == "Num.compareTo"),
             "typed HIR side table 应保留 fixture compareTo 站点的 direct-call binding"
         );
+    }
+
+    #[test]
+    fn dump_mir_canonicalizes_callable_receiver_named_args_by_binding() {
+        let sess = Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                _ => None,
+            })
+            .expect("expected main MIR root");
+        let body = fun.body.as_ref().expect("main should have a MIR body");
+
+        let call_args_at = |span: Span| {
+            body.blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .find_map(|stmt| match &stmt.kind {
+                    StatementKind::Assign {
+                        value: Rvalue::Call { args, .. },
+                        ..
+                    } if stmt.span == span => Some(args.as_slice()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("missing call at span {span:?}"))
+        };
+
+        let when_fun_value_args = call_args_at(Span::new(1442, 1469));
+        assert_eq!(when_fun_value_args.len(), 2);
+        assert_eq!(when_fun_value_args[0].span, Span::new(1463, 1468));
+        assert_eq!(when_fun_value_args[1].span, Span::new(1449, 1450));
+
+        let top_funptr_args = call_args_at(Span::new(1770, 1797));
+        assert_eq!(top_funptr_args.len(), 2);
+        assert_eq!(top_funptr_args[0].span, Span::new(1795, 1796));
+        assert_eq!(top_funptr_args[1].span, Span::new(1781, 1782));
     }
 
     #[test]

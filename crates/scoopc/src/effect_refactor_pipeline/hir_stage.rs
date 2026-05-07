@@ -557,6 +557,10 @@ pub struct CallArgBindingContract {
 }
 
 impl CallArgBindingContract {
+    pub fn new(params: Vec<CallArgParamContract>) -> Self {
+        Self { params }
+    }
+
     pub fn params(&self) -> &[CallArgParamContract] {
         &self.params
     }
@@ -577,6 +581,10 @@ pub struct CallArgElementContract {
 }
 
 impl CallArgElementContract {
+    pub fn new(arg_index: usize, spread: bool) -> Self {
+        Self { arg_index, spread }
+    }
+
     pub fn arg_index(&self) -> usize {
         self.arg_index
     }
@@ -630,14 +638,14 @@ impl FunctionTargetContract {
         }
     }
 
-    fn synthetic(fqn: String) -> Self {
+    fn synthetic_with_arg_binding(fqn: String, arg_binding: Option<CallArgBindingContract>) -> Self {
         Self {
             fqn,
             decl_file: None,
             decl_span: None,
             type_args: Vec::new(),
             eff_args: Vec::new(),
-            arg_binding: None,
+            arg_binding,
         }
     }
 
@@ -768,14 +776,17 @@ pub enum TypedCallSiteContract {
     Closure {
         callee_ty: TypeId,
         return_ty: TypeId,
+        arg_binding: Option<CallArgBindingContract>,
     },
     FunValue {
         callee_ty: TypeId,
         return_ty: TypeId,
+        arg_binding: Option<CallArgBindingContract>,
     },
     FunPtr {
         callee_ty: TypeId,
         return_ty: TypeId,
+        arg_binding: Option<CallArgBindingContract>,
     },
     Virtual(MemberCallTargetContract),
     Interface(MemberCallTargetContract),
@@ -1569,8 +1580,10 @@ impl<'a> ContractCollector<'a> {
             return Ok(());
         }
 
+        let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            let function = FunctionTargetContract::synthetic(fqn.clone());
+            let function =
+                FunctionTargetContract::synthetic_with_arg_binding(fqn.clone(), arg_binding.clone());
             if let Some((dispatch_kind, receiver_ty)) =
                 self.dispatch_kind_and_receiver_ty(source_path, expr.span)
             {
@@ -1607,16 +1620,19 @@ impl<'a> ContractCollector<'a> {
             Some(TypedCallSiteContract::Closure {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                arg_binding: arg_binding.clone(),
             })
         } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunPtr {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                arg_binding: arg_binding.clone(),
             })
         } else if is_function_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunValue {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                arg_binding,
             })
         } else {
             None
@@ -2690,17 +2706,23 @@ fn format_call_site_contract(
         TypedCallSiteContract::Closure {
             callee_ty,
             return_ty,
+            arg_binding,
         }
         | TypedCallSiteContract::FunValue {
             callee_ty,
             return_ty,
+            arg_binding,
         }
         | TypedCallSiteContract::FunPtr {
             callee_ty,
             return_ty,
+            arg_binding,
         } => {
             let _ = writeln!(out, "            callee_ty: {},", types.display(*callee_ty));
             let _ = writeln!(out, "            return_ty: {},", types.display(*return_ty));
+            if let Some(binding) = arg_binding {
+                let _ = writeln!(out, "            arg_binding: {:?},", binding.params());
+            }
         }
         TypedCallSiteContract::Virtual(member) | TypedCallSiteContract::Interface(member) => {
             format_member_target(out, types, member, "dispatch");
@@ -3945,6 +3967,62 @@ fun runtime(): String {
             saw_get_platform,
             "getPlatform intrinsic contract missing: {dump}"
         );
+    }
+
+    #[test]
+    fn refactor_hir_callable_receiver_named_args_publish_binding_contracts() {
+        let session = refactor_session();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+
+        let output = run(&session, &source).expect("fixture 应发布 callable-value binding contract");
+        let contracts = output.effect_contracts().call_site_contracts();
+
+        let when_fun_value = contracts
+            .iter()
+            .find_map(|(site, contract)| (site.span == Span::new(1442, 1469)).then_some(contract))
+            .expect("when pattern binder 的 callable-value call contract 应存在");
+        let TypedCallSiteContract::FunValue {
+            arg_binding: Some(binding),
+            ..
+        } = when_fun_value
+        else {
+            panic!("when callable-value call 应携带 arg binding: {when_fun_value:?}");
+        };
+        assert!(matches!(
+            binding.params(),
+            [
+                CallArgParamContract::Explicit(receiver),
+                CallArgParamContract::Explicit(arg0)
+            ] if receiver.arg_index() == 1
+                && !receiver.spread()
+                && arg0.arg_index() == 0
+                && !arg0.spread()
+        ));
+
+        let top_funptr = contracts
+            .iter()
+            .find_map(|(site, contract)| (site.span == Span::new(1770, 1797)).then_some(contract))
+            .expect("top-level FunPtr call contract 应存在");
+        let TypedCallSiteContract::DirectTopLevel(function) = top_funptr else {
+            panic!("top-level FunPtr call 应继续通过 synthetic direct contract 发布: {top_funptr:?}");
+        };
+        let binding = function
+            .arg_binding()
+            .expect("top-level FunPtr synthetic direct contract 应携带 arg binding");
+        assert!(matches!(
+            binding.params(),
+            [
+                CallArgParamContract::Explicit(receiver),
+                CallArgParamContract::Explicit(arg0)
+            ] if receiver.arg_index() == 1
+                && !receiver.spread()
+                && arg0.arg_index() == 0
+                && !arg0.spread()
+        ));
     }
 
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
