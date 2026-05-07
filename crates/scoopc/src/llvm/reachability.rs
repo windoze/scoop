@@ -20,6 +20,7 @@ pub(super) struct ReachabilityInputs<'a> {
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    pub(super) extern_globals: &'a hir::ExternGlobalIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
 }
 
@@ -37,6 +38,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        extern_globals,
         object_inits,
     } = inputs;
     let mut collector = ReachabilityCollector {
@@ -48,6 +50,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        extern_globals,
         object_inits,
         materialized_pass_view,
         seen_calls: HashSet::new(),
@@ -112,6 +115,7 @@ struct ReachabilityCollector<'a> {
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    extern_globals: &'a hir::ExternGlobalIndex,
     object_inits: &'a hir::ObjectInitIndex,
 
     seen_calls: HashSet<String>,
@@ -495,6 +499,7 @@ impl<'a> ReachabilityCollector<'a> {
                             || self.top_level_consts.contains_key(fqn)
                             || self.top_level_immutable_values.contains_key(fqn)
                             || self.top_level_vars.contains_key(fqn)
+                            || self.extern_globals.contains_key(fqn)
                     }
                     mir::Rvalue::SizeOf { .. } => true,
                     _ => false,

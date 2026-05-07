@@ -24,7 +24,7 @@ use crate::ty::{
 use crate::warnings::{self, CompileWarning};
 
 use super::assignable::is_type_assignable;
-use super::builtin_annotations::collect_file_warning_suppressions;
+use super::builtin_annotations::{BuiltinAnnotationFlags, collect_file_warning_suppressions};
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
@@ -420,6 +420,8 @@ pub(crate) struct TypeLowering<'a> {
     /// - 用于表达式 typecheck 阶段对 `x = ...`（lhs 为顶层符号）做最小“可写性”门禁；
     /// - 当前阶段该表只覆盖“创建该 TypeLowering 时传入的 file”的顶层声明（与 `top_level_types` 一致）。
     top_level_value_mutabilities: HashMap<String, bool>,
+    /// Top-level `@Extern` value FQNs visible to this file.
+    extern_global_fqns: HashSet<String>,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// effect row parameter 作用域栈：用于 lowering `/ E` 这类 row 变量引用（T0509）。
@@ -617,6 +619,7 @@ impl<'a> TypeLowering<'a> {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         let top_level_value_mutabilities =
             collect_top_level_value_mutabilities(source, file, &pkg_prefix);
+        let extern_global_fqns = collect_extern_global_fqns(source, file, env);
 
         let mut ctx = Self::new_with_ctx(
             source,
@@ -628,6 +631,7 @@ impl<'a> TypeLowering<'a> {
             imports.clone(),
         );
         ctx.top_level_value_mutabilities = top_level_value_mutabilities;
+        ctx.extern_global_fqns = extern_global_fqns;
         ctx
     }
 
@@ -654,6 +658,7 @@ impl<'a> TypeLowering<'a> {
             builtins,
             pkg_prefix,
             top_level_value_mutabilities: HashMap::new(),
+            extern_global_fqns: HashSet::new(),
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
             type_alias_stack: Vec::new(),
@@ -700,6 +705,10 @@ impl<'a> TypeLowering<'a> {
             .get(fqn)
             .copied()
             .unwrap_or(false)
+    }
+
+    pub(super) fn is_extern_global(&self, fqn: &str) -> bool {
+        self.extern_global_fqns.contains(fqn)
     }
 
     pub(super) fn set_warning_emission_enabled(&mut self, enabled: bool) {
@@ -3822,6 +3831,53 @@ fn collect_top_level_value_mutabilities(
     }
 
     map
+}
+
+fn collect_extern_global_fqns(
+    source: &SourceFile,
+    file: &ast::File,
+    env: &TypeEnv,
+) -> HashSet<String> {
+    let mut out = HashSet::new();
+    collect_extern_global_fqns_in_file(source, file, &mut out);
+
+    for (path, stored_file) in env.files() {
+        if path.as_path() == source.path() {
+            continue;
+        }
+        let Some(stored_source) = env.source(path) else {
+            continue;
+        };
+        collect_extern_global_fqns_in_file(stored_source, stored_file, &mut out);
+    }
+
+    out
+}
+
+fn collect_extern_global_fqns_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    out: &mut HashSet<String>,
+) {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    for item in &file.items {
+        let ast::Item::Val(v) = item else {
+            continue;
+        };
+        if !BuiltinAnnotationFlags::from_annotations(source, &v.annotations).is_extern {
+            continue;
+        }
+        let ast::ValBinding::Name(name) = &v.binding else {
+            continue;
+        };
+        let local_name = source.slice(name.span);
+        let fqn = if pkg_prefix.is_empty() {
+            local_name.to_string()
+        } else {
+            format!("{pkg_prefix}.{local_name}")
+        };
+        out.insert(fqn);
+    }
 }
 
 /// 单态化（monomorphization）请求集合：去重 + 保留稳定顺序。

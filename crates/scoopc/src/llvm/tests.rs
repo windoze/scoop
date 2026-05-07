@@ -609,6 +609,51 @@ fun main(): Int {
 }
 
 #[test]
+fn refactor_llvm_extern_global() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/cg_t07_extern_global.scoop",
+        r#"
+package fixtures.cgt07
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_extern_global_counter")
+var NativeCounter: Int
+
+@ThreadLocal
+@Extern(name = "scoop_test_extern_tls_counter")
+var NativeTls: Int
+
+fun main(): Int {
+    @Unsafe do { NativeCounter = 1 }
+    @Unsafe do { NativeTls = NativeCounter + 1 }
+    val value: Int = @Unsafe do { NativeTls }
+    return value - 2
+}
+"#,
+    );
+
+    let context = Context::create();
+    let ir = build_minimal_main_module(&session, &source, &context)
+        .unwrap()
+        .print_to_string()
+        .to_string();
+    assert!(
+        ir.contains("@scoop_test_extern_global_counter = external global i64"),
+        "extern global should lower to the published C symbol instead of a Scoop init root:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_test_extern_tls_counter = external thread_local global i64"),
+        "@ThreadLocal @Extern var should preserve TLS storage in LLVM:\n{ir}"
+    );
+    assert!(
+        !ir.contains("fixtures.cgt07.NativeCounter"),
+        "extern global codegen must not synthesize ordinary top-level storage from the FQN:\n{ir}"
+    );
+}
+
+#[test]
 fn float_builtin_types_lower_to_llvm_scalars() {
     let source = SourceFile::new_virtual(
         "<mem>",

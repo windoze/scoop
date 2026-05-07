@@ -283,6 +283,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     && !self.codegen.top_level_consts.contains_key(fqn)
                     && !self.codegen.top_level_immutable_values.contains_key(fqn)
                     && !self.codegen.top_level_vars.contains_key(fqn)
+                    && !self.codegen.has_extern_global_contract(fqn)
                     && !self.static_enum_unit_variant_value(fqn)
                 {
                     return Ok(());
@@ -551,6 +552,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         || self.codegen.top_level_consts.contains_key(fqn)
                         || self.codegen.top_level_immutable_values.contains_key(fqn)
                         || self.codegen.top_level_vars.contains_key(fqn)
+                        || self.codegen.has_extern_global_contract(fqn)
                         || self.static_enum_unit_variant_value(fqn)) =>
             {
                 if self.codegen.lookup_object_property_by_fqn(fqn).is_some() {
@@ -673,6 +675,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             || self.codegen.top_level_consts.contains_key(fqn)
             || self.codegen.top_level_immutable_values.contains_key(fqn)
             || self.codegen.top_level_vars.contains_key(fqn)
+            || self.codegen.has_extern_global_contract(fqn)
             || self.static_enum_unit_variant_value(fqn)
     }
 
@@ -1253,6 +1256,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             match callee_fqn {
                 "scoop.core.GC.handleNew" => {
                     return self.codegen.codegen_mir_sysroot_gc_handle_new(
+                        span,
+                        args,
+                        self.slots,
+                        Some(target_cg),
+                    );
+                }
+                "scoop.core.GC.handleGet" => {
+                    return self.codegen.codegen_mir_sysroot_gc_handle_get(
                         span,
                         args,
                         self.slots,
@@ -4640,6 +4651,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     | "scoop.core.__scoop_gc_debug_alloc_garbage"
                     | "scoop.core.__scoop_stackmap_statepoint_smoke"
                     | "scoop.core.GC.handleNew"
+                    | "scoop.core.GC.handleGet"
                     | "scoop.core.GC.handleDrop"
                     | "scoop.core.GC.pin"
                     | "scoop.core.GC.unpin"

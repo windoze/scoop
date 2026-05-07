@@ -793,6 +793,12 @@ fn infer_assign_expr_type(
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
                     lower.emit_deprecated_value_use(fqn, id.span, "属性");
+                    if lower.is_extern_global(fqn) && !lower.in_unsafe_context() {
+                        return Err(ExprTypeError::ExternGlobalAccessRequiresUnsafeContext {
+                            global: fqn.clone(),
+                            span: id.span.into(),
+                        });
+                    }
                     inputs.top_level_types.get(fqn).copied().ok_or_else(|| {
                         ExprTypeError::UnsupportedTopLevelValueType {
                             fqn: fqn.clone(),
@@ -3319,6 +3325,12 @@ fn infer_value_ident_type(
         ast::ResolvedValueRef::TopLevel { fqn } => {
             if let Some(ty) = top_level_types.get(fqn).copied() {
                 lower.emit_deprecated_value_use(fqn, id.span, "属性");
+                if lower.is_extern_global(fqn) && !lower.in_unsafe_context() {
+                    return Err(ExprTypeError::ExternGlobalAccessRequiresUnsafeContext {
+                        global: fqn.clone(),
+                        span: id.span.into(),
+                    });
+                }
                 return Ok(ty);
             }
 

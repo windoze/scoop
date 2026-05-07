@@ -884,6 +884,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
             top_level_vars: &lowered.top_level_vars,
             top_level_consts: &lowered.top_level_consts,
             top_level_immutable_values: &lowered.top_level_immutable_values,
+            extern_globals: &lowered.extern_globals,
             object_inits: &lowered.object_inits,
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
@@ -925,6 +926,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
             top_level_vars: &lowered.top_level_vars,
             top_level_consts: &lowered.top_level_consts,
             top_level_immutable_values: &lowered.top_level_immutable_values,
+            extern_globals: &lowered.extern_globals,
             object_inits: &lowered.object_inits,
         },
     );

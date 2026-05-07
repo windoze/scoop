@@ -359,6 +359,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    extern_globals: &'a hir::ExternGlobalIndex,
     extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
@@ -589,6 +590,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    pub(super) extern_globals: &'a hir::ExternGlobalIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -639,6 +641,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            extern_globals,
             object_inits,
             class_inits,
             class_vtables,
@@ -677,6 +680,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            extern_globals,
             extern_funs,
             object_inits,
             class_inits,
@@ -718,6 +722,22 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
 
     pub(super) fn codegen_routing_facts(&self) -> Option<&'a crate::mir::MirCodegenRoutingFacts> {
         self.codegen_routing_facts
+    }
+
+    fn materialized_extern_global_root(&self, fqn: &str) -> Option<&crate::mir::ExternGlobalRoot> {
+        self.materialized_pass_view()?
+            .materialized()
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::ExternGlobal(root) if root.fqn == fqn => Some(root),
+                _ => None,
+            })
+    }
+
+    fn has_extern_global_contract(&self, fqn: &str) -> bool {
+        self.materialized_extern_global_root(fqn).is_some() || self.extern_globals.contains_key(fqn)
     }
 
     pub(super) fn raw_non_generic_callable_candidate_body<'b>(
@@ -771,6 +791,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                             || self.top_level_consts.contains_key(fqn)
                             || self.top_level_immutable_values.contains_key(fqn)
                             || self.top_level_vars.contains_key(fqn)
+                            || self.has_extern_global_contract(fqn)
                     }
                     crate::mir::Rvalue::SizeOf { .. } => true,
                     _ => false,
@@ -2046,12 +2067,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.top_level_vars
             .get(fqn)
             .map(|var| var.ty)
+            .or_else(|| {
+                self.materialized_extern_global_root(fqn)
+                    .map(|global| global.ty)
+            })
+            .or_else(|| self.extern_globals.get(fqn).map(|global| global.ty))
             .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty))
             .or_else(|| {
                 self.top_level_immutable_values
                     .get(fqn)
                     .map(|value| value.ty)
             })
+    }
+
+    fn materialized_extern_global_root(&self, fqn: &str) -> Option<&crate::mir::ExternGlobalRoot> {
+        self.materialized_pass_view()?
+            .materialized()
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                crate::mir::Item::ExternGlobal(root) if root.fqn == fqn => Some(root),
+                _ => None,
+            })
+    }
+
+    fn has_extern_global_contract(&self, fqn: &str) -> bool {
+        self.materialized_extern_global_root(fqn).is_some() || self.extern_globals.contains_key(fqn)
     }
 
     fn source_slice_at(
@@ -2882,6 +2924,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             gv.set_alignment(aligned);
         }
+        Ok(gv)
+    }
+
+    fn declare_extern_global(
+        &mut self,
+        global: &hir::ExternGlobal,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        self.declare_extern_global_storage(
+            global.span,
+            global.ty,
+            &global.symbol,
+            global.linkage,
+            global.storage,
+            global.initializer_absent,
+        )
+    }
+
+    fn declare_mir_extern_global(
+        &mut self,
+        global: &crate::mir::ExternGlobalRoot,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        self.declare_extern_global_storage(
+            global.span,
+            global.ty,
+            &global.symbol,
+            global.linkage,
+            global.storage,
+            global.initializer_absent,
+        )
+    }
+
+    fn declare_extern_global_storage(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+        symbol: &str,
+        linkage: hir::ExternGlobalLinkage,
+        storage: hir::TopLevelVarStorage,
+        initializer_absent: bool,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        if !initializer_absent {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "extern global initializer contract",
+                at: span.into(),
+            });
+        }
+        let cg_ty = self
+            .cg_ty_of(ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "extern global type",
+                at: span.into(),
+            })?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+        let gv = self
+            .module
+            .get_global(symbol)
+            .unwrap_or_else(|| self.module.add_global(llvm_ty, None, symbol));
+        match linkage {
+            hir::ExternGlobalLinkage::External => gv.set_linkage(Linkage::External),
+        }
+        gv.set_thread_local(storage == hir::TopLevelVarStorage::ThreadLocal);
+
+        if let CgTy::Struct(struct_ty) = cg_ty
+            && let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned)
+        {
+            gv.set_alignment(aligned);
+        }
+
         Ok(gv)
     }
 
@@ -3862,6 +3972,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_top_level_immutable_value_access(span, &value);
         }
 
+        if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
+            return self.codegen_mir_extern_global_access(span, &global);
+        }
+
+        if let Some(global) = self.extern_globals.get(fqn).cloned() {
+            return self.codegen_extern_global_access(span, &global);
+        }
+
         // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
         let Some(var) = self.top_level_vars.get(fqn) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -3906,6 +4024,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
         })
+    }
+
+    fn codegen_extern_global_access(
+        &mut self,
+        span: crate::span::Span,
+        global: &hir::ExternGlobal,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let cg_ty = self
+            .cg_ty_of(global.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "extern global type",
+                at: global.span.into(),
+            })?;
+        if cg_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+        let gv = self.declare_extern_global(global)?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, gv.as_pointer_value(), "load_extern_global")?;
+        self.cg_value_from_loaded(span, cg_ty, loaded)
+    }
+
+    fn codegen_mir_extern_global_access(
+        &mut self,
+        span: crate::span::Span,
+        global: &crate::mir::ExternGlobalRoot,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let cg_ty = self
+            .cg_ty_of(global.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "extern global type",
+                at: global.span.into(),
+            })?;
+        if cg_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+        let gv = self.declare_mir_extern_global(global)?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, gv.as_pointer_value(), "load_extern_global")?;
+        self.cg_value_from_loaded(span, cg_ty, loaded)
     }
 
     fn register_global_root_if_needed(
@@ -4259,6 +4421,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
+                    let gv = self.declare_mir_extern_global(&global)?;
+                    let cg_ty =
+                        self.cg_ty_of(global.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "atomicInt extern global type",
+                                at: expr.span.into(),
+                            })?;
+                    return Ok(AddressablePlace {
+                        ptr: gv.as_pointer_value(),
+                        ty: cg_ty,
+                        writable: global.mutable,
+                    });
+                }
+
+                if let Some(global) = self.extern_globals.get(fqn).cloned() {
+                    let gv = self.declare_extern_global(&global)?;
+                    let cg_ty =
+                        self.cg_ty_of(global.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "atomicInt extern global type",
+                                at: expr.span.into(),
+                            })?;
+                    return Ok(AddressablePlace {
+                        ptr: gv.as_pointer_value(),
+                        ty: cg_ty,
+                        writable: global.mutable,
+                    });
+                }
+
                 let Some(var) = self.top_level_vars.get(fqn) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "atomicInt lvalue top-level var",

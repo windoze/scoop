@@ -91,6 +91,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Ok(())
                 }
                 hir::ValueRef::TopLevel { fqn, .. } => {
+                    if let Some(global) = self.extern_globals.get(fqn).cloned() {
+                        if !global.mutable {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "assignment to immutable extern global",
+                                at: lhs.span.into(),
+                            });
+                        }
+                        let cg_ty =
+                            self.cg_ty_of(global.ty)
+                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "extern global type",
+                                    at: global.span.into(),
+                                })?;
+                        let gv = self.declare_extern_global(&global)?;
+                        let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(cg_ty))?;
+                        let _stored =
+                            self.store_local_value(eq_span, gv.as_pointer_value(), cg_ty, rhs_v)?;
+                        return Ok(());
+                    }
+
                     let Some(var) = self.top_level_vars.get(fqn) else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "assignment to non-local",

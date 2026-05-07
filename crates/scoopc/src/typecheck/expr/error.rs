@@ -358,6 +358,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("访问 `@Extern` 顶层变量需要 unsafe context：{global}")]
+    #[diagnostic(code(scoop::typecheck::extern_global_access_requires_unsafe))]
+    ExternGlobalAccessRequiresUnsafeContext {
+        global: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 `@Unsafe` 函数需要 unsafe context：{callee}")]
     #[diagnostic(code(scoop::typecheck::unsafe_call_requires_unsafe))]
     UnsafeCallRequiresUnsafeContext {

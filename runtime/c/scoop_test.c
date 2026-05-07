@@ -208,6 +208,9 @@ intptr_t scoop_test_add_int(intptr_t a, intptr_t b) {
   return a + b;
 }
 
+// 外部全局变量回归：供 `@Extern var` load/store codegen 链接到真实 C storage。
+intptr_t scoop_test_extern_global_counter = 0;
+
 typedef struct ScoopTestIntPair {
   intptr_t first;
   intptr_t second;

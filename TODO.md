@@ -32,7 +32,7 @@
 | `CG-T05R` | CG5R | [DONE] Review CG-T05 adapter 与 NoOutward ABI |
 | `CG-T06` | CG6 | [DONE] 收口 source classification、unwind、thread boundary lowering |
 | `CG-T06R` | CG6R | [DONE] Review CG-T06 unwind/thread boundary lowering |
-| `CG-T07` | CG7 | 收口 extern global 与 GC pin/handle runtime surface |
+| `CG-T07` | CG7 | [DONE] 收口 extern global 与 GC pin/handle runtime surface |
 | `CG-T07R` | CG7R | Review CG-T07 extern global 与 GC surface |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
 | `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
@@ -669,7 +669,7 @@
   - 2026-05-07：搜索 `LateLoweredSourceStatementClassificationKind::Unsupported`、`ResumeUnwind`、`scoop_refactor_thread_resume_noncomplete_fatal|resume_noncomplete_fatal|thread_resume_noncomplete` 与 runtime `exit(3)`，确认合法 cross-thread non-complete 路径通过 frontend Pure gate / ordinary `scoop_runtime_error_fatal` terminal / unreachable contract 表达，未发现 runtime thread-resume fatal helper 仍在 production 代码中使用。
   - 验证通过：`cargo test -p scoopc refactor_llvm_source_classification_verifier`、`cargo test -p scoopc refactor_llvm_resume_unwind_lowering`、`cargo test -p scoopc refactor_mir_store_member_codegen`、`cargo test -p scoopc refactor_llvm_thread_resume_noncomplete_policy`、`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07：收口 extern global 与 GC pin/handle runtime surface
+## [DONE] CG-T07：收口 extern global 与 GC pin/handle runtime surface
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG7
@@ -696,6 +696,12 @@
 - 完成条件：
   - `PIPELINE_GAPS.md` §6.4、§7.6 的 codegen/runtime 部分关闭或明确 frontend reject。
 - 依赖：`CG-T06R`
+
+- 完成记录：
+  - 2026-05-07：refactor LLVM top-level ref/store 现在优先消费 materialized MIR `ExternGlobalRoot` storage contract，按外部 symbol 声明 LLVM global，保留 `External` linkage 与 `@ThreadLocal` TLS storage；extern global 不再伪装成普通 top-level init/root storage。
+  - 2026-05-07：新增 direct extern-global unsafe access 诊断，非 `@Unsafe` 读写在 typecheck 阶段以 `scoop::typecheck::extern_global_access_requires_unsafe` 拒绝；新增 `extern_global_load_store_basic.scoop` run-pass 与 unsafe negative fixture。
+  - 2026-05-07：补齐 refactor MIR `GC.handleGet` lowering，现有 GC handle/pin positive policy 继续通过 runtime helpers 覆盖，不改为 frontend reject；runtime 新增 `scoop_test_extern_global_counter` 测试 storage 并登记 ABI allowlist。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_extern_global`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_global_load_store_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/extern_global_access_requires_unsafe_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07R：Review CG-T07 extern global 与 GC surface
 

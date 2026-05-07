@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：CG-T07 `@Extern var` 在 refactor codegen 中按外部 C storage 做 load/store。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_extern_global_counter")
+var NativeCounter: Int
+
+fun main(): Int {
+    @Unsafe do { NativeCounter = 40 }
+    val readBack: Int = @Unsafe do { NativeCounter }
+    @Unsafe do { NativeCounter = readBack + 2 }
+    val finalValue: Int = @Unsafe do { NativeCounter }
+    return finalValue - 42
+}

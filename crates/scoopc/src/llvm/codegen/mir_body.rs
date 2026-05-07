@@ -1128,7 +1128,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
             ),
             crate::mir::StatementKind::StoreTopLevelVar { fqn, value, .. } => {
-                self.top_level_vars.contains_key(fqn)
+                (self.top_level_vars.contains_key(fqn) || self.has_extern_global_contract(fqn))
                     && self.raw_materialized_mir_operand_is_supported(value)
             }
             crate::mir::StatementKind::Todo(_) => false,
@@ -1186,6 +1186,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     || self.top_level_consts.contains_key(fqn)
                     || self.top_level_immutable_values.contains_key(fqn)
                     || self.top_level_vars.contains_key(fqn)
+                    || self.has_extern_global_contract(fqn)
                     || self.mir_static_enum_unit_variant_value(fqn)
             }
             crate::mir::Rvalue::Binary { lhs, rhs, .. } => {
@@ -1661,6 +1662,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             || self.top_level_consts.contains_key(fqn)
             || self.top_level_immutable_values.contains_key(fqn)
             || self.top_level_vars.contains_key(fqn)
+            || self.has_extern_global_contract(fqn)
             || self.mir_member_resolved_enum_unit_variant_fqn(fqn))
         .then_some(fqn.as_str())
     }
@@ -1682,6 +1684,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.cg_ty_of(value.ty);
         }
         if let Some(value) = self.top_level_vars.get(fqn) {
+            return self.cg_ty_of(value.ty);
+        }
+        if let Some(value) = self.materialized_extern_global_root(fqn) {
+            return self.cg_ty_of(value.ty);
+        }
+        if let Some(value) = self.extern_globals.get(fqn) {
             return self.cg_ty_of(value.ty);
         }
         let (owner_fqn, variant_name) = fqn.rsplit_once('.')?;
@@ -4160,6 +4168,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _value_ty: TypeId,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
+        if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
+            if !global.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR extern global store target immutable",
+                    at: span.into(),
+                });
+            }
+            let target_cg = self
+                .cg_ty_of(global.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR extern global store target type",
+                    at: span.into(),
+                })?;
+            let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
+            let stored = self.coerce_value(span, raw, target_cg)?;
+            let global = self.declare_mir_extern_global(&global)?;
+            let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
+            return Ok(());
+        }
+
+        if let Some(global) = self.extern_globals.get(fqn).cloned() {
+            if !global.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR extern global store target immutable",
+                    at: span.into(),
+                });
+            }
+            let target_cg = self
+                .cg_ty_of(global.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR extern global store target type",
+                    at: span.into(),
+                })?;
+            let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
+            let stored = self.coerce_value(span, raw, target_cg)?;
+            let global = self.declare_extern_global(&global)?;
+            let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
+            return Ok(());
+        }
+
         let var = self
             .top_level_vars
             .get(fqn)
@@ -4594,6 +4642,126 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue {
             ty: CgTy::Struct(handle_ty),
             value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    pub(super) fn codegen_mir_sysroot_gc_handle_get(
+        &mut self,
+        span: crate::span::Span,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet arg contract",
+                at: span.into(),
+            });
+        }
+        if expected.is_some_and(|ty| ty != CgTy::Ref) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet target type",
+                at: span.into(),
+            });
+        }
+
+        let arg = &args[0];
+        let handle_v = self.codegen_mir_operand(arg.span, &arg.value, slots)?;
+        let CgTy::Struct(handle_ty) = handle_v.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet arg type",
+                at: arg.span.into(),
+            });
+        };
+        let Some(BasicValueEnum::StructValue(struct_v)) = handle_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet arg value",
+                at: arg.span.into(),
+            });
+        };
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", arg.span)?;
+        let extracted =
+            self.builder
+                .build_extract_value(struct_v, field_idx, "mir_gc_handle_raw")?;
+        let field_v = self.cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
+        let CgTy::Int(field_int_ty) = field_cg_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet raw field type",
+                at: arg.span.into(),
+            });
+        };
+        let Some(BasicValueEnum::IntValue(handle_word)) = field_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet raw value",
+                at: arg.span.into(),
+            });
+        };
+        let handle_i64 = self.cast_int(
+            handle_word,
+            field_int_ty,
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+        )?;
+        let rt_handle_get = self.declare_runtime_gc_handle_get();
+        let call =
+            self.builder
+                .build_call(rt_handle_get, &[handle_i64.into()], "mir_gc_handle_get")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR GC.handleGet return type",
+                at: span.into(),
+            });
+        };
+
+        let obj_is_null = self
+            .builder
+            .build_is_null(obj_ptr, "mir_gc_handle_get_is_null")?;
+        let ok_cond = self
+            .builder
+            .build_not(obj_is_null, "mir_gc_handle_get_ok")?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_get_ok_bb");
+        let err_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_get_err_bb");
+        let cont_bb = self
+            .context
+            .append_basic_block(func, "mir_gc_handle_get_cont_bb");
+        self.builder
+            .build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+        self.builder.position_at_end(ok_bb);
+        self.builder.build_unconditional_branch(cont_bb)?;
+        self.builder.position_at_end(cont_bb);
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(obj_ptr.as_basic_value_enum()),
         })
     }
 

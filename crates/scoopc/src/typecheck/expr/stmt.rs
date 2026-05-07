@@ -1656,13 +1656,21 @@ fn check_assign_expr_stmt(
                         });
                     }
 
+                    let unsafe_required = lower.is_extern_global(fqn);
+                    if unsafe_required && !lower.in_unsafe_context() {
+                        return Err(ExprTypeError::ExternGlobalAccessRequiresUnsafeContext {
+                            global: fqn.clone(),
+                            span: id.span.into(),
+                        });
+                    }
+
                     (
                         expected_ty,
                         ast::AssignPlaceContractKind::TopLevel { fqn: fqn.clone() },
                         ast::AssignWriteBarrierRequirement::StorageSlot {
                             slot_ty: expected_ty,
                         },
-                        false,
+                        unsafe_required,
                     )
                 }
             }

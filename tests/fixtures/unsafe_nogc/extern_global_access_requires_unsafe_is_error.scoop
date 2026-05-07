@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_global_access_requires_unsafe
+// EXPECT-ERROR-AT: 12:12
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+@Extern(name = "scoop_test_extern_global_counter")
+var NativeCounter: Int
+
+fun safe(): Int {
+    return NativeCounter
+}
