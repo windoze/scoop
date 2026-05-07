@@ -703,7 +703,7 @@
   - 2026-05-07：补齐 refactor MIR `GC.handleGet` lowering，现有 GC handle/pin positive policy 继续通过 runtime helpers 覆盖，不改为 frontend reject；runtime 新增 `scoop_test_extern_global_counter` 测试 storage 并登记 ABI allowlist。
   - 验证通过：`cargo test -p scoopc refactor_llvm_extern_global`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_global_load_store_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/extern_global_access_requires_unsafe_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07R：Review CG-T07 extern global 与 GC surface
+## [DONE] CG-T07R：Review CG-T07 extern global 与 GC surface
 
 - 参考：
   - `CG-T07`
@@ -720,6 +720,11 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T07` 已正确实现；若发现缺口，`CG-T07R` 保持未完成并把修复归回 `CG-T07`。
 - 依赖：`CG-T07`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T07` 的 extern global storage contract、unsafe access gate、GC pin/unpin lowering 与 stable handle runtime surface，确认 refactor LLVM load/store 优先消费 materialized MIR `ExternGlobalRoot`，按外部 symbol / `External` linkage / TLS storage 声明 LLVM global，不生成普通 top-level init/root backing storage，也不回 AST annotation 反推 storage。
+  - 2026-05-07：确认 `GC.pin` / `GC.unpin` / `GC.handleNew` / `GC.handleGet` / `GC.handleDrop` 通过 sysroot intrinsic lowering 调用 runtime pin/handle table；runtime 将 pinned objects 与 stable handles 纳入 mark/root verification，并在 moving/compaction 后更新 handle root slot，未发现把 pin/handle 当普通 unsafe pointer shortcut 的合法路径。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_extern_global`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_global_load_store_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/extern_global_access_requires_unsafe_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T08：建立 codegen regression 矩阵并完成阶段退出审计
 
