@@ -439,9 +439,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
 
         match value {
-            mir::Rvalue::Call { kind, args, .. } => {
-                self.lower_refactor_pure_direct_call(span, kind, args, target_cg, target_local)
-            }
+            mir::Rvalue::Call {
+                kind,
+                args,
+                transport,
+                ..
+            } => self.lower_refactor_pure_direct_call(
+                span,
+                kind,
+                args,
+                transport,
+                target_cg,
+                target_local,
+            ),
             mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
                 let env_cg = self
                     .codegen
@@ -1036,6 +1046,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         kind: &mir::CallKind,
         args: &[mir::CallArg],
+        transport: &mir::CallTransportMetadata,
         target_cg: super::super::types::CgTy,
         target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -1151,9 +1162,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )? {
             return Ok(value);
         }
-        if let Some(value) =
-            self.lower_refactor_array_intrinsic(span, callee_fqn, args, target_cg)?
-        {
+        if let Some(value) = self.lower_refactor_array_intrinsic(
+            span,
+            callee_fqn,
+            args,
+            target_cg,
+            transport.array.as_ref(),
+        )? {
             return Ok(value);
         }
         if let Some(value) = self.lower_refactor_to_int_intrinsic(span, callee_fqn, args)? {
@@ -1186,7 +1201,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
             return Ok(CgValue::unit());
         }
-        if let Some(value) = self.lower_refactor_array_builder_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_refactor_array_builder_intrinsic(
+            span,
+            callee_fqn,
+            args,
+            transport.array.as_ref(),
+        )? {
             return Ok(value);
         }
         if let Some(value) = self.lower_refactor_atomic_int_intrinsic(span, callee_fqn, args)? {
@@ -2012,6 +2032,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let value_word = IntTy {
             bits: self.codegen.host.word_bit_width(),
@@ -2059,6 +2080,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }
                 let builder_arg = &args[0];
                 let value_arg = &args[1];
+                let composite_transport = self.composite_array_transport_metadata(
+                    span,
+                    mir::ArrayTransportOperation::BuilderPush,
+                    array_transport,
+                )?;
                 let builder_v = self.codegen.codegen_mir_operand_expected(
                     builder_arg.span,
                     &builder_arg.value,
@@ -2086,13 +2112,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     builder_ptr,
                 )?;
 
-                let value_cg = self
-                    .codegen
-                    .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
-                    .unwrap_or(match callee_fqn {
-                        "scoop.core.__scoop_array_builder_push_string" => CgTy::String,
-                        _ => CgTy::Int(value_word),
-                    });
+                let value_cg = if let Some(metadata) = composite_transport {
+                    self.array_transport_element_cg_ty(value_arg.span, metadata)?
+                } else {
+                    self.codegen
+                        .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
+                        .unwrap_or(match callee_fqn {
+                            "scoop.core.__scoop_array_builder_push_string" => CgTy::String,
+                            _ => CgTy::Int(value_word),
+                        })
+                };
                 let value_v = self.codegen.codegen_mir_operand_expected(
                     value_arg.span,
                     &value_arg.value,
@@ -2107,6 +2136,30 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     "array_builder_push_builder_reload",
                     &deferred_builder,
                 )?;
+                if let Some(metadata) = composite_transport {
+                    let value_ptr = self.materialize_array_composite_value_ptr(
+                        value_arg.span,
+                        "array_builder_push_composite_value",
+                        value_cg,
+                        value_v,
+                    )?;
+                    let descriptor =
+                        self.array_composite_descriptor_ptr(value_arg.span, metadata)?;
+                    let rt = self.codegen.declare_runtime_array_builder_push_composite();
+                    let _ = self.codegen.build_call_preserving_gc_local_roots(
+                        value_arg.span,
+                        rt,
+                        &[builder_ptr.into(), descriptor.into(), value_ptr.into()],
+                        "array_builder_push_composite",
+                    )?;
+                    return Ok(Some(CgValue::unit()));
+                }
+                if Self::array_codegen_ty_requires_composite_runtime(value_cg) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor array_builder_push composite transport metadata",
+                        at: value_arg.span.into(),
+                    });
+                }
                 match value_v.ty {
                     CgTy::Ref | CgTy::String => {
                         let value_v =
@@ -2155,6 +2208,21 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     });
                 }
                 let builder_arg = &args[0];
+                let build_operation = match callee_fqn {
+                    "scoop.core.__scoop_array_builder_build_array"
+                    | "scoop.core.__scoop_array_builder_build_array_string" => {
+                        mir::ArrayTransportOperation::BuilderBuildArray
+                    }
+                    "scoop.core.__scoop_array_builder_build_mutable_array" => {
+                        mir::ArrayTransportOperation::BuilderBuildMutableArray
+                    }
+                    _ => unreachable!("match arms cover array builder build intrinsics"),
+                };
+                let composite_transport = self.composite_array_transport_metadata(
+                    span,
+                    build_operation,
+                    array_transport,
+                )?;
                 let builder_v = self.codegen.codegen_mir_operand_expected(
                     builder_arg.span,
                     &builder_arg.value,
@@ -2186,20 +2254,36 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     "array_builder_build_builder_reload",
                     &deferred_builder,
                 )?;
-                let rt = match callee_fqn {
-                    "scoop.core.__scoop_array_builder_build_array"
-                    | "scoop.core.__scoop_array_builder_build_array_string" => {
-                        self.codegen.declare_runtime_array_builder_build_array()
-                    }
-                    "scoop.core.__scoop_array_builder_build_mutable_array" => self
-                        .codegen
-                        .declare_runtime_array_builder_build_mutable_array(),
-                    _ => unreachable!("match arms cover array builder build intrinsics"),
-                };
+                let (rt, call_args): (FunctionValue<'ctx>, Vec<BasicMetadataValueEnum<'ctx>>) =
+                    if let Some(metadata) = composite_transport {
+                        let descriptor = self.array_composite_descriptor_ptr(span, metadata)?;
+                        let rt = match build_operation {
+                            mir::ArrayTransportOperation::BuilderBuildArray => self
+                                .codegen
+                                .declare_runtime_array_builder_build_array_composite(),
+                            mir::ArrayTransportOperation::BuilderBuildMutableArray => self
+                                .codegen
+                                .declare_runtime_array_builder_build_mutable_array_composite(),
+                            _ => unreachable!("build_operation only contains builder build cases"),
+                        };
+                        (rt, vec![builder_ptr.into(), descriptor.into()])
+                    } else {
+                        let rt = match callee_fqn {
+                            "scoop.core.__scoop_array_builder_build_array"
+                            | "scoop.core.__scoop_array_builder_build_array_string" => {
+                                self.codegen.declare_runtime_array_builder_build_array()
+                            }
+                            "scoop.core.__scoop_array_builder_build_mutable_array" => self
+                                .codegen
+                                .declare_runtime_array_builder_build_mutable_array(),
+                            _ => unreachable!("match arms cover array builder build intrinsics"),
+                        };
+                        (rt, vec![builder_ptr.into()])
+                    };
                 let call = self.codegen.build_call_preserving_gc_local_roots(
                     builder_arg.span,
                     rt,
-                    &[builder_ptr.into()],
+                    &call_args,
                     "array_builder_build",
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
@@ -2229,6 +2313,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         callee_fqn: &str,
         args: &[mir::CallArg],
         target_cg: CgTy,
+        array_transport: Option<&mir::ArrayElementTransportMetadata>,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let base = refactor_intrinsic_base_fqn(callee_fqn);
         let value_word = super::super::types::IntTy {
@@ -2277,15 +2362,32 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         at: span.into(),
                     });
                 }
+                let composite_transport = self.composite_array_transport_metadata(
+                    span,
+                    mir::ArrayTransportOperation::Get,
+                    array_transport,
+                )?;
                 let arr_ptr = self.refactor_array_receiver_ptr(&args[0])?;
                 let index = self.refactor_array_index_value(&args[1], value_word)?;
                 let elem_cg = self
-                    .refactor_array_element_cg_ty(&args[0].value)
+                    .array_transport_element_cg_ty_if_present(span, composite_transport)?
+                    .or_else(|| self.refactor_array_element_cg_ty(&args[0].value))
                     .or_else(|| refactor_array_expected_element_cg(target_cg))
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor Array.get element type",
                         at: span.into(),
                     })?;
+                if let Some(metadata) = composite_transport {
+                    return self.lower_refactor_array_get_composite(
+                        span, arr_ptr, index, elem_cg, metadata,
+                    );
+                }
+                if Self::array_codegen_ty_requires_composite_runtime(elem_cg) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor Array.get composite transport metadata",
+                        at: span.into(),
+                    });
+                }
                 match elem_cg {
                     CgTy::Ref | CgTy::String => {
                         let rt = self.codegen.declare_runtime_array_get_ref();
@@ -2357,8 +2459,53 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         at: span.into(),
                     });
                 }
+                let composite_transport = self.composite_array_transport_metadata(
+                    span,
+                    mir::ArrayTransportOperation::Set,
+                    array_transport,
+                )?;
                 let arr_ptr = self.refactor_array_receiver_ptr(&args[0])?;
                 let index = self.refactor_array_index_value(&args[1], value_word)?;
+                if let Some(metadata) = composite_transport {
+                    let deferred_arr = self.codegen.defer_gc_ref_pointer(
+                        args[0].span,
+                        "array_set_composite_array",
+                        arr_ptr,
+                    )?;
+                    let elem_cg = self.array_transport_element_cg_ty(args[2].span, metadata)?;
+                    let value = self.codegen.codegen_mir_operand_expected(
+                        args[2].span,
+                        &args[2].value,
+                        self.slots,
+                        Some(elem_cg),
+                    )?;
+                    let value = self.codegen.coerce_value(args[2].span, value, elem_cg)?;
+                    let value_ptr = self.materialize_array_composite_value_ptr(
+                        args[2].span,
+                        "array_set_composite_value",
+                        elem_cg,
+                        value,
+                    )?;
+                    let arr_ptr = self.codegen.reload_deferred_gc_ref_without_clearing(
+                        args[0].span,
+                        "array_set_composite_array_reload",
+                        &deferred_arr,
+                    )?;
+                    let descriptor = self.array_composite_descriptor_ptr(args[2].span, metadata)?;
+                    let rt = self.codegen.declare_runtime_array_set_composite();
+                    let _ = self.codegen.build_call_preserving_gc_local_roots(
+                        args[2].span,
+                        rt,
+                        &[
+                            arr_ptr.into(),
+                            index.into(),
+                            descriptor.into(),
+                            value_ptr.into(),
+                        ],
+                        "array_set_composite",
+                    )?;
+                    return Ok(Some(CgValue::unit()));
+                }
                 let elem_cg = self.refactor_array_element_cg_ty(&args[0].value);
                 match elem_cg {
                     Some(CgTy::Ref) | Some(CgTy::String) => {
@@ -2404,6 +2551,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                                 kind: "refactor MutableArray.set value type",
                                 at: args[2].span.into(),
                             })?;
+                        if Self::array_codegen_ty_requires_composite_runtime(value_cg) {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor MutableArray.set composite transport metadata",
+                                at: args[2].span.into(),
+                            });
+                        }
                         let value = self.codegen.codegen_mir_operand_expected(
                             args[2].span,
                             &args[2].value,
@@ -2425,6 +2578,143 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             _ => Ok(None),
         }
+    }
+
+    fn composite_array_transport_metadata<'m>(
+        &self,
+        span: Span,
+        operation: mir::ArrayTransportOperation,
+        metadata: Option<&'m mir::ArrayElementTransportMetadata>,
+    ) -> Result<Option<&'m mir::ArrayElementTransportMetadata>, LlvmEmitError> {
+        let Some(metadata) = metadata else {
+            return Ok(None);
+        };
+        if metadata.operation != operation {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor array composite transport operation",
+                at: span.into(),
+            });
+        }
+        if self
+            .codegen
+            .array_element_transport_needs_composite_runtime(self.source_types, &metadata.element)
+        {
+            Ok(Some(metadata))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn array_codegen_ty_requires_composite_runtime(ty: CgTy) -> bool {
+        matches!(ty, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_))
+    }
+
+    fn array_transport_element_cg_ty_if_present(
+        &mut self,
+        span: Span,
+        metadata: Option<&mir::ArrayElementTransportMetadata>,
+    ) -> Result<Option<CgTy>, LlvmEmitError> {
+        metadata
+            .map(|metadata| self.array_transport_element_cg_ty(span, metadata))
+            .transpose()
+    }
+
+    fn array_transport_element_cg_ty(
+        &mut self,
+        span: Span,
+        metadata: &mir::ArrayElementTransportMetadata,
+    ) -> Result<CgTy, LlvmEmitError> {
+        if metadata.element.source_ty != metadata.element_ty {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor array composite element metadata",
+                at: span.into(),
+            });
+        }
+        self.codegen
+            .cg_ty_of_mir_type(self.source_types, metadata.element.source_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor array composite element type",
+                at: span.into(),
+            })
+    }
+
+    fn array_composite_descriptor_ptr(
+        &mut self,
+        span: Span,
+        metadata: &mir::ArrayElementTransportMetadata,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let body_fqn = self
+            .codegen
+            .function_cx
+            .current_callable_fqn
+            .clone()
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let descriptor = self
+            .codegen
+            .get_or_create_value_composite_transport_descriptor_global(
+                &body_fqn,
+                span,
+                self.source_types,
+                &metadata.element,
+            )?;
+        Ok(descriptor.as_pointer_value())
+    }
+
+    fn materialize_array_composite_value_ptr(
+        &mut self,
+        span: Span,
+        name: &str,
+        elem_cg: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let slot = self.codegen.create_entry_alloca(span, name, elem_cg)?;
+        let value = self.codegen.coerce_value(span, value, elem_cg)?;
+        let _ = self.codegen.store_local_value(span, slot, elem_cg, value)?;
+        Ok(slot)
+    }
+
+    fn lower_refactor_array_get_composite(
+        &mut self,
+        span: Span,
+        arr_ptr: PointerValue<'ctx>,
+        index: IntValue<'ctx>,
+        elem_cg: CgTy,
+        metadata: &mir::ArrayElementTransportMetadata,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let out_slot =
+            self.codegen
+                .create_entry_alloca(span, "array_get_composite_out", elem_cg)?;
+        let llvm_ty = self.codegen.llvm_basic_type_of(span, elem_cg)?;
+        let out_i8 = self.codegen.builder.build_pointer_cast(
+            out_slot,
+            self.codegen.llvm_i8_ptr_type(),
+            "array_get_composite_out_i8",
+        )?;
+        let size = self.codegen.store_size_bytes_of_basic_type(llvm_ty);
+        let size_v = self.codegen.context.i64_type().const_int(size, false);
+        let zero = self.codegen.context.i8_type().const_zero();
+        let _ = self.codegen.builder.build_memset(out_i8, 1, zero, size_v)?;
+
+        let descriptor = self.array_composite_descriptor_ptr(span, metadata)?;
+        let rt = self.codegen.declare_runtime_array_get_composite();
+        let _ = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            rt,
+            &[
+                arr_ptr.into(),
+                index.into(),
+                descriptor.into(),
+                out_slot.into(),
+            ],
+            "array_get_composite",
+        )?;
+        let loaded =
+            self.codegen
+                .builder
+                .build_load(llvm_ty, out_slot, "array_get_composite_load")?;
+        self.codegen
+            .cg_value_from_loaded(span, elem_cg, loaded)
+            .map(Some)
     }
 
     fn lower_refactor_to_int_intrinsic(

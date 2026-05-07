@@ -37,15 +37,16 @@ use super::{
     ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata,
     DeclOnlySummaryInput, DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
     FieldMetadata, File, FunDecl, GcIntrinsicTransportMetadata, HandleMetadata, HandlerArm,
-    InitializerRoot, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl,
-    MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
-    MaterializedMirSummaries, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
-    MirPlaceholderCategory, NominalMetadata, ObjectMetadata, Operand, Param, Pattern, PerformArg,
-    PerformMetadata, PropertyMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
-    RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeParameterizedMatch,
-    RuntimeTypeTestMetadata, Rvalue, Statement, StatementKind, StructLitField, SupertypeMetadata,
-    Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction,
-    ValueTransportMetadata, build_materialized_summary_table,
+    InitializerRoot, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl, LocalId,
+    LocalSourceKind, MaterializedCallableFamilies, MaterializedCallableFamilyInput,
+    MaterializedMirPassArtifacts, MaterializedMirSummaries, MemberAccessMetadata,
+    MemberFunMetadata, MemberTarget, MetadataRoot, MirPlaceholderCategory, NominalMetadata,
+    ObjectMetadata, Operand, Param, Pattern, PerformArg, PerformMetadata, PropertyMetadata,
+    RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestMetadata,
+    RuntimeTypeDescriptorKey, RuntimeTypeParameterizedMatch, RuntimeTypeTestMetadata, Rvalue,
+    Statement, StatementKind, StructLitField, SupertypeMetadata, Terminator, TerminatorKind,
+    TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction, ValueTransportMetadata,
+    build_materialized_summary_table,
 };
 
 /// 一个 generic MIR template 的稳定标识。
@@ -2604,6 +2605,9 @@ fn validate_materialized_call_target(
     known_roots: &HashSet<String>,
     generic_templates: &HashSet<String>,
 ) -> MaterializeResult<()> {
+    if is_canonical_array_member_intrinsic_fqn(callee_fqn) {
+        return Ok(());
+    }
     let unresolved_generic_target = callee_fqn.is_empty()
         || generic_templates.contains(callee_fqn)
         || (callee_fqn.contains("::<") && !known_roots.contains(callee_fqn));
@@ -4853,6 +4857,7 @@ struct DirectCallRewriteContext<'a> {
     caller_fqn: &'a str,
     block_id: BasicBlockId,
     call_span: Span,
+    result_ty: Option<TypeId>,
     locals: &'a [LocalDecl],
     substitution: &'a InstanceSubstitution,
 }
@@ -5864,6 +5869,13 @@ impl MirInstanceMaterializer {
             .collect::<Vec<_>>();
         pass_visible_non_generic_roots.sort_by_key(|(instance, _)| self.instance_fqn(instance));
         pass_visible_non_generic_roots.dedup_by(|(left, _), (right, _)| left == right);
+        for (_, fun) in &mut pass_visible_non_generic_roots {
+            if let Some(body) = fun.body.as_mut() {
+                self.repair_array_call_transport_types(body);
+                self.repair_materialized_generic_transport_call_args(body);
+                self.repair_unused_unresolved_compiler_temporaries(body);
+            }
+        }
 
         let mut pass_instance_keys = instance_keys.clone();
         pass_instance_keys.extend(
@@ -6181,6 +6193,9 @@ impl MirInstanceMaterializer {
             None,
         )?;
         self.repair_direct_call_result_types(body);
+        self.repair_array_call_transport_types(body);
+        self.repair_materialized_generic_transport_call_args(body);
+        self.repair_unused_unresolved_compiler_temporaries(body);
         Ok(())
     }
 
@@ -6201,6 +6216,9 @@ impl MirInstanceMaterializer {
             Some(reachable_body_block_indices(body)),
         )?;
         self.repair_direct_call_result_types(body);
+        self.repair_array_call_transport_types(body);
+        self.repair_materialized_generic_transport_call_args(body);
+        self.repair_unused_unresolved_compiler_temporaries(body);
         Ok(())
     }
 
@@ -6224,6 +6242,9 @@ impl MirInstanceMaterializer {
                     .get(callee_fqn)
                     .copied()
                 {
+                    if type_contains_param(&self.types, result_ty) {
+                        continue;
+                    }
                     transport.result.source_ty = result_ty;
                     if let Some(aggregate_return) = &mut transport.aggregate_return {
                         aggregate_return.source_ty = result_ty;
@@ -6255,6 +6276,9 @@ impl MirInstanceMaterializer {
                 let receiver_ty = operand_type(&self.types, self.builtins, &locals, receiver)
                     .unwrap_or(member.receiver_ty);
                 if let Some(result_ty) = self.member_value_result_ty(receiver_ty, member) {
+                    if type_contains_param(&self.types, result_ty) {
+                        continue;
+                    }
                     member_updates.push((*target, result_ty));
                 }
             }
@@ -6262,6 +6286,184 @@ impl MirInstanceMaterializer {
         for (target, result_ty) in member_updates {
             if let Some(local) = body.locals.get_mut(target.as_u32() as usize) {
                 local.ty = result_ty;
+            }
+        }
+    }
+
+    fn repair_array_call_transport_types(&mut self, body: &mut Body) {
+        let locals = body.locals.clone();
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign { target, value } = &mut stmt.kind else {
+                    continue;
+                };
+                let Rvalue::Call {
+                    args, transport, ..
+                } = value
+                else {
+                    continue;
+                };
+                let Some(array) = transport.array.as_mut() else {
+                    continue;
+                };
+                let inferred = match array.operation {
+                    super::ArrayTransportOperation::Get | super::ArrayTransportOperation::Set => {
+                        let receiver = args.first().and_then(|arg| {
+                            operand_type(&self.types, self.builtins, &locals, &arg.value)
+                        });
+                        receiver.and_then(|array_ty| {
+                            self.materialized_array_element_ty(array_ty)
+                                .map(|element_ty| (Some(array_ty), element_ty))
+                        })
+                    }
+                    super::ArrayTransportOperation::BuilderBuildArray
+                    | super::ArrayTransportOperation::BuilderBuildMutableArray => {
+                        locals.get(target.as_u32() as usize).and_then(|decl| {
+                            self.materialized_array_element_ty(decl.ty)
+                                .map(|element_ty| (Some(decl.ty), element_ty))
+                        })
+                    }
+                    super::ArrayTransportOperation::BuilderPush => args.get(1).and_then(|arg| {
+                        operand_type(&self.types, self.builtins, &locals, &arg.value)
+                            .map(|element_ty| (None, element_ty))
+                    }),
+                    super::ArrayTransportOperation::BuilderNew => None,
+                };
+                let Some((array_ty, element_ty)) = inferred else {
+                    continue;
+                };
+                if type_contains_param(&self.types, element_ty) {
+                    continue;
+                }
+                if let Some(array_ty) = array_ty {
+                    array.array_ty = array_ty;
+                }
+                array.element_ty = element_ty;
+                array.element.source_ty = element_ty;
+                if let Some(boxing) = &mut array.element.boxing {
+                    boxing.source_ty = element_ty;
+                    if boxing
+                        .target_ty
+                        .is_some_and(|ty| type_contains_param(&self.types, ty))
+                    {
+                        boxing.target_ty = Some(array.array_ty);
+                    }
+                }
+            }
+        }
+    }
+
+    fn materialized_array_element_ty(&self, array_ty: TypeId) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(array_ty) else {
+            return None;
+        };
+        if matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Array"
+                | "scoop.core.MutableArray"
+                | "scoop.core.List"
+                | "scoop.core.MutableList"
+        ) {
+            nominal.args.first().copied()
+        } else {
+            None
+        }
+    }
+
+    fn repair_materialized_generic_transport_call_args(&mut self, body: &mut Body) {
+        let mut transport_sources: HashMap<LocalId, (Operand, TypeId)> = HashMap::new();
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let StatementKind::Assign {
+                    target,
+                    value: Rvalue::Transport { value, transport },
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                let Some(boxing) = transport.boxing.as_ref() else {
+                    continue;
+                };
+                if !type_contains_param(&self.types, transport.source_ty)
+                    && boxing
+                        .target_ty
+                        .is_some_and(|ty| type_contains_param(&self.types, ty))
+                {
+                    transport_sources.insert(*target, (value.clone(), transport.source_ty));
+                }
+            }
+        }
+
+        let mut fixes: HashMap<LocalId, (Operand, TypeId)> = HashMap::new();
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign {
+                    value: Rvalue::Call { args, .. },
+                    ..
+                } = &mut stmt.kind
+                else {
+                    continue;
+                };
+                for arg in args {
+                    let Operand::Local(local) = &arg.value else {
+                        continue;
+                    };
+                    let local = *local;
+                    let Some((source_operand, source_ty)) = transport_sources.get(&local).cloned()
+                    else {
+                        continue;
+                    };
+                    arg.value = source_operand.clone();
+                    fixes.insert(local, (source_operand, source_ty));
+                }
+            }
+        }
+
+        if fixes.is_empty() {
+            return;
+        }
+        for (local, (_, source_ty)) in &fixes {
+            if let Some(decl) = body.locals.get_mut(local.as_u32() as usize) {
+                decl.ty = *source_ty;
+            }
+        }
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign { target, value } = &mut stmt.kind else {
+                    continue;
+                };
+                let Some((source_operand, _)) = fixes.get(target).cloned() else {
+                    continue;
+                };
+                *value = Rvalue::Use(source_operand);
+            }
+        }
+    }
+
+    fn repair_unused_unresolved_compiler_temporaries(&mut self, body: &mut Body) {
+        let referenced = collect_materialized_local_references(body);
+        let mut fixed = HashSet::new();
+        for (index, local) in body.locals.iter_mut().enumerate() {
+            let local_id = LocalId::from_raw(index as u32);
+            if local.source == LocalSourceKind::CompilerTemporary
+                && !referenced.contains(&local_id)
+                && type_contains_param(&self.types, local.ty)
+            {
+                local.ty = self.builtins.unit;
+                fixed.insert(local_id);
+            }
+        }
+        if fixed.is_empty() {
+            return;
+        }
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign { target, value } = &mut stmt.kind else {
+                    continue;
+                };
+                if fixed.contains(target) {
+                    *value = Rvalue::Use(Operand::Const(ConstValue::Unit));
+                }
             }
         }
     }
@@ -6350,8 +6552,12 @@ impl MirInstanceMaterializer {
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match &mut stmt.kind {
-            StatementKind::Assign { value, .. } => {
-                self.rewrite_rvalue(stmt.span, block_id, value, ctx)?
+            StatementKind::Assign { target, value } => {
+                let result_ty = ctx
+                    .locals
+                    .get(target.as_u32() as usize)
+                    .map(|local| local.ty);
+                self.rewrite_rvalue(stmt.span, block_id, value, result_ty, ctx)?
             }
             StatementKind::StoreMember {
                 receiver,
@@ -6495,6 +6701,7 @@ impl MirInstanceMaterializer {
         stmt_span: Span,
         block_id: BasicBlockId,
         value: &mut Rvalue,
+        result_ty: Option<TypeId>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         match value {
@@ -6518,6 +6725,7 @@ impl MirInstanceMaterializer {
                             caller_fqn: ctx.instance_root_fqn,
                             block_id,
                             call_span: stmt_span,
+                            result_ty,
                             locals: ctx.locals,
                             substitution: ctx.substitution,
                         },
@@ -6589,7 +6797,7 @@ impl MirInstanceMaterializer {
                 for arg in args.iter_mut() {
                     arg.value = self.rewrite_operand(arg.value.clone());
                 }
-                self.rewrite_call_kind(stmt_span, block_id, kind, args, ctx)?;
+                self.rewrite_call_kind(stmt_span, block_id, kind, args, result_ty, ctx)?;
                 self.rewrite_call_transport(transport, ctx.substitution);
             }
             Rvalue::EnumVariant {
@@ -6716,6 +6924,7 @@ impl MirInstanceMaterializer {
         block_id: BasicBlockId,
         kind: &mut CallKind,
         args: &mut Vec<CallArg>,
+        result_ty: Option<TypeId>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
         let direct_ctx = DirectCallRewriteContext {
@@ -6723,6 +6932,7 @@ impl MirInstanceMaterializer {
             caller_fqn: ctx.instance_root_fqn,
             block_id,
             call_span,
+            result_ty,
             locals: ctx.locals,
             substitution: ctx.substitution,
         };
@@ -6856,17 +7066,22 @@ impl MirInstanceMaterializer {
             call_span: ctx.call_span,
             callee_fqn,
             args,
-            result_ty: None,
+            result_ty: ctx.result_ty,
             locals: ctx.locals,
             substitution: ctx.substitution,
         }) {
             let instance_fqn = self.instance_fqn(&instance_key);
-            if let Some(return_ty) = self.instance_return_ty(&instance_key) {
+            if let Some(return_ty) = self.instance_return_ty(&instance_key)
+                && !type_contains_param(&self.types, return_ty)
+            {
                 self.materialized_direct_call_result_tys
                     .insert(instance_fqn.clone(), return_ty);
             }
             *callee_fqn = instance_fqn;
             self.enqueue(instance_key);
+            return Ok(());
+        }
+        if is_canonical_array_member_intrinsic_fqn(callee_fqn) {
             return Ok(());
         }
         if self.roots_by_fqn.contains_key(callee_fqn) {
@@ -6906,6 +7121,9 @@ impl MirInstanceMaterializer {
             self.enqueue(instance_key);
             return Ok(());
         }
+        if is_canonical_array_member_intrinsic_fqn(fqn) {
+            return Ok(());
+        }
         if self.roots_by_fqn.contains_key(fqn) {
             return Err(materialize_err(
                 MirMaterializeError::MaterializedMissingCallTarget {
@@ -6929,22 +7147,67 @@ impl MirInstanceMaterializer {
         ))
     }
 
+    fn template_receiver_matches(&self, template: TemplateKey, receiver_ty: TypeId) -> bool {
+        let Some(signature) = self.template_signatures.get(&template) else {
+            return false;
+        };
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(signature.fun_ty) else {
+            return false;
+        };
+        let Some(declared_receiver) = fun_ty.receiver else {
+            return false;
+        };
+        nominal_type_fqn(&self.types, declared_receiver)
+            == nominal_type_fqn(&self.types, receiver_ty)
+    }
+
     fn infer_direct_call_instance(
         &mut self,
         input: DirectCallInferenceInput<'_>,
     ) -> Option<InstanceKey> {
-        if let Some(binding) = self.site_instance_binding_for_callee(
+        let binding_template = if let Some(binding) = self.site_instance_binding_for_callee(
             input.template_source_path,
             input.call_span,
             input.callee_fqn,
         ) {
-            return self.instantiate_site_binding(&binding, input.substitution);
-        }
+            if let Some(instance_key) = self.instantiate_site_binding(&binding, input.substitution)
+            {
+                return Some(instance_key);
+            }
+            Some(binding.template)
+        } else {
+            None
+        };
 
-        let candidates = self.roots_by_fqn.get(input.callee_fqn)?;
-        if candidates.len() != 1 {
-            return None;
-        }
+        let candidates = if let Some(template) = binding_template {
+            vec![template]
+        } else {
+            let mut candidates = self.roots_by_fqn.get(input.callee_fqn)?.clone();
+            if candidates.len() != 1
+                && let Some(receiver_arg) = input.args.first()
+                && let Some(receiver_ty) = operand_type(
+                    &self.types,
+                    self.builtins,
+                    input.locals,
+                    &receiver_arg.value,
+                )
+            {
+                let filtered = candidates
+                    .iter()
+                    .filter(|candidate| {
+                        self.template_receiver_matches((*candidate).clone(), receiver_ty)
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if filtered.len() == 1 {
+                    candidates = filtered;
+                }
+            }
+            if candidates.len() != 1 {
+                return None;
+            }
+            candidates
+        };
         let signature = self.template_signatures.get(&candidates[0])?;
         if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
             return None;
@@ -6961,6 +7224,47 @@ impl MirInstanceMaterializer {
                 None => return None,
             };
         let mut bindings = HashMap::new();
+        if arg_offset == 1
+            && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(signature.fun_ty)
+            && let Some(receiver_ty) = fun_ty.receiver
+            && type_contains_param(&self.types, receiver_ty)
+            && let Some(receiver_arg) = input.args.first()
+            && let Some(concrete_receiver_ty) = operand_type(
+                &self.types,
+                self.builtins,
+                input.locals,
+                &receiver_arg.value,
+            )
+        {
+            collect_type_param_bindings(
+                &self.types,
+                receiver_ty,
+                concrete_receiver_ty,
+                &mut bindings,
+            );
+        }
+        if arg_offset == 1
+            && let Some(receiver_arg) = input.args.first()
+            && let Some(concrete_receiver_ty) = operand_type(
+                &self.types,
+                self.builtins,
+                input.locals,
+                &receiver_arg.value,
+            )
+            && let TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+                self.types.kind(concrete_receiver_ty)
+        {
+            for (name, ty) in signature
+                .type_param_names
+                .iter()
+                .zip(nominal.args.iter().copied())
+            {
+                if !type_contains_param(&self.types, ty) {
+                    bindings.entry(name.clone()).or_insert(ty);
+                }
+            }
+        }
         for (arg_idx, param_idx) in arg_to_param.into_iter().enumerate() {
             let param = signature.params.get(param_idx)?;
             if !type_contains_param(&self.types, param.ty) {
@@ -7043,7 +7347,9 @@ impl MirInstanceMaterializer {
         {
             return Some(binding);
         }
-        let template = self.remap_site_binding_template(&binding.template, callee_fqn)?;
+        let Some(template) = self.remap_site_binding_template(&binding.template, callee_fqn) else {
+            return is_canonical_array_member_intrinsic_fqn(callee_fqn).then_some(binding);
+        };
         Some(SiteInstanceBinding {
             template,
             type_args: binding.type_args,
@@ -7735,6 +8041,10 @@ fn effect_row_param_marker_name(types: &TypeStore, ty: TypeId) -> Option<String>
     }
 }
 
+fn is_canonical_array_member_intrinsic_fqn(fqn: &str) -> bool {
+    matches!(fqn, "scoop.core.size" | "scoop.core.get" | "scoop.core.set")
+}
+
 fn map_call_args_to_signature_params(
     params: &[CallableSignatureParam],
     args: &[CallArg],
@@ -7793,6 +8103,152 @@ fn lookup_overlapping_site_instance_binding<'a>(
         }
     }
     found.map(|(_, binding)| binding)
+}
+
+fn collect_materialized_local_references(body: &Body) -> HashSet<LocalId> {
+    let mut out = HashSet::new();
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            collect_statement_local_references(stmt, &mut out);
+        }
+        collect_terminator_local_references(&block.terminator.kind, &mut out);
+    }
+    out
+}
+
+fn collect_statement_local_references(stmt: &Statement, out: &mut HashSet<LocalId>) {
+    match &stmt.kind {
+        StatementKind::Assign { target, value } => {
+            let _ = target;
+            collect_rvalue_local_references(value, out);
+        }
+        StatementKind::StoreMember {
+            receiver, value, ..
+        } => {
+            collect_operand_local_reference(receiver, out);
+            collect_operand_local_reference(value, out);
+        }
+        StatementKind::StoreTopLevelVar { value, .. } => {
+            collect_operand_local_reference(value, out);
+        }
+        StatementKind::Nop | StatementKind::Todo(_) => {}
+    }
+}
+
+fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<LocalId>) {
+    match value {
+        Rvalue::Use(operand)
+        | Rvalue::Transport { value: operand, .. }
+        | Rvalue::Unary { operand, .. }
+        | Rvalue::TypeCheck { value: operand, .. }
+        | Rvalue::Cast { value: operand, .. }
+        | Rvalue::TupleGet { tuple: operand, .. }
+        | Rvalue::CaptureBoxNew { value: operand, .. }
+        | Rvalue::CaptureBoxGet {
+            box_operand: operand,
+            ..
+        }
+        | Rvalue::PatternMatch {
+            subject: operand, ..
+        }
+        | Rvalue::PatternExtract {
+            subject: operand, ..
+        }
+        | Rvalue::MemberAccess {
+            receiver: operand, ..
+        }
+        | Rvalue::MakeClosure { env: operand, .. } => collect_operand_local_reference(operand, out),
+        Rvalue::Binary { lhs, rhs, .. } => {
+            collect_operand_local_reference(lhs, out);
+            collect_operand_local_reference(rhs, out);
+        }
+        Rvalue::CaptureBoxSet {
+            box_operand, value, ..
+        } => {
+            collect_operand_local_reference(box_operand, out);
+            collect_operand_local_reference(value, out);
+        }
+        Rvalue::EnumVariant { args, .. }
+        | Rvalue::ClassCtor { args, .. }
+        | Rvalue::Call { args, .. } => {
+            if let Rvalue::Call { kind, .. } = value {
+                collect_call_kind_local_references(kind, out);
+            }
+            for arg in args {
+                collect_operand_local_reference(&arg.value, out);
+            }
+        }
+        Rvalue::MakeTuple { elements, .. } => {
+            for element in elements {
+                collect_operand_local_reference(element, out);
+            }
+        }
+        Rvalue::StructLit { fields, .. } => {
+            for field in fields {
+                collect_operand_local_reference(&field.value, out);
+            }
+        }
+        Rvalue::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let InterpolatedStringPart::Expr { value, .. } = part {
+                    collect_operand_local_reference(value, out);
+                }
+            }
+        }
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::SizeOf { .. }
+        | Rvalue::TypeMetadataLiteral(_)
+        | Rvalue::PerformResult { .. }
+        | Rvalue::Todo(_) => {}
+    }
+}
+
+fn collect_call_kind_local_references(kind: &CallKind, out: &mut HashSet<LocalId>) {
+    match kind {
+        CallKind::Direct { .. } => {}
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            collect_operand_local_reference(callee, out);
+        }
+        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
+            collect_operand_local_reference(receiver, out);
+        }
+        CallKind::Resume { continuation, .. } => collect_operand_local_reference(continuation, out),
+    }
+}
+
+fn collect_terminator_local_references(kind: &TerminatorKind, out: &mut HashSet<LocalId>) {
+    match kind {
+        TerminatorKind::Return { value } => {
+            if let Some(value) = value {
+                collect_operand_local_reference(value, out);
+            }
+        }
+        TerminatorKind::CondBr { cond, .. } => collect_operand_local_reference(cond, out),
+        TerminatorKind::Perform { args, .. } => {
+            for arg in args {
+                collect_operand_local_reference(&arg.value, out);
+            }
+        }
+        TerminatorKind::Handle { arms, .. } => {
+            for arm in arms {
+                out.extend(arm.binder_locals.iter().copied());
+                if let Some(local) = arm.continuation_local {
+                    out.insert(local);
+                }
+            }
+        }
+        TerminatorKind::ResumeUnwind
+        | TerminatorKind::Goto { .. }
+        | TerminatorKind::Unreachable
+        | TerminatorKind::Todo(_) => {}
+    }
+}
+
+fn collect_operand_local_reference(operand: &Operand, out: &mut HashSet<LocalId>) {
+    if let Operand::Local(local) = operand {
+        out.insert(*local);
+    }
 }
 
 fn operand_type(

@@ -4,14 +4,21 @@
 
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY: &str = "scoop_array_builder_build_array";
+pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY_COMPOSITE: &str =
+    "scoop_array_builder_build_array_composite";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY: &str =
     "scoop_array_builder_build_mutable_array";
+pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_COMPOSITE: &str =
+    "scoop_array_builder_build_mutable_array_composite";
 pub(super) const SCOOP_ARRAY_BUILDER_NEW: &str = "scoop_array_builder_new";
+pub(super) const SCOOP_ARRAY_BUILDER_PUSH_COMPOSITE: &str = "scoop_array_builder_push_composite";
 pub(super) const SCOOP_ARRAY_BUILDER_PUSH_REF: &str = "scoop_array_builder_push_ref";
 pub(super) const SCOOP_ARRAY_BUILDER_PUSH_U64: &str = "scoop_array_builder_push_u64";
+pub(super) const SCOOP_ARRAY_GET_COMPOSITE: &str = "scoop_array_get_composite";
 pub(super) const SCOOP_ARRAY_GET_REF: &str = "scoop_array_get_ref";
 pub(super) const SCOOP_ARRAY_GET_U64: &str = "scoop_array_get_u64";
 pub(super) const SCOOP_ARRAY_LEN: &str = "scoop_array_len";
+pub(super) const SCOOP_ARRAY_SET_COMPOSITE: &str = "scoop_array_set_composite";
 pub(super) const SCOOP_ARRAY_SET_REF: &str = "scoop_array_set_ref";
 pub(super) const SCOOP_ARRAY_SET_U64: &str = "scoop_array_set_u64";
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";

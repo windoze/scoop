@@ -1,0 +1,38 @@
+// EXPECT: pass
+// EXPECT-EXIT: 145
+//
+// CG-T04d: tuple/struct/enum array elements must use descriptor-backed
+// composite transport for build/get/set instead of u64 word storage.
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Item {
+    Hit(val point: Point),
+    Pair(val payload: (Point, Int)),
+}
+
+fun score(item: Item): Int {
+    return when (item) {
+        Hit(point) -> point.x + point.y
+        Pair(payload) -> payload._0.x + payload._0.y + payload._1
+    }
+}
+
+fun main(): Int {
+    val points: Array<Point> = [Point(1, 2), Point(3, 4)]
+    val p: Point = points.get(1)
+
+    val pairs: MutableArray<(Point, Int)> = [(Point(5, 6), 7)]
+    val first: (Point, Int) = pairs.get(0)
+    pairs.set(0, (Point(8, 9), 10))
+    val second: (Point, Int) = pairs.get(0)
+
+    val items: MutableArray<Item> = [Hit(Point(11, 12)), Pair((Point(13, 14), 15))]
+    val before: Int = score(items.get(1))
+    items.set(0, Pair((Point(16, 17), 18)))
+    val after: Int = score(items.get(0))
+
+    return p.x + p.y + first._0.x + first._0.y + first._1 + second._0.x + second._0.y + second._1 + before + after
+}

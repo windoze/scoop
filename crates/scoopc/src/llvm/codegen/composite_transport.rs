@@ -417,6 +417,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             || self.type_needs_composite_transport_layout(mir_types, metadata.source_ty)
     }
 
+    pub(super) fn array_element_transport_needs_composite_runtime(
+        &self,
+        mir_types: &TypeStore,
+        metadata: &ValueTransportMetadata,
+    ) -> bool {
+        metadata
+            .boxing
+            .as_ref()
+            .is_some_and(|boxing| boxing.reason == MirBoxingReason::ArrayElement)
+            || self.type_needs_composite_transport_layout(mir_types, metadata.source_ty)
+    }
+
     fn type_needs_composite_transport_layout(&self, mir_types: &TypeStore, ty: TypeId) -> bool {
         match mir_types.kind(ty) {
             TypeKind::Value(ValueTypeKind::Option(_))
@@ -621,11 +633,10 @@ fn composite_transport_storage_kind(
             | MirBoxingReason::RefErasure
             | MirBoxingReason::FunctionValueAdapter,
         ) => CompositeTransportStorageKind::Erased,
-        Some(
-            MirBoxingReason::EffectPayload
-            | MirBoxingReason::ClosureCapture
-            | MirBoxingReason::ArrayElement,
-        ) => CompositeTransportStorageKind::Boxed,
+        Some(MirBoxingReason::EffectPayload | MirBoxingReason::ClosureCapture) => {
+            CompositeTransportStorageKind::Boxed
+        }
+        Some(MirBoxingReason::ArrayElement) => CompositeTransportStorageKind::Inline,
         None if matches!(
             metadata.kind,
             MirTransportKind::ClosureEnv | MirTransportKind::CaptureBox

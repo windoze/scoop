@@ -33,13 +33,18 @@
   X(scoop_callee_suspend_state_get) \
   X(scoop_callee_suspend_state_publish) \
   X(scoop_array_builder_build_array) \
+  X(scoop_array_builder_build_array_composite) \
   X(scoop_array_builder_build_mutable_array) \
+  X(scoop_array_builder_build_mutable_array_composite) \
   X(scoop_array_builder_new) \
+  X(scoop_array_builder_push_composite) \
   X(scoop_array_builder_push_ref) \
   X(scoop_array_builder_push_u64) \
+  X(scoop_array_get_composite) \
   X(scoop_array_get_ref) \
   X(scoop_array_get_u64) \
   X(scoop_array_len) \
+  X(scoop_array_set_composite) \
   X(scoop_array_set_ref) \
   X(scoop_array_set_u64) \
   X(scoop_continuation_alloc) \

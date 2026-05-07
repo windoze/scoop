@@ -1,24 +1,9 @@
-// Scoop C runtime: Array / MutableArray primitive support (early stage).
+// Scoop C runtime: Array / MutableArray primitive support.
 //
-// 目标（TODO T1317d）：
-// - 为 `Array<T>` / `MutableArray<T>` 提供最小运行期 primitive：
-//   - 分配（通过 array literal builder）
-//   - 长度（len/size）
-//   - 索引读写（get/set）
-// - 让 LLVM codegen 可以在不引入 stdlib 语义的情况下生成可执行代码。
-//
-// 说明：
-// - 当前实现以 “word array” 作为元素承载：每个元素都是一个 “word-sized slot”（`uintptr_t`）：
-//   - 整数/布尔：按 u64 bits 编码后写入 slot；
-//   - 引用/字符串指针：按 ptr→uintptr_t bits 编码后写入 slot；
-// - 该 ABI 与编译器侧的 `coerce_u64_word()` 对齐，便于后续扩展为更复杂的 payload（TODO T0630）。
-//
-// 注意（early stage 限制）：
-// - Array/ArrayBuilder 以 “word slots（uintptr_t）” 承载元素，既可存放整数 bits，也可存放 GC 指针；
-// - 为保证 `Array<Ref>` / `Array<String>` 等场景下 GC 可追踪元素，本文件会在构造数组时
-//   把 `header.type_desc` 设为带 trace_fn 的 descriptor，并在 GC trace 中把每个 slot 当作 `void**` 访问。
-// - 对于 “word array”（例如 `Array<Int>` / `Array<Bool>`），type_desc 仍可为 NULL 或指向 no-trace
-//   descriptor（不会扫描元素，避免把整数误当作指针）。
+// Array elements can be carried as scalar words, GC refs, or descriptor-backed
+// composite values.  Composite values use ScoopCompositeTransportDescriptor for
+// element size/alignment and trace/copy/drop hooks; scalar/ref arrays keep the
+// existing public ABI.
 
 #include <stdint.h>
 #include <stddef.h>
@@ -30,86 +15,148 @@
 // `scoop_alloc` 在 `scoop_runtime.c` 中实现；这里仅声明供本模块使用。
 void *scoop_alloc(uint64_t size);
 
-// --- Array object layout ---
-//
-// 运行期对象布局：
-// `{ header: ScoopGcObjectHeader, len: u64, data: [len x uintptr_t] }`
+#define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
+#define SCOOP_ARRAY_ELEM_KIND_WORD 1u
+#define SCOOP_ARRAY_ELEM_KIND_REF 2u
+#define SCOOP_ARRAY_ELEM_KIND_COMPOSITE 3u
+
 typedef struct ScoopArray {
   ScoopGcObjectHeader header;
   uint64_t len;
-  uintptr_t data[];
+  uint64_t elem_size_bytes;
+  uint64_t data_offset_bytes;
+  const ScoopCompositeTransportDescriptor *elem_desc;
+  uint32_t elem_kind;
+  uint32_t _reserved_u32;
+  uint8_t data[];
 } ScoopArray;
 
-// --- ArrayBuilder layout ---
-//
-// builder 是 lowering 产物（见 `hir/lower.rs` 的 array literal lowering）：
-// - `__scoop_array_builder_new()` 创建 builder
-// - `__scoop_array_builder_push(builder, value)` 逐个 push
-// - `__scoop_array_builder_build_array(builder)` 产出 Array
-// - `__scoop_array_builder_build_mutable_array(builder)` 产出 MutableArray
-//
-// 为保持实现简单：
-// - builder 自身使用 `scoop_alloc` 作为 GC-managed 对象（避免 GC roots 指向非 GC 对象导致崩溃）；
-// - builder 的临时 buffer 使用 `malloc/realloc`（builder 被 build 后会 `free` 该 buffer）。
 typedef struct ScoopArrayBuilder {
   ScoopGcObjectHeader header;
   uint64_t len;
   uint64_t cap;
-  // 元素承载种类（用于选择 array/build 的 type descriptor）：
-  // - 0: unknown（尚未 push）
-  // - 1: word（push_u64）
-  // - 2: ref（push_ref）
+  uint64_t elem_size_bytes;
+  uint64_t elem_align_bytes;
+  const ScoopCompositeTransportDescriptor *elem_desc;
+  uint8_t *data;
   uint32_t elem_kind;
   uint32_t _reserved_u32;
-  uintptr_t *data;
 } ScoopArrayBuilder;
 
-#define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
-#define SCOOP_ARRAY_ELEM_KIND_WORD 1u
-#define SCOOP_ARRAY_ELEM_KIND_REF 2u
+static uint64_t scoop_array_align_up_u64(uint64_t value, uint64_t align) {
+  if (align <= 1) {
+    return value;
+  }
+  uint64_t rem = value % align;
+  if (rem == 0) {
+    return value;
+  }
+  uint64_t add = align - rem;
+  if (UINT64_MAX - value < add) {
+    return 0;
+  }
+  return value + add;
+}
 
-static uint64_t scoop_array_trace_ref_elems(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
+static uint64_t scoop_array_word_size(void) {
+  return (uint64_t)sizeof(uintptr_t);
+}
+
+static uint64_t scoop_array_element_size(uint32_t kind,
+                                         const ScoopCompositeTransportDescriptor *desc) {
+  if (kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) {
+    if (desc == 0 || desc->size_bytes == 0) {
+      return 0;
+    }
+    return desc->size_bytes;
+  }
+  return scoop_array_word_size();
+}
+
+static uint64_t scoop_array_element_align(uint32_t kind,
+                                          const ScoopCompositeTransportDescriptor *desc) {
+  if (kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) {
+    if (desc == 0 || desc->align_bytes == 0) {
+      return 0;
+    }
+    return desc->align_bytes;
+  }
+  return (uint64_t)_Alignof(uintptr_t);
+}
+
+static uint8_t *scoop_array_data(ScoopArray *arr) {
+  if (arr == 0 || arr->data_offset_bytes == 0) {
+    return 0;
+  }
+  return ((uint8_t *)arr) + arr->data_offset_bytes;
+}
+
+static const uint8_t *scoop_array_const_data(const ScoopArray *arr) {
+  if (arr == 0 || arr->data_offset_bytes == 0) {
+    return 0;
+  }
+  return ((const uint8_t *)arr) + arr->data_offset_bytes;
+}
+
+static uint64_t scoop_array_max_len_from_size(const ScoopArray *arr) {
+  if (arr == 0 || arr->elem_size_bytes == 0 || arr->data_offset_bytes == 0) {
+    return 0;
+  }
+  uint64_t size_bytes = arr->header.size_bytes;
+  if (size_bytes <= arr->data_offset_bytes) {
+    return 0;
+  }
+  return (size_bytes - arr->data_offset_bytes) / arr->elem_size_bytes;
+}
+
+static uint64_t scoop_array_trace_elems(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
   if (object == 0 || visitor == 0) {
     return 0;
   }
 
   ScoopArray *arr = (ScoopArray *)object;
-
-  // 健壮性：根据 header.size_bytes 裁剪扫描范围，避免 len 被污染时越界。
-  uint64_t size_bytes = arr->header.size_bytes;
-  uint64_t data_off = (uint64_t)offsetof(ScoopArray, data);
-  if (size_bytes <= data_off) {
+  uint8_t *data = scoop_array_data(arr);
+  if (data == 0) {
     return 0;
   }
 
-  uint64_t avail = size_bytes - data_off;
-  uint64_t max_len = avail / (uint64_t)sizeof(uintptr_t);
   uint64_t len = arr->len;
+  uint64_t max_len = scoop_array_max_len_from_size(arr);
   if (len > max_len) {
     len = max_len;
   }
 
   uint64_t visited = 0;
-  for (uint64_t i = 0; i < len; i++) {
-    void **slot = (void **)&arr->data[i];
-    visitor(slot, ctx);
-    visited += 1;
+  if (arr->elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) {
+    for (uint64_t i = 0; i < len; i++) {
+      void **slot = (void **)(data + (i * arr->elem_size_bytes));
+      visitor(slot, ctx);
+      visited += 1;
+    }
+    return visited;
+  }
+
+  if (arr->elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE && arr->elem_desc != 0) {
+    for (uint64_t i = 0; i < len; i++) {
+      visited += scoop_composite_trace(
+          arr->elem_desc,
+          data + (i * arr->elem_size_bytes),
+          visitor,
+          ctx);
+    }
   }
   return visited;
 }
 
-static uint64_t scoop_array_builder_trace_ref_elems(void *object,
-                                                    ScoopGcTraceVisitor visitor,
-                                                    void *ctx) {
+static uint64_t scoop_array_builder_trace_elems(void *object,
+                                                ScoopGcTraceVisitor visitor,
+                                                void *ctx) {
   if (object == 0 || visitor == 0) {
     return 0;
   }
 
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)object;
-  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF) {
-    return 0;
-  }
-  if (b->data == 0 || b->len == 0) {
+  if (b->data == 0 || b->len == 0 || b->elem_size_bytes == 0) {
     return 0;
   }
 
@@ -119,12 +166,39 @@ static uint64_t scoop_array_builder_trace_ref_elems(void *object,
   }
 
   uint64_t visited = 0;
-  for (uint64_t i = 0; i < len; i++) {
-    void **slot = (void **)&b->data[i];
-    visitor(slot, ctx);
-    visited += 1;
+  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) {
+    for (uint64_t i = 0; i < len; i++) {
+      void **slot = (void **)(b->data + (i * b->elem_size_bytes));
+      visitor(slot, ctx);
+      visited += 1;
+    }
+    return visited;
+  }
+
+  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE && b->elem_desc != 0) {
+    for (uint64_t i = 0; i < len; i++) {
+      visited += scoop_composite_trace(
+          b->elem_desc,
+          b->data + (i * b->elem_size_bytes),
+          visitor,
+          ctx);
+    }
   }
   return visited;
+}
+
+static void scoop_array_builder_drop_elements(ScoopArrayBuilder *b) {
+  if (b == 0 || b->data == 0 || b->elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE ||
+      b->elem_desc == 0 || b->elem_size_bytes == 0) {
+    return;
+  }
+  uint64_t len = b->len;
+  if (b->cap > 0 && len > b->cap) {
+    len = b->cap;
+  }
+  for (uint64_t i = 0; i < len; i++) {
+    scoop_composite_drop(b->elem_desc, b->data + (i * b->elem_size_bytes));
+  }
 }
 
 static void scoop_array_builder_release(void *object) {
@@ -133,34 +207,20 @@ static void scoop_array_builder_release(void *object) {
   }
 
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)object;
+  scoop_array_builder_drop_elements(b);
   if (b->data != 0) {
     free(b->data);
     b->data = 0;
   }
   b->len = 0;
   b->cap = 0;
+  b->elem_size_bytes = 0;
+  b->elem_align_bytes = 0;
+  b->elem_desc = 0;
   b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
 }
 
-static const ScoopTypeDescriptor SCOOP_ARRAY_WORD_TYPE_DESC = {
-    .abi_version = 0,
-    .flags = 0,
-    // Array 是变长对象：这里记录最小 header size 作为调试信息；真实大小由 `hdr.size_bytes` 决定。
-    .size_bytes = sizeof(ScoopArray),
-    .align_bytes = (uint64_t)_Alignof(ScoopArray),
-    .trace_start_offset_bytes = 0,
-    .trace_bitmap_u64_len = 0,
-    ._reserved_u32 = 0,
-    .trace_bitmap = 0,
-    .trace_fn = 0,
-    .release_fn = 0,
-    .type_id = 0,
-    .parent_type_desc = 0,
-    .itable = 0,
-    .vtable = 0,
-};
-
-static const ScoopTypeDescriptor SCOOP_ARRAY_REF_TYPE_DESC = {
+static const ScoopTypeDescriptor SCOOP_ARRAY_TYPE_DESC = {
     .abi_version = 0,
     .flags = 0,
     .size_bytes = sizeof(ScoopArray),
@@ -169,7 +229,7 @@ static const ScoopTypeDescriptor SCOOP_ARRAY_REF_TYPE_DESC = {
     .trace_bitmap_u64_len = 0,
     ._reserved_u32 = 0,
     .trace_bitmap = 0,
-    .trace_fn = scoop_array_trace_ref_elems,
+    .trace_fn = scoop_array_trace_elems,
     .release_fn = 0,
     .type_id = 0,
     .parent_type_desc = 0,
@@ -177,7 +237,7 @@ static const ScoopTypeDescriptor SCOOP_ARRAY_REF_TYPE_DESC = {
     .vtable = 0,
 };
 
-static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC = {
+static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_TYPE_DESC = {
     .abi_version = 0,
     .flags = 0,
     .size_bytes = sizeof(ScoopArrayBuilder),
@@ -186,7 +246,7 @@ static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC = {
     .trace_bitmap_u64_len = 0,
     ._reserved_u32 = 0,
     .trace_bitmap = 0,
-    .trace_fn = 0,
+    .trace_fn = scoop_array_builder_trace_elems,
     .release_fn = scoop_array_builder_release,
     .type_id = 0,
     .parent_type_desc = 0,
@@ -194,43 +254,54 @@ static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC = {
     .vtable = 0,
 };
 
-static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_REF_TYPE_DESC = {
-    .abi_version = 0,
-    .flags = 0,
-    .size_bytes = sizeof(ScoopArrayBuilder),
-    .align_bytes = (uint64_t)_Alignof(ScoopArrayBuilder),
-    .trace_start_offset_bytes = 0,
-    .trace_bitmap_u64_len = 0,
-    ._reserved_u32 = 0,
-    .trace_bitmap = 0,
-    .trace_fn = scoop_array_builder_trace_ref_elems,
-    .release_fn = scoop_array_builder_release,
-    .type_id = 0,
-    .parent_type_desc = 0,
-    .itable = 0,
-    .vtable = 0,
-};
+static uint32_t scoop_array_builder_configure(
+    ScoopArrayBuilder *b,
+    uint32_t elem_kind,
+    const ScoopCompositeTransportDescriptor *desc) {
+  if (b == 0) {
+    return 0;
+  }
+  uint64_t elem_size = scoop_array_element_size(elem_kind, desc);
+  uint64_t elem_align = scoop_array_element_align(elem_kind, desc);
+  if (elem_size == 0 || elem_align == 0) {
+    return 0;
+  }
+
+  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
+    b->elem_kind = elem_kind;
+    b->elem_size_bytes = elem_size;
+    b->elem_align_bytes = elem_align;
+    b->elem_desc = (elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) ? desc : 0;
+    b->header.type_desc = &SCOOP_ARRAY_BUILDER_TYPE_DESC;
+    return 1;
+  }
+
+  if (b->elem_kind != elem_kind || b->elem_size_bytes != elem_size ||
+      b->elem_align_bytes != elem_align) {
+    return 0;
+  }
+  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE && b->elem_desc != desc) {
+    return 0;
+  }
+  return 1;
+}
 
 static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
-  if (b == 0) {
+  if (b == 0 || b->elem_size_bytes == 0) {
     return 0;
   }
 
   uint64_t old_cap = b->cap;
   uint64_t new_cap = (old_cap == 0) ? 4u : old_cap * 2u;
   if (new_cap < old_cap) {
-    // overflow
+    return 0;
+  }
+  if (b->elem_size_bytes > 0 && new_cap > (uint64_t)(SIZE_MAX / b->elem_size_bytes)) {
     return 0;
   }
 
-  // size_t overflow guard（避免 `realloc` 参数回卷）。
-  uint64_t max_cap = (uint64_t)(SIZE_MAX / sizeof(uintptr_t));
-  if (new_cap > max_cap) {
-    return 0;
-  }
-
-  size_t bytes = (size_t)new_cap * sizeof(uintptr_t);
-  uintptr_t *p = (uintptr_t *)realloc(b->data, bytes);
+  size_t bytes = (size_t)new_cap * (size_t)b->elem_size_bytes;
+  uint8_t *p = (uint8_t *)realloc(b->data, bytes);
   if (p == 0) {
     return 0;
   }
@@ -246,130 +317,197 @@ void *scoop_array_builder_new(void) {
     return 0;
   }
 
-  // `scoop_alloc` 已初始化对象头（size/mark 等）；这里补齐 builder 字段。
+  b->header.type_desc = &SCOOP_ARRAY_BUILDER_TYPE_DESC;
   b->len = 0;
   b->cap = 0;
+  b->elem_size_bytes = 0;
+  b->elem_align_bytes = 0;
+  b->elem_desc = 0;
+  b->data = 0;
   b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
   b->_reserved_u32 = 0;
-  b->data = 0;
   return (void *)b;
 }
 
 void scoop_array_builder_push_u64(void *builder, uint64_t value) {
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
-  if (b == 0) {
+  if (!scoop_array_builder_configure(b, SCOOP_ARRAY_ELEM_KIND_WORD, 0)) {
     return;
   }
 
-  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
-    b->elem_kind = SCOOP_ARRAY_ELEM_KIND_WORD;
-    b->header.type_desc = &SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC;
-  }
-  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD) {
-    // 不允许混用 push_u64/push_ref：视为编译器/stdlib 约定错误，保持运行时不崩溃即可。
+  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
     return;
   }
 
-  if (b->len >= b->cap) {
-    if (!scoop_array_builder_grow(b)) {
-      // early stage：OOM/overflow 直接忽略（保持运行时可链接/不崩溃）。
-      return;
-    }
-  }
-
-  b->data[b->len] = (uintptr_t)value;
+  (void)memcpy(b->data + (b->len * b->elem_size_bytes), &value, sizeof(value));
   b->len += 1;
 }
 
 void scoop_array_builder_push_ref(void *builder, void *value) {
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
-  if (b == 0) {
+  if (!scoop_array_builder_configure(b, SCOOP_ARRAY_ELEM_KIND_REF, 0)) {
     return;
   }
 
-  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
-    b->elem_kind = SCOOP_ARRAY_ELEM_KIND_REF;
-    b->header.type_desc = &SCOOP_ARRAY_BUILDER_REF_TYPE_DESC;
-  }
-  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF) {
-    // 不允许混用 push_u64/push_ref：视为编译器/stdlib 约定错误，保持运行时不崩溃即可。
+  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
     return;
   }
 
-  if (b->len >= b->cap) {
-    if (!scoop_array_builder_grow(b)) {
-      // early stage：OOM/overflow 直接忽略（保持运行时可链接/不崩溃）。
-      return;
-    }
-  }
-
-  b->data[b->len] = (uintptr_t)value;
+  uintptr_t encoded = (uintptr_t)value;
+  (void)memcpy(b->data + (b->len * b->elem_size_bytes), &encoded, sizeof(encoded));
   b->len += 1;
 }
 
-static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
+void scoop_array_builder_push_composite(
+    void *builder,
+    const ScoopCompositeTransportDescriptor *descriptor,
+    const void *value) {
+  ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
+  if (!scoop_array_builder_configure(b, SCOOP_ARRAY_ELEM_KIND_COMPOSITE, descriptor)) {
+    return;
+  }
+
+  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
+    return;
+  }
+
+  uint8_t *dst = b->data + (b->len * b->elem_size_bytes);
+  if (value == 0) {
+    (void)memset(dst, 0, (size_t)b->elem_size_bytes);
+  } else {
+    scoop_composite_copy(descriptor, dst, value);
+  }
+  b->len += 1;
+}
+
+static uint64_t scoop_array_allocation_size(
+    uint64_t len,
+    uint32_t elem_kind,
+    const ScoopCompositeTransportDescriptor *desc,
+    uint64_t *out_elem_size,
+    uint64_t *out_data_offset) {
+  uint64_t elem_size = scoop_array_element_size(elem_kind, desc);
+  uint64_t elem_align = scoop_array_element_align(elem_kind, desc);
+  if (elem_size == 0 || elem_align == 0) {
+    return 0;
+  }
+  uint64_t data_offset = scoop_array_align_up_u64((uint64_t)sizeof(ScoopArray), elem_align);
+  if (data_offset == 0) {
+    return 0;
+  }
+  if (len > (uint64_t)(UINT64_MAX / elem_size)) {
+    return 0;
+  }
+  uint64_t data_bytes = len * elem_size;
+  if (UINT64_MAX - data_offset < data_bytes) {
+    return 0;
+  }
+  *out_elem_size = elem_size;
+  *out_data_offset = data_offset;
+  return data_offset + data_bytes;
+}
+
+static void scoop_array_builder_reset_after_transfer(ScoopArrayBuilder *b) {
+  if (b == 0) {
+    return;
+  }
+  if (b->data != 0) {
+    free(b->data);
+  }
+  b->data = 0;
+  b->len = 0;
+  b->cap = 0;
+  b->elem_size_bytes = 0;
+  b->elem_align_bytes = 0;
+  b->elem_desc = 0;
+  b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
+}
+
+static void *scoop_array_builder_build_common(
+    ScoopArrayBuilder *b,
+    const ScoopCompositeTransportDescriptor *empty_composite_desc) {
   if (b == 0) {
     return 0;
   }
 
-  uint64_t len = b->len;
-  uint64_t bytes = (uint64_t)sizeof(ScoopArray);
-  if (len > 0) {
-    uint64_t add = len * (uint64_t)sizeof(uintptr_t);
-    if (add / (uint64_t)sizeof(uintptr_t) != len) {
-      // overflow
-      return 0;
+  uint32_t elem_kind = b->elem_kind;
+  const ScoopCompositeTransportDescriptor *elem_desc = b->elem_desc;
+  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
+    if (empty_composite_desc != 0) {
+      elem_kind = SCOOP_ARRAY_ELEM_KIND_COMPOSITE;
+      elem_desc = empty_composite_desc;
+    } else {
+      elem_kind = SCOOP_ARRAY_ELEM_KIND_WORD;
     }
-    if (UINT64_MAX - bytes < add) {
-      // overflow
-      return 0;
-    }
-    bytes += add;
   }
 
-  // GC safety (T0106): pin `b` — it's GC-managed and accessed after scoop_alloc
-  // (elem_kind, data, len, cap fields are read/written below).
-  scoop_pin((void *)b);
+  uint64_t elem_size = 0;
+  uint64_t data_offset = 0;
+  uint64_t bytes = scoop_array_allocation_size(
+      b->len,
+      elem_kind,
+      elem_desc,
+      &elem_size,
+      &data_offset);
+  if (bytes == 0) {
+    return 0;
+  }
 
+  scoop_pin((void *)b);
   ScoopArray *arr = (ScoopArray *)scoop_alloc(bytes);
   if (arr == 0) {
     scoop_unpin((void *)b);
     return 0;
   }
+  scoop_pin((void *)arr);
 
-  // 关键：写入 array object 的 type descriptor。
-  // - ref 数组：GC 会扫描每个 slot 并追踪其中的指针；
-  // - word 数组：不扫描（避免把整数误当作指针）。
-  arr->header.type_desc =
-      (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) ? &SCOOP_ARRAY_REF_TYPE_DESC : &SCOOP_ARRAY_WORD_TYPE_DESC;
+  arr->header.type_desc = &SCOOP_ARRAY_TYPE_DESC;
+  arr->len = b->len;
+  arr->elem_size_bytes = elem_size;
+  arr->data_offset_bytes = data_offset;
+  arr->elem_desc = (elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) ? elem_desc : 0;
+  arr->elem_kind = elem_kind;
+  arr->_reserved_u32 = 0;
 
-  arr->len = len;
-  if (len > 0 && b->data != 0) {
-    // `bytes` 已被 overflow guard 保护，因此这里的 size_t 转换是安全的。
-    (void)memcpy(arr->data, b->data, (size_t)len * sizeof(uintptr_t));
+  uint8_t *dst = scoop_array_data(arr);
+  if (b->len > 0 && b->data != 0 && dst != 0) {
+    if (elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE && elem_desc != 0) {
+      for (uint64_t i = 0; i < b->len; i++) {
+        scoop_composite_copy(
+            elem_desc,
+            dst + (i * elem_size),
+            b->data + (i * elem_size));
+      }
+      scoop_array_builder_drop_elements(b);
+    } else {
+      (void)memcpy(dst, b->data, (size_t)b->len * (size_t)elem_size);
+    }
   }
 
-  // 释放临时 buffer，避免在大量 array literal 下泄漏。
-  if (b->data != 0) {
-    free(b->data);
-    b->data = 0;
-  }
-  b->len = 0;
-  b->cap = 0;
-  b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
-
+  scoop_array_builder_reset_after_transfer(b);
+  scoop_unpin((void *)arr);
   scoop_unpin((void *)b);
   return (void *)arr;
 }
 
 void *scoop_array_builder_build_array(void *builder) {
-  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder);
+  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, 0);
 }
 
 void *scoop_array_builder_build_mutable_array(void *builder) {
-  // early stage：MutableArray 与 Array 共享同一底层表示（固定长度 word buffer）。
-  // 更完整的容量策略由 stdlib 在上层实现（TODO T1317e）。
-  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder);
+  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, 0);
+}
+
+void *scoop_array_builder_build_array_composite(
+    void *builder,
+    const ScoopCompositeTransportDescriptor *descriptor) {
+  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, descriptor);
+}
+
+void *scoop_array_builder_build_mutable_array_composite(
+    void *builder,
+    const ScoopCompositeTransportDescriptor *descriptor) {
+  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, descriptor);
 }
 
 uint64_t scoop_array_len(void *array_obj) {
@@ -382,75 +520,144 @@ uint64_t scoop_array_len(void *array_obj) {
 }
 
 uint64_t scoop_array_get_u64(void *array_obj, int64_t index) {
-  if (array_obj == 0) {
+  if (array_obj == 0 || index < 0) {
     return 0;
   }
 
   ScoopArray *arr = (ScoopArray *)array_obj;
-  if (index < 0) {
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD || arr->elem_size_bytes < sizeof(uint64_t)) {
     return 0;
   }
-
   uint64_t idx = (uint64_t)index;
   if (idx >= arr->len) {
     return 0;
   }
 
-  return (uint64_t)arr->data[idx];
+  uint64_t value = 0;
+  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
+  (void)memcpy(&value, src, sizeof(value));
+  return value;
 }
 
 void *scoop_array_get_ref(void *array_obj, int64_t index) {
-  if (array_obj == 0) {
+  if (array_obj == 0 || index < 0) {
     return 0;
   }
 
   ScoopArray *arr = (ScoopArray *)array_obj;
-  if (index < 0) {
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF || arr->elem_size_bytes < sizeof(uintptr_t)) {
     return 0;
   }
-
   uint64_t idx = (uint64_t)index;
   if (idx >= arr->len) {
     return 0;
   }
 
-  return (void *)arr->data[idx];
+  uintptr_t encoded = 0;
+  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
+  (void)memcpy(&encoded, src, sizeof(encoded));
+  return (void *)encoded;
+}
+
+void scoop_array_get_composite(
+    void *array_obj,
+    int64_t index,
+    const ScoopCompositeTransportDescriptor *descriptor,
+    void *out_value) {
+  if (array_obj == 0 || descriptor == 0 || out_value == 0 || index < 0) {
+    return;
+  }
+  ScoopArray *arr = (ScoopArray *)array_obj;
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE || arr->elem_desc != descriptor ||
+      arr->elem_size_bytes != descriptor->size_bytes) {
+    return;
+  }
+  uint64_t idx = (uint64_t)index;
+  if (idx >= arr->len) {
+    return;
+  }
+
+  scoop_pin((void *)arr);
+  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
+  scoop_composite_copy(descriptor, out_value, src);
+  scoop_unpin((void *)arr);
 }
 
 void scoop_array_set_u64(void *array_obj, int64_t index, uint64_t value) {
-  if (array_obj == 0) {
+  if (array_obj == 0 || index < 0) {
     return;
   }
 
   ScoopArray *arr = (ScoopArray *)array_obj;
-  if (index < 0) {
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD || arr->elem_size_bytes < sizeof(uint64_t)) {
     return;
   }
-
   uint64_t idx = (uint64_t)index;
   if (idx >= arr->len) {
     return;
   }
 
-  arr->data[idx] = (uintptr_t)value;
+  uint8_t *dst = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
+  (void)memcpy(dst, &value, sizeof(value));
 }
 
 void scoop_array_set_ref(void *array_obj, int64_t index, void *value) {
-  if (array_obj == 0) {
+  if (array_obj == 0 || index < 0) {
     return;
   }
 
   ScoopArray *arr = (ScoopArray *)array_obj;
-  if (index < 0) {
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF || arr->elem_size_bytes < sizeof(uintptr_t)) {
     return;
   }
-
   uint64_t idx = (uint64_t)index;
   if (idx >= arr->len) {
     return;
   }
 
-  // T1412d：引用写入必须走统一写屏障，避免在 Immix nursery 模式下形成 old→nursery 指针。
-  // 注意：Array 的元素槽位为 `uintptr_t`（word slots），因此这里传入 “slot 的地址” 供 barrier 用 memcpy 写回。
-  (void)scoop_gc_write_barrier((void *)&arr->data[idx], value);
+  uint8_t *slot = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
+  (void)scoop_gc_write_barrier((void *)slot, value);
+}
+
+static void scoop_array_composite_write_barriers(
+    uint8_t *dst,
+    const ScoopCompositeTransportDescriptor *descriptor) {
+  if (dst == 0 || descriptor == 0 || descriptor->gc_slot_offsets == 0 ||
+      descriptor->gc_slot_count == 0) {
+    return;
+  }
+  for (uint32_t i = 0; i < descriptor->gc_slot_count; i++) {
+    uint64_t raw_off = descriptor->gc_slot_offsets[i];
+    if (raw_off > descriptor->size_bytes || descriptor->size_bytes - raw_off < sizeof(void *)) {
+      continue;
+    }
+    void **slot = (void **)(dst + raw_off);
+    (void)scoop_gc_write_barrier((void *)slot, *slot);
+  }
+}
+
+void scoop_array_set_composite(
+    void *array_obj,
+    int64_t index,
+    const ScoopCompositeTransportDescriptor *descriptor,
+    const void *value) {
+  if (array_obj == 0 || descriptor == 0 || value == 0 || index < 0) {
+    return;
+  }
+  ScoopArray *arr = (ScoopArray *)array_obj;
+  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE || arr->elem_desc != descriptor ||
+      arr->elem_size_bytes != descriptor->size_bytes) {
+    return;
+  }
+  uint64_t idx = (uint64_t)index;
+  if (idx >= arr->len) {
+    return;
+  }
+
+  scoop_pin((void *)arr);
+  uint8_t *dst = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
+  scoop_composite_drop(descriptor, dst);
+  scoop_composite_copy(descriptor, dst, value);
+  scoop_array_composite_write_barriers(dst, descriptor);
+  scoop_unpin((void *)arr);
 }

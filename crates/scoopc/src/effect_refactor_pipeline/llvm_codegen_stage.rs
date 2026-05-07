@@ -1053,6 +1053,48 @@ fun main(): Int {
         )
     }
 
+    fn array_composite_transport_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_array_composite_transport_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Item {
+    Hit(val point: Point),
+    Pair(val payload: (Point, Int)),
+}
+
+fun score(item: Item): Int {
+    return when (item) {
+        Hit(point) -> point.x + point.y
+        Pair(payload) -> payload._0.x + payload._0.y + payload._1
+    }
+}
+
+fun main(): Int {
+    val points: Array<Point> = [Point(1, 2), Point(3, 4)]
+    val p: Point = points.get(1)
+
+    val pairs: MutableArray<(Point, Int)> = [(Point(5, 6), 7)]
+    val first: (Point, Int) = pairs.get(0)
+    pairs.set(0, (Point(8, 9), 10))
+    val second: (Point, Int) = pairs.get(0)
+
+    val items: MutableArray<Item> = [Hit(Point(11, 12)), Pair((Point(13, 14), 15))]
+    val before: Int = score(items.get(1))
+    items.set(0, Pair((Point(16, 17), 18)))
+    val after: Int = score(items.get(0))
+
+    return p.x + p.y + first._0.x + first._0.y + first._1 + second._0.x + second._0.y + second._1 + before + after
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1237,6 +1279,32 @@ fun main(): Int {
         assert!(
             ir.contains("when_payload_field"),
             "when/pattern extraction should project boxed enum payload fields\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_array_composite_transport() {
+        let ir = emit_refactor_ir_for_source(
+            array_composite_transport_source(),
+            "array_composite_transport.ll",
+        );
+
+        assert!(
+            ir.contains("scoop.runtime.ScoopCompositeTransportDescriptor"),
+            "array composite transport should consume shared layout descriptors\n{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_array_builder_push_composite"),
+            "composite array literal elements should use descriptor-backed builder push\n{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_array_builder_build_array_composite")
+                && ir.contains("@scoop_array_builder_build_mutable_array_composite"),
+            "composite array build should pass the element descriptor to runtime\n{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_array_get_composite") && ir.contains("@scoop_array_set_composite"),
+            "composite array get/set should copy through descriptor-backed runtime hooks\n{ir}"
         );
     }
 

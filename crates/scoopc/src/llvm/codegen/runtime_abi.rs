@@ -790,6 +790,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_array_builder_push_composite(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_ARRAY_BUILDER_PUSH_COMPOSITE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_array_builder_push_composite(void* builder, const desc*, const void* value)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [gc_i8_ptr_ty.into(), ptr_ty.into(), ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_array_builder_build_array(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ARRAY_BUILDER_BUILD_ARRAY;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -803,6 +818,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_array_builder_build_array_composite(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_ARRAY_BUILDER_BUILD_ARRAY_COMPOSITE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_array_builder_build_array_composite(void* builder, const desc*)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_array_builder_build_mutable_array(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -812,6 +843,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_array_builder_build_mutable_array(void* builder)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_array_builder_build_mutable_array_composite(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_COMPOSITE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_array_builder_build_mutable_array_composite(void* builder, const desc*)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -858,6 +905,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_array_get_composite(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_ARRAY_GET_COMPOSITE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_array_get_composite(void* array_obj, int64_t index, const desc*, void* out)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 4] = [
+            gc_i8_ptr_ty.into(),
+            i64_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+        ];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_array_set_u64(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ARRAY_SET_U64;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -884,6 +951,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_array_set_composite(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_ARRAY_SET_COMPOSITE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_array_set_composite(void* array_obj, int64_t index, const desc*, const void* value)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 4] = [
+            gc_i8_ptr_ty.into(),
+            i64_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+        ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
