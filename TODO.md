@@ -23,7 +23,7 @@
 | `CG-T04a` | CG4a | [DONE] 建立 composite transport layout contract 与 verifier |
 | `CG-T04b0` | CG4b0 | [DONE] 发布 value erasure boxing MIR transport contract |
 | `CG-T04b` | CG4b | [DONE] 收口 value boxing composite transport lowering |
-| `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
+| `CG-T04c` | CG4c | [DONE] 收口 enum payload composite transport lowering |
 | `CG-T04d` | CG4d | 收口 array composite element transport lowering |
 | `CG-T04e` | CG4e | 收口 closure env/capture transport lowering |
 | `CG-T04f` | CG4f | 收口 cross-thread resume payload transport lowering |
@@ -383,7 +383,7 @@
   - 2026-05-07：新增 `refactor_llvm_value_boxing_transport` IR 单测与 `tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`，覆盖 struct/tuple -> `Any` 的 allocation、descriptor publication 与 payload store。
   - 验证通过：`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04c：收口 enum payload composite transport lowering
+## [DONE] CG-T04c：收口 enum payload composite transport lowering
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
@@ -411,6 +411,13 @@
   - `PIPELINE_GAPS.md` §4.2、§4.3、§4.4 的 codegen/runtime 部分关闭。
   - `PIPELINE_GAPS.md` §4.1 中 payload-bearing enum boxing 不再保留额外 gate。
 - 依赖：`CG-T04b`
+
+- 完成记录：
+  - 2026-05-07：refactor LLVM enum ctor lowering 现在校验并消费 MIR-T10 `EnumPayload` schema，payload aggregate/field type、field ordinal 与 arg metadata 不匹配时 fail-fast，不再从 enum/source type 现场猜 payload shape。
+  - 2026-05-07：boxed enum payload 支持 Unit field、tuple/struct/nested enum payload 与 oversized/wide payload boxing；Unit field 在 boxed payload struct 中保留 ordinal，占位写入 `i8 0`，wide integer field 会被 enum layout 决策强制导向 boxed payload 主线。
+  - 2026-05-07：payload-bearing enum value erasure 不再 gate 到 `CG-T04c`，改为复用 `CG-T04b` value-box carrier 并发布 erased composite descriptor / value-box type descriptor；composite verifier 使用 codegen layout 规范化 GC trace requirement，避免 GC-free nominal field 伪造 trace hook，同时 traceable enum payload 仍通过 descriptor slot map 枚举。
+  - 2026-05-07：新增 `refactor_llvm_enum_payload_transport` IR 单测、`enum_payload_unit_field_basic.scoop` 与 `enum_payload_boxing_any_basic.scoop` run-pass fixtures，并将 enum non-scalar / oversized fixtures 改为 exit-code 断言，避开无关 generic `println` materialization blocker 而保留 payload 提取结果检查。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_enum_payload_transport`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_unit_field_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_variant_non_scalar_payload_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_oversized_variant_boxing_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T04d：收口 array composite element transport lowering
 

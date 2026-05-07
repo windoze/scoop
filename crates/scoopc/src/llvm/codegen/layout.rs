@@ -670,6 +670,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         field_ty: CgTy,
     ) -> Result<bool, LlvmEmitError> {
         match field_ty {
+            CgTy::Int(int_ty) if int_ty.bits > self.host.word_bit_width() => Ok(true),
             CgTy::Tuple(_) | CgTy::Struct(_) => Ok(true),
             // inline nested enum 目前只继续保留 niche path；
             // 其余 nested enum（含 nominal/value-only/tagged-union，以及 tagged-union `Option<T>`）

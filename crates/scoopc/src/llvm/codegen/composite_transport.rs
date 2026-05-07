@@ -324,13 +324,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         metadata: &ValueTransportMetadata,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let descriptor = self
-            .composite_layout_descriptor_for_value_transport(body_fqn, span, mir_types, metadata)?;
-        if let Err(detail) = descriptor.validate(metadata) {
+        let mut metadata = metadata.clone();
+        let layout_requirements =
+            self.composite_transport_requirements_for_type(mir_types, metadata.source_ty);
+        metadata.requirements.trace = layout_requirements.trace;
+        metadata.requirements.copy |= layout_requirements.copy;
+        metadata.requirements.drop |= layout_requirements.drop;
+        let descriptor = self.composite_layout_descriptor_for_value_transport(
+            body_fqn, span, mir_types, &metadata,
+        )?;
+        if let Err(detail) = descriptor.validate(&metadata) {
             return Err(composite_transport_gate_error(
                 body_fqn,
                 span,
-                composite_transport_gap_id(metadata),
+                composite_transport_gap_id(&metadata),
                 detail,
             ));
         }
@@ -433,7 +440,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn composite_transport_requirements_for_type(
+    pub(super) fn composite_transport_requirements_for_type(
         &mut self,
         mir_types: &TypeStore,
         ty: TypeId,

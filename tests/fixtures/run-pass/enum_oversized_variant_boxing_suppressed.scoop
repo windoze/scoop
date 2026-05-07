@@ -1,5 +1,5 @@
 // EXPECT: pass
-// RUN-STDOUT: enum_oversized_variant_boxing_basic.stdout
+// EXPECT-EXIT: 5
 // RUN-STDERR: stderr_empty_ok.stderr
 //
 // 目标：T4012b3 file-level `@Suppress` 应覆盖 `enum-size-disparity` warning。
@@ -33,11 +33,11 @@ enum Big {
     ),
 }
 
-fun main() {
-    val v: Big = Huge(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+fun main(): Int {
+    val v: Big = Huge(5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
     val result: Int = when (v) {
         Small(x) -> x
         Huge(a0, ..) -> a0
     }
-    println(result)
+    return result
 }

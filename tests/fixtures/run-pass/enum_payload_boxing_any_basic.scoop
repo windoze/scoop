@@ -1,0 +1,27 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// CG-T04c: payload-bearing enum value erasure must use the explicit boxed carrier path.
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Wrapped {
+    WrappedPoint(val point: Point),
+    Empty,
+}
+
+fun keepAny(value: Any): Int {
+    __scoop_gc_collect()
+    return 0
+}
+
+fun makeAny(): Any {
+    val erased: Any = WrappedPoint(Point(1, 2))
+    return erased
+}
+
+fun main(): Int {
+    return keepAny(makeAny())
+}

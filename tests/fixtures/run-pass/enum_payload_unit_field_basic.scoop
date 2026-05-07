@@ -1,0 +1,28 @@
+// EXPECT: pass
+// EXPECT-EXIT: 66
+//
+// CG-T04c: Unit payload fields must keep their field ordinal in boxed enum payload layout.
+
+import scoop.core.*
+
+enum Marked {
+    Hit(val marker: Unit, val score: Int),
+    Miss,
+}
+
+fun marker(): Unit {}
+
+fun eval(x: Marked): Int {
+    return when (x) {
+        Hit(_, score) -> score
+        Miss -> 9
+    }
+}
+
+fun main(): Int {
+    val x: Marked = Hit(marker(), 33)
+    return eval(x) + when (x) {
+        Hit(_, bound) -> bound
+        Miss -> 0
+    }
+}

@@ -1004,6 +1004,55 @@ fun main(): Int {
         )
     }
 
+    fn enum_payload_transport_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/refactor_enum_payload_transport_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Inner {
+    Hit(val value: Int),
+    Miss,
+}
+
+enum Outer {
+    UnitPair(val marker: Unit, val point: Point),
+    Nested(val inner: Inner, val payload: (Point, Int)),
+}
+
+fun marker(): Unit {}
+
+fun keepAny(value: Any): Int {
+    __scoop_gc_collect()
+    return 1
+}
+
+fun makeAny(): Any {
+    return Nested(Hit(2), (Point(3, 4), 5))
+}
+
+fun eval(x: Outer): Int {
+    return when (x) {
+        UnitPair(_, point) -> point.x + point.y
+        Nested(Hit(v), (point, n)) -> v + point.x + n
+        Nested(Miss, (_, n)) -> n
+    }
+}
+
+fun main(): Int {
+    val unitPayload: Outer = UnitPair(marker(), Point(1, 2))
+    val nested: Outer = Nested(Hit(7), (Point(8, 9), 10))
+    val erased: Any = makeAny()
+    return eval(unitPayload) + eval(nested) + keepAny(erased)
+}
+"#,
+        )
+    }
+
     fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1151,6 +1200,43 @@ fun main(): Int {
         assert!(
             ir.contains("mir_value_box_payload_gep"),
             "boxed struct carrier should store the source payload in the value box\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_enum_payload_transport() {
+        let ir = emit_refactor_ir_for_source(
+            enum_payload_transport_source(),
+            "enum_payload_transport.ll",
+        );
+
+        assert!(
+            ir.contains("@__scoop_composite_transport_desc__inline__sample_Outer"),
+            "enum constructors should publish an explicit enum payload layout descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__UnitPair"),
+            "boxed Unit+struct enum payload should publish a runtime type descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__Nested"),
+            "boxed nested enum/tuple payload should publish a runtime type descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("rt_alloc_enum_boxed_payload"),
+            "payload-bearing enum constructors should allocate GC-managed boxed payload objects\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_composite_transport_desc__erased__sample_Outer"),
+            "enum -> Any erasure should consume the erased composite transport descriptor\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_type_desc_mir_value_box__sample_Outer"),
+            "enum -> Any erasure should use the CG-T04b value box carrier\n{ir}"
+        );
+        assert!(
+            ir.contains("when_payload_field"),
+            "when/pattern extraction should project boxed enum payload fields\n{ir}"
         );
     }
 

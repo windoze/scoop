@@ -167,17 +167,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &format!("enum_ctor_field_reload_{idx}"),
                     deferred.clone(),
                 )?;
-                // Unit 没有运行期值；当前阶段不允许把 Unit 作为 enum payload 字段。
-                if matches!(field_cg, CgTy::Unit) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum boxed payload field (unit)",
+                let raw = match field_cg {
+                    CgTy::Unit => self.context.i8_type().const_zero().into(),
+                    CgTy::Never => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "enum boxed payload field (never)",
+                            at: span.into(),
+                        });
+                    }
+                    _ => field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum boxed payload field value",
                         at: span.into(),
-                    });
-                }
-                let raw = field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum boxed payload field value",
-                    at: span.into(),
-                })?;
+                    })?,
+                };
                 payload = self.builder.build_insert_value(
                     payload,
                     raw,

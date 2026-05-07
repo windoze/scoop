@@ -671,7 +671,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 };
 
-                if let Some(existing) = self.context.get_struct_type(fqn) {
+                if let Some(existing) = self.context.get_struct_type(fqn)
+                    && !existing.is_opaque()
+                {
                     return Ok(existing.into());
                 }
 
@@ -679,13 +681,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - tag：按声明顺序分配的 variant id
                 // - payload_word：承载整数/bool/boxed payload 指针（native ptr→word，非 GC 指针）
                 // - payload_ptr：承载 GC-managed 指针 payload（避免 ptr<->int，供 statepoint/stackmap 识别 roots）
-                let enum_ty = self.context.opaque_struct_type(fqn);
                 let tag_ty = self.context.i32_type();
                 let payload_word_ty = self.int_type(IntTy {
                     bits: self.host.word_bit_width(),
                     signed: false,
                 });
                 let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
+                let enum_ty = self
+                    .context
+                    .get_struct_type(fqn)
+                    .unwrap_or_else(|| self.context.opaque_struct_type(fqn));
                 enum_ty.set_body(
                     &[tag_ty.into(), payload_word_ty.into(), payload_ptr_ty.into()],
                     false,

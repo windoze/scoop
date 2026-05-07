@@ -1239,7 +1239,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
-                ..
+                payload,
             } => self.raw_materialized_mir_enum_variant_is_supported(
                 span,
                 body,
@@ -1247,6 +1247,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 *enum_ty,
                 variant_name,
                 args,
+                payload,
                 target_cg,
             ),
             crate::mir::Rvalue::ClassCtor {
@@ -1292,9 +1293,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         transport: &crate::mir::ValueTransportMetadata,
         target_cg: Option<CgTy>,
     ) -> bool {
-        if target_cg != Some(CgTy::Ref)
-            || transport.kind == crate::mir::MirTransportKind::EnumPayload
-        {
+        if target_cg != Some(CgTy::Ref) {
             return false;
         }
         let Some(boxing) = transport.boxing.as_ref() else {
@@ -1696,6 +1695,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant_name: &str,
         args: &[crate::mir::CallArg],
+        payload: &crate::mir::AggregateTransportMetadata,
         target_cg: Option<CgTy>,
     ) -> bool {
         let Some(enum_ty) = self.equivalent_codegen_type_id(mir_types, enum_ty) else {
@@ -1714,7 +1714,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         else {
             return false;
         };
-        variant.fields.len() == args.len()
+        self.raw_materialized_mir_enum_payload_schema_is_supported(
+            mir_types, enum_ty, variant, args, payload,
+        ) && variant.fields.len() == args.len()
             && variant
                 .fields
                 .iter()
@@ -1727,6 +1729,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .mir_operand_cg_ty(body, mir_types, &arg.value)
                             .is_some_and(|actual_cg| actual_cg == field_cg)
                 })
+    }
+
+    fn raw_materialized_mir_enum_payload_schema_is_supported(
+        &self,
+        mir_types: &TypeStore,
+        enum_ty: TypeId,
+        variant: &CgEnumVariant,
+        args: &[crate::mir::CallArg],
+        payload: &crate::mir::AggregateTransportMetadata,
+    ) -> bool {
+        if payload.kind != crate::mir::AggregateTransportKind::EnumPayload
+            || self.equivalent_codegen_type_id(mir_types, payload.aggregate_ty) != Some(enum_ty)
+            || payload.fields.len() != args.len()
+            || payload.fields.len() != variant.fields.len()
+        {
+            return false;
+        }
+
+        payload
+            .fields
+            .iter()
+            .zip(args)
+            .zip(variant.fields.iter().copied())
+            .enumerate()
+            .all(|(idx, ((field, arg), field_cg))| {
+                if field.index != idx
+                    || field.name != arg.name
+                    || field.transport.source_ty != field.ty
+                {
+                    return false;
+                }
+                self.cg_ty_of_mir_type(mir_types, field.ty)
+                    .is_some_and(|metadata_cg| self.cg_ty_layout_equivalent(metadata_cg, field_cg))
+            })
     }
 
     fn mir_member_receiver_codegen_type_id(
@@ -2698,12 +2734,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
-                ..
+                payload,
             } => self.codegen_mir_enum_variant_ctor_call(
                 span,
                 *enum_ty,
                 variant_name,
                 args,
+                payload,
                 body,
                 mir_types,
                 slots,
@@ -2833,12 +2870,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_ty,
                 variant_name,
                 args,
-                ..
+                payload,
             } => self.codegen_mir_enum_variant_ctor_call(
                 span,
                 *enum_ty,
                 variant_name,
                 args,
+                payload,
                 body,
                 mir_types,
                 slots,
@@ -2902,16 +2940,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        if transport.kind == crate::mir::MirTransportKind::EnumPayload {
-            let body_fqn = self.current_codegen_body_fqn();
-            return Err(super::composite_transport::composite_transport_gate_error(
-                &body_fqn,
-                span,
-                "PIPELINE_GAPS §4.4",
-                "payload-bearing enum value erasure boxing requires CG-T04c enum payload descriptor",
-            ));
-        }
-
         let body_fqn = self.current_codegen_body_fqn();
         let _descriptor = self.get_or_create_value_composite_transport_descriptor_global(
             &body_fqn, span, mir_types, transport,
@@ -2934,6 +2962,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Tuple(_) | CgTy::Struct(_) => self.codegen_mir_composite_value_box(
                 span, value, source_ty, source_cg, body, mir_types, slots,
             ),
+            CgTy::Enum(_) if transport.kind == crate::mir::MirTransportKind::EnumPayload => self
+                .codegen_mir_composite_value_box(
+                    span, value, source_ty, source_cg, body, mir_types, slots,
+                ),
             CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref | CgTy::Enum(_) => {
                 let source =
                     self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
@@ -3970,6 +4002,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant_name: &str,
         args: &[crate::mir::CallArg],
+        payload: &crate::mir::AggregateTransportMetadata,
         _body: &crate::mir::Body,
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
@@ -3993,6 +4026,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if variant.fields.len() != args.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR enum variant ctor arity",
+                at: span.into(),
+            });
+        }
+        if !self.raw_materialized_mir_enum_payload_schema_is_supported(
+            mir_types, enum_ty, &variant, args, payload,
+        ) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR enum payload schema",
                 at: span.into(),
             });
         }

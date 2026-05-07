@@ -409,17 +409,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             && let Some(target_ty) = target_local
                 .and_then(|local| self.body.locals.get(local.as_u32() as usize))
                 .map(|local| local.ty)
-            && let Some(variant_name) = self.unresolved_fun_value_callee_name(callee)
+            && self.unresolved_fun_value_callee_name(callee).is_some()
         {
-            return self.codegen.codegen_mir_enum_variant_ctor_call(
-                span,
-                target_ty,
-                &variant_name,
-                args,
-                self.body,
-                self.source_types,
-                self.slots,
-            );
+            let _ = (args, target_ty);
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor enum variant call requires MIR enum payload schema",
+                at: span.into(),
+            });
         }
         if let mir::Rvalue::Use(mir::Operand::Local(source_local))
         | mir::Rvalue::Transport {
