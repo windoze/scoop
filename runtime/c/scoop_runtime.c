@@ -1967,60 +1967,84 @@ static void scoop_thread_refactor_resume_transport_copy_payload(
   scoop_composite_copy(desc, args->payload_storage, payload_value);
 }
 
+typedef struct ScoopNativeRootSlotVec {
+  void ***slots;
+  uint32_t len;
+  uint32_t cap;
+  uint32_t failed;
+} ScoopNativeRootSlotVec;
+
+static uint32_t scoop_native_root_slot_vec_push(ScoopNativeRootSlotVec *vec, void **slot) {
+  if (vec == 0 || slot == 0) {
+    return 0;
+  }
+  if (vec->len == vec->cap) {
+    uint32_t new_cap = vec->cap == 0 ? 4u : vec->cap * 2u;
+    if (new_cap < vec->cap) {
+      return 0;
+    }
+    void ***slots = (void ***)realloc(vec->slots, sizeof(void **) * new_cap);
+    if (slots == 0) {
+      return 0;
+    }
+    vec->slots = slots;
+    vec->cap = new_cap;
+  }
+  vec->slots[vec->len++] = slot;
+  return 1;
+}
+
+static void scoop_native_root_slot_vec_destroy(ScoopNativeRootSlotVec *vec) {
+  if (vec == 0) {
+    return;
+  }
+  free(vec->slots);
+  vec->slots = 0;
+  vec->len = 0;
+  vec->cap = 0;
+}
+
+static void scoop_thread_resume_collect_payload_root_slot(void **slot, void *ctx) {
+  ScoopNativeRootSlotVec *vec = (ScoopNativeRootSlotVec *)ctx;
+  if (vec == 0 || slot == 0) {
+    return;
+  }
+  if (!scoop_native_root_slot_vec_push(vec, slot)) {
+    vec->failed = 1;
+  }
+}
+
 static void scoop_thread_refactor_resume_transport_prepare_roots(
     ScoopThreadRefactorResumeTransportArgs *args) {
   if (args == 0) {
     return;
   }
 
-  uint32_t root_count = 0;
+  ScoopNativeRootSlotVec roots = {0};
   if (args->resume_gc_ref != 0) {
-    root_count += 1;
+    if (!scoop_native_root_slot_vec_push(&roots, (void **)&args->resume_gc_ref)) {
+      exit(3);
+    }
   }
 
   const ScoopCompositeTransportDescriptor *desc = args->payload_desc;
-  if (desc != 0 && args->payload_storage != 0 && desc->gc_slot_count > 0) {
-    if (desc->gc_slot_offsets == 0 ||
-        desc->gc_slot_count > (UINT32_MAX - root_count)) {
+  if (desc != 0 && args->payload_storage != 0) {
+    if (desc->size_bytes == 0 || desc->size_bytes > (uint64_t)SIZE_MAX) {
       exit(3);
     }
-    root_count += desc->gc_slot_count;
-  }
-
-  args->native_root_slots_len = root_count;
-  if (root_count == 0) {
-    args->native_root_slots = 0;
-    return;
-  }
-
-  args->native_root_slots = (void ***)malloc(sizeof(void **) * root_count);
-  if (args->native_root_slots == 0) {
-    exit(3);
-  }
-
-  uint32_t index = 0;
-  if (args->resume_gc_ref != 0) {
-    args->native_root_slots[index++] = (void **)&args->resume_gc_ref;
-  }
-
-  if (desc != 0 && args->payload_storage != 0 && desc->gc_slot_count > 0) {
-    if (desc->size_bytes > (uint64_t)SIZE_MAX) {
+    (void)scoop_composite_trace(
+        desc,
+        args->payload_storage,
+        scoop_thread_resume_collect_payload_root_slot,
+        &roots);
+    if (roots.failed) {
+      scoop_native_root_slot_vec_destroy(&roots);
       exit(3);
     }
-    size_t size_bytes = (size_t)desc->size_bytes;
-    for (uint32_t i = 0; i < desc->gc_slot_count; i++) {
-      uint64_t raw_off = desc->gc_slot_offsets[i];
-      if (raw_off > (uint64_t)SIZE_MAX) {
-        exit(3);
-      }
-      size_t off = (size_t)raw_off;
-      if (off > size_bytes || (size_bytes - off) < sizeof(void *)) {
-        exit(3);
-      }
-      args->native_root_slots[index++] =
-          (void **)((uint8_t *)args->payload_storage + off);
-    }
   }
+
+  args->native_root_slots = roots.slots;
+  args->native_root_slots_len = roots.len;
 }
 
 static void scoop_thread_refactor_resume_transport_destroy(

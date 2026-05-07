@@ -1666,6 +1666,16 @@ fn validate_materialized_call_transport(
     if let Some(gc) = &transport.gc {
         validate_materialized_gc_intrinsic_transport(materialized, fqn, block, span, gc)?;
     }
+    if let Some(thread_resume_payload) = &transport.thread_resume_payload {
+        validate_materialized_value_transport(
+            materialized,
+            fqn,
+            block,
+            span,
+            "thread resume payload transport",
+            thread_resume_payload,
+        )?;
+    }
     Ok(())
 }
 

@@ -27,7 +27,7 @@
 | `CG-T04d` | CG4d | [DONE] 收口 array composite element transport lowering |
 | `CG-T04e` | CG4e | [DONE] 收口 closure env/capture transport lowering |
 | `CG-T04f` | CG4f | [DONE] 收口 cross-thread resume payload transport lowering |
-| `CG-T04R` | CG4R | Review CG-T04a-CG-T04f composite transport lowering |
+| `CG-T04R` | CG4R | [DONE] Review CG-T04a-CG-T04f composite transport lowering |
 | `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
 | `CG-T05R` | CG5R | Review CG-T05 adapter 与 NoOutward ABI |
 | `CG-T06` | CG6 | 收口 source classification、unwind、thread boundary lowering |
@@ -522,7 +522,7 @@
   - 2026-05-07：新增 `refactor_llvm_cross_thread_resume_payload_transport` IR 单测与 `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`，覆盖 String ref payload 与含 String field 的 struct composite payload 在 moving/stress/verify-roots 下跨线程 resume。
   - 验证通过：`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04R：Review CG-T04a-CG-T04f composite transport lowering
+## [DONE] CG-T04R：Review CG-T04a-CG-T04f composite transport lowering
 
 - 参考：
   - `CG-T04a`
@@ -544,6 +544,12 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T04a` 至 `CG-T04f` 已正确实现；若发现缺口，`CG-T04R` 保持未完成并把修复归回对应子任务。
 - 依赖：`CG-T04f`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T04a` 至 `CG-T04f` 的 composite transport metadata、LLVM descriptor publication、runtime trace/copy/drop surface、array/closure/enum/value boxing 与 cross-thread resume payload lowering，确认 codegen 主线共用 explicit `ValueTransportMetadata` / `ScoopCompositeTransportDescriptor`，不依赖 `u64`/ref 隐式 composite carrier。
+  - 2026-05-07：复审中发现 materialized MIR 未验证 `thread_resume_payload`，runtime composite array 写入/构建未统一通过 descriptor trace surface 做 GC slot 写屏障，array release 未 drop composite elements，cross-thread native roots 仅枚举 raw `gc_slot_offsets`；已修复为 materialized validation 覆盖 thread payload，array build/set 用 descriptor trace 收集 slot 并通过 write barrier 写入，array release 调用 composite drop，cross-thread resume roots 用 `scoop_composite_trace` 收集，同时固化 composite descriptor ABI offset assertions。
+  - 2026-05-07：新增 `crates/scoop_runtime/tests/composite_array_release.rs` 与 `crates/scoop_runtime/tests/gc_immix_composite_array_write_barrier.rs`，覆盖 composite array sweep drop 与 old array 写入 nursery ref slot 的 Immix promote-on-store barrier。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_composite_transport_contract`、`cargo test -p scoopc refactor_llvm_value_boxing_transport`、`cargo test -p scoopc refactor_llvm_enum_payload_transport`、`cargo test -p scoopc refactor_llvm_array_composite_transport`、`cargo test -p scoopc refactor_llvm_closure_env_transport`、`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`cargo test -p scoopc refactor_mir_value_boxing_transport_contract`、`cargo test -p scoopc refactor_mir_composite_transport_metadata_contracts`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo test -p scoop_runtime --test gc_immix_nursery`、`cargo test -p scoop_runtime --test composite_array_release`、`cargo test -p scoop_runtime --test gc_immix_composite_array_write_barrier`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/value_boxing_transport.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/value_boxing_tuple_struct_any_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_unit_field_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_variant_non_scalar_payload_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_oversized_variant_boxing_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/array_composite_transport_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/array_mutable_array_min_primitive_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_trace_array_string_elements_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T05：收口 effect-typed adapter 与 NoOutward plain ABI
 

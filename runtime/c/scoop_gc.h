@@ -129,6 +129,39 @@ struct ScoopCompositeTransportDescriptor {
   const ScoopTypeDescriptor *type_desc;
 };
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopCompositeTransportDescriptor, abi_version) == 0,
+               "ScoopCompositeTransportDescriptor.abi_version offset must be 0");
+_Static_assert(offsetof(ScoopCompositeTransportDescriptor, storage_kind) == 4,
+               "ScoopCompositeTransportDescriptor.storage_kind offset must be 4");
+_Static_assert(offsetof(ScoopCompositeTransportDescriptor, size_bytes) == 8,
+               "ScoopCompositeTransportDescriptor.size_bytes offset must be 8");
+_Static_assert(offsetof(ScoopCompositeTransportDescriptor, align_bytes) == 16,
+               "ScoopCompositeTransportDescriptor.align_bytes offset must be 16");
+_Static_assert(offsetof(ScoopCompositeTransportDescriptor, gc_slot_offsets) == 24,
+               "ScoopCompositeTransportDescriptor.gc_slot_offsets offset must be 24");
+_Static_assert(
+    offsetof(ScoopCompositeTransportDescriptor, gc_slot_count) ==
+        (24u + sizeof(void *)),
+    "ScoopCompositeTransportDescriptor.gc_slot_count offset must follow gc_slot_offsets");
+_Static_assert(
+    offsetof(ScoopCompositeTransportDescriptor, trace_fn) ==
+        (offsetof(ScoopCompositeTransportDescriptor, _reserved_u32) + sizeof(uint32_t)),
+    "ScoopCompositeTransportDescriptor.trace_fn offset must follow reserved u32");
+_Static_assert(
+    offsetof(ScoopCompositeTransportDescriptor, copy_fn) ==
+        (offsetof(ScoopCompositeTransportDescriptor, trace_fn) + sizeof(ScoopCompositeTraceFn)),
+    "ScoopCompositeTransportDescriptor.copy_fn offset must follow trace_fn");
+_Static_assert(
+    offsetof(ScoopCompositeTransportDescriptor, drop_fn) ==
+        (offsetof(ScoopCompositeTransportDescriptor, copy_fn) + sizeof(ScoopCompositeCopyFn)),
+    "ScoopCompositeTransportDescriptor.drop_fn offset must follow copy_fn");
+_Static_assert(
+    offsetof(ScoopCompositeTransportDescriptor, type_desc) ==
+        (offsetof(ScoopCompositeTransportDescriptor, drop_fn) + sizeof(ScoopCompositeDropFn)),
+    "ScoopCompositeTransportDescriptor.type_desc offset must follow drop_fn");
+#endif
+
 uint64_t scoop_composite_trace(
     const ScoopCompositeTransportDescriptor *descriptor,
     void *value,
