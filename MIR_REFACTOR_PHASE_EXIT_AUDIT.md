@@ -101,19 +101,19 @@ Unsupported/deferred surfaces that must not enter HIR/MIR are locked by diagnost
 | 3.8 pattern `is Type` | MIR pattern runtime metadata complete. | `CG-T02` |
 | 3.9 class ctor named/default args | MIR consumes selected ctor and complete ordered args. | `CG-T03` |
 | 3.10 default args | MIR consumes canonical ordered call args. | `CG-T03` |
-| 3.11 closure env/capture shape | MIR transport metadata complete. | `CG-T04` |
-| 3.12 effect/function-value adapter limits | MIR call ABI handoff metadata complete. | `CG-T04`, `CG-T05` |
-| 3.13 ambiguous continuation route | MIR verifier rejects ambiguous publication. | `CG-T04` if backend support is later expanded |
-| 4.1 aggregate boxing | MIR publishes boxing/transport intent. | `CG-T04` |
-| 4.2 enum Unit payload field | MIR publishes payload schema; layout remains backend scope. | `CG-T04` |
-| 4.3 wide enum payload | MIR publishes payload schema; layout remains backend scope. | `CG-T04` |
-| 4.4 nested enum/tuple/struct payload | MIR publishes nested payload schema. | `CG-T04` |
-| 4.5 composite array element | MIR publishes array element transport metadata. | `CG-T04` |
+| 3.11 closure env/capture shape | MIR transport metadata complete. | `CG-T04e` |
+| 3.12 effect/function-value adapter limits | MIR call ABI handoff metadata complete. | `CG-T04b`, `CG-T05` |
+| 3.13 ambiguous continuation route | MIR verifier rejects ambiguous publication. | `CG-T06` if backend support is later expanded |
+| 4.1 aggregate boxing | MIR publishes boxing/transport intent. | `CG-T04b` |
+| 4.2 enum Unit payload field | MIR publishes payload schema; layout remains backend scope. | `CG-T04c` |
+| 4.3 wide enum payload | MIR publishes payload schema; layout remains backend scope. | `CG-T04c` |
+| 4.4 nested enum/tuple/struct payload | MIR publishes nested payload schema. | `CG-T04c` |
+| 4.5 composite array element | MIR publishes array element transport metadata. | `CG-T04d` |
 | 5.1 ABI routing by actual outward effects | MIR/effect handoff publishes route facts and ABI guard. | `CG-T05`, `CG-T01` |
 | 5.2 unsupported source classification | Handoff verifier fails fast. | `CG-T06` |
 | 5.3 `ResumeUnwind` cleanup contract | MIR/effect-lowered handoff publishes pending completion/unwind contract or rejects. | `CG-T06` |
 | 5.4 outward-empty callable Step ABI drift | MIR/effect facts guard `NoOutward` and empty outward cases as Plain ABI. | `CG-T05` |
-| 5.5 cross-thread resume u64 payload | MIR transport exists for payloads; current helper boundary remains runtime/codegen scope. | `CG-T06` |
+| 5.5 cross-thread resume u64 payload | MIR transport exists for payloads; current helper boundary remains runtime/codegen scope. | `CG-T04f` |
 | 5.6 thread resume non-complete Step fatal | Type/effect checker rejects unsupported outward propagation before MIR. | `CG-T06` if support is added |
 | 5.7 default refactor run-pass blockers | Not a MIR placeholder gap after this phase; remains end-to-end backend/runtime regression scope. | `TODO-P7.md` P7-T02Z/P7-T03, `CG-T08` |
 | 6.1 `!!` non-null assertion | MIR expresses success extract and failure raise path. | `CG-T02`, P7 runtime regression |

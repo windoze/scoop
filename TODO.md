@@ -20,8 +20,13 @@
 | `CG-T02R` | CG2R | [DONE] Review CG-T02 runtime value primitive lowering |
 | `CG-T03` | CG3 | [DONE] 收口 call/ctor/function-ref/intrinsic/default/interface lowering |
 | `CG-T03R` | CG3R | [DONE] Review CG-T03 call/ctor/intrinsic lowering |
-| `CG-T04` | CG4 | 收口 aggregate/enum/array/closure/boxing transport lowering |
-| `CG-T04R` | CG4R | Review CG-T04 composite transport lowering |
+| `CG-T04a` | CG4a | 建立 composite transport layout contract 与 verifier |
+| `CG-T04b` | CG4b | 收口 value boxing composite transport lowering |
+| `CG-T04c` | CG4c | 收口 enum payload composite transport lowering |
+| `CG-T04d` | CG4d | 收口 array composite element transport lowering |
+| `CG-T04e` | CG4e | 收口 closure env/capture transport lowering |
+| `CG-T04f` | CG4f | 收口 cross-thread resume payload transport lowering |
+| `CG-T04R` | CG4R | Review CG-T04a-CG-T04f composite transport lowering |
 | `CG-T05` | CG5 | 收口 effect-typed adapter 与 NoOutward plain ABI |
 | `CG-T05R` | CG5R | Review CG-T05 adapter 与 NoOutward ABI |
 | `CG-T06` | CG6 | 收口 source classification、unwind、thread boundary lowering |
@@ -271,39 +276,185 @@
   - 2026-05-07：复审中发现显式类型实参形式的 `nameOf<T>()` 在 generic materialized MIR path 中仍会退化成 declaration-only direct call；已修复为在 MIR intrinsic lowering 中规范化 generic/overload 后缀，并让 materialization fallback 从 top-level call binding 生成 `TypeMetadataLiteral`，同时补充 `tests/fixtures/run-pass/name_of_runtime_basic.scoop` 回归。
   - 验证通过：`cargo test -p scoopc refactor_mir_call_contract_lowers_typed_call_sites`、`cargo test -p scoopc refactor_llvm_call_contract_lowering`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/get_platform_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/intrinsic_size_of_int_word.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/name_of_runtime_basic.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoopc refactor_llvm_backend_gate`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T04：收口 aggregate/enum/array/closure/boxing transport lowering
+## CG-T04a：建立 composite transport layout contract 与 verifier
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
   - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.11、§4.1、§4.2、§4.3、§4.4、§4.5、§5.5
   - [`TODO.md`](./TODO.md) MIR-T10
 - 目标：
-  - Composite source value transport 在 LLVM/runtime 中闭合，覆盖 closure env、boxing、enum payload、array element、cross-thread resume payload。
+  - 先建立 CG-T04b-CG-T04f 共用的 explicit composite layout/descriptor contract、runtime hook surface 与 verifier gate，不在本任务实现具体 boxing/enum/array/closure/thread transport。
 
 - 必须实现的内容：
-  1. value-type boxing layout 支持 tuple/struct/enum/value type -> `Any` / `Ref` / erased carrier，包含 trace/copy/drop metadata。
-  2. enum payload layout 支持 Unit field、大整数 payload、nested enum/tuple/struct payload，必要时自动 boxed。
-  3. Array runtime descriptor 支持 element size、trace/copy、composite get/set/build。
-  4. closure env 支持 arbitrary traceable source type；mutable capture 使用 capture box。
-  5. cross-thread resume payload 支持 ref/composite transport，并正确 root GC refs。
+  1. LLVM codegen 消费或规范化 MIR-T10 发布的 composite transport/layout metadata，至少覆盖 size、align、inline/boxed/erased storage kind、trace/copy/drop hook identity 与 GC slot map。
+  2. 建立统一 verifier/backend gate：任何 composite transport use site 缺 layout descriptor 时 fail-fast，并把诊断 owner 指向对应 `CG-T04b` 至 `CG-T04f` 子任务。
+  3. runtime descriptor plumbing 提供 trace/copy/drop hook registration/call surface；traceable value 不允许用 fake no-op hook 通过 verifier。
+  4. 本任务结束时，value boxing、enum payload、array element、closure env、thread payload 仍可保持 unsupported，但必须通过 owner-specific gate 明确拒绝。
 
 - 必须遵从的约束：
-  - 不允许继续用 `u64`/ref 双轨隐式代表所有 composite value。
-  - 不允许 composite transport 绕过 GC trace/copy/drop requirements。
+  - 不允许默认 `u64`/ref carrier 作为 composite layout contract。
+  - 不允许 codegen 从 AST/HIR、类型名或 runtime fallback 猜 shape。
 
 - 验证：
-  1. `cargo test -p scoopc refactor_llvm_aggregate_transport`
-  2. enum/array/closure composite run-pass fixtures。
-  3. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`
+  1. `cargo test -p scoopc refactor_llvm_composite_transport_contract`
+  2. `cargo test -p scoopc codegen_gap_inventory`
+  3. 负例覆盖缺 layout descriptor 的 composite transport use site fail-fast。
 
 - 完成条件：
-  - `PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 的 codegen/runtime 部分关闭。
+  - 后续 `CG-T04b` 至 `CG-T04f` 可以复用同一 explicit layout/descriptor 和 runtime hook surface。
+  - `PIPELINE_GAPS.md` §3.11、§4.1-§4.5、§5.5 仍保留具体 implementation owner，不再共享一个大 `CG-T04` owner。
 - 依赖：`CG-T03R`，`MIR-T10R`
 
-## CG-T04R：Review CG-T04 composite transport lowering
+## CG-T04b：收口 value boxing composite transport lowering
 
 - 参考：
-  - `CG-T04`
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §4.1
+  - [`TODO.md`](./TODO.md) MIR-T10
+- 目标：
+  - value-type boxing layout 支持 tuple/struct/value type -> `Any` / `Ref` / erased carrier；payload-bearing enum boxing 只消费 `CG-T04c` 已发布的 enum payload descriptor。
+
+- 必须实现的内容：
+  1. value boxing lowering 消费 `CG-T04a` 的 composite layout descriptor，支持 tuple/struct/value type 的 allocation、store/load、erase 与 unbox projection。
+  2. boxed composite 的 trace/copy/drop metadata 可由 runtime 枚举；缺 metadata 时 verifier fail-fast，不回默认 `u64` carrier。
+  3. `Any` / `Ref` / erased carrier 中的 descriptor identity 必须可用于 runtime type/value operations 与后续 copy/drop。
+  4. 对 payload-bearing enum boxing，若 `CG-T04c` 还未完成，必须保留明确 gate；不得在 boxing path 临时猜 enum payload layout。
+
+- 必须遵从的约束：
+  - 不允许继续用 `u64`/ref 双轨隐式代表 boxed composite value。
+  - 不允许 boxed value 绕过 GC trace/copy/drop requirements。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_value_boxing_transport`
+  2. 新增或复用 tuple/struct/value type boxing run-pass fixtures。
+  3. `cargo test -p scoopc codegen_gap_inventory`
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §4.1 中 tuple/struct/value type boxing 的 codegen/runtime 部分关闭；payload-bearing enum boxing 由 `CG-T04c` 完成后纳入同一 boxing path。
+- 依赖：`CG-T04a`
+
+## CG-T04c：收口 enum payload composite transport lowering
+
+- 参考：
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §4.2、§4.3、§4.4
+  - [`TODO.md`](./TODO.md) MIR-T10
+- 目标：
+  - enum payload layout 支持 Unit field、大整数 payload、nested enum/tuple/struct payload，并在必要时自动 boxed。
+
+- 必须实现的内容：
+  1. enum constructor/project/match lowering 消费 MIR-T10 enum payload schema 与 `CG-T04a` 的 composite layout descriptor。
+  2. 支持 Unit payload field、超过 machine word 的 scalar payload、nested enum/tuple/struct payload 的 inline/boxed layout 决策。
+  3. enum payload 中的 ref/composite slot 必须进入 GC trace/copy/drop 枚举；boxed payload 的 drop/copy 不得泄漏或 double free。
+  4. 将 payload-bearing enum boxing 接回 `CG-T04b` 的 boxed carrier path；缺 payload schema、layout descriptor 或 unsupported payload kind 时 verifier fail-fast。
+
+- 必须遵从的约束：
+  - 不允许把 Unit field 当作不存在的 payload 导致 tag/field ordinal 漂移。
+  - 不允许 wide/nested payload 被截断成 `u64` 或裸 ref。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_enum_payload_transport`
+  2. 新增或复用 enum Unit field、大整数 payload、nested enum/tuple/struct payload run-pass fixtures。
+  3. `cargo test -p scoopc codegen_gap_inventory`
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §4.2、§4.3、§4.4 的 codegen/runtime 部分关闭。
+  - `PIPELINE_GAPS.md` §4.1 中 payload-bearing enum boxing 不再保留额外 gate。
+- 依赖：`CG-T04b`
+
+## CG-T04d：收口 array composite element transport lowering
+
+- 参考：
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §4.5
+  - [`TODO.md`](./TODO.md) MIR-T10
+- 目标：
+  - Array runtime descriptor 支持 composite element 的 element size、align、trace/copy/drop，并闭合 build/get/set lowering。
+
+- 必须实现的内容：
+  1. Array descriptor 从 element transport metadata 记录 size、align、trace/copy/drop hook 与 inline/boxed storage policy。
+  2. LLVM lowering 支持 composite array build/get/set，不把 element 降级为 `u64` word storage。
+  3. array set/build 在拷贝 composite element 时正确处理 temporary rooting、copy/drop ordering 和 ref slot tracing。
+  4. 缺 element descriptor 或 unsupported element policy 时 verifier fail-fast。
+
+- 必须遵从的约束：
+  - 不允许复用 scalar array path 静默截断 composite element。
+  - 不允许 array runtime 绕过 GC trace/copy/drop hooks。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_array_composite_transport`
+  2. 新增或复用 tuple/struct/enum element array build/get/set run-pass fixtures。
+  3. `cargo test -p scoopc codegen_gap_inventory`
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §4.5 的 codegen/runtime 部分关闭。
+- 依赖：`CG-T04c`
+
+## CG-T04e：收口 closure env/capture transport lowering
+
+- 参考：
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §3.11
+  - [`TODO.md`](./TODO.md) MIR-T10
+- 目标：
+  - closure env 支持 arbitrary traceable source type；mutable capture 使用 capture box，并共享 `CG-T04a` 的 composite transport metadata。
+
+- 必须实现的内容：
+  1. closure env layout 消费 MIR capture schema 与 composite layout descriptor，支持 tuple/struct/enum/array/ref/value captures。
+  2. mutable capture lowering 使用 capture box，capture box 的 trace/copy/drop/rooting 与 ordinary boxed composite 一致。
+  3. closure allocation、invoke、copy/drop 中的 env ref/composite slots 均可被 GC 枚举。
+  4. 缺 capture schema、ambiguous capture owner 或 unsupported source shape 时 verifier fail-fast。
+
+- 必须遵从的约束：
+  - 不允许 closure env 回退到 opaque `u64` slot 或裸 pointer slot。
+  - 不允许 mutable capture 通过复制 captured value 伪装成 by-reference 语义。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_closure_env_transport`
+  2. 新增或复用 closure capture tuple/struct/enum/array 与 mutable capture run-pass fixtures。
+  3. `cargo test -p scoopc codegen_gap_inventory`
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §3.11 的 codegen/runtime 部分关闭。
+- 依赖：`CG-T04d`
+
+## CG-T04f：收口 cross-thread resume payload transport lowering
+
+- 参考：
+  - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG4
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §5.5
+  - [`TODO.md`](./TODO.md) MIR-T10
+- 目标：
+  - cross-thread resume payload 支持 ref/composite transport，并在 enqueue/dequeue/resume 边界正确 root GC refs。
+
+- 必须实现的内容：
+  1. runtime cross-thread resume payload helper 从 `u64` payload 升级为 typed/erased carrier，复用 `CG-T04a` 的 layout descriptor。
+  2. enqueue/dequeue/resume payload 时执行 trace/copy/drop hooks，并保证 ref/composite slot 在跨线程队列中可被 GC root/scan。
+  3. LLVM lowering 为 ref/composite resume payload 传递 descriptor 与 carrier，不在 backend 猜 payload shape。
+  4. thread resume non-complete Step 语义仍归 `CG-T06`；本任务只关闭 complete/ref/composite payload transport。
+
+- 必须遵从的约束：
+  - 不允许 runtime `u64` helper 继续作为合法 composite payload transport。
+  - 不允许跨线程队列中的 ref/composite payload 脱离 GC root verifier。
+
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`
+  2. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`
+  3. 新增或复用 cross-thread composite resume payload runtime_gc fixture。
+
+- 完成条件：
+  - `PIPELINE_GAPS.md` §5.5 的 codegen/runtime 部分关闭。
+- 依赖：`CG-T04e`
+
+## CG-T04R：Review CG-T04a-CG-T04f composite transport lowering
+
+- 参考：
+  - `CG-T04a`
+  - `CG-T04b`
+  - `CG-T04c`
+  - `CG-T04d`
+  - `CG-T04e`
+  - `CG-T04f`
   - [`SCOOP_FULL_SPEC.md`](./SCOOP_FULL_SPEC.md) §2、§15
   - [`TODO.md`](./TODO.md) MIR-T10R
 - 重点：
@@ -311,12 +462,12 @@
   - GC trace/copy/drop、stack/root handling、boxed/inline choice 是否不依赖 `u64`/ref 隐式双轨。
   - runtime_gc moving/stress/verify-roots 样本是否覆盖 composite refs。
 - 验证：
-  1. 重跑 `CG-T04` 的全部验证命令。
+  1. 重跑 `CG-T04a` 至 `CG-T04f` 的全部验证命令。
   2. 抽查 enum/array/closure composite run-pass 与 runtime_gc fixtures。
   3. 检查 LLVM/runtime layout 中 composite payload 的 GC slot 可枚举性。
 - 完成条件：
-  - Review 结论明确说明 `CG-T04` 已正确实现；若发现缺口，`CG-T04R` 保持未完成并把修复归回 `CG-T04`。
-- 依赖：`CG-T04`
+  - Review 结论明确说明 `CG-T04a` 至 `CG-T04f` 已正确实现；若发现缺口，`CG-T04R` 保持未完成并把修复归回对应子任务。
+- 依赖：`CG-T04f`
 
 ## CG-T05：收口 effect-typed adapter 与 NoOutward plain ABI
 
