@@ -1,52 +1,20 @@
-# Claude Execution Plan
+执行计划
 
-## Scope
+1. 读取 `TODO.md`，按文件顺序识别第一个标题未带 `[DONE]` 的任务，并核对该任务的要求、依赖和验证方式。
+2. 如最新提交明确提到与该任务直接相关的未完成问题，先把它纳入当前任务范围或作为前置任务记录到 `TODO.md`。
+3. 针对当前任务检查相关代码、测试和规格上下文，只处理会阻塞或直接影响该任务正确性的事项。
+4. 以最小正确改动实现任务；如果发现无法在不绕过规格的情况下完成，则在 `TODO.md` 中插入最小必要前置任务，保持当前任务未完成并停止。
+5. 运行任务要求的验证命令和必要的回归测试，修复由当前任务引入或暴露且直接阻塞当前任务的问题。
+6. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；仅当阶段级计划实际变化时才更新 `PLAN.md`。
+7. 提交所有相关更改，提交信息使用任务编号和简明说明。
+8. 完成一个任务后立即停止，不继续处理后续任务。
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after completing and committing that one task, or after committing a required prerequisite/blocker update if the task cannot be completed as written.
+进度记录
 
-## Steps
-
-1. Read `TODO.md` and identify the first incomplete task according to the `[DONE]` prefix rule.
-2. Check the latest commit only for directly relevant unfinished work tied to that task.
-3. Inspect the code, fixtures, and docs needed for the selected task.
-4. Implement the smallest spec-correct change needed for the task; do not use workaround behavior.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task-specified validation and relevant repository tests.
-7. If a blocking prerequisite is discovered, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
-8. If validation succeeds, mark the task heading in `TODO.md` with `[DONE]` and update its completion record.
-9. Update this plan file when key progress occurs or the plan changes.
-10. Commit all changes for this invocation with a task-specific message, then stop.
-
-## Current Status
-
-- First incomplete task identified: `CG-T06` (`source classification`, `ResumeUnwind`, continuation storage route, cross-thread non-complete boundary).
-- Latest commit checked: `9eab0104 [CG-T05R] Review effect adapter ABI`; no directly relevant unfinished issue was declared in the commit summary.
-
-## CG-T06 Focus
-
-1. Locate current verifier/backend gates for `LateLoweredSourceStatementClassificationKind::Unsupported`, `ResumeUnwind`, continuation `StoreMember`, and cross-thread resume non-complete handling.
-2. Determine whether each required behavior already has an upstream MIR contract; if a required contract is missing, add the minimum prerequisite task before `CG-T06`, keep `CG-T06` incomplete, commit, and stop.
-3. Otherwise implement the verifier/lowering/runtime boundary changes for `CG-T06` only.
-4. Add targeted tests named by the task where missing: source classification verifier, resume unwind lowering, continuation storage route, and cross-thread non-complete policy fixtures.
-5. Run the CG-T06 validation commands plus formatting/linting required by the repo policy.
-6. Mark `CG-T06` as `[DONE]` with completion notes and commit the full task state.
-
-## Progress Notes
-
-- Located current codegen gaps:
-  - `body.rs` verifier accepts `LateLoweredSourceStatementClassificationKind::Unsupported` even though materialization already rejects normal production unsupported classifications.
-  - `ResumeUnwind` accepts only an empty cleanup terminal and lowers to `unreachable`; codegen needs to verify that this is tied to the published cleanup/finally pending-completion contract rather than a generic placeholder.
-  - raw `StoreMember` ambiguous continuation route has a backend helper gate; CG-T06 should lock this with a continuation-route validation fixture/test.
-  - thread resume thunks still call `scoop_refactor_thread_resume_noncomplete_fatal`; CG-T06 should consume the MIR-T13 complete-only diagnostic policy by rejecting non-pure surface layouts before thunk generation and avoiding runtime fatal for legal pure continuations.
-
-## Completion Update
-
-- Implemented `CG-T06`.
-- Source classification: backend verifier now rejects `Unsupported` classifications before body emission.
-- `ResumeUnwind`: verifier now consumes cleanup source slices, Suspend cleanup route, boundary owner/resume-state provenance, and enclosing `HandleDispatch` pending-completion/origin/payload ABI contracts before lowering the terminal path.
-- Continuation storage route: `StoreMember` now validates `Unique` continuation route source local/type, not just ambiguous rejection.
-- Thread boundary: removed the dedicated non-complete runtime fatal helper; codegen validates the helper operand is a `Pure` continuation, routes non-complete `RuntimeError` through ordinary runtime-error fatal, and treats other non-complete cases as unreachable under the published Pure dispatch contract.
-- Validation passed: `cargo test -p scoopc refactor_llvm_source_classification_verifier`; `cargo test -p scoopc refactor_llvm_resume_unwind_lowering`; `cargo test -p scoopc refactor_mir_store_member_codegen`; `cargo test -p scoopc refactor_llvm_thread_resume_noncomplete_policy`; `cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`; `cargo test -p scoopc codegen_gap_inventory`; `cargo test -p scoop_runtime --lib abi_exports_allowlist`; the listed cross-thread/finally fixtures; `cargo fmt --check`; `cargo clippy --all-targets -- -D warnings`.
-- `TODO.md` has been updated with `[DONE] CG-T06` and completion notes.
+- 已写入初始计划，下一步将读取 `TODO.md` 识别第一个未完成任务。
+- 已识别本轮任务：`CG-T06R`，复审 `CG-T06` 的 source classification、ResumeUnwind、continuation storage route 与 cross-thread non-complete policy。
+- 当前执行步骤：检查最新提交是否有直接相关未完成问题，审阅相关实现与测试，然后重跑 `CG-T06` 指定验证命令。
+- 最新提交为 `[CG-T06] Implement unwind and thread boundary lowering`，未声明未完成问题；已完成代码审阅，未发现需要回归 `CG-T06` 修复的阻塞缺口。
+- 下一步：运行 `CG-T06R` 要求的全部定向验证、fixture、`cargo fmt --check` 与 `cargo clippy --all-targets -- -D warnings`。
+- 已完成全部验证，结果通过；已将 `TODO.md` 中 `CG-T06R` 标记为 `[DONE]` 并写入复审结论与命令记录。
+- 下一步：检查差异并提交本轮变更，提交后停止。

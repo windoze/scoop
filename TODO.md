@@ -31,7 +31,7 @@
 | `CG-T05` | CG5 | [DONE] 收口 effect-typed adapter 与 NoOutward plain ABI |
 | `CG-T05R` | CG5R | [DONE] Review CG-T05 adapter 与 NoOutward ABI |
 | `CG-T06` | CG6 | [DONE] 收口 source classification、unwind、thread boundary lowering |
-| `CG-T06R` | CG6R | Review CG-T06 unwind/thread boundary lowering |
+| `CG-T06R` | CG6R | [DONE] Review CG-T06 unwind/thread boundary lowering |
 | `CG-T07` | CG7 | 收口 extern global 与 GC pin/handle runtime surface |
 | `CG-T07R` | CG7R | Review CG-T07 extern global 与 GC surface |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
@@ -646,7 +646,7 @@
   - 2026-05-07：跨线程 resume thunk 不再调用 `scoop_refactor_thread_resume_noncomplete_fatal`；codegen 会二次校验 helper operand 是 `Pure` continuation，non-complete `RuntimeError` case 走 ordinary `scoop_runtime_error_fatal` terminal，其他 non-complete case 仅作为 upstream Pure/dispatch contract 下的 unreachable case；移除对应 runtime C fatal helper 与 ABI symbol。
   - 验证通过：`cargo test -p scoopc refactor_llvm_source_classification_verifier`、`cargo test -p scoopc refactor_llvm_resume_unwind_lowering`、`cargo test -p scoopc refactor_mir_store_member_codegen`、`cargo test -p scoopc refactor_llvm_thread_resume_noncomplete_policy`、`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T06R：Review CG-T06 unwind/thread boundary lowering
+## [DONE] CG-T06R：Review CG-T06 unwind/thread boundary lowering
 
 - 参考：
   - `CG-T06`
@@ -663,6 +663,11 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T06` 已正确实现；若发现缺口，`CG-T06R` 保持未完成并把修复归回 `CG-T06`。
 - 依赖：`CG-T06`
+
+- 完成记录：
+  - 2026-05-07：复审 `CG-T06` 的 source classification verifier、`ResumeUnwind` cleanup/unwind contract、`StoreMember` continuation route gate 与 cross-thread non-complete policy，确认 unsupported classification 会在 materialize/backend verifier fail-fast，`ResumeUnwind` lowering 消费 canonical cleanup source slice、Suspend cleanup route、boundary owner/resume-state 与 HandleDispatch pending-completion contract，continuation storage route 拒绝 `Ambiguous` 并校验 `Unique` source local/type，跨线程 resume non-complete 不再依赖 `scoop_refactor_thread_resume_noncomplete_fatal`。
+  - 2026-05-07：搜索 `LateLoweredSourceStatementClassificationKind::Unsupported`、`ResumeUnwind`、`scoop_refactor_thread_resume_noncomplete_fatal|resume_noncomplete_fatal|thread_resume_noncomplete` 与 runtime `exit(3)`，确认合法 cross-thread non-complete 路径通过 frontend Pure gate / ordinary `scoop_runtime_error_fatal` terminal / unreachable contract 表达，未发现 runtime thread-resume fatal helper 仍在 production 代码中使用。
+  - 验证通过：`cargo test -p scoopc refactor_llvm_source_classification_verifier`、`cargo test -p scoopc refactor_llvm_resume_unwind_lowering`、`cargo test -p scoopc refactor_mir_store_member_codegen`、`cargo test -p scoopc refactor_llvm_thread_resume_noncomplete_policy`、`cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/handle_finally_boundary.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07：收口 extern global 与 GC pin/handle runtime surface
 
