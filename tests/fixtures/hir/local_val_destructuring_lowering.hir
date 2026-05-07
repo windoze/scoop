@@ -1,13 +1,86 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 43..89,
+                fqn: "fixtures.hir.Point",
+                name: "Point",
+                kind: Struct,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 66..67,
+                            fqn: "fixtures.hir.Point.x",
+                            name: "x",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: BodyProperty,
+                        },
+                    ),
+                    Field(
+                        FieldDecl {
+                            span: 81..82,
+                            fqn: "fixtures.hir.Point.y",
+                            name: "y",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: BodyProperty,
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 91..144,
+                fqn: "fixtures.hir.MaybeInt",
+                name: "MaybeInt",
+                kind: Enum,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [],
+                members: [
+                    EnumVariant(
+                        EnumVariantDecl {
+                            span: 111..131,
+                            fqn: "fixtures.hir.MaybeInt.Some",
+                            name: "Some",
+                            fields: [
+                                FieldDecl {
+                                    span: 120..125,
+                                    fqn: "fixtures.hir.MaybeInt.Some.value",
+                                    name: "value",
+                                    mutable: false,
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    origin: EnumVariantPayload,
+                                },
+                            ],
+                        },
+                    ),
+                    EnumVariant(
+                        EnumVariantDecl {
+                            span: 137..141,
+                            fqn: "fixtures.hir.MaybeInt.None",
+                            name: "None",
+                            fields: [],
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 43..89,
-            kind: "type",
-        },
-        Todo {
-            span: 91..144,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 146..337,
@@ -550,27 +623,14 @@ File {
                                                                     Expr {
                                                                         span: 314..321,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            14,
                                                                         ),
-                                                                        kind: MemberAccess {
-                                                                            receiver: Expr {
-                                                                                span: 314..321,
-                                                                                ty: TypeId(
-                                                                                    0,
-                                                                                ),
-                                                                                kind: Missing,
+                                                                        kind: VarRef(
+                                                                            TopLevel {
+                                                                                id: S12,
+                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
                                                                             },
-                                                                            member: MemberAccess {
-                                                                                span: 314..321,
-                                                                                name: "NullAssertionFailed",
-                                                                                resolved: Some(
-                                                                                    Value {
-                                                                                        id: S12,
-                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                    },
-                                                                                ),
-                                                                            },
-                                                                        },
+                                                                        ),
                                                                     },
                                                                 ),
                                                             ],
@@ -676,27 +736,14 @@ File {
                                                                             Expr {
                                                                                 span: 314..321,
                                                                                 ty: TypeId(
-                                                                                    0,
+                                                                                    14,
                                                                                 ),
-                                                                                kind: MemberAccess {
-                                                                                    receiver: Expr {
-                                                                                        span: 314..321,
-                                                                                        ty: TypeId(
-                                                                                            0,
-                                                                                        ),
-                                                                                        kind: Missing,
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S12,
+                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
                                                                                     },
-                                                                                    member: MemberAccess {
-                                                                                        span: 314..321,
-                                                                                        name: "NullAssertionFailed",
-                                                                                        resolved: Some(
-                                                                                            Value {
-                                                                                                id: S12,
-                                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                },
+                                                                                ),
                                                                             },
                                                                         ),
                                                                     ],

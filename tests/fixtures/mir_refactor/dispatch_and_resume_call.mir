@@ -20,7 +20,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -55,7 +55,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -83,7 +83,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -97,20 +97,20 @@ File {
                 fqn: "fixtures.mir.callVirtual",
                 name: "callVirtual",
                 ty: TypeId(
-                    11,
+                    1,
                 ),
                 params: [
                     Param {
                         span: 209..210,
                         name: "b",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -121,7 +121,7 @@ File {
                                     "b",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -131,7 +131,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -141,7 +141,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -163,8 +163,12 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "fixtures.mir.Base",
                                                         member_name: "ping",
+                                                        member_fqn: "fixtures.mir.Base.ping",
+                                                        member_decl_span: Some(
+                                                            113..117,
+                                                        ),
                                                         receiver_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                     },
                                                 },
@@ -172,7 +176,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -185,6 +189,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -220,20 +225,20 @@ File {
                 fqn: "fixtures.mir.callInterface",
                 name: "callInterface",
                 ty: TypeId(
-                    13,
+                    4,
                 ),
                 params: [
                     Param {
                         span: 266..267,
                         name: "i",
                         ty: TypeId(
-                            12,
+                            5,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -244,7 +249,7 @@ File {
                                     "i",
                                 ),
                                 ty: TypeId(
-                                    12,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -254,7 +259,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -264,7 +269,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -286,8 +291,12 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "fixtures.mir.IFace",
                                                         member_name: "foo",
+                                                        member_fqn: "fixtures.mir.IFace.foo",
+                                                        member_decl_span: Some(
+                                                            179..182,
+                                                        ),
                                                         receiver_ty: TypeId(
-                                                            12,
+                                                            5,
                                                         ),
                                                     },
                                                 },
@@ -295,7 +304,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -308,6 +317,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -343,20 +353,20 @@ File {
                 fqn: "fixtures.mir.resumeOnce",
                 name: "resumeOnce",
                 ty: TypeId(
-                    17,
+                    6,
                 ),
                 params: [
                     Param {
                         span: 320..321,
                         name: "k",
                         ty: TypeId(
-                            14,
+                            7,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    3,
                 ),
                 body: Some(
                     Body {
@@ -367,7 +377,7 @@ File {
                                     "k",
                                 ),
                                 ty: TypeId(
-                                    14,
+                                    7,
                                 ),
                                 source: SourceLocal,
                             },
@@ -377,7 +387,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -387,7 +397,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -419,23 +429,23 @@ File {
                                                     ),
                                                     resume: ResumeMetadata {
                                                         continuation_ty: TypeId(
-                                                            14,
+                                                            7,
                                                         ),
                                                         resume_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         answer_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         return_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         out_effects: EffectRow {
                                                             terms: [],
                                                         },
                                                         runtime_error_effect_ty: Some(
                                                             TypeId(
-                                                                16,
+                                                                8,
                                                             ),
                                                         ),
                                                         suspends_outward: false,
@@ -453,7 +463,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -466,6 +476,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -497,20 +508,20 @@ File {
                 fqn: "fixtures.mir.resumeBoom",
                 name: "resumeBoom",
                 ty: TypeId(
-                    20,
+                    9,
                 ),
                 params: [
                     Param {
                         span: 422..423,
                         name: "k",
                         ty: TypeId(
-                            19,
+                            10,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    3,
                 ),
                 body: Some(
                     Body {
@@ -521,7 +532,7 @@ File {
                                     "k",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    10,
                                 ),
                                 source: SourceLocal,
                             },
@@ -531,7 +542,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -541,7 +552,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -573,27 +584,27 @@ File {
                                                     ),
                                                     resume: ResumeMetadata {
                                                         continuation_ty: TypeId(
-                                                            19,
+                                                            10,
                                                         ),
                                                         resume_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         answer_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         return_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         out_effects: EffectRow {
                                                             terms: [
                                                                 TypeId(
-                                                                    18,
+                                                                    11,
                                                                 ),
                                                             ],
                                                         },
                                                         runtime_error_effect_ty: Some(
                                                             TypeId(
-                                                                16,
+                                                                8,
                                                             ),
                                                         ),
                                                         suspends_outward: true,
@@ -611,7 +622,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            3,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -624,6 +635,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -655,20 +667,20 @@ File {
                 fqn: "fixtures.mir.Boom.next",
                 name: "next",
                 ty: TypeId(
-                    21,
+                    12,
                 ),
                 params: [
                     Param {
                         span: 50..54,
                         name: "this",
                         ty: TypeId(
-                            18,
+                            11,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: None,
             },
@@ -679,20 +691,20 @@ File {
                 fqn: "fixtures.mir.Base.ping",
                 name: "ping",
                 ty: TypeId(
-                    11,
+                    1,
                 ),
                 params: [
                     Param {
                         span: 91..95,
                         name: "this",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -703,7 +715,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -713,7 +725,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -723,7 +735,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -768,20 +780,20 @@ File {
                 fqn: "fixtures.mir.IFace.foo",
                 name: "foo",
                 ty: TypeId(
-                    13,
+                    4,
                 ),
                 params: [
                     Param {
                         span: 163..168,
                         name: "this",
                         ty: TypeId(
-                            12,
+                            5,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: None,
             },

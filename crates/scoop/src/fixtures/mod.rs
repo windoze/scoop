@@ -119,6 +119,10 @@ fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
     Some(path.with_file_name(stripped))
 }
 
+fn new_fixture_session(session_options: SessionOptions) -> Result<scoopc::session::Session> {
+    scoopc::session::Session::with_options(session_options).wrap_err("加载 fixtures session 失败")
+}
+
 pub fn run_all(
     fixtures_root: &Path,
     opt_level: Option<OptLevel>,
@@ -126,7 +130,7 @@ pub fn run_all(
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     if fixtures_root.is_file() {
-        let session = scoopc::session::Session::with_options(session_options)?;
+        let session = new_fixture_session(session_options)?;
         let rel_root = fixtures_root.parent().unwrap_or(fixtures_root);
         run_one(&session, rel_root, fixtures_root, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", fixtures_root.display()))?;
@@ -134,7 +138,7 @@ pub fn run_all(
     }
 
     if is_typecheck_multi_case_root(fixtures_root) {
-        let session = scoopc::session::Session::with_options(session_options)?;
+        let session = new_fixture_session(session_options)?;
         return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
     }
@@ -204,34 +208,41 @@ pub fn run_all(
     }
 
     let mut ok = 0usize;
-    let session = scoopc::session::Session::with_options(session_options)?;
     for file in files {
+        // 每个独立 fixture 都要使用新 Session：sysroot AST 会携带可变的 typecheck/HIR side
+        // tables，若跨 fixture 复用同一 Session，会让后续 golden/snapshot 变成顺序敏感。
+        let session = new_fixture_session(session_options)?;
         run_one(&session, fixtures_root, &file, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
         ok += 1;
     }
 
     for case_dir in resolve_multi_cases {
+        let session = new_fixture_session(session_options)?;
         ok += run_resolve_multi_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("resolve_multi case 失败：{}", case_dir.display()))?;
     }
 
     for case_dir in resolve_cone_cases {
+        let session = new_fixture_session(session_options)?;
         ok += run_resolve_cone_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("resolve_cone case 失败：{}", case_dir.display()))?;
     }
 
     for case_dir in typecheck_multi_cases {
+        let session = new_fixture_session(session_options)?;
         ok += run_typecheck_multi_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", case_dir.display()))?;
     }
 
     for case_dir in typecheck_cone_cases {
+        let session = new_fixture_session(session_options)?;
         ok += run_typecheck_cone_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("typecheck_cone case 失败：{}", case_dir.display()))?;
     }
 
     for case_dir in typecheck_cone_archive_cases {
+        let session = new_fixture_session(session_options)?;
         ok += run_typecheck_cone_archive_case(&session, fixtures_root, &case_dir).wrap_err_with(
             || format!("typecheck_cone_archive case 失败：{}", case_dir.display()),
         )?;
@@ -242,7 +253,7 @@ pub fn run_all(
             fixtures_root,
             &case_dir,
             opt_level,
-            session.options(),
+            session_options,
             run_pass_env,
         )
         .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
@@ -773,11 +784,16 @@ struct MirGoldenReadFailed {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("MIR snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[error(
+    "MIR snapshot 与 golden 不一致：{path}（fixture: {fixture}；line {line}；expected: {expected_line}；actual: {actual_line}）"
+)]
 #[diagnostic(code(scoop::fixtures::mir_golden_mismatch))]
 struct MirGoldenMismatch {
     path: String,
     fixture: String,
+    line: usize,
+    expected_line: String,
+    actual_line: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -1379,6 +1395,12 @@ fn mir_refactor_fixture(
         session, source,
     )
     .map_err(box_diagnostic)?;
+    if std::env::var_os("SCOOP_FIXTURE_REPRO_DIR").is_some() {
+        let _ = std::fs::write(
+            fixture_path.with_extension("actual.raw.mir"),
+            format!("{:#?}\n", output.file()),
+        );
+    }
     let actual = normalize_newlines(&output.stable_dump());
 
     assert_mir_golden_matches(&actual, fixture_path)
@@ -1422,15 +1444,38 @@ fn assert_mir_golden_matches(
         })
     })?;
     let expected = normalize_newlines(&expected_raw);
+    if std::env::var_os("SCOOP_FIXTURE_REPRO_DIR").is_some() {
+        let _ = std::fs::write(fixture_path.with_extension("actual.mir"), actual);
+    }
 
     if expected != actual {
+        let (line, expected_line, actual_line) = first_mismatch_line(&expected, actual);
         return Err(box_diagnostic(MirGoldenMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
+            line,
+            expected_line,
+            actual_line,
         }));
     }
 
     Ok(())
+}
+
+fn first_mismatch_line(expected: &str, actual: &str) -> (usize, String, String) {
+    let expected_lines = expected.lines().collect::<Vec<_>>();
+    let actual_lines = actual.lines().collect::<Vec<_>>();
+    let max_len = expected_lines.len().max(actual_lines.len());
+
+    for idx in 0..max_len {
+        let expected_line = expected_lines.get(idx).copied().unwrap_or("<missing>");
+        let actual_line = actual_lines.get(idx).copied().unwrap_or("<missing>");
+        if expected_line != actual_line {
+            return (idx + 1, expected_line.to_string(), actual_line.to_string());
+        }
+    }
+
+    (0, "<identical>".to_string(), "<identical>".to_string())
 }
 
 fn assert_effect_facts_golden_matches(
@@ -3095,6 +3140,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "runtime_gc"
                 | "hir"
                 | "mir"
+                | "mir_refactor"
                 | "effect_facts"
                 | "effect_lowered"
                 | "scoopir"
@@ -3106,7 +3152,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
 mod tests {
     use std::ffi::OsStr;
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use tempfile::tempdir;
 
@@ -3162,6 +3208,17 @@ mod tests {
         assert_eq!(
             phase_name(fixtures_root, rel),
             Some(OsStr::new("effect_lowered"))
+        );
+    }
+
+    #[test]
+    fn phase_name_falls_back_to_root_phase_dir_for_mir_refactor_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/mir_refactor");
+        let rel = Path::new("generic_materialization.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("mir_refactor"))
         );
     }
 
@@ -3344,5 +3401,57 @@ fun main(): Int {
         )
         .unwrap();
         assert_eq!(ok, 1);
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn run_all_recreates_session_between_independent_fixtures() {
+        let repro_root = std::env::var_os("SCOOP_FIXTURE_REPRO_DIR").map(PathBuf::from);
+        let temp_dir = if repro_root.is_none() {
+            Some(tempdir().unwrap())
+        } else {
+            None
+        };
+        let root = if let Some(path) = repro_root {
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(&path).unwrap();
+            path
+        } else {
+            temp_dir.as_ref().unwrap().path().to_path_buf()
+        };
+        let build_dir = root.join("build");
+        let mir_refactor_dir = root.join("mir_refactor");
+        fs::create_dir_all(&build_dir).unwrap();
+        fs::create_dir_all(&mir_refactor_dir).unwrap();
+
+        let workspace_fixtures =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+        let build_fixture = build_dir.join("effect_no_perform_no_handler_symbols_basic.scoop");
+        let mir_fixture = mir_refactor_dir.join("aggregate_transport.scoop");
+
+        fs::copy(
+            workspace_fixtures.join("build/effect_no_perform_no_handler_symbols_basic.scoop"),
+            &build_fixture,
+        )
+        .unwrap();
+        fs::copy(
+            workspace_fixtures.join("mir_refactor/aggregate_transport.scoop"),
+            &mir_fixture,
+        )
+        .unwrap();
+        fs::copy(
+            workspace_fixtures.join("mir_refactor/aggregate_transport.mir"),
+            mir_fixture.with_extension("mir"),
+        )
+        .unwrap();
+
+        let ok = run_all(
+            &root,
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 2);
     }
 }

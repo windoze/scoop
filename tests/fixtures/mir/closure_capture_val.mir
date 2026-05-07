@@ -51,7 +51,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    20,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -122,6 +122,35 @@ File {
                                                         l0,
                                                     ),
                                                 ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    kind: ClosureEnv,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "y",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
                                             },
                                         },
                                     },
@@ -134,6 +163,31 @@ File {
                                                     l3,
                                                 ),
                                                 fn_ptr: "a.main.$lambda0",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        20,
+                                                    ),
+                                                    captures: [
+                                                        ClosureCaptureTransportMetadata {
+                                                            name: "y",
+                                                            decl_span: 30..31,
+                                                            mutable: false,
+                                                            source_local: l0,
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
                                             },
                                         },
                                     },
@@ -165,11 +219,10 @@ File {
                                             target: l5,
                                             value: Call {
                                                 site_id: site0,
-                                                kind: Closure {
+                                                kind: FunValue {
                                                     callee: Local(
                                                         l2,
                                                     ),
-                                                    fn_ptr: "a.main.$lambda0",
                                                 },
                                                 args: [
                                                     CallArg {
@@ -180,6 +233,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -215,7 +292,7 @@ File {
                         span: 60..70,
                         name: "$env",
                         ty: TypeId(
-                            18,
+                            20,
                         ),
                         local: l0,
                     },
@@ -240,7 +317,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    20,
                                 ),
                                 source: SourceLocal,
                             },

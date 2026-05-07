@@ -34,6 +34,8 @@
 | `CG-T06R` | CG6R | [DONE] Review CG-T06 unwind/thread boundary lowering |
 | `CG-T07` | CG7 | [DONE] 收口 extern global 与 GC pin/handle runtime surface |
 | `CG-T07R` | CG7R | [DONE] Review CG-T07 extern global 与 GC surface |
+| `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
+| `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
 | `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
 
@@ -727,6 +729,74 @@
   - 2026-05-07：后续一致性复核确认 `CG-T07R` 正文与最新提交已完成，任务索引缺少 `[DONE]` 属于 bookkeeping 漂移；已补齐索引标记并重跑验证。
   - 验证通过：`cargo test -p scoopc refactor_llvm_extern_global`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_global_load_store_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/extern_global_access_requires_unsafe_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo test -p scoopc codegen_gap_inventory`、`cargo test -p scoop_runtime --lib abi_exports_allowlist`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
+## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
+
+- 参考：
+  - `CG-T03`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+- 背景：
+  - 在 `mir_refactor` snapshot 漂移修复后，默认 `cargo run -p scoop -- test` 不再首先停在 `aggregate_transport.scoop`，而是暴露 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop -o /tmp/callable_value_pattern_binder_receiver_named_args_basic` 会在 refactor LLVM 前端准备阶段报 `unsupported value coercion from Int ... to String`，定位到 `CallKind::FunValue` lowering，说明 receiver callable value / `FunPtr` 的 named-arg lowering 仍可能把 receiver 与普通参数槽位错配。
+
+- 必须实现的内容：
+  1. 修复 receiver function value 与 `FunPtr` direct call 在 receiver + named args 组合下的参数槽位映射，覆盖顶层命名 receiver function value、top-level pattern binder、局部 destructuring binder、`when` pattern binder 与顶层 `FunPtr`。
+  2. callable value call lowering 必须消费 authoritative call-site / callable contract；不得依赖当前 arg 向量顺序偶然与 receiver slot 对齐。
+  3. 补最小回归测试，确保 `callable_value_pattern_binder_receiver_named_args_basic.scoop` 与同类 receiver named-arg callable surface 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许通过改 fixture 形状、移除 named args、绕开 pattern binder、或降级到 legacy path 规避该问题。
+  - 不允许把 receiver callable value 重新当成普通 direct call / positional-only call 特判糊过去。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop -o /tmp/callable_value_pattern_binder_receiver_named_args_basic`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - receiver callable value / `FunPtr` 的 receiver + named-arg lowering 在默认 refactor codegen 下不再把 `Int` 实参误送到 receiver `String` 槽位。
+  - `CG-T07S` 可恢复使用默认 full-suite 继续验证 snapshot drift 是否已真正解除。
+- 依赖：`CG-T07R`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S` 的新前置阻塞补录。`mir_refactor` snapshot 漂移修复后，默认 full-suite 首个失败转为 `callable_value_pattern_binder_receiver_named_args_basic.scoop`；build 诊断显示 `CallKind::FunValue` lowering 仍把 receiver / named-arg 槽位错配，需单独成 task 修复后才能重新闭合 `CG-T07S`。
+
+## CG-T07S：修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞
+
+- 参考：
+  - `CG-T04a`-`CG-T04f`
+  - `CG-T08`
+  - [`TODO-P7.md`](./TODO-P7.md) P7-T03
+- 背景：
+  - 执行 `CG-T08` 的默认 full regression 时，`cargo run -p scoop -- test` 在根目录串跑下于 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 暴露 snapshot 漂移；单独运行 `tests/fixtures/mir_refactor` 或单 fixture 时通过。
+  - 已确认漂移集中在 composite transport metadata：`MirBoxingIntent.target_ty`、handle/perform payload tuple/component metadata 会在 full-suite 过程中与单跑结果不一致，说明 transport metadata repair 仍依赖顺序敏感的中间局部类型或隐藏状态，而不是 authoritative 外层 contract。
+
+- 必须实现的内容：
+  1. 找到并消除 `aggregate_transport.scoop` 等 composite transport sample 在 full-suite 串跑与单跑之间的 metadata 漂移根因。
+  2. transport metadata repair 只能消费 authoritative outer contract（如 `array_ty`、closure `env_ty`、handle/perform payload schema）；不得依赖顺序敏感的 `local.ty`、hidden cache 或前序 fixture 残留状态。
+  3. `scoop test` 根目录串跑与单 fixture 运行对 `mir_refactor` / `effect_facts` / `effect_lowered` snapshot 的可观测输出必须一致。
+  4. 保留并补充最小回归测试，覆盖 fixture session 隔离与 full-suite composite transport 漂移场景。
+
+- 必须遵从的约束：
+  - 不允许通过跳过 fixture、弱化 golden、或把 snapshot phase 改成显式 legacy / subprocess workaround 规避该问题。
+  - 不允许继续信任已经 concrete 但与 authoritative contract 漂移的 transport metadata；必须在 producer/materializer/repair 层修正来源。
+
+- 验证：
+  1. `cargo test -p scoop run_all_recreates_session_between_independent_fixtures`
+  2. `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+  4. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - default full-suite 不再因 cross-fixture transport metadata drift 在 `aggregate_transport.scoop` 或同类 MIR/effect snapshot fixture 上失败。
+  - `CG-T08` 可恢复执行标准 full regression，而不是先停在 snapshot drift blocker。
+- 依赖：`CG-T07R`，`CG-T07S0`
+
+- 完成记录：
+  - 2026-05-08：执行 `CG-T08` 时已先补 `crates/scoop/tests/cg8_codegen_regression_matrix.rs` representative matrix、fixture runner fresh-session isolation regression，以及 refactor MIR stable dump 的首差异诊断与 `TypeId` canonicalization；`cargo test --all` 与定向 matrix 通过，但 `cargo run -p scoop -- test` 仍在 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 暴露 full-suite composite transport metadata drift，本任务据此新增并保持未完成。
+  - 2026-05-08：补齐 `mir_refactor` 单文件 phase fallback，确认 `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/{generic_materialization,aggregate_transport}.scoop` 不再误走 parse phase；`RefactorMirStageOutput::stable_dump()` 改为 canonical type-id dump，`MirLoweringFacts::with_member_value_types()` 过滤掉 mangled generic instance clone 对 base field FQN 的污染，`generic_materialization.actual.raw.mir` 中 `holder.item` 不再在 `Int` / template `T` 之间随机漂移；`tests/fixtures/mir_refactor`、`tests/fixtures/effect_facts` 与 `tests/fixtures/effect_lowered` 目录定向验证恢复通过。
+  - 2026-05-08：默认 full-suite 后续仍被 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 receiver callable value / `FunPtr` named-arg lowering 回归阻塞；按顺序约束新增 prerequisite `CG-T07S0`，本任务保持未完成，等待 `CG-T07S0` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+
 ## CG-T08：建立 codegen regression 矩阵并完成阶段退出审计
 
 - 参考：
@@ -754,7 +824,11 @@
 - 完成条件：
   - 默认 refactor full regression 通过或剩余失败均有明确非 codegen-stage owner。
   - `PIPELINE_GAPS.md` 中 codegen-stage scope 的 gap 已关闭或重分类。
-- 依赖：`CG-T07R`
+- 依赖：`CG-T07S`
+
+- 完成记录：
+  - 2026-05-08：已补 `crates/scoop/tests/cg8_codegen_regression_matrix.rs` 建立 `CG-T01`-`CG-T07` 与 `P7-T02Z` representative fixture matrix；新增 `fixtures::tests::run_all_recreates_session_between_independent_fixtures` 锁定 fixture session 隔离回归，并增强 MIR golden mismatch 诊断以输出首个差异行。
+  - 2026-05-08：验证中确认 `cargo test --all` 通过，但 `cargo run -p scoop -- test` 仍在 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 暴露 full-suite composite transport metadata drift；按顺序约束新增 prerequisite `CG-T07S`，本任务保持未完成。
 
 ## CG-T08R：Review CG-T08 codegen phase exit audit
 

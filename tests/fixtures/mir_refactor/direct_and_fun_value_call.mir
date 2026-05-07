@@ -6,20 +6,20 @@ File {
                 fqn: "a.id",
                 name: "id",
                 ty: TypeId(
-                    10,
+                    0,
                 ),
                 params: [
                     Param {
                         span: 18..19,
                         name: "x",
                         ty: TypeId(
-                            5,
+                            1,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -30,7 +30,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -63,14 +63,14 @@ File {
                 fqn: "a.apply",
                 name: "apply",
                 ty: TypeId(
-                    11,
+                    2,
                 ),
                 params: [
                     Param {
                         span: 50..51,
                         name: "f",
                         ty: TypeId(
-                            10,
+                            0,
                         ),
                         local: l0,
                     },
@@ -78,13 +78,13 @@ File {
                         span: 67..68,
                         name: "x",
                         ty: TypeId(
-                            5,
+                            1,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -95,7 +95,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -105,7 +105,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -115,7 +115,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -147,7 +147,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -160,6 +160,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -195,11 +196,11 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    12,
+                    3,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -210,7 +211,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -220,7 +221,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -230,7 +231,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -240,7 +241,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -250,7 +251,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -291,7 +292,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -304,6 +305,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -325,7 +327,7 @@ File {
                                                 fn_ptr: "a.main.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        2,
+                                                        4,
                                                     ),
                                                     captures: [],
                                                 },
@@ -371,7 +373,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -384,6 +386,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -419,14 +422,14 @@ File {
                 fqn: "a.main.$lambda0",
                 name: "$lambda0",
                 ty: TypeId(
-                    0,
+                    5,
                 ),
                 params: [
                     Param {
                         span: 121..123,
                         name: "$env",
                         ty: TypeId(
-                            2,
+                            4,
                         ),
                         local: l0,
                     },
@@ -434,13 +437,13 @@ File {
                         span: 124..124,
                         name: "a0",
                         ty: TypeId(
-                            5,
+                            1,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -451,7 +454,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -461,7 +464,7 @@ File {
                                     "a0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -471,7 +474,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -501,7 +504,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -514,6 +517,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],

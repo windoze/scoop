@@ -19,7 +19,7 @@ File {
                                     span: 177..182,
                                     name: "value",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -38,7 +38,7 @@ File {
                                 name: "value",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -53,20 +53,20 @@ File {
                 fqn: "mir_refactor.pattern_is_type.classify",
                 name: "classify",
                 ty: TypeId(
-                    10,
+                    1,
                 ),
                 params: [
                     Param {
                         span: 203..204,
                         name: "x",
                         ty: TypeId(
-                            0,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -77,7 +77,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -87,7 +87,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -97,7 +97,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -107,7 +107,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -117,7 +117,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -127,7 +127,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -137,7 +137,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -147,7 +147,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    4,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -166,18 +166,18 @@ File {
                                                 ),
                                                 pattern: Is {
                                                     ty: TypeId(
-                                                        1,
+                                                        5,
                                                     ),
                                                     metadata: RuntimePatternTypeTestMetadata {
                                                         subject_ty: TypeId(
-                                                            0,
+                                                            2,
                                                         ),
                                                         target_ty: TypeId(
-                                                            1,
+                                                            5,
                                                         ),
                                                         descriptor: RuntimeTypeDescriptorKey {
                                                             ty: TypeId(
-                                                                1,
+                                                                5,
                                                             ),
                                                             kind: String,
                                                         },
@@ -230,18 +230,18 @@ File {
                                                 ),
                                                 pattern: Is {
                                                     ty: TypeId(
-                                                        11,
+                                                        6,
                                                     ),
                                                     metadata: RuntimePatternTypeTestMetadata {
                                                         subject_ty: TypeId(
-                                                            0,
+                                                            2,
                                                         ),
                                                         target_ty: TypeId(
-                                                            11,
+                                                            6,
                                                         ),
                                                         descriptor: RuntimeTypeDescriptorKey {
                                                             ty: TypeId(
-                                                                11,
+                                                                6,
                                                             ),
                                                             kind: Nominal {
                                                                 fqn: "mir_refactor.pattern_is_type.Box",

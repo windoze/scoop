@@ -6677,9 +6677,10 @@ mod tests {
         assert!(dump.contains("owner_step_schema: s1"));
         assert!(dump.contains("wrapper_step_schema: s4"));
         assert!(
-            dump.contains(
-                "owner c2 op=scoop.core.Raise.raise<t249> payload_tuple_ty=t249 -> wrapper c0"
-            ),
+            dump.lines()
+                .any(|line| line.contains("owner c2 op=scoop.core.Raise.raise<")
+                    && line.contains("payload_tuple_ty=")
+                    && line.contains(" -> wrapper c0")),
             "shared wrapper projection 应直接暴露 owner -> wrapper 映射\n{dump}"
         );
     }

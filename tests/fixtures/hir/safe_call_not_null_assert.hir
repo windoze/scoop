@@ -1,9 +1,52 @@
 File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 32..59,
+                fqn: "a.Wrap",
+                name: "Wrap",
+                kind: Struct,
+                type_params: [],
+                supertypes: [],
+                interfaces: [],
+                constructors: [
+                    CtorDecl {
+                        span: 43..59,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 48..53,
+                                name: "value",
+                                ty: TypeId(
+                                    5,
+                                ),
+                                has_default: false,
+                                property: Some(
+                                    Val,
+                                ),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 48..53,
+                            fqn: "a.Wrap.value",
+                            name: "value",
+                            mutable: false,
+                            ty: TypeId(
+                                5,
+                            ),
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
     items: [
-        Todo {
-            span: 32..59,
-            kind: "type",
-        },
         Fun(
             FunDecl {
                 span: 61..106,
@@ -272,27 +315,14 @@ File {
                                                                         Expr {
                                                                             span: 170..172,
                                                                             ty: TypeId(
-                                                                                0,
+                                                                                15,
                                                                             ),
-                                                                            kind: MemberAccess {
-                                                                                receiver: Expr {
-                                                                                    span: 170..172,
-                                                                                    ty: TypeId(
-                                                                                        0,
-                                                                                    ),
-                                                                                    kind: Missing,
+                                                                            kind: VarRef(
+                                                                                TopLevel {
+                                                                                    id: S5,
+                                                                                    fqn: "scoop.core.RuntimeError.NullAssertionFailed",
                                                                                 },
-                                                                                member: MemberAccess {
-                                                                                    span: 170..172,
-                                                                                    name: "NullAssertionFailed",
-                                                                                    resolved: Some(
-                                                                                        Value {
-                                                                                            id: S5,
-                                                                                            fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                            },
+                                                                            ),
                                                                         },
                                                                     ),
                                                                 ],

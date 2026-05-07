@@ -95,3 +95,29 @@ body_facts:
         has_handle_boundary: false
     sites:
       <none>
+
+codegen_routing_facts:
+  - body: a.apply
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 40..90
+  - body: a.id
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 11..38
+  - body: a.main
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 92..129
+  - body: a.main.$lambda0
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 121..123

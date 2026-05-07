@@ -19,7 +19,7 @@ File {
                                     span: 181..186,
                                     name: "value",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -49,7 +49,7 @@ File {
                                 name: "value",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -89,7 +89,7 @@ File {
                                     span: 231..234,
                                     name: "box",
                                     ty: TypeId(
-                                        10,
+                                        2,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -100,7 +100,7 @@ File {
                                     span: 245..249,
                                     name: "pair",
                                     ty: TypeId(
-                                        11,
+                                        3,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -119,7 +119,7 @@ File {
                                 name: "box",
                                 mutable: false,
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -131,7 +131,7 @@ File {
                                 name: "pair",
                                 mutable: false,
                                 ty: TypeId(
-                                    11,
+                                    3,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -172,7 +172,7 @@ File {
                                         name: "wrapper",
                                         mutable: false,
                                         ty: TypeId(
-                                            12,
+                                            4,
                                         ),
                                         origin: EnumVariantPayload,
                                     },
@@ -182,7 +182,7 @@ File {
                                         name: "pair",
                                         mutable: false,
                                         ty: TypeId(
-                                            14,
+                                            5,
                                         ),
                                         origin: EnumVariantPayload,
                                     },
@@ -201,7 +201,7 @@ File {
                                         name: "value",
                                         mutable: false,
                                         ty: TypeId(
-                                            15,
+                                            6,
                                         ),
                                         origin: EnumVariantPayload,
                                     },
@@ -235,7 +235,7 @@ File {
                                         span: 415..421,
                                         name: "choice",
                                         ty: TypeId(
-                                            16,
+                                            7,
                                         ),
                                         has_default: false,
                                         property: None,
@@ -244,14 +244,14 @@ File {
                                         span: 431..438,
                                         name: "payload",
                                         ty: TypeId(
-                                            17,
+                                            8,
                                         ),
                                         has_default: false,
                                         property: None,
                                     },
                                 ],
                                 return_ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                             },
                         ),
@@ -265,20 +265,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.makeBox",
                 name: "makeBox",
                 ty: TypeId(
-                    18,
+                    9,
                 ),
                 params: [
                     Param {
                         span: 476..481,
                         name: "value",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -289,7 +289,7 @@ File {
                                     "value",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -299,7 +299,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -319,7 +319,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -362,7 +362,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     kind: Struct,
                                                     fields: [
@@ -372,11 +372,11 @@ File {
                                                                 "value",
                                                             ),
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -438,20 +438,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.identityBox",
                 name: "identityBox",
                 ty: TypeId(
-                    19,
+                    11,
                 ),
                 params: [
                     Param {
                         span: 543..546,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -462,7 +462,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -472,7 +472,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -505,20 +505,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.arrays",
                 name: "arrays",
                 ty: TypeId(
-                    19,
+                    11,
                 ),
                 params: [
                     Param {
                         span: 589..592,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -529,7 +529,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -539,7 +539,7 @@ File {
                                     "xs",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    12,
                                 ),
                                 source: SourceLocal,
                             },
@@ -549,7 +549,7 @@ File {
                                     "__array_builder",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    13,
                                 ),
                                 source: SourceLocal,
                             },
@@ -559,7 +559,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    13,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -569,7 +569,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    13,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -579,14 +579,24 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 637..652,
+                                span: 631..653,
                                 name: Some(
                                     "tmp3",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 631..653,
+                                name: Some(
+                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -594,19 +604,39 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 641..642,
+                                span: 631..653,
                                 name: Some(
-                                    "tmp4",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    13,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 637..652,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 641..642,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 644..651,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp8",
                                 ),
                                 ty: TypeId(
                                     1,
@@ -616,10 +646,10 @@ File {
                             LocalDecl {
                                 span: 631..653,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp9",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    12,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -629,62 +659,12 @@ File {
                                     "first",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 675..684,
-                                name: Some(
-                                    "tmp7",
-                                ),
-                                ty: TypeId(
-                                    10,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 682..683,
-                                name: Some(
-                                    "tmp8",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 689..729,
-                                name: Some(
-                                    "ms",
-                                ),
-                                ty: TypeId(
-                                    21,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 717..729,
-                                name: Some(
-                                    "__array_builder",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 717..729,
-                                name: Some(
-                                    "tmp9",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 717..729,
                                 name: Some(
                                     "tmp10",
                                 ),
@@ -694,14 +674,34 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 717..729,
+                                span: 682..683,
                                 name: Some(
                                     "tmp11",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 689..729,
+                                name: Some(
+                                    "ms",
+                                ),
+                                ty: TypeId(
+                                    14,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 717..729,
+                                name: Some(
+                                    "__array_builder",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 717..729,
@@ -709,34 +709,24 @@ File {
                                     "tmp12",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    13,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 734..758,
+                                span: 717..729,
                                 name: Some(
                                     "tmp13",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    13,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 741..742,
+                                span: 717..729,
                                 name: Some(
                                     "tmp14",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 744..757,
-                                name: Some(
-                                    "tmp15",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -744,19 +734,89 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 748..749,
+                                span: 717..729,
+                                name: Some(
+                                    "tmp15",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 717..729,
                                 name: Some(
                                     "tmp16",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 717..729,
+                                name: Some(
+                                    "tmp17",
+                                ),
+                                ty: TypeId(
+                                    13,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 717..729,
+                                name: Some(
+                                    "tmp18",
+                                ),
+                                ty: TypeId(
+                                    14,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 734..758,
+                                name: Some(
+                                    "tmp19",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 741..742,
+                                name: Some(
+                                    "tmp20",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 744..757,
+                                name: Some(
+                                    "tmp21",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 748..749,
+                                name: Some(
+                                    "tmp22",
+                                ),
+                                ty: TypeId(
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 751..756,
                                 name: Some(
-                                    "tmp17",
+                                    "tmp23",
                                 ),
                                 ty: TypeId(
                                     1,
@@ -766,30 +826,30 @@ File {
                             LocalDecl {
                                 span: 770..779,
                                 name: Some(
-                                    "tmp18",
+                                    "tmp24",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 777..778,
                                 name: Some(
-                                    "tmp19",
+                                    "tmp25",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 604..781,
                                 name: Some(
-                                    "tmp20",
+                                    "tmp26",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -801,17 +861,32 @@ File {
                                     Statement {
                                         span: 631..653,
                                         kind: Assign {
+                                            target: l4,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_new",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..653,
+                                        kind: Assign {
                                             target: l3,
                                             value: Call {
                                                 site_id: site0,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_new",
                                                 },
                                                 args: [],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            13,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -822,31 +897,9 @@ File {
                                                         boxing: None,
                                                     },
                                                     aggregate_return: None,
-                                                    array: Some(
-                                                        ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildArray,
-                                                            array_ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            element_ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            mutable: false,
-                                                            element: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: ArrayElement,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ),
+                                                    array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -871,11 +924,26 @@ File {
                                     Statement {
                                         span: 631..653,
                                         kind: Assign {
-                                            target: l4,
+                                            target: l6,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_push",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..653,
+                                        kind: Assign {
+                                            target: l5,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
                                                 },
                                                 args: [
                                                     CallArg {
@@ -896,7 +964,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            10,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -909,17 +977,17 @@ File {
                                                     aggregate_return: None,
                                                     array: Some(
                                                         ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildArray,
+                                                            operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                2,
+                                                                13,
                                                             ),
                                                             element_ty: TypeId(
-                                                                0,
+                                                                2,
                                                             ),
-                                                            mutable: false,
+                                                            mutable: true,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    0,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -927,11 +995,24 @@ File {
                                                                     copy: true,
                                                                     drop: true,
                                                                 },
-                                                                boxing: None,
+                                                                boxing: Some(
+                                                                    MirBoxingIntent {
+                                                                        source_ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        target_ty: Some(
+                                                                            TypeId(
+                                                                                13,
+                                                                            ),
+                                                                        ),
+                                                                        reason: ArrayElement,
+                                                                    },
+                                                                ),
                                                             },
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -943,9 +1024,24 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 631..653,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_push",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
                                         span: 641..642,
                                         kind: Assign {
-                                            target: l7,
+                                            target: l10,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -956,7 +1052,7 @@ File {
                                     Statement {
                                         span: 644..651,
                                         kind: Assign {
-                                            target: l8,
+                                            target: l11,
                                             value: Use(
                                                 Const(
                                                     String,
@@ -967,27 +1063,27 @@ File {
                                     Statement {
                                         span: 637..652,
                                         kind: Assign {
-                                            target: l6,
+                                            target: l9,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
                                                         span: 641..642,
                                                         name: "value",
                                                         value: Local(
-                                                            l7,
+                                                            l10,
                                                         ),
                                                     },
                                                     StructLitField {
                                                         span: 644..651,
                                                         name: "label",
                                                         value: Local(
-                                                            l8,
+                                                            l11,
                                                         ),
                                                     },
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     kind: Struct,
                                                     fields: [
@@ -997,11 +1093,11 @@ File {
                                                                 "value",
                                                             ),
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -1041,11 +1137,11 @@ File {
                                     Statement {
                                         span: 631..653,
                                         kind: Assign {
-                                            target: l5,
+                                            target: l7,
                                             value: Call {
                                                 site_id: site2,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
                                                 },
                                                 args: [
                                                     CallArg {
@@ -1059,14 +1155,14 @@ File {
                                                         span: 637..652,
                                                         name: None,
                                                         value: Local(
-                                                            l6,
+                                                            l9,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            10,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1079,17 +1175,17 @@ File {
                                                     aggregate_return: None,
                                                     array: Some(
                                                         ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildArray,
+                                                            operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                2,
+                                                                13,
                                                             ),
                                                             element_ty: TypeId(
-                                                                0,
+                                                                2,
                                                             ),
-                                                            mutable: false,
+                                                            mutable: true,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    0,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1097,11 +1193,24 @@ File {
                                                                     copy: true,
                                                                     drop: true,
                                                                 },
-                                                                boxing: None,
+                                                                boxing: Some(
+                                                                    MirBoxingIntent {
+                                                                        source_ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        target_ty: Some(
+                                                                            TypeId(
+                                                                                13,
+                                                                            ),
+                                                                        ),
+                                                                        reason: ArrayElement,
+                                                                    },
+                                                                ),
                                                             },
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -1115,7 +1224,7 @@ File {
                                     Statement {
                                         span: 631..653,
                                         kind: Assign {
-                                            target: l9,
+                                            target: l12,
                                             value: Call {
                                                 site_id: site3,
                                                 kind: Direct {
@@ -1133,7 +1242,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            20,
+                                                            12,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -1148,15 +1257,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderBuildArray,
                                                             array_ty: TypeId(
-                                                                20,
+                                                                12,
                                                             ),
                                                             element_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             mutable: false,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1169,6 +1278,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -1185,7 +1295,7 @@ File {
                                             target: l1,
                                             value: Use(
                                                 Local(
-                                                    l9,
+                                                    l12,
                                                 ),
                                             ),
                                         },
@@ -1193,7 +1303,7 @@ File {
                                     Statement {
                                         span: 682..683,
                                         kind: Assign {
-                                            target: l12,
+                                            target: l15,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1204,7 +1314,7 @@ File {
                                     Statement {
                                         span: 675..684,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l14,
                                             value: Call {
                                                 site_id: site4,
                                                 kind: Direct {
@@ -1222,14 +1332,14 @@ File {
                                                         span: 682..683,
                                                         name: None,
                                                         value: Local(
-                                                            l12,
+                                                            l15,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -1242,7 +1352,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -1257,15 +1367,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: Get,
                                                             array_ty: TypeId(
-                                                                20,
+                                                                12,
                                                             ),
                                                             element_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             mutable: false,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1278,6 +1388,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1291,10 +1402,10 @@ File {
                                     Statement {
                                         span: 658..684,
                                         kind: Assign {
-                                            target: l10,
+                                            target: l13,
                                             value: Use(
                                                 Local(
-                                                    l11,
+                                                    l14,
                                                 ),
                                             ),
                                         },
@@ -1302,17 +1413,32 @@ File {
                                     Statement {
                                         span: 717..729,
                                         kind: Assign {
-                                            target: l15,
+                                            target: l19,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_new",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 717..729,
+                                        kind: Assign {
+                                            target: l18,
                                             value: Call {
                                                 site_id: site5,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_new",
                                                 },
                                                 args: [],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            13,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -1323,116 +1449,9 @@ File {
                                                         boxing: None,
                                                     },
                                                     aggregate_return: None,
-                                                    array: Some(
-                                                        ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildMutableArray,
-                                                            array_ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            element_ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            mutable: true,
-                                                            element: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: ArrayElement,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ),
+                                                    array: None,
                                                     gc: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 717..729,
-                                        kind: Assign {
-                                            target: l14,
-                                            value: Use(
-                                                Local(
-                                                    l15,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 717..729,
-                                        kind: Assign {
-                                            target: l16,
-                                            value: Call {
-                                                site_id: site6,
-                                                kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 717..717,
-                                                        name: None,
-                                                        value: Local(
-                                                            l14,
-                                                        ),
-                                                    },
-                                                    CallArg {
-                                                        span: 718..721,
-                                                        name: None,
-                                                        value: Local(
-                                                            l0,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: Some(
-                                                        ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildMutableArray,
-                                                            array_ty: TypeId(
-                                                                2,
-                                                            ),
-                                                            element_ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            mutable: true,
-                                                            element: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: ArrayElement,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ),
-                                                    gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -1447,31 +1466,57 @@ File {
                                         span: 717..729,
                                         kind: Assign {
                                             target: l17,
+                                            value: Use(
+                                                Local(
+                                                    l18,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 717..729,
+                                        kind: Assign {
+                                            target: l21,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_push",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 717..729,
+                                        kind: Assign {
+                                            target: l20,
                                             value: Call {
-                                                site_id: site7,
+                                                site_id: site6,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
                                                 },
                                                 args: [
                                                     CallArg {
                                                         span: 717..717,
                                                         name: None,
                                                         value: Local(
-                                                            l14,
+                                                            l17,
                                                         ),
                                                     },
                                                     CallArg {
-                                                        span: 723..728,
+                                                        span: 718..721,
                                                         name: None,
                                                         value: Local(
-                                                            l10,
+                                                            l0,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            10,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1484,17 +1529,17 @@ File {
                                                     aggregate_return: None,
                                                     array: Some(
                                                         ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildMutableArray,
+                                                            operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                2,
+                                                                13,
                                                             ),
                                                             element_ty: TypeId(
-                                                                0,
+                                                                2,
                                                             ),
                                                             mutable: true,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    0,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1502,11 +1547,24 @@ File {
                                                                     copy: true,
                                                                     drop: true,
                                                                 },
-                                                                boxing: None,
+                                                                boxing: Some(
+                                                                    MirBoxingIntent {
+                                                                        source_ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        target_ty: Some(
+                                                                            TypeId(
+                                                                                13,
+                                                                            ),
+                                                                        ),
+                                                                        reason: ArrayElement,
+                                                                    },
+                                                                ),
                                                             },
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -1520,7 +1578,109 @@ File {
                                     Statement {
                                         span: 717..729,
                                         kind: Assign {
-                                            target: l18,
+                                            target: l23,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.__scoop_array_builder_push",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 717..729,
+                                        kind: Assign {
+                                            target: l22,
+                                            value: Call {
+                                                site_id: site7,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 717..717,
+                                                        name: None,
+                                                        value: Local(
+                                                            l17,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 723..728,
+                                                        name: None,
+                                                        value: Local(
+                                                            l13,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            10,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: Some(
+                                                        ArrayElementTransportMetadata {
+                                                            operation: BuilderPush,
+                                                            array_ty: TypeId(
+                                                                13,
+                                                            ),
+                                                            element_ty: TypeId(
+                                                                2,
+                                                            ),
+                                                            mutable: true,
+                                                            element: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: ArrayElement,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: Some(
+                                                                    MirBoxingIntent {
+                                                                        source_ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        target_ty: Some(
+                                                                            TypeId(
+                                                                                13,
+                                                                            ),
+                                                                        ),
+                                                                        reason: ArrayElement,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                    ),
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: Plain,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: NoOutward,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 717..729,
+                                        kind: Assign {
+                                            target: l24,
                                             value: Call {
                                                 site_id: site8,
                                                 kind: Direct {
@@ -1531,14 +1691,14 @@ File {
                                                         span: 717..717,
                                                         name: None,
                                                         value: Local(
-                                                            l14,
+                                                            l17,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            21,
+                                                            14,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -1553,15 +1713,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderBuildMutableArray,
                                                             array_ty: TypeId(
-                                                                21,
+                                                                14,
                                                             ),
                                                             element_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             mutable: true,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1574,6 +1734,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: Plain,
                                                         resolved_outward_cases: [],
@@ -1587,10 +1748,10 @@ File {
                                     Statement {
                                         span: 689..729,
                                         kind: Assign {
-                                            target: l13,
+                                            target: l16,
                                             value: Use(
                                                 Local(
-                                                    l18,
+                                                    l24,
                                                 ),
                                             ),
                                         },
@@ -1598,7 +1759,7 @@ File {
                                     Statement {
                                         span: 741..742,
                                         kind: Assign {
-                                            target: l20,
+                                            target: l26,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1609,7 +1770,7 @@ File {
                                     Statement {
                                         span: 748..749,
                                         kind: Assign {
-                                            target: l22,
+                                            target: l28,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1620,7 +1781,7 @@ File {
                                     Statement {
                                         span: 751..756,
                                         kind: Assign {
-                                            target: l23,
+                                            target: l29,
                                             value: Use(
                                                 Const(
                                                     String,
@@ -1631,27 +1792,27 @@ File {
                                     Statement {
                                         span: 744..757,
                                         kind: Assign {
-                                            target: l21,
+                                            target: l27,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
                                                         span: 748..749,
                                                         name: "value",
                                                         value: Local(
-                                                            l22,
+                                                            l28,
                                                         ),
                                                     },
                                                     StructLitField {
                                                         span: 751..756,
                                                         name: "label",
                                                         value: Local(
-                                                            l23,
+                                                            l29,
                                                         ),
                                                     },
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     kind: Struct,
                                                     fields: [
@@ -1661,11 +1822,11 @@ File {
                                                                 "value",
                                                             ),
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -1705,7 +1866,7 @@ File {
                                     Statement {
                                         span: 734..758,
                                         kind: Assign {
-                                            target: l19,
+                                            target: l25,
                                             value: Call {
                                                 site_id: site9,
                                                 kind: Direct {
@@ -1716,28 +1877,28 @@ File {
                                                         span: 734..736,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l16,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 741..742,
                                                         name: None,
                                                         value: Local(
-                                                            l20,
+                                                            l26,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 744..757,
                                                         name: None,
                                                         value: Local(
-                                                            l21,
+                                                            l27,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            10,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1752,15 +1913,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: Set,
                                                             array_ty: TypeId(
-                                                                21,
+                                                                14,
                                                             ),
                                                             element_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             mutable: true,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1771,11 +1932,11 @@ File {
                                                                 boxing: Some(
                                                                     MirBoxingIntent {
                                                                         source_ty: TypeId(
-                                                                            10,
+                                                                            2,
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                21,
+                                                                                14,
                                                                             ),
                                                                         ),
                                                                         reason: ArrayElement,
@@ -1785,6 +1946,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1798,7 +1960,7 @@ File {
                                     Statement {
                                         span: 777..778,
                                         kind: Assign {
-                                            target: l25,
+                                            target: l31,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1809,7 +1971,7 @@ File {
                                     Statement {
                                         span: 770..779,
                                         kind: Assign {
-                                            target: l24,
+                                            target: l30,
                                             value: Call {
                                                 site_id: site10,
                                                 kind: Direct {
@@ -1820,21 +1982,21 @@ File {
                                                         span: 770..772,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l16,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 777..778,
                                                         name: None,
                                                         value: Local(
-                                                            l25,
+                                                            l31,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -1847,7 +2009,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -1862,15 +2024,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: Get,
                                                             array_ty: TypeId(
-                                                                21,
+                                                                14,
                                                             ),
                                                             element_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             mutable: false,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1883,6 +2045,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1899,7 +2062,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l24,
+                                                l30,
                                             ),
                                         ),
                                     },
@@ -1918,20 +2081,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.closureCapture",
                 name: "closureCapture",
                 ty: TypeId(
-                    22,
+                    15,
                 ),
                 params: [
                     Param {
                         span: 802..805,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -1942,7 +2105,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -1952,7 +2115,7 @@ File {
                                     "counter",
                                 ),
                                 ty: TypeId(
-                                    35,
+                                    16,
                                 ),
                                 source: SourceLocal,
                             },
@@ -1962,7 +2125,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1972,7 +2135,7 @@ File {
                                     "read",
                                 ),
                                 ty: TypeId(
-                                    23,
+                                    17,
                                 ),
                                 source: SourceLocal,
                             },
@@ -1982,7 +2145,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    36,
+                                    18,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1992,7 +2155,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    23,
+                                    17,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2002,7 +2165,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2012,7 +2175,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2042,11 +2205,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        35,
+                                                        16,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2075,7 +2238,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        36,
+                                                        18,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -2085,11 +2248,11 @@ File {
                                                                 "box",
                                                             ),
                                                             ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -2106,11 +2269,11 @@ File {
                                                                 "counter",
                                                             ),
                                                             ty: TypeId(
-                                                                35,
+                                                                16,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    35,
+                                                                    16,
                                                                 ),
                                                                 kind: Reference,
                                                                 requirements: MirTransportRequirements {
@@ -2137,7 +2300,7 @@ File {
                                                 fn_ptr: "mir_refactor.aggregate_transport.closureCapture.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        36,
+                                                        18,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -2147,7 +2310,7 @@ File {
                                                             source_local: l0,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -2158,11 +2321,11 @@ File {
                                                                 boxing: Some(
                                                                     MirBoxingIntent {
                                                                         source_ty: TypeId(
-                                                                            10,
+                                                                            2,
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                36,
+                                                                                18,
                                                                             ),
                                                                         ),
                                                                         reason: ClosureCapture,
@@ -2177,7 +2340,7 @@ File {
                                                             source_local: l1,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    35,
+                                                                    16,
                                                                 ),
                                                                 kind: CaptureBox,
                                                                 requirements: MirTransportRequirements {
@@ -2219,7 +2382,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2232,6 +2395,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -2267,20 +2431,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.closureCapture.$lambda0",
                 name: "$lambda0",
                 ty: TypeId(
-                    0,
+                    13,
                 ),
                 params: [
                     Param {
                         span: 870..931,
                         name: "$env",
                         ty: TypeId(
-                            36,
+                            18,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -2291,7 +2455,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    36,
+                                    18,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2301,7 +2465,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2311,7 +2475,7 @@ File {
                                     "counter",
                                 ),
                                 ty: TypeId(
-                                    35,
+                                    16,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2321,7 +2485,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2331,7 +2495,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2341,7 +2505,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2351,7 +2515,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2361,7 +2525,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2404,11 +2568,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        35,
+                                                        16,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2434,7 +2598,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -2476,11 +2640,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        35,
+                                                        16,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2504,11 +2668,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        35,
+                                                        16,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2547,14 +2711,14 @@ File {
                 fqn: "mir_refactor.aggregate_transport.functionValue",
                 name: "functionValue",
                 ty: TypeId(
-                    24,
+                    19,
                 ),
                 params: [
                     Param {
                         span: 971..972,
                         name: "f",
                         ty: TypeId(
-                            19,
+                            11,
                         ),
                         local: l0,
                     },
@@ -2562,13 +2726,13 @@ File {
                         span: 988..991,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -2579,7 +2743,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    11,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2589,7 +2753,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2599,7 +2763,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2609,7 +2773,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2641,7 +2805,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -2654,7 +2818,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -2667,6 +2831,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -2702,20 +2867,20 @@ File {
                 fqn: "mir_refactor.aggregate_transport.effects",
                 name: "effects",
                 ty: TypeId(
-                    22,
+                    15,
                 ),
                 params: [
                     Param {
                         span: 1038..1041,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -2726,7 +2891,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2736,7 +2901,7 @@ File {
                                     "payload",
                                 ),
                                 ty: TypeId(
-                                    12,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2746,7 +2911,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    12,
+                                    4,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2756,7 +2921,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2766,7 +2931,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2776,7 +2941,7 @@ File {
                                     "selected",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2786,7 +2951,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2796,7 +2961,7 @@ File {
                                     "choice",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2806,7 +2971,7 @@ File {
                                     "payload",
                                 ),
                                 ty: TypeId(
-                                    17,
+                                    8,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2816,7 +2981,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2826,7 +2991,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    14,
+                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2836,7 +3001,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    13,
+                                    20,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2846,7 +3011,7 @@ File {
                                     "tmp7",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2866,7 +3031,7 @@ File {
                                     "tmp9",
                                 ),
                                 ty: TypeId(
-                                    17,
+                                    8,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2876,7 +3041,7 @@ File {
                                     "tmp10",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2886,7 +3051,7 @@ File {
                                     "tmp11",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2896,7 +3061,7 @@ File {
                                     "unitVariant",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2906,7 +3071,7 @@ File {
                                     "tmp12",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2916,7 +3081,7 @@ File {
                                     "wide",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2926,7 +3091,7 @@ File {
                                     "tmp13",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2936,7 +3101,7 @@ File {
                                     "tmp14",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2946,7 +3111,7 @@ File {
                                     "tmp15",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2956,7 +3121,7 @@ File {
                                     "tmp16",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2966,7 +3131,7 @@ File {
                                     "tmp17",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2976,7 +3141,7 @@ File {
                                     "tmp18",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2986,7 +3151,7 @@ File {
                                     "tmp19",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2996,7 +3161,7 @@ File {
                                     "tmp20",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3006,7 +3171,7 @@ File {
                                     "tmp21",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3016,7 +3181,7 @@ File {
                                     "tmp22",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3026,7 +3191,7 @@ File {
                                     "tmp23",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3036,7 +3201,7 @@ File {
                                     "tmp24",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3046,7 +3211,7 @@ File {
                                     "tmp25",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3056,7 +3221,7 @@ File {
                                     "tmp26",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3066,7 +3231,7 @@ File {
                                     "tmp27",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3076,7 +3241,7 @@ File {
                                     "tmp28",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3086,7 +3251,7 @@ File {
                                     "tmp29",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3096,7 +3261,7 @@ File {
                                     "tmp30",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    21,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3106,7 +3271,7 @@ File {
                                     "tmp31",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3116,7 +3281,7 @@ File {
                                     "tmp32",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -3151,7 +3316,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        11,
+                                                        3,
                                                     ),
                                                     kind: Tuple,
                                                     fields: [
@@ -3159,11 +3324,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -3178,11 +3343,11 @@ File {
                                                             index: 1,
                                                             name: None,
                                                             ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3221,7 +3386,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        12,
+                                                        4,
                                                     ),
                                                     kind: Struct,
                                                     fields: [
@@ -3231,11 +3396,11 @@ File {
                                                                 "box",
                                                             ),
                                                             ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3252,11 +3417,11 @@ File {
                                                                 "pair",
                                                             ),
                                                             ty: TypeId(
-                                                                11,
+                                                                3,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    11,
+                                                                    3,
                                                                 ),
                                                                 kind: Tuple,
                                                                 requirements: MirTransportRequirements {
@@ -3290,10 +3455,10 @@ File {
                                         site_id: site0,
                                         metadata: HandleMetadata {
                                             result_ty: TypeId(
-                                                10,
+                                                2,
                                             ),
                                             body_result_ty: TypeId(
-                                                10,
+                                                2,
                                             ),
                                             finally_result_ty: None,
                                         },
@@ -3307,23 +3472,23 @@ File {
                                                 ],
                                                 continuation_local: None,
                                                 handled_effect_ty: TypeId(
-                                                    25,
+                                                    22,
                                                 ),
                                                 payload_tuple_ty: Some(
                                                     TypeId(
-                                                        26,
+                                                        23,
                                                     ),
                                                 ),
                                                 payload_component_tys: [
                                                     TypeId(
-                                                        16,
+                                                        7,
                                                     ),
                                                     TypeId(
-                                                        17,
+                                                        8,
                                                     ),
                                                 ],
                                                 body_ty: TypeId(
-                                                    0,
+                                                    13,
                                                 ),
                                                 kind: NonResuming,
                                             },
@@ -3379,7 +3544,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        13,
+                                                        20,
                                                     ),
                                                     kind: Tuple,
                                                     fields: [
@@ -3387,11 +3552,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -3441,7 +3606,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        14,
+                                                        5,
                                                     ),
                                                     kind: Tuple,
                                                     fields: [
@@ -3449,11 +3614,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3468,11 +3633,11 @@ File {
                                                             index: 1,
                                                             name: None,
                                                             ty: TypeId(
-                                                                13,
+                                                                20,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    13,
+                                                                    20,
                                                                 ),
                                                                 kind: Tuple,
                                                                 requirements: MirTransportRequirements {
@@ -3494,7 +3659,7 @@ File {
                                             target: l9,
                                             value: EnumVariant {
                                                 enum_ty: TypeId(
-                                                    16,
+                                                    7,
                                                 ),
                                                 variant_name: "Nested",
                                                 args: [
@@ -3515,7 +3680,7 @@ File {
                                                 ],
                                                 payload: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        16,
+                                                        7,
                                                     ),
                                                     kind: EnumPayload,
                                                     fields: [
@@ -3523,11 +3688,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                12,
+                                                                4,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    12,
+                                                                    4,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3542,11 +3707,11 @@ File {
                                                             index: 1,
                                                             name: None,
                                                             ty: TypeId(
-                                                                14,
+                                                                5,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    14,
+                                                                    5,
                                                                 ),
                                                                 kind: Tuple,
                                                                 requirements: MirTransportRequirements {
@@ -3577,7 +3742,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        17,
+                                                        8,
                                                     ),
                                                     kind: Tuple,
                                                     fields: [
@@ -3585,11 +3750,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    10,
+                                                                    2,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3604,11 +3769,11 @@ File {
                                                             index: 1,
                                                             name: None,
                                                             ty: TypeId(
-                                                                12,
+                                                                4,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    12,
+                                                                    4,
                                                                 ),
                                                                 kind: Struct,
                                                                 requirements: MirTransportRequirements {
@@ -3631,7 +3796,7 @@ File {
                                             value: PerformResult {
                                                 op_fqn: "mir_refactor.aggregate_transport.Send.submit",
                                                 effect_ty: TypeId(
-                                                    25,
+                                                    22,
                                                 ),
                                             },
                                         },
@@ -3644,28 +3809,28 @@ File {
                                         op_fqn: "mir_refactor.aggregate_transport.Send.submit",
                                         metadata: PerformMetadata {
                                             effect_ty: TypeId(
-                                                25,
+                                                22,
                                             ),
                                             result_ty: TypeId(
-                                                10,
+                                                2,
                                             ),
                                             payload_tuple_ty: Some(
                                                 TypeId(
-                                                    26,
+                                                    23,
                                                 ),
                                             ),
                                             payload_component_tys: [
                                                 TypeId(
-                                                    16,
+                                                    7,
                                                 ),
                                                 TypeId(
-                                                    17,
+                                                    8,
                                                 ),
                                             ],
                                             payload_transport: [
                                                 ValueTransportMetadata {
                                                     source_ty: TypeId(
-                                                        16,
+                                                        7,
                                                     ),
                                                     kind: EffectPayload,
                                                     requirements: MirTransportRequirements {
@@ -3676,11 +3841,11 @@ File {
                                                     boxing: Some(
                                                         MirBoxingIntent {
                                                             source_ty: TypeId(
-                                                                16,
+                                                                7,
                                                             ),
                                                             target_ty: Some(
                                                                 TypeId(
-                                                                    26,
+                                                                    23,
                                                                 ),
                                                             ),
                                                             reason: EffectPayload,
@@ -3689,7 +3854,7 @@ File {
                                                 },
                                                 ValueTransportMetadata {
                                                     source_ty: TypeId(
-                                                        17,
+                                                        8,
                                                     ),
                                                     kind: EffectPayload,
                                                     requirements: MirTransportRequirements {
@@ -3700,11 +3865,11 @@ File {
                                                     boxing: Some(
                                                         MirBoxingIntent {
                                                             source_ty: TypeId(
-                                                                17,
+                                                                8,
                                                             ),
                                                             target_ty: Some(
                                                                 TypeId(
-                                                                    26,
+                                                                    23,
                                                                 ),
                                                             ),
                                                             reason: EffectPayload,
@@ -3795,13 +3960,13 @@ File {
                                             target: l18,
                                             value: EnumVariant {
                                                 enum_ty: TypeId(
-                                                    16,
+                                                    7,
                                                 ),
                                                 variant_name: "Empty",
                                                 args: [],
                                                 payload: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        16,
+                                                        7,
                                                     ),
                                                     kind: EnumPayload,
                                                     fields: [],
@@ -3837,7 +4002,7 @@ File {
                                             target: l20,
                                             value: EnumVariant {
                                                 enum_ty: TypeId(
-                                                    16,
+                                                    7,
                                                 ),
                                                 variant_name: "Wide",
                                                 args: [
@@ -3851,7 +4016,7 @@ File {
                                                 ],
                                                 payload: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        16,
+                                                        7,
                                                     ),
                                                     kind: EnumPayload,
                                                     fields: [
@@ -3859,11 +4024,11 @@ File {
                                                             index: 0,
                                                             name: None,
                                                             ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: Scalar,
                                                                 requirements: MirTransportRequirements {
@@ -3902,7 +4067,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -4412,11 +4577,11 @@ File {
                 fqn: "mir_refactor.aggregate_transport.main",
                 name: "main",
                 ty: TypeId(
-                    23,
+                    17,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -4427,7 +4592,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -4437,7 +4602,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4447,7 +4612,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4457,7 +4622,7 @@ File {
                                     "fromArray",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -4467,7 +4632,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4477,7 +4642,7 @@ File {
                                     "fromFun",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -4487,7 +4652,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4497,7 +4662,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    11,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4507,7 +4672,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4517,7 +4682,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4527,7 +4692,7 @@ File {
                                     "tmp7",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4537,7 +4702,7 @@ File {
                                     "tmp8",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4547,7 +4712,7 @@ File {
                                     "tmp9",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4557,7 +4722,7 @@ File {
                                     "tmp10",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4567,7 +4732,7 @@ File {
                                     "tmp11",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4577,7 +4742,7 @@ File {
                                     "tmp12",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -4618,7 +4783,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -4631,7 +4796,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -4644,6 +4809,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -4686,7 +4852,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -4699,7 +4865,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -4712,6 +4878,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -4744,7 +4911,7 @@ File {
                                                 fn_ptr: "mir_refactor.aggregate_transport.main.$lambda1",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        2,
+                                                        10,
                                                     ),
                                                     captures: [],
                                                 },
@@ -4779,7 +4946,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -4792,7 +4959,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -4805,6 +4972,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -4838,7 +5006,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -4864,7 +5032,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        2,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -4914,7 +5082,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -4927,6 +5095,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -4973,7 +5142,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -4986,6 +5155,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -5036,14 +5206,14 @@ File {
                 fqn: "mir_refactor.aggregate_transport.main.$lambda1",
                 name: "$lambda1",
                 ty: TypeId(
-                    0,
+                    13,
                 ),
                 params: [
                     Param {
                         span: 1722..1733,
                         name: "$env",
                         ty: TypeId(
-                            2,
+                            10,
                         ),
                         local: l0,
                     },
@@ -5051,13 +5221,13 @@ File {
                         span: 1734..1734,
                         name: "a0",
                         ty: TypeId(
-                            10,
+                            2,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -5068,7 +5238,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    10,
                                 ),
                                 source: SourceLocal,
                             },
@@ -5078,7 +5248,7 @@ File {
                                     "a0",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -5088,7 +5258,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -5118,7 +5288,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            10,
+                                                            2,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -5131,7 +5301,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                10,
+                                                                2,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -5144,6 +5314,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -5179,14 +5350,14 @@ File {
                 fqn: "mir_refactor.aggregate_transport.Send.submit",
                 name: "submit",
                 ty: TypeId(
-                    28,
+                    24,
                 ),
                 params: [
                     Param {
                         span: 393..397,
                         name: "this",
                         ty: TypeId(
-                            25,
+                            22,
                         ),
                         local: l0,
                     },
@@ -5194,7 +5365,7 @@ File {
                         span: 415..421,
                         name: "choice",
                         ty: TypeId(
-                            16,
+                            7,
                         ),
                         local: l1,
                     },
@@ -5202,13 +5373,13 @@ File {
                         span: 431..438,
                         name: "payload",
                         ty: TypeId(
-                            17,
+                            8,
                         ),
                         local: l2,
                     },
                 ],
                 return_ty: TypeId(
-                    10,
+                    2,
                 ),
                 body: None,
             },

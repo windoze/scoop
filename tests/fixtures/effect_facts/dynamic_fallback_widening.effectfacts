@@ -66,3 +66,11 @@ body_facts:
         callee_schema: step_schema#1
         resolved_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
         precision: SignatureFallback
+
+codegen_routing_facts:
+  - body: sample.callValue
+    route: EffectStepLowering
+    reason: callable publishes EffectStep ABI from non-empty outward cases
+    abi: EffectStep impl_plan=CanonicalFull resolved_outward_cases=[c0, c1] adapter_required=false step_schema_published=true
+    features: <none>
+    span: 89..169

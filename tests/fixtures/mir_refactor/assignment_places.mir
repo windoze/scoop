@@ -19,7 +19,7 @@ File {
                                     span: 156..161,
                                     name: "value",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -38,7 +38,7 @@ File {
                                 name: "value",
                                 mutable: true,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -66,7 +66,7 @@ File {
                                     span: 185..188,
                                     name: "box",
                                     ty: TypeId(
-                                        10,
+                                        1,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -85,7 +85,7 @@ File {
                                 name: "box",
                                 mutable: true,
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -104,9 +104,10 @@ File {
                 },
                 ty: Some(
                     TypeId(
-                        5,
+                        0,
                     ),
                 ),
+                initializer_transport: None,
                 has_initializer: true,
                 dependencies: [],
                 hidden_effects: EffectRow {
@@ -120,7 +121,7 @@ File {
                 fqn: "mir_refactor.assignment_places.NativeCounter",
                 source_path: "tests/fixtures/mir_refactor/assignment_places.scoop",
                 ty: TypeId(
-                    5,
+                    0,
                 ),
                 mutable: true,
                 symbol: "native_counter",
@@ -136,14 +137,14 @@ File {
                 fqn: "mir_refactor.assignment_places.use",
                 name: "use",
                 ty: TypeId(
-                    12,
+                    2,
                 ),
                 params: [
                     Param {
                         span: 204..207,
                         name: "box",
                         ty: TypeId(
-                            10,
+                            1,
                         ),
                         local: l0,
                     },
@@ -151,13 +152,13 @@ File {
                         span: 214..220,
                         name: "holder",
                         ty: TypeId(
-                            11,
+                            3,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -168,7 +169,7 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -178,7 +179,7 @@ File {
                                     "holder",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    3,
                                 ),
                                 source: SourceLocal,
                             },
@@ -188,7 +189,7 @@ File {
                                     "local",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -198,7 +199,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -208,7 +209,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -218,7 +219,7 @@ File {
                                     "captured",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -228,7 +229,7 @@ File {
                                     "reader",
                                 ),
                                 ty: TypeId(
-                                    13,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -238,7 +239,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -248,7 +249,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    13,
+                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -258,7 +259,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -268,7 +269,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -278,7 +279,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -288,7 +289,7 @@ File {
                                     "tmp7",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -298,7 +299,7 @@ File {
                                     "tmp8",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -308,7 +309,7 @@ File {
                                     "tmp9",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -318,7 +319,7 @@ File {
                                     "tmp10",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -328,7 +329,7 @@ File {
                                     "tmp11",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -338,7 +339,7 @@ File {
                                     "tmp12",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -348,7 +349,7 @@ File {
                                     "tmp13",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -358,7 +359,7 @@ File {
                                     "tmp14",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -368,7 +369,7 @@ File {
                                     "tmp15",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -378,7 +379,7 @@ File {
                                     "tmp16",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    7,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -441,11 +442,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        4,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -471,7 +472,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        21,
+                                                        6,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -481,11 +482,11 @@ File {
                                                                 "captured",
                                                             ),
                                                             ty: TypeId(
-                                                                20,
+                                                                4,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    4,
                                                                 ),
                                                                 kind: Reference,
                                                                 requirements: MirTransportRequirements {
@@ -512,7 +513,7 @@ File {
                                                 fn_ptr: "mir_refactor.assignment_places.use.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        21,
+                                                        6,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -522,7 +523,7 @@ File {
                                                             source_local: l5,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    4,
                                                                 ),
                                                                 kind: CaptureBox,
                                                                 requirements: MirTransportRequirements {
@@ -559,11 +560,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        4,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -616,11 +617,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        4,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -644,11 +645,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        4,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -670,7 +671,7 @@ File {
                                                 l13,
                                             ),
                                             value_ty: TypeId(
-                                                5,
+                                                0,
                                             ),
                                         },
                                     },
@@ -697,7 +698,7 @@ File {
                                                 l14,
                                             ),
                                             value_ty: TypeId(
-                                                5,
+                                                0,
                                             ),
                                         },
                                     },
@@ -736,7 +737,7 @@ File {
                                             member: MemberAccessMetadata {
                                                 name: "value",
                                                 receiver_ty: TypeId(
-                                                    10,
+                                                    1,
                                                 ),
                                                 resolved: Some(
                                                     Value {
@@ -751,7 +752,7 @@ File {
                                                 l16,
                                             ),
                                             value_ty: TypeId(
-                                                5,
+                                                0,
                                             ),
                                             continuation_route: None,
                                         },
@@ -768,7 +769,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "box",
                                                     receiver_ty: TypeId(
-                                                        11,
+                                                        3,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -794,7 +795,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        1,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -817,7 +818,7 @@ File {
                                             member: MemberAccessMetadata {
                                                 name: "value",
                                                 receiver_ty: TypeId(
-                                                    10,
+                                                    1,
                                                 ),
                                                 resolved: Some(
                                                     Value {
@@ -832,7 +833,7 @@ File {
                                                 l18,
                                             ),
                                             value_ty: TypeId(
-                                                5,
+                                                0,
                                             ),
                                             continuation_route: None,
                                         },
@@ -849,7 +850,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "box",
                                                     receiver_ty: TypeId(
-                                                        11,
+                                                        3,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -875,7 +876,7 @@ File {
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        10,
+                                                        1,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -914,20 +915,20 @@ File {
                 fqn: "mir_refactor.assignment_places.use.$lambda0",
                 name: "$lambda0",
                 ty: TypeId(
-                    0,
+                    8,
                 ),
                 params: [
                     Param {
                         span: 333..345,
                         name: "$env",
                         ty: TypeId(
-                            21,
+                            6,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -938,7 +939,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    6,
                                 ),
                                 source: SourceLocal,
                             },
@@ -948,7 +949,7 @@ File {
                                     "captured",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -958,7 +959,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -989,11 +990,11 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        4,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {

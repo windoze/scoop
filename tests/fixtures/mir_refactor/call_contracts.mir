@@ -19,7 +19,7 @@ File {
                                     span: 381..386,
                                     name: "value",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -38,7 +38,7 @@ File {
                                 name: "value",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -66,7 +66,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -81,6 +81,7 @@ File {
                 source_path: "tests/fixtures/mir_refactor/call_contracts.scoop",
                 kind: ObjectSingleton,
                 ty: None,
+                initializer_transport: None,
                 has_initializer: false,
                 dependencies: [],
                 hidden_effects: EffectRow {
@@ -94,20 +95,20 @@ File {
                 fqn: "mir_refactor.call_contracts.direct",
                 name: "direct",
                 ty: TypeId(
-                    10,
+                    1,
                 ),
                 params: [
                     Param {
                         span: 160..161,
                         name: "x",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -118,7 +119,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -161,20 +162,20 @@ File {
                 fqn: "mir_refactor.call_contracts.generic",
                 name: "generic",
                 ty: TypeId(
-                    12,
+                    3,
                 ),
                 params: [
                     Param {
                         span: 202..207,
                         name: "value",
                         ty: TypeId(
-                            11,
+                            4,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    11,
+                    4,
                 ),
                 body: Some(
                     Body {
@@ -185,7 +186,7 @@ File {
                                     "value",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -228,14 +229,14 @@ File {
                 fqn: "mir_refactor.call_contracts.namedDefault",
                 name: "namedDefault",
                 ty: TypeId(
-                    13,
+                    5,
                 ),
                 params: [
                     Param {
                         span: 250..255,
                         name: "value",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l0,
                     },
@@ -243,13 +244,13 @@ File {
                         span: 266..271,
                         name: "extra",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -260,7 +261,7 @@ File {
                                     "value",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -270,7 +271,7 @@ File {
                                     "extra",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -280,7 +281,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -339,14 +340,14 @@ File {
                 fqn: "mir_refactor.call_contracts.ext",
                 name: "ext",
                 ty: TypeId(
-                    13,
+                    5,
                 ),
                 params: [
                     Param {
                         span: 313..316,
                         name: "this",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l0,
                     },
@@ -354,13 +355,13 @@ File {
                         span: 321..326,
                         name: "delta",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -371,7 +372,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -381,7 +382,7 @@ File {
                                     "delta",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -391,7 +392,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -450,14 +451,14 @@ File {
                 fqn: "mir_refactor.call_contracts.apply",
                 name: "apply",
                 ty: TypeId(
-                    14,
+                    6,
                 ),
                 params: [
                     Param {
                         span: 458..459,
                         name: "f",
                         ty: TypeId(
-                            10,
+                            1,
                         ),
                         local: l0,
                     },
@@ -465,13 +466,13 @@ File {
                         span: 475..476,
                         name: "x",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -482,7 +483,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -492,7 +493,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -502,7 +503,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -544,7 +545,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -557,6 +558,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -592,11 +594,11 @@ File {
                 fqn: "mir_refactor.call_contracts.main",
                 name: "main",
                 ty: TypeId(
-                    15,
+                    7,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -607,7 +609,7 @@ File {
                                     "d",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -617,7 +619,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -627,7 +629,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -637,7 +639,7 @@ File {
                                     "g",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -647,7 +649,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    4,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -657,7 +659,17 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 580..581,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    4,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -667,7 +679,7 @@ File {
                                     "n",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -677,17 +689,17 @@ File {
                                     "extra",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 621..622,
                                 name: Some(
-                                    "tmp4",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -697,27 +709,27 @@ File {
                                     "value",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 263..264,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 600..623,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp7",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -727,7 +739,7 @@ File {
                                     "e",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -737,17 +749,17 @@ File {
                                     "__call_receiver_0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 641..642,
                                 name: Some(
-                                    "tmp7",
+                                    "tmp8",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -757,27 +769,27 @@ File {
                                     "__call_default_1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 334..335,
                                 name: Some(
-                                    "tmp8",
+                                    "tmp9",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 641..648,
                                 name: Some(
-                                    "tmp9",
+                                    "tmp10",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -787,27 +799,27 @@ File {
                                     "m",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 666..681,
                                 name: Some(
-                                    "tmp10",
+                                    "tmp11",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 666..675,
                                 name: Some(
-                                    "tmp11",
+                                    "tmp12",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    8,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -817,27 +829,27 @@ File {
                                     "box",
                                 ),
                                 ty: TypeId(
-                                    17,
+                                    9,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 701..715,
                                 name: Some(
-                                    "tmp12",
+                                    "tmp13",
                                 ),
                                 ty: TypeId(
-                                    17,
+                                    9,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 713..714,
                                 name: Some(
-                                    "tmp13",
+                                    "tmp14",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -847,17 +859,17 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 742..748,
                                 name: Some(
-                                    "tmp14",
+                                    "tmp15",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -867,27 +879,27 @@ File {
                                     "fv",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 767..778,
                                 name: Some(
-                                    "tmp15",
+                                    "tmp16",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 776..777,
                                 name: Some(
-                                    "tmp16",
+                                    "tmp17",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -897,22 +909,12 @@ File {
                                     "cl",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 797..821,
-                                name: Some(
-                                    "tmp17",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 797..818,
                                 name: Some(
                                     "tmp18",
                                 ),
@@ -922,12 +924,22 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 819..820,
+                                span: 797..818,
                                 name: Some(
                                     "tmp19",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 819..820,
+                                name: Some(
+                                    "tmp20",
+                                ),
+                                ty: TypeId(
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -937,17 +949,17 @@ File {
                                     "typeName",
                                 ),
                                 ty: TypeId(
-                                    1,
+                                    11,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 849..862,
                                 name: Some(
-                                    "tmp20",
+                                    "tmp21",
                                 ),
                                 ty: TypeId(
-                                    1,
+                                    11,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -957,17 +969,17 @@ File {
                                     "bytes",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 884..897,
                                 name: Some(
-                                    "tmp21",
+                                    "tmp22",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -977,114 +989,114 @@ File {
                                     "platform",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    12,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 927..940,
                                 name: Some(
-                                    "tmp22",
+                                    "tmp23",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    12,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..999,
                                 name: Some(
-                                    "tmp23",
+                                    "tmp24",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..991,
                                 name: Some(
-                                    "tmp24",
+                                    "tmp25",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..986,
                                 name: Some(
-                                    "tmp25",
+                                    "tmp26",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..981,
                                 name: Some(
-                                    "tmp26",
+                                    "tmp27",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..969,
                                 name: Some(
-                                    "tmp27",
+                                    "tmp28",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..965,
                                 name: Some(
-                                    "tmp28",
+                                    "tmp29",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..961,
                                 name: Some(
-                                    "tmp29",
+                                    "tmp30",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 952..957,
                                 name: Some(
-                                    "tmp30",
+                                    "tmp31",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 972..981,
                                 name: Some(
-                                    "tmp31",
+                                    "tmp32",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 521..1001,
                                 name: Some(
-                                    "tmp32",
+                                    "tmp33",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -1128,7 +1140,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1141,6 +1153,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1174,6 +1187,41 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 580..581,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Transport {
+                                                value: Local(
+                                                    l5,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
                                         span: 567..582,
                                         kind: Assign {
                                             target: l4,
@@ -1187,14 +1235,14 @@ File {
                                                         span: 580..581,
                                                         name: None,
                                                         value: Local(
-                                                            l5,
+                                                            l6,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            11,
+                                                            4,
                                                         ),
                                                         kind: Unknown,
                                                         requirements: MirTransportRequirements {
@@ -1207,6 +1255,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1231,7 +1280,7 @@ File {
                                     Statement {
                                         span: 621..622,
                                         kind: Assign {
-                                            target: l8,
+                                            target: l9,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1242,10 +1291,10 @@ File {
                                     Statement {
                                         span: 600..623,
                                         kind: Assign {
-                                            target: l7,
+                                            target: l8,
                                             value: Use(
                                                 Local(
-                                                    l8,
+                                                    l9,
                                                 ),
                                             ),
                                         },
@@ -1253,7 +1302,7 @@ File {
                                     Statement {
                                         span: 263..264,
                                         kind: Assign {
-                                            target: l10,
+                                            target: l11,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1264,10 +1313,10 @@ File {
                                     Statement {
                                         span: 600..623,
                                         kind: Assign {
-                                            target: l9,
+                                            target: l10,
                                             value: Use(
                                                 Local(
-                                                    l10,
+                                                    l11,
                                                 ),
                                             ),
                                         },
@@ -1275,7 +1324,7 @@ File {
                                     Statement {
                                         span: 600..623,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l12,
                                             value: Call {
                                                 site_id: site2,
                                                 kind: Direct {
@@ -1286,21 +1335,21 @@ File {
                                                         span: 250..255,
                                                         name: None,
                                                         value: Local(
-                                                            l9,
+                                                            l10,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 266..271,
                                                         name: None,
                                                         value: Local(
-                                                            l7,
+                                                            l8,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1313,6 +1362,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1326,10 +1376,10 @@ File {
                                     Statement {
                                         span: 587..623,
                                         kind: Assign {
-                                            target: l6,
+                                            target: l7,
                                             value: Use(
                                                 Local(
-                                                    l11,
+                                                    l12,
                                                 ),
                                             ),
                                         },
@@ -1337,7 +1387,7 @@ File {
                                     Statement {
                                         span: 641..642,
                                         kind: Assign {
-                                            target: l14,
+                                            target: l15,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1348,10 +1398,10 @@ File {
                                     Statement {
                                         span: 641..648,
                                         kind: Assign {
-                                            target: l13,
+                                            target: l14,
                                             value: Use(
                                                 Local(
-                                                    l14,
+                                                    l15,
                                                 ),
                                             ),
                                         },
@@ -1359,7 +1409,7 @@ File {
                                     Statement {
                                         span: 334..335,
                                         kind: Assign {
-                                            target: l16,
+                                            target: l17,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1370,10 +1420,10 @@ File {
                                     Statement {
                                         span: 641..648,
                                         kind: Assign {
-                                            target: l15,
+                                            target: l16,
                                             value: Use(
                                                 Local(
-                                                    l16,
+                                                    l17,
                                                 ),
                                             ),
                                         },
@@ -1381,7 +1431,7 @@ File {
                                     Statement {
                                         span: 641..648,
                                         kind: Assign {
-                                            target: l17,
+                                            target: l18,
                                             value: Call {
                                                 site_id: site3,
                                                 kind: Direct {
@@ -1392,21 +1442,21 @@ File {
                                                         span: 1002..1003,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l14,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 1004..1005,
                                                         name: None,
                                                         value: Local(
-                                                            l15,
+                                                            l16,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1419,6 +1469,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1432,10 +1483,10 @@ File {
                                     Statement {
                                         span: 628..648,
                                         kind: Assign {
-                                            target: l12,
+                                            target: l13,
                                             value: Use(
                                                 Local(
-                                                    l17,
+                                                    l18,
                                                 ),
                                             ),
                                         },
@@ -1443,7 +1494,7 @@ File {
                                     Statement {
                                         span: 666..675,
                                         kind: Assign {
-                                            target: l20,
+                                            target: l21,
                                             value: TopLevelRef(
                                                 TopLevelRef {
                                                     fqn: "mir_refactor.call_contracts.Singleton",
@@ -1458,7 +1509,7 @@ File {
                                     Statement {
                                         span: 666..681,
                                         kind: Assign {
-                                            target: l19,
+                                            target: l20,
                                             value: Call {
                                                 site_id: site4,
                                                 kind: Direct {
@@ -1469,14 +1520,14 @@ File {
                                                         span: 666..675,
                                                         name: None,
                                                         value: Local(
-                                                            l20,
+                                                            l21,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1491,15 +1542,15 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: Get,
                                                             array_ty: TypeId(
-                                                                16,
+                                                                8,
                                                             ),
                                                             element_ty: TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                             mutable: false,
                                                             element: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                                 kind: ArrayElement,
                                                                 requirements: MirTransportRequirements {
@@ -1512,6 +1563,7 @@ File {
                                                         },
                                                     ),
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1525,10 +1577,10 @@ File {
                                     Statement {
                                         span: 653..681,
                                         kind: Assign {
-                                            target: l18,
+                                            target: l19,
                                             value: Use(
                                                 Local(
-                                                    l19,
+                                                    l20,
                                                 ),
                                             ),
                                         },
@@ -1536,7 +1588,7 @@ File {
                                     Statement {
                                         span: 713..714,
                                         kind: Assign {
-                                            target: l23,
+                                            target: l24,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1547,16 +1599,22 @@ File {
                                     Statement {
                                         span: 701..715,
                                         kind: Assign {
-                                            target: l22,
+                                            target: l23,
                                             value: ClassCtor {
                                                 site_id: site5,
                                                 class_fqn: "mir_refactor.call_contracts.Box",
+                                                ctor: ClassCtorCallMetadata {
+                                                    selected_ctor_span: Some(
+                                                        376..392,
+                                                    ),
+                                                    ordered_param_count: 1,
+                                                },
                                                 args: [
                                                     CallArg {
                                                         span: 713..714,
                                                         name: None,
                                                         value: Local(
-                                                            l23,
+                                                            l24,
                                                         ),
                                                     },
                                                 ],
@@ -1569,10 +1627,10 @@ File {
                                     Statement {
                                         span: 686..715,
                                         kind: Assign {
-                                            target: l21,
+                                            target: l22,
                                             value: Use(
                                                 Local(
-                                                    l22,
+                                                    l23,
                                                 ),
                                             ),
                                         },
@@ -1580,7 +1638,7 @@ File {
                                     Statement {
                                         span: 742..748,
                                         kind: Assign {
-                                            target: l25,
+                                            target: l26,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -1598,10 +1656,10 @@ File {
                                     Statement {
                                         span: 720..748,
                                         kind: Assign {
-                                            target: l24,
+                                            target: l25,
                                             value: Use(
                                                 Local(
-                                                    l25,
+                                                    l26,
                                                 ),
                                             ),
                                         },
@@ -1609,7 +1667,7 @@ File {
                                     Statement {
                                         span: 776..777,
                                         kind: Assign {
-                                            target: l28,
+                                            target: l29,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1620,7 +1678,7 @@ File {
                                     Statement {
                                         span: 767..778,
                                         kind: Assign {
-                                            target: l27,
+                                            target: l28,
                                             value: Call {
                                                 site_id: site6,
                                                 kind: Direct {
@@ -1631,21 +1689,21 @@ File {
                                                         span: 773..774,
                                                         name: None,
                                                         value: Local(
-                                                            l24,
+                                                            l25,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 776..777,
                                                         name: None,
                                                         value: Local(
-                                                            l28,
+                                                            l29,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1658,6 +1716,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1671,10 +1730,10 @@ File {
                                     Statement {
                                         span: 753..778,
                                         kind: Assign {
-                                            target: l26,
+                                            target: l27,
                                             value: Use(
                                                 Local(
-                                                    l27,
+                                                    l28,
                                                 ),
                                             ),
                                         },
@@ -1682,7 +1741,7 @@ File {
                                     Statement {
                                         span: 797..818,
                                         kind: Assign {
-                                            target: l31,
+                                            target: l32,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -1700,7 +1759,7 @@ File {
                                     Statement {
                                         span: 819..820,
                                         kind: Assign {
-                                            target: l32,
+                                            target: l33,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1711,12 +1770,12 @@ File {
                                     Statement {
                                         span: 797..821,
                                         kind: Assign {
-                                            target: l30,
+                                            target: l31,
                                             value: Call {
                                                 site_id: site7,
                                                 kind: Closure {
                                                     callee: Local(
-                                                        l31,
+                                                        l32,
                                                     ),
                                                     fn_ptr: "mir_refactor.call_contracts.main.$lambda1",
                                                 },
@@ -1725,14 +1784,14 @@ File {
                                                         span: 819..820,
                                                         name: None,
                                                         value: Local(
-                                                            l32,
+                                                            l33,
                                                         ),
                                                     },
                                                 ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1745,6 +1804,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1758,10 +1818,10 @@ File {
                                     Statement {
                                         span: 783..821,
                                         kind: Assign {
-                                            target: l29,
+                                            target: l30,
                                             value: Use(
                                                 Local(
-                                                    l30,
+                                                    l31,
                                                 ),
                                             ),
                                         },
@@ -1769,11 +1829,11 @@ File {
                                     Statement {
                                         span: 849..862,
                                         kind: Assign {
-                                            target: l34,
+                                            target: l35,
                                             value: TypeMetadataLiteral(
                                                 TypeMetadataLiteral {
                                                     source_ty: TypeId(
-                                                        17,
+                                                        9,
                                                     ),
                                                     source_fqn: Some(
                                                         "mir_refactor.call_contracts.Box",
@@ -1786,10 +1846,10 @@ File {
                                     Statement {
                                         span: 826..862,
                                         kind: Assign {
-                                            target: l33,
+                                            target: l34,
                                             value: Use(
                                                 Local(
-                                                    l34,
+                                                    l35,
                                                 ),
                                             ),
                                         },
@@ -1797,10 +1857,10 @@ File {
                                     Statement {
                                         span: 884..897,
                                         kind: Assign {
-                                            target: l36,
+                                            target: l37,
                                             value: SizeOf {
                                                 value_ty: TypeId(
-                                                    17,
+                                                    9,
                                                 ),
                                             },
                                         },
@@ -1808,10 +1868,10 @@ File {
                                     Statement {
                                         span: 867..897,
                                         kind: Assign {
-                                            target: l35,
+                                            target: l36,
                                             value: Use(
                                                 Local(
-                                                    l36,
+                                                    l37,
                                                 ),
                                             ),
                                         },
@@ -1819,7 +1879,7 @@ File {
                                     Statement {
                                         span: 927..940,
                                         kind: Assign {
-                                            target: l38,
+                                            target: l39,
                                             value: Call {
                                                 site_id: site8,
                                                 kind: Direct {
@@ -1829,7 +1889,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            18,
+                                                            12,
                                                         ),
                                                         kind: Struct,
                                                         requirements: MirTransportRequirements {
@@ -1842,7 +1902,7 @@ File {
                                                     aggregate_return: Some(
                                                         ValueTransportMetadata {
                                                             source_ty: TypeId(
-                                                                18,
+                                                                12,
                                                             ),
                                                             kind: Struct,
                                                             requirements: MirTransportRequirements {
@@ -1855,6 +1915,7 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1868,10 +1929,10 @@ File {
                                     Statement {
                                         span: 902..940,
                                         kind: Assign {
-                                            target: l37,
+                                            target: l38,
                                             value: Use(
                                                 Local(
-                                                    l38,
+                                                    l39,
                                                 ),
                                             ),
                                         },
@@ -1879,7 +1940,7 @@ File {
                                     Statement {
                                         span: 952..957,
                                         kind: Assign {
-                                            target: l46,
+                                            target: l47,
                                             value: Binary {
                                                 lhs: Local(
                                                     l0,
@@ -1894,6 +1955,21 @@ File {
                                     Statement {
                                         span: 952..961,
                                         kind: Assign {
+                                            target: l46,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l47,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l7,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 952..965,
+                                        kind: Assign {
                                             target: l45,
                                             value: Binary {
                                                 lhs: Local(
@@ -1901,13 +1977,13 @@ File {
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l6,
+                                                    l13,
                                                 ),
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 952..965,
+                                        span: 952..969,
                                         kind: Assign {
                                             target: l44,
                                             value: Binary {
@@ -1916,22 +1992,7 @@ File {
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l12,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 952..969,
-                                        kind: Assign {
-                                            target: l43,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l44,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l18,
+                                                    l19,
                                                 ),
                                             },
                                         },
@@ -1939,16 +2000,16 @@ File {
                                     Statement {
                                         span: 972..981,
                                         kind: Assign {
-                                            target: l47,
+                                            target: l48,
                                             value: MemberAccess {
                                                 site_id: None,
                                                 receiver: Local(
-                                                    l21,
+                                                    l22,
                                                 ),
                                                 member: MemberAccessMetadata {
                                                     name: "value",
                                                     receiver_ty: TypeId(
-                                                        17,
+                                                        9,
                                                     ),
                                                     resolved: Some(
                                                         Value {
@@ -1965,6 +2026,21 @@ File {
                                     Statement {
                                         span: 952..981,
                                         kind: Assign {
+                                            target: l43,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l44,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l48,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 952..986,
+                                        kind: Assign {
                                             target: l42,
                                             value: Binary {
                                                 lhs: Local(
@@ -1972,13 +2048,13 @@ File {
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l47,
+                                                    l27,
                                                 ),
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 952..986,
+                                        span: 952..991,
                                         kind: Assign {
                                             target: l41,
                                             value: Binary {
@@ -1987,13 +2063,13 @@ File {
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l26,
+                                                    l30,
                                                 ),
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 952..991,
+                                        span: 952..999,
                                         kind: Assign {
                                             target: l40,
                                             value: Binary {
@@ -2002,22 +2078,7 @@ File {
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l29,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 952..999,
-                                        kind: Assign {
-                                            target: l39,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l40,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l35,
+                                                    l36,
                                                 ),
                                             },
                                         },
@@ -2028,7 +2089,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l39,
+                                                l40,
                                             ),
                                         ),
                                     },
@@ -2047,7 +2108,7 @@ File {
                 fqn: "mir_refactor.call_contracts.main.$lambda0",
                 name: "$lambda0",
                 ty: TypeId(
-                    0,
+                    10,
                 ),
                 params: [
                     Param {
@@ -2062,13 +2123,13 @@ File {
                         span: 749..749,
                         name: "a0",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -2089,7 +2150,7 @@ File {
                                     "a0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2099,7 +2160,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2129,7 +2190,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -2142,6 +2203,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -2177,7 +2239,7 @@ File {
                 fqn: "mir_refactor.call_contracts.main.$lambda1",
                 name: "$lambda1",
                 ty: TypeId(
-                    0,
+                    10,
                 ),
                 params: [
                     Param {
@@ -2192,13 +2254,13 @@ File {
                         span: 800..801,
                         name: "x",
                         ty: TypeId(
-                            5,
+                            0,
                         ),
                         local: l1,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -2219,7 +2281,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2229,7 +2291,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2239,7 +2301,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2299,20 +2361,20 @@ File {
                 fqn: "mir_refactor.call_contracts.Singleton.get",
                 name: "get",
                 ty: TypeId(
-                    19,
+                    13,
                 ),
                 params: [
                     Param {
                         span: 401..410,
                         name: "this",
                         ty: TypeId(
-                            16,
+                            8,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -2323,7 +2385,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    8,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2333,7 +2395,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },

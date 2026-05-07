@@ -165,6 +165,15 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
     entry(
         PlaceholderSurface::Rvalue,
+        "nameOf intrinsic requires type arg",
+        "PIPELINE_GAPS.md §6.3",
+        PlaceholderDisposition::LegacyOnly,
+        "MIR-T07",
+        false,
+        "Only the legacy non-refactor nameOf fallback can lack a typed argument; refactor MIR lowers typed value/type-argument contracts explicitly.",
+    ),
+    entry(
+        PlaceholderSurface::Rvalue,
         "resume lowering requires canonical callee shape",
         "PIPELINE_GAPS.md §1.9",
         PlaceholderDisposition::LegacyOnly,

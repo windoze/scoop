@@ -20,7 +20,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                             },
                         ),
@@ -55,7 +55,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                             },
                         ),
@@ -83,7 +83,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                             },
                         ),
@@ -97,11 +97,11 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.rawSafe",
                 name: "rawSafe",
                 ty: TypeId(
-                    10,
+                    2,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -112,7 +112,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -122,7 +122,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -132,7 +132,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -142,7 +142,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -152,7 +152,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -234,20 +234,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.callVirtual",
                 name: "callVirtual",
                 ty: TypeId(
-                    12,
+                    3,
                 ),
                 params: [
                     Param {
                         span: 369..370,
                         name: "b",
                         ty: TypeId(
-                            11,
+                            4,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -258,7 +258,7 @@ File {
                                     "b",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -268,7 +268,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -278,7 +278,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -300,8 +300,12 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "mir_refactor.codegen_routing_contracts.Base",
                                                         member_name: "ping",
+                                                        member_fqn: "mir_refactor.codegen_routing_contracts.Base.ping",
+                                                        member_decl_span: Some(
+                                                            218..222,
+                                                        ),
                                                         receiver_ty: TypeId(
-                                                            11,
+                                                            4,
                                                         ),
                                                     },
                                                 },
@@ -309,7 +313,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -322,6 +326,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -357,20 +362,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.callInterface",
                 name: "callInterface",
                 ty: TypeId(
-                    14,
+                    5,
                 ),
                 params: [
                     Param {
                         span: 426..427,
                         name: "i",
                         ty: TypeId(
-                            13,
+                            6,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -381,7 +386,7 @@ File {
                                     "i",
                                 ),
                                 ty: TypeId(
-                                    13,
+                                    6,
                                 ),
                                 source: SourceLocal,
                             },
@@ -391,7 +396,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -401,7 +406,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -423,8 +428,12 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "mir_refactor.codegen_routing_contracts.IFace",
                                                         member_name: "foo",
+                                                        member_fqn: "mir_refactor.codegen_routing_contracts.IFace.foo",
+                                                        member_decl_span: Some(
+                                                            284..287,
+                                                        ),
                                                         receiver_ty: TypeId(
-                                                            13,
+                                                            6,
                                                         ),
                                                     },
                                                 },
@@ -432,7 +441,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -445,6 +454,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -480,20 +490,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.resumeBoom",
                 name: "resumeBoom",
                 ty: TypeId(
-                    19,
+                    7,
                 ),
                 params: [
                     Param {
                         span: 480..481,
                         name: "k",
                         ty: TypeId(
-                            16,
+                            8,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -504,7 +514,7 @@ File {
                                     "k",
                                 ),
                                 ty: TypeId(
-                                    16,
+                                    8,
                                 ),
                                 source: SourceLocal,
                             },
@@ -514,7 +524,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -524,7 +534,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -556,27 +566,27 @@ File {
                                                     ),
                                                     resume: ResumeMetadata {
                                                         continuation_ty: TypeId(
-                                                            16,
+                                                            8,
                                                         ),
                                                         resume_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         answer_ty: TypeId(
-                                                            2,
+                                                            0,
                                                         ),
                                                         return_ty: TypeId(
-                                                            2,
+                                                            0,
                                                         ),
                                                         out_effects: EffectRow {
                                                             terms: [
                                                                 TypeId(
-                                                                    15,
+                                                                    9,
                                                                 ),
                                                             ],
                                                         },
                                                         runtime_error_effect_ty: Some(
                                                             TypeId(
-                                                                18,
+                                                                10,
                                                             ),
                                                         ),
                                                         suspends_outward: true,
@@ -594,7 +604,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -607,6 +617,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -638,11 +649,11 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.handled",
                 name: "handled",
                 ty: TypeId(
-                    10,
+                    2,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -653,7 +664,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -663,7 +674,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -673,7 +684,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -683,7 +694,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -693,7 +704,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -708,10 +719,10 @@ File {
                                         site_id: site0,
                                         metadata: HandleMetadata {
                                             result_ty: TypeId(
-                                                5,
+                                                1,
                                             ),
                                             body_result_ty: TypeId(
-                                                5,
+                                                1,
                                             ),
                                             finally_result_ty: None,
                                         },
@@ -722,16 +733,16 @@ File {
                                                 binder_locals: [],
                                                 continuation_local: None,
                                                 handled_effect_ty: TypeId(
-                                                    15,
+                                                    9,
                                                 ),
                                                 payload_tuple_ty: Some(
                                                     TypeId(
-                                                        2,
+                                                        0,
                                                     ),
                                                 ),
                                                 payload_component_tys: [],
                                                 body_ty: TypeId(
-                                                    5,
+                                                    1,
                                                 ),
                                                 kind: NonResuming,
                                             },
@@ -757,7 +768,7 @@ File {
                                             value: PerformResult {
                                                 op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
                                                 effect_ty: TypeId(
-                                                    15,
+                                                    9,
                                                 ),
                                             },
                                         },
@@ -770,14 +781,14 @@ File {
                                         op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
                                         metadata: PerformMetadata {
                                             effect_ty: TypeId(
-                                                15,
+                                                9,
                                             ),
                                             result_ty: TypeId(
-                                                2,
+                                                0,
                                             ),
                                             payload_tuple_ty: Some(
                                                 TypeId(
-                                                    2,
+                                                    0,
                                                 ),
                                             ),
                                             payload_component_tys: [],
@@ -885,11 +896,11 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.outward",
                 name: "outward",
                 ty: TypeId(
-                    20,
+                    11,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    2,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -900,7 +911,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -916,7 +927,7 @@ File {
                                             value: PerformResult {
                                                 op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
                                                 effect_ty: TypeId(
-                                                    15,
+                                                    9,
                                                 ),
                                             },
                                         },
@@ -929,14 +940,14 @@ File {
                                         op_fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
                                         metadata: PerformMetadata {
                                             effect_ty: TypeId(
-                                                15,
+                                                9,
                                             ),
                                             result_ty: TypeId(
-                                                2,
+                                                0,
                                             ),
                                             payload_tuple_ty: Some(
                                                 TypeId(
-                                                    2,
+                                                    0,
                                                 ),
                                             ),
                                             payload_component_tys: [],
@@ -972,11 +983,11 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.main",
                 name: "main",
                 ty: TypeId(
-                    10,
+                    2,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -987,7 +998,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -997,7 +1008,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1007,7 +1018,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1017,7 +1028,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1039,7 +1050,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1052,6 +1063,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1075,7 +1087,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -1088,6 +1100,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1138,20 +1151,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.Ping.hit",
                 name: "hit",
                 ty: TypeId(
-                    21,
+                    12,
                 ),
                 params: [
                     Param {
                         span: 155..159,
                         name: "this",
                         ty: TypeId(
-                            15,
+                            9,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    0,
                 ),
                 body: None,
             },
@@ -1162,20 +1175,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.Base.ping",
                 name: "ping",
                 ty: TypeId(
-                    12,
+                    3,
                 ),
                 params: [
                     Param {
                         span: 196..200,
                         name: "this",
                         ty: TypeId(
-                            11,
+                            4,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -1186,7 +1199,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -1196,7 +1209,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1206,7 +1219,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1251,20 +1264,20 @@ File {
                 fqn: "mir_refactor.codegen_routing_contracts.IFace.foo",
                 name: "foo",
                 ty: TypeId(
-                    14,
+                    5,
                 ),
                 params: [
                     Param {
                         span: 268..273,
                         name: "this",
                         ty: TypeId(
-                            13,
+                            6,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: None,
             },

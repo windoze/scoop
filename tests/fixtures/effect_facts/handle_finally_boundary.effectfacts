@@ -243,3 +243,29 @@ body_facts:
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
+
+codegen_routing_facts:
+  - body: fixtures.mir_refactor.body_completes
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle
+    span: 95..241
+  - body: fixtures.mir_refactor.cleanup
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 77..93
+  - body: fixtures.mir_refactor.handled_raise
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle, ResumeUnwind, Perform, PerformResult
+    span: 243..413
+  - body: fixtures.mir_refactor.main
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 415..480

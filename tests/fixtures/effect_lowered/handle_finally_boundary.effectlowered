@@ -8,6 +8,31 @@ snapshot_binding:
     - fixtures.mir_refactor.cleanup
     - fixtures.mir_refactor.handled_raise
     - fixtures.mir_refactor.main
+codegen_routing_facts:
+  - body: fixtures.mir_refactor.body_completes
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle
+    span: 95..241
+  - body: fixtures.mir_refactor.cleanup
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 77..93
+  - body: fixtures.mir_refactor.handled_raise
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle, ResumeUnwind, Perform, PerformResult
+    span: 243..413
+  - body: fixtures.mir_refactor.main
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 415..480
 post_opt_program:
 LateLoweredProgram
   step_type_count: 2
@@ -19,21 +44,21 @@ LateLoweredProgram
     - step_schema: s0
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t469
+      continuation_obj_ty: t496
       case_variants:
-        - Case(c0) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 concrete_op=fixtures.mir_refactor.Step.next
-        - Case(c1) payload_tuple_ty=t217 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t217>
+        - Case(c0) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s0 concrete_op=fixtures.mir_refactor.Step.next
+        - Case(c1) payload_tuple_ty=t252 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t252>
     - step_schema: s2
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t472
+      continuation_obj_ty: t499
       case_variants:
-        - Case(c0) payload_tuple_ty=t5 continuation_schema=k2 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
-        - Case(c1) payload_tuple_ty=t217 continuation_schema=k3 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t217>
+        - Case(c0) payload_tuple_ty=t5 continuation_schema=k2 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
+        - Case(c1) payload_tuple_ty=t252 continuation_schema=k3 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t252>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=fixtures.mir_refactor.body_completes allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t469
+      continuation_obj_ty: t496
       implemented_packings: [ri0, ri1]
       captures:
         - FrameSlot(slot0)
@@ -42,14 +67,14 @@ LateLoweredProgram
         - FrameSlot(slot3)
         - FrameSlot(slot4)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+        - case=c0 packed_by=ri0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
     - continuation_object: ko1
       owner_version: instance=fixtures.mir_refactor.handled_raise allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t472
+      continuation_obj_ty: t499
       implemented_packings: [ri2, ri3]
       captures:
         - FrameSlot(slot0)
@@ -62,11 +87,11 @@ LateLoweredProgram
         - FrameSlot(slot7)
         - State(st6)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri2 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c1 packed_by=ri3 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t217> => Unreachable
+        - case=c0 packed_by=ri2 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c1 packed_by=ri3 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s0
       publications:
@@ -89,28 +114,28 @@ LateLoweredProgram
       packing_effect_family: fixtures.mir_refactor.Step
       authoritative_step_schema: s0
       packed_methods:
-        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next
+        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s0 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Step.next
     - resume_packing_interface: ri1
-      packing_effect_family: scoop.core.Raise<t217>
+      packing_effect_family: scoop.core.Raise<t252>
       authoritative_step_schema: s0
       packed_methods:
-        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t217>
+        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t252>
     - resume_packing_interface: ri2
       packing_effect_family: fixtures.mir_refactor.Step
       authoritative_step_schema: s2
       packed_methods:
-        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t470 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next
+        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t497 out_step_schema=s2 continuation_schema=k2 concrete_op=fixtures.mir_refactor.Step.next
     - resume_packing_interface: ri3
-      packing_effect_family: scoop.core.Raise<t217>
+      packing_effect_family: scoop.core.Raise<t252>
       authoritative_step_schema: s2
       packed_methods:
-        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t474 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t217>
+        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k3 concrete_op=scoop.core.Raise.raise<t252>
   callables:
     - root: fixtures.mir_refactor.body_completes
       body_version_key: instance=fixtures.mir_refactor.body_completes allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t128 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..2] + term
@@ -145,6 +170,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_completion_origins:
+                <none>
               pending_payload_transports:
                 <none>
               state_regions:
@@ -210,7 +237,7 @@ LateLoweredProgram
       body_version_key: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t127 params=[] return=t2
+      ordinary_signature: fn_ty=t139 params=[] return=t2
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -221,7 +248,7 @@ LateLoweredProgram
       body_version_key: instance=fixtures.mir_refactor.handled_raise allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t128 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..2] + term
@@ -260,6 +287,8 @@ LateLoweredProgram
               pending_completions:
                 - ContinueToExit
                 - ReturnFromFunction
+              pending_completion_origins:
+                <none>
               pending_payload_transports:
                 <none>
               state_regions:
@@ -358,7 +387,7 @@ LateLoweredProgram
       body_version_key: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t128 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..5] + term
       plain_call_sites:

@@ -287,14 +287,20 @@ impl MirLoweringFacts {
     fn with_member_value_types(mut self, lowered: &hir::LoweredHir) -> Self {
         for class in lowered.class_inits.values() {
             for field in &class.fields {
-                self.member_value_tys.insert(field.fqn.clone(), field.ty);
+                if Self::member_fqn_matches_owner(&field.fqn, &class.fqn) {
+                    self.member_value_tys
+                        .entry(field.fqn.clone())
+                        .or_insert(field.ty);
+                }
             }
         }
 
         for layout in lowered.struct_layouts.values() {
             for field in &layout.fields {
-                if let Some(ty) = field.ty {
-                    self.member_value_tys.insert(field.fqn.clone(), ty);
+                if let Some(ty) = field.ty
+                    && Self::member_fqn_matches_owner(&field.fqn, &layout.fqn)
+                {
+                    self.member_value_tys.entry(field.fqn.clone()).or_insert(ty);
                 }
             }
         }
@@ -307,6 +313,12 @@ impl MirLoweringFacts {
         }
 
         self
+    }
+
+    fn member_fqn_matches_owner(member_fqn: &str, owner_fqn: &str) -> bool {
+        member_fqn
+            .strip_prefix(owner_fqn)
+            .is_some_and(|suffix| suffix.starts_with('.'))
     }
 
     fn with_class_ctor_call_sites(mut self, lowered: &hir::LoweredHir) -> Self {
@@ -1012,6 +1024,21 @@ fn intrinsic_base_fqn(fqn: &str) -> &str {
     base.split_once("$overload")
         .map(|(base, _)| base)
         .unwrap_or(base)
+}
+
+fn top_level_callee_fqn(callee: &hir::Expr) -> Option<&str> {
+    match &callee.kind {
+        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+        _ => None,
+    }
+}
+
+fn top_level_binding_matches_callee(
+    binding: &ast::TopLevelFunCallBinding,
+    callee: &hir::Expr,
+) -> bool {
+    top_level_callee_fqn(callee)
+        .is_none_or(|callee_fqn| intrinsic_base_fqn(&binding.fqn) == intrinsic_base_fqn(callee_fqn))
 }
 
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
@@ -3532,6 +3559,9 @@ impl<'a> FnLowering<'a> {
         else {
             return false;
         };
+        if !self.typed_call_contract_matches_callee(&contract, callee) {
+            return false;
+        }
 
         match contract {
             TypedCallSiteContract::DirectTopLevel(function) => {
@@ -3605,6 +3635,31 @@ impl<'a> FnLowering<'a> {
                 false
             }
         }
+    }
+
+    fn typed_call_contract_matches_callee(
+        &self,
+        contract: &TypedCallSiteContract,
+        callee: &hir::Expr,
+    ) -> bool {
+        let Some(callee_fqn) = top_level_callee_fqn(callee) else {
+            return true;
+        };
+        let contract_fqn = match contract {
+            TypedCallSiteContract::DirectTopLevel(function) => function.fqn(),
+            TypedCallSiteContract::MemberDirect(member) => member.function().fqn(),
+            TypedCallSiteContract::Extension { function, .. }
+            | TypedCallSiteContract::Intrinsic { function, .. } => function.fqn(),
+            TypedCallSiteContract::Constructor(_)
+            | TypedCallSiteContract::Closure { .. }
+            | TypedCallSiteContract::FunValue { .. }
+            | TypedCallSiteContract::FunPtr { .. }
+            | TypedCallSiteContract::Virtual(_)
+            | TypedCallSiteContract::Interface(_)
+            | TypedCallSiteContract::EffectOp(_)
+            | TypedCallSiteContract::ContinuationResume(_) => return true,
+        };
+        intrinsic_base_fqn(contract_fqn) == intrinsic_base_fqn(callee_fqn)
     }
 
     fn lower_refactor_direct_call_expr(
@@ -4597,6 +4652,7 @@ impl<'a> FnLowering<'a> {
         if let Some(binding) = self
             .facts
             .top_level_fun_call_binding(self.source_path.as_path(), span)
+            .filter(|binding| top_level_binding_matches_callee(binding, callee))
             && let Some(return_ty) = self.top_level_fun_return_tys.get(&binding.fqn)
         {
             return Some(*return_ty);
@@ -4641,7 +4697,12 @@ impl<'a> FnLowering<'a> {
                 true
             }
             "scoop.core.nameOf" => {
-                let Some(source_ty) = binding.type_args.first().copied() else {
+                let source_ty = match args {
+                    [hir::CallArg::Positional(value)] => Some(value.ty),
+                    [] => binding.type_args.first().copied(),
+                    _ => None,
+                };
+                let Some(source_ty) = source_ty else {
                     self.assign(
                         span,
                         result,
@@ -5588,10 +5649,18 @@ impl<'a> FnLowering<'a> {
     /// - 其它引用：降为 `Todo`。
     fn lower_var_ref(&mut self, span: Span, ty: TypeId, v: &hir::ValueRef) -> LocalId {
         match v {
-            hir::ValueRef::Local { id, .. } => {
-                let local = self.symbol_locals.get(id).copied().unwrap_or_else(|| {
-                    panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
-                });
+            hir::ValueRef::Local { id, name, .. } => {
+                let local = match self.symbol_locals.get(id).copied() {
+                    Some(local) => local,
+                    None => {
+                        if let Some(member_local) =
+                            self.lower_implicit_this_member_ref(span, ty, name)
+                        {
+                            return member_local;
+                        }
+                        panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
+                    }
+                };
 
                 if self.boxed_symbols.contains(id) {
                     let tmp = self.push_temp_local(span, ty);
@@ -5630,6 +5699,42 @@ impl<'a> FnLowering<'a> {
                 tmp
             }
         }
+    }
+
+    fn lower_implicit_this_member_ref(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        member_name: &str,
+    ) -> Option<LocalId> {
+        let this_local = self
+            .body
+            .locals
+            .iter()
+            .enumerate()
+            .find_map(|(idx, local)| {
+                (local.name.as_deref() == Some("this")).then_some(LocalId::from_raw(idx as u32))
+            })?;
+        let receiver_ty = self.body.locals.get(this_local.as_u32() as usize)?.ty;
+        let owner_fqn = self.owner_fqn.rsplit_once('.')?.0.to_string();
+        let result = self.push_temp_local(span, ty);
+        self.assign(
+            span,
+            result,
+            Rvalue::MemberAccess {
+                site_id: None,
+                receiver: Operand::Local(this_local),
+                member: MemberAccessMetadata {
+                    name: member_name.to_string(),
+                    receiver_ty,
+                    resolved: Some(MemberTarget::Value {
+                        fqn: format!("{owner_fqn}.{member_name}"),
+                    }),
+                    hidden_effects: EffectRow::pure(),
+                },
+            },
+        );
+        Some(result)
     }
 
     fn lower_closure_expr(

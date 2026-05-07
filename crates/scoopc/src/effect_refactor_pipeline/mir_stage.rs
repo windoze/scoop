@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::mir::{
     ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
@@ -148,7 +148,10 @@ impl RefactorMirStageOutput {
     ///   的关键 metadata；
     /// - 不能在 CLI、fixture runner、或单测之间各自拼接不同文本。
     pub fn stable_dump(&self) -> String {
-        let mut out = format!("{:#?}\n", self.file());
+        let mut out = canonicalize_refactor_stable_dump_type_ids(
+            format!("{:#?}\n", self.file()),
+            self.types(),
+        );
         let route_facts = self
             .callable_body_indices
             .values()
@@ -174,6 +177,88 @@ impl RefactorMirStageOutput {
     }
 }
 
+fn canonicalize_refactor_stable_dump_type_ids(text: String, _types: &TypeStore) -> String {
+    let referenced_type_ids = collect_referenced_type_ids_in_first_appearance_order(&text);
+    if referenced_type_ids.is_empty() {
+        return text;
+    }
+
+    let canonical_map = referenced_type_ids
+        .into_iter()
+        .enumerate()
+        .map(|(canonical, raw)| (raw, canonical as u32))
+        .collect::<BTreeMap<_, _>>();
+    rewrite_type_ids_with_canonical_map(&text, &canonical_map)
+}
+
+fn collect_referenced_type_ids_in_first_appearance_order(text: &str) -> Vec<u32> {
+    let mut seen = BTreeSet::new();
+    let mut ordered = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(pos) = text[cursor..].find("TypeId(") {
+        let pos = cursor + pos;
+        let digits_start = skip_ascii_whitespace(text, pos + "TypeId(".len());
+        let digits_end = skip_ascii_digits(text, digits_start);
+        if digits_start != digits_end
+            && let Ok(raw) = text[digits_start..digits_end].parse::<u32>()
+        {
+            if seen.insert(raw) {
+                ordered.push(raw);
+            }
+            cursor = digits_end;
+            continue;
+        }
+        cursor = pos + "TypeId(".len();
+    }
+    ordered
+}
+
+fn rewrite_type_ids_with_canonical_map(text: &str, canonical_map: &BTreeMap<u32, u32>) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    while let Some(pos) = text[cursor..].find("TypeId(") {
+        let pos = cursor + pos;
+        let digits_start = skip_ascii_whitespace(text, pos + "TypeId(".len());
+        let digits_end = skip_ascii_digits(text, digits_start);
+        if digits_start == digits_end {
+            out.push_str(&text[cursor..pos + "TypeId(".len()]);
+            cursor = pos + "TypeId(".len();
+            continue;
+        }
+        let Ok(raw) = text[digits_start..digits_end].parse::<u32>() else {
+            out.push_str(&text[cursor..pos + "TypeId(".len()]);
+            cursor = pos + "TypeId(".len();
+            continue;
+        };
+        let canonical = canonical_map.get(&raw).copied().unwrap_or(raw);
+        out.push_str(&text[cursor..digits_start]);
+        out.push_str(&canonical.to_string());
+        cursor = digits_end;
+    }
+    out.push_str(&text[cursor..]);
+    out
+}
+
+fn skip_ascii_whitespace(text: &str, mut cursor: usize) -> usize {
+    while let Some(byte) = text.as_bytes().get(cursor) {
+        if !byte.is_ascii_whitespace() {
+            break;
+        }
+        cursor += 1;
+    }
+    cursor
+}
+
+fn skip_ascii_digits(text: &str, mut cursor: usize) -> usize {
+    while let Some(byte) = text.as_bytes().get(cursor) {
+        if !byte.is_ascii_digit() {
+            break;
+        }
+        cursor += 1;
+    }
+    cursor
+}
+
 fn normalize_refactor_stable_dump_paths(mut text: String) -> String {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let Some(workspace_root) = manifest_dir.parent().and_then(std::path::Path::parent) else {
@@ -184,7 +269,12 @@ fn normalize_refactor_stable_dump_paths(mut text: String) -> String {
         return text;
     }
     text = text.replace(&format!("{root}/"), "");
-    text.replace(&format!("{root}\\"), "")
+    text = text.replace(&format!("{root}\\"), "");
+    text = text.replace("crates/scoop/../../", "");
+    text = text.replace("crates\\scoop\\..\\..\\", "");
+    text = text.replace("crates/scoopc/../../", "");
+    text = text.replace("crates\\scoopc\\..\\..\\", "");
+    text
 }
 
 fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
@@ -392,6 +482,40 @@ mod tests {
             !dump.contains(env!("CARGO_MANIFEST_DIR")),
             "stable dump must not embed machine-local manifest paths: {dump}"
         );
+    }
+
+    #[test]
+    fn refactor_mir_stable_dump_canonicalizes_type_ids_by_structure() {
+        let first = TypeStore::new();
+        let second = TypeStore::new();
+        let first_raw = concat!(
+            "TypeId(\n",
+            "    42,\n",
+            ")\n",
+            "TypeId(\n",
+            "    7,\n",
+            ")\n",
+            "TypeId(\n",
+            "    42,\n",
+            ")\n",
+        )
+        .to_string();
+        let second_raw = concat!(
+            "TypeId(\n",
+            "    9001,\n",
+            ")\n",
+            "TypeId(\n",
+            "    3,\n",
+            ")\n",
+            "TypeId(\n",
+            "    9001,\n",
+            ")\n",
+        )
+        .to_string();
+
+        let first_dump = super::canonicalize_refactor_stable_dump_type_ids(first_raw, &first);
+        let second_dump = super::canonicalize_refactor_stable_dump_type_ids(second_raw, &second);
+        assert_eq!(first_dump, second_dump);
     }
 
     #[test]

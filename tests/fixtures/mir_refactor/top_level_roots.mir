@@ -8,7 +8,7 @@ File {
                     name: "Alias",
                     type_params: [],
                     ty: TypeId(
-                        5,
+                        0,
                     ),
                 },
             ),
@@ -32,7 +32,7 @@ File {
                                     span: 98..99,
                                     name: "x",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -43,7 +43,7 @@ File {
                                     span: 110..111,
                                     name: "y",
                                     ty: TypeId(
-                                        5,
+                                        0,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -62,7 +62,7 @@ File {
                                 name: "x",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -74,7 +74,7 @@ File {
                                 name: "y",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -101,7 +101,7 @@ File {
                                 name: "count",
                                 mutable: false,
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 origin: BodyProperty,
                             },
@@ -114,7 +114,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -130,9 +130,10 @@ File {
                 kind: ConstVal,
                 ty: Some(
                     TypeId(
-                        5,
+                        0,
                     ),
                 ),
+                initializer_transport: None,
                 has_initializer: true,
                 dependencies: [],
                 hidden_effects: EffectRow {
@@ -150,9 +151,10 @@ File {
                 },
                 ty: Some(
                     TypeId(
-                        5,
+                        0,
                     ),
                 ),
+                initializer_transport: None,
                 has_initializer: true,
                 dependencies: [
                     InitializerDependency {
@@ -172,6 +174,7 @@ File {
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
                 kind: ObjectSingleton,
                 ty: None,
+                initializer_transport: None,
                 has_initializer: true,
                 dependencies: [
                     InitializerDependency {
@@ -192,9 +195,10 @@ File {
                 kind: RuntimeImmutableVal,
                 ty: Some(
                     TypeId(
-                        5,
+                        0,
                     ),
                 ),
+                initializer_transport: None,
                 has_initializer: true,
                 dependencies: [
                     InitializerDependency {
@@ -213,7 +217,7 @@ File {
                 fqn: "mir_refactor.top_level_roots.NativeCounter",
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
                 ty: TypeId(
-                    5,
+                    0,
                 ),
                 mutable: true,
                 symbol: "native_counter",
@@ -229,7 +233,7 @@ File {
                 fqn: "mir_refactor.top_level_roots.main",
                 name: "main",
                 ty: TypeId(
-                    10,
+                    1,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -262,20 +266,20 @@ File {
                 fqn: "mir_refactor.top_level_roots.Registry.touch",
                 name: "touch",
                 ty: TypeId(
-                    12,
+                    3,
                 ),
                 params: [
                     Param {
                         span: 272..280,
                         name: "this",
                         ty: TypeId(
-                            11,
+                            4,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -286,7 +290,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    4,
                                 ),
                                 source: SourceLocal,
                             },
@@ -296,7 +300,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },

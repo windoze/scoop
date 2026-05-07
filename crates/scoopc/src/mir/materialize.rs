@@ -5883,7 +5883,11 @@ impl MirInstanceMaterializer {
         for (_, fun) in &mut pass_visible_non_generic_roots {
             if let Some(body) = fun.body.as_mut() {
                 self.repair_array_call_transport_types(body);
+                self.repair_closure_capture_transport_targets(body);
+                self.repair_handle_payload_metadata_types(body);
                 self.repair_materialized_generic_transport_call_args(body);
+                self.repair_transport_target_local_types(body);
+                self.repair_perform_payload_metadata_types(body);
                 self.repair_unused_unresolved_compiler_temporaries(body);
             }
         }
@@ -6205,7 +6209,11 @@ impl MirInstanceMaterializer {
         )?;
         self.repair_direct_call_result_types(body);
         self.repair_array_call_transport_types(body);
+        self.repair_closure_capture_transport_targets(body);
+        self.repair_handle_payload_metadata_types(body);
         self.repair_materialized_generic_transport_call_args(body);
+        self.repair_transport_target_local_types(body);
+        self.repair_perform_payload_metadata_types(body);
         self.repair_unused_unresolved_compiler_temporaries(body);
         Ok(())
     }
@@ -6218,17 +6226,22 @@ impl MirInstanceMaterializer {
         template_root_fqn: &str,
         instance_root_fqn: &str,
     ) -> MaterializeResult<()> {
+        let reachable_blocks = reachable_body_block_indices(body);
         self.rewrite_body_blocks(
             body,
             substitution,
             template_source_path,
             template_root_fqn,
             instance_root_fqn,
-            Some(reachable_body_block_indices(body)),
+            Some(reachable_blocks),
         )?;
         self.repair_direct_call_result_types(body);
         self.repair_array_call_transport_types(body);
+        self.repair_closure_capture_transport_targets(body);
+        self.repair_handle_payload_metadata_types(body);
         self.repair_materialized_generic_transport_call_args(body);
+        self.repair_transport_target_local_types(body);
+        self.repair_perform_payload_metadata_types(body);
         self.repair_unused_unresolved_compiler_temporaries(body);
         Ok(())
     }
@@ -6307,64 +6320,98 @@ impl MirInstanceMaterializer {
     }
 
     fn repair_array_call_transport_types(&mut self, body: &mut Body) {
-        let locals = body.locals.clone();
         for block in &mut body.blocks {
             for stmt in &mut block.stmts {
-                let StatementKind::Assign { target, value } = &mut stmt.kind else {
+                let StatementKind::Assign { value, .. } = &mut stmt.kind else {
                     continue;
                 };
-                let Rvalue::Call {
-                    args, transport, ..
-                } = value
-                else {
+                let Rvalue::Call { transport, .. } = value else {
                     continue;
                 };
                 let Some(array) = transport.array.as_mut() else {
                     continue;
                 };
-                let inferred = match array.operation {
-                    super::ArrayTransportOperation::Get | super::ArrayTransportOperation::Set => {
-                        let receiver = args.first().and_then(|arg| {
-                            operand_type(&self.types, self.builtins, &locals, &arg.value)
-                        });
-                        receiver.and_then(|array_ty| {
-                            self.materialized_array_element_ty(array_ty)
-                                .map(|element_ty| (Some(array_ty), element_ty))
-                        })
-                    }
-                    super::ArrayTransportOperation::BuilderBuildArray
+                let element_ty = match array.operation {
+                    super::ArrayTransportOperation::Get
+                    | super::ArrayTransportOperation::Set
+                    | super::ArrayTransportOperation::BuilderBuildArray
                     | super::ArrayTransportOperation::BuilderBuildMutableArray => {
-                        locals.get(target.as_u32() as usize).and_then(|decl| {
-                            self.materialized_array_element_ty(decl.ty)
-                                .map(|element_ty| (Some(decl.ty), element_ty))
-                        })
+                        if type_contains_param(&self.types, array.array_ty) {
+                            continue;
+                        }
+                        let Some(element_ty) = self.materialized_array_element_ty(array.array_ty)
+                        else {
+                            continue;
+                        };
+                        element_ty
                     }
-                    super::ArrayTransportOperation::BuilderPush => args.get(1).and_then(|arg| {
-                        operand_type(&self.types, self.builtins, &locals, &arg.value)
-                            .map(|element_ty| (None, element_ty))
-                    }),
-                    super::ArrayTransportOperation::BuilderNew => None,
+                    super::ArrayTransportOperation::BuilderPush => {
+                        if type_contains_param(&self.types, array.array_ty)
+                            || type_contains_param(&self.types, array.element_ty)
+                        {
+                            continue;
+                        }
+                        array.element_ty
+                    }
+                    super::ArrayTransportOperation::BuilderNew => continue,
                 };
-                let Some((array_ty, element_ty)) = inferred else {
-                    continue;
-                };
-                if type_contains_param(&self.types, element_ty) {
-                    continue;
-                }
-                if let Some(array_ty) = array_ty {
-                    array.array_ty = array_ty;
-                }
                 array.element_ty = element_ty;
-                array.element.source_ty = element_ty;
-                if let Some(boxing) = &mut array.element.boxing {
-                    boxing.source_ty = element_ty;
-                    if boxing
-                        .target_ty
-                        .is_some_and(|ty| type_contains_param(&self.types, ty))
-                    {
-                        boxing.target_ty = Some(array.array_ty);
-                    }
+                self.refresh_value_transport_contract(
+                    &mut array.element,
+                    element_ty,
+                    Some(array.array_ty),
+                );
+            }
+        }
+    }
+
+    fn repair_closure_capture_transport_targets(&mut self, body: &mut Body) {
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign {
+                    value: Rvalue::MakeClosure { env_contract, .. },
+                    ..
+                } = &mut stmt.kind
+                else {
+                    continue;
+                };
+                if type_contains_param(&self.types, env_contract.env_ty) {
+                    continue;
                 }
+                for capture in &mut env_contract.captures {
+                    let source_ty = capture.transport.source_ty;
+                    if type_contains_param(&self.types, source_ty) {
+                        continue;
+                    }
+                    self.refresh_value_transport_contract(
+                        &mut capture.transport,
+                        source_ty,
+                        Some(env_contract.env_ty),
+                    );
+                }
+            }
+        }
+    }
+
+    fn repair_handle_payload_metadata_types(&mut self, body: &mut Body) {
+        for block in &mut body.blocks {
+            let TerminatorKind::Handle { arms, .. } = &mut block.terminator.kind else {
+                continue;
+            };
+            for arm in arms {
+                if arm.payload_component_tys.len() != arm.binder_count
+                    || arm
+                        .payload_component_tys
+                        .iter()
+                        .any(|ty| type_contains_param(&self.types, *ty))
+                {
+                    continue;
+                }
+                arm.payload_tuple_ty = materialized_payload_tuple_ty_from_components(
+                    &mut self.types,
+                    self.builtins.unit,
+                    &arm.payload_component_tys,
+                );
             }
         }
     }
@@ -6456,6 +6503,82 @@ impl MirInstanceMaterializer {
         }
     }
 
+    fn repair_transport_target_local_types(&mut self, body: &mut Body) {
+        let mut updates = Vec::new();
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let StatementKind::Assign {
+                    target,
+                    value: Rvalue::Transport { transport, .. },
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                let Some(target_ty) = transport
+                    .boxing
+                    .as_ref()
+                    .and_then(|boxing| boxing.target_ty)
+                else {
+                    continue;
+                };
+                if type_contains_param(&self.types, target_ty) {
+                    continue;
+                }
+                updates.push((*target, target_ty));
+            }
+        }
+        for (target, target_ty) in updates {
+            if let Some(local) = body.locals.get_mut(target.as_u32() as usize) {
+                local.ty = target_ty;
+            }
+        }
+    }
+
+    fn repair_perform_payload_metadata_types(&mut self, body: &mut Body) {
+        for block in &mut body.blocks {
+            let TerminatorKind::Perform { metadata, args, .. } = &mut block.terminator.kind else {
+                continue;
+            };
+            if args.len() != metadata.payload_component_tys.len()
+                || metadata
+                    .payload_component_tys
+                    .iter()
+                    .any(|ty| type_contains_param(&self.types, *ty))
+            {
+                continue;
+            }
+            metadata.payload_tuple_ty = materialized_payload_tuple_ty_from_components(
+                &mut self.types,
+                self.builtins.unit,
+                &metadata.payload_component_tys,
+            );
+            let payload_tuple_ty = metadata.payload_tuple_ty;
+            for (transport, &component_ty) in metadata
+                .payload_transport
+                .iter_mut()
+                .zip(metadata.payload_component_tys.iter())
+            {
+                self.refresh_value_transport_contract(transport, component_ty, payload_tuple_ty);
+            }
+        }
+    }
+
+    fn refresh_value_transport_contract(
+        &mut self,
+        transport: &mut ValueTransportMetadata,
+        source_ty: TypeId,
+        boxing_target_ty: Option<TypeId>,
+    ) {
+        transport.source_ty = source_ty;
+        transport.requirements = super::lower::mir_transport_requirements(&self.types, source_ty);
+        if let Some(boxing) = &mut transport.boxing {
+            boxing.source_ty = source_ty;
+            if let Some(target_ty) = boxing_target_ty {
+                boxing.target_ty = Some(target_ty);
+            }
+        }
+    }
+
     fn repair_unused_unresolved_compiler_temporaries(&mut self, body: &mut Body) {
         let referenced = collect_materialized_local_references(body);
         let mut fixed = HashSet::new();
@@ -6526,6 +6649,7 @@ impl MirInstanceMaterializer {
         for local in &mut body.locals {
             local.ty = substitute_type_and_effect_params(&mut self.types, local.ty, substitution);
         }
+        self.elide_unused_generic_top_level_refs(body);
         let locals = body.locals.clone();
         let ctx = RewriteContext {
             locals: &locals,
@@ -6534,6 +6658,7 @@ impl MirInstanceMaterializer {
             template_root_fqn,
             instance_root_fqn,
         };
+        self.materialize_function_value_top_level_refs(body, &ctx, block_indices.as_deref())?;
         if let Some(block_indices) = block_indices {
             for block_idx in block_indices {
                 let Some(block) = body.blocks.get_mut(block_idx) else {
@@ -6544,6 +6669,130 @@ impl MirInstanceMaterializer {
         } else {
             for (block_idx, block) in body.blocks.iter_mut().enumerate() {
                 self.rewrite_block(BasicBlockId::from_raw(block_idx as u32), block, &ctx)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn elide_unused_generic_top_level_refs(&self, body: &mut Body) {
+        let referenced = collect_materialized_local_references(body);
+        for block in &mut body.blocks {
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign { target, value } = &mut stmt.kind else {
+                    continue;
+                };
+                if referenced.contains(target) {
+                    continue;
+                }
+                let Rvalue::TopLevelRef(top) = value else {
+                    continue;
+                };
+                if !self.roots_by_fqn.contains_key(&top.fqn) {
+                    continue;
+                }
+                let Some(local) = body.locals.get_mut(target.as_u32() as usize) else {
+                    continue;
+                };
+                if local.source != LocalSourceKind::CompilerTemporary {
+                    continue;
+                }
+                local.ty = self.builtins.unit;
+                *value = Rvalue::Use(Operand::Const(ConstValue::Unit));
+            }
+        }
+    }
+
+    fn materialize_function_value_top_level_refs(
+        &mut self,
+        body: &mut Body,
+        ctx: &RewriteContext<'_>,
+        block_indices: Option<&[usize]>,
+    ) -> MaterializeResult<()> {
+        let selected_blocks = block_indices
+            .map(|indices| indices.to_vec())
+            .unwrap_or_else(|| (0..body.blocks.len()).collect());
+        let mut top_refs: HashMap<LocalId, String> = HashMap::new();
+        let mut patches: HashMap<LocalId, InstanceKey> = HashMap::new();
+
+        for &block_idx in &selected_blocks {
+            let Some(block) = body.blocks.get(block_idx) else {
+                continue;
+            };
+            for stmt in &block.stmts {
+                let StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                match value {
+                    Rvalue::TopLevelRef(top) if self.roots_by_fqn.contains_key(&top.fqn) => {
+                        top_refs.insert(*target, top.fqn.clone());
+                    }
+                    Rvalue::Call {
+                        kind:
+                            CallKind::FunValue {
+                                callee: Operand::Local(callee),
+                            },
+                        args,
+                        ..
+                    } => {
+                        let Some(callee_fqn) = top_refs.get(callee) else {
+                            continue;
+                        };
+                        let result_ty = ctx
+                            .locals
+                            .get(target.as_u32() as usize)
+                            .map(|local| local.ty);
+                        if let Some(instance_key) =
+                            self.infer_direct_call_instance(DirectCallInferenceInput {
+                                template_source_path: ctx.template_source_path,
+                                call_span: stmt.span,
+                                callee_fqn,
+                                args,
+                                result_ty,
+                                locals: ctx.locals,
+                                substitution: ctx.substitution,
+                            })
+                        {
+                            patches.insert(*callee, instance_key);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let mut replacements = HashMap::new();
+        for (local, instance_key) in patches {
+            let instance_fqn = self.instance_fqn(&instance_key);
+            let fun_ty = self.instance_fun_ty(&instance_key);
+            self.enqueue(instance_key);
+            replacements.insert(local, (instance_fqn, fun_ty));
+        }
+        if replacements.is_empty() {
+            return Ok(());
+        }
+
+        for (local, (_, fun_ty)) in &replacements {
+            if let Some(fun_ty) = fun_ty
+                && let Some(decl) = body.locals.get_mut(local.as_u32() as usize)
+            {
+                decl.ty = *fun_ty;
+            }
+        }
+        for &block_idx in &selected_blocks {
+            let Some(block) = body.blocks.get_mut(block_idx) else {
+                continue;
+            };
+            for stmt in &mut block.stmts {
+                let StatementKind::Assign {
+                    target,
+                    value: Rvalue::TopLevelRef(top),
+                } = &mut stmt.kind
+                else {
+                    continue;
+                };
+                if let Some((instance_fqn, _)) = replacements.get(target) {
+                    top.fqn = instance_fqn.clone();
+                }
             }
         }
         Ok(())
@@ -7141,6 +7390,13 @@ impl MirInstanceMaterializer {
         if is_canonical_array_member_intrinsic_fqn(fqn) {
             return Ok(());
         }
+        if let Some(instance_key) =
+            self.infer_top_level_ref_instance_from_result_ty(fqn, ctx.result_ty)
+        {
+            *fqn = self.instance_fqn(&instance_key);
+            self.enqueue(instance_key);
+            return Ok(());
+        }
         if self.roots_by_fqn.contains_key(fqn) {
             return Err(materialize_err(
                 MirMaterializeError::MaterializedMissingCallTarget {
@@ -7154,12 +7410,56 @@ impl MirInstanceMaterializer {
         Ok(())
     }
 
+    fn infer_top_level_ref_instance_from_result_ty(
+        &self,
+        fqn: &str,
+        result_ty: Option<TypeId>,
+    ) -> Option<InstanceKey> {
+        let result_ty = result_ty?;
+        if type_contains_param(&self.types, result_ty) {
+            return None;
+        }
+        let inferred = self
+            .roots_by_fqn
+            .get(fqn)?
+            .iter()
+            .filter_map(|template| {
+                let signature = self.template_signatures.get(template)?;
+                if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
+                    return None;
+                }
+                if !type_contains_param(&self.types, signature.fun_ty) {
+                    return None;
+                }
+                let mut bindings = HashMap::new();
+                collect_type_param_bindings(
+                    &self.types,
+                    signature.fun_ty,
+                    result_ty,
+                    &mut bindings,
+                );
+                self.instance_from_type_param_bindings(signature, bindings)
+            })
+            .collect::<Vec<_>>();
+        self.select_unique_inferred_instance(inferred)
+    }
+
     fn instance_return_ty(&mut self, instance: &InstanceKey) -> Option<TypeId> {
         let signature = self.template_signatures.get(&instance.template)?.clone();
         let substitution = self.build_instance_substitution_for_signature(&signature, instance);
         Some(substitute_type_and_effect_params(
             &mut self.types,
             signature.return_ty,
+            &substitution,
+        ))
+    }
+
+    fn instance_fun_ty(&mut self, instance: &InstanceKey) -> Option<TypeId> {
+        let signature = self.template_signatures.get(&instance.template)?.clone();
+        let substitution = self.build_instance_substitution_for_signature(&signature, instance);
+        Some(substitute_type_and_effect_params(
+            &mut self.types,
+            signature.fun_ty,
             &substitution,
         ))
     }
@@ -7220,14 +7520,35 @@ impl MirInstanceMaterializer {
                     candidates = filtered;
                 }
             }
-            if candidates.len() != 1 {
-                return None;
-            }
             candidates
         };
-        let signature = self.template_signatures.get(&candidates[0])?;
+        self.infer_direct_call_instance_from_candidates(&candidates, &input)
+    }
+
+    fn infer_direct_call_instance_from_candidates(
+        &self,
+        candidates: &[TemplateKey],
+        input: &DirectCallInferenceInput<'_>,
+    ) -> Option<InstanceKey> {
+        let inferred = candidates
+            .iter()
+            .filter_map(|candidate| self.infer_direct_call_instance_for_template(candidate, input))
+            .collect::<Vec<_>>();
+        self.select_unique_inferred_instance(inferred)
+    }
+
+    fn infer_direct_call_instance_for_template(
+        &self,
+        template: &TemplateKey,
+        input: &DirectCallInferenceInput<'_>,
+    ) -> Option<InstanceKey> {
+        let signature = self.template_signatures.get(template)?;
         if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
             return None;
+        }
+        let mut param_type_param_names = Vec::new();
+        for param in &signature.params {
+            collect_type_param_names_in_type(&self.types, param.ty, &mut param_type_param_names);
         }
 
         let (arg_offset, arg_to_param) =
@@ -7253,6 +7574,7 @@ impl MirInstanceMaterializer {
                 &receiver_arg.value,
             )
         {
+            collect_type_param_names_in_type(&self.types, receiver_ty, &mut param_type_param_names);
             collect_type_param_bindings(
                 &self.types,
                 receiver_ty,
@@ -7288,16 +7610,42 @@ impl MirInstanceMaterializer {
                 continue;
             }
             let arg = input.args.get(arg_idx + arg_offset)?;
-            let concrete_ty = operand_type(&self.types, self.builtins, input.locals, &arg.value)?;
-            collect_type_param_bindings(&self.types, param.ty, concrete_ty, &mut bindings);
+            if let Some(concrete_ty) =
+                operand_type(&self.types, self.builtins, input.locals, &arg.value)
+            {
+                collect_type_param_bindings(&self.types, param.ty, concrete_ty, &mut bindings);
+            }
         }
         if let Some(result_ty) = input.result_ty
             && type_contains_param(&self.types, signature.return_ty)
             && !type_contains_param(&self.types, result_ty)
         {
-            collect_type_param_bindings(&self.types, signature.return_ty, result_ty, &mut bindings);
+            let param_type_param_names = param_type_param_names.into_iter().collect::<HashSet<_>>();
+            let mut result_bindings = HashMap::new();
+            collect_type_param_bindings(
+                &self.types,
+                signature.return_ty,
+                result_ty,
+                &mut result_bindings,
+            );
+            let task_step_result_driven = input.callee_fqn.starts_with("scoop.core.__task_step_");
+            for (name, ty) in result_bindings {
+                if task_step_result_driven
+                    || !param_type_param_names.contains(&name)
+                    || bindings.contains_key(&name)
+                {
+                    bindings.entry(name).or_insert(ty);
+                }
+            }
         }
+        self.instance_from_type_param_bindings(signature, bindings)
+    }
 
+    fn instance_from_type_param_bindings(
+        &self,
+        signature: &TemplateSignatureInfo,
+        bindings: HashMap<String, TypeId>,
+    ) -> Option<InstanceKey> {
         let mut ordered = Vec::with_capacity(signature.type_param_names.len());
         for name in &signature.type_param_names {
             let ty = bindings.get(name).copied()?;
@@ -7315,6 +7663,23 @@ impl MirInstanceMaterializer {
             type_args: ordered,
             eff_args: Vec::new(),
         })
+    }
+
+    fn select_unique_inferred_instance(&self, inferred: Vec<InstanceKey>) -> Option<InstanceKey> {
+        match inferred.as_slice() {
+            [instance] => Some(instance.clone()),
+            [] => None,
+            _ => {
+                let body_instances = inferred
+                    .iter()
+                    .filter(|instance| self.roots.contains_key(&instance.template))
+                    .collect::<Vec<_>>();
+                match body_instances.as_slice() {
+                    [instance] => Some((*instance).clone()),
+                    _ => None,
+                }
+            }
+        }
     }
 
     fn lookup_site_instance_binding(
@@ -7637,6 +8002,8 @@ impl MirInstanceMaterializer {
     ) {
         transport.source_ty =
             substitute_type_and_effect_params(&mut self.types, transport.source_ty, substitution);
+        transport.requirements =
+            super::lower::mir_transport_requirements(&self.types, transport.source_ty);
         if let Some(boxing) = &mut transport.boxing {
             boxing.source_ty =
                 substitute_type_and_effect_params(&mut self.types, boxing.source_ty, substitution);
@@ -8218,7 +8585,8 @@ fn collect_statement_local_references(stmt: &Statement, out: &mut HashSet<LocalI
         StatementKind::StoreTopLevelVar { value, .. } => {
             collect_operand_local_reference(value, out);
         }
-        StatementKind::Nop | StatementKind::Todo(_) => {}
+        StatementKind::Nop => {}
+        StatementKind::Todo(_) => {}
     }
 }
 
@@ -8286,8 +8654,10 @@ fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
-        | Rvalue::PerformResult { .. }
-        | Rvalue::Todo(_) => {}
+        | Rvalue::PerformResult { .. } => {}
+        Rvalue::Todo(reason) => {
+            let _ = reason;
+        }
     }
 }
 
@@ -8327,14 +8697,26 @@ fn collect_terminator_local_references(kind: &TerminatorKind, out: &mut HashSet<
         }
         TerminatorKind::ResumeUnwind
         | TerminatorKind::Goto { .. }
-        | TerminatorKind::Unreachable
-        | TerminatorKind::Todo(_) => {}
+        | TerminatorKind::Unreachable => {}
+        TerminatorKind::Todo(_) => {}
     }
 }
 
 fn collect_operand_local_reference(operand: &Operand, out: &mut HashSet<LocalId>) {
     if let Operand::Local(local) = operand {
         out.insert(*local);
+    }
+}
+
+fn materialized_payload_tuple_ty_from_components(
+    types: &mut TypeStore,
+    unit_ty: TypeId,
+    components: &[TypeId],
+) -> Option<TypeId> {
+    match components {
+        [] => Some(unit_ty),
+        [single] => Some(*single),
+        _ => Some(types.ty_tuple(components.to_vec())),
     }
 }
 

@@ -241,3 +241,17 @@ body_facts:
         emitted_case: case#0=sample.Inner.go
         payload_tuple_ty: Unit
         captured_cont_schema: continuation_schema#3
+
+codegen_routing_facts:
+  - body: sample.nested_may_suspend_outward
+    route: EffectStepLowering
+    reason: callable publishes EffectStep ABI from non-empty outward cases
+    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c1] adapter_required=false step_schema_published=true
+    features: Handle, ResumeUnwind, Perform, PerformResult
+    span: 342..641
+  - body: sample.nested_self_contained
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: Handle, Perform, PerformResult
+    span: 92..340

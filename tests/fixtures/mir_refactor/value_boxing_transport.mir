@@ -1,0 +1,2613 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 151..196,
+                    fqn: "mir_refactor.value_boxing_transport.Measured",
+                    name: "Measured",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 176..194,
+                                fqn: "mir_refactor.value_boxing_transport.Measured.measure",
+                                name: "measure",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 198..241,
+                    fqn: "mir_refactor.value_boxing_transport.Point",
+                    name: "Point",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 210..241,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 215..216,
+                                    name: "x",
+                                    ty: TypeId(
+                                        0,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                                CtorParamMetadata {
+                                    span: 227..232,
+                                    name: "label",
+                                    ty: TypeId(
+                                        1,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 215..216,
+                                fqn: "mir_refactor.value_boxing_transport.Point.x",
+                                name: "x",
+                                mutable: false,
+                                ty: TypeId(
+                                    0,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                        Field(
+                            FieldMetadata {
+                                span: 227..232,
+                                fqn: "mir_refactor.value_boxing_transport.Point.label",
+                                name: "label",
+                                mutable: false,
+                                ty: TypeId(
+                                    1,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 243..334,
+                    fqn: "mir_refactor.value_boxing_transport.Token",
+                    name: "Token",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [
+                        SupertypeMetadata {
+                            span: 274..282,
+                            fqn: Some(
+                                "mir_refactor.value_boxing_transport.Measured",
+                            ),
+                            ty: TypeId(
+                                2,
+                            ),
+                            ctor_arg_count: 0,
+                        },
+                    ],
+                    interfaces: [
+                        "mir_refactor.value_boxing_transport.Measured",
+                    ],
+                    constructors: [
+                        CtorMetadata {
+                            span: 255..271,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 260..265,
+                                    name: "value",
+                                    ty: TypeId(
+                                        0,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 260..265,
+                                fqn: "mir_refactor.value_boxing_transport.Token.value",
+                                name: "value",
+                                mutable: false,
+                                ty: TypeId(
+                                    0,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                        Fun(
+                            MemberFunMetadata {
+                                span: 289..332,
+                                fqn: "mir_refactor.value_boxing_transport.Token.measure",
+                                name: "measure",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 336..388,
+                    fqn: "mir_refactor.value_boxing_transport.Wrapped",
+                    name: "Wrapped",
+                    kind: Enum,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        EnumVariant(
+                            EnumVariantMetadata {
+                                span: 355..385,
+                                fqn: "mir_refactor.value_boxing_transport.Wrapped.WrappedPoint",
+                                name: "WrappedPoint",
+                                fields: [
+                                    FieldMetadata {
+                                        span: 372..377,
+                                        fqn: "mir_refactor.value_boxing_transport.Wrapped.WrappedPoint.point",
+                                        name: "point",
+                                        mutable: false,
+                                        ty: TypeId(
+                                            3,
+                                        ),
+                                        origin: EnumVariantPayload,
+                                    },
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 390..423,
+                fqn: "mir_refactor.value_boxing_transport.topAny",
+                source_path: "tests/fixtures/mir_refactor/value_boxing_transport.scoop",
+                kind: RuntimeImmutableVal,
+                ty: Some(
+                    TypeId(
+                        4,
+                    ),
+                ),
+                initializer_transport: Some(
+                    ValueTransportMetadata {
+                        source_ty: TypeId(
+                            3,
+                        ),
+                        kind: Struct,
+                        requirements: MirTransportRequirements {
+                            trace: true,
+                            copy: true,
+                            drop: true,
+                        },
+                        boxing: Some(
+                            MirBoxingIntent {
+                                source_ty: TypeId(
+                                    3,
+                                ),
+                                target_ty: Some(
+                                    TypeId(
+                                        4,
+                                    ),
+                                ),
+                                reason: AnyErasure,
+                            },
+                        ),
+                    },
+                ),
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: EffectRow {
+                    terms: [],
+                },
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 425..470,
+                fqn: "mir_refactor.value_boxing_transport.takeAny",
+                name: "takeAny",
+                ty: TypeId(
+                    5,
+                ),
+                params: [
+                    Param {
+                        span: 437..442,
+                        name: "value",
+                        ty: TypeId(
+                            4,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 437..442,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 467..468,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 454..470,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 467..468,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 460..468,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 472..541,
+                fqn: "mir_refactor.value_boxing_transport.takeMeasured",
+                name: "takeMeasured",
+                ty: TypeId(
+                    7,
+                ),
+                params: [
+                    Param {
+                        span: 489..494,
+                        name: "value",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 489..494,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 524..539,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 511..541,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 524..539,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Interface {
+                                                    receiver: Local(
+                                                        l0,
+                                                    ),
+                                                    dispatch: DispatchMetadata {
+                                                        owner_fqn: "mir_refactor.value_boxing_transport.Measured",
+                                                        member_name: "measure",
+                                                        member_fqn: "mir_refactor.value_boxing_transport.Measured.measure",
+                                                        member_decl_span: Some(
+                                                            180..187,
+                                                        ),
+                                                        receiver_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                    },
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 517..539,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 543..596,
+                fqn: "mir_refactor.value_boxing_transport.returnAny",
+                name: "returnAny",
+                ty: TypeId(
+                    8,
+                ),
+                params: [
+                    Param {
+                        span: 557..562,
+                        name: "point",
+                        ty: TypeId(
+                            3,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    4,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 557..562,
+                                name: Some(
+                                    "point",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 582..594,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 576..596,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 582..594,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Transport {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 582..594,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 598..642,
+                fqn: "mir_refactor.value_boxing_transport.tailAny",
+                name: "tailAny",
+                ty: TypeId(
+                    8,
+                ),
+                params: [
+                    Param {
+                        span: 610..615,
+                        name: "point",
+                        ty: TypeId(
+                            3,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    4,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 610..615,
+                                name: Some(
+                                    "point",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 598..642,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 598..642,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Transport {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 598..642,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 644..1088,
+                fqn: "mir_refactor.value_boxing_transport.useBoxing",
+                name: "useBoxing",
+                ty: TypeId(
+                    8,
+                ),
+                params: [
+                    Param {
+                        span: 658..663,
+                        name: "point",
+                        ty: TypeId(
+                            3,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    4,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 658..663,
+                                name: Some(
+                                    "point",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 683..708,
+                                name: Some(
+                                    "localAny",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 713..753,
+                                name: Some(
+                                    "assigned",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 733..753,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 739..740,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 742..752,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 769..791,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 775..776,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 778..790,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 796..848,
+                                name: Some(
+                                    "callAny",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 815..848,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 823..847,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    9,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 831..846,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 837..838,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 840..845,
+                                name: Some(
+                                    "tmp10",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 823..847,
+                                name: Some(
+                                    "tmp11",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 853..886,
+                                name: Some(
+                                    "refLocal",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 878..886,
+                                name: Some(
+                                    "tmp12",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 884..885,
+                                name: Some(
+                                    "tmp13",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 891..931,
+                                name: Some(
+                                    "refArg",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 909..931,
+                                name: Some(
+                                    "tmp14",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 922..930,
+                                name: Some(
+                                    "tmp15",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 928..929,
+                                name: Some(
+                                    "tmp16",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 922..930,
+                                name: Some(
+                                    "tmp17",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 936..985,
+                                name: Some(
+                                    "enumAny",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 955..985,
+                                name: Some(
+                                    "tmp18",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 968..984,
+                                name: Some(
+                                    "tmp19",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 974..975,
+                                name: Some(
+                                    "tmp20",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 977..983,
+                                name: Some(
+                                    "tmp21",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 990..1028,
+                                name: Some(
+                                    "fromReturn",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 1012..1028,
+                                name: Some(
+                                    "tmp22",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1033..1067,
+                                name: Some(
+                                    "fromTail",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 1053..1067,
+                                name: Some(
+                                    "tmp23",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 677..1088,
+                                name: Some(
+                                    "tmp24",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 683..708,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Transport {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 739..740,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 742..752,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    String,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 733..753,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 739..740,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 742..752,
+                                                        name: "label",
+                                                        value: Local(
+                                                            l5,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "label",
+                                                            ),
+                                                            ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    1,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 713..753,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Transport {
+                                                value: Local(
+                                                    l3,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 775..776,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 778..790,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Use(
+                                                Const(
+                                                    String,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 769..791,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 775..776,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l7,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 778..790,
+                                                        name: "label",
+                                                        value: Local(
+                                                            l8,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "label",
+                                                            ),
+                                                            ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    1,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 758..791,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Transport {
+                                                value: Local(
+                                                    l6,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 837..838,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 840..845,
+                                        kind: Assign {
+                                            target: l14,
+                                            value: Use(
+                                                Const(
+                                                    String,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 831..846,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 837..838,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l13,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 840..845,
+                                                        name: "label",
+                                                        value: Local(
+                                                            l14,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "label",
+                                                            ),
+                                                            ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    1,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 823..847,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: MakeTuple {
+                                                elements: [
+                                                    Local(
+                                                        l0,
+                                                    ),
+                                                    Local(
+                                                        l12,
+                                                    ),
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        9,
+                                                    ),
+                                                    kind: Tuple,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    3,
+                                                                ),
+                                                                kind: Struct,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    3,
+                                                                ),
+                                                                kind: Struct,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 823..847,
+                                        kind: Assign {
+                                            target: l15,
+                                            value: Transport {
+                                                value: Local(
+                                                    l11,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        9,
+                                                    ),
+                                                    kind: Tuple,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                9,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 815..848,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.takeAny",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 823..847,
+                                                        name: None,
+                                                        value: Local(
+                                                            l15,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 796..848,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: Use(
+                                                Local(
+                                                    l10,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 884..885,
+                                        kind: Assign {
+                                            target: l18,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 878..886,
+                                        kind: Assign {
+                                            target: l17,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 884..885,
+                                                        name: "value",
+                                                        value: Local(
+                                                            l18,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "value",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 853..886,
+                                        kind: Assign {
+                                            target: l16,
+                                            value: Transport {
+                                                value: Local(
+                                                    l17,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                10,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    2,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 928..929,
+                                        kind: Assign {
+                                            target: l22,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 922..930,
+                                        kind: Assign {
+                                            target: l21,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 928..929,
+                                                        name: "value",
+                                                        value: Local(
+                                                            l22,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "value",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 922..930,
+                                        kind: Assign {
+                                            target: l23,
+                                            value: Transport {
+                                                value: Local(
+                                                    l21,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    kind: Struct,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                10,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    2,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 909..931,
+                                        kind: Assign {
+                                            target: l20,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.takeMeasured",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 922..930,
+                                                        name: None,
+                                                        value: Local(
+                                                            l23,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 891..931,
+                                        kind: Assign {
+                                            target: l19,
+                                            value: Use(
+                                                Local(
+                                                    l20,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 974..975,
+                                        kind: Assign {
+                                            target: l27,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 977..983,
+                                        kind: Assign {
+                                            target: l28,
+                                            value: Use(
+                                                Const(
+                                                    String,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 968..984,
+                                        kind: Assign {
+                                            target: l26,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 974..975,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l27,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 977..983,
+                                                        name: "label",
+                                                        value: Local(
+                                                            l28,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "label",
+                                                            ),
+                                                            ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    1,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 955..985,
+                                        kind: Assign {
+                                            target: l25,
+                                            value: EnumVariant {
+                                                enum_ty: TypeId(
+                                                    11,
+                                                ),
+                                                variant_name: "WrappedPoint",
+                                                args: [
+                                                    CallArg {
+                                                        span: 968..984,
+                                                        name: None,
+                                                        value: Local(
+                                                            l26,
+                                                        ),
+                                                    },
+                                                ],
+                                                payload: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    kind: EnumPayload,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                3,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    3,
+                                                                ),
+                                                                kind: Struct,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 936..985,
+                                        kind: Assign {
+                                            target: l24,
+                                            value: Transport {
+                                                value: Local(
+                                                    l25,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    kind: EnumPayload,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                11,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1012..1028,
+                                        kind: Assign {
+                                            target: l30,
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.returnAny",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1022..1027,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            4,
+                                                        ),
+                                                        kind: Reference,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: true,
+                                                            copy: true,
+                                                            drop: true,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 990..1028,
+                                        kind: Assign {
+                                            target: l29,
+                                            value: Use(
+                                                Local(
+                                                    l30,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1053..1067,
+                                        kind: Assign {
+                                            target: l32,
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.tailAny",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1061..1066,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            4,
+                                                        ),
+                                                        kind: Reference,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: true,
+                                                            copy: true,
+                                                            drop: true,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1033..1067,
+                                        kind: Assign {
+                                            target: l31,
+                                            value: Use(
+                                                Local(
+                                                    l32,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 1072..1086,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l24,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 1090..1175,
+                fqn: "mir_refactor.value_boxing_transport.main",
+                name: "main",
+                ty: TypeId(
+                    12,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 1112..1149,
+                                name: Some(
+                                    "any",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 1122..1149,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1132..1148,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1138..1139,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1141..1147,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1161..1173,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1106..1175,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 1138..1139,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1141..1147,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    String,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1132..1148,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 1138..1139,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l3,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 1141..1147,
+                                                        name: "label",
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        3,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "label",
+                                                            ),
+                                                            ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    1,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1122..1149,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.useBoxing",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1132..1148,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            4,
+                                                        ),
+                                                        kind: Reference,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: true,
+                                                            copy: true,
+                                                            drop: true,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1112..1149,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1161..1173,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_refactor.value_boxing_transport.takeAny",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1169..1172,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 1154..1173,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l5,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 176..194,
+                fqn: "mir_refactor.value_boxing_transport.Measured.measure",
+                name: "measure",
+                ty: TypeId(
+                    7,
+                ),
+                params: [
+                    Param {
+                        span: 161..169,
+                        name: "this",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 289..332,
+                fqn: "mir_refactor.value_boxing_transport.Token.measure",
+                name: "measure",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 250..255,
+                        name: "this",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 250..255,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 325..326,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 308..332,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 325..326,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 318..326,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}
+codegen_routing_facts:
+  - body: mir_refactor.value_boxing_transport.Token.measure
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 289..332
+  - body: mir_refactor.value_boxing_transport.main
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 1090..1175
+  - body: mir_refactor.value_boxing_transport.returnAny
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 543..596
+  - body: mir_refactor.value_boxing_transport.tailAny
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 598..642
+  - body: mir_refactor.value_boxing_transport.takeAny
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 425..470
+  - body: mir_refactor.value_boxing_transport.takeMeasured
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: InterfaceCall
+    span: 472..541
+  - body: mir_refactor.value_boxing_transport.useBoxing
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 644..1088

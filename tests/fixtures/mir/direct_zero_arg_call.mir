@@ -85,32 +85,11 @@ File {
                                 ),
                                 source: CompilerTemporary,
                             },
-                            LocalDecl {
-                                span: 51..55,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
                         ],
                         blocks: [
                             BasicBlock {
                                 is_cleanup: false,
                                 stmts: [
-                                    Statement {
-                                        span: 51..55,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: TopLevelRef(
-                                                TopLevelRef {
-                                                    fqn: "a.zero",
-                                                },
-                                            ),
-                                        },
-                                    },
                                     Statement {
                                         span: 51..57,
                                         kind: Assign {
@@ -121,6 +100,30 @@ File {
                                                     callee_fqn: "a.zero",
                                                 },
                                                 args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },

@@ -6,11 +6,11 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    10,
+                    0,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    5,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -21,7 +21,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -31,7 +31,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -41,7 +41,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -51,7 +51,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -61,7 +61,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -71,7 +71,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -81,7 +81,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -91,7 +91,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -101,7 +101,7 @@ File {
                                     "tmp7",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -165,11 +165,35 @@ File {
                                         span: 54..59,
                                         kind: Assign {
                                             target: l2,
-                                            value: Use(
-                                                Local(
+                                            value: Transport {
+                                                value: Local(
                                                     l0,
                                                 ),
-                                            ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        1,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    2,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
                                         },
                                     },
                                 ],
@@ -199,11 +223,35 @@ File {
                                         span: 44..70,
                                         kind: Assign {
                                             target: l2,
-                                            value: Use(
-                                                Local(
+                                            value: Transport {
+                                                value: Local(
                                                     l4,
                                                 ),
-                                            ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        1,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                1,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    2,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
                                         },
                                     },
                                 ],

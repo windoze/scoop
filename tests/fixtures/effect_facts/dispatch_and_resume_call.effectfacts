@@ -185,3 +185,35 @@ body_facts:
         answer_ty: Unit
         out_step_schema: step_schema#6
         resolved_cases: [case#0=scoop.core.Raise.raise<scoop.core.RuntimeError>]
+
+codegen_routing_facts:
+  - body: fixtures.mir.Base.ping
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 104..149
+  - body: fixtures.mir.callInterface
+    route: PlainLocalControlHandoff
+    reason: plain ABI body contains local control or non-raw call-site features
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: InterfaceCall
+    span: 248..303
+  - body: fixtures.mir.callVirtual
+    route: PlainRawMir
+    reason: plain ABI body is raw-MIR safe
+    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
+    features: <none>
+    span: 193..246
+  - body: fixtures.mir.resumeBoom
+    route: EffectStepLowering
+    reason: callable publishes EffectStep ABI from non-empty outward cases
+    abi: EffectStep impl_plan=CanonicalFull resolved_outward_cases=[c0, c1] adapter_required=false step_schema_published=true
+    features: ResumeCall
+    span: 407..516
+  - body: fixtures.mir.resumeOnce
+    route: EffectStepLowering
+    reason: callable publishes EffectStep ABI from non-empty outward cases
+    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c0] adapter_required=false step_schema_published=true
+    features: ResumeCall
+    span: 305..405

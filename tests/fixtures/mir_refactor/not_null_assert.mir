@@ -6,20 +6,20 @@ File {
                 fqn: "mir_refactor.not_null_assert.unwrap",
                 name: "unwrap",
                 ty: TypeId(
-                    13,
+                    0,
                 ),
                 params: [
                     Param {
                         span: 182..183,
                         name: "x",
                         ty: TypeId(
-                            10,
+                            1,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    2,
                 ),
                 body: Some(
                     Body {
@@ -30,7 +30,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    10,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -40,7 +40,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    2,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -50,7 +50,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -60,7 +60,7 @@ File {
                                     "__not_null_v",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -70,7 +70,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    3,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -80,7 +80,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    4,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -90,7 +90,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    3,
+                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -100,7 +100,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -123,7 +123,7 @@ File {
                                                         Bind {
                                                             name: "__not_null_v",
                                                             ty: TypeId(
-                                                                5,
+                                                                2,
                                                             ),
                                                         },
                                                     ],
@@ -264,7 +264,7 @@ File {
                                             value: PerformResult {
                                                 op_fqn: "scoop.core.Raise.raise",
                                                 effect_ty: TypeId(
-                                                    12,
+                                                    7,
                                                 ),
                                             },
                                         },
@@ -277,25 +277,25 @@ File {
                                         op_fqn: "scoop.core.Raise.raise",
                                         metadata: PerformMetadata {
                                             effect_ty: TypeId(
-                                                12,
+                                                7,
                                             ),
                                             result_ty: TypeId(
-                                                3,
+                                                5,
                                             ),
                                             payload_tuple_ty: Some(
                                                 TypeId(
-                                                    0,
+                                                    4,
                                                 ),
                                             ),
                                             payload_component_tys: [
                                                 TypeId(
-                                                    0,
+                                                    4,
                                                 ),
                                             ],
                                             payload_transport: [
                                                 ValueTransportMetadata {
                                                     source_ty: TypeId(
-                                                        0,
+                                                        4,
                                                     ),
                                                     kind: EffectPayload,
                                                     requirements: MirTransportRequirements {
@@ -303,7 +303,19 @@ File {
                                                         copy: true,
                                                         drop: true,
                                                     },
-                                                    boxing: None,
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                4,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    4,
+                                                                ),
+                                                            ),
+                                                            reason: EffectPayload,
+                                                        },
+                                                    ),
                                                 },
                                             ],
                                             arg_mapping: [

@@ -144,6 +144,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -192,19 +216,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 107..109,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 110..111,
                                 name: Some(
-                                    "tmp2",
+                                    "tmp1",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -214,7 +228,7 @@ File {
                             LocalDecl {
                                 span: 115..127,
                                 name: Some(
-                                    "tmp3",
+                                    "tmp2",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -222,19 +236,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 115..120,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 121..123,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp3",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -244,7 +248,7 @@ File {
                             LocalDecl {
                                 span: 125..126,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -257,20 +261,9 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 107..109,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: TopLevelRef(
-                                                TopLevelRef {
-                                                    fqn: "a.id",
-                                                },
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 110..111,
                                         kind: Assign {
-                                            target: l2,
+                                            target: l1,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -292,40 +285,59 @@ File {
                                                         span: 110..111,
                                                         name: None,
                                                         value: Local(
-                                                            l2,
+                                                            l1,
                                                         ),
                                                     },
                                                 ],
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 115..120,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: TopLevelRef(
-                                                TopLevelRef {
-                                                    fqn: "a.apply",
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
                                                 },
-                                            ),
+                                            },
                                         },
                                     },
                                     Statement {
                                         span: 121..123,
                                         kind: Assign {
-                                            target: l5,
+                                            target: l3,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
                                                 ),
                                                 fn_ptr: "a.main.$lambda0",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        2,
+                                                    ),
+                                                    captures: [],
+                                                },
                                             },
                                         },
                                     },
                                     Statement {
                                         span: 125..126,
                                         kind: Assign {
-                                            target: l6,
+                                            target: l4,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -336,7 +348,7 @@ File {
                                     Statement {
                                         span: 115..127,
                                         kind: Assign {
-                                            target: l3,
+                                            target: l2,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
@@ -347,17 +359,41 @@ File {
                                                         span: 121..123,
                                                         name: None,
                                                         value: Local(
-                                                            l5,
+                                                            l3,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 125..126,
                                                         name: None,
                                                         value: Local(
-                                                            l6,
+                                                            l4,
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -367,7 +403,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l3,
+                                                l2,
                                             ),
                                         ),
                                     },
@@ -442,32 +478,11 @@ File {
                                 ),
                                 source: CompilerTemporary,
                             },
-                            LocalDecl {
-                                span: 121..123,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
                         ],
                         blocks: [
                             BasicBlock {
                                 is_cleanup: false,
                                 stmts: [
-                                    Statement {
-                                        span: 121..123,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: TopLevelRef(
-                                                TopLevelRef {
-                                                    fqn: "a.id",
-                                                },
-                                            ),
-                                        },
-                                    },
                                     Statement {
                                         span: 121..123,
                                         kind: Assign {
@@ -486,6 +501,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },

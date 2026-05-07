@@ -167,6 +167,9 @@ File {
                                             effect_ty: TypeId(
                                                 11,
                                             ),
+                                            result_ty: TypeId(
+                                                3,
+                                            ),
                                             payload_tuple_ty: Some(
                                                 TypeId(
                                                     5,
@@ -176,6 +179,20 @@ File {
                                                 TypeId(
                                                     5,
                                                 ),
+                                            ],
+                                            payload_transport: [
+                                                ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: EffectPayload,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: None,
+                                                },
                                             ],
                                             arg_mapping: [
                                                 0,

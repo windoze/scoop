@@ -12,7 +12,7 @@ use crate::hir::{
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::hir_completeness::RefactorHirCompletenessVerifier;
 
@@ -1174,7 +1174,8 @@ impl TypedHirStageOutput {
         Self::new_checked(lowered_hir, source_path)
     }
 
-    pub(crate) fn new_unchecked(lowered_hir: LoweredHir, source_path: &Path) -> Self {
+    pub(crate) fn new_unchecked(mut lowered_hir: LoweredHir, source_path: &Path) -> Self {
+        ensure_raise_runtime_error_effect(&mut lowered_hir.types);
         let effect_contracts = TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)
             .unwrap_or_default();
         Self {
@@ -1183,7 +1184,8 @@ impl TypedHirStageOutput {
         }
     }
 
-    fn new_checked(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+    fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
+        ensure_raise_runtime_error_effect(&mut lowered_hir.types);
         let effect_contracts =
             TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)?;
         Ok(Self {
@@ -1912,6 +1914,25 @@ fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
                     && nominal.args.as_slice() == [runtime_error_ty]
         )
     })
+}
+
+fn ensure_raise_runtime_error_effect(types: &mut TypeStore) -> TypeId {
+    if let Some(effect_ty) = find_raise_runtime_error_effect(types) {
+        return effect_ty;
+    }
+    let runtime_error_ty = find_nominal_type_by_fqn(types, "scoop.core.RuntimeError")
+        .unwrap_or_else(|| {
+            types.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.RuntimeError".to_string(),
+                args: Vec::new(),
+                eff: None,
+            })))
+        });
+    types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: "scoop.core.Raise".to_string(),
+        args: vec![runtime_error_ty],
+        eff: None,
+    })))
 }
 
 fn find_nominal_type_by_fqn(types: &TypeStore, fqn: &str) -> Option<TypeId> {

@@ -1,17 +1,96 @@
 File {
     items: [
-        Todo {
-            span: 43..78,
-            kind: "type",
-        },
-        Todo {
-            span: 80..151,
-            kind: "type",
-        },
-        Todo {
-            span: 153..191,
-            kind: "type",
-        },
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 43..78,
+                    fqn: "fixtures.mir.Boom",
+                    name: "Boom",
+                    kind: Effect,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 61..76,
+                                fqn: "fixtures.mir.Boom.next",
+                                name: "next",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 80..151,
+                    fqn: "fixtures.mir.Base",
+                    name: "Base",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 95..97,
+                            kind: Primary,
+                            params: [],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 104..149,
+                                fqn: "fixtures.mir.Base.ping",
+                                name: "ping",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 153..191,
+                    fqn: "fixtures.mir.IFace",
+                    name: "IFace",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 175..189,
+                                fqn: "fixtures.mir.IFace.foo",
+                                name: "foo",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
         Fun(
             FunDecl {
                 span: 193..246,
@@ -84,12 +163,40 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "fixtures.mir.Base",
                                                         member_name: "ping",
+                                                        member_fqn: "fixtures.mir.Base.ping",
+                                                        member_decl_span: Some(
+                                                            113..117,
+                                                        ),
                                                         receiver_ty: TypeId(
                                                             10,
                                                         ),
                                                     },
                                                 },
                                                 args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -184,12 +291,40 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "fixtures.mir.IFace",
                                                         member_name: "foo",
+                                                        member_fqn: "fixtures.mir.IFace.foo",
+                                                        member_decl_span: Some(
+                                                            179..182,
+                                                        ),
                                                         receiver_ty: TypeId(
                                                             12,
                                                         ),
                                                     },
                                                 },
                                                 args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -325,6 +460,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -460,6 +619,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },

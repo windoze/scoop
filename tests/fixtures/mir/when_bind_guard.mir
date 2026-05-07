@@ -156,11 +156,35 @@ File {
                                         span: 57..78,
                                         kind: Assign {
                                             target: l1,
-                                            value: Use(
-                                                Local(
+                                            value: Transport {
+                                                value: Local(
                                                     l3,
                                                 ),
-                                            ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
                                         },
                                     },
                                 ],
@@ -260,11 +284,35 @@ File {
                                         span: 83..92,
                                         kind: Assign {
                                             target: l1,
-                                            value: Use(
-                                                Local(
+                                            value: Transport {
+                                                value: Local(
                                                     l6,
                                                 ),
-                                            ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            reason: AnyErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
                                         },
                                     },
                                 ],

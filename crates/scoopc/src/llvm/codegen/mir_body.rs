@@ -1155,7 +1155,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::TerminatorKind::CondBr { cond, .. } => {
                 self.raw_materialized_mir_operand_is_supported(cond)
             }
-            crate::mir::TerminatorKind::Perform { .. } => false,
+            crate::mir::TerminatorKind::Perform { args, .. } => args
+                .iter()
+                .all(|arg| self.raw_materialized_mir_operand_is_supported(&arg.value)),
             crate::mir::TerminatorKind::ResumeUnwind
             | crate::mir::TerminatorKind::Handle { .. }
             | crate::mir::TerminatorKind::Todo(_) => false,
@@ -1260,7 +1262,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value,
                 target_cg,
             ),
-            crate::mir::Rvalue::PerformResult { .. } => false,
+            crate::mir::Rvalue::PerformResult { effect_ty, .. } => self
+                .codegen_mir_effect_instance_key(span, mir_types, *effect_ty)
+                .is_ok(),
             crate::mir::Rvalue::MemberAccess {
                 receiver, member, ..
             } => self.raw_materialized_mir_member_access_is_supported(
@@ -2990,17 +2994,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        if target_cg != CgTy::Ref {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport target type",
-                at: span.into(),
-            });
-        }
-        let body_fqn = self.current_codegen_body_fqn();
-        let _descriptor = self.get_or_create_value_composite_transport_descriptor_global(
-            &body_fqn, span, mir_types, transport,
-        )?;
-
         let source_ty = self
             .equivalent_codegen_type_id(mir_types, transport.source_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -3013,6 +3006,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "value erasure transport source codegen type",
                 at: span.into(),
             })?;
+
+        if matches!(
+            mir_types.kind(transport.source_ty),
+            TypeKind::Value(ValueTypeKind::Nothing)
+        ) {
+            return self.default_value(span, target_cg);
+        }
+
+        if target_cg == CgTy::String {
+            return self.codegen_mir_transport_to_string(
+                span,
+                value,
+                transport.source_ty,
+                source_cg,
+                mir_types,
+                slots,
+            );
+        }
+        if target_cg != CgTy::Ref {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "value erasure transport target type",
+                at: span.into(),
+            });
+        }
+        let body_fqn = self.current_codegen_body_fqn();
+        let _descriptor = self.get_or_create_value_composite_transport_descriptor_global(
+            &body_fqn, span, mir_types, transport,
+        )?;
 
         match source_cg {
             CgTy::Tuple(_) | CgTy::Struct(_) => self.codegen_mir_composite_value_box(
@@ -3035,6 +3056,123 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
         }
+    }
+
+    fn codegen_mir_transport_to_string(
+        &mut self,
+        span: crate::span::Span,
+        value: &crate::mir::Operand,
+        source_ty: TypeId,
+        source_cg: CgTy,
+        mir_types: &TypeStore,
+        slots: &[MirLocalSlot<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let source = self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
+        let source = self.coerce_value(span, source, source_cg)?;
+        match source_cg {
+            CgTy::String => self.coerce_value(span, source, CgTy::String),
+            CgTy::Bool => {
+                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR transport Bool.toString value",
+                        at: span.into(),
+                    });
+                };
+                let widened = self.builder.build_int_z_extend(
+                    raw,
+                    self.context.i64_type(),
+                    "mir_transport_bool_to_string_arg",
+                )?;
+                let runtime = self.declare_runtime_bool_to_string();
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[widened.into()],
+                    "mir_transport_bool_to_string",
+                )?;
+                self.string_value_from_runtime_call(span, call, "MIR transport Bool.toString")
+            }
+            CgTy::Int(from_ty)
+                if matches!(
+                    mir_types.kind(source_ty),
+                    TypeKind::Value(ValueTypeKind::Char)
+                ) =>
+            {
+                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR transport Char.toString value",
+                        at: span.into(),
+                    });
+                };
+                let codepoint = self.cast_int(
+                    raw,
+                    from_ty,
+                    IntTy {
+                        bits: 32,
+                        signed: false,
+                    },
+                )?;
+                let str_ptr = self.codegen_char_to_string_value(span, codepoint)?;
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                })
+            }
+            CgTy::Int(from_ty) => {
+                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MIR transport Int.toString value",
+                        at: span.into(),
+                    });
+                };
+                let widened = self.cast_int(
+                    raw,
+                    from_ty,
+                    IntTy {
+                        bits: 64,
+                        signed: from_ty.signed,
+                    },
+                )?;
+                let runtime = self.declare_runtime_int_to_string();
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    runtime,
+                    &[widened.into()],
+                    "mir_transport_int_to_string",
+                )?;
+                self.string_value_from_runtime_call(span, call, "MIR transport Int.toString")
+            }
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_to_string_value(span, span, source),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR transport to String source type",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn string_value_from_runtime_call(
+        &self,
+        span: crate::span::Span,
+        call: inkwell::values::CallSiteValue<'ctx>,
+        kind: &'static str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        };
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -4426,6 +4564,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
                     self.types.kind(payload_tuple_ty)
                 else {
+                    if let [arg] = args {
+                        let arg_cg = self.cg_ty_of(payload_tuple_ty).ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "pass MIR perform payload arg type",
+                                at: arg.span.into(),
+                            },
+                        )?;
+                        let value = self.codegen_mir_operand_expected(
+                            arg.span,
+                            &arg.value,
+                            slots,
+                            Some(arg_cg),
+                        )?;
+                        return self.coerce_value(arg.span, value, arg_cg);
+                    }
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "pass MIR perform payload tuple type",
                         at: span.into(),

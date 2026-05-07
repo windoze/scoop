@@ -6,20 +6,20 @@ File {
                 fqn: "fixtures.mir_refactor.takesUnit",
                 name: "takesUnit",
                 ty: TypeId(
-                    10,
+                    0,
                 ),
                 params: [
                     Param {
                         span: 66..71,
                         name: "value",
                         ty: TypeId(
-                            2,
+                            1,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -30,7 +30,7 @@ File {
                                     "value",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: SourceLocal,
                             },
@@ -59,20 +59,20 @@ File {
                 fqn: "fixtures.mir_refactor.resumeUnit",
                 name: "resumeUnit",
                 ty: TypeId(
-                    14,
+                    2,
                 ),
                 params: [
                     Param {
                         span: 98..99,
                         name: "k",
                         ty: TypeId(
-                            11,
+                            3,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    2,
+                    1,
                 ),
                 body: Some(
                     Body {
@@ -83,7 +83,7 @@ File {
                                     "k",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    3,
                                 ),
                                 source: SourceLocal,
                             },
@@ -93,7 +93,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -103,7 +103,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -113,7 +113,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -123,7 +123,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -133,7 +133,7 @@ File {
                                     "tmp4",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -143,7 +143,7 @@ File {
                                     "tmp5",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -153,7 +153,7 @@ File {
                                     "tmp6",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -163,7 +163,7 @@ File {
                                     "tmp7",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    1,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -195,23 +195,23 @@ File {
                                                     ),
                                                     resume: ResumeMetadata {
                                                         continuation_ty: TypeId(
-                                                            11,
+                                                            3,
                                                         ),
                                                         resume_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         answer_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         return_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         out_effects: EffectRow {
                                                             terms: [],
                                                         },
                                                         runtime_error_effect_ty: Some(
                                                             TypeId(
-                                                                13,
+                                                                4,
                                                             ),
                                                         ),
                                                         suspends_outward: false,
@@ -229,7 +229,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -242,6 +242,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -275,23 +276,23 @@ File {
                                                     ),
                                                     resume: ResumeMetadata {
                                                         continuation_ty: TypeId(
-                                                            11,
+                                                            3,
                                                         ),
                                                         resume_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         answer_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         return_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         out_effects: EffectRow {
                                                             terms: [],
                                                         },
                                                         runtime_error_effect_ty: Some(
                                                             TypeId(
-                                                                13,
+                                                                4,
                                                             ),
                                                         ),
                                                         suspends_outward: false,
@@ -309,7 +310,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -322,6 +323,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -364,7 +366,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -377,6 +379,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -419,7 +422,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            2,
+                                                            1,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -432,6 +435,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],

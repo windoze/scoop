@@ -20,7 +20,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -65,7 +65,7 @@ File {
                                 "mir_refactor.runtime_typecheck_cast.Base",
                             ),
                             ty: TypeId(
-                                10,
+                                1,
                             ),
                             ctor_arg_count: 0,
                         },
@@ -75,7 +75,7 @@ File {
                                 "mir_refactor.runtime_typecheck_cast.IFace",
                             ),
                             ty: TypeId(
-                                11,
+                                2,
                             ),
                             ctor_arg_count: 0,
                         },
@@ -100,7 +100,7 @@ File {
                                 type_params: [],
                                 params: [],
                                 return_ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                             },
                         ),
@@ -123,7 +123,7 @@ File {
                                 "mir_refactor.runtime_typecheck_cast.Base",
                             ),
                             ty: TypeId(
-                                10,
+                                1,
                             ),
                             ctor_arg_count: 0,
                         },
@@ -154,7 +154,7 @@ File {
                             name: "T",
                             variance: None,
                             ty: TypeId(
-                                12,
+                                3,
                             ),
                         },
                     ],
@@ -169,7 +169,7 @@ File {
                                     span: 353..358,
                                     name: "value",
                                     ty: TypeId(
-                                        12,
+                                        3,
                                     ),
                                     has_default: false,
                                     property: Some(
@@ -188,7 +188,7 @@ File {
                                 name: "value",
                                 mutable: false,
                                 ty: TypeId(
-                                    12,
+                                    3,
                                 ),
                                 origin: PrimaryCtorParam,
                             },
@@ -203,20 +203,20 @@ File {
                 fqn: "mir_refactor.runtime_typecheck_cast.inspect",
                 name: "inspect",
                 ty: TypeId(
-                    15,
+                    4,
                 ),
                 params: [
                     Param {
                         span: 376..377,
                         name: "x",
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -227,7 +227,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -237,7 +237,7 @@ File {
                                     "isIface",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: SourceLocal,
                             },
@@ -247,7 +247,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -257,7 +257,7 @@ File {
                                     "notOther",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: SourceLocal,
                             },
@@ -267,7 +267,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -277,7 +277,7 @@ File {
                                     "isHolder",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: SourceLocal,
                             },
@@ -287,7 +287,7 @@ File {
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -297,7 +297,7 @@ File {
                                     "asIface",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    2,
                                 ),
                                 source: SourceLocal,
                             },
@@ -307,7 +307,37 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    11,
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 552..562,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    6,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 552..562,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    7,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 552..562,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    8,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -317,37 +347,37 @@ File {
                                     "maybeHolder",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    9,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 599..616,
                                 name: Some(
-                                    "tmp4",
+                                    "tmp7",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    9,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 628..707,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp8",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 657..683,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp9",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -357,47 +387,47 @@ File {
                                     "_o",
                                 ),
                                 ty: TypeId(
-                                    17,
+                                    10,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 669..683,
                                 name: Some(
-                                    "tmp7",
+                                    "tmp10",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 692..701,
                                 name: Some(
-                                    "tmp8",
+                                    "tmp11",
                                 ),
                                 ty: TypeId(
-                                    4,
+                                    6,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 700..701,
                                 name: Some(
-                                    "tmp9",
+                                    "tmp12",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 411..709,
                                 name: Some(
-                                    "tmp10",
+                                    "tmp13",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    11,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -416,18 +446,18 @@ File {
                                                 ),
                                                 op: Is,
                                                 test_ty: TypeId(
-                                                    11,
+                                                    2,
                                                 ),
                                                 metadata: RuntimeTypeTestMetadata {
                                                     source_ty: TypeId(
-                                                        0,
+                                                        5,
                                                     ),
                                                     target_ty: TypeId(
-                                                        11,
+                                                        2,
                                                     ),
                                                     descriptor: RuntimeTypeDescriptorKey {
                                                         ty: TypeId(
-                                                            11,
+                                                            2,
                                                         ),
                                                         kind: Nominal {
                                                             fqn: "mir_refactor.runtime_typecheck_cast.IFace",
@@ -463,18 +493,18 @@ File {
                                                 ),
                                                 op: NotIs,
                                                 test_ty: TypeId(
-                                                    16,
+                                                    12,
                                                 ),
                                                 metadata: RuntimeTypeTestMetadata {
                                                     source_ty: TypeId(
-                                                        0,
+                                                        5,
                                                     ),
                                                     target_ty: TypeId(
-                                                        16,
+                                                        12,
                                                     ),
                                                     descriptor: RuntimeTypeDescriptorKey {
                                                         ty: TypeId(
-                                                            16,
+                                                            12,
                                                         ),
                                                         kind: Nominal {
                                                             fqn: "mir_refactor.runtime_typecheck_cast.Other",
@@ -510,18 +540,18 @@ File {
                                                 ),
                                                 op: Is,
                                                 test_ty: TypeId(
-                                                    17,
+                                                    10,
                                                 ),
                                                 metadata: RuntimeTypeTestMetadata {
                                                     source_ty: TypeId(
-                                                        0,
+                                                        5,
                                                     ),
                                                     target_ty: TypeId(
-                                                        17,
+                                                        10,
                                                     ),
                                                     descriptor: RuntimeTypeDescriptorKey {
                                                         ty: TypeId(
-                                                            17,
+                                                            10,
                                                         ),
                                                         kind: Nominal {
                                                             fqn: "mir_refactor.runtime_typecheck_cast.Holder",
@@ -534,7 +564,7 @@ File {
                                                     parameterized: Nominal {
                                                         type_args: [
                                                             TypeId(
-                                                                5,
+                                                                0,
                                                             ),
                                                         ],
                                                         effect_arg: None,
@@ -557,6 +587,58 @@ File {
                                     Statement {
                                         span: 552..562,
                                         kind: Assign {
+                                            target: l9,
+                                            value: TypeCheck {
+                                                value: Local(
+                                                    l0,
+                                                ),
+                                                op: Is,
+                                                test_ty: TypeId(
+                                                    2,
+                                                ),
+                                                metadata: RuntimeTypeTestMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    target_ty: TypeId(
+                                                        2,
+                                                    ),
+                                                    descriptor: RuntimeTypeDescriptorKey {
+                                                        ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Nominal {
+                                                            fqn: "mir_refactor.runtime_typecheck_cast.IFace",
+                                                            kind: Some(
+                                                                Interface,
+                                                            ),
+                                                        },
+                                                    },
+                                                    static_fold: Dynamic,
+                                                    parameterized: None,
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 552..562,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l9,
+                                        ),
+                                        then_target: bb1,
+                                        else_target: bb2,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 552..562,
+                                        kind: Assign {
                                             target: l8,
                                             value: Cast {
                                                 value: Local(
@@ -564,19 +646,19 @@ File {
                                                 ),
                                                 op: As,
                                                 target_ty: TypeId(
-                                                    11,
+                                                    2,
                                                 ),
                                                 metadata: RuntimeCastMetadata {
                                                     test: RuntimeTypeTestMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            5,
                                                         ),
                                                         target_ty: TypeId(
-                                                            11,
+                                                            2,
                                                         ),
                                                         descriptor: RuntimeTypeDescriptorKey {
                                                             ty: TypeId(
-                                                                11,
+                                                                2,
                                                             ),
                                                             kind: Nominal {
                                                                 fqn: "mir_refactor.runtime_typecheck_cast.IFace",
@@ -585,26 +667,136 @@ File {
                                                                 ),
                                                             },
                                                         },
-                                                        static_fold: Dynamic,
+                                                        static_fold: AlwaysTrue,
                                                         parameterized: None,
                                                     },
                                                     failure: Raise {
                                                         effect_ty: Some(
                                                             TypeId(
-                                                                14,
+                                                                13,
                                                             ),
                                                         ),
                                                         error_fqn: "scoop.core.RuntimeError.ClassCastFailed",
                                                     },
                                                     result: Target {
                                                         ty: TypeId(
-                                                            11,
+                                                            2,
                                                         ),
                                                     },
                                                 },
                                             },
                                         },
                                     },
+                                ],
+                                terminator: Terminator {
+                                    span: 552..562,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 552..562,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "scoop.core.RuntimeError.ClassCastFailed",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 552..562,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: PerformResult {
+                                                op_fqn: "scoop.core.Raise.raise",
+                                                effect_ty: TypeId(
+                                                    13,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 552..562,
+                                    kind: Perform {
+                                        site_id: site0,
+                                        op_fqn: "scoop.core.Raise.raise",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                13,
+                                            ),
+                                            result_ty: TypeId(
+                                                8,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    7,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    7,
+                                                ),
+                                            ],
+                                            payload_transport: [
+                                                ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        7,
+                                                    ),
+                                                    kind: EffectPayload,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: true,
+                                                        copy: true,
+                                                        drop: true,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                7,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    7,
+                                                                ),
+                                                            ),
+                                                            reason: EffectPayload,
+                                                        },
+                                                    ),
+                                                },
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 552..562,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l10,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb4,
+                                    },
+                                    unwind: Propagate,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
                                     Statement {
                                         span: 531..562,
                                         kind: Assign {
@@ -619,26 +811,26 @@ File {
                                     Statement {
                                         span: 599..616,
                                         kind: Assign {
-                                            target: l10,
+                                            target: l13,
                                             value: Cast {
                                                 value: Local(
                                                     l0,
                                                 ),
                                                 op: AsQ,
                                                 target_ty: TypeId(
-                                                    17,
+                                                    10,
                                                 ),
                                                 metadata: RuntimeCastMetadata {
                                                     test: RuntimeTypeTestMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            5,
                                                         ),
                                                         target_ty: TypeId(
-                                                            17,
+                                                            10,
                                                         ),
                                                         descriptor: RuntimeTypeDescriptorKey {
                                                             ty: TypeId(
-                                                                17,
+                                                                10,
                                                             ),
                                                             kind: Nominal {
                                                                 fqn: "mir_refactor.runtime_typecheck_cast.Holder",
@@ -651,7 +843,7 @@ File {
                                                         parameterized: Nominal {
                                                             type_args: [
                                                                 TypeId(
-                                                                    5,
+                                                                    0,
                                                                 ),
                                                             ],
                                                             effect_arg: None,
@@ -660,10 +852,10 @@ File {
                                                     failure: ReturnNone,
                                                     result: Option {
                                                         option_ty: TypeId(
-                                                            18,
+                                                            9,
                                                         ),
                                                         some_ty: TypeId(
-                                                            17,
+                                                            10,
                                                         ),
                                                     },
                                                 },
@@ -673,10 +865,10 @@ File {
                                     Statement {
                                         span: 567..616,
                                         kind: Assign {
-                                            target: l9,
+                                            target: l12,
                                             value: Use(
                                                 Local(
-                                                    l10,
+                                                    l13,
                                                 ),
                                             ),
                                         },
@@ -684,10 +876,10 @@ File {
                                     Statement {
                                         span: 657..665,
                                         kind: Assign {
-                                            target: l12,
+                                            target: l15,
                                             value: PatternMatch {
                                                 subject: Local(
-                                                    l9,
+                                                    l12,
                                                 ),
                                                 pattern: Variant {
                                                     name: "Some",
@@ -695,7 +887,7 @@ File {
                                                         Bind {
                                                             name: "_o",
                                                             ty: TypeId(
-                                                                17,
+                                                                10,
                                                             ),
                                                         },
                                                     ],
@@ -708,10 +900,57 @@ File {
                                     span: 657..683,
                                     kind: CondBr {
                                         cond: Local(
-                                            l12,
+                                            l15,
                                         ),
-                                        then_target: bb3,
-                                        else_target: bb2,
+                                        then_target: bb7,
+                                        else_target: bb6,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 552..562,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Transport {
+                                                value: Local(
+                                                    l11,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        8,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                8,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    2,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 552..562,
+                                    kind: Goto {
+                                        target: bb3,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -724,7 +963,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l11,
+                                                l14,
                                             ),
                                         ),
                                     },
@@ -737,10 +976,10 @@ File {
                                     Statement {
                                         span: 692..696,
                                         kind: Assign {
-                                            target: l15,
+                                            target: l18,
                                             value: PatternMatch {
                                                 subject: Local(
-                                                    l9,
+                                                    l12,
                                                 ),
                                                 pattern: Variant {
                                                     name: "None",
@@ -754,10 +993,10 @@ File {
                                     span: 692..701,
                                     kind: CondBr {
                                         cond: Local(
-                                            l15,
+                                            l18,
                                         ),
-                                        then_target: bb5,
-                                        else_target: bb4,
+                                        then_target: bb9,
+                                        else_target: bb8,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -768,10 +1007,10 @@ File {
                                     Statement {
                                         span: 662..664,
                                         kind: Assign {
-                                            target: l13,
+                                            target: l16,
                                             value: PatternExtract {
                                                 subject: Local(
-                                                    l9,
+                                                    l12,
                                                 ),
                                                 path: [
                                                     VariantField {
@@ -785,9 +1024,9 @@ File {
                                     Statement {
                                         span: 669..683,
                                         kind: Assign {
-                                            target: l14,
+                                            target: l17,
                                             value: Call {
-                                                site_id: site0,
+                                                site_id: site1,
                                                 kind: Interface {
                                                     receiver: Local(
                                                         l7,
@@ -795,8 +1034,12 @@ File {
                                                     dispatch: DispatchMetadata {
                                                         owner_fqn: "mir_refactor.runtime_typecheck_cast.IFace",
                                                         member_name: "ping",
+                                                        member_fqn: "mir_refactor.runtime_typecheck_cast.IFace.ping",
+                                                        member_decl_span: Some(
+                                                            208..212,
+                                                        ),
                                                         receiver_ty: TypeId(
-                                                            11,
+                                                            2,
                                                         ),
                                                     },
                                                 },
@@ -804,7 +1047,7 @@ File {
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            5,
+                                                            0,
                                                         ),
                                                         kind: Scalar,
                                                         requirements: MirTransportRequirements {
@@ -817,6 +1060,7 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
+                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -830,10 +1074,10 @@ File {
                                     Statement {
                                         span: 657..683,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l14,
                                             value: Use(
                                                 Local(
-                                                    l14,
+                                                    l17,
                                                 ),
                                             ),
                                         },
@@ -842,7 +1086,7 @@ File {
                                 terminator: Terminator {
                                     span: 657..683,
                                     kind: Goto {
-                                        target: bb1,
+                                        target: bb5,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -862,7 +1106,7 @@ File {
                                     Statement {
                                         span: 700..701,
                                         kind: Assign {
-                                            target: l16,
+                                            target: l19,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -873,10 +1117,10 @@ File {
                                     Statement {
                                         span: 692..701,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l14,
                                             value: Use(
                                                 Local(
-                                                    l16,
+                                                    l19,
                                                 ),
                                             ),
                                         },
@@ -885,7 +1129,7 @@ File {
                                 terminator: Terminator {
                                     span: 692..701,
                                     kind: Goto {
-                                        target: bb1,
+                                        target: bb5,
                                     },
                                     unwind: NoUnwind,
                                 },
@@ -902,20 +1146,20 @@ File {
                 fqn: "mir_refactor.runtime_typecheck_cast.IFace.ping",
                 name: "ping",
                 ty: TypeId(
-                    19,
+                    14,
                 ),
                 params: [
                     Param {
                         span: 192..197,
                         name: "this",
                         ty: TypeId(
-                            11,
+                            2,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: None,
             },
@@ -926,20 +1170,20 @@ File {
                 fqn: "mir_refactor.runtime_typecheck_cast.Impl.ping",
                 name: "ping",
                 ty: TypeId(
-                    21,
+                    15,
                 ),
                 params: [
                     Param {
                         span: 248..252,
                         name: "this",
                         ty: TypeId(
-                            20,
+                            16,
                         ),
                         local: l0,
                     },
                 ],
                 return_ty: TypeId(
-                    5,
+                    0,
                 ),
                 body: Some(
                     Body {
@@ -950,7 +1194,7 @@ File {
                                     "this",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    16,
                                 ),
                                 source: SourceLocal,
                             },
@@ -960,7 +1204,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    5,
+                                    0,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -970,7 +1214,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    2,
+                                    11,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1022,5 +1266,5 @@ codegen_routing_facts:
     route: PlainLocalControlHandoff
     reason: plain ABI body contains local control or non-raw call-site features
     abi: DeferredToEffectFacts impl_plan=DeferredToEffectFacts resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: InterfaceCall
+    features: Perform, PerformResult, InterfaceCall
     span: 364..709

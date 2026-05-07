@@ -69,6 +69,12 @@ File {
                                                     Unit,
                                                 ),
                                                 fn_ptr: "a.main.$lambda0",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        2,
+                                                    ),
+                                                    captures: [],
+                                                },
                                             },
                                         },
                                     },
@@ -100,11 +106,10 @@ File {
                                             target: l2,
                                             value: Call {
                                                 site_id: site0,
-                                                kind: Closure {
+                                                kind: FunValue {
                                                     callee: Local(
                                                         l0,
                                                     ),
-                                                    fn_ptr: "a.main.$lambda0",
                                                 },
                                                 args: [
                                                     CallArg {
@@ -115,6 +120,30 @@ File {
                                                         ),
                                                     },
                                                 ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
