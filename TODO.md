@@ -46,7 +46,8 @@
 | `CG-T07S0a9` | CG7S0a9 | [DONE] 修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a10` | CG7S0a10 | [DONE] 修复 nothing_raise_coerce_to_any_type 中 nested try/catch + `Raise.raise` 的 Nothing/bottom-type HandleDispatch routing contract 歧义，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a11` | CG7S0a11 | [DONE] 修复 object_companion_value_named_nested_init_basic 中 nested object / named companion value access 被误当成 member field target，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a12` | CG7S0a12 | 修复 operator_overload_struct_basic 中 struct `compareTo` direct-call lowering 把 `Int` 结果误强制成 struct target，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a12` | CG7S0a12 | [DONE] 修复 operator_overload_struct_basic 中 struct `compareTo` direct-call lowering 把 `Int` 结果误强制成 struct target，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a13` | CG7S0a13 | 修复 safe_member_access_ref_and_extension_basic 中 safe-call `Option` `Some`/`None` lowering 仍退化成 `ctor call lowering pending`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1155,7 +1156,7 @@
   - 2026-05-08：将 MIR/effect-refactor 的 resolved static value 判定补齐为包含 `object_inits.contains_key(fqn)`，并让 `mir_member_resolved_static_value_cg_ty()` 对 singleton value 返回 `CgTy::Ref`；新增 `llvm::tests::production_codegen_lowers_nested_object_and_named_companion_value_access` 回归，覆盖 nested object / named companion 值引用与成员访问继续通过 singleton once-init / backing 主线。
   - 2026-05-08：验证通过：`cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver`、`cargo test -p scoopc production_codegen_lowers_nested_object_and_named_companion_value_access`、`cargo run -p scoop -- build tests/fixtures/run-pass/object_companion_value_named_nested_init_basic.scoop -o /tmp/object_companion_value_named_nested_init_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/object_companion_value_named_nested_init_basic.scoop`、`cargo run -p scoop -- test`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `object_companion_value_named_nested_init_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/operator_overload_struct_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a12`。
 
-## CG-T07S0a12：修复 operator_overload_struct_basic 中 struct `compareTo` direct-call lowering 把 `Int` 结果误强制成 struct target，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a12：修复 operator_overload_struct_basic 中 struct `compareTo` direct-call lowering 把 `Int` 结果误强制成 struct target，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T03`
@@ -1185,6 +1186,41 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a11` 修复后，默认 full-suite 继续前进到 `operator_overload_struct_basic.scoop`；build 诊断显示 struct `compareTo` direct-call result 在 refactor pure assignment / compare lowering 中仍被误强制成 struct target，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：根因定位为 `crates/scoopc/src/mir/lower.rs` 的 `try_lower_compare_to_binary_expr()` 会对已经被 HIR canonicalize 成 `compareTo(...) < SynthInt(0)` 的比较再次套用 compareTo 语法糖，错误生成第二次 `Num.compareTo(compare_result, 0)`；随后的 refactor pure assignment / direct-call lowering 因此把 authoritative `Int` 结果重新送入 struct target 路径并报 `unsupported value coercion from Int(...) to Struct(...)`。
+  - 2026-05-08：为 canonical compareTo binary 新增防重写守卫，避免 MIR 再次生成嵌套 `compareTo` direct-call；强化 `mir::lower` compareTo 定向单测，断言每个比较点只保留一次 direct-call，并扩展 `llvm::tests::frontend_codegen_consumes_compare_to_direct_calls_without_eager_member_inclusion` 以在 production LLVM IR 中守护 direct-call 次数。
+  - 2026-05-08：验证通过：`cargo test -p scoopc dump_mir_lowers_user_defined_compare_to_as_direct_call_plus_zero_compare`、`cargo test -p scoopc dump_mir_lowers_compare_to_in_if_condition_as_direct_call`、`cargo test -p scoopc frontend_codegen_consumes_compare_to_direct_calls_without_eager_member_inclusion`、`cargo fmt --all`、`cargo run -p scoop -- build tests/fixtures/run-pass/operator_overload_struct_basic.scoop -o /tmp/operator_overload_struct_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/operator_overload_struct_basic.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `operator_overload_struct_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a13`。
+
+## CG-T07S0a13：修复 safe_member_access_ref_and_extension_basic 中 safe-call `Option` `Some`/`None` lowering 仍退化成 `ctor call lowering pending`，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T03`
+  - [`TODO.md`](./TODO.md) `MIR-T07`
+  - `tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop`
+- 背景：
+  - 在 `CG-T07S0a12` 修复 `operator_overload_struct_basic.scoop` 的 struct `compareTo` direct-call result contract 漂移后，默认 `cargo run -p scoop -- test` 不再停在该 fixture，而是继续暴露 `tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop -o /tmp/safe_member_access_ref_and_extension_basic` 会在 materialized MIR 验证阶段报 `materialized MIR \`main\` contains rvalue todo \`ctor call lowering pending\` in Some(bb3) at 800..802`；`dump-hir` 显示 safe-call desugaring 生成的 `when` arm body 仍把 `Some(...)` / `None` 保留为 `UnresolvedIdent`，说明 `Option` variant ctor/value 的 authoritative contract 没有进入 safe member access 主线。
+
+- 必须实现的内容：
+  1. 修复 safe-call / safe member access lowering 对 `Option` result 构造的 contract 归类，确保 `someUser?.score`、`someUser?.doubleScore`、`someConfig?.port` 与对应 `None` 分支都通过 authoritative `Option.Some` / `Option.None` variant ctor/value lowering，而不是退化成 `UnresolvedIdent` -> `ctor call lowering pending`。
+  2. 保持 `safe_member_access_ref_and_extension_basic.scoop` 的语义：`Some(receiver)` 分支返回 `Some(member)`，`None` 分支返回 `None`；class field、object field 与 extension property 三类 safe member access 都必须沿用既有 safe-call / `when` 主线，不得改 fixture、绕开 `Option`、或回退到 legacy path。
+  3. 补最小回归验证，确保该 fixture 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许在 materialized MIR / LLVM backend 现场按 `Option<T>` 目标类型私补 `Some`/`None` 构造；必须修正 authoritative safe-call / ctor lowering 主线。
+  - 不允许把 safe member access 特判成仅 fixture 可用的局部修补，或改写成绕过 `Option` variant contract 的 bespoke lowering。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop -o /tmp/safe_member_access_ref_and_extension_basic`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `safe_member_access_ref_and_extension_basic.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a12`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a12` 修复后，默认 full-suite 继续前进到 `safe_member_access_ref_and_extension_basic.scoop`；build 诊断显示 materialized MIR `main` 仍含 `ctor call lowering pending`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：`dump-hir` 显示 safe-call desugaring 的 `when` arm body 仍把 `Some(...)` / `None` 表达成 `UnresolvedIdent`；`crates/scoopc/src/mir/lower.rs` 因此把相关 call callee 识别为 `ValueOrigin::UnresolvedName` 并发射 `Rvalue::Todo("ctor call lowering pending")`。后续任务需把 `Option` variant ctor/value contract 接回 authoritative safe-call / ctor lowering 主线。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1212,7 +1248,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1230,6 +1266,7 @@
   - 2026-05-08：`CG-T07S0a9` 修复后，默认 full-suite 又继续前进到 `nothing_raise_coerce_to_any_type.scoop`；build 诊断显示 refactor HandleDispatch lowering 仍把同一 boundary case 发布成多个 routing contract，按顺序约束新增 prerequisite `CG-T07S0a10`，本任务保持未完成，等待 `CG-T07S0a10` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a10` 修复后，默认 full-suite 又继续前进到 `object_companion_value_named_nested_init_basic.scoop`；build 诊断显示 nested object / named companion value access 仍被误送进 `pass MIR member field target` lowering，按顺序约束新增 prerequisite `CG-T07S0a11`，本任务保持未完成，等待 `CG-T07S0a11` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a11` 修复后，默认 full-suite 又继续前进到 `operator_overload_struct_basic.scoop`；build 诊断显示 struct `compareTo` direct-call result 在 refactor pure assignment / compare lowering 中仍被误强制成 struct target，按顺序约束新增 prerequisite `CG-T07S0a12`，本任务保持未完成，等待 `CG-T07S0a12` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a12` 修复后，默认 full-suite 又继续前进到 `safe_member_access_ref_and_extension_basic.scoop`；build 诊断显示 safe-call `Option` result arm body 仍会退化成 `ctor call lowering pending`，按顺序约束新增 prerequisite `CG-T07S0a13`，本任务保持未完成，等待 `CG-T07S0a13` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

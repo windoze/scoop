@@ -1478,6 +1478,19 @@ fun main(): Int {
             .callable("fixtures.t5000j1b.Unused.compareTo")
             .is_none()
     );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    assert_eq!(
+        ir.matches("call i64 @fixtures.t5000j1b.Metric.compareTo(")
+            .count(),
+        2,
+        "production LLVM 中每个 compareTo 比较点都应只保留一次 direct-call：\n{ir}"
+    );
 }
 
 #[test]

@@ -5810,6 +5810,9 @@ impl<'a> FnLowering<'a> {
         let binding = self
             .facts
             .top_level_fun_call_binding(self.source_path.as_path(), span)?;
+        if self.compare_to_binary_already_lowered(lhs, rhs, binding.fqn.as_str()) {
+            return None;
+        }
         let result = self.push_temp_local(span, result_ty);
         let lhs_local = self.lower_expr_to_local(lhs);
         if self.current_is_terminated() {
@@ -5865,6 +5868,33 @@ impl<'a> FnLowering<'a> {
             },
         );
         Some(result)
+    }
+
+    fn compare_to_binary_already_lowered(
+        &self,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+        expected_fqn: &str,
+    ) -> bool {
+        if lhs.ty != self.builtins.int || rhs.ty != self.builtins.int {
+            return false;
+        }
+        if !matches!(
+            rhs.kind,
+            hir::ExprKind::Literal(hir::LiteralKind::SynthInt(0))
+        ) {
+            return false;
+        }
+        matches!(
+            &lhs.kind,
+            hir::ExprKind::Call { callee, args }
+                if args.len() == 2
+                    && matches!(
+                        &callee.kind,
+                        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. })
+                            if fqn == expected_fqn
+                    )
+        )
     }
 
     /// 降低变量引用：
@@ -6865,42 +6895,68 @@ fun entry(lhs: Num, rhs: Num): Bool {
             .expect("expected entry MIR root");
         let body = fun.body.as_ref().expect("entry should have a MIR body");
         let entry_block = &body.blocks[body.start.as_usize()];
+        let compare_to_call_targets = entry_block
+            .stmts
+            .iter()
+            .filter_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    target,
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
+                            ..
+                        },
+                    ..
+                } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2 => {
+                    Some(*target)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            compare_to_call_targets.len(),
+            1,
+            "generic MIR compareTo lowering 不应重复套用 compareTo 语法糖"
+        );
+        let zero_locals = entry_block
+            .stmts
+            .iter()
+            .filter_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    target,
+                    value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                    ..
+                } => Some(*target),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
         assert!(
-            entry_block.stmts.iter().any(|stmt| matches!(
-                &stmt.kind,
-                StatementKind::Assign {
-                    value: Rvalue::Call {
-                        kind: CallKind::Direct { callee_fqn },
-                        args,
-                        ..
-                    },
-                    ..
-                } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2
-            )),
+            !compare_to_call_targets.is_empty(),
             "generic MIR compareTo lowering 应显式发射 direct-call target"
         );
         assert!(
-            entry_block.stmts.iter().any(|stmt| matches!(
-                &stmt.kind,
-                StatementKind::Assign {
-                    value: Rvalue::Binary { rhs: Operand::Local(local), .. },
+            entry_block.stmts.iter().any(|stmt| {
+                if let StatementKind::Assign {
+                    value:
+                        Rvalue::Binary {
+                            lhs: Operand::Local(lhs_local),
+                            rhs: Operand::Local(rhs_local),
+                            ..
+                        },
                     ..
-                } if matches!(
-                    body.locals.get(local.as_u32() as usize),
-                    Some(LocalDecl { .. })
-                )
-            )),
+                } = &stmt.kind
+                {
+                    *lhs_local == compare_to_call_targets[0] && zero_locals.contains(rhs_local)
+                } else {
+                    false
+                }
+            }),
             "compareTo direct-call 结果仍应继续进入普通 MIR Binary 比较主线"
         );
         assert!(
-            entry_block.stmts.iter().any(|stmt| matches!(
-                &stmt.kind,
-                StatementKind::Assign {
-                    value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
-                    ..
-                }
-            )),
+            !zero_locals.is_empty(),
             "compareTo → 0 比较应在 MIR 中保留显式的合成整数常量"
         );
     }
@@ -6940,38 +6996,63 @@ fun entry(lhs: Num, rhs: Num): Int {
             })
             .expect("expected entry MIR root");
         let body = fun.body.as_ref().expect("entry should have a MIR body");
-        let direct_call_stmt = body
+        let compare_to_call_targets = body
             .blocks
             .iter()
             .flat_map(|block| block.stmts.iter())
-            .find(|stmt| {
-                matches!(
-                    &stmt.kind,
-                    StatementKind::Assign {
-                        value: Rvalue::Call {
+            .filter_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    target,
+                    value:
+                        Rvalue::Call {
                             kind: CallKind::Direct { callee_fqn },
                             args,
                             ..
                         },
-                        ..
-                    } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2
-                )
-            });
+                    ..
+                } if callee_fqn == "fixtures.mirlower.Num.compareTo" && args.len() == 2 => {
+                    Some(*target)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let zero_locals = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .filter_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    target,
+                    value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                    ..
+                } => Some(*target),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         assert!(
-            direct_call_stmt.is_some(),
+            compare_to_call_targets.len() == 1,
             "if 条件里的 compareTo 比较也应显式发射 direct-call target"
         );
         assert!(
             body.blocks
                 .iter()
                 .flat_map(|block| block.stmts.iter())
-                .any(|stmt| matches!(
-                    &stmt.kind,
-                    StatementKind::Assign {
-                        value: Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                .any(|stmt| {
+                    if let StatementKind::Assign {
+                        value:
+                            Rvalue::Binary {
+                                lhs: Operand::Local(lhs_local),
+                                rhs: Operand::Local(rhs_local),
+                                ..
+                            },
                         ..
+                    } = &stmt.kind
+                    {
+                        *lhs_local == compare_to_call_targets[0] && zero_locals.contains(rhs_local)
+                    } else {
+                        false
                     }
-                )),
+                }),
             "if 条件里的 compareTo → 0 比较应保留显式 SynthInt(0)"
         );
     }
