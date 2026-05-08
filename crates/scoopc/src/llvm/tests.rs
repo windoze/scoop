@@ -1803,6 +1803,94 @@ fun main(): Int {
 }
 
 #[test]
+fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
+    fn find_local_init<'a>(body: &'a hir::Block, name: &str) -> &'a hir::Expr {
+        body.stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                hir::StmtKind::Val(val) if val.name.as_deref() == Some(name) => val.init.as_ref(),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected local `{name}` in lowered function body"))
+    }
+
+    fn assert_top_level_call(expr: &hir::Expr, expected_fqn: &str, expected_args: usize) {
+        let hir::ExprKind::Call { callee, args } = &expr.kind else {
+            panic!("expected direct call expr, actual: {:?}", expr.kind);
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            panic!("expected top-level callee, actual: {:?}", callee.kind);
+        };
+        assert_eq!(fqn, expected_fqn);
+        assert_eq!(args.len(), expected_args);
+    }
+
+    fn mir_fun_direct_call_count(fun: &crate::mir::FunDecl, expected_fqn: &str) -> usize {
+        let Some(body) = &fun.body else {
+            return 0;
+        };
+        body.blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .filter(|stmt| {
+                let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return false;
+                };
+                let crate::mir::Rvalue::Call { kind, .. } = value else {
+                    return false;
+                };
+                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                    return false;
+                };
+                callee_fqn == expected_fqn
+            })
+            .count()
+    }
+
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/string_trim_indent_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let main = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.name == "main" => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered main");
+    let body = main.body.as_ref().expect("main should have a body");
+
+    assert_top_level_call(find_local_init(body, "s"), "scoop.core.trimIndent", 1);
+    assert_top_level_call(find_local_init(body, "again"), "scoop.core.trimIndent", 1);
+
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let main_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.name == "main")
+        .expect("main should enter caller-side pass candidates");
+    assert!(
+        !mir_fun_contains_fun_value_call(main_mir),
+        "runtime String.trimIndent() member calls should lower to direct contracts, not FunValue calls"
+    );
+    assert_eq!(
+        mir_fun_direct_call_count(main_mir, "scoop.core.trimIndent"),
+        2,
+        "materialized MIR should contain exactly two direct calls to scoop.core.trimIndent"
+    );
+}
+
+#[test]
 fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

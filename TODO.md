@@ -56,7 +56,7 @@
 | `CG-T07S0a17` | CG7S0a17 | [DONE] 修复 star_projection_array_read_view 中 `Array<*>` 读视图把带 GC slot 的 `Any?` element transport trace contract 发布成漂移 shape，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a18` | CG7S0a18 | [DONE] 修复 stdlib_string_basic 中 String support-source intrinsic member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a19` | CG7S0a19 | [DONE] 修复 stdlib_string_methods_extended 中 `String.isEmpty` / `replace` / `charAt` / `repeat` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a20` | CG7S0a20 | 修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a20` | CG7S0a20 | [DONE] 修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a21` | CG7S0a21 | 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
 | `CG-T07S0a22` | CG7S0a22 | 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
 | `CG-T07S0a23` | CG7S0a23 | 修复 task/thread cross-thread runtime coordination 与 GC roots publication 回归 |
@@ -1520,7 +1520,7 @@
   - 2026-05-08：验证通过：`cargo test -p scoopc builtin_string_member_calls_lower_to_direct_calls -- --nocapture`、`cargo test -p scoopc builtin_string_intrinsic_member_calls_lower_to_direct_calls -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_string_methods_extended.scoop -o /tmp/stdlib_string_methods_extended`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_methods_extended.scoop`、`cargo clippy --all-targets -- -D warnings`。
   - 2026-05-08：`cargo run -p scoop -- test` 默认 full-suite 已越过 `stdlib_string_methods_extended.scoop`，但继续在 `tests/fixtures/run-pass/string_trim_indent_basic.scoop` 暴露 remaining `String.trimIndent()` builtin member call 新 blocker；按顺序约束新增 prerequisite `CG-T07S0a20`，当前任务标记完成。
 
-## CG-T07S0a20：修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a20：修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `T0827`
@@ -1551,6 +1551,10 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a19` 修复后，默认 full-suite 已越过 `stdlib_string_methods_extended.scoop`；单 fixture build 诊断显示 remaining `String.trimIndent()` builtin member call 仍退化成 `CallKind::FunValue` 并报 `unsupported main codegen node: refactor plain function-value callee type`，需先独立修复后才能继续完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：typecheck 现在对运行期 `String.trimIndent()` member call 发布 receiver-prefixed extension-style direct-call contract，写回 `ResolvedMemberRef::ExtensionFun` 与 call-arg binding；HIR/MIR/materialized MIR 统一 lower 成 `scoop.core.trimIndent(receiver)`，不再保留 unresolved `MemberAccess` / `CallKind::FunValue` callee。
+  - 2026-05-08：legacy LLVM dispatch 与 refactor direct-call lowering 同步接入 `scoop.core.trimIndent`，并新增 `builtin_string_trim_indent_member_calls_lower_to_direct_calls` 定向回归单测，覆盖 `string_trim_indent_basic.scoop` 中 f-string 结果与普通运行期 `String` 两处 `trimIndent()` 调用都落到 direct call contract。
+  - 2026-05-08：验证通过：`cargo test -p scoopc builtin_string_trim_indent_member_calls_lower_to_direct_calls -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/string_trim_indent_basic.scoop -o /tmp/string_trim_indent_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/string_trim_indent_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
+  - 2026-05-08：`cargo run -p scoop -- test` 默认 full-suite 已越过 `string_trim_indent_basic.scoop`；当前继续停在 `tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop` 的 timeout，上述 blocker 已由现有 prerequisite `CG-T07S0a23` 覆盖，因此本任务标记完成且不新增条目。
 
 ## CG-T07S0a21：修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return
 
@@ -1772,6 +1776,7 @@
   - 2026-05-08：`CG-T07S0a18` 完成并补齐 `String.byteLength()` / `getByte()` / `unsafeSliceBytes()` 的 build / run-pass / clippy 验证后，默认 full-suite 已越过 `stdlib_string_basic.scoop`，但继续在 `stdlib_string_methods_extended.scoop` 暴露 remaining `String.isEmpty()` / `replace()` / `charAt()` / `repeat()` builtin member call 新 blocker；按顺序约束新增 prerequisite `CG-T07S0a19`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a19` 完成并补齐 `String.isEmpty()` / `replace()` / `charAt()` / `repeat()` 的 build / run-pass / clippy 验证后，默认 full-suite 已越过 `stdlib_string_methods_extended.scoop`，但继续在 `string_trim_indent_basic.scoop` 暴露 remaining `String.trimIndent()` builtin member call 新 blocker；按顺序约束新增 prerequisite `CG-T07S0a20`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：使用 `tools/run_fixture_scan.sh --no-build --out-dir target/fixture-scan/round3-30s` 做逐 fixture 扫描后，确认除 `CG-T07S0a20` 覆盖的 `String.trimIndent()` 之外，还剩 12 个失败且可按 callable / ctor ABI、top-level / package compilation-unit contract、task/thread/GC coordination、frontend receiver `eff` row contract 四组根因收口；据此新增 prerequisites `CG-T07S0a21`-`CG-T07S0a24`，本任务继续保持未完成，等待这些 blocker 依序清理并同步更新 `FAILED_FIXTURES.md` 后再重跑 full-suite 验收。
+  - 2026-05-08：`CG-T07S0a20` 已完成并补齐 `trimIndent()` 的编译器回归、build / 单 fixture run-pass / clippy 验证；默认 full-suite 现已越过 `string_trim_indent_basic.scoop`，继续停在已存在的 `CG-T07S0a23` blocker `task_step_concurrent_running_trap.scoop`，因此本任务仍保持未完成，等待既有后续 prerequisites 依序收口。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

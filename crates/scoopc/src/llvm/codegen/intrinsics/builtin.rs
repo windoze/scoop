@@ -673,6 +673,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_string_method(span, receiver, "compareTo", &args[1..])
     }
 
+    /// T0827：body-less builtin extension `String.trimIndent()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.trimIndent()` 改写为 `scoop.core.trimIndent(receiver)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_trim_indent_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_trim_indent(span, receiver, &args[1..])
+    }
+
     /// T0120: body-less extension function `String.byteLength()` codegen 拦截。
     ///
     /// HIR lowering 将 `receiver.byteLength()` 改写为 `scoop.core.byteLength(receiver)`。

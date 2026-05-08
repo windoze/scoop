@@ -1355,6 +1355,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.compareTo" {
             return self.lower_refactor_core_string_compare_to_call(span, args, target_cg);
         }
+        if callee_fqn == "scoop.core.trimIndent" {
+            return self.lower_refactor_core_string_trim_indent_call(span, args, target_cg);
+        }
         if callee_fqn == "scoop.core.isEmpty" {
             return self.lower_refactor_core_string_is_empty_call(span, args, target_cg);
         }
@@ -4560,6 +4563,41 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             },
         );
         self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_trim_indent_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core trimIndent arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core trimIndent receiver value",
+        )?;
+        let runtime = self.codegen.declare_runtime_trim_indent();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into()],
+            "refactor_core_string_trim_indent",
+        )?;
+        let string = self.string_result_from_runtime_call(span, call, "scoop.core.trimIndent")?;
+        self.codegen.coerce_value(span, string, target_cg)
     }
 
     fn lower_refactor_core_string_is_empty_call(

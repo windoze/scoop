@@ -275,6 +275,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.compareTo" {
                 return self.codegen_sysroot_string_compare_to_ext(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.trimIndent" {
+                return self.codegen_sysroot_string_trim_indent_ext(span, callee.span, args);
+            }
             if dispatch_fqn == "scoop.core.byteLength" {
                 return self.codegen_sysroot_string_byte_length_ext(span, callee.span, args);
             }

@@ -5354,7 +5354,7 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.int);
         }
-        if member_name == "trimIndent" || member_name == "length" {
+        if member_name == "length" {
             if !args.is_empty() {
                 return Err(ExprTypeError::CallArityMismatch {
                     callee: member_name.to_string(),
@@ -5363,11 +5363,7 @@ fn infer_member_call_expr_type(
                     span: call_expr.span.into(),
                 });
             }
-            return Ok(if member_name == "length" {
-                builtins.int
-            } else {
-                builtins.string
-            });
+            return Ok(builtins.int);
         }
         // T1816/T0115: `String.concat/compareTo` 没有普通 sysroot 函数体，
         // 但 production HIR/MIR/codegen 需要 authoritative direct-call contract，
@@ -5466,7 +5462,8 @@ fn infer_member_call_expr_type(
         // 不能退化成 unresolved `MemberAccess` + `FunValue` callee。
         if matches!(
             member_name,
-            "isEmpty"
+            "trimIndent"
+                | "isEmpty"
                 | "replace"
                 | "charAt"
                 | "repeat"
@@ -5478,6 +5475,7 @@ fn infer_member_call_expr_type(
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(&callee_fqn, &call_args)?;
             let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
+                "trimIndent" => (Vec::new(), Vec::new(), builtins.string, false),
                 "isEmpty" => (Vec::new(), Vec::new(), builtins.bool_, false),
                 "replace" => (
                     vec!["old".to_string(), "new".to_string()],
