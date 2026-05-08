@@ -50,7 +50,8 @@
 | `CG-T07S0a13` | CG7S0a13 | [DONE] 修复 safe_member_access_ref_and_extension_basic 中 safe-call `Option` `Some`/`None` lowering 仍退化成 `ctor call lowering pending`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a14` | CG7S0a14 | [DONE] 修复 smart_cast_any_member_access_generic_class_basic 中 smart-cast 分支 generic class field access 仍把 result/frame slot 保留为 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a15a` | CG7S0a15a | [DONE] 修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker |
-| `CG-T07S0a15` | CG7S0a15 | 修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a15` | CG7S0a15 | [DONE] 修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a16` | CG7S0a16 | 修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1296,7 +1297,7 @@
   - 2026-05-08：`crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_refactor/value.rs` 与 `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 现可把这些 suffixed pass-visible callable 反查回 authoritative HIR signature/root，避免 plain/effect-refactor lowering 再把它们误判成缺 signature 的 function-value call。
   - 2026-05-08：验证通过：`cargo test -p scoopc materialize_for_dump_keeps_`、`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、直接执行 `/tmp/stdlib_hash_set_map_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`、`cargo fmt --all`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a15：修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a15：修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T04d`
@@ -1330,6 +1331,39 @@
   - 2026-05-08：已修复 `crates/scoopc/src/mir/materialize.rs` 中 alias receiver `MutableMap.set(...)` 的 array transport repair，`Get` / `Set` / `BuilderPush` 现在优先回读 target/result/value operand 的 authoritative concrete element type，不再依赖 alias `array_ty` 反推；新增 `materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete` 单测锁定 `scoop.collections.__map_alloc_empty_table` 的 `__scoop_array_builder_build_mutable_array` transport metadata 为 `MutableArray<Int>` / `Int`。`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic` 已通过。
   - 2026-05-08：继续执行 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 后，运行期失败已不再是 unresolved-`T` build blocker，而是 `MutableSet.asSet()` 只读视图在同一 body 组合 `Set.len()` / `Set.contains()` 时的结果漂移；按顺序约束新增 prerequisite `CG-T07S0a15a`，本任务保持未完成，等待 `CG-T07S0a15a` 修复后再恢复 run-pass / full-suite 验证。
   - 2026-05-08：`CG-T07S0a15a` 已完成后，`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、直接执行 `/tmp/stdlib_hash_set_map_basic` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 均通过；本任务现只剩按原验证要求恢复 `cargo run -p scoop -- test` 的默认 full-suite 验证，留待下一次调用继续。
+  - 2026-05-08：重跑 `cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 与 `cargo run -p scoop -- test`；默认 full-suite 已越过 `stdlib_hash_set_map_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop`。为锁定后续 blocker，直接 build/run 该 fixture 观测到 `bytes.get(0) == 3` 与 `argByte == 4` 两处实际输出为 `false`，而 `Float32` 路径保持正确，因此按顺序约束新增 prerequisite `CG-T07S0a16`。
+
+## CG-T07S0a16：修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `T0150h-2`
+  - `CG-T07S0a6`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop`
+- 背景：
+  - 在 `CG-T07S0a15` 修复 `stdlib_hash_set_map_basic.scoop` 的 HashMap/HashSet empty-table transport blocker 后，默认 `cargo run -p scoop -- test` 不再停在该 fixture，而是继续暴露 `tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop` 的 run-pass 失败。
+  - 直接执行 `cargo run -p scoop -- build tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop -o /tmp/literal_array_expected_type_nested_basic && /tmp/literal_array_expected_type_nested_basic` 可见实际输出首行与第三行为 `false`，而 golden 预期为 `true`；同一 fixture 中 `Float32` 路径与嵌套返回数组路径保持正确，说明问题集中在嵌套 `Array<UInt8>` element expected-type 沿 `if` / `when` / 函数参数路径继续传播时，仍有部分语义退回 `Int`。
+
+- 必须实现的内容：
+  1. 修复 `literal_array_expected_type_nested_basic.scoop` 中 `Array<UInt8>` element expected-type 的 authoritative typecheck/HIR/MIR/materialize/codegen contract，确保 `bytes` 与 `takeByte(...)` 路径中的 `if` / `when` / 数值表达式结果都稳定发布为 `UInt8`，不再在嵌套数组或调用边界前退回 `Int`。
+  2. 保持该 fixture 的整体语义：`bytes.get(0) == 3`、`argByte == 4` 恢复为 `true`，`Float32` 路径与 `retMatrix(true)` 的嵌套数组返回结果继续保持当前正确输出；不得通过改 fixture、改 golden、插入显式 cast、或在 backend 现场补 truncation/compare 特判规避问题。
+  3. 补最小回归验证，覆盖嵌套 `Array<UInt8>` element expected-type 在 `if` / `when` / 函数参数场景下的传播。
+
+- 必须遵从的约束：
+  - 不允许继续把嵌套 `Array<UInt8>` element path 退回 `Int`，再依赖 materialize/codegen/runtime 现场猜测收窄。
+  - 不允许通过放宽断言、修改 golden、或把问题局限成某一个 fixture 私有写法规避真实 expected-type 传播缺口。
+
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop`
+  2. 新增或复用最小回归，覆盖嵌套 `Array<UInt8>` element expected-type 在 `if` / `when` / 函数参数场景下的传播。
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `literal_array_expected_type_nested_basic.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a15`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a15` 修复后，默认 full-suite 继续前进到 `literal_array_expected_type_nested_basic.scoop`；直接 build/run 观测到 `bytes.get(0) == 3` 与 `argByte == 4` 两处输出为 `false`，而 `Float32` 路径仍正确，说明嵌套 `Array<UInt8>` element expected-type 传播主线仍需独立修复后，才能继续完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1357,7 +1391,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`，`CG-T07S0a16`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1378,6 +1412,7 @@
   - 2026-05-08：`CG-T07S0a12` 修复后，默认 full-suite 又继续前进到 `safe_member_access_ref_and_extension_basic.scoop`；build 诊断显示 safe-call `Option` result arm body 仍会退化成 `ctor call lowering pending`，按顺序约束新增 prerequisite `CG-T07S0a13`，本任务保持未完成，等待 `CG-T07S0a13` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a13` 修复后，默认 full-suite 又继续前进到 `smart_cast_any_member_access_generic_class_basic.scoop`；build 诊断显示 smart-cast 分支的 generic class field access 仍把 `x.value` 的 result/frame slot 保留为 unresolved generic `T`，按顺序约束新增 prerequisite `CG-T07S0a14`，本任务保持未完成，等待 `CG-T07S0a14` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a14` 修复后，默认 full-suite 又继续前进到 `stdlib_hash_set_map_basic.scoop`；build 诊断显示 materialized MIR `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved generic `T`，按顺序约束新增 prerequisite `CG-T07S0a15`，本任务保持未完成，等待 `CG-T07S0a15` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a15` 修复并补齐其 build / run-pass / full-suite 验证后，默认 full-suite 已越过 `stdlib_hash_set_map_basic.scoop`，但继续在 `literal_array_expected_type_nested_basic.scoop` 暴露新的 stdout mismatch；直接 build/run 可见嵌套 `Array<UInt8>` expected-type 路径仍使 `bytes.get(0) == 3` 与 `argByte == 4` 输出为 `false`，按顺序约束新增 prerequisite `CG-T07S0a16`，本任务保持未完成，等待 `CG-T07S0a16` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 
