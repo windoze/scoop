@@ -1355,6 +1355,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.compareTo" {
             return self.lower_refactor_core_string_compare_to_call(span, args, target_cg);
         }
+        if callee_fqn == "scoop.core.byteLength" {
+            return self.lower_refactor_core_string_byte_length_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.getByte" {
+            return self.lower_refactor_core_string_get_byte_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.unsafeSliceBytes" {
+            return self.lower_refactor_core_string_unsafe_slice_bytes_call(span, args, target_cg);
+        }
         if matches!(
             callee_fqn.as_str(),
             "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
@@ -4539,6 +4548,281 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             },
         );
         self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_byte_length_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core byteLength arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core byteLength receiver value",
+        )?;
+        let len_ptr = self.codegen.builder.build_struct_gep(
+            self.codegen.llvm_scoop_string_type(),
+            receiver_ptr,
+            1,
+            "refactor_core_byte_length_gep",
+        )?;
+        let raw = self.codegen.builder.build_load(
+            self.codegen.context.i64_type(),
+            len_ptr,
+            "refactor_core_byte_length",
+        )?;
+        let BasicValueEnum::IntValue(result) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core byteLength load type",
+                at: span.into(),
+            });
+        };
+        let value = CgValue::int(
+            result,
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_get_byte_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core getByte arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core getByte receiver value",
+        )?;
+        let index = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+        )?;
+        let Some(BasicValueEnum::IntValue(index_int)) = index.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core getByte index value",
+                at: args[1].span.into(),
+            });
+        };
+
+        let i64_ty = self.codegen.context.i64_type();
+        let i8_ty = self.codegen.context.i8_type();
+        let len_ptr = self.codegen.builder.build_struct_gep(
+            self.codegen.llvm_scoop_string_type(),
+            receiver_ptr,
+            1,
+            "refactor_core_get_byte_len_gep",
+        )?;
+        let len_val = self
+            .codegen
+            .builder
+            .build_load(i64_ty, len_ptr, "refactor_core_get_byte_len")?
+            .into_int_value();
+        let data_ptr_ptr = self.codegen.builder.build_struct_gep(
+            self.codegen.llvm_scoop_string_type(),
+            receiver_ptr,
+            2,
+            "refactor_core_get_byte_data_gep",
+        )?;
+        let data_ptr = self
+            .codegen
+            .builder
+            .build_load(
+                self.codegen.llvm_i8_ptr_type(),
+                data_ptr_ptr,
+                "refactor_core_get_byte_data",
+            )?
+            .into_pointer_value();
+
+        let current_fn = self
+            .codegen
+            .builder
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+        let in_bounds_bb = self
+            .codegen
+            .context
+            .append_basic_block(current_fn, "refactor_getByte_in_bounds");
+        let out_of_bounds_bb = self
+            .codegen
+            .context
+            .append_basic_block(current_fn, "refactor_getByte_out_of_bounds");
+        let merge_bb = self
+            .codegen
+            .context
+            .append_basic_block(current_fn, "refactor_getByte_merge");
+
+        let is_negative = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::SLT,
+            index_int,
+            i64_ty.const_zero(),
+            "refactor_getByte_negative",
+        )?;
+        let not_negative_bb = self
+            .codegen
+            .context
+            .append_basic_block(current_fn, "refactor_getByte_not_negative");
+        self.codegen.builder.build_conditional_branch(
+            is_negative,
+            out_of_bounds_bb,
+            not_negative_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(not_negative_bb);
+        let is_ge_len = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::SGE,
+            index_int,
+            len_val,
+            "refactor_getByte_ge_len",
+        )?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_ge_len, out_of_bounds_bb, in_bounds_bb)?;
+
+        self.codegen.builder.position_at_end(out_of_bounds_bb);
+        let zero_val = i64_ty.const_zero();
+        self.codegen.builder.build_unconditional_branch(merge_bb)?;
+
+        self.codegen.builder.position_at_end(in_bounds_bb);
+        let byte_ptr = unsafe {
+            self.codegen.builder.build_in_bounds_gep(
+                i8_ty,
+                data_ptr,
+                &[index_int],
+                "refactor_core_get_byte_elem_gep",
+            )?
+        };
+        let byte_val = self
+            .codegen
+            .builder
+            .build_load(i8_ty, byte_ptr, "refactor_core_get_byte_val")?
+            .into_int_value();
+        let byte_i64 = self.codegen.builder.build_int_z_extend(
+            byte_val,
+            i64_ty,
+            "refactor_core_get_byte_zext",
+        )?;
+        self.codegen.builder.build_unconditional_branch(merge_bb)?;
+
+        self.codegen.builder.position_at_end(merge_bb);
+        let phi = self
+            .codegen
+            .builder
+            .build_phi(i64_ty, "refactor_core_get_byte_result")?;
+        phi.add_incoming(&[(&zero_val, out_of_bounds_bb), (&byte_i64, in_bounds_bb)]);
+        let value = CgValue::int(
+            phi.as_basic_value().into_int_value(),
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_unsafe_slice_bytes_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core unsafeSliceBytes arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core unsafeSliceBytes receiver value",
+        )?;
+        let offset = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+        )?;
+        let Some(offset_val) = offset.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core unsafeSliceBytes offset value",
+                at: args[1].span.into(),
+            });
+        };
+        let len = self.codegen.codegen_mir_operand_expected(
+            args[2].span,
+            &args[2].value,
+            self.slots,
+            Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+        )?;
+        let Some(len_val) = len.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core unsafeSliceBytes len value",
+                at: args[2].span.into(),
+            });
+        };
+
+        let runtime = self.codegen.declare_runtime_string_unsafe_slice_bytes();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), offset_val.into(), len_val.into()],
+            "refactor_core_string_unsafe_slice_bytes",
+        )?;
+        let string =
+            self.string_result_from_runtime_call(span, call, "scoop.core.unsafeSliceBytes")?;
+        self.codegen.coerce_value(span, string, target_cg)
     }
 
     fn maybe_lower_refactor_float_ext_call(

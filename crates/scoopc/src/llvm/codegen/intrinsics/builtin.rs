@@ -673,6 +673,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_string_method(span, receiver, "compareTo", &args[1..])
     }
 
+    /// T0120: body-less extension function `String.byteLength()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.byteLength()` 改写为 `scoop.core.byteLength(receiver)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_byte_length_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "byteLength ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "byteLength ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "byteLength", &args[1..])
+    }
+
+    /// T0120: body-less extension function `String.getByte()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.getByte(index)` 改写为 `scoop.core.getByte(receiver, index)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_get_byte_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "getByte ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "getByte ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "getByte", &args[1..])
+    }
+
+    /// T0121: body-less extension function `String.unsafeSliceBytes()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.unsafeSliceBytes(offset, len)` 改写为
+    /// `scoop.core.unsafeSliceBytes(receiver, offset, len)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_unsafe_slice_bytes_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 3 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unsafeSliceBytes ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unsafeSliceBytes ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "unsafeSliceBytes", &args[1..])
+    }
+
     pub(in crate::llvm::codegen) fn codegen_sysroot_abs_ext(
         &mut self,
         span: crate::span::Span,

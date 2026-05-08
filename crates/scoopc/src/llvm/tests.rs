@@ -1579,6 +1579,114 @@ fun main(): Int {
 }
 
 #[test]
+fn builtin_string_intrinsic_member_calls_lower_to_direct_calls() {
+    fn find_local_init<'a>(body: &'a hir::Block, name: &str) -> &'a hir::Expr {
+        body.stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                hir::StmtKind::Val(val) if val.name.as_deref() == Some(name) => val.init.as_ref(),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected local `{name}` in lowered function body"))
+    }
+
+    fn assert_top_level_call(expr: &hir::Expr, expected_fqn: &str, expected_args: usize) {
+        let hir::ExprKind::Call { callee, args } = &expr.kind else {
+            panic!("expected direct call expr, actual: {:?}", expr.kind);
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            panic!("expected top-level callee, actual: {:?}", callee.kind);
+        };
+        assert_eq!(fqn, expected_fqn);
+        assert_eq!(args.len(), expected_args);
+    }
+
+    fn mir_fun_contains_direct_call(fun: &crate::mir::FunDecl, expected_fqn: &str) -> bool {
+        let Some(body) = &fun.body else {
+            return false;
+        };
+        body.blocks.iter().any(|block| {
+            block.stmts.iter().any(|stmt| {
+                let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return false;
+                };
+                let crate::mir::Rvalue::Call { kind, .. } = value else {
+                    return false;
+                };
+                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                    return false;
+                };
+                callee_fqn == expected_fqn
+            })
+        })
+    }
+
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j1d_string_intrinsic_member_calls.scoop",
+        r#"
+package fixtures.t5000j1d
+
+import scoop.core.*
+
+fun inspect(s: String, idx: Int): Int {
+    val len = s.byteLength()
+    val byte = s.getByte(idx)
+    val slice = @Unsafe do { s.unsafeSliceBytes(0, len) }
+    return byte + slice.byteLength()
+}
+
+fun main(): Int {
+    return inspect("hello", 1)
+}
+"#,
+    );
+    let inspect_fqn = "fixtures.t5000j1d.inspect";
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let inspect = codegen_unit
+        .lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == inspect_fqn => Some(fun),
+            _ => None,
+        })
+        .expect("expected lowered inspect helper");
+    let body = inspect.body.as_ref().expect("inspect should have a body");
+
+    assert_top_level_call(find_local_init(body, "len"), "scoop.core.byteLength", 1);
+    assert_top_level_call(find_local_init(body, "byte"), "scoop.core.getByte", 2);
+
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let inspect_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == inspect_fqn)
+        .expect("inspect helper should enter caller-side pass candidates");
+    assert!(
+        !mir_fun_contains_fun_value_call(inspect_mir),
+        "String intrinsic member calls should lower to direct contracts, not FunValue calls"
+    );
+    assert!(
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.byteLength"),
+        "materialized MIR should contain a direct call to scoop.core.byteLength"
+    );
+    assert!(
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.getByte"),
+        "materialized MIR should contain a direct call to scoop.core.getByte"
+    );
+    assert!(
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.unsafeSliceBytes"),
+        "materialized MIR should contain a direct call to scoop.core.unsafeSliceBytes"
+    );
+}
+
+#[test]
 fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

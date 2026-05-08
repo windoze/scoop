@@ -634,6 +634,30 @@ fn call_arg_binding_from_mapping_with_receiver_prefix(
     Some(ast::CallArgBinding { params })
 }
 
+fn record_receiver_prefixed_extension_call_binding(
+    lower: &mut TypeLowering<'_>,
+    call_span: Span,
+    member_span: Span,
+    callee_fqn: &str,
+    mapping: &[Option<usize>],
+    call_args: &[CallArgInfo<'_>],
+) {
+    lower.record_typechecked_member_resolution(
+        member_span,
+        ast::ResolvedMemberRef::ExtensionFun {
+            fqn: callee_fqn.to_string(),
+        },
+    );
+    let mapping = mapping
+        .iter()
+        .copied()
+        .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
+        .collect::<Vec<_>>();
+    if let Some(binding) = call_arg_binding_from_mapping_with_receiver_prefix(&mapping, call_args) {
+        lower.record_typechecked_call_arg_binding(call_span, binding);
+    }
+}
+
 fn call_arg_binding_from_optional_mapping(
     mapping: &[Option<usize>],
     call_args: &[CallArgInfo<'_>],
@@ -5485,47 +5509,90 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.string);
         }
-        // T0120: String.byteLength() — 0 args → Int (byte count of underlying UTF-8 data)
-        if member_name == "byteLength" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "byteLength".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
-        }
-        // T0120: String.getByte(index) — 1 Int arg → Int (raw byte value at index)
-        if member_name == "getByte" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "getByte".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
-        }
-        // T0121: String.unsafeSliceBytes(byteOffset, byteLength) — @Unsafe, 2 Int args → String
-        if member_name == "unsafeSliceBytes" {
-            if !lower.in_unsafe_context() {
+        // T0120/T0121: `byteLength/getByte/unsafeSliceBytes` 没有普通 sysroot 函数体，
+        // 但必须发布稳定的 extension-style call contract，避免 HIR/MIR 把成员调用退化成
+        // unresolved `MemberAccess` + `FunValue` callee。
+        if matches!(member_name, "byteLength" | "getByte" | "unsafeSliceBytes") {
+            let callee_fqn = format!("scoop.core.{member_name}");
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
+            check_call_arg_named_rules(&callee_fqn, &call_args)?;
+            let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
+                "byteLength" => (Vec::new(), Vec::new(), builtins.int, false),
+                "getByte" => (
+                    vec!["index".to_string()],
+                    vec![builtins.int],
+                    builtins.int,
+                    false,
+                ),
+                "unsafeSliceBytes" => (
+                    vec!["byteOffset".to_string(), "byteLength".to_string()],
+                    vec![builtins.int, builtins.int],
+                    builtins.string,
+                    true,
+                ),
+                _ => unreachable!("filtered by matches!"),
+            };
+            if requires_unsafe && !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: "String.unsafeSliceBytes".into(),
+                    callee: format!("String.{member_name}"),
                     span: call_expr.span.into(),
                 });
             }
-            if args.len() != 2 {
+            check_call_named_args_exist_in_any_candidate(
+                &callee_fqn,
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
+            if call_args.len() != param_names.len() {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: "unsafeSliceBytes".into(),
-                    expected: 2,
-                    found: args.len(),
+                    callee: member_name.into(),
+                    expected: param_names.len(),
+                    found: call_args.len(),
                     span: call_expr.span.into(),
                 });
             }
-            return Ok(builtins.string);
+            let param_has_defaults = vec![false; param_names.len()];
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            for (param_idx, expected_ty) in param_tys.iter().copied().enumerate() {
+                let Some(arg_idx) = mapping.get(param_idx).copied().flatten() else {
+                    return Err(ExprTypeError::CallArityMismatch {
+                        callee: member_name.into(),
+                        expected: param_names.len(),
+                        found: call_args.len(),
+                        span: call_expr.span.into(),
+                    });
+                };
+                let arg = &call_args[arg_idx];
+                if !is_type_assignable(arg.ty, expected_ty, lower, builtins)
+                    && !literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+                {
+                    return Err(ExprTypeError::CallArgTypeMismatch {
+                        callee: callee_fqn.clone(),
+                        index: param_idx + 1,
+                        expected: lower.fmt_type(expected_ty),
+                        found: lower.fmt_type(arg.ty),
+                        span: arg.expr.span.into(),
+                    });
+                }
+            }
+            record_receiver_prefixed_extension_call_binding(
+                lower,
+                call_expr.span,
+                member.span,
+                &callee_fqn,
+                &mapping,
+                &call_args,
+            );
+            return Ok(return_ty);
         }
     }
 
