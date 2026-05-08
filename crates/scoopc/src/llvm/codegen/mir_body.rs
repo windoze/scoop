@@ -8328,7 +8328,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "pass MIR FunPtr call return type",
                 at: span.into(),
             })?;
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        // `FunPtr<F>` carries a native/raw function pointer, so aggregate results must use the
+        // target's native return ABI rather than Scoop's internal hidden-sret convention.
+        let hidden_sret_result_ty = None;
 
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
             expected_arity

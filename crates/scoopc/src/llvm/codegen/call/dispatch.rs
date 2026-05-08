@@ -1709,7 +1709,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "funptr call return type",
                 at: callee_span.into(),
             })?;
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
+        // `FunPtr<F>` models a raw/native function pointer surface. Its call ABI must follow the
+        // target's native aggregate return lowering instead of Scoop's internal hidden-sret ABI.
+        let hidden_sret_result_ty = None;
 
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
             expected_arity

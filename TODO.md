@@ -1556,7 +1556,7 @@
   - 2026-05-08：验证通过：`cargo test -p scoopc builtin_string_trim_indent_member_calls_lower_to_direct_calls -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/string_trim_indent_basic.scoop -o /tmp/string_trim_indent_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/string_trim_indent_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
   - 2026-05-08：`cargo run -p scoop -- test` 默认 full-suite 已越过 `string_trim_indent_basic.scoop`；当前继续停在 `tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop` 的 timeout，上述 blocker 已由现有 prerequisite `CG-T07S0a23` 覆盖，因此本任务标记完成且不新增条目。
 
-## CG-T07S0a21：修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return
+## [DONE] CG-T07S0a21：修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return
 
 - 参考：
   - `CG-T03`
@@ -1597,6 +1597,11 @@
 
 - 完成记录：
   - 2026-05-08：作为 Round 3 per-fixture scan 新 blocker 组补录。当前 3 个失败分别暴露 named arg 绑定退回 positional、class ctor named/default arg-eval unsupported 与 unsafe `FunPtr` aggregate return 崩溃，先按同一 callable / ctor ABI 家族收口，再继续恢复 full-suite。
+  - 2026-05-08：HIR canonical call lowering 在 typed ctor binding 可用时同步把 ctor call-site `arg_mapping` 归一到 canonical param order，cross-file cone 包中的 `Box(y = 7)`、`Holder()` 等 ctor named/default 调用不再停在 `class ctor call arg eval` unsupported，而是进入 authoritative ctor contract。
+  - 2026-05-08：MIR call lowering 新增“HIR 实参已 canonical positional”判定；对 top-level direct call、callable value 与 member-style direct call，一旦 HIR 已用临时变量保留源码求值顺序并改写成 canonical positional args，就不再二次套用 call-arg binding，从而修复 monomorph / rewrite 后 top-level generic named args 仍被重新洗回 positional 绑定的问题，并新增 `top_level_generic_named_args_keep_canonical_param_order_in_pass_mir` 回归单测。
+  - 2026-05-08：LLVM `FunPtr` 间接调用在 `call/dispatch` 与 pass-MIR body emission 两条路径统一改用 target native aggregate return ABI，不再对 `FunPtr<(Int) -> (Int, Int)>` 强塞 Scoop hidden-sret；`runtime/c/scoop_test.c` 的测试 helper 同步改为按值返回聚合 struct，并新增 `unsafe_funptr_aggregate_return_uses_native_return_abi` IR 回归单测。
+  - 2026-05-08：已更新 `FAILED_FIXTURES.md`，从 Round 1/2/3 列表移除 `unsafe_funptr_aggregate_return_tuple.scoop`，并从 Round 3 列表移除 `top_level_generic_named_args_basic.scoop` 与 `run_pass_cone/cross_file_ctor_named_default_basic`。
+  - 2026-05-08：验证通过：`cargo test -p scoopc top_level_generic_named_args_keep_canonical_param_order_in_pass_mir -- --nocapture`、`cargo test -p scoopc unsafe_funptr_aggregate_return_uses_native_return_abi -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop -o /tmp/top_level_generic_named_args_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop`、`cargo run -p scoop -- build tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop -o /tmp/unsafe_funptr_aggregate_return_tuple`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a22：修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定
 

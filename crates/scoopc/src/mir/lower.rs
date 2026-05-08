@@ -3669,17 +3669,34 @@ impl<'a> FnLowering<'a> {
         ordered
     }
 
-    fn source_arg_expected_tys_for_function(
+    fn hir_call_args_are_already_canonical(args: &[hir::CallArg]) -> bool {
+        args.iter()
+            .all(|arg| matches!(arg, hir::CallArg::Positional(_)))
+    }
+
+    fn active_hir_call_arg_binding<'b>(
+        args: &[hir::CallArg],
+        binding: Option<&'b CallArgBindingContract>,
+    ) -> Option<&'b CallArgBindingContract> {
+        // HIR canonical call lowering has already turned named/default/receiver surfaces into
+        // ordered positional args while preserving source evaluation order with temporaries.
+        // MIR must not apply the same binding a second time, or those args get shuffled back.
+        if Self::hir_call_args_are_already_canonical(args) {
+            None
+        } else {
+            binding
+        }
+    }
+
+    fn source_arg_expected_tys_from_param_tys(
         &self,
-        function: &FunctionTargetContract,
+        param_tys: &[TypeId],
         explicit_arg_count: usize,
         args_include_receiver: bool,
+        binding: Option<&CallArgBindingContract>,
     ) -> Vec<Option<TypeId>> {
         let mut expected = vec![None; explicit_arg_count];
-        let Some(param_tys) = self.top_level_fun_param_tys.get(function.fqn()) else {
-            return expected;
-        };
-        if let Some(binding) = function.arg_binding() {
+        if let Some(binding) = binding {
             if args_include_receiver && call_arg_binding_has_receiver(binding) {
                 return expected;
             }
@@ -3743,9 +3760,8 @@ impl<'a> FnLowering<'a> {
         explicit_arg_count: usize,
         binding: Option<&CallArgBindingContract>,
     ) -> Vec<Option<TypeId>> {
-        let mut expected = vec![None; explicit_arg_count];
         let TypeKind::Ref(RefTypeKind::Function(fun)) = self.types.kind(callee_ty) else {
-            return expected;
+            return vec![None; explicit_arg_count];
         };
         let mut param_tys =
             Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
@@ -3753,14 +3769,7 @@ impl<'a> FnLowering<'a> {
             param_tys.push(receiver_ty);
         }
         param_tys.extend(fun.params.iter().copied());
-        if let Some(binding) = binding {
-            self.fill_expected_tys_from_arg_binding(&mut expected, &param_tys, binding);
-            return expected;
-        }
-        for (index, target_ty) in param_tys.iter().copied().enumerate().take(expected.len()) {
-            expected[index] = Some(target_ty);
-        }
-        expected
+        self.source_arg_expected_tys_from_param_tys(&param_tys, explicit_arg_count, false, binding)
     }
 
     fn lower_refactor_typed_call_expr(
@@ -3906,8 +3915,17 @@ impl<'a> FnLowering<'a> {
         let arg_binding = function
             .and_then(FunctionTargetContract::arg_binding)
             .filter(|binding| !call_arg_binding_has_receiver(binding));
+        let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let expected_tys = function
-            .map(|function| self.source_arg_expected_tys_for_function(function, args.len(), true))
+            .and_then(|function| self.top_level_fun_param_tys.get(function.fqn()))
+            .map(|param_tys| {
+                self.source_arg_expected_tys_from_param_tys(
+                    param_tys,
+                    args.len(),
+                    true,
+                    arg_binding,
+                )
+            })
             .unwrap_or_else(|| vec![None; args.len()]);
         let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
             return;
@@ -3986,6 +4004,7 @@ impl<'a> FnLowering<'a> {
             return;
         }
         let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
+        let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let expected_tys =
             self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len(), arg_binding);
         let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
@@ -4097,8 +4116,20 @@ impl<'a> FnLowering<'a> {
         if self.current_is_terminated() {
             return;
         }
-        let expected_tys =
-            self.source_arg_expected_tys_for_function(member.function(), call_args.len(), false);
+        let arg_binding =
+            Self::active_hir_call_arg_binding(call_args, member.function().arg_binding());
+        let expected_tys = self
+            .top_level_fun_param_tys
+            .get(member.function().fqn())
+            .map(|param_tys| {
+                self.source_arg_expected_tys_from_param_tys(
+                    param_tys,
+                    call_args.len(),
+                    false,
+                    arg_binding,
+                )
+            })
+            .unwrap_or_else(|| vec![None; call_args.len()]);
         let Some(args) = self.lower_call_args_with_expected(call_args, &expected_tys) else {
             return;
         };
@@ -4841,6 +4872,7 @@ impl<'a> FnLowering<'a> {
         let arg_binding = self
             .facts
             .call_arg_binding(self.source_path.as_path(), span);
+        let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
         let direct_arg_binding =
             arg_binding.filter(|binding| !call_arg_binding_has_receiver(binding));
         let expected_tys = match &kind {

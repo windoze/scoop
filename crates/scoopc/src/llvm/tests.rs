@@ -1891,6 +1891,94 @@ fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
 }
 
 #[test]
+fn top_level_generic_named_args_keep_canonical_param_order_in_pass_mir() {
+    fn direct_call_arg_local_names(fun: &crate::mir::FunDecl, expected_fqn: &str) -> Vec<String> {
+        let body = fun.body.as_ref().expect("expected MIR body");
+        let args = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let crate::mir::Rvalue::Call { kind, args, .. } = value else {
+                    return None;
+                };
+                let crate::mir::CallKind::Direct { callee_fqn } = kind else {
+                    return None;
+                };
+                (callee_fqn == expected_fqn).then_some(args)
+            })
+            .unwrap_or_else(|| panic!("expected direct call to `{expected_fqn}`"));
+        args.iter()
+            .map(|arg| match &arg.value {
+                crate::mir::Operand::Local(local) => body.locals[local.as_u32() as usize]
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| format!("l{}", local.as_u32())),
+                other => panic!("expected local call arg for `{expected_fqn}`, actual: {other:?}"),
+            })
+            .collect()
+    }
+
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend should keep materialized MIR");
+    let main_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.name == "main")
+        .expect("main should enter caller-side pass candidates");
+
+    assert_eq!(
+        direct_call_arg_local_names(main_mir, "pick::<Int>"),
+        vec!["__call_arg_1".to_string(), "__call_arg_0".to_string()],
+        "materialized MIR should preserve the HIR canonical param order for named args"
+    );
+}
+
+#[test]
+fn unsafe_funptr_aggregate_return_uses_native_return_abi() {
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    let aggregate_funptr_calls = ir
+        .lines()
+        .filter(|line| line.contains("call { i64, i64 } %"))
+        .count();
+
+    assert_eq!(
+        aggregate_funptr_calls, 2,
+        "direct FunPtr call and .invoke() should both lower through native aggregate returns\n{ir}"
+    );
+    assert!(
+        !ir.contains("sret({ i64, i64 })"),
+        "native FunPtr aggregate return should not force Scoop hidden-sret ABI\n{ir}"
+    );
+}
+
+#[test]
 fn production_codegen_entry_rejects_lowered_hir_without_materialized_pass_view() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

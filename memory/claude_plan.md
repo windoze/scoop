@@ -1,36 +1,43 @@
 ## 当前执行计划
 
-注意：这里记录的是对外可见的执行计划与进度摘要，不包含内部私有推理细节。
+1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务，并以其作为本次唯一执行目标。
+2. 检查最近提交是否直接提到与该任务相关的未完成问题；如果存在且会阻塞该任务，则将其视为当前任务的一部分或在 `TODO.md` 中登记为前置任务。
+3. 阅读任务说明、依赖、验证要求，以及相关代码与测试，确认需要修改的最小范围。
+4. 直接实现该任务；如果遇到会阻塞任务完成的真实缺口或规格不匹配，则先修复该问题，或按要求把最小必要前置任务加入 `TODO.md`，并停止在该步骤。
+5. 运行任务要求的验证命令，以及必要的构建、测试、格式化、lint；修复所有由本任务引入的问题，直到验证通过。
+6. 更新 `memory/claude_plan.md` 记录关键进展和任何计划调整。
+7. 在任务真正完成时，更新 `TODO.md`：给任务标题加上 `[DONE]`，并填写完成记录；仅当阶段计划本身变化时才更新 `PLAN.md`。
+8. 检查工作区改动，按要求创建一次清晰的 git 提交，提交信息使用当前任务编号，并在提交后停止，不继续做下一个任务。
 
-1. 在不做开放式排查的前提下，先读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务。
-2. 读取与该任务直接相关的上下文，包括 `PLAN.md`、最近提交信息，以及任务涉及的代码与测试位置。
-3. 判断该任务是否可直接完整实现；若存在阻塞且必须先补充前置任务，则最小化更新 `TODO.md`/必要时更新 `PLAN.md`，提交后停止。
-4. 若无阻塞，按任务要求做最小且正确的实现，不引入规避性方案。
-5. 运行该任务要求的验证，以及相关测试、格式化、lint/构建检查；若失败则继续修复直到通过，或确认存在必须前置的新阻塞任务。
-6. 完成后更新 `TODO.md`：将该任务标题前缀改为 `[DONE]`，补充完成记录；仅当阶段计划确实变化时才更新 `PLAN.md`。
-7. 将本次相关改动提交到 Git，提交信息使用当前任务号，随后停止，不进入下一个任务。
+## 进度记录
 
-## 当前任务
+- 已创建本计划文件。
+- 已读取 `TODO.md` 并确认本次唯一目标为首个未完成任务 `CG-T07S0a21`：修复剩余 plain callable / ctor ABI 回归（top-level generic named args、cross-file ctor named/default、unsafe `FunPtr` aggregate return）。
+- 已检查最近提交；最新提交 `[CG-T07S0a20]` 与当前任务不同，未发现需要作为 `CG-T07S0a21` 直接前置处理的最新提交未完成事项。
 
-- 已从 `TODO.md` 确认首个未完成任务为 `CG-T07S0a20`：修复 `tests/fixtures/run-pass/string_trim_indent_basic.scoop` 中运行期 `String.trimIndent()` builtin member 调用仍退化成 unresolved `MemberAccess` + `FunValue` callee 的问题。
+## 当前细化步骤
 
-## 细化执行步骤
+1. 复现 `CG-T07S0a21` 记录的三个失败：
+   - `top_level_generic_named_args_basic.scoop`
+   - `unsafe_funptr_aggregate_return_tuple.scoop`
+   - `run_pass_cone/cross_file_ctor_named_default_basic`
+2. 阅读相关 fixture、失败输出与 call/ctor/ABI lowering 代码，确认三个失败是否源于同一 authoritative contract 漂移；若出现新的真实前置阻塞，则按要求回写 `TODO.md`。
+3. 以最小改动修复 authoritative call-site / ctor-site / indirect-call contract，不在 LLVM backend 现场猜语义。
+4. 为修复点补或更新最小定向测试，并重跑任务要求的 build/test/scan 命令。
+5. 更新 `FAILED_FIXTURES.md` 与 `TODO.md` 的完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+6. 检查工作区后提交一次 git commit，并停止。
 
-1. 读取 `CG-T07S0a19` 相邻修复涉及的 String builtin member 调用实现，找出 `trimIndent` 仍未接入 authoritative contract 的缺口。
-2. 检查最近提交与当前工作树，确认没有需要并入当前任务的直接未完事项。
-3. 在 resolve/typecheck/HIR/MIR/materialize/codegen 链路中做最小修复，让运行期 `String.trimIndent()` 走 typed direct/member/intrinsic call，而非 unresolved member + `FunValue`。
-4. 增补最小回归测试，至少覆盖运行期 `String.trimIndent()` member call lowering contract。
-5. 运行任务要求的构建/fixture/default full-suite 验证；若暴露与当前任务直接相关的新 blocker，则按要求更新 `TODO.md` 并停止，否则继续直到验证通过。
-6. 更新 `TODO.md`：将 `CG-T07S0a20` 标记为 `[DONE]` 并补充完成记录；如阶段计划未变则不改 `PLAN.md`。
-7. 提交本次改动并停止。
+## 当前发现
 
-## 进度
-
-- 已写入初始执行计划。
-- 已读取 `TODO.md` 并锁定当前任务 `CG-T07S0a20`。
-- 已检查当前工作树与最近提交：`HEAD` 为 `Update plan`，未发现需要先并入或补录的直接未完事项；工作树中的未提交改动集中在 `trimIndent()` contract 修复相关文件，属于当前任务续做现场。
-- 已确认实现面覆盖当前任务主链路：typecheck 为 `String.trimIndent()` 发布 extension-style direct-call contract，legacy LLVM dispatch 与 refactor direct-call lowering 接入 `scoop.core.trimIndent`，并新增定向编译器回归测试。
-- 已通过定向验证：`cargo test -p scoopc builtin_string_trim_indent_member_calls_lower_to_direct_calls -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/string_trim_indent_basic.scoop -o /tmp/string_trim_indent_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/string_trim_indent_basic.scoop`。
-- 已通过质量门禁：`cargo clippy --all-targets -- -D warnings`。
-- 已运行默认 `cargo run -p scoop -- test`：full-suite 已越过 `string_trim_indent_basic.scoop`，当前停在后续已存在 blocker `tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop`（对应 `CG-T07S0a23`），因此无需新增前置任务。
-- 下一步：审阅 `TODO.md`/`git diff`，确认账本更新无误后提交本次任务改动并停止。
+- 复现阶段发现三个目标 fixture 在当前工作区上均已通过，说明仓库中已存在与 `CG-T07S0a21` 对应的未提交修复。
+- `git status --short` 显示以下相关未提交文件：
+  - `crates/scoopc/src/hir/lower/expr.rs`
+  - `crates/scoopc/src/mir/lower.rs`
+  - `crates/scoopc/src/llvm/codegen/call/dispatch.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+  - `crates/scoopc/src/llvm/tests.rs`
+  - `runtime/c/scoop_test.c`
+- 当前判断这是一次中途中断后留下的本任务工作；后续若验证全部通过，将按用户要求把这些未提交文件与文档更新一起提交。
+- 已完成三组 fixture 的 build/test/scan 与两条新增 LLVM 回归单测；当前唯一额外问题是 `cargo clippy --all-targets -- -D warnings` 报出的 `needless_borrow`，正在做最小修正后重跑。
+- `needless_borrow` 已修复，`cargo fmt` 与 `cargo clippy --all-targets -- -D warnings` 现已通过。
+- 已开始文档收口：更新 `TODO.md` 将 `CG-T07S0a21` 标记为完成，并更新 `FAILED_FIXTURES.md` 删除这三个已修复 blocker。

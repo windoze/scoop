@@ -855,14 +855,14 @@ impl<'a> HirLowering<'a> {
                     };
 
                     if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span) {
+                        let ctor_binding = self.typechecked_ctor_call_binding(e.span);
+                        let canonical_param_count = arg_binding.params.len();
                         let plan = if let Some(fun_binding) =
                             self.typechecked_top_level_fun_call_binding(e.span)
                         {
                             self.callable_param_plan_for_fun_binding(&fun_binding)
-                        } else if let Some(ctor_binding) =
-                            self.typechecked_ctor_call_binding(e.span)
-                        {
-                            self.callable_param_plan_for_ctor_binding(e.span, &ctor_binding)
+                        } else if let Some(ctor_binding) = ctor_binding.as_ref() {
+                            self.callable_param_plan_for_ctor_binding(e.span, ctor_binding)
                         } else {
                             None
                         };
@@ -878,6 +878,12 @@ impl<'a> HirLowering<'a> {
                                 call_ty,
                             })
                         {
+                            if ctor_binding.is_some()
+                                && let Some(site) =
+                                    self.ctor_call_sites.get_mut(&self.call_site(e.span))
+                            {
+                                site.arg_mapping = (0..canonical_param_count).map(Some).collect();
+                            }
                             return Expr {
                                 span: e.span,
                                 ty,
