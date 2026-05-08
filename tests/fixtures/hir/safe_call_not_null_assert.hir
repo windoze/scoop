@@ -121,7 +121,7 @@ File {
                                                         body: Expr {
                                                             span: 97..99,
                                                             ty: TypeId(
-                                                                0,
+                                                                12,
                                                             ),
                                                             kind: Call {
                                                                 callee: Expr {
@@ -184,10 +184,19 @@ File {
                                                         body: Expr {
                                                             span: 97..99,
                                                             ty: TypeId(
-                                                                0,
+                                                                12,
                                                             ),
-                                                            kind: UnresolvedIdent {
-                                                                name: "None",
+                                                            kind: Call {
+                                                                callee: Expr {
+                                                                    span: 97..99,
+                                                                    ty: TypeId(
+                                                                        0,
+                                                                    ),
+                                                                    kind: UnresolvedIdent {
+                                                                        name: "None",
+                                                                    },
+                                                                },
+                                                                args: [],
                                                             },
                                                         },
                                                     },

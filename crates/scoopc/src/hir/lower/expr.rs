@@ -5731,7 +5731,7 @@ impl<'a> HirLowering<'a> {
             },
             guard: None,
             arrow_span: op_span,
-            body: self.synth_some_wrap(op_span, inner_access),
+            body: self.synth_some_wrap(op_span, result_ty, inner_access),
         };
 
         let none_arm = WhenArm {
@@ -5744,7 +5744,7 @@ impl<'a> HirLowering<'a> {
             },
             guard: None,
             arrow_span: op_span,
-            body: self.synth_none(op_span),
+            body: self.synth_none(op_span, result_ty),
         };
 
         (
@@ -5803,7 +5803,7 @@ impl<'a> HirLowering<'a> {
             },
             guard: None,
             arrow_span: op_span,
-            body: self.synth_some_wrap(op_span, inner_call),
+            body: self.synth_some_wrap(op_span, result_ty, inner_call),
         };
 
         let none_arm = WhenArm {
@@ -5816,7 +5816,7 @@ impl<'a> HirLowering<'a> {
             },
             guard: None,
             arrow_span: op_span,
-            body: self.synth_none(op_span),
+            body: self.synth_none(op_span, result_ty),
         };
 
         (
@@ -6017,11 +6017,11 @@ impl<'a> HirLowering<'a> {
         self.lower_type_path(&raise_path)
     }
 
-    /// Synthesize `Some(inner)` as a `Call { callee: UnresolvedIdent("Some"), args: [inner] }`.
-    fn synth_some_wrap(&self, span: Span, inner: Expr) -> Expr {
+    /// Synthesize `Some(inner)` and preserve the surrounding `Option<T>` result type.
+    fn synth_some_wrap(&self, span: Span, result_ty: TypeId, inner: Expr) -> Expr {
         Expr {
             span,
-            ty: self.builtins.any,
+            ty: result_ty,
             kind: ExprKind::Call {
                 callee: Box::new(Expr {
                     span,
@@ -6035,13 +6035,20 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    /// Synthesize `None` as `UnresolvedIdent { name: "None" }`.
-    fn synth_none(&self, span: Span) -> Expr {
+    /// Synthesize `None()` and preserve the surrounding `Option<T>` result type.
+    fn synth_none(&self, span: Span, result_ty: TypeId) -> Expr {
         Expr {
             span,
-            ty: self.builtins.any,
-            kind: ExprKind::UnresolvedIdent {
-                name: "None".to_string(),
+            ty: result_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::UnresolvedIdent {
+                        name: "None".to_string(),
+                    },
+                }),
+                args: vec![],
             },
         }
     }

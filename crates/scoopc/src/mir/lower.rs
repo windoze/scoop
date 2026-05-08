@@ -7058,6 +7058,82 @@ fun entry(lhs: Num, rhs: Num): Int {
     }
 
     #[test]
+    fn dump_mir_lowers_safe_member_access_option_result_without_ctor_todo() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_safe_member_access_option_result.scoop",
+            r#"
+package fixtures.mirlower
+
+import scoop.core.*
+
+class User(val score: Int)
+
+fun entry(user: User?): Int? {
+    return user?.score
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mirlower.entry" => Some(fun),
+                _ => None,
+            })
+            .expect("expected entry MIR root");
+        let body = fun.body.as_ref().expect("entry should have a MIR body");
+
+        assert!(
+            body.blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .all(|stmt| {
+                    !matches!(
+                        &stmt.kind,
+                        StatementKind::Assign {
+                            value: Rvalue::Todo("ctor call lowering pending"),
+                            ..
+                        }
+                    )
+                }),
+            "safe member access desugar 应通过 Option variant ctor/value 主线，而不是留下 ctor-call TODO"
+        );
+
+        let mut saw_some = false;
+        let mut saw_none = false;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign {
+                value:
+                    Rvalue::EnumVariant {
+                        variant_name, args, ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            match (variant_name.as_str(), args.len()) {
+                ("Some", 1) => saw_some = true,
+                ("None", 0) => saw_none = true,
+                _ => {}
+            }
+        }
+
+        assert!(
+            saw_some,
+            "safe member access 的 Some 分支应 lower 为 Option.Some ctor"
+        );
+        assert!(
+            saw_none,
+            "safe member access 的 None 分支应 lower 为 Option.None ctor/value"
+        );
+    }
+
+    #[test]
     fn typed_hir_fixture_preserves_compare_to_direct_call_binding() {
         let sess = Session::new().unwrap();
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

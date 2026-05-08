@@ -7093,11 +7093,41 @@ fun <eff E = Pure> wrap(box: Box?): Int? / E {
             1,
             "safe member direct-call 仍应携带隐式 receiver 实参"
         );
+        assert_eq!(
+            some_arm.body.ty, ret_expr.ty,
+            "Some 分支包装后的表达式应保留 `Int?` 结果类型"
+        );
         match &callee.kind {
             ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
                 assert_eq!(fqn, "fixtures.hirreview.Box.forward");
             }
             other => panic!("inner_call 应已降糖为顶层函数引用，实际为 {other:?}"),
+        }
+        let none_arm = arms
+            .iter()
+            .find(|arm| matches!(&arm.pat, super::super::WhenPat::Variant { name, .. } if name == "None"))
+            .expect("safe call desugar 应包含 None 分支");
+        let ExprKind::Call {
+            callee: none_callee,
+            args: none_args,
+        } = &none_arm.body.kind
+        else {
+            panic!(
+                "None 分支应重建为 0 参 variant ctor 调用，实际为 {:?}",
+                none_arm.body.kind
+            );
+        };
+        assert!(
+            none_args.is_empty(),
+            "None 分支应重建为 `None()` 而不是保留 unresolved value"
+        );
+        assert_eq!(
+            none_arm.body.ty, ret_expr.ty,
+            "None 分支应保留与 safe call 一致的 `Int?` 结果类型"
+        );
+        match &none_callee.kind {
+            ExprKind::UnresolvedIdent { name } => assert_eq!(name, "None"),
+            other => panic!("None 分支应调用 None()，实际为 {other:?}"),
         }
     }
 
