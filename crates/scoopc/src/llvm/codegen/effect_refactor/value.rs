@@ -279,6 +279,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     return Ok(());
                 }
                 if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
+                    && (self.codegen.top_level_vars.contains_key(fqn)
+                        || self.codegen.has_extern_global_contract(fqn))
+                    && self.local_is_only_atomic_int_target(*target)
+                {
+                    return Ok(());
+                }
+                if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
                     && !self.codegen.object_inits.contains_key(fqn)
                     && !self.codegen.top_level_consts.contains_key(fqn)
                     && !self.codegen.top_level_immutable_values.contains_key(fqn)
@@ -625,6 +632,49 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
         }
         saw_static_member
+    }
+
+    fn local_is_only_atomic_int_target(&self, local: LocalId) -> bool {
+        let mut saw_atomic_call = false;
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target == local {
+                    continue;
+                }
+                if let mir::Rvalue::Call {
+                    kind: mir::CallKind::Direct { callee_fqn },
+                    args,
+                    ..
+                } = value
+                    && callee_fqn.starts_with("scoop.unsafe.__atomicInt")
+                    && matches!(
+                        args.first(),
+                        Some(mir::CallArg {
+                            name: None,
+                            value: mir::Operand::Local(target_local),
+                            ..
+                        }) if *target_local == local
+                    )
+                {
+                    if args
+                        .iter()
+                        .skip(1)
+                        .any(|arg| operand_mentions_local(&arg.value, local))
+                    {
+                        return false;
+                    }
+                    saw_atomic_call = true;
+                    continue;
+                }
+                if rvalue_mentions_local(value, local) {
+                    return false;
+                }
+            }
+        }
+        saw_atomic_call
     }
 
     fn static_member_fun_for_namespace(
@@ -3568,6 +3618,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             };
             return Ok((ptr, int_ty));
         }
+        if let Some((ptr, cg_ty)) =
+            self.atomic_top_level_place_for_local(*local, span, require_writable)?
+        {
+            let CgTy::Int(int_ty) = cg_ty else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt target type",
+                    at: span.into(),
+                });
+            };
+            return Ok((ptr, int_ty));
+        }
         let slot = self.codegen.mir_local_slot(span, self.slots, *local)?;
         if let CgTy::Int(int_ty) = slot.cg_ty {
             return Ok((slot.ptr, int_ty));
@@ -3576,6 +3637,68 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             kind: "refactor atomicInt target place",
             at: span.into(),
         })
+    }
+
+    fn atomic_top_level_place_for_local(
+        &mut self,
+        local: LocalId,
+        span: Span,
+        require_writable: bool,
+    ) -> Result<Option<(PointerValue<'ctx>, CgTy)>, LlvmEmitError> {
+        // `TopLevelRef` 作为 atomic intrinsic 的 target 时必须保留静态存储地址，
+        // 不能先退化成局部 slot 中的按值副本。
+        let Some(fqn) = self.local_top_level_ref_fqn(local).map(str::to_owned) else {
+            return Ok(None);
+        };
+
+        if let Some(global) = self.codegen.materialized_extern_global_root(&fqn).cloned() {
+            if require_writable && !global.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt immutable extern global",
+                    at: span.into(),
+                });
+            }
+            let cg_ty =
+                self.codegen
+                    .cg_ty_of(global.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicInt extern global type",
+                        at: span.into(),
+                    })?;
+            let gv = self.codegen.declare_mir_extern_global(&global)?;
+            return Ok(Some((gv.as_pointer_value(), cg_ty)));
+        }
+
+        if let Some(global) = self.codegen.extern_globals.get(&fqn).cloned() {
+            if require_writable && !global.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor atomicInt immutable extern global",
+                    at: span.into(),
+                });
+            }
+            let cg_ty =
+                self.codegen
+                    .cg_ty_of(global.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor atomicInt extern global type",
+                        at: span.into(),
+                    })?;
+            let gv = self.codegen.declare_extern_global(&global)?;
+            return Ok(Some((gv.as_pointer_value(), cg_ty)));
+        }
+
+        let Some(var) = self.codegen.top_level_vars.get(&fqn).cloned() else {
+            return Ok(None);
+        };
+        let cg_ty = self
+            .codegen
+            .cg_ty_of(var.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor atomicInt top-level var type",
+                at: span.into(),
+            })?;
+        let gv = self.codegen.declare_top_level_var_global(&var)?;
+        Ok(Some((gv.as_pointer_value(), cg_ty)))
     }
 
     fn atomic_member_place_for_local(

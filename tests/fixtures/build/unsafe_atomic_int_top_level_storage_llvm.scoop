@@ -1,0 +1,34 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: @__scoop_top_level_var__fixtures.build.ready = internal global i64 0
+// BUILD-LLVM-CONTAINS: @__scoop_top_level_var__fixtures.build.tlsReady = internal thread_local global i64 0
+// BUILD-LLVM-CONTAINS: load atomic i64, ptr @__scoop_top_level_var__fixtures.build.ready
+// BUILD-LLVM-CONTAINS: store atomic i64 1, ptr @__scoop_top_level_var__fixtures.build.ready
+// BUILD-LLVM-CONTAINS: cmpxchg ptr @__scoop_top_level_var__fixtures.build.ready
+// BUILD-LLVM-CONTAINS: store atomic i64 3, ptr @__scoop_top_level_var__fixtures.build.tlsReady
+// BUILD-LLVM-CONTAINS: load atomic i64, ptr @__scoop_top_level_var__fixtures.build.tlsReady
+//
+// 目标：top-level `@Global/@ThreadLocal __AtomicInt` 作为 lvalue 传给 `__atomicInt*`
+// 时，必须直接在静态存储上发出 atomic 指令，而不是先退化成普通 `load`。
+
+package fixtures.build
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Global
+var ready: __AtomicInt = 0
+
+@ThreadLocal
+var tlsReady: __AtomicInt = 0
+
+fun main() {
+    @Unsafe do {
+        __atomicIntStore(ready, 1)
+        val _readyNow: Int = __atomicIntLoad(ready)
+        val _won: Bool = __atomicIntCompareExchange(ready, 1, 2)
+
+        __atomicIntStore(tlsReady, 3)
+        println(__atomicIntLoad(tlsReady))
+    }
+}

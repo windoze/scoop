@@ -60,7 +60,7 @@
 | `CG-T07S0a21` | CG7S0a21 | [DONE] 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
 | `CG-T07S0a22` | CG7S0a22 | [DONE] 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
 | `CG-T07S0a24` | CG7S0a24 | [DONE] 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
-| `CG-T07S0a24a` | CG7S0a24a | 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a24a` | CG7S0a24a | [DONE] 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1681,7 +1681,7 @@
   - 2026-05-09：已同步更新 `FAILED_FIXTURES.md`，从 Round 3 失败列表移除 `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`。
   - 2026-05-09：验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_default_and_explicit_ok.scoop`、`cargo test -p scoop infer_fixtures_use_refactor_typed_hir_diagnostics -- --nocapture`、`cargo test -p scoop phase_name_walks_up_to_phase_dir_for_nested_single_file_subset -- --nocapture`、`tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a24a：修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a24a：修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T07`
@@ -1717,6 +1717,11 @@
 
 - 完成记录：
   - 2026-05-09：作为 `CG-T07S0a` 的新前置 blocker 补录。`tools/run_fixture_scan.sh --no-build --timeout-secs 20 tests/fixtures/runtime_gc` 显示 `gc_stw_cross_thread_roots_basic.scoop` 是 `runtime_gc` 组唯一失败项；`sample` / `lsof` 进一步确认顶层 `scoop test` 只是卡在 reader join，而真实挂起的是超时后未被回收的后代 `a.out`。同时导出的 LLVM IR 证明 top-level `@Global __AtomicInt` lvalue 仍被退化成普通 top-level var `load`，缺少应有的 atomic store/load。
+  - 2026-05-09：`crates/scoopc/src/llvm/codegen/effect_refactor/value.rs` 的 `atomic_int_lvalue_ptr()` 现在会把 direct `TopLevelRef` local 重新解析为 top-level / extern static storage 指针，并在该 local 只作为 `__atomicInt*` target 时跳过无意义的 `TopLevelRef -> local slot` 普通 `load`。`gc_stw_cross_thread_roots_basic.scoop` 导出的 LLVM IR 现已直接在 `@__scoop_top_level_var__fixtures.codegen.ready` / `proceed` 上发出 atomic load/store，不再先做 ordinary load。
+  - 2026-05-09：新增 `tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`，用 `BUILD-LLVM-CONTAINS` 锁定 top-level `@Global` / `@ThreadLocal __AtomicInt` 的静态存储声明与 atomic load/store/cmpxchg 形状，避免后续再次把 top-level atomic lvalue 退化成普通值路径。
+  - 2026-05-09：`crates/scoop/src/fixtures/run_pass.rs` 的 timeout 路径在 Unix 上会把 `scoop run` 放进独立 process group，并在超时时对整个子进程树发 `SIGKILL`；新增 `run_fixture_command_timeout_kills_descendants` 单测，覆盖 descendant 继承 stdout/stderr pipe 时仍能快速回收并稳定返回 `scoop::fixtures::run_exec_timeout`。
+  - 2026-05-09：在本任务要求的 full-suite 验证中，`cargo run -p scoop -- test` 先暴露了已删除 async/task surface 遗留的空 cone fixture `tests/fixtures/typecheck_cone/std_task_async_await_impl_ok/`；已同步移除该空目录，避免无关 stale fixture 阻塞当前任务的全量回归验收。
+  - 验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test -p scoop --bin scoop fixtures::run_pass::tests::run_fixture_command_timeout_has_stable_code -- --exact --nocapture`、`cargo test -p scoop --bin scoop fixtures::run_pass::tests::run_fixture_command_timeout_kills_descendants -- --exact --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 

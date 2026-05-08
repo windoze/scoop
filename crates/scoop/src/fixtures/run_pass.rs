@@ -19,7 +19,25 @@ use thiserror::Error;
 use super::expectations::FixtureExpectation;
 
 #[cfg(unix)]
+use std::ffi::c_int;
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
+#[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
+
+#[cfg(unix)]
+const SIGKILL: c_int = 9;
+
+#[cfg(unix)]
+const ESRCH: i32 = 3;
+
+#[cfg(unix)]
+unsafe extern "C" {
+    #[link_name = "kill"]
+    fn libc_kill(pid: c_int, sig: c_int) -> c_int;
+}
 
 #[derive(Debug, Error, Diagnostic)]
 #[error("无法读取 stdout golden 文件：{path}（fixture: {fixture}）")]
@@ -501,7 +519,7 @@ struct CommandOutput {
 /// 执行 `cmd` 并捕获 stdout/stderr，可选启用超时。
 ///
 /// - 该函数不负责“退出码是否符合期望”的判定（由 `assert_exit_status_matches` 完成）。
-/// - 若发生超时，会尽力 kill 子进程并回收（wait）后返回 `RunExecTimeout`。
+/// - 若发生超时，会尽力 kill 子进程组并回收（wait）后返回 `RunExecTimeout`。
 fn run_command_collect_output(
     rel_fixture: &Path,
     exp: &FixtureExpectation<'_>,
@@ -514,6 +532,10 @@ fn run_command_collect_output(
         cmd.stdin(Stdio::piped());
     }
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(unix)]
+    if exp.timeout_ms.is_some() {
+        cmd.process_group(0);
+    }
     let mut child = cmd.spawn().map_err(|e| {
         super::box_diagnostic(RunExecFailed {
             program,
@@ -626,7 +648,35 @@ fn run_command_collect_output(
     })
 }
 
-/// 等待子进程结束；若提供 `timeout`，则在超过时限后 kill 并返回 `(status, true)`。
+#[cfg(unix)]
+fn kill_child_process_tree(child: &mut std::process::Child) -> std::io::Result<()> {
+    let pgid: c_int = child
+        .id()
+        .try_into()
+        .map_err(|_| std::io::Error::other("子进程 pid 超出 Unix process-group 支持范围"))?;
+
+    // SAFETY: timeout path 会把 child 放进自己的 process group；这里向 `-pgid`
+    // 发送 `SIGKILL` 以确保 `scoop run` 及其后代一并退出，不再持有继承的 pipe。
+    let kill_result = unsafe { libc_kill(-pgid, SIGKILL) };
+    if kill_result == 0 {
+        return Ok(());
+    }
+
+    let err = std::io::Error::last_os_error();
+    if err.raw_os_error() == Some(ESRCH) {
+        return Ok(());
+    }
+
+    let _ = child.kill();
+    Err(err)
+}
+
+#[cfg(not(unix))]
+fn kill_child_process_tree(child: &mut std::process::Child) -> std::io::Result<()> {
+    child.kill()
+}
+
+/// 等待子进程结束；若提供 `timeout`，则在超过时限后 kill 整个子进程树并返回 `(status, true)`。
 fn wait_child_with_optional_timeout(
     child: &mut std::process::Child,
     timeout: Option<Duration>,
@@ -642,7 +692,7 @@ fn wait_child_with_optional_timeout(
         }
 
         if start.elapsed() >= timeout {
-            let _ = child.kill();
+            kill_child_process_tree(child)?;
             let status = child.wait()?;
             return Ok((status, true));
         }
@@ -1224,6 +1274,43 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn run_fixture_command_timeout_kills_descendants() {
+        let dir = make_temp_dir("run_fixture_command_timeout_kills_descendants");
+        let fixture_path = dir.join("hello.scoop");
+        let pid_path = dir.join("descendant.pid");
+
+        std::fs::write(&fixture_path, "// TIMEOUT: 50\nfun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// TIMEOUT: 50\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg(format!(
+                "sh -c 'echo $$ > \"{}\"; sleep 2' & wait",
+                pid_path.display()
+            ));
+            cmd
+        };
+
+        let start = Instant::now();
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exec_timeout"
+        );
+        assert!(
+            start.elapsed() < Duration::from_secs(1),
+            "timeout cleanup should not wait for descendant sleep: {:?}",
+            start.elapsed()
+        );
+
+        let descendant_pid = wait_for_descendant_pid(&pid_path);
+        wait_for_process_exit(descendant_pid);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn run_fixture_command_signaled_has_stable_code() {
         let dir = make_temp_dir("run_fixture_command_signaled_has_stable_code");
         let fixture_path = dir.join("hello.scoop");
@@ -1244,5 +1331,48 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn wait_for_descendant_pid(pid_path: &Path) -> c_int {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            if let Ok(pid) = std::fs::read_to_string(pid_path)
+                && let Ok(pid) = pid.trim().parse::<c_int>()
+            {
+                return pid;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "descendant pid file was not created in time"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[cfg(unix)]
+    fn wait_for_process_exit(pid: c_int) {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            if !process_exists(pid) {
+                return;
+            }
+            if Instant::now() >= deadline {
+                // SAFETY: best-effort cleanup for a descendant created by this test.
+                let _ = unsafe { libc_kill(pid, SIGKILL) };
+                panic!("descendant process {pid} was not terminated by timeout cleanup");
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[cfg(unix)]
+    fn process_exists(pid: c_int) -> bool {
+        // SAFETY: `kill(pid, 0)` is the standard POSIX liveness probe and does not deliver a signal.
+        let probe = unsafe { libc_kill(pid, 0) };
+        if probe == 0 {
+            return true;
+        }
+        std::io::Error::last_os_error().raw_os_error() != Some(ESRCH)
     }
 }
