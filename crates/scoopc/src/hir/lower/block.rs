@@ -6,9 +6,9 @@
 
 use crate::ast;
 
+use super::super::{Block, StmtKind};
 use super::HirLowering;
 use super::types::ExpectedExpr;
-use super::super::{Block, StmtKind};
 
 impl<'a> HirLowering<'a> {
     pub(super) fn lower_block(&mut self, pkg_prefix: &str, b: &ast::Block) -> Block {

@@ -1828,12 +1828,17 @@ fn infer_fixture(
     source: &scoopc::source::SourceFile,
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    // 当前阶段（T0502）先让 `infer` fixtures 走与 `typecheck` 相同的 pipeline：
-    // - 便于把“依赖推断的新用例”与既有 typecheck fixtures 逻辑隔离
-    // - 后续在这里逐步接入 constraint generation + solving
-    //
-    // 说明：这不是“重复执行”，而是为 T05 预留独立入口。
-    typecheck_fixture(session, source, exp)
+    // `infer` fixtures 在默认 refactor 模式下必须消费 typed HIR 主线，
+    // 否则会继续复用旧 typecheck 入口，漏掉仅在 authoritative refactor frontend
+    // 中才能观测到的 receiver/call contract 诊断。
+    if session.effect_pipeline_mode() == scoopc::session::EffectPipelineMode::Refactor {
+        scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
+            .map(|_| ())
+            .map_err(box_diagnostic)
+    } else {
+        // legacy compare/rollback 模式暂时保持既有 infer fixture 行为。
+        typecheck_fixture(session, source, exp)
+    }
 }
 
 /// 运行一个 `tests/fixtures/resolve_multi/<case>/` 的多文件编译单元。
@@ -3160,10 +3165,10 @@ fn phase_name<'a>(fixtures_root: &'a Path, rel: &'a Path) -> Option<&'a std::ffi
     phase_dir(rel).or_else(|| {
         let mut comps = rel.components();
         match (comps.next(), comps.next()) {
-            (Some(Component::Normal(_)), None) => {
-                let root_name = fixtures_root.file_name()?;
-                is_phase_dir_name(root_name).then_some(root_name)
-            }
+            (Some(Component::Normal(_)), None) => fixtures_root
+                .ancestors()
+                .filter_map(Path::file_name)
+                .find(|name| is_phase_dir_name(name)),
             _ => None,
         }
     })
@@ -3266,6 +3271,14 @@ mod tests {
             phase_name(fixtures_root, rel),
             Some(OsStr::new("mir_refactor"))
         );
+    }
+
+    #[test]
+    fn phase_name_walks_up_to_phase_dir_for_nested_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/infer/effects");
+        let rel = Path::new("use_site_eff_row_receiver_mismatch_is_error.scoop");
+
+        assert_eq!(phase_name(fixtures_root, rel), Some(OsStr::new("infer")));
     }
 
     #[test]
@@ -3466,6 +3479,33 @@ val bad: Int = Box("oops").bodyCopy
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
+        assert_eq!(ok, 1);
+    }
+
+    #[test]
+    fn infer_fixtures_use_refactor_typed_hir_diagnostics() {
+        let dir = tempdir().unwrap();
+        let fixture_dir = dir.path().join("infer").join("effects");
+        fs::create_dir_all(&fixture_dir).unwrap();
+
+        let workspace_fixtures =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+        let fixture = fixture_dir.join("use_site_eff_row_receiver_mismatch_is_error.scoop");
+        fs::copy(
+            workspace_fixtures
+                .join("infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop"),
+            &fixture,
+        )
+        .unwrap();
+
+        let ok = run_all(
+            &fixture,
+            None,
+            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+
         assert_eq!(ok, 1);
     }
 

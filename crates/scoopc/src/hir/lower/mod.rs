@@ -839,7 +839,9 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
+            ast::FunBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::FunBody::Missing => None,
         };
 
@@ -1023,7 +1025,9 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
+            ast::FunBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::FunBody::Missing => None,
         };
 
@@ -1213,7 +1217,9 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
+            ast::FunBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
             ast::FunBody::Missing => None,
         };
 

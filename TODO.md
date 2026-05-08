@@ -59,7 +59,7 @@
 | `CG-T07S0a20` | CG7S0a20 | [DONE] 修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a21` | CG7S0a21 | [DONE] 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
 | `CG-T07S0a22` | CG7S0a22 | [DONE] 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
-| `CG-T07S0a24` | CG7S0a24 | 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
+| `CG-T07S0a24` | CG7S0a24 | [DONE] 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1644,7 +1644,7 @@
   - 2026-05-08：已更新 `FAILED_FIXTURES.md`，Round 3 剩余 blocker 当时刷新为 task/thread/runtime GC 组与 `CG-T07S0a24` 覆盖的 1 个 frontend receiver `eff` row fixture；同时移除已由 `CG-T07S0a20` 修复但清单仍残留的 `string_trim_indent_basic.scoop`。其中 task/thread/runtime GC 组后续已随 async/Task 清理移除。
   - 2026-05-08：验证通过：`cargo run -p scoop -- build tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop -o /tmp/top_level_val_pattern_runtime_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/string_trim_indent_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a24：回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch
+## [DONE] CG-T07S0a24：回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch
 
 - 参考：
   - `T0624`
@@ -1675,6 +1675,10 @@
 
 - 完成记录：
   - 2026-05-08：作为 Round 3 per-fixture scan 新 blocker 补录。该失败不属于 LLVM/backend late unsupported，而是 receiver-call use-site `eff` row subeffecting 方向性回归；必须在前端 authoritative contract 修回后，full-suite 剩余 blocker 才能继续收口。
+  - 2026-05-09：修正 `crates/scoop/src/fixtures/mod.rs` 的 `infer_fixture(...)`，让 `infer` fixtures 在默认 refactor 模式下直接消费 authoritative typed-HIR stage output，而不是继续走旧 `typecheck_fixture(...)` 入口；这样 `use_site_eff_row_receiver_mismatch_is_error.scoop` 会稳定得到 `scoop::typecheck::call_receiver_type_mismatch`，并保持 receiver call site `21:5` 的诊断定位。
+  - 2026-05-09：`phase_name(...)` 现在会为 `tests/fixtures/infer/effects/*.scoop` 这类嵌套单文件子集向上回溯真实 phase 目录，`tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop` 因而按 `infer` phase 执行；同时新增 `phase_name_walks_up_to_phase_dir_for_nested_single_file_subset` 与 `infer_fixtures_use_refactor_typed_hir_diagnostics` 回归测试锁定该行为。
+  - 2026-05-09：已同步更新 `FAILED_FIXTURES.md`，从 Round 3 失败列表移除 `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`。
+  - 2026-05-09：验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_default_and_explicit_ok.scoop`、`cargo test -p scoop infer_fixtures_use_refactor_typed_hir_diagnostics -- --nocapture`、`cargo test -p scoop phase_name_walks_up_to_phase_dir_for_nested_single_file_subset -- --nocapture`、`tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 

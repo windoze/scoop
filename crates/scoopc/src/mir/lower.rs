@@ -6760,7 +6760,7 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
 mod tests {
     use super::*;
     use crate::effect_refactor_pipeline::TypedHirEffectContracts;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::Session;
     use crate::source::SourceFile;
     use std::path::PathBuf;
 

@@ -1080,8 +1080,8 @@ fn infer_function_type_call_expr_type(
         });
     }
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for param_idx in 0..arg_to_param.len() {
-        arg_to_param[param_idx] = Some(param_idx);
+    for (param_idx, mapped_param) in arg_to_param.iter_mut().enumerate() {
+        *mapped_param = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {
@@ -1300,8 +1300,8 @@ fn infer_funptr_type_call_expr_type(
         });
     }
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for param_idx in 0..arg_to_param.len() {
-        arg_to_param[param_idx] = Some(param_idx);
+    for (param_idx, mapped_param) in arg_to_param.iter_mut().enumerate() {
+        *mapped_param = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {

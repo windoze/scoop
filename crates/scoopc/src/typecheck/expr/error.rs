@@ -558,7 +558,9 @@ pub enum ExprTypeError {
     #[error("函数类型调用 `{callee}` 不支持命名实参")]
     #[diagnostic(
         code(scoop::typecheck::named_args_not_supported_for_callable_type),
-        help("只有具名函数、方法和构造器支持命名实参；函数值、闭包和 `FunPtr<F>` 调用请使用位置实参")
+        help(
+            "只有具名函数、方法和构造器支持命名实参；函数值、闭包和 `FunPtr<F>` 调用请使用位置实参"
+        )
     )]
     NamedArgsNotSupportedForCallableType {
         callee: String,

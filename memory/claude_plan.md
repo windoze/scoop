@@ -1,28 +1,32 @@
-# 执行计划
+## 当前执行计划
 
-## 约束
-- 以 `TODO.md` 为唯一任务排序和完成状态来源。
-- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
-- 不用规避、降级或替代表示来绕过实现缺口；若遇到阻塞缺口，先把最小必要前置任务写入 `TODO.md` 并提交。
-- `PLAN.md` 只在阶段级计划、依赖或完成标准改变时更新。
-- 完成当前任务后必须更新 `TODO.md` 的标题 `[DONE]` 和完成记录，并创建 git commit。
+说明：按要求先记录可执行计划与关键判断依据；这里记录的是面向实现的计划与进展，不写逐字内部推理。
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个未完成任务，并检查该任务的依赖、验证要求和完成记录格式。
-2. 查看最新提交信息，确认是否存在与当前任务直接相关的未完成事项；仅在其阻塞当前任务时纳入范围或写成前置任务。
-3. 根据当前任务范围检查相关代码、测试和文档，避免扩大到无关历史问题。
-4. 若任务可直接完成，实施最小正确修改；若发现必须先修复的具体缺口，更新 `TODO.md` 插入最小前置任务并停止。
-5. 运行当前任务要求的验证命令，以及必要的相关测试；若失败，定位并修复与当前任务相关的问题。
-6. 更新 `TODO.md`：给已完成任务标题加 `[DONE]`，补充完成记录、验证命令和结果。
-7. 仅在阶段计划实际变化时更新 `PLAN.md`。
-8. 检查 git 状态和差异，提交本次任务涉及的全部未提交变更。
-9. 停止，不继续处理下一个任务。
+1. 先读取 `TODO.md`，按标题是否带有 `[DONE]` 判定首个未完成任务。
+2. 检查最近一次提交消息，确认是否存在与该任务直接相关且明确标记为未完成的问题；若有，则将其视为当前任务的一部分或按要求补充为前置任务。
+3. 阅读当前任务在 `TODO.md` 中的详细要求、依赖、验证标准，并只围绕该任务收集必要上下文，避免开放式问题排查。
+4. 如任务可直接完成：实现改动、补齐/更新测试、运行必要验证，直到任务满足要求。
+5. 如遇到阻塞当前任务且必须先修复的真实缺口：在 `TODO.md` 中插入最小必要前置任务，保持当前任务未完成，并更新依赖说明；仅在阶段计划确有变化时修改 `PLAN.md`。
+6. 完成后更新 `memory/claude_plan.md` 记录实际执行结果，更新 `TODO.md` 完成标记与完成记录，按仓库约定提交 git commit，然后停止，不继续下一个任务。
 
-## 当前进度
-- 已读取 `TODO.md`。`CG-T07S0a21` 的任务正文标题已标记 `[DONE]` 且最新提交为 `[CG-T07S0a21] Close callable ABI blockers`，但任务索引行仍缺少 `[DONE]`，属于 TODO bookkeeping 漂移。
-- 当前将以第一个未完成任务正文 `CG-T07S0a22` 为执行目标，并在本次 TODO 更新中同步修正 `CG-T07S0a21` 索引行。
-- 下一步读取 `CG-T07S0a22` 涉及的 fixture、失败清单和相关 compilation-unit / package binding 代码，先复现两个指定失败，再做最小修复。
-- 已复现两个失败：`top_level_val_pattern_runtime_basic.scoop` build 报 main wrapper 缺入口 step schema layout；cone package fixture 在 effect facts 阶段报跨文件 `enabled` import 未解析。
-- 当前实现方向：让 refactor LLVM/effect-facts 阶段消费 build/source-map 提供的真实 compilation-unit 源集，修复 package-level `comptime if` 跨文件绑定；随后继续处理顶层 pattern once-init wrapper 的 entry schema 发布问题。
-- 已完成实现：effect-facts stage 支持 compilation-unit source set，refactor LLVM stage 从 source map 传入非 sysroot 源；main wrapper 使用 direct-entry ABI layout 的 entry step schema 解读返回 Step。
-- 已通过定向验证和 clippy；已更新 `TODO.md` 与 `FAILED_FIXTURES.md`。下一步检查 git diff 并提交本任务变更。
+## 进展记录
+
+- 已创建本计划文件。
+- 已读取 `TODO.md` 与最近一次提交；当前首个未完成任务为 `CG-T07S0a24`（frontend authoritative contract：use-site eff row receiver mismatch）。
+- 最近一次提交是 `[CG-T07S0] Reject named args on FunPtr.invoke`，与当前任务不构成直接相关的未完成前置问题，因此继续执行 `CG-T07S0a24`。
+- 已复现并确认当前实现上的真实缺口在 fixture/scan 主线：`infer` fixture 之前仍走旧 `typecheck_fixture(...)` 入口，导致没有消费 refactor authoritative typed-HIR 诊断；与此同时，单文件子集扫描对 `tests/fixtures/infer/effects/*.scoop` 的 phase 识别也需要向上回溯到 `infer` 目录。
+- 已验证未提交实现：
+  - `infer_fixture(...)` 在 refactor 模式下改为加载 typed HIR stage output，从 authoritative frontend 主线获取诊断。
+  - `phase_name(...)` 现在会为嵌套单文件子集向上查找真实 phase 目录，保证 `tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/...` 仍按 `infer` phase 执行。
+  - 新增 `crates/scoop/src/fixtures/mod.rs` 回归测试，覆盖上述两条路径。
+- 已通过验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_default_and_explicit_ok.scoop`
+  - `cargo test -p scoop infer_fixtures_use_refactor_typed_hir_diagnostics -- --nocapture`
+  - `cargo test -p scoop phase_name_walks_up_to_phase_dir_for_nested_single_file_subset -- --nocapture`
+  - `tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`
+  - `cargo fmt --check`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已更新 `TODO.md`：`CG-T07S0a24` 已标记为 `[DONE]`，并补充完成记录与验证命令。
+- 已更新 `FAILED_FIXTURES.md`：Round 3 失败数从 7 降到 6，移除了 `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`。
+- 下一步：提交当前所有未提交文件，提交后停止，不继续下一个任务。
