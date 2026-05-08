@@ -206,6 +206,11 @@ impl SourceMap {
         self.entries.is_empty()
     }
 
+    /// 遍历当前 source map 持有的全部源文件。
+    pub fn sources(&self) -> impl Iterator<Item = &SourceFile> {
+        self.entries.iter().map(|entry| &entry.source)
+    }
+
     /// 通过 `SourceId` 取回源文件。
     pub fn source(&self, source_id: SourceId) -> Option<&SourceFile> {
         self.entries.get(source_id.0).map(|entry| &entry.source)

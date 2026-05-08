@@ -88,9 +88,24 @@ impl RefactorEffectFactsStageOutput {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn run(
     session: &Session,
     source: &SourceFile,
+    mir_stage_output: RefactorMirStageOutput,
+) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
+    run_with_compilation_sources(
+        session,
+        source,
+        std::slice::from_ref(source),
+        mir_stage_output,
+    )
+}
+
+pub(crate) fn run_with_compilation_sources(
+    session: &Session,
+    source: &SourceFile,
+    compilation_sources: &[SourceFile],
     mut mir_stage_output: RefactorMirStageOutput,
 ) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
@@ -103,9 +118,10 @@ pub(crate) fn run(
         let materialized_mir = mir_stage_output
             .materialized_mir_mut()
             .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?;
-        MaterializedEffectFactsBuilder::from_materialized_snapshot(
+        MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
             session,
             source,
+            compilation_sources,
             materialized_mir,
         )
         .build()?
@@ -132,9 +148,10 @@ pub(crate) fn run(
             let materialized_mir = mir_stage_output
                 .materialized_mir_mut()
                 .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?;
-            MaterializedEffectFactsBuilder::from_materialized_snapshot(
+            MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
                 session,
                 source,
+                compilation_sources,
                 materialized_mir,
             )
             .with_compiler_continuation_runtime_error_callables(

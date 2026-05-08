@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use crate::hir::{self, LoweredHir};
@@ -10,7 +11,8 @@ use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::{
     LlvmArtifactKind, RefactorEffectLoweredStageOutput, TypedHirStageOutput,
-    build_effect_facts_stage_output, build_effect_lowered_stage_output, mir_stage,
+    build_effect_facts_stage_output_with_compilation_sources, build_effect_lowered_stage_output,
+    mir_stage,
 };
 
 #[cfg(test)]
@@ -144,9 +146,14 @@ fn run_effect_lowered_stage_from_lowered_hir(
         .map_err(crate::hir::HirLowerError::from)?;
     let mir_stage_output =
         mir_stage::run(typed_hir_output).map_err(|err| stage_error("direct-style MIR", err))?;
-    let effect_facts_stage_output =
-        build_effect_facts_stage_output(session, entry_source, mir_stage_output)
-            .map_err(|err| stage_error("effect facts", err))?;
+    let compilation_sources = source_map_compilation_sources(session, source_map);
+    let effect_facts_stage_output = build_effect_facts_stage_output_with_compilation_sources(
+        session,
+        entry_source,
+        &compilation_sources,
+        mir_stage_output,
+    )
+    .map_err(|err| stage_error("effect facts", err))?;
     let effect_lowered_stage_output = if preserve_published_resume_shells {
         super::effect_lowering_stage::run_preserving_published_resume_shells(
             effect_facts_stage_output,
@@ -155,6 +162,20 @@ fn run_effect_lowered_stage_from_lowered_hir(
         build_effect_lowered_stage_output(session, effect_facts_stage_output)
     };
     effect_lowered_stage_output.map_err(|err| stage_error("late lowering", err))
+}
+
+fn source_map_compilation_sources(session: &Session, source_map: &SourceMap) -> Vec<SourceFile> {
+    let sysroot_paths = session
+        .sysroot()
+        .files
+        .iter()
+        .map(|file| file.source.path().to_path_buf())
+        .collect::<HashSet<_>>();
+    source_map
+        .sources()
+        .filter(|source| !sysroot_paths.contains(source.path()))
+        .cloned()
+        .collect()
 }
 
 pub(crate) fn run(

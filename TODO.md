@@ -57,8 +57,8 @@
 | `CG-T07S0a18` | CG7S0a18 | [DONE] 修复 stdlib_string_basic 中 String support-source intrinsic member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a19` | CG7S0a19 | [DONE] 修复 stdlib_string_methods_extended 中 `String.isEmpty` / `replace` / `charAt` / `repeat` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a20` | CG7S0a20 | [DONE] 修复 string_trim_indent_basic 中 `String.trimIndent` builtin member 调用仍退化成 unresolved MemberAccess + `FunValue` callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a21` | CG7S0a21 | 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
-| `CG-T07S0a22` | CG7S0a22 | 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
+| `CG-T07S0a21` | CG7S0a21 | [DONE] 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
+| `CG-T07S0a22` | CG7S0a22 | [DONE] 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
 | `CG-T07S0a23` | CG7S0a23 | 修复 task/thread cross-thread runtime coordination 与 GC roots publication 回归 |
 | `CG-T07S0a24` | CG7S0a24 | 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
@@ -1603,7 +1603,7 @@
   - 2026-05-08：已更新 `FAILED_FIXTURES.md`，从 Round 1/2/3 列表移除 `unsafe_funptr_aggregate_return_tuple.scoop`，并从 Round 3 列表移除 `top_level_generic_named_args_basic.scoop` 与 `run_pass_cone/cross_file_ctor_named_default_basic`。
   - 2026-05-08：验证通过：`cargo test -p scoopc top_level_generic_named_args_keep_canonical_param_order_in_pass_mir -- --nocapture`、`cargo test -p scoopc unsafe_funptr_aggregate_return_uses_native_return_abi -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop -o /tmp/top_level_generic_named_args_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop`、`cargo run -p scoop -- build tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop -o /tmp/unsafe_funptr_aggregate_return_tuple`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a22：修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定
+## [DONE] CG-T07S0a22：修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定
 
 - 参考：
   - `T1220b`
@@ -1640,6 +1640,10 @@
 
 - 完成记录：
   - 2026-05-08：作为 Round 3 per-fixture scan 新 blocker 组补录。当前一条失败落在顶层 once-init wrapper entry schema，另一条失败落在 cone package-level `comptime if` 的同包跨文件绑定；两者都属于 compilation-unit / package-scope authoritative contract 漂移，先合并收口。
+  - 2026-05-08：refactor LLVM/effect-facts stage 现在从 build/source-map handoff 传递真实 compilation-unit 源集，P4 重建 package-level `comptime if` 条件绑定时不再退回单入口文件索引，cone 包同包 `helpers.scoop` 中的 public `const fun enabled` 可被 `src/main.scoop` 稳定 import 与消费。
+  - 2026-05-08：refactor main wrapper 改为按 direct-entry ABI layout 的 entry step schema 解读返回 `Step`，避免 ABI visibility handoff 对同一 body version 重编号 step schema 后仍用 primary program schema 查询 layout；顶层 pattern once-init wrapper 中的 tuple / struct / enum binder 顶层初始化可稳定进入 ordinary top-level immutable value 读取主线。
+  - 2026-05-08：已更新 `FAILED_FIXTURES.md`，Round 3 剩余 blocker 刷新为 `CG-T07S0a23` 覆盖的 6 个 task/thread/runtime GC fixture 与 `CG-T07S0a24` 覆盖的 1 个 frontend receiver `eff` row fixture；同时移除已由 `CG-T07S0a20` 修复但清单仍残留的 `string_trim_indent_basic.scoop`。
+  - 2026-05-08：验证通过：`cargo run -p scoop -- build tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop -o /tmp/top_level_val_pattern_runtime_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`、`tools/run_fixture_scan.sh --no-build tests/fixtures/run-pass/string_trim_indent_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a23：修复 task/thread cross-thread runtime coordination 与 GC roots publication 回归
 

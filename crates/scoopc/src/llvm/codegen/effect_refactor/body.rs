@@ -408,10 +408,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error("refactor main direct entry 未返回 Step_F".to_string())
         })?;
-        let step_layout = abi.step_layout(callable.step_schema()).ok_or_else(|| {
+        let step_layout = abi.step_layout(layout.step_schema()).ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM main wrapper 缺少入口 step schema s{} layout",
-                callable.step_schema().as_u32()
+                layout.step_schema().as_u32()
             ))
         })?;
         let tag = self.refactor_extract_step_tag(step_layout, step)?;

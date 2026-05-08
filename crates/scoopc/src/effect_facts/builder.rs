@@ -30,6 +30,7 @@ use super::{
 pub struct MaterializedEffectFactsBuilder<'a> {
     session: &'a Session,
     source: &'a SourceFile,
+    compilation_sources: &'a [SourceFile],
     materialized: &'a mut MaterializedMir,
     compiler_continuation_runtime_error_callables: HashSet<InstanceKey>,
 }
@@ -1682,9 +1683,24 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         source: &'a SourceFile,
         materialized: &'a mut MaterializedMir,
     ) -> Self {
+        Self::from_materialized_snapshot_in_compilation_unit(
+            session,
+            source,
+            std::slice::from_ref(source),
+            materialized,
+        )
+    }
+
+    pub fn from_materialized_snapshot_in_compilation_unit(
+        session: &'a Session,
+        source: &'a SourceFile,
+        compilation_sources: &'a [SourceFile],
+        materialized: &'a mut MaterializedMir,
+    ) -> Self {
         Self {
             session,
             source,
+            compilation_sources,
             materialized,
             compiler_continuation_runtime_error_callables: HashSet::new(),
         }
@@ -1703,7 +1719,8 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             let pass_view = self.materialized.pass_view();
             MirSnapshotBinding::from_pass_view(&pass_view)
         };
-        let type_ctx = EffectFactsTypeContext::build(self.session, self.source)?;
+        let type_ctx =
+            EffectFactsTypeContext::build(self.session, self.source, self.compilation_sources)?;
         let compiler_generated_runtime_error_effect_ty =
             find_or_intern_raise_runtime_error_effect(&mut self.materialized.types);
         let callable_seeds = collect_callable_seeds(
@@ -1781,13 +1798,26 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
 }
 
 impl EffectFactsTypeContext {
-    fn build(session: &Session, source: &SourceFile) -> Result<Self, EffectFactsError> {
-        let sources = vec![source.clone()];
+    fn build(
+        session: &Session,
+        source: &SourceFile,
+        compilation_sources: &[SourceFile],
+    ) -> Result<Self, EffectFactsError> {
+        let mut sources = compilation_sources.to_vec();
+        if !sources
+            .iter()
+            .any(|candidate| candidate.path() == source.path())
+        {
+            sources.push(source.clone());
+        }
         let index = session.build_top_level_index(&sources)?;
 
-        let mut parsed = session.parse(source)?;
-        let source_refs = vec![source];
-        let mut ast_refs = vec![&mut parsed];
+        let mut parsed_files = sources
+            .iter()
+            .map(|source| session.parse(source))
+            .collect::<Result<Vec<_>, _>>()?;
+        let source_refs = sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = parsed_files.iter_mut().collect::<Vec<_>>();
         crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
             session.sysroot(),
             &source_refs,
@@ -1796,8 +1826,10 @@ impl EffectFactsTypeContext {
 
         let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)
             .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
-        env.extend_from_file(source, &parsed, &index)
-            .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
+        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
+            env.extend_from_file(source, parsed, &index)
+                .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
+        }
 
         let mut pairs = session
             .sysroot()
@@ -1805,7 +1837,9 @@ impl EffectFactsTypeContext {
             .iter()
             .map(|file| (&file.source, &file.ast))
             .collect::<Vec<_>>();
-        pairs.push((source, &parsed));
+        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
+            pairs.push((source, parsed));
+        }
 
         let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
         let (interfaces, class_itables) =

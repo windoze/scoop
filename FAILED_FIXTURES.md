@@ -35,18 +35,15 @@ Per-fixture command: `target/debug/scoop test --fixtures <fixture>`
 
 Summary:
 - total: 1262
-- failed: 10
+- failed: 7
 - timed out: 0
 - per-fixture timeout: 30s
 
 Failed fixtures:
 - `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`
-- `tests/fixtures/run-pass/string_trim_indent_basic.scoop`
 - `tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop`
 - `tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop`
 - `tests/fixtures/run-pass/task_step_manual_basic.scoop`
-- `tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`
-- `tests/fixtures/run_pass_cone/package_level_comptime_if_cross_file_const_fun`
 - `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`
 - `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`
 - `tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`

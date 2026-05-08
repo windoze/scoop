@@ -263,6 +263,20 @@ pub fn build_effect_facts_stage_output(
     source: &SourceFile,
     mir_stage_output: RefactorMirStageOutput,
 ) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    build_effect_facts_stage_output_with_compilation_sources(
+        session,
+        source,
+        std::slice::from_ref(source),
+        mir_stage_output,
+    )
+}
+
+pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
+    session: &Session,
+    source: &SourceFile,
+    compilation_sources: &[SourceFile],
+    mir_stage_output: RefactorMirStageOutput,
+) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     // P4 facts 必须绑定到 canonical materialized MIR snapshot。
     // 当前 P3 dump stage 仍允许在未保留 snapshot 的情况下独立产出 direct-style MIR，
     // 因此在 effect-facts stage 边界用同一 session/source 路由补挂 canonical snapshot。
@@ -274,12 +288,20 @@ pub fn build_effect_facts_stage_output(
     };
     let dispatcher = dispatcher_for_session(session).effect_facts();
     match dispatcher.entry {
-        StageEntry::Legacy(entry) => {
-            entry.delegate_to_legacy(|| effect_facts_stage::run(session, source, mir_stage_output))
-        }
-        StageEntry::Refactor(entry) => {
-            entry.lower_effect_facts_stage_output(session, source, mir_stage_output)
-        }
+        StageEntry::Legacy(entry) => entry.delegate_to_legacy(|| {
+            effect_facts_stage::run_with_compilation_sources(
+                session,
+                source,
+                compilation_sources,
+                mir_stage_output,
+            )
+        }),
+        StageEntry::Refactor(entry) => entry.lower_effect_facts_stage_output(
+            session,
+            source,
+            compilation_sources,
+            mir_stage_output,
+        ),
     }
 }
 

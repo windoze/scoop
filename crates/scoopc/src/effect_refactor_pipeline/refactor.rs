@@ -64,11 +64,17 @@ impl StageEntry {
         self,
         session: &Session,
         source: &SourceFile,
+        compilation_sources: &[SourceFile],
         mir_stage_output: RefactorMirStageOutput,
     ) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
         debug_assert_eq!(self.stage, StageKind::EffectFacts);
         let _ = self;
-        effect_facts_stage::run(session, source, mir_stage_output)
+        effect_facts_stage::run_with_compilation_sources(
+            session,
+            source,
+            compilation_sources,
+            mir_stage_output,
+        )
     }
 
     pub(crate) fn lower_effect_lowered_stage_output(
