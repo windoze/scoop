@@ -6984,6 +6984,116 @@ fn production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadat
     );
 }
 
+#[test]
+fn production_codegen_star_projection_array_read_view_keeps_traceable_transport_metadata() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/star_projection_array_read_view.scoop");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend should retain materialized MIR");
+    let pass_view = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend should retain materialized pass view");
+    let mut first_is_some = None;
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            if fun.fqn == "firstIsSome" {
+                first_is_some = Some(fun);
+                break;
+            }
+        }
+        if first_is_some.is_some() {
+            break;
+        }
+    }
+    let first_is_some =
+        first_is_some.expect("expected star projection fixture to materialize firstIsSome body");
+    let body = first_is_some
+        .body
+        .as_ref()
+        .expect("firstIsSome should have a body");
+    let first_local = body
+        .locals
+        .iter()
+        .find(|local| local.name.as_deref() == Some("first"))
+        .expect("expected firstIsSome to keep a local named `first`");
+    assert!(
+        matches!(
+            materialized.types.kind(first_local.ty),
+            crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Option(inner))
+                if matches!(
+                    materialized.types.kind(*inner),
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
+                )
+        ),
+        "star projection array read view should still surface to source locals as Option<Any>"
+    );
+
+    let mut seen_star_get = false;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign {
+                value:
+                    crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        transport,
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if !callee_fqn.starts_with("scoop.core.get::<*>") {
+                continue;
+            }
+            let array = transport
+                .array
+                .as_ref()
+                .expect("star projection array get should publish array transport metadata");
+            assert!(
+                transport.result.requirements.trace,
+                "star projection array get result should require trace metadata"
+            );
+            assert!(
+                transport.result.requirements.drop,
+                "star projection array get result should keep composite drop requirements"
+            );
+            assert!(
+                array.element.requirements.trace,
+                "star projection array get element transport should remain traceable"
+            );
+            assert!(
+                array.element.requirements.drop,
+                "star projection array get element transport should retain drop requirements"
+            );
+            seen_star_get = true;
+        }
+    }
+    assert!(
+        seen_star_get,
+        "expected firstIsSome to retain a materialized Array<*> get call"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .expect("star projection fixture should now pass production LLVM codegen");
+    assert!(
+        ir.contains("firstIsSome"),
+        "expected production codegen output to contain firstIsSome after fixing star-projection transport"
+    );
+}
+
 fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

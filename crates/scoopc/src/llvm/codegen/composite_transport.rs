@@ -470,8 +470,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | ValueTypeKind::UIntN(_),
             )
             | TypeKind::Ref(_)
-            | TypeKind::Param(_)
-            | TypeKind::StarProjection(_) => false,
+            | TypeKind::StarProjection(_)
+            | TypeKind::Param(_) => false,
         }
     }
 
@@ -491,6 +491,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn type_contains_traceable_ref(&mut self, mir_types: &TypeStore, ty: TypeId) -> bool {
         match mir_types.kind(ty) {
             TypeKind::Ref(_) => true,
+            TypeKind::StarProjection(star) => {
+                self.type_contains_traceable_ref(mir_types, star.read_ty)
+            }
             TypeKind::Value(ValueTypeKind::Option(_)) => {
                 crate::mir::mir_transport_trace_requirement_for_type(mir_types, ty)
             }
@@ -523,8 +526,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | ValueTypeKind::IntN(_)
                 | ValueTypeKind::UIntN(_),
             )
-            | TypeKind::Param(_)
-            | TypeKind::StarProjection(_) => false,
+            | TypeKind::Param(_) => false,
         }
     }
 
