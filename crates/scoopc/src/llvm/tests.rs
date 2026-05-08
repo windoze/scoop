@@ -6520,6 +6520,38 @@ fn materialized_gc_array_fixture_keeps_string_locals_for_println_string_sites() 
     );
 }
 
+#[test]
+fn production_codegen_progression_fixture_prepares_generic_for_each_assign_contracts() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let pass_view = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend 应保留 materialized pass view");
+    assert!(
+        pass_view.instances().any(|family| family
+            .callable_bodies()
+            .any(|fun| fun.fqn.starts_with("scoop.core.forEach"))),
+        "expected progression fixture to materialize a stdlib forEach instance"
+    );
+
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+    assert!(
+        ir.contains("scoop.core.forEach"),
+        "expected progression fixture IR to keep the stdlib forEach path reachable\n{ir}"
+    );
+}
+
 fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

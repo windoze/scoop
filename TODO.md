@@ -38,7 +38,8 @@
 | `CG-T07S0a1` | CG7S0a1 | [DONE] 修复 fun_call_add_basic 中 refactor plain return coercion 把 `main(): Int` 尾值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a2` | CG7S0a2 | [DONE] 修复 gc_array_class_elements_cross_function 中 `println::<String>` arg lowering 把 `String` 值误判成 `Ref`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a3` | CG7S0a3 | [DONE] 修复 gc_trace_task_field_basic 中 `Async.await(holder.task)` perform site metadata 把 payload transport type 与 payload component type 发布成漂移 shape，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a4` | CG7S0a4 | 修复 kotlin_ranges_progressions_basic 中 progression/forEach lowering 的 assign place contract 指向未分配 local symbol，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a4` | CG7S0a4 | [DONE] 修复 kotlin_ranges_progressions_basic 中 progression/forEach lowering 的 assign place contract 指向未分配 local symbol，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a5` | CG7S0a5 | 修复 list_and_mutable_list_basic 中 MutableList.add/push materialized MIR 的 array transport element type 仍保留 unresolved generic `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -872,7 +873,7 @@
   - 2026-05-08：`lower_member_access_expr` / `lower_member_access_expr_from_receiver` 现在会消费 authoritative member access 结果类型；`?.` 的内层 binder 也保留实际 receiver type，避免 safe member access 再次把字段结果降成 `Any`。新增 `effect_refactor_pipeline::mir_stage::tests::refactor_mir_task_field_perform_contract_keeps_task_payload_type`，并同步更新受影响的 HIR/MIR snapshots：`tests/fixtures/hir/delegated_property_lowering.hir`、`tests/fixtures/hir/member_access.hir`、`tests/fixtures/hir/safe_call_not_null_assert.hir`、`tests/fixtures/mir_refactor/aggregate_transport.mir`。
   - 2026-05-08：验证通过：`cargo test -p scoopc refactor_mir_task_field_perform_contract_keeps_task_payload_type`、`cargo run -p scoop -- build tests/fixtures/run-pass/gc_trace_task_field_basic.scoop -o /tmp/gc_trace_task_field_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_trace_task_field_basic.scoop`；默认 `cargo run -p scoop -- test` 已越过 `gc_trace_task_field_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a4`。
 
-## CG-T07S0a4：修复 kotlin_ranges_progressions_basic 中 progression/forEach lowering 的 assign place contract 指向未分配 local symbol，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a4：修复 kotlin_ranges_progressions_basic 中 progression/forEach lowering 的 assign place contract 指向未分配 local symbol，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T03`
@@ -902,6 +903,41 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a3` 修复后，默认 full-suite 继续前进到 `kotlin_ranges_progressions_basic.scoop`；build 阶段在 direct-style MIR lowering 触发 `assignment place contract references an unallocated local: S34` panic，说明 progression/forEach lowering 仍存在 assign place contract / local allocation 漂移，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：根因定位为 build/frontend 的 explicit MIR instance lowering 会在 fresh `HirLowering` 上下文里重新 lower 同一源码函数体，而 assign-place side table 继续按 `source_path + stmt span` 复用 typed contract；`AssignPlaceKind::Local` 中的 `SymbolId` 因 `SymbolInterner` 按 lowering 上下文局部分配而漂移，但 contract 自带的 local `decl_span` 仍保持 authoritative source identity，于是 `IntProgression.forEach` / progression 相关实例体在 MIR lowering 读取 assign-place contract 时会命中 stale `SymbolId` 并报 `unallocated local`。
+  - 2026-05-08：`crates/scoopc/src/mir/lower.rs` 现在在消费 `AssignPlaceKind::Local` contract 时先按 `SymbolId` 查当前 body 的 `LocalId`，若实例体里的 `SymbolId` 与 side table 漂移，则按 contract 自带的 local `name + decl_span` 在当前 source-local 集合中选取最窄匹配声明 span 重新绑定 `LocalId`，让 explicit MIR instance lowering 与 typed assign-place contract 继续共享同一 authoritative source identity，而不是把 panic 容错吞到 backend。
+  - 2026-05-08：新增 `llvm::tests::production_codegen_progression_fixture_prepares_generic_for_each_assign_contracts`，覆盖 production single-file frontend 准备 `kotlin_ranges_progressions_basic.scoop` 时会 materialize stdlib `forEach` 实例并成功生成 IR，不再在 progression/forEach assign-place contract 上 panic。
+  - 2026-05-08：验证通过：`cargo test -p scoopc production_codegen_progression_fixture_prepares_generic_for_each_assign_contracts`、`cargo run -p scoop -- build tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop -o /tmp/kotlin_ranges_progressions_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `kotlin_ranges_progressions_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a5`。
+
+## CG-T07S0a5：修复 list_and_mutable_list_basic 中 MutableList.add/push materialized MIR 的 array transport element type 仍保留 unresolved generic `T`，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T04d`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`
+- 背景：
+  - 在 `CG-T07S0a4` 修复 `kotlin_ranges_progressions_basic.scoop` 的 progression/forEach assign-place contract / local rebind 漂移后，默认 `cargo run -p scoop -- test` 不再停在该 fixture，而是继续暴露 `tests/fixtures/run-pass/list_and_mutable_list_basic.scoop` 的 build/run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/list_and_mutable_list_basic.scoop -o /tmp/list_and_mutable_list_basic` 会在 materialized MIR validation 报 `materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`，说明 `MutableList<Int>.add` / `MutableArray<Int>.push` 路径的 array element transport type 仍保留未具体化的 generic 参数。
+
+- 必须实现的内容：
+  1. 修复 `MutableList<Int>.add` / `MutableArray<Int>.push` 及等价 array-builder append 路径在 explicit MIR instance / materialized MIR 中的 element transport type 具体化，确保 `list_and_mutable_list_basic.scoop` 能在 refactor path 正常 build/run。
+  2. 保持 list/mutable-list surface 继续消费 authoritative materialized MIR / array transport contract；不得通过放宽 unresolved generic parameter validator、在 backend 现场硬编码 `Int`、或绕开 `MutableList.add` / `push` 路径规避问题。
+  3. 补最小回归验证，确保 `list_and_mutable_list_basic.scoop` 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许通过改 fixture 形状、移除 `MutableList.add` / `MutableArray.push`、绕开 array builder append 路径或降级到 legacy path 规避该问题。
+  - 不允许把 `materialized MIR ... unresolved generic parameter` 变成 validator-only 例外；必须在 authoritative instance/materialized MIR contract 主线上修正 element transport type 的具体化发布。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/list_and_mutable_list_basic.scoop -o /tmp/list_and_mutable_list_basic`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `list_and_mutable_list_basic.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a4`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a4` 修复后，默认 full-suite 继续前进到 `list_and_mutable_list_basic.scoop`；build 阶段在 materialized MIR validation 报 `materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -929,7 +965,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -939,6 +975,7 @@
   - 2026-05-08：`CG-T07S0a1` 修复后，默认 full-suite 又继续前进到 `gc_array_class_elements_cross_function.scoop`；build 诊断显示 refactor pure assignment / `println::<String>` arg lowering 仍把 `String` 值路径误判成 `Ref`，按顺序约束新增 prerequisite `CG-T07S0a2`，本任务保持未完成，等待 `CG-T07S0a2` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a2` 修复后，默认 full-suite 又继续前进到 `gc_trace_task_field_basic.scoop`；build 诊断显示 `Async.await(holder.task)` 的 direct-style MIR perform site metadata 仍把 payload transport type 与 payload component type 发布成漂移 shape，按顺序约束新增 prerequisite `CG-T07S0a3`，本任务保持未完成，等待 `CG-T07S0a3` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a3` 修复后，默认 full-suite 又继续前进到 `kotlin_ranges_progressions_basic.scoop`；build 阶段在 direct-style MIR lowering 触发 `assignment place contract references an unallocated local: S34` panic，按顺序约束新增 prerequisite `CG-T07S0a4`，本任务保持未完成，等待 `CG-T07S0a4` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a4` 修复后，默认 full-suite 又继续前进到 `list_and_mutable_list_basic.scoop`；build 阶段在 materialized MIR validation 报 `materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`，按顺序约束新增 prerequisite `CG-T07S0a5`，本任务保持未完成，等待 `CG-T07S0a5` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

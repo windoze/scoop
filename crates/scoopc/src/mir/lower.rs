@@ -1980,6 +1980,33 @@ impl<'a> FnLowering<'a> {
         })
     }
 
+    fn local_for_assign_decl_span(&self, decl_span: Span, name: &str) -> Option<LocalId> {
+        self.body
+            .locals
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, local)| {
+                (local.name.as_deref() == Some(name)
+                    && local.span.start <= decl_span.start
+                    && decl_span.end <= local.span.end)
+                    .then_some((idx, local.span))
+            })
+            .min_by_key(|(_, span)| span.end.saturating_sub(span.start))
+            .map(|(idx, _)| LocalId::from_raw(idx as u32))
+    }
+
+    fn resolve_assign_local(
+        &self,
+        id: hir::SymbolId,
+        name: &str,
+        decl_span: Span,
+    ) -> Option<LocalId> {
+        self.symbol_locals
+            .get(&id)
+            .copied()
+            .or_else(|| self.local_for_assign_decl_span(decl_span, name))
+    }
+
     /// 分配一个临时 local（用于表达式求值与 if/when merge）。
     fn push_temp_local(&mut self, span: Span, ty: TypeId) -> LocalId {
         let name = format!("tmp{}", self.next_temp);
@@ -2448,10 +2475,21 @@ impl<'a> FnLowering<'a> {
         };
 
         match &contract.kind {
-            hir::AssignPlaceKind::Local { id, .. } => {
-                let target = self.symbol_locals.get(id).copied().unwrap_or_else(|| {
-                    panic!("assignment place contract references an unallocated local: {id:?}")
-                });
+            hir::AssignPlaceKind::Local {
+                id,
+                name,
+                decl_span,
+            } => {
+                // explicit MIR instance lowering may re-lower the same source body in a fresh
+                // HIR context, so the contract's SymbolId can drift while its source decl span
+                // remains authoritative for the current body.
+                let target = self
+                    .resolve_assign_local(*id, name, *decl_span)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "assignment place contract references an unallocated local: {id:?} ({name} @ {decl_span:?})"
+                        )
+                    });
 
                 let value = self.lower_expr_to_local(rhs);
                 if self.current_is_terminated() {
