@@ -884,22 +884,22 @@ File {
                                     "tmp12",
                                 ),
                                 ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 1005..1049,
-                                name: Some(
-                                    "tmp13",
-                                ),
-                                ty: TypeId(
                                     14,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 1005..1043,
+                                span: 981..992,
+                                name: Some(
+                                    "tmp13",
+                                ),
+                                ty: TypeId(
+                                    9,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1005..1049,
                                 name: Some(
                                     "tmp14",
                                 ),
@@ -909,17 +909,17 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 1005..1033,
+                                span: 1005..1043,
                                 name: Some(
                                     "tmp15",
                                 ),
                                 ty: TypeId(
-                                    7,
+                                    14,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 1024..1032,
+                                span: 1005..1033,
                                 name: Some(
                                     "tmp16",
                                 ),
@@ -929,9 +929,19 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 1036..1043,
+                                span: 1024..1032,
                                 name: Some(
                                     "tmp17",
+                                ),
+                                ty: TypeId(
+                                    7,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1036..1043,
+                                name: Some(
+                                    "tmp18",
                                 ),
                                 ty: TypeId(
                                     14,
@@ -941,7 +951,7 @@ File {
                             LocalDecl {
                                 span: 692..1051,
                                 name: Some(
-                                    "tmp18",
+                                    "tmp19",
                                 ),
                                 ty: TypeId(
                                     0,
@@ -1331,6 +1341,41 @@ File {
                                         },
                                     },
                                     Statement {
+                                        span: 981..992,
+                                        kind: Assign {
+                                            target: l19,
+                                            value: Transport {
+                                                value: Local(
+                                                    l18,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        14,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                14,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    9,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
                                         span: 958..993,
                                         kind: Assign {
                                             target: l17,
@@ -1344,7 +1389,7 @@ File {
                                                         span: 981..992,
                                                         name: None,
                                                         value: Local(
-                                                            l18,
+                                                            l19,
                                                         ),
                                                     },
                                                 ],
@@ -1389,7 +1434,7 @@ File {
                                     Statement {
                                         span: 1024..1032,
                                         kind: Assign {
-                                            target: l22,
+                                            target: l23,
                                             value: Transport {
                                                 value: Local(
                                                     l16,
@@ -1424,7 +1469,7 @@ File {
                                     Statement {
                                         span: 1005..1033,
                                         kind: Assign {
-                                            target: l21,
+                                            target: l22,
                                             value: Call {
                                                 site_id: site6,
                                                 kind: Direct {
@@ -1435,7 +1480,7 @@ File {
                                                         span: 1024..1032,
                                                         name: None,
                                                         value: Local(
-                                                            l22,
+                                                            l23,
                                                         ),
                                                     },
                                                 ],
@@ -1469,7 +1514,7 @@ File {
                                     Statement {
                                         span: 1036..1043,
                                         kind: Assign {
-                                            target: l23,
+                                            target: l24,
                                             value: TupleGet {
                                                 tuple: Local(
                                                     l3,
@@ -1481,14 +1526,14 @@ File {
                                     Statement {
                                         span: 1005..1043,
                                         kind: Assign {
-                                            target: l20,
+                                            target: l21,
                                             value: Binary {
                                                 lhs: Local(
-                                                    l21,
+                                                    l22,
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
-                                                    l23,
+                                                    l24,
                                                 ),
                                             },
                                         },
@@ -1496,10 +1541,10 @@ File {
                                     Statement {
                                         span: 1005..1049,
                                         kind: Assign {
-                                            target: l19,
+                                            target: l20,
                                             value: Binary {
                                                 lhs: Local(
-                                                    l20,
+                                                    l21,
                                                 ),
                                                 op: Add,
                                                 rhs: Local(
@@ -1514,7 +1559,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l19,
+                                                l20,
                                             ),
                                         ),
                                     },

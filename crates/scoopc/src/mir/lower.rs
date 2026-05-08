@@ -3414,15 +3414,37 @@ impl<'a> FnLowering<'a> {
         member: &hir::MemberAccess,
     ) -> LocalId {
         let tuple_member = self.tuple_member_access(member, receiver.ty);
-        let result_ty = tuple_member
-            .map(|(_, elem_ty)| elem_ty)
-            .or_else(|| self.member_value_ty(member))
-            .unwrap_or(ty);
+        // HIR expr.ty 通常已经携带 smart-cast / branch narrowing 后的 authoritative 结果类型；
+        // 但少量合成 HIR（例如 `with` copy builder）仍会先用 `Any` 占位，再依赖成员声明类型回填。
+        let result_ty = tuple_member.map(|(_, elem_ty)| elem_ty).unwrap_or_else(|| {
+            if ty == self.builtins.any {
+                self.member_value_ty(member).unwrap_or(ty)
+            } else {
+                ty
+            }
+        });
         let result = self.push_temp_local(span, result_ty);
         let receiver_local = self.lower_expr_to_local(receiver);
         if self.current_is_terminated() {
             return result;
         }
+        // smart-cast 之类的表达式语境可能把同一个 local 收窄到比声明更具体的类型；
+        // 但合成 HIR（例如 extension property getter / `with` builder）也会临时把 receiver
+        // 表达成宽的 `Any`。这里只在 expr.ty 比声明更具体时才建立视图 local，避免把已经
+        // 正确的值类型 receiver 反向擦除成 `Any`。
+        let receiver_local_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
+        let receiver_local = if receiver.ty == self.builtins.any || receiver_local_ty == receiver.ty
+        {
+            receiver_local
+        } else {
+            let narrowed_receiver = self.push_temp_local(receiver.span, receiver.ty);
+            self.assign_use_to_local(
+                receiver.span,
+                narrowed_receiver,
+                Operand::Local(receiver_local),
+            );
+            narrowed_receiver
+        };
         let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
         let tuple_member = tuple_member.or_else(|| self.tuple_member_access(member, receiver_ty));
         if let Some((index, _)) = tuple_member {
@@ -3450,6 +3472,13 @@ impl<'a> FnLowering<'a> {
         result
     }
 
+    fn member_value_ty(&self, member: &hir::MemberAccess) -> Option<TypeId> {
+        let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+            return None;
+        };
+        self.facts.member_value_tys.get(fqn).copied()
+    }
+
     fn tuple_member_access(
         &self,
         member: &hir::MemberAccess,
@@ -3463,13 +3492,6 @@ impl<'a> FnLowering<'a> {
             return None;
         };
         elements.get(index).copied().map(|elem_ty| (index, elem_ty))
-    }
-
-    fn member_value_ty(&self, member: &hir::MemberAccess) -> Option<TypeId> {
-        let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
-            return None;
-        };
-        self.facts.member_value_tys.get(fqn).copied()
     }
 
     fn lower_member_access_metadata(
@@ -7131,6 +7153,87 @@ fun entry(user: User?): Int? {
             saw_none,
             "safe member access 的 None 分支应 lower 为 Option.None ctor/value"
         );
+    }
+
+    #[test]
+    fn dump_mir_smart_cast_member_access_preserves_concrete_generic_field_type() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_smart_cast_generic_member_access.scoop",
+            r#"
+package fixtures.mirlower
+
+import scoop.core.*
+
+class Box<T>(val value: T)
+
+fun readValue(x: Any): Int {
+    if (x is Box<Int>) {
+        return x.value
+    }
+    return 0
+}
+"#,
+        );
+
+        let mut lowered = lower_for_dump(&sess, &source).unwrap();
+        let builtins = lowered.types.intern_builtins();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.mirlower.readValue" => Some(fun),
+                _ => None,
+            })
+            .expect("expected readValue MIR root");
+        let body = fun.body.as_ref().expect("readValue should have a MIR body");
+        let param_local = fun.params[0].local;
+        let (receiver_local, target_local, member_receiver_ty) = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    target,
+                    value:
+                        Rvalue::MemberAccess {
+                            receiver: Operand::Local(receiver_local),
+                            member,
+                            ..
+                        },
+                } => Some((*receiver_local, *target, member.receiver_ty)),
+                _ => None,
+            })
+            .expect("smart-cast branch should lower to a member access statement");
+
+        assert_eq!(
+            body.locals[target_local.as_u32() as usize].ty,
+            builtins.int,
+            "smart-cast branch的 member access 结果 local 应保持 concrete Int，而不是声明处的 T"
+        );
+        assert_ne!(
+            receiver_local, param_local,
+            "smart-cast branch 应为 narrowed receiver 建立单独 local，不能继续直接复用 Any 形参槽位"
+        );
+        assert_eq!(
+            body.locals[receiver_local.as_u32() as usize].ty,
+            member_receiver_ty,
+            "member metadata 的 receiver_ty 应与 narrowed receiver local 一致"
+        );
+        match lowered
+            .types
+            .kind(body.locals[receiver_local.as_u32() as usize].ty)
+        {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                assert_eq!(
+                    nominal.args,
+                    vec![builtins.int],
+                    "smart-cast receiver local 应具体化为 Box<Int>"
+                );
+            }
+            other => panic!("expected narrowed receiver local to be Box<Int>, got {other:?}"),
+        }
     }
 
     #[test]
