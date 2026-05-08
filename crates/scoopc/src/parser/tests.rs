@@ -118,20 +118,6 @@ fn parse_annotation_class_decl() {
 }
 
 #[test]
-fn parse_async_fun_decl() {
-    let src = SourceFile::new_virtual("<mem>", "package a\nasync fun f(): Int { return 1 }\n");
-    let file = parse_file(&src).unwrap();
-    assert_eq!(file.items.len(), 1);
-
-    let ast::Item::Fun(f) = &file.items[0] else {
-        panic!("期望顶层第一个 item 为函数声明");
-    };
-
-    assert_eq!(src.slice(f.name.span), "f");
-    assert!(f.modifiers.contains(&ast::Modifier::Async));
-}
-
-#[test]
 fn parse_fun_decl_with_annotations() {
     let src = SourceFile::new_virtual(
         "<mem>",
@@ -347,7 +333,7 @@ fn parse_when_bare_variant_or_pattern_keeps_zero_arity_variants() {
 fn parse_when_qualified_variant_patterns() {
     let src = SourceFile::new_virtual(
         "<mem>",
-        "package a\nval choice = when (x) { TaskStep.Ready(1) | TaskStep.Pending -> 1 else -> 2 }\n",
+        "package a\nval choice = when (x) { State.Ready(1) | State.Pending -> 1 else -> 2 }\n",
     );
     let file = parse_file(&src).unwrap();
 
@@ -367,7 +353,7 @@ fn parse_when_qualified_variant_patterns() {
         panic!("期望第一个 or 分支为 qualified variant pattern");
     };
     assert_eq!(path.segments.len(), 2);
-    assert_eq!(src.slice(path.segments[0].span), "TaskStep");
+    assert_eq!(src.slice(path.segments[0].span), "State");
     assert_eq!(src.slice(path.segments[1].span), "Ready");
     assert_eq!(args.len(), 1);
     assert!(matches!(args[0], ast::WhenPat::IntLit { .. }));
@@ -376,7 +362,7 @@ fn parse_when_qualified_variant_patterns() {
         panic!("期望第二个 or 分支为 qualified bare variant pattern");
     };
     assert_eq!(path.segments.len(), 2);
-    assert_eq!(src.slice(path.segments[0].span), "TaskStep");
+    assert_eq!(src.slice(path.segments[0].span), "State");
     assert_eq!(src.slice(path.segments[1].span), "Pending");
     assert!(args.is_empty());
 }
@@ -578,26 +564,6 @@ fn parser_hir_surface_gate() {
             other => other,
         }
     }
-
-    let spawn = SourceFile::new_virtual("<mem>", "fun f() { val x = spawn { 1 } }");
-    let err = parse_file(&spawn).expect_err("spawn surface 应在 parser 阶段拒绝");
-    assert!(matches!(
-        first_error(&err),
-        ParseError::StructuredConcurrencyDeferred {
-            feature: "spawn",
-            ..
-        }
-    ));
-
-    let join = SourceFile::new_virtual("<mem>", "fun f(task: Task<Int>) { val x = join task }");
-    let err = parse_file(&join).expect_err("join surface 应在 parser 阶段拒绝");
-    assert!(matches!(
-        first_error(&err),
-        ParseError::StructuredConcurrencyDeferred {
-            feature: "join",
-            ..
-        }
-    ));
 
     let assignment =
         SourceFile::new_virtual("<mem>", "fun f(box: Box) { val y = (box.value = 1) }");

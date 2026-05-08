@@ -1643,9 +1643,7 @@ fn collect_local_decl_spans_in_expr(expr: &ast::Expr, out: &mut Vec<Span>) {
         ast::ExprKind::Block(block)
         | ast::ExprKind::DoBlock { body: block, .. }
         | ast::ExprKind::UnsafeBlock { body: block, .. }
-        | ast::ExprKind::SafeBlock { body: block, .. }
-        | ast::ExprKind::Async { body: block }
-        | ast::ExprKind::Spawn { body: block } => {
+        | ast::ExprKind::SafeBlock { body: block, .. } => {
             collect_local_decl_spans_in_block_into(block, out)
         }
         ast::ExprKind::Lambda(lambda) => {
@@ -1692,9 +1690,7 @@ fn collect_local_decl_spans_in_expr(expr: &ast::Expr, out: &mut Vec<Span>) {
         }
         ast::ExprKind::MemberAccess { receiver, .. }
         | ast::ExprKind::SafeMemberAccess { receiver, .. }
-        | ast::ExprKind::NotNullAssert { expr: receiver, .. }
-        | ast::ExprKind::Await { expr: receiver, .. }
-        | ast::ExprKind::Join { expr: receiver, .. } => {
+        | ast::ExprKind::NotNullAssert { expr: receiver, .. } => {
             collect_local_decl_spans_in_expr(receiver, out)
         }
         ast::ExprKind::SpliceField { receiver, field } => {

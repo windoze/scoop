@@ -530,8 +530,6 @@ impl<'a> Parser<'a> {
                     | Keyword::Try
                     | Keyword::Handle
                     | Keyword::Perform
-                    | Keyword::Async
-                    | Keyword::Await
             ) | TokenKind::Ident
                 | TokenKind::IntLiteral
                 | TokenKind::FloatLiteral
@@ -573,8 +571,6 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Try => "`try`",
         Keyword::Catch => "`catch`",
         Keyword::Finally => "`finally`",
-        Keyword::Async => "`async`",
-        Keyword::Await => "`await`",
         Keyword::Return => "`return`",
         Keyword::Comptime => "`comptime`",
         Keyword::If => "`if`",
@@ -603,7 +599,6 @@ fn is_modifier_keyword(kw: Keyword) -> bool {
             | Keyword::Open
             | Keyword::Abstract
             | Keyword::Sealed
-            | Keyword::Async
             | Keyword::Inline
             | Keyword::Override
             | Keyword::Const

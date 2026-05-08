@@ -13,7 +13,7 @@
 //! - 在不依赖 LLVM 后端的前端阶段完成常量求值与错误诊断。
 //!
 //! 非目标（留给后续子任务 T1204+）：
-//! - `when`、`handle/perform`、`async`、闭包/lambda 等更复杂语义；
+//! - `when`、`handle/perform`、闭包/lambda 等更复杂语义；
 //! - 超出上述 Pure/Pure! 合同的 effectful/effect-polymorphic `const fun` 设计；
 //! - 更完整的 `const fun` 静态约束（例如禁止闭包捕获）。
 

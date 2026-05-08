@@ -7840,12 +7840,8 @@ impl MirInstanceMaterializer {
                 result_ty,
                 &mut result_bindings,
             );
-            let task_step_result_driven = input.callee_fqn.starts_with("scoop.core.__task_step_");
             for (name, ty) in result_bindings {
-                if task_step_result_driven
-                    || !param_type_param_names.contains(&name)
-                    || bindings.contains_key(&name)
-                {
+                if !param_type_param_names.contains(&name) || bindings.contains_key(&name) {
                     bindings.entry(name).or_insert(ty);
                 }
             }
@@ -10899,59 +10895,6 @@ fun entry(): Int {
             )),
             "generic instance 经由非泛型 helper 可达的 owner-specialized getter 应继续进入 MIR materialization"
         );
-    }
-
-    #[test]
-    fn typechecked_compilation_unit_materialization_reaches_generic_calls_through_non_generic_async_closure_body()
-     {
-        let sess = Session::new().unwrap();
-        let source = SourceFile::new_virtual(
-            "<mem>/materialize_async_closure_helper_reachability.scoop",
-            r#"
-package fixtures.materialize
-
-import scoop.core.*
-
-fun entry(): Int {
-    val task: Task<Int> = async {
-        val inner: Task<Int> = async { 41 }
-        val value: Int = await inner
-        value + 1
-    }
-    return 0
-}
-"#,
-        );
-
-        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
-        let compilation_unit = inputs
-            .prepared_files
-            .iter()
-            .map(|file| (&file.source, &file.ast))
-            .collect::<Vec<_>>();
-        let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
-            &compilation_unit,
-            &[source.path().to_path_buf()],
-            &inputs.index,
-            Some(&inputs.env),
-            &inputs.typecheck_types,
-            &inputs.monomorph_requests,
-        )
-        .unwrap();
-
-        for fqn in [
-            "scoop.core.__task_create::<Int>",
-            "scoop.core.__task_step_ready::<Int>",
-            "scoop.core.__task_step_pending::<Int>",
-        ] {
-            assert!(
-                materialized.file.items.iter().any(|item| matches!(
-                    item,
-                    Item::Fun(fun) if fun.fqn == fqn
-                )),
-                "non-generic async closure body 内的 task helper 应继续进入编译单元 materialization，缺失 `{fqn}`"
-            );
-        }
     }
 
     #[test]

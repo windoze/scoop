@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 不支持命名实参
+
+import scoop.core.*
+
+fun main() {
+    val f: String.(Int) -> Int = { n: Int -> this.length() + n }
+    val x: Int = f(receiver = "abc", a0 = 2)
+    println(x)
+}

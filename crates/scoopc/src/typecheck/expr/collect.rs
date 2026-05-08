@@ -9,9 +9,7 @@ use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};
 use super::util::package_prefix;
 
-use super::{
-    EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN,
-};
+use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereConstraintInfo};
 
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
@@ -439,57 +437,15 @@ pub(super) fn collect_top_level_fun_signatures(
                 param_eff_row_var_subst.push(subst_plan);
             }
 
-            // T0623：`async fun foo(): T` 对外暴露 `Task<T>`。
-            //
-            // 说明：
-            // - 这里的 `return_ty` 用于调用点类型与 overload resolution；
-            // - 函数体内部的 `return` 类型检查仍以 AST 上的 `return_ty`（T）为准（见 `check_fun_body_exprs`）。
-            let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
-            let inner_return_ty = match &fun.return_ty {
+            let return_ty = match &fun.return_ty {
                 Some(ret) => lower.lower_type_ref(ret)?,
                 None => builtins.unit,
-            };
-            let return_ty = if is_async_fun {
-                lower.lower_type_fqn_with_args(
-                    TASK_FQN.to_string(),
-                    vec![inner_return_ty],
-                    fun.name.span,
-                )?
-            } else {
-                inner_return_ty
             };
 
             let return_eff_row_var_subst = if let (Some(eff_param), Some(ret_ref)) =
                 (eff_param_sig.as_ref(), fun.return_ty.as_ref())
             {
-                if is_async_fun {
-                    // 对 eff var substitution：在签名视图下，返回类型是 `Task<ret_ref>`。
-                    let synth_span = ret_ref.span();
-                    let synth_ret_ref = ast::TypeRef::Path(ast::TypePath {
-                        span: synth_span,
-                        segments: vec![
-                            ast::Ident::synthetic(synth_span, "scoop"),
-                            ast::Ident::synthetic(synth_span, "core"),
-                            ast::Ident::synthetic(synth_span, "Task"),
-                        ],
-                        args: vec![ret_ref.clone()],
-                    });
-                    build_eff_row_var_subst_plan(
-                        &synth_ret_ref,
-                        return_ty,
-                        &eff_param.name,
-                        source,
-                        lower,
-                    )?
-                } else {
-                    build_eff_row_var_subst_plan(
-                        ret_ref,
-                        return_ty,
-                        &eff_param.name,
-                        source,
-                        lower,
-                    )?
-                }
+                build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, source, lower)?
             } else {
                 EffRowVarSubstPlan::None
             };
@@ -661,7 +617,7 @@ pub(super) fn collect_member_mutabilities(
     collect_member_mutabilities_in_file(source, file, &mut map);
 
     // 成员赋值需要看到“当前编译单元的其它声明文件”中的 `var`/`val` 信息：
-    // 例如 sysroot 中 `Task` 定义在 `core.scoop`，而其方法体实现放在 `task.scoop`。
+    // 例如 sysroot 中某些 declaration-only surface 定义在 `core.scoop`，实现体位于其它可编译文件。
     let mut foreign_files = env
         .files()
         .filter(|(path, _)| path.as_path() != source.path())

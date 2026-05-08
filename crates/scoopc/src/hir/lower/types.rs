@@ -571,7 +571,7 @@ pub(super) struct ExpectedExpr {
     /// 一般表达式的期望类型。
     ///
     /// 当前主要用于在 typecheck side table 没有写回最终类型时，
-    /// 仍能给 `await` 之类的语法糖恢复正确的 HIR 结果类型。
+    /// 仍能给需要 typecheck side table 的语义糖恢复正确的 HIR 结果类型。
     pub(super) value_ty: Option<crate::ty::TypeId>,
     pub(super) array_lit_target: Option<ArrayLitTarget>,
     /// 数组字面量的完整期望类型（例如 `Array<Int>` / `MutableArray<String>`）。

@@ -1206,7 +1206,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         transport: &mir::CallTransportMetadata,
         target_cg: super::super::types::CgTy,
-        target_local: Option<LocalId>,
+        _target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if let mir::CallKind::Interface { receiver, dispatch } = kind
             && dispatch.owner_fqn == "scoop.core.ToString"
@@ -1321,15 +1321,6 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .codegen
                 .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
             return self.codegen.coerce_value(span, value, target_cg);
-        }
-        if let Some(value) = self.lower_refactor_task_transport_intrinsic(
-            span,
-            callee_fqn,
-            args,
-            target_cg,
-            target_local,
-        )? {
-            return Ok(value);
         }
         if let Some(value) = self.lower_refactor_array_intrinsic(
             span,
@@ -3780,124 +3771,6 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: span.into(),
             }),
         }
-    }
-
-    fn lower_refactor_task_transport_intrinsic(
-        &mut self,
-        span: Span,
-        callee_fqn: &str,
-        args: &[mir::CallArg],
-        target_cg: CgTy,
-        target_local: Option<LocalId>,
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let base_fqn = callee_fqn.split("::<").next().unwrap_or(callee_fqn);
-        if !matches!(
-            base_fqn,
-            "scoop.core.__task_transport_pack" | "scoop.core.__task_transport_unpack"
-        ) {
-            return Ok(None);
-        }
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor task transport intrinsic arg contract",
-                at: span.into(),
-            });
-        }
-        let arg = &args[0];
-        match base_fqn {
-            "scoop.core.__task_transport_pack" => {
-                let carrier_ty = self.target_local_source_ty(target_local, span)?;
-                let carrier_codegen_ty = self
-                    .codegen
-                    .equivalent_codegen_type_id(self.source_types, carrier_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport pack carrier codegen type",
-                        at: span.into(),
-                    })?;
-                if !self.codegen.is_task_transport_tuple_ty(carrier_codegen_ty) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport pack carrier type",
-                        at: span.into(),
-                    });
-                }
-                let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
-                let value_cg = self
-                    .codegen
-                    .cg_ty_of_mir_type(self.source_types, value_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport pack arg type",
-                        at: arg.span.into(),
-                    })?;
-                let value = self.codegen.codegen_mir_operand_expected(
-                    arg.span,
-                    &arg.value,
-                    self.slots,
-                    Some(value_cg),
-                )?;
-                let value = self.codegen.coerce_value(arg.span, value, value_cg)?;
-                let (word, gc_ref) = self
-                    .codegen
-                    .encode_effect_transport_value(arg.span, value)?;
-                let packed = self.codegen.build_task_transport_tuple_value(
-                    span,
-                    carrier_codegen_ty,
-                    word,
-                    gc_ref,
-                )?;
-                Ok(Some(self.codegen.coerce_value(span, packed, target_cg)?))
-            }
-            "scoop.core.__task_transport_unpack" => {
-                let carrier_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
-                let carrier_codegen_ty = self
-                    .codegen
-                    .equivalent_codegen_type_id(self.source_types, carrier_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport unpack carrier codegen type",
-                        at: arg.span.into(),
-                    })?;
-                if !self.codegen.is_task_transport_tuple_ty(carrier_codegen_ty) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport unpack carrier type",
-                        at: arg.span.into(),
-                    });
-                }
-                let carrier_cg = self
-                    .codegen
-                    .cg_ty_of_mir_type(self.source_types, carrier_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport unpack carrier type",
-                        at: arg.span.into(),
-                    })?;
-                let carrier = self.codegen.codegen_mir_operand_expected(
-                    arg.span,
-                    &arg.value,
-                    self.slots,
-                    Some(carrier_cg),
-                )?;
-                let carrier = self.codegen.coerce_value(arg.span, carrier, carrier_cg)?;
-                let (word, gc_ref) = self
-                    .codegen
-                    .split_task_transport_tuple_value(arg.span, carrier)?;
-                Ok(Some(self.codegen.decode_effect_transport_value(
-                    span, word, gc_ref, target_cg,
-                )?))
-            }
-            _ => unreachable!("filtered above"),
-        }
-    }
-
-    fn target_local_source_ty(
-        &self,
-        target_local: Option<LocalId>,
-        span: Span,
-    ) -> Result<TypeId, LlvmEmitError> {
-        target_local
-            .and_then(|local| self.body.locals.get(local.as_u32() as usize))
-            .map(|local| local.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor task transport target local type",
-                at: span.into(),
-            })
     }
 
     fn required_operand_source_ty(

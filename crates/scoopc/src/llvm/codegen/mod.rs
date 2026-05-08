@@ -3531,17 +3531,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn async_task_ready_local_uses_block_local_return_semantics(
-        &self,
-        decl: &hir::ValDecl,
-        init: &hir::Expr,
-    ) -> bool {
-        decl.name
-            .as_deref()
-            .is_some_and(|name| name.starts_with("__task_ready_value"))
-            && matches!(init.kind, hir::ExprKind::Block(_))
-    }
-
     fn codegen_decl_initializer_expr(
         &mut self,
         decl: &hir::ValDecl,
@@ -3554,12 +3543,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "val without initializer",
                 at: decl.span.into(),
             })?;
-
-        if self.async_task_ready_local_uses_block_local_return_semantics(decl, init)
-            && let hir::ExprKind::Block(block) = &init.kind
-        {
-            return self.codegen_block_value_with_local_return_context(block, target_ty);
-        }
 
         self.codegen_initializer_expr(init, target_ty, decl.ty)
     }

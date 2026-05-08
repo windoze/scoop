@@ -103,16 +103,6 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
-    #[error(
-        "语法错误：structured concurrency 语法 `{feature}` 当前延期，不能进入 HIR；请改用 `async {{ ... }}` / `await` 或显式 runtime API"
-    )]
-    #[diagnostic(code(scoop::parse::structured_concurrency_deferred))]
-    StructuredConcurrencyDeferred {
-        feature: &'static str,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     #[error("语法错误：赋值表达式不能进入 HIR；assignment 当前只能作为语句使用")]
     #[diagnostic(
         code(scoop::parse::assignment_expression_not_allowed),
@@ -213,7 +203,6 @@ impl ParseError {
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
             ParseError::InlineModifierRemoved { span } => Some(*span),
-            ParseError::StructuredConcurrencyDeferred { span, .. } => Some(*span),
             ParseError::AssignmentExpressionNotAllowed { span } => Some(*span),
             ParseError::SpreadArgOutsideCall { span } => Some(*span),
             ParseError::NamedArgOutsideCall { span } => Some(*span),

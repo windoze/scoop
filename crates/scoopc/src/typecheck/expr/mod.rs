@@ -41,8 +41,6 @@ use super::lower::TypeLowering;
 
 pub(super) use call::{EnumTypeSubstContext, lower_type_ref_with_enum_subst};
 
-pub(super) const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
-pub(super) const TASK_FQN: &str = "scoop.core.Task";
 pub(super) const PTR_FQN: &str = "scoop.unsafe.Ptr";
 pub(super) const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
 

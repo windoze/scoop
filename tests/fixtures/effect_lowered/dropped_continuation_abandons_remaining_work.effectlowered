@@ -37,15 +37,15 @@ LateLoweredProgram
     - step_schema: s1
       invoke_args_tuple_ty: t5
       complete_variant: Complete(t5)
-      continuation_obj_ty: t500
+      continuation_obj_ty: t391
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 concrete_op=sample.Other.ping
-        - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 concrete_op=sample.Step.next
-        - Case(c2) payload_tuple_ty=t252 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t252>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Other.ping
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Step.next
+        - Case(c2) payload_tuple_ty=t212 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t212>
   continuation_objects:
     - continuation_object: ko0
-      owner_version: instance=sample.helper allowed_row=(t493) impl_plan=SingleCase(c1) needs_reentry=true
-      continuation_obj_ty: t500
+      owner_version: instance=sample.helper allowed_row=(t385) impl_plan=SingleCase(c1) needs_reentry=true
+      continuation_obj_ty: t391
       implemented_packings: [ri1]
       captures:
         - FrameSlot(slot0)
@@ -57,11 +57,11 @@ LateLoweredProgram
         - FrameSlot(slot6)
         - State(st6)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
-        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
+        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
       authoritative_internal_methods:
-        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s1
       publications:
@@ -76,7 +76,7 @@ LateLoweredProgram
       packing_effect_family: sample.Step
       authoritative_step_schema: s1
       packed_methods:
-        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t501 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
   callables:
     - root: sample.cleanup
       body_version_key: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -90,7 +90,7 @@ LateLoweredProgram
       plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: sample.helper
-      body_version_key: instance=sample.helper allowed_row=(t493) impl_plan=SingleCase(c1) needs_reentry=true
+      body_version_key: instance=sample.helper allowed_row=(t385) impl_plan=SingleCase(c1) needs_reentry=true
       resolved_outward_cases: [c1]
       abi: EffectStep
       authoritative_step_schema: s1

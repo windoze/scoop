@@ -1916,48 +1916,6 @@ fun main(): Int {
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn build_refactor_task_atomic_fixture_lowers_o0_without_legacy_mutex() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("task_atomic_claim_no_mutex_llvm.scoop");
-        std::fs::write(
-            &input,
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop"
-            )),
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
-        let output = dir.path().join("task_atomic.ll");
-        let _extern_libs = super::emit_refactor_llvm_artifact_for_build(
-            &session,
-            &front,
-            &output,
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-        )
-        .unwrap();
-        let ir = std::fs::read_to_string(output).unwrap();
-
-        assert!(
-            ir.contains("cmpxchg ptr addrspace(1)"),
-            "Task.step() O0 build should preserve atomic claim acquisition\n{ir}"
-        );
-        assert!(
-            ir.contains("store atomic i64 0, ptr addrspace(1)"),
-            "Task.step() O0 build should preserve atomic claim release\n{ir}"
-        );
-        assert!(
-            !ir.contains("scoop_sync_mutex"),
-            "Task.step() O0 build must not fall back to legacy mutex transport\n{ir}"
-        );
-    }
-
-    #[cfg(feature = "llvm")]
-    #[test]
     fn build_frontend_does_not_eager_materialize_unused_owner_specialized_getter() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");

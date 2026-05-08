@@ -282,51 +282,6 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_generic_annotated_expr()?));
         }
 
-        // HIR-T02：公开 `spawn { ... }` / `join expr` structured concurrency surface
-        // 当前延期，必须在 parser 阶段停止，不能再进入 HIR 形成 placeholder。
-        if self.peek_ident_text("spawn") && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
-        {
-            let spawn = self.bump();
-            return Err(ParseError::StructuredConcurrencyDeferred {
-                feature: "spawn",
-                span: spawn.span.into(),
-            });
-        }
-
-        if self.peek_ident_text("join")
-            && token_can_start_deferred_join_operand(self.peek_n(1).kind)
-        {
-            let join = self.bump();
-            return Err(ParseError::StructuredConcurrencyDeferred {
-                feature: "join",
-                span: join.span.into(),
-            });
-        }
-
-        // spec §5.7：`await expr`（作为 Async effect 的语法糖）。
-        //
-        // 说明：
-        // - lexer 当前把 `await` 作为 ident（上下文关键字），因此这里通过字面文本判别；
-        // - `await` 作为前缀操作符，优先级与 `!`/`-` 等前缀一元运算对齐；
-        // - 具体 lowering（例如 desugar 成 `Async.await(...)` 的 perform 点）由后续阶段完成。
-        if self.peek_ident_text("await") {
-            let await_kw = self.bump(); // `await`（ident）
-            let tok = *self.peek();
-            let expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
-                expected: "表达式（await 的操作数）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
-
-            return Ok(Some(ast::Expr {
-                span: Span::new(await_kw.span.start, expr.span.end),
-                kind: ast::ExprKind::Await {
-                    await_span: await_kw.span,
-                    expr: Box::new(expr),
-                },
-            }));
-        }
-
         // spec §5.7：`perform E.op(...)`。
         //
         // 说明：
@@ -818,10 +773,6 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_try_expr()?));
         }
 
-        if self.peek_keyword(Keyword::Async) {
-            return Ok(Some(self.parse_async_expr()?));
-        }
-
         // spec §7.6：`do { ... }` — 局部 block 表达式。
         // 必须在 `{ ... }` (lambda) 判断之前匹配，因为 `do` 后紧跟 `{` 才构成 do-block。
         if self.peek_keyword(Keyword::Do) {
@@ -841,22 +792,6 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
-    }
-
-    /// 解析 `async { ... }`（spec §5.7）。
-    ///
-    /// 当前阶段：
-    /// - 仅支持 block 形式（与 `handle`/`try` 的早期约束对齐）；
-    /// - async 的具体语义将由 typecheck/lowering 落地（TODO T0619）。
-    fn parse_async_expr(&mut self) -> Result<ast::Expr, ParseError> {
-        let async_kw = self.expect_keyword(Keyword::Async)?;
-        let start = async_kw.span.start;
-
-        let body = self.parse_block()?;
-        Ok(ast::Expr {
-            span: Span::new(start, body.span.end),
-            kind: ast::ExprKind::Async { body },
-        })
     }
 
     /// 解析 `handle { ... } with { ... }`（spec §5.4）。
@@ -1085,7 +1020,7 @@ impl<'a> Parser<'a> {
     fn parse_handle_op(&mut self) -> Result<ast::HandleOp, ParseError> {
         // effect operation head：
         // - `Raise.raise(...)`
-        // - `foo.bar.Async.await(...)`
+        // - `foo.bar.Effect.op(...)`
         // - `Pair<String, Int>.ping(...)`
         // - `Query.ask<Int>(...)`
         let first = self.expect_kind(TokenKind::Ident, "effect operation 名（标识符）")?;
@@ -2941,34 +2876,6 @@ fn is_assignable_lhs(expr: &ast::Expr) -> bool {
     matches!(
         expr.kind,
         ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. }
-    )
-}
-
-fn token_can_start_deferred_join_operand(kind: TokenKind) -> bool {
-    matches!(
-        kind,
-        TokenKind::Ident
-            | TokenKind::IntLiteral
-            | TokenKind::FloatLiteral
-            | TokenKind::CharLiteral
-            | TokenKind::StringLiteral(_)
-            | TokenKind::Keyword(
-                Keyword::If
-                    | Keyword::When
-                    | Keyword::Handle
-                    | Keyword::Try
-                    | Keyword::Async
-                    | Keyword::Do
-                    | Keyword::Perform,
-            )
-            | TokenKind::Symbol(
-                Symbol::At
-                    | Symbol::LBrace
-                    | Symbol::LBracket
-                    | Symbol::Bang
-                    | Symbol::Minus
-                    | Symbol::Tilde,
-            )
     )
 }
 

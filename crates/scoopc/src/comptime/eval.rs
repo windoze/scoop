@@ -550,10 +550,6 @@ pub(crate) fn eval_const_expr_flow_with_host(
             kind: "handle expression",
             span: expr.span.into(),
         }),
-        ast::ExprKind::Async { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "async expression",
-            span: expr.span.into(),
-        }),
         ast::ExprKind::StructLit { ty, fields } => {
             let ty_name = type_path_name(ctx.source, ty);
             let mut out_fields = std::collections::BTreeMap::<String, ConstValue>::new();

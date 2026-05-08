@@ -1405,37 +1405,7 @@ impl Index {
             })
             .collect::<Vec<_>>();
 
-        // T0623：`async fun foo(): T` 对外暴露 `Task<T>`（而不是 `T / Async`）。
-        //
-        // 说明：
-        // - `Index` 会被跨文件调用点查询，因此这里需要把“降糖后的返回类型”写入签名；
-        // - 函数体内部的返回类型检查仍以 AST 上的 `return_ty`（T）为准（由 typecheck 处理）。
-        let return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
-            let synth_span = fun.return_ty.as_ref().map(|t| t.span()).unwrap_or(fun.span);
-            let inner = fun.return_ty.clone().unwrap_or_else(|| {
-                ast::TypeRef::Path(ast::TypePath {
-                    span: synth_span,
-                    segments: vec![
-                        ast::Ident::synthetic(synth_span, "scoop"),
-                        ast::Ident::synthetic(synth_span, "core"),
-                        ast::Ident::synthetic(synth_span, "Unit"),
-                    ],
-                    args: Vec::new(),
-                })
-            });
-
-            Some(ast::TypeRef::Path(ast::TypePath {
-                span: synth_span,
-                segments: vec![
-                    ast::Ident::synthetic(synth_span, "scoop"),
-                    ast::Ident::synthetic(synth_span, "core"),
-                    ast::Ident::synthetic(synth_span, "Task"),
-                ],
-                args: vec![inner],
-            }))
-        } else {
-            fun.return_ty.clone()
-        };
+        let return_ty = fun.return_ty.clone();
 
         let sig = FunSig {
             kind: fun.kind,

@@ -1629,12 +1629,6 @@ impl ScopeEnv {
     }
 }
 
-#[derive(Clone)]
-struct LocalBlockReturnContext {
-    decl: hir::ValDecl,
-    continuation_state: PlanStateId,
-}
-
 struct HandlePlanBuilder<'a, 'hir> {
     types: &'a TypeStore,
     handle: &'hir hir::HandleExpr,
@@ -1650,7 +1644,6 @@ struct HandlePlanBuilder<'a, 'hir> {
     frame_slots: HashMap<hir::SymbolId, FrameSlot>,
     resume_source_exprs: HashMap<SuspendSiteId, hir::Expr>,
     nested_handles: Vec<HandleStateMachinePlan>,
-    local_block_return_contexts: Vec<LocalBlockReturnContext>,
 }
 
 impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
@@ -1813,7 +1806,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             frame_slots: HashMap::new(),
             resume_source_exprs: HashMap::new(),
             nested_handles: Vec::new(),
-            local_block_return_contexts: Vec::new(),
         }
     }
 
@@ -1940,10 +1932,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             hir::StmtKind::Expr(expr) => self.build_expr(expr, current_state, env),
             hir::StmtKind::Val(decl) => {
-                if self.async_task_ready_decl_uses_local_return_context(decl) {
-                    return self.build_async_task_ready_decl(decl, current_state, env);
-                }
-
                 let init_from_last_value = self.decl_init_uses_prior_actions(decl.init.as_ref());
                 let mut state = current_state;
                 if let Some(init) = decl.init.as_ref() {
@@ -2007,33 +1995,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.new_state("unreachable.after.continue")
             }
             hir::StmtKind::Return { value } => {
-                if let Some(local_return_ctx) = self.local_block_return_contexts.last().cloned() {
-                    let state = if let Some(expr) = value {
-                        self.build_expr_for_consumer(expr, current_state, env)
-                    } else {
-                        current_state
-                    };
-                    let mut synthetic_decl = local_return_ctx.decl.clone();
-                    synthetic_decl.init = value.clone();
-                    let init_from_last_value =
-                        self.decl_init_uses_prior_actions(synthetic_decl.init.as_ref());
-                    self.push_action(
-                        state,
-                        HandleStateOp::BindLocal {
-                            id: synthetic_decl
-                                .id
-                                .expect("async task ready local return target must have a slot"),
-                            decl: Box::new(synthetic_decl),
-                            init_from_last_value,
-                        },
-                    );
-                    self.set_terminator(
-                        state,
-                        StateTerminator::Goto(local_return_ctx.continuation_state),
-                    );
-                    return self.new_state("unreachable.after.local.block.return");
-                }
-
                 if let Some(expr) = value {
                     let state = self.build_expr_for_consumer(expr, current_state, env);
                     self.push_action(
@@ -2068,16 +2029,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
-    fn async_task_ready_decl_uses_local_return_context(&self, decl: &hir::ValDecl) -> bool {
-        decl.name
-            .as_deref()
-            .is_some_and(|name| name.starts_with("__task_ready_value"))
-            && matches!(
-                decl.init.as_ref().map(|expr| &expr.kind),
-                Some(hir::ExprKind::Block(_))
-            )
-    }
-
     fn decl_init_uses_prior_actions(&self, init: Option<&hir::Expr>) -> bool {
         init.is_some_and(|expr| self.expr_contains_suspend_subtree(expr))
     }
@@ -2105,53 +2056,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.frame_slots.insert(id, slot.clone());
         env.push(slot);
         Some(id)
-    }
-
-    fn build_async_task_ready_decl(
-        &mut self,
-        decl: &'hir hir::ValDecl,
-        current_state: PlanStateId,
-        env: &mut ScopeEnv,
-    ) -> PlanStateId {
-        let continuation_state = self.new_state("async.task.ready.cont");
-        let _ = self.install_decl_slot(decl, env);
-        self.record_local_fun_binding_if_needed(decl);
-        let init_from_last_value = self.decl_init_uses_prior_actions(decl.init.as_ref());
-
-        self.local_block_return_contexts
-            .push(LocalBlockReturnContext {
-                decl: decl.clone(),
-                continuation_state,
-            });
-
-        let mut state = current_state;
-        if let Some(init) = decl.init.as_ref() {
-            state = self.build_expr_for_consumer(init, state, env);
-        }
-
-        let _ = self.local_block_return_contexts.pop();
-
-        if let Some(id) = decl.id {
-            self.push_action(
-                state,
-                HandleStateOp::BindLocal {
-                    id,
-                    decl: Box::new(decl.clone()),
-                    init_from_last_value,
-                },
-            );
-        } else {
-            self.push_action(
-                state,
-                HandleStateOp::DeclareAnonymousVal {
-                    decl: Box::new(decl.clone()),
-                    init_from_last_value,
-                },
-            );
-        }
-
-        self.set_terminator(state, StateTerminator::Goto(continuation_state));
-        continuation_state
     }
 
     fn build_while(

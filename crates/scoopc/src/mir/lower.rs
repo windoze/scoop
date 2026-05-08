@@ -1883,8 +1883,8 @@ impl<'a> FnLowering<'a> {
     ///
     /// 说明：
     /// - 现阶段 `TerminatorKind::Handle` / `TerminatorKind::Perform` 仍未展开成真实 CFG；
-    /// - 但像 async task body 这类形状会在 `handle { ... }` 之后继续出现普通 direct call
-    ///   （例如 `__task_step_ready(...)`），并且 `await` 之后的恢复路径也仍需要在 generic MIR 中保形；
+    /// - 但某些语义糖或后续 lowering 形状会在 `handle { ... }` 之后继续出现普通 direct call，
+    ///   并且恢复路径也仍需要在 generic MIR 中保形；
     /// - 若这里直接停止，generic MIR materializer 将看不到这些后续 call-site；
     /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
     fn continue_after_placeholder_effect_terminator_if_needed(&mut self, next_span: Span) -> bool {
@@ -7292,53 +7292,6 @@ fun readValue(x: Any): Int {
                 .any(|binding| binding.fqn == "Num.compareTo"),
             "typed HIR side table 应保留 fixture compareTo 站点的 direct-call binding"
         );
-    }
-
-    #[test]
-    fn dump_mir_canonicalizes_callable_receiver_named_args_by_binding() {
-        let sess =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
-            .canonicalize()
-            .unwrap();
-        let source = SourceFile::load(&fixture).unwrap();
-
-        let lowered = lower_for_dump(&sess, &source).unwrap();
-        let fun = lowered
-            .file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
-                _ => None,
-            })
-            .expect("expected main MIR root");
-        let body = fun.body.as_ref().expect("main should have a MIR body");
-
-        let call_args_at = |span: Span| {
-            body.blocks
-                .iter()
-                .flat_map(|block| block.stmts.iter())
-                .find_map(|stmt| match &stmt.kind {
-                    StatementKind::Assign {
-                        value: Rvalue::Call { args, .. },
-                        ..
-                    } if stmt.span == span => Some(args.as_slice()),
-                    _ => None,
-                })
-                .unwrap_or_else(|| panic!("missing call at span {span:?}"))
-        };
-
-        let when_fun_value_args = call_args_at(Span::new(1442, 1469));
-        assert_eq!(when_fun_value_args.len(), 2);
-        assert_eq!(when_fun_value_args[0].span, Span::new(1463, 1468));
-        assert_eq!(when_fun_value_args[1].span, Span::new(1449, 1450));
-
-        let top_funptr_args = call_args_at(Span::new(1770, 1797));
-        assert_eq!(top_funptr_args.len(), 2);
-        assert_eq!(top_funptr_args[0].span, Span::new(1795, 1796));
-        assert_eq!(top_funptr_args[1].span, Span::new(1781, 1782));
     }
 
     #[test]

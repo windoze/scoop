@@ -111,11 +111,6 @@ const MATRIX: &[MatrixCase] = &[
     },
     MatrixCase {
         owner: "P7-T02Z",
-        fixture: "tests/fixtures/run-pass/async_await_minimal_int_basic.scoop",
-        coverage: "default refactor task/continuation resume payload blocker",
-    },
-    MatrixCase {
-        owner: "P7-T02Z",
         fixture: "tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop",
         coverage: "higher-order function-value handled effect blocker",
     },

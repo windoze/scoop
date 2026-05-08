@@ -24,7 +24,7 @@ use super::stmt::{
 };
 use super::util::package_prefix;
 
-use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
+use super::{ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 
 use super::super::TypeEnv;
 use super::super::assignable::is_type_assignable;
@@ -1070,25 +1070,9 @@ fn check_class_member_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            // T0623：member `async fun` 同样需要把 `Async` 留在 Task 的计算语境内。
-            let performed_for_decl = if fun.modifiers.contains(&ast::Modifier::Async) {
-                let async_effect = lower.lower_type_fqn_with_args(
-                    ASYNC_EFFECT_FQN.to_string(),
-                    Vec::new(),
-                    fun.name.span,
-                )?;
-                performed_effects
-                    .iter()
-                    .copied()
-                    .filter(|(effect, _)| *effect != async_effect)
-                    .collect::<Vec<_>>()
-            } else {
-                performed_effects.clone()
-            };
-
             check_required_effects_for_fun_decl(
                 fun,
-                &performed_for_decl,
+                &performed_effects,
                 ProgramBoundaryKind::None,
                 None,
                 lower,

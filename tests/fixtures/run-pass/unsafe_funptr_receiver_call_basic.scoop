@@ -4,7 +4,7 @@
 // 目标：T4003a `FunPtr<F>` receiver function type：
 // - `FunPtr<T.(A) -> R>` 不再在类型 lowering 阶段被提前拒绝；
 // - direct call `fp(receiver, arg)` 与 `.invoke(receiver, arg)` 统一按“receiver 作为第 0 个实参”执行；
-// - `.invoke(...)` 在 receiver 形态下仍可使用命名实参。
+// - `.invoke(...)` 在 receiver 形态下继续只接受位置实参。
 
 import scoop.core.*
 import scoop.unsafe.*
@@ -17,6 +17,5 @@ fun main() {
         val fp: FunPtr<Int.(Int) -> Int> = get_add_int_funptr()
         println(fp(40, 2))
         println(fp.invoke(10, 5))
-        println(fp.invoke(receiver = 7, a0 = 8))
     }
 }

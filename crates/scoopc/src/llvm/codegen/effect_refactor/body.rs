@@ -5404,7 +5404,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<bool, LlvmEmitError> {
-        // Task continuations are stored in heap state and later resumed from sysroot helpers, so
+        // These continuations are stored in heap state and later resumed from helper paths, so
         // their concrete owner route is recovered from the continuation object descriptor.
         if !self.is_task_transport_tuple_ty(surface.resume_tuple_ty())? {
             return Ok(false);

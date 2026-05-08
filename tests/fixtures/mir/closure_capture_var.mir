@@ -21,7 +21,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
                                 source: SourceLocal,
                             },
@@ -51,7 +51,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -81,7 +81,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -171,7 +171,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -201,7 +201,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        21,
+                                                        19,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -211,11 +211,11 @@ File {
                                                                 "x",
                                                             ),
                                                             ty: TypeId(
-                                                                20,
+                                                                18,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    18,
                                                                 ),
                                                                 kind: Reference,
                                                                 requirements: MirTransportRequirements {
@@ -242,7 +242,7 @@ File {
                                                 fn_ptr: "a.main.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        21,
+                                                        19,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -252,7 +252,7 @@ File {
                                                             source_local: l0,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    18,
                                                                 ),
                                                                 kind: CaptureBox,
                                                                 requirements: MirTransportRequirements {
@@ -291,7 +291,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        21,
+                                                        19,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -301,11 +301,11 @@ File {
                                                                 "x",
                                                             ),
                                                             ty: TypeId(
-                                                                20,
+                                                                18,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    18,
                                                                 ),
                                                                 kind: Reference,
                                                                 requirements: MirTransportRequirements {
@@ -332,7 +332,7 @@ File {
                                                 fn_ptr: "a.main.$lambda1",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        21,
+                                                        19,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -342,7 +342,7 @@ File {
                                                             source_local: l0,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    20,
+                                                                    18,
                                                                 ),
                                                                 kind: CaptureBox,
                                                                 requirements: MirTransportRequirements {
@@ -379,7 +379,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -410,7 +410,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -516,7 +516,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -566,7 +566,7 @@ File {
                         span: 57..78,
                         name: "$env",
                         ty: TypeId(
-                            21,
+                            19,
                         ),
                         local: l0,
                     },
@@ -583,7 +583,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
                                 source: SourceLocal,
                             },
@@ -593,7 +593,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
                                 source: SourceLocal,
                             },
@@ -654,7 +654,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -685,7 +685,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -713,7 +713,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -763,7 +763,7 @@ File {
                         span: 100..121,
                         name: "$env",
                         ty: TypeId(
-                            21,
+                            19,
                         ),
                         local: l0,
                     },
@@ -780,7 +780,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    21,
+                                    19,
                                 ),
                                 source: SourceLocal,
                             },
@@ -790,7 +790,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    20,
+                                    18,
                                 ),
                                 source: SourceLocal,
                             },
@@ -851,7 +851,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -882,7 +882,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(
@@ -910,7 +910,7 @@ File {
                                                 ),
                                                 contract: CaptureBoxTransportMetadata {
                                                     box_ty: TypeId(
-                                                        20,
+                                                        18,
                                                     ),
                                                     value: ValueTransportMetadata {
                                                         source_ty: TypeId(

@@ -390,17 +390,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.thread.currentId" {
                 return self.codegen_sysroot_thread_current_id(span, callee.span, args);
             }
-            if dispatch_fqn == "scoop.core.__task_transport_pack"
-                || dispatch_fqn == "scoop.core.__task_transport_unpack"
-            {
-                return self.codegen_sysroot_task_transport_intrinsics(
-                    span,
-                    callee.span,
-                    dispatch_fqn,
-                    args,
-                    result_ty,
-                );
-            }
             if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
                 return self.codegen_sysroot_atomic_int_intrinsics(
                     span,

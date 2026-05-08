@@ -1004,57 +1004,6 @@ impl<'a> HirLowering<'a> {
                 let ty = self.typechecked_expr_ty(e.span).unwrap_or(handle.body.ty);
                 (ExprKind::Handle(handle), ty)
             }
-            ast::ExprKind::Async { body } => {
-                let task_expr = self.lower_async_task_expr_from_block(pkg_prefix, e.span, body);
-                (task_expr.kind, task_expr.ty)
-            }
-            ast::ExprKind::Spawn { .. } => {
-                self.record_stage_error(
-                    e.span,
-                    "structured concurrency syntax `spawn` is deferred and must be rejected before HIR lowering",
-                    "HIR expression lowering",
-                );
-                self.invalid_expr_kind_after_stage_error(e.span)
-            }
-            ast::ExprKind::Await { await_span, expr } => {
-                // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
-                //
-                // NOTE: 这里直接 lower 为 HIR `Perform`，不依赖 resolver 对 `Async.await`
-                // 的成员解析写回；这样能避免“语法糖节点需要合成表达式 ident”的复杂度。
-                let inner = self.lower_expr(pkg_prefix, expr);
-                let op = EffectOpRef {
-                    span: *await_span,
-                    fqn: Self::ASYNC_AWAIT_FQN.to_string(),
-                };
-                let effect_ty = self
-                    .typechecked_performed_effect_ty(e.span)
-                    .unwrap_or_else(|| self.async_effect_type());
-                let result_ty = self
-                    .typechecked_expr_ty(e.span)
-                    .or(expected.value_ty)
-                    .or_else(|| {
-                        self.typechecked_expr_ty(expr.span)
-                            .and_then(|ty| self.task_inner_ty(ty))
-                    })
-                    .or_else(|| self.task_inner_ty(inner.ty))
-                    .unwrap_or(self.builtins.any);
-                (
-                    ExprKind::Perform {
-                        effect_ty,
-                        op,
-                        args: vec![CallArg::Positional(inner)],
-                    },
-                    result_ty,
-                )
-            }
-            ast::ExprKind::Join { .. } => {
-                self.record_stage_error(
-                    e.span,
-                    "structured concurrency syntax `join` is deferred and must be rejected before HIR lowering",
-                    "HIR expression lowering",
-                );
-                self.invalid_expr_kind_after_stage_error(e.span)
-            }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.lower_member_access_expr(pkg_prefix, e.span, receiver, member)
             }

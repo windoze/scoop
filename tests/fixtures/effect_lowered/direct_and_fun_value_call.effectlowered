@@ -53,7 +53,7 @@ LateLoweredProgram
       body_version_key: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t493 params=[t90, t5] return=t5
+      ordinary_signature: fn_ty=t385 params=[t90, t5] return=t5
       plain_source_slices:
         - bb0 stmts[0..1] + term
       plain_call_sites:

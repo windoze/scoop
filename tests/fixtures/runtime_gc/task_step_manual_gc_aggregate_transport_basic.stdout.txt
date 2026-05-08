@@ -1,9 +1,0 @@
-outer-before
-step0=pending
-inner
-outer-after
-41
-step1=ready
-42
-step2=ready
-42

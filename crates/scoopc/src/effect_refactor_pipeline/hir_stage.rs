@@ -3974,65 +3974,6 @@ fun runtime(): String {
         );
     }
 
-    #[test]
-    fn refactor_hir_callable_receiver_named_args_publish_binding_contracts() {
-        let session = refactor_session();
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
-            .canonicalize()
-            .unwrap();
-        let source = SourceFile::load(&fixture).unwrap();
-
-        let output =
-            run(&session, &source).expect("fixture 应发布 callable-value binding contract");
-        let contracts = output.effect_contracts().call_site_contracts();
-
-        let when_fun_value = contracts
-            .iter()
-            .find_map(|(site, contract)| (site.span == Span::new(1442, 1469)).then_some(contract))
-            .expect("when pattern binder 的 callable-value call contract 应存在");
-        let TypedCallSiteContract::FunValue {
-            arg_binding: Some(binding),
-            ..
-        } = when_fun_value
-        else {
-            panic!("when callable-value call 应携带 arg binding: {when_fun_value:?}");
-        };
-        assert!(matches!(
-            binding.params(),
-            [
-                CallArgParamContract::Explicit(receiver),
-                CallArgParamContract::Explicit(arg0)
-            ] if receiver.arg_index() == 1
-                && !receiver.spread()
-                && arg0.arg_index() == 0
-                && !arg0.spread()
-        ));
-
-        let top_funptr = contracts
-            .iter()
-            .find_map(|(site, contract)| (site.span == Span::new(1770, 1797)).then_some(contract))
-            .expect("top-level FunPtr call contract 应存在");
-        let TypedCallSiteContract::DirectTopLevel(function) = top_funptr else {
-            panic!(
-                "top-level FunPtr call 应继续通过 synthetic direct contract 发布: {top_funptr:?}"
-            );
-        };
-        let binding = function
-            .arg_binding()
-            .expect("top-level FunPtr synthetic direct contract 应携带 arg binding");
-        assert!(matches!(
-            binding.params(),
-            [
-                CallArgParamContract::Explicit(receiver),
-                CallArgParamContract::Explicit(arg0)
-            ] if receiver.arg_index() == 1
-                && !receiver.spread()
-                && arg0.arg_index() == 0
-                && !arg0.spread()
-        ));
-    }
-
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
         let session = refactor_session();
         let source = load_hir_fixture(name);

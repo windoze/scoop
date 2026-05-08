@@ -79,8 +79,6 @@ pub enum Keyword {
     Try,
     Catch,
     Finally,
-    Async,
-    Await,
 
     // control flow / misc
     /// `do`（spec §7.6）：引入局部 block 表达式 `do { ... }`。

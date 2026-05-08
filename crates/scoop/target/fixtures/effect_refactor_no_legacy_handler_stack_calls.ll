@@ -285,10 +285,10 @@ refactor.st3:                                     ; preds = %refactor.st2
   %tracked_explicit_gc_root_slot_154 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 80
   %gc_root_keepalive_429496729455 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_154, align 8
   %gc_root_keepalive_429496729556 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_053, align 8
-  %refactor_string_concat = call ptr addrspace(1) @scoop_string_concat(ptr addrspace(1) %pass_mir_load51, ptr addrspace(1) %pass_mir_load52)
+  %refactor_core_string_concat = call ptr addrspace(1) @scoop_string_concat(ptr addrspace(1) %pass_mir_load51, ptr addrspace(1) %pass_mir_load52)
   %gc_root_keepalive_reload57 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_154, align 8
   %gc_root_keepalive_reload58 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_053, align 8
-  store ptr addrspace(1) %refactor_string_concat, ptr %explicit_root_frame_slot_3, align 8
+  store ptr addrspace(1) %refactor_core_string_concat, ptr %explicit_root_frame_slot_3, align 8
   %pass_mir_load59 = load ptr addrspace(1), ptr %explicit_root_frame_slot_3, align 8
   store ptr addrspace(1) %pass_mir_load59, ptr %explicit_root_frame_slot_0, align 8
   br label %refactor.st4
@@ -696,7 +696,7 @@ refactor.st3:                                     ; preds = %refactor.st2
   %gc_root_keepalive_4294967293163 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_2160, align 8
   %gc_root_keepalive_4294967294164 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_1159, align 8
   %gc_root_keepalive_4294967295165 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_0158, align 8
-  %refactor_string_concat = call ptr addrspace(1) @scoop_string_concat(ptr addrspace(1) %pass_mir_load156, ptr addrspace(1) %pass_mir_load157)
+  %refactor_core_string_concat = call ptr addrspace(1) @scoop_string_concat(ptr addrspace(1) %pass_mir_load156, ptr addrspace(1) %pass_mir_load157)
   %gc_root_keepalive_reload166 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_3161, align 8
   store ptr addrspace(1) %gc_root_keepalive_reload166, ptr poison, align 8
   %gc_root_keepalive_reload167 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_2160, align 8
@@ -705,7 +705,7 @@ refactor.st3:                                     ; preds = %refactor.st2
   store ptr addrspace(1) %gc_root_keepalive_reload168, ptr poison, align 8
   %gc_root_keepalive_reload169 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_0158, align 8
   store ptr addrspace(1) %gc_root_keepalive_reload169, ptr poison, align 8
-  store ptr addrspace(1) %refactor_string_concat, ptr %explicit_root_frame_slot_3, align 8
+  store ptr addrspace(1) %refactor_core_string_concat, ptr %explicit_root_frame_slot_3, align 8
   %pass_mir_load170 = load ptr addrspace(1), ptr %explicit_root_frame_slot_3, align 8
   store ptr addrspace(1) %pass_mir_load170, ptr poison, align 8
   store ptr addrspace(1) %pass_mir_load170, ptr %explicit_root_frame_slot_0, align 8

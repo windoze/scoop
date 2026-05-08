@@ -1,4 +1,4 @@
-//! Threading and task transport intrinsics lowering.
+//! Threading intrinsics lowering.
 
 use super::super::*;
 
@@ -254,104 +254,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let casted = self.cast_int(raw_i64, from, to)?;
         Ok(CgValue::int(casted, to))
-    }
-
-    pub(in crate::llvm::codegen) fn codegen_sysroot_task_transport_intrinsics(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fqn: &str,
-        args: &[hir::CallArg],
-        result_ty: Option<TypeId>,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match fqn {
-            "scoop.core.__task_transport_pack" => {
-                if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport pack arity mismatch",
-                        at: span.into(),
-                    });
-                }
-
-                let hir::CallArg::Positional(expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport pack named arg",
-                        at: span.into(),
-                    });
-                };
-
-                let packed_ty = result_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task transport pack result type",
-                    at: span.into(),
-                })?;
-                if !self.is_task_transport_tuple_ty(packed_ty) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport pack carrier type",
-                        at: span.into(),
-                    });
-                }
-
-                let value_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
-                let value_cg =
-                    self.cg_ty_of(value_ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "task transport pack arg cg type",
-                            at: expr.span.into(),
-                        })?;
-                let value = self.codegen_initializer_expr(expr, value_cg, value_ty)?;
-                let value = self.coerce_value(expr.span, value, value_cg)?;
-                let (word, gc_ref) = self.encode_effect_transport_value(expr.span, value)?;
-                self.build_task_transport_tuple_value(span, packed_ty, word, gc_ref)
-            }
-            "scoop.core.__task_transport_unpack" => {
-                if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport unpack arity mismatch",
-                        at: span.into(),
-                    });
-                }
-
-                let hir::CallArg::Positional(expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport unpack named arg",
-                        at: span.into(),
-                    });
-                };
-
-                let target_ty = result_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task transport unpack result type",
-                    at: span.into(),
-                })?;
-                let target_cg =
-                    self.cg_ty_of(target_ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "task transport unpack target cg type",
-                            at: span.into(),
-                        })?;
-
-                let carrier_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
-                if !self.is_task_transport_tuple_ty(carrier_ty) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport unpack carrier type",
-                        at: expr.span.into(),
-                    });
-                }
-                let carrier_cg =
-                    self.cg_ty_of(carrier_ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "task transport unpack carrier cg type",
-                            at: expr.span.into(),
-                        })?;
-                let carrier = self.codegen_initializer_expr(expr, carrier_cg, carrier_ty)?;
-                let carrier = self.coerce_value(expr.span, carrier, carrier_cg)?;
-                let (word, gc_ref) = self.split_task_transport_tuple_value(expr.span, carrier)?;
-                self.decode_effect_transport_value(span, word, gc_ref, target_cg)
-            }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown sysroot task transport intrinsic callee",
-                at: callee_span.into(),
-            }),
-        }
     }
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_thread_intrinsics(

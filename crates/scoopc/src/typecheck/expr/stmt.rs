@@ -22,9 +22,7 @@ use super::ops::{
 };
 use super::util::{fmt_effect_row, visibility_from_modifiers};
 
-use super::{
-    ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN,
-};
+use super::{ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 
 use super::super::annotations::check_inline_annotation_uses;
 use super::super::assignable::is_type_assignable;
@@ -281,13 +279,6 @@ fn check_executable_main_signature(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    if fun.modifiers.contains(&ast::Modifier::Async) {
-        return Err(ExprTypeError::EntryPointMainInvalidSignature {
-            found: "`async fun main`".to_string(),
-            span: fun.name.span.into(),
-        });
-    }
-
     if !fun.type_params.is_empty() {
         return Err(ExprTypeError::EntryPointMainInvalidSignature {
             found: format!("带 {} 个类型参数的 `main`", fun.type_params.len()),
@@ -657,15 +648,7 @@ pub(super) fn check_fun_body_exprs(
                             && let Some(sig) =
                                 sigs.iter_mut().find(|s| s.decl_span == fun.name.span)
                         {
-                            sig.return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
-                                lower.lower_type_fqn_with_args(
-                                    TASK_FQN.to_string(),
-                                    vec![inferred],
-                                    fun.name.span,
-                                )?
-                            } else {
-                                inferred
-                            };
+                            sig.return_ty = inferred;
                         }
 
                         inferred
@@ -725,28 +708,11 @@ pub(super) fn check_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            // T0623：`async fun` 的 `/ Async` 只存在于 Task 的计算上下文，
-            // 因此函数体内的 `Async` performed effects 不应向外层（调用点）传播。
-            let performed_for_decl = if fun.modifiers.contains(&ast::Modifier::Async) {
-                let async_effect = lower.lower_type_fqn_with_args(
-                    ASYNC_EFFECT_FQN.to_string(),
-                    Vec::new(),
-                    fun.name.span,
-                )?;
-                performed_effects
-                    .iter()
-                    .copied()
-                    .filter(|(effect, _)| *effect != async_effect)
-                    .collect::<Vec<_>>()
-            } else {
-                performed_effects.clone()
-            };
-
             let boundary_fqn =
                 matches!(program_boundary, ProgramBoundaryKind::Export).then_some(fun_fqn);
             check_required_effects_for_fun_decl(
                 fun,
-                &performed_for_decl,
+                &performed_effects,
                 program_boundary,
                 boundary_fqn,
                 lower,

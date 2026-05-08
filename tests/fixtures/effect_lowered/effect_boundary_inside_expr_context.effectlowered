@@ -37,15 +37,15 @@ LateLoweredProgram
     - step_schema: s2
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t500
+      continuation_obj_ty: t391
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t501 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Flag.read
-        - Case(c1) payload_tuple_ty=t5 continuation_schema=k1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t502 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
-        - Case(c2) payload_tuple_ty=t252 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t252>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Flag.read
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
+        - Case(c2) payload_tuple_ty=t212 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t212>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t500
+      continuation_obj_ty: t391
       implemented_packings: [ri0, ri1, ri2]
       captures:
         - FrameSlot(slot0)
@@ -78,13 +78,13 @@ LateLoweredProgram
         - State(st20)
         - State(st30)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
-        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t502 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
+        - case=c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
+        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
-        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t502 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c2 packed_by=ri2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
+        - case=c0 packed_by=ri0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
+        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c2 packed_by=ri2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t4 answer_ty=t5 out_step_schema=s2
       publications:
@@ -103,17 +103,17 @@ LateLoweredProgram
       packing_effect_family: fixtures.mir_refactor.Flag
       authoritative_step_schema: s2
       packed_methods:
-        - case: c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t501 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read
+        - case: c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read
     - resume_packing_interface: ri1
       packing_effect_family: fixtures.mir_refactor.Step
       authoritative_step_schema: s2
       packed_methods:
-        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t502 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next
     - resume_packing_interface: ri2
-      packing_effect_family: scoop.core.Raise<t252>
+      packing_effect_family: scoop.core.Raise<t212>
       authoritative_step_schema: s2
       packed_methods:
-        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t503 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t252>
+        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t212>
   callables:
     - root: fixtures.mir_refactor.box_int
       body_version_key: instance=fixtures.mir_refactor.box_int allowed_row=Pure impl_plan=NoOutward needs_reentry=false

@@ -23,16 +23,6 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "当前阶段尚未定义公开的 structured concurrency 语法 `{feature}`；请改用 `async {{ ... }}` / `async fun` 创建 `Task<T>`，并通过 `await` 或 `Task.step()` 驱动"
-    )]
-    #[diagnostic(code(scoop::typecheck::structured_concurrency_deferred))]
-    StructuredConcurrencyDeferred {
-        feature: &'static str,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error(
         "无法推断 lambda 参数类型：参数 `{param}` 缺少类型注解，且当前语境没有期望的函数类型（约束来源：期望函数类型）"
     )]
     #[diagnostic(code(scoop::typecheck::lambda_param_type_not_inferred))]
@@ -560,6 +550,17 @@ pub enum ExprTypeError {
     #[error("调用 `{callee}` 命名参数之后不能再使用位置参数")]
     #[diagnostic(code(scoop::typecheck::call_arg_positional_after_named))]
     CallArgPositionalAfterNamed {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("函数类型调用 `{callee}` 不支持命名实参")]
+    #[diagnostic(
+        code(scoop::typecheck::named_args_not_supported_for_callable_type),
+        help("只有具名函数、方法和构造器支持命名实参；函数值、闭包和 `FunPtr<F>` 调用请使用位置实参")
+    )]
+    NamedArgsNotSupportedForCallableType {
         callee: String,
         #[label("这里")]
         span: miette::SourceSpan,

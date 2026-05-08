@@ -30,7 +30,7 @@ use super::stmt::{
 use super::util::expr_kind_name;
 
 use super::lower_type_ref_with_enum_subst;
-use super::{ASYNC_EFFECT_FQN, EnumTypeSubstContext, ExprInferInputs, ExprTypeError, TASK_FQN};
+use super::{EnumTypeSubstContext, ExprInferInputs, ExprTypeError};
 
 use super::super::TypeSymbolKind;
 use super::super::annotations::check_inline_annotation_uses;
@@ -274,15 +274,6 @@ pub(super) fn infer_expr_type(
             arms,
             finally,
         } => infer_handle_expr_type(inputs, expr, body, arms, finally.as_ref(), None, lower),
-        ast::ExprKind::Async { body } => infer_async_expr_type(inputs, expr, body, lower),
-        ast::ExprKind::Spawn { .. } => structured_concurrency_deferred("spawn", expr.span),
-        ast::ExprKind::Await {
-            await_span: _,
-            expr: inner,
-        } => infer_await_expr_type(inputs, expr, inner, lower),
-        ast::ExprKind::Join { join_span, .. } => {
-            structured_concurrency_deferred("join", *join_span)
-        }
         ast::ExprKind::WithUpdate { base, updates, .. } => {
             infer_with_update_expr_type(inputs, expr.span, base, updates, lower)
         }
@@ -495,104 +486,6 @@ fn infer_tuple_lit_expr_type_in_expected_context(
     }
 
     Ok(Some(lower.ty_tuple(inferred_elements)))
-}
-
-/// 推导 `async { ... }` 的类型，并在 required-effects 收集上“捕获 Async”。
-///
-/// 当前阶段（T0619）最小规则：
-/// - async body 的值类型成为 `Task<T>` 的内部 `T`；
-/// - body 内发生的 `await` 会记录一次 `Async` performed effect；
-/// - `async { ... }` 作为语法糖会捕获该 `Async`，因此该 effect 不向外层传播。
-fn infer_async_expr_type(
-    inputs: ExprInferInputs<'_>,
-    async_expr: &ast::Expr,
-    body: &ast::Block,
-    lower: &mut TypeLowering<'_>,
-) -> Result<TypeId, ExprTypeError> {
-    let async_effect = lower.lower_type_fqn_with_args(
-        ASYNC_EFFECT_FQN.to_string(),
-        Vec::new(),
-        async_expr.span,
-    )?;
-
-    let (body_ty, body_performed) =
-        lower.with_nested_effect_collection(|lower| infer_block_value_type(inputs, body, lower))?;
-
-    // 捕获 async 语境内的 `Async` performed effect（其余 effects 正常向外传播）。
-    for (effect, span) in body_performed {
-        if effect == async_effect {
-            continue;
-        }
-        lower.record_performed_effect(effect, span);
-    }
-
-    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![body_ty], async_expr.span)?)
-}
-
-/// 当前阶段不再把 `spawn` / `join` 视为 `Task` core 的一部分。
-///
-/// parser / AST 仍保留语法节点，仅用于给出稳定诊断，并为后续 structured concurrency
-/// 任务保留语法壳；在 typecheck 阶段就应显式报“留待后续”。
-fn structured_concurrency_deferred(
-    feature: &'static str,
-    span: Span,
-) -> Result<TypeId, ExprTypeError> {
-    Err(ExprTypeError::StructuredConcurrencyDeferred {
-        feature,
-        span: span.into(),
-    })
-}
-
-fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
-    match lower.type_kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-            if n.fqn == TASK_FQN && n.args.len() == 1 {
-                Some(n.args[0])
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-/// 推导 `await expr` 的类型，并把 `Async` 计入 required effects。
-///
-/// 当前阶段（T0622）最小规则：
-/// - `await` 只接受 `Task<T>`，并返回 `T`；
-/// - `await` 视为一次 `Async` effect 的 perform 点；
-/// - 运行期的 executor/跨线程 resume 语义留给后续任务（T0917+）。
-fn infer_await_expr_type(
-    inputs: ExprInferInputs<'_>,
-    await_expr: &ast::Expr,
-    inner: &ast::Expr,
-    lower: &mut TypeLowering<'_>,
-) -> Result<TypeId, ExprTypeError> {
-    let found_ty = inputs.infer(lower, inner)?;
-
-    let Some(result_ty) = task_inner_type(found_ty, lower) else {
-        let expected_task = lower.lower_type_fqn_with_args(
-            TASK_FQN.to_string(),
-            vec![inputs.builtins.any],
-            await_expr.span,
-        )?;
-        return Err(ExprTypeError::CallArgTypeMismatch {
-            callee: "await".to_string(),
-            index: 1,
-            expected: lower.fmt_type(expected_task),
-            found: lower.fmt_type(found_ty),
-            span: inner.span.into(),
-        });
-    };
-
-    let async_effect = lower.lower_type_fqn_with_args(
-        ASYNC_EFFECT_FQN.to_string(),
-        Vec::new(),
-        await_expr.span,
-    )?;
-    lower.record_inferred_performed_effect_ty(await_expr.span, async_effect);
-    lower.record_performed_effect(async_effect, await_expr.span);
-    Ok(result_ty)
 }
 
 /// 推导 `block` 作为表达式时的结果类型。

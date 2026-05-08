@@ -637,15 +637,11 @@ animal.bark()
 
 ### 5.1 Overview
 
-Scoop uses an algebraic effect system to unify async operations, error handling, and other control flow effects. Effects are declared like interfaces and handled with `handle` blocks.
+Scoop uses an algebraic effect system to unify suspension-capable operations, error handling, and other control flow effects. Effects are declared like interfaces and handled with `handle` blocks.
 
 ### 5.2 Effect Declaration
 
 ```kotlin
-effect Async {
-    fun <T> await(task: Task<T>): T
-}
-
 effect Raise<E> {
     fun raise(error: E): Nothing
 }
@@ -675,8 +671,6 @@ fun fetchData(): String / Raise<IOError> {
     resp.body
 }
 ```
-
-> **Note on `async fun`**: `async fun foo(): T` does **not** desugar to `fun foo(): T / Async`. Instead, it desugars to `fun foo(): Task<T>` where the body is captured as a lazy computation. The `/ Async` effect only exists inside the Task's computation context. See §5.7 for details.
 
 ### 5.4 Handling Effects
 
@@ -716,7 +710,7 @@ handle {
 
 `k.resume(payload...)` resumes the captured computation under the handler stack captured at the suspension point. If that resumed computation normally completes the delimiter, `k.resume(...)` evaluates to the delimiter answer and execution continues after the call site in the arm body or other code that resumed `k`.
 
-The continuation may be resumed immediately, stored for later, or resumed from another OS thread. Directly capturing and resuming `Continuation` values is an **advanced control-flow API**. General-purpose async code should normally expose `Task<T>` rather than raw continuations.
+The continuation may be resumed immediately, stored for later, or resumed from another OS thread. Directly capturing and resuming `Continuation` values is an **advanced control-flow API**. General-purpose libraries should normally prefer higher-level runtime abstractions over exposing raw continuations directly.
 
 Legacy `Effect.op(args) -> resume { ... }` syntax is removed. Write `Effect.op(args), k -> { ...; k.resume(payload...) }` instead. An implementation may still recognize tail-position `k.resume(...)` as an internal fast path / lowering class, but that distinction is not user-visible syntax.
 
@@ -762,7 +756,7 @@ Resumption context:
 - `Continuation<Resume, Answer, eff E>` captures the dynamic effect context (conceptually, an `EffectCtx`; Appendix A) and the nearest delimiter boundary at the suspension point.
 - Calling `k.resume(...)` resumes the computation under that captured effect context, even if `resume` is invoked from a different OS thread.
 - Implementations may realize this with handler-stack snapshots, thread-local scratch state, explicit context objects, or equivalent runtime-private machinery. Such details are implementation-defined and do not change the semantic rule that the resumed computation runs under the continuation's captured dynamic context rather than the resuming thread's ambient state.
-- `Continuation<Resume, Answer, eff E>` belongs to the language's **advanced API surface**. Typical async code should interact with `Task<T>`; runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
+- `Continuation<Resume, Answer, eff E>` belongs to the language's **advanced API surface**. Runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
 
 ### 5.6 Compilation Strategy
 
@@ -842,95 +836,17 @@ fun panic(message: String): Nothing
 
 `panic(...)` is bottom-typed and is reserved for unrecoverable runtime misuse / implementation-defined abort paths. It does **not** replace effect-based runtime errors such as `!!`, `as`, or `Continuation.resume(...)`; those continue to use `Raise.raise(RuntimeError.…)`.
 
-#### async / await (sugar for `Async` effect)
+#### Async Runtime Surface
 
-Async is built on escape continuations. The `Async` effect is a built-in effect:
+This revision does **not** define a built-in `Async` effect, `Task<T>` type, `async` / `await` syntax, or user-facing `spawn` / `join` syntax.
 
-```kotlin
-// Built-in effect (compiler-known)
-effect Async {
-    fun await<T>(task: Task<T>): T
-}
-```
+Async runtime and structured concurrency are being redesigned around a smaller substrate boundary. Until that redesign lands, the language specification only fixes:
 
-Current-stage focus:
+- the general effect system,
+- the continuation semantics needed for resumable control flow,
+- and the GC / FFI substrate needed by future runtime libraries.
 
-- This stage standardizes effect codegen and the core shape of `Task<T>`.
-- Executor frameworks (queues, wakeups, work-stealing, spawn scheduling) are intentionally deferred.
-- A `Task<T>` must remain usable without an executor by manual stepping.
-
-Conceptual async surface:
-
-```kotlin
-enum TaskStep<T> {
-    Pending,
-    Ready(T),
-}
-
-class Task<T> {
-    fun step(): TaskStep<T>
-}
-```
-
-A task is lazy and may be driven manually:
-
-```kotlin
-val t: Task<User> = async {
-    val resp = await httpGet("/user")
-    parse(resp.body)
-}
-
-while (true) {
-    when (t.step()) {
-        Pending -> ()
-        Ready(user) -> {
-            println(user.name)
-            break
-        }
-    }
-}
-```
-
-Key semantics:
-- `Task<T>` is the **general-purpose async API**. `Continuation<Resume, Answer, eff E>` remains the lower-level advanced API used to implement tasks and other control-flow libraries directly.
-- `async { body }` creates a lazy `Task<T>`.
-- `async fun foo(): T` desugars to `fun foo(): Task<T>` — the caller receives a `Task<T>`.
-- `await expr` inside an async body desugars to `perform Async.await(expr)`.
-- The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
-- `Task<T>` stores private execution state. Before the first `step()` it holds an initial entry closure; after suspension it may hold an internal continuation whose delimiter answer is a private step-result carrier; after completion it holds the final result.
-- The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `step()` contract is preserved.
-- That private step-result carrier is an implementation detail used to translate the continuation answer back into the public `TaskStep<T>` contract; it does not create a second user-visible resume model alongside `Continuation.resume(...)`.
-- An implementation may route both ordinary `Continuation.resume(...)` and `Task.step()` through the same internal continuation payload+answer helper. `Task` does not introduce a separate resume ABI; it only maps a private continuation answer carrier back into the public `TaskStep<T>` surface.
-- This stage does **not** define a public `scoop.task` executor package, adapter API, or structured-concurrency surface. Any helper used to create or drive tasks outside `async` / `await` / `step()` is implementation-internal.
-- `Task.step()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
-- `Task<T>` is a single-driver core abstraction rather than a thread-safe shared-subtask primitive. The core language does not define multiple parents sharing one child task, or multiple active public drivers on the same task.
-- Different threads may drive the same task sequentially. A later `step()` on another thread is valid only after the previous drive attempt has published its next state and returned.
-- `Pending` means the task has not completed and cannot make further progress yet, typically because it suspended awaiting another task. `Pending` is **not** a contention signal.
-- If a public `step()` call races another `step()` call, reenters the same task, or otherwise observes the task already in its internal `Running` state, that is executor / driver misuse and must trap. It is not represented as `Pending` or `Raise<RuntimeError>`.
-- One conforming implementation strategy is to keep a private exclusive-drive claim together with private task state. That claim is an implementation detail, but it must guarantee at most one active public driver and synchronized state publication for sequential cross-thread handoff.
-- That ownership bookkeeping must not remain held while running user code, calling `awaited.step()`, or executing `Continuation.resume(...)`; synchronization is only required around short state-inspection and state-publication windows.
-- If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
-- Direct access to those internal continuations is not part of the common task API.
-- The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.
-- When async/reactor integration eventually needs a long-lived wake token across safepoints, that token should be a stable GC handle (§15.10.1), typically the `GcHandle.raw` word round-tripped through native registration state, not a pinned task reference. The task/object needs to stay alive, but it does not need to remain pinned while native code merely stores an opaque identity token. Copying `GcHandle` / `.raw` does not clone the underlying runtime handle; cancellation/completion must still consume that handle exactly once via `GC.handleDrop`, and any later callback token is stale.
-
-#### structured concurrency (deferred)
-
-`spawn`, any user-facing `join`, and the broader structured-concurrency / executor framework are intentionally deferred to a later stage.
-
-This stage fixes:
-
-- the `Async.await` effect operation,
-- the lazy, manually-drivable `Task<T>` core abstraction,
-- and the continuation semantics needed to implement it.
-
-It does **not** yet fix:
-
-- a user-facing `spawn` / `join` surface,
-- a standard executor interface,
-- wakeup registration,
-- queueing or work-stealing strategy,
-- or the final desugaring of structured concurrency constructs.
+See `ASYNC_REFACTOR.md` for the current direction of that redesign.
 
 #### Generator / yield (library-level, no dedicated syntax)
 
@@ -1545,7 +1461,7 @@ In ordinary expression position:
 - A bare `{ ... }` is always a closure literal.
 - A plain local block used for scoping or to compute a value must be written `do { ... }`.
 - `TypeName { field: expr, ... }` remains a struct literal (§2.3.1); the type name / constructor before `{` disambiguates it from a closure literal.
-- Constructs that introduce their own braced bodies (`if`, `when`, `handle`, `try`, `async`, `comptime`, declarations, etc.) are unaffected; this rule only governs ordinary brace-delimited expression/block forms.
+- Constructs that introduce their own braced bodies (`if`, `when`, `handle`, `try`, `comptime`, declarations, etc.) are unaffected; this rule only governs ordinary brace-delimited expression/block forms.
 
 Examples:
 
@@ -2153,6 +2069,7 @@ Rules:
 - Calling a function `f` requires the effect row declared on `f` (after substituting any type/effect arguments).
 - Invoking a function value (e.g., `block()`) requires the effect row declared on that function type (see §7.5).
 - This call-site rule is determined by the **static function type** of the callee expression, even when the function value is obtained through an opaque path such as a field/property access, a `when`/`if` branch merge, or a higher-order function return. If that static function type is non-`Pure`, lowering must treat the call as may-suspend even when a particular runtime value happens to be a pure closure.
+- Named arguments are **not** supported when invoking a raw function value, closure, or `FunPtr<F>`. Named arguments are reserved for call targets that have declaration-level parameter names (ordinary functions, methods, constructors, and effect operations).
 - Language constructs that are specified to perform effects (e.g., `!!` and `as` performing `Raise.raise(RuntimeError.…)`) contribute those effects to the required effect row (see §5.7).
 - Effects performed in handler arms contribute normally to the enclosing context (handler arms execute outside the handler instance’s dispatch scope; see Appendix A).
 
@@ -2752,13 +2669,12 @@ Calling an `@Extern` function is only permitted within an unsafe context. (Exter
 `@Unsafe` may be applied to a `do` block to create a localized unsafe context without marking the entire enclosing function as unsafe:
 
 ```kotlin
-fun doIO(): Unit / Async {
+fun doIO(): Unit {
     val buf = ByteBuffer.allocate(4096)
     @Unsafe do {
         // Call to @Extern and raw pointer operations are allowed here.
         submitToKernel(buf)
     }
-    await completion()
 }
 ```
 
@@ -2845,6 +2761,7 @@ Function pointers:
 
 - `FunPtr<F>` represents an opaque native function pointer for the function type `F` (e.g. `F = (Int, Int) -> Int`).
 - If `F` is a receiver function type `T.(A1, ..., An) -> R`, the receiver is passed as the first explicit argument when invoking the pointer (for example, `fp(receiver, a1, ..., an)` or `fp.invoke(receiver, a1, ..., an)`).
+- Like other function-type calls, invoking `FunPtr<F>` is positional-only; synthetic names such as `receiver`, `a0`, `a1`, ... are not part of the surface language.
 - Calling a function pointer is unsafe and must require an unsafe context.
 - `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
 - Returning or accepting `FunPtr<F>` via `@Extern` is the explicit way to model deferred/effectful native callbacks. The effect row belongs to the later unsafe `fp(...)` / `fp.invoke(...)` call, not to the ordinary `@Extern` call itself.
@@ -3090,7 +3007,7 @@ This appendix makes that scoping rule explicit and also specifies the semantics 
 
 ### A.2 Definitions
 
-- **Effect operation**: a qualified operation name such as `Raise.raise` or `Async.await`.
+- **Effect operation**: a qualified operation name such as `Raise.raise`.
 - **Handler instance**: a dynamic instance of a `handle` block during execution. (A single syntactic `handle` expression may be entered multiple times via loops or continuation resumes.)
 - **Active handler**: a handler instance that is currently in the dynamic scope of execution.
 - **Handled set**: the set of effect operations that have an arm in the handler’s `with { ... }` block.

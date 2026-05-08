@@ -72,7 +72,7 @@ type ParsedTypeParams = (
 );
 
 impl<'a> Parser<'a> {
-    /// 解析声明前缀：零个或多个注解（`@Name(...)`）+ 修饰符（`public`/`async`...）。
+    /// 解析声明前缀：零个或多个注解（`@Name(...)`）+ 修饰符（`public`/`const`...）。
     ///
     /// 说明：
     /// - 支持注解与修饰符任意交错出现；
@@ -98,7 +98,6 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(Keyword::Open) => ast::Modifier::Open,
                 TokenKind::Keyword(Keyword::Abstract) => ast::Modifier::Abstract,
                 TokenKind::Keyword(Keyword::Sealed) => ast::Modifier::Sealed,
-                TokenKind::Keyword(Keyword::Async) => ast::Modifier::Async,
                 TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
                 TokenKind::Keyword(Keyword::Const) => ast::Modifier::Const,
                 TokenKind::Keyword(Keyword::Annotation) => ast::Modifier::Annotation,

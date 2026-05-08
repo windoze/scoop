@@ -195,6 +195,13 @@ fn call_args_have_named(call_args: &[CallArgInfo<'_>]) -> bool {
         .any(|a| matches!(a.kind, CallArgKind::Named { .. }))
 }
 
+fn first_named_arg_span(call_args: &[CallArgInfo<'_>]) -> Option<Span> {
+    call_args.iter().find_map(|arg| match arg.kind {
+        CallArgKind::Named { name_span, .. } => Some(name_span),
+        CallArgKind::Positional => None,
+    })
+}
+
 fn missing_required_param_names_in_named_call(
     call_args: &[CallArgInfo<'_>],
     param_names: &[String],
@@ -704,17 +711,6 @@ fn expand_param_arg_pairs(mapping: &[ParamArgBinding]) -> Vec<(usize, usize)> {
     out
 }
 
-fn callable_value_param_names(fun: &crate::ty::FunctionType) -> Vec<String> {
-    let mut out = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
-    if fun.receiver.is_some() {
-        out.push("receiver".to_string());
-    }
-    for idx in 0..fun.params.len() {
-        out.push(format!("a{idx}"));
-    }
-    out
-}
-
 fn is_unit_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
     matches!(lower.type_kind(ty), TypeKind::Value(ValueTypeKind::Unit))
 }
@@ -1048,8 +1044,7 @@ fn infer_function_type_call_expr_type(
         synthesized_args.as_deref().unwrap_or(args),
         lower,
     )?;
-    let param_names = callable_value_param_names(&fun);
-    let expected_arity = param_names.len();
+    let expected_arity = param_tys.len();
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -1061,12 +1056,12 @@ fn infer_function_type_call_expr_type(
             span: span.into(),
         });
     }
-    check_call_arg_named_rules(callee_name, &call_args)?;
-    check_call_named_args_exist_in_any_candidate(
-        callee_name,
-        &call_args,
-        std::iter::once(param_names.as_slice()),
-    )?;
+    if let Some(span) = first_named_arg_span(&call_args) {
+        return Err(ExprTypeError::NamedArgsNotSupportedForCallableType {
+            callee: callee_name.to_string(),
+            span: span.into(),
+        });
+    }
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -1076,19 +1071,9 @@ fn infer_function_type_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-
-    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
-        return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_name.to_string(),
-            span: call_expr.span.into(),
-        });
-    };
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-        let slot = arg_to_param
-            .get_mut(arg_idx)
-            .expect("mapped function-value arg index should stay in range");
-        *slot = Some(param_idx);
+    for param_idx in 0..arg_to_param.len() {
+        arg_to_param[param_idx] = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {
@@ -1163,7 +1148,7 @@ fn infer_function_type_call_expr_type(
         });
     }
 
-    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
+    let binding_mapping = (0..call_args.len()).map(Some).collect::<Vec<_>>();
     if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
@@ -1279,8 +1264,7 @@ fn infer_funptr_type_call_expr_type(
         synthesized_args.as_deref().unwrap_or(args),
         lower,
     )?;
-    let param_names = callable_value_param_names(&fun);
-    let expected_arity = param_names.len();
+    let expected_arity = param_tys.len();
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -1292,12 +1276,12 @@ fn infer_funptr_type_call_expr_type(
             span: span.into(),
         });
     }
-    check_call_arg_named_rules(callee_name, &call_args)?;
-    check_call_named_args_exist_in_any_candidate(
-        callee_name,
-        &call_args,
-        std::iter::once(param_names.as_slice()),
-    )?;
+    if let Some(span) = first_named_arg_span(&call_args) {
+        return Err(ExprTypeError::NamedArgsNotSupportedForCallableType {
+            callee: callee_name.to_string(),
+            span: span.into(),
+        });
+    }
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -1307,19 +1291,9 @@ fn infer_funptr_type_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-
-    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
-        return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_name.to_string(),
-            span: call_expr.span.into(),
-        });
-    };
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-        let slot = arg_to_param
-            .get_mut(arg_idx)
-            .expect("mapped funptr arg index should stay in range");
-        *slot = Some(param_idx);
+    for param_idx in 0..arg_to_param.len() {
+        arg_to_param[param_idx] = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {
@@ -1391,7 +1365,7 @@ fn infer_funptr_type_call_expr_type(
         });
     }
 
-    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
+    let binding_mapping = (0..call_args.len()).map(Some).collect::<Vec<_>>();
     if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
@@ -4787,10 +4761,10 @@ pub(super) fn lower_effect_op_signature(
     builtins: BuiltinTypes,
 ) -> Result<LoweredEffectOpSig, ExprTypeError> {
     // effect op 的 type params 由两部分构成：
-    // - operation 自身的 type params：`effect Async { fun <T> await(task: Task<T>): T }`
-    // - effect type 的 type params：`effect Raise<in E> { fun raise(error: E): Nothing }`
+    // - operation 自身的 type params：例如 `effect Box<T> { fun <U> map(...): U }` 中的 `U`
+    // - effect type 的 type params：例如 `effect Raise<in E> { fun raise(error: E): Nothing }` 中的 `E`
     //
-    // 约定：把 op type params 放在前面，使 `Async.await<Int>(...)` 这类显式 type args
+    // 约定：把 op type params 放在前面，使 `Effect.op<T>(...)` 这类显式 type args
     // 按“函数泛型”直觉绑定到 op，而不是 effect type。
     let mut type_params: Vec<TypeId> = Vec::new();
     let mut bindings: Vec<(String, TypeId)> = Vec::new();

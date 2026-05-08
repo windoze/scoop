@@ -40,7 +40,7 @@
 
 - 本文不定义 effectful FFI。
 - 本文不要求 continuation / effect context / outward suspend 穿过 Managed ABI。
-- 本文不要求立即删除现有 `async` / `await` / `Task<T>`；它们可以作为过渡 surface 或 adapter 保留。
+- 本文不试图保留旧 `async` / `await` / `Task<T>` / `spawn` / `join` surface 的兼容性。
 - 本文不试图把所有平台 shim 都改成 Managed ABI；最低层 host API 仍可主要走 `ExternAbi::C`。
 
 ## 2. 核心判断
@@ -406,20 +406,17 @@ Managed ABI 的目标是：
 - 只是 backend cone 与 executor 实现不同
 - service API 也不因 backend 而改签名
 
-## 9. 与现有 `async` / `Task<T>` 的关系
+## 9. 与已删除旧 surface 的关系
 
-本文不要求立即删除现有 `async` / `await` / `Task<T>`。
+旧的 `async` / `await` / `Task<T>` / `spawn` / `join` surface 已经从当前实现中移除。
 
-更现实的迁移方向是：
+本文描述的是删除旧 surface 之后的替代方向：
 
 1. 先把真正的 runtime/helper/cone 边界画清楚。
 2. 让高层 runtime 库可以在现有 substrate 之上实现。
-3. 再决定：
-   - `Task<T>` 是否降级为 adapter
-   - `async/await` 是否保留为语法糖
-   - public 主线是否改为 `Suspend + ExecutorScope`
+3. 再围绕 `Suspend + ExecutorScope` 这一套新主线推进新的 surface 与库设计。
 
-换句话说，本文优先解决的是架构分层，不是立刻做语法替换。
+换句话说，本文优先解决的是重构后的架构分层与替代表面，而不是兼容旧语法。
 
 ## 10. 迁移方向
 
@@ -455,7 +452,7 @@ Managed ABI 的主要作用是：
 2. `Child<T>` 是否需要类型级“不得逃出 owning scope”的约束。
 3. cancellation 的最小 public surface 应该放在 `ExecutorScope` 还是先只保留内部语义。
 4. common runtime 与 platform cone 之间的最小 completion/submission SPI 应如何标准化。
-5. 现有 `Task<T>` 是否仅保留为 adapter，还是继续保留为一等 public surface。
+5. 新 runtime surface 是否需要某种显式 completion/child handle，以及它与 `ExecutorScope` 的关系。
 
 ## 12. 一句话总结
 

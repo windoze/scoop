@@ -248,13 +248,6 @@ enum EffectRowParamBinding {
 }
 
 impl<'a> HirLowering<'a> {
-    const ASYNC_EFFECT_FQN: &'static str = "scoop.core.Async";
-    const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
-    const TASK_CREATE_FQN: &'static str = "scoop.core.__task_create";
-    const TASK_STEP_PENDING_FQN: &'static str = "scoop.core.__task_step_pending";
-    const TASK_STEP_READY_FQN: &'static str = "scoop.core.__task_step_ready";
-    const TASK_STEP_RESULT_FQN: &'static str = "scoop.core.__TaskStepResult";
-    const TASK_TYPE_FQN: &'static str = "scoop.core.Task";
     const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
     const ARRAY_BUILDER_NEW_FQN: &'static str = "scoop.core.__scoop_array_builder_new";
     const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
@@ -826,21 +819,13 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        // T0623/T4009：`async fun foo(): T` 对外统一暴露 `Task<T>`，并直接建立在普通 nominal
-        // object lowering 上；不再把旧的 `spawn/join` 早期语义当作 `Task` core 前提。
-        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let inner_return_ty = fun
+        let return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
-        let return_ty = if is_async_fun {
-            self.task_type_of(inner_return_ty)
-        } else {
-            inner_return_ty
-        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         // receiver 已作为显式参数降入 `params`，因此 HIR 的 function type 不再单独保留 receiver 位。
@@ -854,13 +839,7 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => {
-                if is_async_fun {
-                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
-                } else {
-                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
-                }
-            }
+            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
             ast::FunBody::Missing => None,
         };
 
@@ -1025,19 +1004,13 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let inner_return_ty = fun
+        let return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
-        let return_ty = if is_async_fun {
-            self.task_type_of(inner_return_ty)
-        } else {
-            inner_return_ty
-        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         let ty = self.types.ty_function(
@@ -1050,13 +1023,7 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => {
-                if is_async_fun {
-                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
-                } else {
-                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
-                }
-            }
+            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
             ast::FunBody::Missing => None,
         };
 
@@ -1227,20 +1194,13 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 `Task<T>`。
-        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let inner_return_ty = fun
+        let return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
-        let return_ty = if is_async_fun {
-            self.task_type_of(inner_return_ty)
-        } else {
-            inner_return_ty
-        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         let ty = self.types.ty_function(
@@ -1253,13 +1213,7 @@ impl<'a> HirLowering<'a> {
 
         let body_expected = self.expected_expr_for_param_ty(return_ty);
         let body = match &fun.body {
-            ast::FunBody::Block(b) => {
-                if is_async_fun {
-                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
-                } else {
-                    Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
-                }
-            }
+            ast::FunBody::Block(b) => Some(self.lower_block_with_expected(pkg_prefix, b, body_expected)),
             ast::FunBody::Missing => None,
         };
 
@@ -1331,19 +1285,13 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let inner_return_ty = fun
+        let return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .or_else(|| self.typechecked_fun_return_ty(fun.name.span))
             .unwrap_or(self.builtins.any);
-        let return_ty = if is_async_fun {
-            self.task_type_of(inner_return_ty)
-        } else {
-            inner_return_ty
-        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         let ty = self.types.ty_function(
@@ -1355,13 +1303,7 @@ impl<'a> HirLowering<'a> {
         );
 
         let body = match &fun.body {
-            ast::FunBody::Block(b) => {
-                if is_async_fun {
-                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
-                } else {
-                    Some(self.lower_block(pkg_prefix, b))
-                }
-            }
+            ast::FunBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
             ast::FunBody::Missing => None,
         };
 
@@ -1466,49 +1408,6 @@ impl<'a> HirLowering<'a> {
         ret_ty: TypeId,
     ) -> Expr {
         let fqn = fqn.to_string();
-        let callee = Expr {
-            span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(fqn.clone()),
-                fqn,
-            }),
-        };
-
-        Expr {
-            span,
-            ty: ret_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(callee),
-                args: args.into_iter().map(CallArg::Positional).collect(),
-            },
-        }
-    }
-
-    fn call_top_level_fun_with_type_args(
-        &mut self,
-        span: Span,
-        fqn: &str,
-        type_args: &[TypeId],
-        args: Vec<Expr>,
-        ret_ty: TypeId,
-    ) -> Expr {
-        let fqn = if self.materialize_direct_call_targets
-            && !type_args
-                .iter()
-                .copied()
-                .any(|ty| self.type_contains_param_for_direct_call_target(ty))
-            && !type_args.is_empty()
-        {
-            let args_str = type_args
-                .iter()
-                .map(|&ty| self.types.display(ty).to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{fqn}::<{args_str}>")
-        } else {
-            fqn.to_string()
-        };
         let callee = Expr {
             span,
             ty: self.builtins.any,
@@ -1853,33 +1752,6 @@ impl<'a> HirLowering<'a> {
                 .types
                 .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
         }
-    }
-
-    fn task_type_of(&mut self, inner_ty: TypeId) -> TypeId {
-        self.intern_nominal(Self::TASK_TYPE_FQN.to_string(), vec![inner_ty], None)
-    }
-
-    fn task_step_result_type(&mut self, inner_ty: TypeId) -> TypeId {
-        self.intern_nominal(Self::TASK_STEP_RESULT_FQN.to_string(), vec![inner_ty], None)
-    }
-
-    fn task_transport_type(&mut self) -> TypeId {
-        self.types.intern(TypeKind::Value(ValueTypeKind::Tuple(vec![
-            self.builtins.int,
-            self.builtins.any,
-        ])))
-    }
-
-    fn async_effect_type(&mut self) -> TypeId {
-        self.intern_nominal(Self::ASYNC_EFFECT_FQN.to_string(), Vec::new(), None)
-    }
-
-    fn continuation_type_of(&mut self, payload_ty: TypeId, answer_ty: TypeId) -> TypeId {
-        self.intern_nominal(
-            "scoop.core.Continuation".to_string(),
-            vec![payload_ty, answer_ty],
-            None,
-        )
     }
 
     fn push_type_params(&mut self, params: &[ast::TypeParam]) {
@@ -6583,213 +6455,6 @@ fun run(): Unit / Echo {
         assert!(
             lowered.continuation_resume_call_sites.is_empty(),
             "effect op `resume` 不应污染 continuation_resume_call_sites"
-        );
-    }
-
-    #[test]
-    fn lower_typed_single_source_file_routes_async_step_payload_through_transport_carrier() {
-        let sess = Session::new().unwrap();
-        let source = SourceFile::new_virtual(
-            "<t4016d_async_task_step_answer>",
-            r#"
-package fixtures.t4016d
-
-import scoop.core.*
-
-async fun fetch(): Int {
-    val task: Task<Int> = async { 41 }
-    val value: Int = await task
-    return value + 1
-}
-"#,
-        );
-
-        let lowered = lower_typed_single_source_file(&sess, &source);
-        let fetch_fun = lowered
-            .file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "fixtures.t4016d.fetch" => Some(fun),
-                _ => None,
-            })
-            .expect("应收集到 fixtures.t4016d.fetch");
-        let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
-        let pending_call =
-            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending::<Int>")
-                .expect("codegen 用 lowering 应把私有 task pending helper 物化为具体实例目标");
-
-        let ExprKind::Call { args, .. } = &pending_call.kind else {
-            panic!("__task_step_pending 应为 call expr");
-        };
-        let [
-            CallArg::Positional(awaited_expr),
-            CallArg::Positional(continuation_expr),
-        ] = args.as_slice()
-        else {
-            panic!("__task_step_pending 应接收 awaited task 与 continuation 两个位置参数");
-        };
-
-        assert_eq!(
-            lowered.types.display(awaited_expr.ty).to_string(),
-            "scoop.core.Task<(Int, Any)>"
-        );
-        assert_eq!(
-            lowered.types.display(continuation_expr.ty).to_string(),
-            "scoop.core.Continuation<(Int, Any), scoop.core.__TaskStepResult<Int>>"
-        );
-    }
-
-    #[test]
-    fn typed_hir_dump_keeps_async_step_helpers_as_template_targets() {
-        let sess = Session::new().unwrap();
-        let source = SourceFile::new_virtual(
-            "<t5000e3d_async_dump>",
-            r#"
-package fixtures.t5000e3d
-
-import scoop.core.*
-
-async fun fetch(): Int {
-    val task: Task<Int> = async { 41 }
-    val value: Int = await task
-    return value + 1
-}
-"#,
-        );
-
-        let lowered = lower_typed_for_dump(&sess, &source).unwrap();
-        let fetch_fun = lowered
-            .file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.fetch" => Some(fun),
-                _ => None,
-            })
-            .expect("应收集到 fixtures.t5000e3d.fetch");
-        let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
-
-        assert!(
-            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending").is_some(),
-            "typed dump 应保留 async task helper 的模板目标"
-        );
-        assert!(
-            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending::<Int>")
-                .is_none(),
-            "typed dump 不应提前把 async task helper 物化为实例目标"
-        );
-    }
-
-    #[test]
-    fn lower_typed_single_source_file_task_runtime_layouts_do_not_leak_type_params() {
-        fn ty_contains_param(types: &crate::ty::TypeStore, ty: crate::ty::TypeId) -> bool {
-            let mut stack = vec![ty];
-            while let Some(id) = stack.pop() {
-                match types.kind(id) {
-                    crate::ty::TypeKind::Param(_) => return true,
-                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal))
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) => {
-                        stack.extend(nominal.args.iter().copied());
-                    }
-                    crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                        stack.push(*inner);
-                    }
-                    crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elements)) => {
-                        stack.extend(elements.iter().copied());
-                    }
-                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Function(fun)) => {
-                        if let Some(receiver) = fun.receiver {
-                            stack.push(receiver);
-                        }
-                        stack.extend(fun.params.iter().copied());
-                        stack.push(fun.return_ty);
-                        stack.extend(fun.effects.terms.iter().copied());
-                    }
-                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Union(union)) => {
-                        stack.extend(union.variants.iter().copied());
-                    }
-                    crate::ty::TypeKind::StarProjection(star) => stack.push(star.read_ty),
-                    crate::ty::TypeKind::Ref(
-                        crate::ty::RefTypeKind::Any | crate::ty::RefTypeKind::String,
-                    )
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Unit)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nothing)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Bool)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Char)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Float64)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Float32)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt)
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::IntN(_))
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UIntN(_)) => {}
-                }
-            }
-            false
-        }
-
-        let sess = Session::new().unwrap();
-        let source = SourceFile::new_virtual(
-            "<t4016t2_task_layouts>",
-            r#"
-package fixtures.t4016t2
-
-import scoop.core.*
-
-fun main(): Int {
-    val task: Task<Int> = async {
-        val nested: Task<Int> = async { 41 }
-        val x: Int = await nested
-        x + 1
-    }
-    return __task_join(task)
-}
-"#,
-        );
-
-        let lowered = lower_typed_single_source_file(&sess, &source);
-
-        let mut bad_struct_fields = Vec::new();
-        for (layout_fqn, layout) in &lowered.struct_layouts {
-            for field in &layout.fields {
-                let Some(ty) = field.ty else {
-                    continue;
-                };
-                if ty_contains_param(&lowered.types, ty) {
-                    bad_struct_fields.push(format!(
-                        "{layout_fqn}.{} -> {}",
-                        field.name,
-                        lowered.types.display(ty)
-                    ));
-                }
-            }
-        }
-        assert!(
-            bad_struct_fields.is_empty(),
-            "struct layout 不应残留 type param: {bad_struct_fields:?}"
-        );
-
-        let mut bad_enum_fields = Vec::new();
-        for (layout_fqn, layout) in &lowered.enum_layouts {
-            for variant in &layout.variants {
-                for field in &variant.fields {
-                    let Some(ty) = field.ty else {
-                        continue;
-                    };
-                    if ty_contains_param(&lowered.types, ty) {
-                        bad_enum_fields.push(format!(
-                            "{layout_fqn}.{}.{} -> {}",
-                            variant.name,
-                            field.name,
-                            lowered.types.display(ty)
-                        ));
-                    }
-                }
-            }
-        }
-        assert!(
-            bad_enum_fields.is_empty(),
-            "enum layout 不应残留 type param: {bad_enum_fields:?}"
         );
     }
 

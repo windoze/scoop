@@ -240,7 +240,6 @@ impl<'a> Lexer<'a> {
             "try" => Some(Keyword::Try),
             "catch" => Some(Keyword::Catch),
             "finally" => Some(Keyword::Finally),
-            "async" => Some(Keyword::Async),
             "do" => Some(Keyword::Do),
             "return" => Some(Keyword::Return),
             "comptime" => Some(Keyword::Comptime),

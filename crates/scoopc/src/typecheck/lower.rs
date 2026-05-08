@@ -473,7 +473,7 @@ pub(crate) struct TypeLowering<'a> {
     /// 当前文件中“perform span -> performed effect 实例 TypeId”。
     ///
     /// 用途：
-    /// - 供 HIR lowering / LLVM effect codegen 读取 direct perform / await / join 的真实 effect 实例；
+    /// - 供 HIR lowering / LLVM effect codegen 读取 direct perform 等语义点的真实 effect 实例；
     /// - 与 `performed_effects` 不同：这里是稳定 side table，而不是当前函数体的临时 required-effects 收集缓冲。
     inferred_performed_effect_tys: HashMap<Span, TypeId>,
     /// 当前文件中“handle arm op span -> handled effect 实例 TypeId”。
@@ -3933,7 +3933,6 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
         "Continuation" | "scoop.core.Continuation" => Some("scoop.core.Continuation"),
-        "Task" | "scoop.core.Task" => Some("scoop.core.Task"),
         _ => None,
     }
 }

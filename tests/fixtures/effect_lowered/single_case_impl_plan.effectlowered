@@ -23,14 +23,14 @@ LateLoweredProgram
     - step_schema: s0
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t2)
-      continuation_obj_ty: t497
+      continuation_obj_ty: t388
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t498 out_step_schema=s0 concrete_op=sample.Ping.hit
-        - Case(c1) payload_tuple_ty=t252 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t499 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t252>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 concrete_op=sample.Ping.hit
+        - Case(c1) payload_tuple_ty=t212 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t390 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t212>
   continuation_objects:
     - continuation_object: ko0
-      owner_version: instance=sample.leaf allowed_row=(t493) impl_plan=SingleCase(c0) needs_reentry=true
-      continuation_obj_ty: t497
+      owner_version: instance=sample.leaf allowed_row=(t385) impl_plan=SingleCase(c0) needs_reentry=true
+      continuation_obj_ty: t388
       implemented_packings: [ri0]
       captures:
         - FrameSlot(slot0)
@@ -42,10 +42,10 @@ LateLoweredProgram
         - FrameSlot(slot6)
         - State(st2)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t498 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t499 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t252> => Unreachable
+        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t390 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t498 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t2 answer_ty=t2 out_step_schema=s0
       publications:
@@ -59,10 +59,10 @@ LateLoweredProgram
       packing_effect_family: sample.Ping
       authoritative_step_schema: s0
       packed_methods:
-        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t498 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
   callables:
     - root: sample.leaf
-      body_version_key: instance=sample.leaf allowed_row=(t493) impl_plan=SingleCase(c0) needs_reentry=true
+      body_version_key: instance=sample.leaf allowed_row=(t385) impl_plan=SingleCase(c0) needs_reentry=true
       resolved_outward_cases: [c0]
       abi: EffectStep
       authoritative_step_schema: s0

@@ -854,23 +854,6 @@ impl<'a> BlockScopeChecker<'a> {
                     self.check_block(finally)?;
                 }
             }
-            ast::ExprKind::Async { body } => {
-                // spec §5.7：`async { ... }` 的 body 同样是一个 block。
-                self.check_block(body)?;
-            }
-            ast::ExprKind::Spawn { body } => {
-                // `spawn` 当前虽在 typecheck 阶段报 deferred，但其 block 仍需参与词法作用域检查，
-                // 这样后续 structured concurrency 任务恢复语义时无需改 resolver 主线。
-                self.check_block(body)?;
-            }
-            ast::ExprKind::Await { expr, .. } => {
-                // spec §5.7：`await expr` 只是一层前缀语法糖，递归检查其操作数即可。
-                self.check_expr(expr.as_mut())?;
-            }
-            ast::ExprKind::Join { expr, .. } => {
-                // `join` 当前虽在 typecheck 阶段报 deferred，但其操作数仍需完成普通名字解析。
-                self.check_expr(expr.as_mut())?;
-            }
             ast::ExprKind::TypeApply { callee, .. } => {
                 // `callee<T>`：type args 本身在该阶段不参与名字解析（TypeRef 解析由其它入口负责）。
                 self.check_expr(callee.as_mut())?;

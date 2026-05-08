@@ -3,7 +3,7 @@
 Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 
 - 真正的值类型（struct/enum/tuple，copy 语义、不可变）
-- 代数效果系统（统一 async、错误处理、控制流）
+- 代数效果系统（统一可挂起操作、错误处理、控制流）
 - 泛型单态化（monomorphization）
 - 编译期执行与静态反射（`const fun` / `comptime`）
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）

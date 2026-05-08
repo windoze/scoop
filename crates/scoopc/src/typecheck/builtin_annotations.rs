@@ -813,9 +813,7 @@ fn collect_expr_warning_suppressions(
         ast::ExprKind::Block(block)
         | ast::ExprKind::DoBlock { body: block, .. }
         | ast::ExprKind::UnsafeBlock { body: block, .. }
-        | ast::ExprKind::SafeBlock { body: block, .. }
-        | ast::ExprKind::Async { body: block }
-        | ast::ExprKind::Spawn { body: block } => {
+        | ast::ExprKind::SafeBlock { body: block, .. } => {
             collect_block_warning_suppressions(source, block, file, out)
         }
         ast::ExprKind::Lambda(lambda) => {
@@ -859,9 +857,7 @@ fn collect_expr_warning_suppressions(
                 collect_block_warning_suppressions(source, finally, file, out);
             }
         }
-        ast::ExprKind::Await { expr: inner, .. }
-        | ast::ExprKind::Join { expr: inner, .. }
-        | ast::ExprKind::SpliceField {
+        ast::ExprKind::SpliceField {
             receiver: inner, ..
         }
         | ast::ExprKind::NotNullAssert { expr: inner, .. }
