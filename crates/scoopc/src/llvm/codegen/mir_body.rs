@@ -1662,7 +1662,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(crate::mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
             return None;
         };
-        (self.lookup_object_property_by_fqn(fqn).is_some()
+        (self.object_inits.contains_key(fqn)
+            || self.lookup_object_property_by_fqn(fqn).is_some()
             || self.top_level_consts.contains_key(fqn)
             || self.top_level_immutable_values.contains_key(fqn)
             || self.top_level_vars.contains_key(fqn)
@@ -1678,6 +1679,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let crate::mir::MemberTarget::Value { fqn } = member.resolved.as_ref()? else {
             return None;
         };
+        if self.object_inits.contains_key(fqn) {
+            return Some(CgTy::Ref);
+        }
         if let Some((_object, prop)) = self.lookup_object_property_by_fqn(fqn) {
             return self.cg_ty_of(prop.ty);
         }

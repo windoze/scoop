@@ -548,12 +548,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             mir::Rvalue::MemberAccess { member, .. }
                 if let Some(mir::MemberTarget::Value { fqn }) = &member.resolved
-                    && (self.codegen.lookup_object_property_by_fqn(fqn).is_some()
-                        || self.codegen.top_level_consts.contains_key(fqn)
-                        || self.codegen.top_level_immutable_values.contains_key(fqn)
-                        || self.codegen.top_level_vars.contains_key(fqn)
-                        || self.codegen.has_extern_global_contract(fqn)
-                        || self.static_enum_unit_variant_value(fqn)) =>
+                    && self.static_member_value(member) =>
             {
                 if self.codegen.lookup_object_property_by_fqn(fqn).is_some() {
                     self.codegen.codegen_object_property_access(span, fqn)
@@ -671,7 +666,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
             return false;
         };
-        self.codegen.lookup_object_property_by_fqn(fqn).is_some()
+        self.codegen.object_inits.contains_key(fqn)
+            || self.codegen.lookup_object_property_by_fqn(fqn).is_some()
             || self.codegen.top_level_consts.contains_key(fqn)
             || self.codegen.top_level_immutable_values.contains_key(fqn)
             || self.codegen.top_level_vars.contains_key(fqn)

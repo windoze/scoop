@@ -5383,6 +5383,59 @@ fun main(): Int {
 }
 
 #[test]
+fn production_codegen_lowers_nested_object_and_named_companion_value_access() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j3b_nested_object_value_access.scoop",
+        r#"
+package fixtures.t5000j3b_obj
+
+class Outer() {
+    object Nested {
+        val x: Int = 3
+    }
+}
+
+class C() {
+    companion object Named {
+        val x: Int = 2
+    }
+}
+
+fun main(): Int {
+    val _n = Outer.Nested
+    val _c = C.Named
+    return Outer.Nested.x + C.x + C.Named.x
+}
+"#,
+    );
+
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        &codegen_unit.lowered,
+    )
+    .unwrap();
+
+    assert!(
+        ir.contains("@__scoop_object_init__fixtures.t5000j3b_obj.Outer.Nested"),
+        "nested object 值引用应继续通过 singleton once-init helper:\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_object_init__fixtures.t5000j3b_obj.C.Named"),
+        "named companion 值引用应继续通过 singleton once-init helper:\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_object_instance__fixtures.t5000j3b_obj.Outer.Nested")
+            && ir.contains("@__scoop_object_instance__fixtures.t5000j3b_obj.C.Named"),
+        "nested object / named companion 应继续共享 singleton backing，而不是退化成 instance field access:\n{ir}"
+    );
+}
+
+#[test]
 fn println_int_lowers_via_string_formatting_without_print_int_helpers() {
     let source = SourceFile::new_virtual(
         "<mem>",
