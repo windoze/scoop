@@ -1353,6 +1353,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.toString" {
             return self.lower_refactor_core_to_string_call(span, args, target_cg);
         }
+        if callee_fqn == "scoop.core.concat" {
+            return self.lower_refactor_core_string_concat_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.compareTo" {
+            return self.lower_refactor_core_string_compare_to_call(span, args, target_cg);
+        }
         if matches!(
             callee_fqn.as_str(),
             "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
@@ -4432,6 +4438,111 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let value = self.codegen.coerce_value(arg.span, value, arg_cg)?;
         let string = self.refactor_core_print_to_string(arg.span, value, arg_ty)?;
         self.codegen.coerce_value(span, string, target_cg)
+    }
+
+    fn lower_refactor_core_string_concat_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core concat arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core concat receiver value",
+        )?;
+        let other = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let other_ptr =
+            self.string_like_pointer(args[1].span, other, "refactor core concat arg value")?;
+        let runtime = self.codegen.declare_runtime_string_concat();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), other_ptr.into()],
+            "refactor_core_string_concat",
+        )?;
+        let string = self.string_result_from_runtime_call(span, call, "scoop.core.concat")?;
+        self.codegen.coerce_value(span, string, target_cg)
+    }
+
+    fn lower_refactor_core_string_compare_to_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core compareTo arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core compareTo receiver value",
+        )?;
+        let other = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let other_ptr =
+            self.string_like_pointer(args[1].span, other, "refactor core compareTo arg value")?;
+        let runtime = self.codegen.declare_runtime_string_compare_to();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), other_ptr.into()],
+            "refactor_core_string_compare_to",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core compareTo return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(result) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core compareTo return type",
+                at: span.into(),
+            });
+        };
+        let value = CgValue::int(
+            result,
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.codegen.coerce_value(span, value, target_cg)
     }
 
     fn maybe_lower_refactor_float_ext_call(

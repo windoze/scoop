@@ -1,12 +1,12 @@
 ## 当前执行计划
 
-1. 已确认首个未完成任务为 `CG-T07S0a6`：修复 `literal_numeric_expected_type_absorption_basic.scoop` 中 `Array<UInt8>` element expected-type absorption 失效。
-2. 最近一次提交 `[CG-T07S0a5] Fix list builder transport concretization` 直接说明默认 full-suite 已推进到该 fixture；未发现需要额外补录的新前置任务，当前任务按 `TODO.md` 直接执行。
-3. 复现当前失败：执行单 fixture 测试，必要时直接 build/run 观察实际输出与期望差异。
-4. 阅读与 numeric literal expected-type absorption、array literal element typing、HIR/MIR/materialization 相关的实现与现有回归测试，定位 authoritative contract 在何处丢失 `UInt8` 语义。
-5. 以最小改动修复 expected-type 传递/吸收主线，确保不通过 backend truncation、fixture/golden 调整或其他变通方式规避问题。
-6. 补充或更新最小回归验证，至少覆盖当前 fixture；若默认 full-suite 继续暴露下一个 blocker，则按 `TODO.md` 规则处理。
-7. 更新 `TODO.md` 完成记录并将 `CG-T07S0a6` 标记为 `[DONE]`；仅在阶段计划变化时更新 `PLAN.md`。
+1. 已确认首个未完成任务为 `CG-T07S0a7`：修复 `literal_ops_compare_direct_matrix_basic.scoop` 中 String 字面量 receiver 的 `compareTo` / `concat` 直接调用退化成 `CallKind::FunValue`。
+2. 最近一次提交 `[CG-T07S0a6] Fix UInt8 array literal expected-type absorption` 已明确默认 full-suite 下一处 blocker 就是该 fixture；未发现需要先补录的其他前置任务，当前按 `TODO.md` 直接执行。
+3. 先复现当前失败：按任务要求执行定向 build/test，必要时查看 MIR/HIR，确认 direct member call 在哪里丢失 authoritative call-site contract。
+4. 阅读与 String 成员直接调用、member access resolution、direct call lowering、materialized MIR/main codegen 相关的实现与现有回归测试，定位为何字面量 receiver 会退化成 unresolved member access + `FunValue` callee。
+5. 以最小改动修复 authoritative direct-call lowering 主线，确保 `compareTo` / `concat` 保持已解析直接调用形状，而不是靠 backend 猜 callee 或改 fixture 规避。
+6. 补最小回归验证，至少覆盖任务要求的 build/test；若默认 full-suite 继续暴露下一个 blocker，则按 `TODO.md` 顺序新增最小 prerequisite。
+7. 完成后更新 `TODO.md`：将 `CG-T07S0a7` 标记为 `[DONE]` 并补充完成记录；仅当阶段计划变化时才更新 `PLAN.md`。
 8. 提交本次变更，然后停止。
 
 ## 约束提醒
@@ -17,8 +17,10 @@
 
 ## 当前进展
 
-- 已复现 `literal_numeric_expected_type_absorption_basic.scoop`：最后两行实际输出仍是 `false` / `false`。
-- 直接 build/run 证实仅 `Array<UInt8>` 的 `bytes.get(0/1)` 观测异常；局部变量、return、call 路径上的窄类型吸收正常。
-- 初步检查 `dump-mir` 发现 `bytes.get(...)` 的 array element transport/result 走成了 `Struct` 形状，而非前面 `Float32` 路径的 `Scalar`，说明问题更可能出在数组元素 authoritative type 发布/规范化链，而不是最终 compare/golden。
-- 已完成修复：array literal HIR lowering 现在仅对“纯数值字面量算术/移位表达式”注入 element expected-binding，`Array<UInt8>` builder push transport metadata 恢复为 `UInt8` scalar surface；`literal_numeric_expected_type_absorption_basic.scoop`、`array_lit_lowering.scoop`、新增 `production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata` 回归以及 `clippy` 均通过。
-- 默认 `cargo run -p scoop -- test` 已越过 `literal_numeric_expected_type_absorption_basic.scoop`，下一处失败转为 `literal_ops_compare_direct_matrix_basic.scoop`；已按顺序约束在 `TODO.md` 新增前置任务 `CG-T07S0a7` 并将 `CG-T07S0a6` 标记为 `[DONE]`。
+- 已从 `TODO.md` 确认本轮任务是 `CG-T07S0a7`。
+- 已从最近提交与 `TODO.md` 完成记录确认：`CG-T07S0a6` 修复后，默认 full-suite 的下一处 blocker 正是 `literal_ops_compare_direct_matrix_basic.scoop`。
+- 已复现失败：`cargo run -p scoop -- build tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop -o /tmp/literal_ops_compare_direct_matrix_basic` 仍在 refactor plain main codegen 前端准备阶段把 `"ab".compareTo("ac")` 降成 `CallKind::FunValue`，报 `unsupported main codegen node: refactor plain function-value callee type`。
+- 已定位根因：`typecheck/expr/call.rs` 对 `String.concat` / `String.compareTo` 走 builtin 早返回，只给出返回类型，不发布 extension/top-level call binding；因此 HIR/MIR 无法把成员调用 canonicalize 成 direct call，最终退化成 unresolved `MemberAccess` + `FunValue` callee。
+- 已收敛到更小的最终方案：不再依赖新增 sysroot 声明，而是在 `typecheck/expr/call.rs` 为 `String.concat` / `String.compareTo` 直接发布 synthetic `ExtensionFun` member resolution 与 receiver-prefixed call-arg binding；legacy/refactor LLVM direct-call path 消费 `scoop.core.concat` / `scoop.core.compareTo` runtime lowering，`effect_facts::builder` 将其归为 plain compiler intrinsic，避免 effect-step body 错发 DynamicFallback call boundary。
+- 验证通过：前端回归单测、`literal_ops_compare_direct_matrix_basic.scoop` 的 build / fixture test、`effect_refactor_no_legacy_handler_stack_calls.scoop` 定向 build fixture，以及 `cargo clippy --all-targets -- -D warnings`。
+- 默认 full-suite 已越过 `literal_ops_compare_direct_matrix_basic.scoop`，当前下一处真实 blocker 为 `tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`；已在 `TODO.md` 中把本任务 `CG-T07S0a7` 标记为 `[DONE]`，并新增 prerequisite `CG-T07S0a8` 记录该 ABI tuple payload/source-component 缺口。

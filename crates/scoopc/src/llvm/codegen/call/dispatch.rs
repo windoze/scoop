@@ -269,6 +269,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.toString" {
                 return self.codegen_sysroot_to_string_ext(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.concat" {
+                return self.codegen_sysroot_string_concat_ext(span, callee.span, args);
+            }
+            if dispatch_fqn == "scoop.core.compareTo" {
+                return self.codegen_sysroot_string_compare_to_ext(span, callee.span, args);
+            }
             if dispatch_fqn == "scoop.core.toInt" {
                 return self.codegen_sysroot_to_int_ext(span, callee.span, args);
             }

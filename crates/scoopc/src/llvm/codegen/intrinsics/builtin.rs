@@ -621,6 +621,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// T1816：body-less extension function `String.concat()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.concat(other)` 改写为 `scoop.core.concat(receiver, other)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_concat_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "concat ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "concat ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "concat", &args[1..])
+    }
+
+    /// T0115：body-less extension function `String.compareTo()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.compareTo(other)` 改写为 `scoop.core.compareTo(receiver, other)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_compare_to_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "compareTo ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "compareTo ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "compareTo", &args[1..])
+    }
+
     pub(in crate::llvm::codegen) fn codegen_sysroot_abs_ext(
         &mut self,
         span: crate::span::Span,

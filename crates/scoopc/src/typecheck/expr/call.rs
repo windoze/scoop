@@ -5345,21 +5345,86 @@ fn infer_member_call_expr_type(
                 builtins.string
             });
         }
-        // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-        // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
+        // T1816/T0115: `String.concat/compareTo` 没有普通 sysroot 函数体，
+        // 但 production HIR/MIR/codegen 需要 authoritative direct-call contract，
+        // 因此这里显式发布一个 extension-style member resolution + receiver-prefixed arg binding。
+        if matches!(member_name, "concat" | "compareTo") {
+            let callee_fqn = format!("scoop.core.{member_name}");
+            let return_ty = if member_name == "concat" {
+                builtins.string
+            } else {
+                builtins.int
+            };
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
+            check_call_arg_named_rules(&callee_fqn, &call_args)?;
 
-        // T1816: String.concat(other: String): String — 字符串连接。
-        if member_name == "concat" {
-            if args.len() != 1 {
+            let param_names = vec!["other".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                &callee_fqn,
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
+
+            if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: "concat".into(),
+                    callee: member_name.into(),
                     expected: 1,
-                    found: args.len(),
+                    found: call_args.len(),
                     span: call_expr.span.into(),
                 });
             }
-            return Ok(builtins.string);
+
+            let param_has_defaults = vec![false];
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: member_name.into(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let other_ty = call_args[arg_idx].ty;
+            if !is_type_assignable(other_ty, builtins.string, lower, builtins) {
+                return Err(ExprTypeError::CallArgTypeMismatch {
+                    callee: callee_fqn.clone(),
+                    index: 1,
+                    expected: lower.fmt_type(builtins.string),
+                    found: lower.fmt_type(other_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            lower.record_typechecked_member_resolution(
+                member.span,
+                ast::ResolvedMemberRef::ExtensionFun {
+                    fqn: callee_fqn.clone(),
+                },
+            );
+            let mapping = mapping
+                .into_iter()
+                .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
+                .collect::<Vec<_>>();
+            if let Some(binding) =
+                call_arg_binding_from_mapping_with_receiver_prefix(&mapping, &call_args)
+            {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
+            return Ok(return_ty);
         }
+
+        // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
+        // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
+
         // T1812: String.toInt() — 文本→数值转换。
         if member_name == "toInt" {
             if !args.is_empty() {
@@ -5419,18 +5484,6 @@ fn infer_member_call_expr_type(
                 });
             }
             return Ok(builtins.string);
-        }
-        // T0115: String.compareTo(other) — 1 arg → Int
-        if member_name == "compareTo" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "compareTo".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
         }
         // T0120: String.byteLength() — 0 args → Int (byte count of underlying UTF-8 data)
         if member_name == "byteLength" {

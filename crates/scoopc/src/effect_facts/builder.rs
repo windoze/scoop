@@ -2197,6 +2197,8 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.size"
             | "scoop.core.get"
             | "scoop.core.set"
+            | "scoop.core.concat"
+            | "scoop.core.compareTo"
             | "scoop.core.toInt"
             | "scoop.core.panic"
             | "scoop.sync.mutexCreate"
