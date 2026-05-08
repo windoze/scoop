@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR: 不支持命名实参
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_add_int_funptr")
+fun get_add_int_funptr(): FunPtr<Int.(Int) -> Int>
+
+fun main() {
+    @Unsafe do {
+        val fp: FunPtr<Int.(Int) -> Int> = get_add_int_funptr()
+        val x: Int = fp.invoke(receiver = 7, a0 = 8)
+        println(x)
+    }
+}

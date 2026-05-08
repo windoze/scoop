@@ -202,6 +202,14 @@ fn first_named_arg_span(call_args: &[CallArgInfo<'_>]) -> Option<Span> {
     })
 }
 
+fn funptr_invoke_rejects_named_args(
+    callee_fqn: &str,
+    receiver_ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> bool {
+    callee_fqn == "scoop.unsafe.invoke" && is_funptr_type(receiver_ty, lower)
+}
+
 fn missing_required_param_names_in_named_call(
     call_args: &[CallArgInfo<'_>],
     param_names: &[String],
@@ -6948,6 +6956,14 @@ fn infer_member_call_expr_type(
     } else {
         None
     };
+    if funptr_invoke_rejects_named_args(&callee_fqn, actual_receiver_ty, lower)
+        && let Some(span) = first_named_arg_span(&call_args)
+    {
+        return Err(ExprTypeError::NamedArgsNotSupportedForCallableType {
+            callee: member_name.to_string(),
+            span: span.into(),
+        });
+    }
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
