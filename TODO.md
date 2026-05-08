@@ -64,7 +64,7 @@
 | `CG-T07S0a` | CG7S0a | [DONE] 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | [DONE] 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | [DONE] 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
-| `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
+| `CG-T08` | CG8 | [DONE] 建立 codegen regression 矩阵并完成阶段退出审计 |
 | `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
 
 ## 全局约束
@@ -1857,7 +1857,7 @@
   - 2026-05-08：默认 full-suite 后续仍被 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 receiver callable value / `FunPtr` named-arg lowering 回归阻塞；按顺序约束新增 prerequisite `CG-T07S0`，本任务保持未完成，等待 `CG-T07S0` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-09：在 `CG-T07S0` 完成后重新执行本任务验证，`cargo test -p scoop run_all_recreates_session_between_independent_fixtures`、`cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop` 与默认 `cargo run -p scoop -- test` 全部通过；`aggregate_transport.scoop` 单跑与 full-suite 结果一致，默认 full-suite 稳定为 `fixtures: ok (1270)`，本任务完成。
 
-## CG-T08：建立 codegen regression 矩阵并完成阶段退出审计
+## [DONE] CG-T08：建立 codegen regression 矩阵并完成阶段退出审计
 
 - 参考：
   - [`PLAN-pipeline-gaps-codegen.md`](./PLAN-pipeline-gaps-codegen.md) §2/CG8、§4
@@ -1889,6 +1889,8 @@
 - 完成记录：
   - 2026-05-08：已补 `crates/scoop/tests/cg8_codegen_regression_matrix.rs` 建立 `CG-T01`-`CG-T07` 与 `P7-T02Z` representative fixture matrix；新增 `fixtures::tests::run_all_recreates_session_between_independent_fixtures` 锁定 fixture session 隔离回归，并增强 MIR golden mismatch 诊断以输出首个差异行。
   - 2026-05-08：验证中确认 `cargo test --all` 通过，但 `cargo run -p scoop -- test` 仍在 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 暴露 full-suite composite transport metadata drift；按顺序约束新增 prerequisite `CG-T07S`，本任务保持未完成。
+  - 2026-05-09：完成最终阶段退出审计：`cargo test --all` 通过（覆盖 `cg8_codegen_regression_matrix`、fixture fresh-session isolation regression 与 refactor MIR stable-dump canonicalization 审计）；默认 `cargo run -p scoop -- test` 通过并稳定为 `fixtures: ok (1270)`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 通过并稳定为 `fixtures: ok (25)`。
+  - 2026-05-09：更新 `PIPELINE_GAPS.md` 状态审计，确认 codegen-stage scope（`§3`、`§4`、`§5.1-§5.7`、`§6.1-§6.5` 与默认 refactor 路径可达的 `§7.6`）已关闭或重分类为非本阶段 owner；`CG-T08` 完成。
 
 ## CG-T08R：Review CG-T08 codegen phase exit audit
 

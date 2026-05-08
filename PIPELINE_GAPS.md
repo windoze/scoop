@@ -17,6 +17,13 @@
 - 泛型、effect-row generic、default/named args、aggregate boxing、enum/array composite payload、function value/closure ABI 仍存在形状限制。
 - spec/typecheck 已有证据的 `!!`、runtime reflection fallback、`@Extern` global variable、runtime `is/as/as?` 等表面还没有在新 MIR/refactor 主线下完全闭合。
 
+## 状态更新（2026-05-09）
+
+- `TODO.md` 的 `CG-T08` 已完成 codegen-stage exit audit：`cargo test --all` 通过，默认 `cargo run -p scoop -- test` 结果为 `fixtures: ok (1270)`，`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 结果为 `fixtures: ok (25)`。
+- 本文中属于 codegen-stage scope 的条目已按 `TODO.md` `CG-T01` 至 `CG-T08` 收口并完成 owner 审计：`§3.1-§3.11`、`§4.1-§4.5`、`§5.1-§5.7`、`§6.1-§6.5` 与默认 refactor 路径可达的 `§7.6` 已关闭或重分类为非本阶段 owner。
+- `§7.2` 继续由 frontend diagnostic 明确拒绝，因此不是 codegen-stage exit blocker；`§7.1`、`§7.3`、`§7.4`、`§7.5` 仍属于 frontend/deferred coverage item，不构成当前 codegen 阶段未完成项。
+- 下方章节保留为最初差距审计记录；若正文仍描述历史未收口状态，以本节和 `TODO.md` 的 owner/completion record 为准。
+
 ## 严重程度定义
 
 - 严重：合法代码会直接变成 Todo、MIR/codegen hard error，或会产生明显错误语义。
@@ -844,9 +851,9 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 - 定义跨线程 effect propagation contract。
 - 或在 type/effect checker 阶段禁止该 surface，并给出明确诊断。
 
-### 5.7 当前 P7 默认 refactor blocker 仍未收口
+### 5.7 当前 P7 默认 refactor blocker 已完成收口（历史记录）
 
-严重程度：严重。
+严重程度：严重（历史）。
 
 证据：
 
@@ -861,6 +868,8 @@ late lowering 认为这些 rvalue 可作为普通 value primitive，但 LLVM low
 
 - 按 `TODO-P7.md` P7-T02Z / P7-T03 收口剩余 blockers。
 - 禁止恢复 legacy fallback、缩小 fixture 或改弱 golden。
+
+状态更新（2026-05-09）：`TODO.md` `CG-T07S` 与 `CG-T08` 已完成该项收口与阶段审计。默认 `cargo run -p scoop -- test` 当前稳定为 `fixtures: ok (1270)`，GC env `tests/fixtures/runtime_gc` 当前稳定为 `fixtures: ok (25)`；本条保留为历史 blocker 记录，不再是 codegen-stage open gap。
 
 ## 6. Spec / Fixture 已暴露的具体缺口
 
@@ -1064,4 +1073,4 @@ cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/std_process_args_e
 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/entry_main_args_int_exit_basic.scoop
 ```
 
-P7 默认 refactor 收口后，应继续执行 `TODO-P7.md` 中 P7-T03/P7-T04 的完整矩阵，特别是 default refactor run-pass、spec-fixtures、moving GC/stress/verify-roots。
+2026-05-09 状态更新：上述 `cargo test --all`、默认 `cargo run -p scoop -- test` 与 GC env `tests/fixtures/runtime_gc` 已由 `CG-T08` 跑通并完成 codegen-stage exit audit。后续 `TODO-P7.md` `P7-T03` / `P7-T04` 若继续执行 spec-fixtures、`clippy --all-targets -- -D warnings` 或更广 GC env，属于 P7/P8 handoff 收口，不再是本文 codegen-stage open gap。

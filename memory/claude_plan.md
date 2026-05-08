@@ -1,43 +1,38 @@
-# 执行计划
+# Claude Plan
 
-1. 先读取 `TODO.md`，按标题是否带有 `[DONE]` 来确定第一个未完成任务；不做开放式问题排查。
-2. 检查最近一次提交信息是否直接提到与该任务相关的未完成事项；如果是，则将其视为当前任务的一部分，或在 `TODO.md` 中补充为前置任务。
-3. 阅读当前任务条目中的要求、依赖、验证方式与完成记录；必要时再查看 `PLAN.md` 了解阶段背景，但不把 `PLAN.md` 当作日常执行日志。
-4. 基于任务要求检查相关代码、测试与文档，确认现状与缺口。
-5. 以最小且正确的改动实现当前任务；如遇阻塞当前任务的真实缺陷或缺失能力，不做变通，而是在 `TODO.md` 中补充最小前置任务并停止。
-6. 运行与当前任务直接相关的验证，包括要求中的测试，以及必要的格式化、`cargo test`、`cargo clippy --all-targets -- -D warnings` 等，直到结果满足任务要求或明确暴露阻塞问题。
-7. 及时更新本文件，记录任务识别结果、关键决策、已完成步骤、测试结果，以及计划变更。
-8. 若任务完成，则在 `TODO.md` 中将该任务标题显式改为 `[DONE]`，补全完成记录；仅当阶段计划本身变化时才更新 `PLAN.md`。
-9. 按仓库约定创建一次 Git 提交，提交本次任务涉及的全部未提交修改，然后停止，不继续下一个任务。
+## Initial execution plan
 
-## 当前状态
+1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message for any directly relevant unfinished work tied to that task.
+3. Inspect only the code and documents needed for the selected task and its dependencies.
+4. Implement the task completely, avoiding workarounds and stopping only if a concrete prerequisite blocker is discovered.
+5. Run the task-required validation, then broader required checks as needed.
+6. Update `memory/claude_plan.md` with progress, update `TODO.md` completion state and records, and update `PLAN.md` only if phase-level planning changes.
+7. Create one git commit covering the task work, then stop.
 
-- 已读取 `TODO.md`，首个未完成任务为 `CG-T07S`：修复 full-suite cross-fixture transport metadata drift，解除 `CG-T08` 默认回归阻塞。
-- 最近一次提交为 `[CG-T07S0] Restore callable direct named-arg lowering`，与 `CG-T07S` 直接相关，且 `TODO.md` 已把它记录为前置 prerequisite `CG-T07S0`，目前该 prerequisite 已标记 `[DONE]`。
-- `CG-T07S` 当前需要完成的工作是重新执行任务要求中的验证，确认 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 与默认 `cargo run -p scoop -- test` 在 full-suite/单跑下不再发生 transport metadata drift；若验证稳定通过，则把 `CG-T07S` 标记为 `[DONE]` 并提交。
+## Progress log
 
-## 当前执行步骤
+- Wrote the initial execution plan before repository inspection.
+- Read `TODO.md` and identified `CG-T08` as the first task whose heading is not prefixed with `[DONE]`.
+- Checked the latest commit message: `[CG-T07S] Complete cross-fixture transport drift audit`. It is directly relevant as the prerequisite unblocker for `CG-T08`, but it does not introduce a newer unfinished prerequisite beyond what `TODO.md` already records.
 
-1. 查看当前工作区状态，确认是否存在未提交修改，以及是否需要在本次提交中一并纳入。
-2. 运行 `CG-T07S` 要求的定向验证：
-   - `cargo test -p scoop run_all_recreates_session_between_independent_fixtures`
-   - `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+## Task-specific plan for CG-T08
+
+1. Inspect the existing `CG-T08` matrix test, task notes, and `PIPELINE_GAPS.md` audit state.
+2. Run the required validation for `CG-T08`:
+   - `cargo test --all`
    - `cargo run -p scoop -- test`
-3. 若验证中出现新的且直接阻塞 `CG-T07S` 的问题，先精确定位根因，并按规则仅在 `TODO.md` 中加入最小前置任务后停止。
-4. 若验证全部通过，更新 `memory/claude_plan.md` 记录结果，并把 `TODO.md` 中 `CG-T07S` 标题改为 `[DONE]`，补全完成记录。
-5. 运行 `cargo clippy --all-targets -- -D warnings` 作为质量闸门。
-6. 生成一次 Git 提交，提交本次任务涉及的全部当前未提交文件，然后停止。
+   - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+3. If validation exposes a blocker that belongs to the current task, fix it immediately; if it reveals a concrete prerequisite outside `CG-T08`, add that prerequisite to `TODO.md` ahead of `CG-T08`, keep `CG-T08` incomplete, and stop.
+4. If validation passes, update `PIPELINE_GAPS.md` with a codegen-stage exit audit addendum, then mark `CG-T08` as `[DONE]` in `TODO.md` and extend the completion record with the final validation summary.
+5. Commit all task changes in one git commit and stop.
 
-## 执行进展
+## Execution progress
 
-- 已完成工作区检查：当前未提交修改仅有 `memory/claude_plan.md`。
-- 已完成 `CG-T07S` 规定验证，结果如下：
-  - `cargo test -p scoop run_all_recreates_session_between_independent_fixtures`：通过。
-  - `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`：通过。
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`：通过，`fixtures: ok (1)`。
-  - `cargo run -p scoop -- test`：通过，`fixtures: ok (1270)`。
-- 已将 `TODO.md` 中的索引与任务标题更新为 `[DONE] CG-T07S`，并补充 2026-05-09 的完成记录。
-- `cargo clippy --all-targets -- -D warnings`：通过。
-- `PLAN.md` 无需更新：本次没有阶段级依赖或完成标准变化，只是完成当前任务的收尾验证与状态登记。
-- 下一步：把 `TODO.md` 与 `memory/claude_plan.md` 一并提交，提交后停止。
+- Inspected the existing `CG-T08` matrix test in `crates/scoop/tests/cg8_codegen_regression_matrix.rs` and confirmed that the representative fixture coverage for `CG-T01` through `CG-T07` and `P7-T02Z` is already present in the repository.
+- Verified the required `CG-T08` commands successfully:
+  - `cargo test --all`
+  - `cargo run -p scoop -- test` -> `fixtures: ok (1270)`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` -> `fixtures: ok (25)`
+- Updated `PIPELINE_GAPS.md` with a 2026-05-09 codegen-stage exit audit addendum and converted the historical `§5.7` blocker note into a resolved historical record.
+- Marked `CG-T08` as `[DONE]` in `TODO.md` and appended the final completion record.
