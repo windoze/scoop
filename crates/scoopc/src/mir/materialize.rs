@@ -6323,7 +6323,7 @@ impl MirInstanceMaterializer {
         let locals = body.locals.clone();
         for block in &mut body.blocks {
             for stmt in &mut block.stmts {
-                let StatementKind::Assign { value, .. } = &mut stmt.kind else {
+                let StatementKind::Assign { target, value } = &mut stmt.kind else {
                     continue;
                 };
                 let Rvalue::Call {
@@ -6335,35 +6335,85 @@ impl MirInstanceMaterializer {
                 let Some(array) = transport.array.as_mut() else {
                     continue;
                 };
+                let authoritative_array_ty = match array.operation {
+                    super::ArrayTransportOperation::Get | super::ArrayTransportOperation::Set => {
+                        args.first()
+                            .and_then(|arg| {
+                                operand_type(&self.types, self.builtins, &locals, &arg.value)
+                            })
+                            .filter(|ty| !type_contains_param(&self.types, *ty))
+                    }
+                    super::ArrayTransportOperation::BuilderBuildArray
+                    | super::ArrayTransportOperation::BuilderBuildMutableArray => locals
+                        .get(target.as_u32() as usize)
+                        .map(|decl| decl.ty)
+                        .filter(|ty| !type_contains_param(&self.types, *ty))
+                        .or_else(|| {
+                            let result_ty = transport.result.source_ty;
+                            (!type_contains_param(&self.types, result_ty)).then_some(result_ty)
+                        }),
+                    super::ArrayTransportOperation::BuilderPush
+                    | super::ArrayTransportOperation::BuilderNew => None,
+                };
+                if let Some(array_ty) = authoritative_array_ty {
+                    array.array_ty = array_ty;
+                }
                 let element_ty = match array.operation {
-                    super::ArrayTransportOperation::Get
-                    | super::ArrayTransportOperation::Set
-                    | super::ArrayTransportOperation::BuilderBuildArray
+                    super::ArrayTransportOperation::Get => locals
+                        .get(target.as_u32() as usize)
+                        .map(|decl| decl.ty)
+                        .filter(|ty| !type_contains_param(&self.types, *ty))
+                        .or_else(|| {
+                            let result_ty = transport.result.source_ty;
+                            (!type_contains_param(&self.types, result_ty)).then_some(result_ty)
+                        })
+                        .or_else(|| {
+                            if type_contains_param(&self.types, array.array_ty) {
+                                None
+                            } else {
+                                self.materialized_array_element_ty(array.array_ty)
+                            }
+                        }),
+                    super::ArrayTransportOperation::Set => args
+                        .last()
+                        .and_then(|arg| {
+                            operand_type(&self.types, self.builtins, &locals, &arg.value)
+                        })
+                        .filter(|ty| !type_contains_param(&self.types, *ty))
+                        .or_else(|| {
+                            if type_contains_param(&self.types, array.array_ty) {
+                                None
+                            } else {
+                                self.materialized_array_element_ty(array.array_ty)
+                            }
+                        }),
+                    super::ArrayTransportOperation::BuilderBuildArray
                     | super::ArrayTransportOperation::BuilderBuildMutableArray => {
                         if type_contains_param(&self.types, array.array_ty) {
-                            continue;
-                        }
-                        let Some(element_ty) = self.materialized_array_element_ty(array.array_ty)
-                        else {
-                            continue;
-                        };
-                        element_ty
-                    }
-                    super::ArrayTransportOperation::BuilderPush => {
-                        if let Some(element_ty) = args.get(1).and_then(|arg| {
-                            operand_type(&self.types, self.builtins, &locals, &arg.value)
-                        }) {
-                            element_ty
+                            None
                         } else {
+                            self.materialized_array_element_ty(array.array_ty)
+                        }
+                    }
+                    super::ArrayTransportOperation::BuilderPush => args
+                        .get(1)
+                        .and_then(|arg| {
+                            operand_type(&self.types, self.builtins, &locals, &arg.value)
+                        })
+                        .filter(|ty| !type_contains_param(&self.types, *ty))
+                        .or_else(|| {
                             if type_contains_param(&self.types, array.array_ty)
                                 || type_contains_param(&self.types, array.element_ty)
                             {
-                                continue;
+                                None
+                            } else {
+                                Some(array.element_ty)
                             }
-                            array.element_ty
-                        }
-                    }
-                    super::ArrayTransportOperation::BuilderNew => continue,
+                        }),
+                    super::ArrayTransportOperation::BuilderNew => None,
+                };
+                let Some(element_ty) = element_ty else {
+                    continue;
                 };
                 array.element_ty = element_ty;
                 self.refresh_value_transport_contract(
@@ -11624,5 +11674,72 @@ fun use_zap(): Int / Zap {
             Item::Fun(fun)
                 if fun.fqn == "fixtures.materialize.Box.Companion.forward::<eff fixtures.materialize.Zap>"
         )));
+    }
+
+    #[test]
+    fn materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete() {
+        let sess = Session::new().unwrap();
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop");
+        let source = SourceFile::load(&fixture).expect("fixture 应可加载");
+
+        let materialized = materialize_for_dump(&sess, &source)
+            .expect("stdlib_hash_set_map_basic 应可 materialize");
+        let pass_view = materialized.pass_view();
+        let body = pass_view
+            .callable("scoop.collections.__map_alloc_empty_table")
+            .and_then(|fun| fun.body.as_ref())
+            .expect("应保留 __map_alloc_empty_table 的 materialized body");
+        let transport = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            transport,
+                            ..
+                        },
+                    ..
+                } = &stmt.kind
+                else {
+                    return None;
+                };
+                (callee_fqn == "scoop.core.__scoop_array_builder_build_mutable_array")
+                    .then_some(transport)
+            })
+            .expect("应找到 empty-table builder build call transport");
+        let array = transport
+            .array
+            .as_ref()
+            .expect("builder build mutable array 应发布 array transport metadata");
+
+        assert!(
+            !type_contains_param(&materialized.types, array.array_ty),
+            "empty-table array transport array type 应已具体化: {}",
+            materialized.types.display(array.array_ty)
+        );
+        assert!(
+            !type_contains_param(&materialized.types, array.element_ty),
+            "empty-table array transport element type 应已具体化: {}",
+            materialized.types.display(array.element_ty)
+        );
+        let TypeKind::Ref(RefTypeKind::Nominal(array_nominal)) =
+            materialized.types.kind(array.array_ty)
+        else {
+            panic!(
+                "empty-table builder result 应是 nominal mutable array，实际为 {:?}",
+                materialized.types.kind(array.array_ty)
+            );
+        };
+        assert_eq!(array_nominal.fqn, "scoop.core.MutableArray");
+        assert_eq!(array_nominal.args.first().copied(), Some(array.element_ty));
+        assert_eq!(
+            materialized.types.display(array.element_ty).to_string(),
+            "Int"
+        );
+        assert_eq!(array.element.source_ty, array.element_ty);
     }
 }

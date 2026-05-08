@@ -1,36 +1,30 @@
-## 当前计划
+## 当前执行计划
 
-1. 先读取 `TODO.md`，严格按标题是否带 `[DONE]` 判断首个未完成任务。
-2. 读取最近一次提交信息，确认是否有与该任务直接相关且明确未完成的问题；若有，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
-3. 阅读当前任务涉及的说明、依赖、验证要求，以及相关代码与测试，避免做开放式排查。
-4. 以最小且正确的改动完成该任务；如果遇到阻塞当前任务的真实缺口或缺陷，不做变通，而是在 `TODO.md` 中补最小前置任务并停止。
-5. 运行任务要求的验证，以及必要的 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`；若失败则先修复。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
-7. 在 `TODO.md` 中把完成的任务标题前加上 `[DONE]`，并补全 completion record；仅在阶段计划真实变化时更新 `PLAN.md`。
-8. 按仓库提交风格创建一次 git commit，提交当前任务相关的全部未提交改动，然后停止，不进入下一个任务。
+约束说明：按安全与隐私要求，这里记录可执行计划、关键判断与进度，不记录原始私有思维链路。
+
+1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务；将其视为本次唯一目标。
+2. 检查最近提交是否直接提到与该任务相关且未完成的问题；若是，则将其作为该任务的一部分或在 `TODO.md` 中补成前置依赖。
+3. 阅读该任务涉及的条目、依赖、验证要求，以及必要的代码与测试位置，避免开放式问题排查。
+4. 实现该任务要求；若遇到阻塞且无法在当前任务内直接修复，则按要求在 `TODO.md` 中插入最小前置任务并停止。
+5. 运行与该任务直接相关的验证，至少包含任务要求的测试；若改动影响通用质量门禁，则补跑对应命令。
+6. 更新文档记录：
+   - 在 `TODO.md` 中将完成的任务标题前缀改为 `[DONE]`，补全 completion record。
+   - 仅当阶段计划、依赖或完成标准变化时更新 `PLAN.md`。
+   - 在本文件持续记录关键进展与计划变更。
+7. 按仓库提交风格创建一次 git commit，提交本次任务的全部相关未提交改动，然后停止。
 
 ## 进度记录
 
-- 已写入初始执行计划，下一步开始读取 `TODO.md` 并识别首个未完成任务。
-- 已确认首个未完成任务为 `CG-T07S0a14`：修复 `smart_cast_any_member_access_generic_class_basic.scoop` 中 smart-cast 分支 generic class field access 仍把 `x.value` 的 result/frame slot 保留为 unresolved `T`。
-- 最近一次提交是 `[CG-T07S0a13] Restore safe-call Option variant lowering`，未显式记录与 `CG-T07S0a14` 直接相关的未完成问题，因此继续按 `CG-T07S0a14` 本身执行。
-- 当前工作树仅有本文件未提交改动，暂未发现其他脏改动需要纳入当前任务处理。
-- 下一步：
-  1. 复现 `tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop` 的 build/test 失败。
-  2. 用定向 `dump-mir` / 代码搜索定位 smart-cast 分支里 `MemberAccess` 与 result/frame slot 仍保留 declaration-site `T` 的发布路径。
-  3. 以最小改动修正 authoritative smart-cast/member-access contract，使 materialized MIR 中 `x is Box<Int>` 分支的 `x.value` 具体化为 `Int`。
-  4. 运行任务要求的验证、更新 `TODO.md` 完成记录、提交 git commit，然后停止。
-- 已完成 `CG-T07S0a14` 实现：
-  1. `crates/scoopc/src/mir/lower.rs` 的 member-access lowering 现在会优先保留 typed HIR 已具体化的结果类型，只在合成 HIR 仍给出宽的 `Any` 时回退到成员声明类型。
-  2. member-access receiver 只会在 `receiver.ty` 比底层 local 更具体且不是 `Any` 时创建 expr-typed 视图 local，修复 smart-cast 分支 `Box<Int>.value` 具体化，同时避免破坏 extension-property getter / `with` builder。
-  3. 新增 `mir::lower::tests::dump_mir_smart_cast_member_access_preserves_concrete_generic_field_type`；同步更新 `tests/fixtures/mir_refactor/generic_materialization.mir`。
-- 已完成验证：
-  1. `cargo test -p scoopc dump_mir_smart_cast_member_access_preserves_concrete_generic_field_type`
-  2. `cargo run -p scoop -- build tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop -o /tmp/smart_cast_any_member_access_generic_class_basic`
-  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop`
-  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extension_property_getter_basic.scoop`
-  5. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`
-  6. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/generic_materialization.scoop`
-  7. `cargo clippy --all-targets -- -D warnings`
-- 默认 `cargo run -p scoop -- test` 已越过 `smart_cast_any_member_access_generic_class_basic.scoop`，新的下一处 blocker 是 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`：`scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`。
-- 已按顺序在 `TODO.md` 中新增前置任务 `CG-T07S0a15`，本次提交将以完成 `CG-T07S0a14` 并补录下一 blocker 为止，不继续实现 `CG-T07S0a15`。
+- 已创建本计划文件。
+- 已读取 `TODO.md` 并确认首个未完成任务是 `CG-T07S0a15`：修复 `stdlib_hash_set_map_basic` 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`。
+- 已检查最近提交：`[CG-T07S0a14] Preserve concrete smart-cast member access types`，未发现需要先并入当前任务的显式未完成事项。
+- 下一步：复现 `stdlib_hash_set_map_basic` 的 build/test 失败，定位 materialized MIR 中 `__map_alloc_empty_table` 的 array transport element type 何处未具体化，并沿 authoritative materialize/transport contract 主线修复；若发现当前任务无法直接落地且存在新的真实前置缺口，则回写 `TODO.md` 后停止。
+- 已复现：`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic` 失败，报 `scoop.collections.__map_alloc_empty_table` 的 `array transport element type` 仍为 unresolved `T`。
+- 已完成首轮修复：更新 `crates/scoopc/src/mir/materialize.rs` 的 `repair_array_call_transport_types()`，在 `BuilderBuildArray` / `BuilderBuildMutableArray` 上优先回读 target local 或 call result transport 的 concrete array type，在 `Get` / `Set` 上优先回读 receiver operand type；随后再刷新 array element transport contract。
+- 已补回归测试：新增 materialize 单测，锁定 `stdlib_hash_set_map_basic` 中 `scoop.collections.__map_alloc_empty_table` 的 `__scoop_array_builder_build_mutable_array` transport metadata 必须具体化为 `MutableArray<Int>` / `Int`。
+- 第二轮修复：发现真正遗漏的是 alias receiver `MutableMap.set(...)` 的 array transport repair 仍试图从 `array_ty` 反推 element type；对于 `scoop.collections.MutableMap` 这类 typealias，`array_ty` 本身不是 canonical `MutableArray<Int>`，因此仍会保留 unresolved `T`。已改为在 `Get` 上优先回读 target/result type、在 `Set` / `BuilderPush` 上优先回读 value operand type，从而不依赖 alias 展开。
+- 定向验证结果：新增单测通过，`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic` 通过。
+- 新 blocker：同一 fixture 的 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 仍失败，但已不再是 materialized MIR unresolved `T`。通过临时最小复现确认：`MutableSet` 在 `remove(3)` 后再 `add(24)` 仍保持 `contains(0/8/24)` 正确；真正漂移出现在只读视图 `val ro: Set = s.asSet()` 后同一 body 组合调用 `ro.len()` / `ro.contains(...)` 时，运行期可观测值变成 `len() == 2`、`contains(0) == false`，而只打印 `ro.get(0..2)` 时又能看到导出的底层数组仍为三个元素。这说明新的独立 blocker 位于 `Set` 只读视图 / alias receiver member-call 路径，不属于本次已修复的 `__map_alloc_empty_table` unresolved-`T` 问题本身。
+- 决策：按顺序约束将该运行期漂移登记为 `CG-T07S0a15` 的新前置任务，当前调用在更新 `TODO.md` 后停止；不继续把两个独立问题揉成同一任务落地。
+- 已更新 `TODO.md`：插入新前置任务 `CG-T07S0a15a`，并让 `CG-T07S0a15` 明确依赖它；同时记录本次已落地的 `materialize.rs` 修复与已通过的定向验证。
+- 收尾：准备检查工作区状态并按任务/阻塞提交当前改动，然后停止，等待下一次调用处理新的首个未完成任务 `CG-T07S0a15a`。
