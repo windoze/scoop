@@ -40,7 +40,8 @@
 | `CG-T07S0a3` | CG7S0a3 | [DONE] 修复 gc_trace_task_field_basic 中 `Async.await(holder.task)` perform site metadata 把 payload transport type 与 payload component type 发布成漂移 shape，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a4` | CG7S0a4 | [DONE] 修复 kotlin_ranges_progressions_basic 中 progression/forEach lowering 的 assign place contract 指向未分配 local symbol，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a5` | CG7S0a5 | [DONE] 修复 list_and_mutable_list_basic 中 MutableList.add/push materialized MIR 的 array transport element type 仍保留 unresolved generic `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a6` | CG7S0a6 | 修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a6` | CG7S0a6 | [DONE] 修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a7` | CG7S0a7 | 修复 literal_ops_compare_direct_matrix_basic 中 String 字面量 receiver 的 compareTo/concat 直接调用退化成 FunValue callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -943,7 +944,7 @@
   - 2026-05-08：`BuilderPush` repair 现改为优先从第二个 call arg 的 concrete operand/local type 回填 `array.element_ty`，并同步刷新 value transport contract；新增 `llvm::tests::production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances`，确认 production pass view 会保留 `MutableList.add` / `MutableArray.push` 实例，且 `scoop.core.push` body 的 builder append transport element type 已具体化为 `Int`。
   - 2026-05-08：验证通过：`cargo test -p scoopc production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances`、`cargo run -p scoop -- build tests/fixtures/run-pass/list_and_mutable_list_basic.scoop -o /tmp/list_and_mutable_list_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `list_and_mutable_list_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a6`。
 
-## CG-T07S0a6：修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a6：修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `T0150h-1`
@@ -973,6 +974,41 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a5` 修复后，默认 full-suite 继续前进到 `literal_numeric_expected_type_absorption_basic.scoop`；单 fixture run-pass 报 stdout mismatch，直接 build/run 显示 `Array<UInt8>` 上 `1 + 2` 与 `1 << 3` 的最后两处观测仍输出 `false` / `false`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：`crates/scoopc/src/hir/lower/expr.rs` 的 array literal lowering 现在只对“纯数值字面量算术/移位表达式”注入 element expected-binding，确保 builder-based `Array<UInt8>` lowering 不再把 `1 + 2` / `1 << 3` 的中间值以 nominal/composite surface 发布到 `__scoop_array_builder_push`；直接字面量数组元素与既有 HIR snapshot 形状保持不变。
+  - 2026-05-08：新增 `llvm::tests::production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata`，确认 `literal_numeric_expected_type_absorption_basic.scoop` 的 `bytes` array builder push transport metadata 保持 `UInt8` scalar surface、`trace = false` 且不发布 composite boxing。
+  - 2026-05-08：验证通过：`cargo test -p scoopc production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata`、`cargo test -p scoopc production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances`、`cargo run -p scoop -- test --fixtures tests/fixtures/hir/array_lit_lowering.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `literal_numeric_expected_type_absorption_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a7`。
+
+## CG-T07S0a7：修复 literal_ops_compare_direct_matrix_basic 中 String 字面量 receiver 的 compareTo/concat 直接调用退化成 FunValue callee，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `T0150h-3`
+  - `CG-T03`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop`
+- 背景：
+  - 在 `CG-T07S0a6` 修复 `literal_numeric_expected_type_absorption_basic.scoop` 后，默认 `cargo run -p scoop -- test` 不再停在 `Array<UInt8>` element expected-type absorption 漂移，而是继续暴露 `tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop -o /tmp/literal_ops_compare_direct_matrix_basic` 会报 `unsupported main codegen node: refactor plain function-value callee type`；`dump-mir` 显示 `"ab".compareTo("ac")` 被 lower 成 `MemberAccess { name: "compareTo", resolved: None }` 后再走 `CallKind::FunValue`，`"hi".concat("!")` 也保留同一退化形状。
+
+- 必须实现的内容：
+  1. 修复 String 字面量 receiver 的 `compareTo` / `concat` 直接调用 lowering，要求消费 authoritative call-site/member contract，不能把已解析的直接调用退化成 unresolved member-access + `FunValue` callee。
+  2. 保持 `literal_ops_compare_direct_matrix_basic.scoop` 的 direct compare / concat 语义落在 refactor HIR/MIR/main codegen 主线上；不得通过改 fixture、拆成临时局部 helper 或 backend 现场猜 callee 规避问题。
+  3. 补最小回归验证，确保该 fixture 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许继续让 direct member call 在 pure assignment / local binding 路径退化成 `CallKind::FunValue`，再由 LLVM backend 以 unsupported 拒绝。
+  - 不允许把 literal receiver surface 改写成其他调用形状作为变通；必须修正 authoritative direct-call lowering contract。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop -o /tmp/literal_ops_compare_direct_matrix_basic`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `literal_ops_compare_direct_matrix_basic.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a6`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a6` 修复后，默认 full-suite 继续前进到 `literal_ops_compare_direct_matrix_basic.scoop`；build 诊断显示 `"ab".compareTo("ac")` 仍在 refactor plain main codegen 前端准备阶段退化成 `CallKind::FunValue` 并报 `unsupported main codegen node: refactor plain function-value callee type`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1000,7 +1036,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1012,6 +1048,7 @@
   - 2026-05-08：`CG-T07S0a3` 修复后，默认 full-suite 又继续前进到 `kotlin_ranges_progressions_basic.scoop`；build 阶段在 direct-style MIR lowering 触发 `assignment place contract references an unallocated local: S34` panic，按顺序约束新增 prerequisite `CG-T07S0a4`，本任务保持未完成，等待 `CG-T07S0a4` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a4` 修复后，默认 full-suite 又继续前进到 `list_and_mutable_list_basic.scoop`；build 阶段在 materialized MIR validation 报 `materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`，按顺序约束新增 prerequisite `CG-T07S0a5`，本任务保持未完成，等待 `CG-T07S0a5` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a5` 修复后，默认 full-suite 又继续前进到 `literal_numeric_expected_type_absorption_basic.scoop`；单 fixture build/run 显示 `Array<UInt8>` 上 `1 + 2` / `1 << 3` 的最终观测值仍输出 `false` / `false`，按顺序约束新增 prerequisite `CG-T07S0a6`，本任务保持未完成，等待 `CG-T07S0a6` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a6` 修复后，默认 full-suite 又继续前进到 `literal_ops_compare_direct_matrix_basic.scoop`；build 诊断显示 `"ab".compareTo("ac")` 的 String 字面量 receiver 直接调用仍退化成 `CallKind::FunValue` 并报 `unsupported main codegen node: refactor plain function-value callee type`，按顺序约束新增 prerequisite `CG-T07S0a7`，本任务保持未完成，等待 `CG-T07S0a7` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

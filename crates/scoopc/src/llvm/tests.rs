@@ -6634,6 +6634,89 @@ fn production_codegen_list_fixture_materializes_mutable_list_add_and_push_instan
     );
 }
 
+#[test]
+fn production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend should retain materialized MIR");
+    let pass_view = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend should retain materialized pass view");
+    let mut main = None;
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            if fun.fqn == "main" {
+                main = Some(fun);
+                break;
+            }
+        }
+        if main.is_some() {
+            break;
+        }
+    }
+    let main = main.expect("expected literal numeric fixture to materialize main body");
+    let body = main.body.as_ref().expect("main should have a body");
+
+    let mut seen_uint8_builder_pushes = 0;
+    for block in &body.blocks {
+        for stmt in &block.stmts {
+            let crate::mir::StatementKind::Assign {
+                value:
+                    crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Direct { callee_fqn },
+                        transport,
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+                continue;
+            }
+            let array = transport
+                .array
+                .as_ref()
+                .expect("array builder push call should publish array transport metadata");
+            if materialized.types.display(array.element_ty).to_string() != "UInt8" {
+                continue;
+            }
+            assert_eq!(
+                materialized
+                    .types
+                    .display(array.element.source_ty)
+                    .to_string(),
+                "UInt8",
+                "main's UInt8 array builder push should keep UInt8 source surface"
+            );
+            assert!(
+                !array.element.requirements.trace,
+                "main's UInt8 array builder push should stay on scalar transport path"
+            );
+            assert!(
+                array.element.boxing.is_none(),
+                "main's UInt8 array builder push should not publish composite boxing metadata"
+            );
+            seen_uint8_builder_pushes += 1;
+        }
+    }
+
+    assert_eq!(
+        seen_uint8_builder_pushes, 2,
+        "expected the fixture's bytes array to retain two UInt8 builder push sites"
+    );
+}
+
 fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

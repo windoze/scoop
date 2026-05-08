@@ -3614,7 +3614,60 @@ impl<'a> HirLowering<'a> {
                 | ast::ExprKind::UnsafeBlock { .. }
                 | ast::ExprKind::SafeBlock { .. }
                 | ast::ExprKind::Handle { .. }
-        )
+        ) || Self::array_lit_element_is_numeric_expected_binding_candidate(element)
+    }
+
+    fn array_lit_element_is_numeric_expected_binding_candidate(element: &ast::Expr) -> bool {
+        match &element.kind {
+            ast::ExprKind::Unary { op, expr, .. } => {
+                matches!(op, ast::UnaryOp::Neg | ast::UnaryOp::BitNot)
+                    && Self::array_lit_element_is_numeric_literal_tree(expr)
+            }
+            ast::ExprKind::Binary { lhs, op, rhs, .. } => {
+                matches!(
+                    op,
+                    ast::BinaryOp::Add
+                        | ast::BinaryOp::Sub
+                        | ast::BinaryOp::Mul
+                        | ast::BinaryOp::Div
+                        | ast::BinaryOp::Rem
+                        | ast::BinaryOp::BitAnd
+                        | ast::BinaryOp::BitXor
+                        | ast::BinaryOp::BitOr
+                        | ast::BinaryOp::Shl
+                        | ast::BinaryOp::Shr
+                ) && Self::array_lit_element_is_numeric_literal_tree(lhs)
+                    && Self::array_lit_element_is_numeric_literal_tree(rhs)
+            }
+            _ => false,
+        }
+    }
+
+    fn array_lit_element_is_numeric_literal_tree(element: &ast::Expr) -> bool {
+        match &element.kind {
+            ast::ExprKind::IntLit | ast::ExprKind::FloatLit => true,
+            ast::ExprKind::Unary { op, expr, .. } => {
+                matches!(op, ast::UnaryOp::Neg | ast::UnaryOp::BitNot)
+                    && Self::array_lit_element_is_numeric_literal_tree(expr)
+            }
+            ast::ExprKind::Binary { lhs, op, rhs, .. } => {
+                matches!(
+                    op,
+                    ast::BinaryOp::Add
+                        | ast::BinaryOp::Sub
+                        | ast::BinaryOp::Mul
+                        | ast::BinaryOp::Div
+                        | ast::BinaryOp::Rem
+                        | ast::BinaryOp::BitAnd
+                        | ast::BinaryOp::BitXor
+                        | ast::BinaryOp::BitOr
+                        | ast::BinaryOp::Shl
+                        | ast::BinaryOp::Shr
+                ) && Self::array_lit_element_is_numeric_literal_tree(lhs)
+                    && Self::array_lit_element_is_numeric_literal_tree(rhs)
+            }
+            _ => false,
+        }
     }
 
     fn wrap_array_lit_element_with_expected_binding(
