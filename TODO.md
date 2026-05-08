@@ -63,7 +63,7 @@
 | `CG-T07S0a24a` | CG7S0a24a | [DONE] 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | [DONE] 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | [DONE] 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
-| `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
+| `CG-T07S` | CG7S | [DONE] 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
 | `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
 
@@ -1820,7 +1820,7 @@
   - 2026-05-09：默认 `cargo run -p scoop -- test` 现已完整通过（`fixtures: ok (1270)`），`CG-T07S0` 不再是 `CG-T07S` 的 full-suite 首个 blocker；当前任务完成。
   - 验证通过：`cargo test -p scoopc callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir -- --nocapture`、`cargo test -p scoopc top_level_generic_named_args_keep_canonical_param_order_in_pass_mir -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop -o /tmp/callable_value_pattern_binder_receiver_named_args_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S：修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞
+## [DONE] CG-T07S：修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞
 
 - 参考：
   - `CG-T04a`-`CG-T04f`
@@ -1855,6 +1855,7 @@
   - 2026-05-08：执行 `CG-T08` 时已先补 `crates/scoop/tests/cg8_codegen_regression_matrix.rs` representative matrix、fixture runner fresh-session isolation regression，以及 refactor MIR stable dump 的首差异诊断与 `TypeId` canonicalization；`cargo test --all` 与定向 matrix 通过，但 `cargo run -p scoop -- test` 仍在 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 暴露 full-suite composite transport metadata drift，本任务据此新增并保持未完成。
   - 2026-05-08：补齐 `mir_refactor` 单文件 phase fallback，确认 `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/{generic_materialization,aggregate_transport}.scoop` 不再误走 parse phase；`RefactorMirStageOutput::stable_dump()` 改为 canonical type-id dump，`MirLoweringFacts::with_member_value_types()` 过滤掉 mangled generic instance clone 对 base field FQN 的污染，`generic_materialization.actual.raw.mir` 中 `holder.item` 不再在 `Int` / template `T` 之间随机漂移；`tests/fixtures/mir_refactor`、`tests/fixtures/effect_facts` 与 `tests/fixtures/effect_lowered` 目录定向验证恢复通过。
   - 2026-05-08：默认 full-suite 后续仍被 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 receiver callable value / `FunPtr` named-arg lowering 回归阻塞；按顺序约束新增 prerequisite `CG-T07S0`，本任务保持未完成，等待 `CG-T07S0` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-09：在 `CG-T07S0` 完成后重新执行本任务验证，`cargo test -p scoop run_all_recreates_session_between_independent_fixtures`、`cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop` 与默认 `cargo run -p scoop -- test` 全部通过；`aggregate_transport.scoop` 单跑与 full-suite 结果一致，默认 full-suite 稳定为 `fixtures: ok (1270)`，本任务完成。
 
 ## CG-T08：建立 codegen regression 矩阵并完成阶段退出审计
 

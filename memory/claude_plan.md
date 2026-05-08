@@ -1,33 +1,43 @@
-# Claude Plan
+# 执行计划
 
-## 执行约束
-- 先以 `TODO.md` 为唯一任务真源，定位第一个未完成任务。
-- 在未确认当前任务前，不做开放式问题排查。
-- 如遇到阻塞当前任务的真实缺陷或缺失能力，不绕过；最小化更新 `TODO.md` / 必要时更新 `PLAN.md`，提交后停止。
+1. 先读取 `TODO.md`，按标题是否带有 `[DONE]` 来确定第一个未完成任务；不做开放式问题排查。
+2. 检查最近一次提交信息是否直接提到与该任务相关的未完成事项；如果是，则将其视为当前任务的一部分，或在 `TODO.md` 中补充为前置任务。
+3. 阅读当前任务条目中的要求、依赖、验证方式与完成记录；必要时再查看 `PLAN.md` 了解阶段背景，但不把 `PLAN.md` 当作日常执行日志。
+4. 基于任务要求检查相关代码、测试与文档，确认现状与缺口。
+5. 以最小且正确的改动实现当前任务；如遇阻塞当前任务的真实缺陷或缺失能力，不做变通，而是在 `TODO.md` 中补充最小前置任务并停止。
+6. 运行与当前任务直接相关的验证，包括要求中的测试，以及必要的格式化、`cargo test`、`cargo clippy --all-targets -- -D warnings` 等，直到结果满足任务要求或明确暴露阻塞问题。
+7. 及时更新本文件，记录任务识别结果、关键决策、已完成步骤、测试结果，以及计划变更。
+8. 若任务完成，则在 `TODO.md` 中将该任务标题显式改为 `[DONE]`，补全完成记录；仅当阶段计划本身变化时才更新 `PLAN.md`。
+9. 按仓库约定创建一次 Git 提交，提交本次任务涉及的全部未提交修改，然后停止，不继续下一个任务。
 
-## 初始计划
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交是否直接提到与该任务相关且未完成的问题；若是，则将其视为任务一部分或在 `TODO.md` 中补成前置任务。
-3. 阅读当前任务涉及的代码、测试、规范和依赖约束，确认实现边界。
-4. 实现当前任务所需改动，只做满足任务要求的最小正确修改。
-5. 运行任务要求的验证、相关测试，以及必要的 `cargo fmt` / `cargo clippy --all-targets -- -D warnings`。
-6. 更新 `memory/claude_plan.md` 记录进展；将任务在 `TODO.md` 中标记为 `[DONE]` 并补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+## 当前状态
 
-## 当前任务
-- 已定位第一个未完成任务：`CG-T07S0`。
-- 任务目标：修复 receiver callable value / `FunPtr` 在 receiver + named args 组合下的 lowering 槽位映射回归，并恢复默认 full-suite 继续前进。
-- 最近提交 `[CG-T07S0a] Complete effect-handle top-level val blocker` 只完成了已记录前置任务 `CG-T07S0a`，未引入新的同任务未完成条目。
+- 已读取 `TODO.md`，首个未完成任务为 `CG-T07S`：修复 full-suite cross-fixture transport metadata drift，解除 `CG-T08` 默认回归阻塞。
+- 最近一次提交为 `[CG-T07S0] Restore callable direct named-arg lowering`，与 `CG-T07S` 直接相关，且 `TODO.md` 已把它记录为前置 prerequisite `CG-T07S0`，目前该 prerequisite 已标记 `[DONE]`。
+- `CG-T07S` 当前需要完成的工作是重新执行任务要求中的验证，确认 `tests/fixtures/mir_refactor/aggregate_transport.scoop` 与默认 `cargo run -p scoop -- test` 在 full-suite/单跑下不再发生 transport metadata drift；若验证稳定通过，则把 `CG-T07S` 标记为 `[DONE]` 并提交。
 
-## 当前进展
-- 已读取 `CG-T07S0` / `CG-T07S` 条目，确认当前 invocation 只处理 `CG-T07S0`。
-- 已定位根因：最新相关提交 `12185b94` 删除了任务要求的 run-pass fixture，并把 function value / `FunPtr` direct call 的 named args 改成 typecheck 直接拒绝；这与 `CG-T07S0` 目标冲突。
-- 已确认历史正确行为：旧实现通过 synthetic param names `receiver` / `a0` / `a1` 做 callable value / `FunPtr` named-arg 绑定，且存在配套 run-pass fixture `callable_value_pattern_binder_receiver_named_args_basic.scoop`。
-- 已恢复 callable value / `FunPtr` direct-call named-arg typecheck 绑定，补回正向 run-pass fixture，并删除与当前任务目标冲突的两个 typecheck 负例。
-- 已修复 HIR generic call fallback：当 callable surface 有 authoritative `arg_binding` 但没有 top-level/ctor `plan` 时，保留 `CallArg::Named` 交给 MIR canonicalize，避免 `when` binder / 顶层 `FunPtr` 重新退回源码顺序 positional 实参。
-- 已新增 `callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir` 单测，锁定 `FunValue` 与顶层 `FunPtr` 的 receiver-first MIR 实参顺序。
-- 验证完成：定向单测、单 fixture build/test、默认 `cargo run -p scoop -- test`（`fixtures: ok (1270)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。
-- 下一步：检查工作树，提交本次 `CG-T07S0` 改动并停止。
+## 当前执行步骤
 
-## 说明
-- 这里记录的是可审阅的执行计划与进展摘要，不包含私有推理细节。
+1. 查看当前工作区状态，确认是否存在未提交修改，以及是否需要在本次提交中一并纳入。
+2. 运行 `CG-T07S` 要求的定向验证：
+   - `cargo test -p scoop run_all_recreates_session_between_independent_fixtures`
+   - `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+   - `cargo run -p scoop -- test`
+3. 若验证中出现新的且直接阻塞 `CG-T07S` 的问题，先精确定位根因，并按规则仅在 `TODO.md` 中加入最小前置任务后停止。
+4. 若验证全部通过，更新 `memory/claude_plan.md` 记录结果，并把 `TODO.md` 中 `CG-T07S` 标题改为 `[DONE]`，补全完成记录。
+5. 运行 `cargo clippy --all-targets -- -D warnings` 作为质量闸门。
+6. 生成一次 Git 提交，提交本次任务涉及的全部当前未提交文件，然后停止。
+
+## 执行进展
+
+- 已完成工作区检查：当前未提交修改仅有 `memory/claude_plan.md`。
+- 已完成 `CG-T07S` 规定验证，结果如下：
+  - `cargo test -p scoop run_all_recreates_session_between_independent_fixtures`：通过。
+  - `cargo test -p scoopc refactor_mir_stable_dump_canonicalizes_type_ids_by_structure`：通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`：通过，`fixtures: ok (1)`。
+  - `cargo run -p scoop -- test`：通过，`fixtures: ok (1270)`。
+- 已将 `TODO.md` 中的索引与任务标题更新为 `[DONE] CG-T07S`，并补充 2026-05-09 的完成记录。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- `PLAN.md` 无需更新：本次没有阶段级依赖或完成标准变化，只是完成当前任务的收尾验证与状态登记。
+- 下一步：把 `TODO.md` 与 `memory/claude_plan.md` 一并提交，提交后停止。
