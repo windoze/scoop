@@ -61,7 +61,7 @@
 | `CG-T07S0a22` | CG7S0a22 | [DONE] 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
 | `CG-T07S0a24` | CG7S0a24 | [DONE] 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
 | `CG-T07S0a24a` | CG7S0a24a | [DONE] 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
+| `CG-T07S0a` | CG7S0a | [DONE] 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
@@ -1723,7 +1723,7 @@
   - 2026-05-09：在本任务要求的 full-suite 验证中，`cargo run -p scoop -- test` 先暴露了已删除 async/task surface 遗留的空 cone fixture `tests/fixtures/typecheck_cone/std_task_async_await_impl_ok/`；已同步移除该空目录，避免无关 stale fixture 阻塞当前任务的全量回归验收。
   - 验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test -p scoop --bin scoop fixtures::run_pass::tests::run_fixture_command_timeout_has_stable_code -- --exact --nocapture`、`cargo test -p scoop --bin scoop fixtures::run_pass::tests::run_fixture_command_timeout_kills_descendants -- --exact --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T05`
@@ -1779,6 +1779,8 @@
 - 2026-05-08：使用 `tools/run_fixture_scan.sh --no-build --out-dir target/fixture-scan/round3-30s` 做逐 fixture 扫描后，确认除 `CG-T07S0a20` 覆盖的 `String.trimIndent()` 之外，还剩若干失败且可按 callable / ctor ABI、top-level / package compilation-unit contract、task/thread/GC coordination、frontend receiver `eff` row contract 四组根因收口；据此新增 prerequisites `CG-T07S0a21`、`CG-T07S0a22`、`CG-T07S0a24`，其中 task/thread/GC coordination 组后续已随 async/Task 清理移除。本任务继续保持未完成，等待剩余 blocker 依序清理并同步更新 `FAILED_FIXTURES.md` 后再重跑 full-suite 验收。
 - 2026-05-08：`CG-T07S0a20` 已完成并补齐 `trimIndent()` 的编译器回归、build / 单 fixture run-pass / clippy 验证；默认 full-suite 当时继续停在 task/thread/runtime GC 组，但该 blocker 后续已随 async/Task 清理移除，因此本任务当前只等待其余 prerequisites 依序收口。
 - 2026-05-09：重跑 `effect_handle_top_level_val_pattern_access_basic.scoop` 的单 fixture build/test 后，该任务原始 `top-level value ref` 故障已不再复现；但默认 full-suite / `runtime_gc` phase 继续暴露 `gc_stw_cross_thread_roots_basic.scoop`。导出的 LLVM IR 显示 top-level `@Global __AtomicInt` lvalue 仍被退化成普通 top-level var `load`，同时 run-pass timeout 只 kill 外层 `scoop run` 会留下继承 pipe 的 orphan `a.out`，导致顶层 `scoop test` 假性挂起。按顺序约束新增 prerequisite `CG-T07S0a24a`，本任务保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+- 2026-05-09：在 `CG-T07S0a24a` 修复 top-level atomic storage / timeout descendant cleanup 后，重新执行 `cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 与默认 `cargo run -p scoop -- test`，确认 `effect_handle_top_level_val_pattern_access_basic.scoop` 的原始 EffectStep `top-level value ref` blocker 已稳定消失，默认 full-suite 也不再停在该 fixture；据此本任务完成。
+- 验证通过：`cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 
