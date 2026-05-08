@@ -6370,6 +6370,54 @@ fun main(): Int {
 }
 
 #[test]
+fn effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j1d_effect_step_tuple_param_carrier.scoop",
+        r#"
+package fixtures.t5000j1d
+
+import scoop.core.*
+
+enum MyOpt {
+    Some(val value: Int),
+    None,
+}
+
+fun explode(pair: (MyOpt, Int)): Unit / Raise<RuntimeError> {
+    val (Some(_), y) = pair
+    println(y)
+}
+
+fun main(): Int {
+    val pair: (MyOpt, Int) = (None(), 7)
+    val code: Int = try {
+        explode(pair)
+        99
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> 0
+            ClassCastFailed -> 1
+            ContinuationAlreadyResumed -> 2
+        }
+    }
+    return code
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@fixtures.t5000j1d.explode"),
+        "compiled IR should still contain the tuple-arg effect-step body\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_effect_call_wrapper__fixtures.t5000j1d.explode"),
+        "tuple-arg effect-step callable should still lower through the refactor effect wrapper path\n{ir}"
+    );
+}
+
+#[test]
 fn explicit_frame_layout_flattens_indirect_gc_aggregate_params() {
     let source = SourceFile::new_virtual(
         "<mem>",

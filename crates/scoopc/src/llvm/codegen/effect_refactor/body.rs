@@ -1178,6 +1178,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 (1, 1)
             }
         };
+        // Closure carriers for a single tuple-typed parameter already receive the exact
+        // invoke-args ABI payload as their explicit args parameter; forwarding it intact
+        // preserves the authoritative tuple source layout without dropping components.
+        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+            && explicit_param_start == 0
+            && explicit_component_start == 0
+            && mir_fun.params.len() == 1
+            && mir_fun.params[0].ty == direct_entry.invoke_args_tuple_ty()
+            && matches!(
+                source_types.kind(mir_fun.params[0].ty),
+                TypeKind::Value(ValueTypeKind::Tuple(_))
+            )
+        {
+            return if direct_args_layout.abi().is_elided() {
+                Ok(None)
+            } else {
+                function.get_nth_param(1).map(Some).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor carrier shell `{}` 缺少 explicit args payload 参数",
+                        mir_fun.fqn
+                    ))
+                })
+            };
+        }
         self.unpack_refactor_carrier_explicit_args(
             function,
             mir_fun,

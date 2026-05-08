@@ -42,7 +42,8 @@
 | `CG-T07S0a5` | CG7S0a5 | [DONE] 修复 list_and_mutable_list_basic 中 MutableList.add/push materialized MIR 的 array transport element type 仍保留 unresolved generic `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a6` | CG7S0a6 | [DONE] 修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a7` | CG7S0a7 | [DONE] 修复 literal_ops_compare_direct_matrix_basic 中 String 字面量 receiver 的 compareTo/concat 直接调用退化成 FunValue callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a8` | CG7S0a8 | 修复 local_val_destructuring_nested_variant_mismatch_is_error 中 nested variant destructuring runtime-error path 的 direct-arg tuple payload contract 缺少 source component，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a8` | CG7S0a8 | [DONE] 修复 local_val_destructuring_nested_variant_mismatch_is_error 中 nested variant destructuring runtime-error path 的 direct-arg tuple payload contract 缺少 source component，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a9` | CG7S0a9 | 修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1014,7 +1015,7 @@
   - 2026-05-08：legacy / refactor LLVM direct-call path 新增 `scoop.core.concat` / `scoop.core.compareTo` runtime lowering；`effect_facts::builder::is_plain_compiler_intrinsic` 同步把这两个 direct callee 归为 plain compiler intrinsic，避免 effect-step body 错把纯 String concat/compareTo 调用发布成 DynamicFallback outward call boundary。
   - 2026-05-08：验证通过：`cargo test -p scoopc frontend_codegen_rewrites_string_literal_compare_to_and_concat_to_extension_direct_calls`、`cargo run -p scoop -- build tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop -o /tmp/literal_ops_compare_direct_matrix_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `literal_ops_compare_direct_matrix_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a8`。
 
-## CG-T07S0a8：修复 local_val_destructuring_nested_variant_mismatch_is_error 中 nested variant destructuring runtime-error path 的 direct-arg tuple payload contract 缺少 source component，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a8：修复 local_val_destructuring_nested_variant_mismatch_is_error 中 nested variant destructuring runtime-error path 的 direct-arg tuple payload contract 缺少 source component，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T05`
@@ -1044,6 +1045,41 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a7` 修复后，默认 full-suite 继续前进到 `local_val_destructuring_nested_variant_mismatch_is_error.scoop`；build 诊断显示 refactor ABI tuple payload `refactor_carrier_direct_args` 仍缺少 source component 1，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：`crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 的 closure carrier direct-args 转发现在会在“单个 tuple 形参且该形参本身就是 invoke-args tuple”时直接透传原始 explicit args payload，不再把整块 tuple 误当成 `source component 0` 后重组 `refactor_carrier_direct_args`，从而保留 authoritative tuple source layout 并消除缺失 `source component 1` 的 ABI 漂移。
+  - 2026-05-08：新增 `llvm::tests::effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload`，覆盖 effect-step callable 的单 tuple 形参在 refactor LLVM codegen 下仍能稳定走 effect wrapper / tuple-arg path。
+  - 2026-05-08：验证通过：`cargo test -p scoopc effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload`、`cargo run -p scoop -- build tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop -o /tmp/local_val_destructuring_nested_variant_mismatch_is_error`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `local_val_destructuring_nested_variant_mismatch_is_error.scoop`，下一处失败转为 `tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a9`。
+
+## CG-T07S0a9：修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T03`
+  - `CG-T07`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop`
+- 背景：
+  - 在 `CG-T07S0a8` 修复 `local_val_destructuring_nested_variant_mismatch_is_error.scoop` 后，默认 `cargo run -p scoop -- test` 不再停在 nested destructuring runtime-error path 的 tuple payload contract 漂移，而是继续暴露 `tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop -o /tmp/member_call_devirt_final_receiver_direct_call_basic` 会在链接阶段报 `_Base.ping` undefined symbol，且调用栈指向 `__scoop_vtable__Base`，说明 final receiver direct-call 去虚化后，refactor/LLVM 仍遗漏了 `Base` vtable entry 所需的 authoritative method symbol 发射或可达性发布。
+
+- 必须实现的内容：
+  1. 修复 final receiver direct-call 去虚化与 class vtable/method symbol 发射之间的 contract，确保 `Derived` 上的 direct call 去虚化不会让 `Base` vtable 丢失 `Base.ping` 所需符号。
+  2. 保持 `member_call_devirt_final_receiver_direct_call_basic.scoop` 的语义仍命中正确的 override target；不得通过关闭 devirt、改 fixture、删 vtable、或链接期手工补桩规避问题。
+  3. 补最小回归验证，确保该 fixture 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许把 `d.ping()` 退回非 authoritative 的 vtable/itable 调度作为兜底；必须修正 callable reachability / method publication / vtable contract 主线。
+  - 不允许通过 linker-only alias、手工声明空符号、或移除 `Base` runtime surface 规避未发射 `Base.ping` 的问题。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop -o /tmp/member_call_devirt_final_receiver_direct_call_basic`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `member_call_devirt_final_receiver_direct_call_basic.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a8`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a8` 修复后，默认 full-suite 继续前进到 `member_call_devirt_final_receiver_direct_call_basic.scoop`；单 fixture build 诊断显示链接阶段 `_Base.ping` 仍未发射，但 `__scoop_vtable__Base` 已引用该符号，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1071,7 +1107,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1085,6 +1121,7 @@
   - 2026-05-08：`CG-T07S0a5` 修复后，默认 full-suite 又继续前进到 `literal_numeric_expected_type_absorption_basic.scoop`；单 fixture build/run 显示 `Array<UInt8>` 上 `1 + 2` / `1 << 3` 的最终观测值仍输出 `false` / `false`，按顺序约束新增 prerequisite `CG-T07S0a6`，本任务保持未完成，等待 `CG-T07S0a6` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a6` 修复后，默认 full-suite 又继续前进到 `literal_ops_compare_direct_matrix_basic.scoop`；build 诊断显示 `"ab".compareTo("ac")` 的 String 字面量 receiver 直接调用仍退化成 `CallKind::FunValue` 并报 `unsupported main codegen node: refactor plain function-value callee type`，按顺序约束新增 prerequisite `CG-T07S0a7`，本任务保持未完成，等待 `CG-T07S0a7` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a7` 修复后，默认 full-suite 又继续前进到 `local_val_destructuring_nested_variant_mismatch_is_error.scoop`；build 诊断显示 refactor ABI tuple payload `refactor_carrier_direct_args` 仍缺少 source component 1，按顺序约束新增 prerequisite `CG-T07S0a8`，本任务保持未完成，等待 `CG-T07S0a8` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a8` 修复后，默认 full-suite 又继续前进到 `member_call_devirt_final_receiver_direct_call_basic.scoop`；单 fixture build 诊断显示链接阶段 `_Base.ping` 仍未发射，但 `__scoop_vtable__Base` 已引用该符号，按顺序约束新增 prerequisite `CG-T07S0a9`，本任务保持未完成，等待 `CG-T07S0a9` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 
