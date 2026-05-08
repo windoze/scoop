@@ -60,6 +60,7 @@
 | `CG-T07S0a21` | CG7S0a21 | [DONE] 修复剩余 plain callable / ctor ABI 回归：top-level generic named args、cross-file ctor named/default 与 unsafe `FunPtr` aggregate return |
 | `CG-T07S0a22` | CG7S0a22 | [DONE] 修复 top-level / package compilation-unit contract 回归：顶层 pattern once-init wrapper 与 cone package-level `comptime if` 跨文件绑定 |
 | `CG-T07S0a24` | CG7S0a24 | [DONE] 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
+| `CG-T07S0a24a` | CG7S0a24a | 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1680,6 +1681,43 @@
   - 2026-05-09：已同步更新 `FAILED_FIXTURES.md`，从 Round 3 失败列表移除 `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`。
   - 2026-05-09：验证通过：`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/infer/effects/use_site_eff_row_default_and_explicit_ok.scoop`、`cargo test -p scoop infer_fixtures_use_refactor_typed_hir_diagnostics -- --nocapture`、`cargo test -p scoop phase_name_walks_up_to_phase_dir_for_nested_single_file_subset -- --nocapture`、`tools/run_fixture_scan.sh --no-build tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`、`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`。
 
+## CG-T07S0a24a：修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T07`
+  - `CG-T07S0a`
+  - `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`
+  - `crates/scoop/src/fixtures/run_pass.rs`
+- 背景：
+  - 在 `CG-T07S0a24` 修复 infer authoritative contract 之后，`CG-T07S0a` 的单 fixture `effect_handle_top_level_val_pattern_access_basic.scoop` 已通过，但默认 full-suite / `runtime_gc` phase 继续暴露 `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop` 阻塞。
+  - 导出 `gc_stw_cross_thread_roots_basic.ll` 可见 `@__scoop_top_level_var__fixtures.codegen.ready` / `proceed` 只有普通 `load`，`__atomicIntStore` / `__atomicIntLoad` 对 top-level `@Global __AtomicInt` lvalue 未发射 atomic store/load；worker 与 main 因此永远观察不到共享状态变化，程序本体卡在 `waitWorkerReady()` / allocation loop。
+  - 该 fixture 带 `// TIMEOUT: 5000`；当前 run-pass timeout 仅 kill 直接子进程 `scoop run`，未连带终止其后代 `a.out`。当 fixture 超时时，后代进程继续持有继承的 stdout/stderr pipe，顶层 `scoop test` 会卡在 `run_command_collect_output()` 的 reader join，看起来像“测试跑完后 hang”。
+
+- 必须实现的内容：
+  1. 修复 refactor LLVM 对 top-level `@Global __AtomicInt` lvalue 的 atomic intrinsic lowering，使 `__atomicIntLoad` / `__atomicIntStore` / `__atomicIntCompareExchange` 直接针对共享静态存储发射 atomic op，而不是先把 top-level var 退化成 ordinary value load。
+  2. 保持 `@Global` / `@ThreadLocal` 语义区分：`@Global` 必须跨线程共享同一存储，`@ThreadLocal` 保持 TLS；不得用局部临时 slot 或按值复制伪装 lvalue address。
+  3. 修复 run-pass timeout 清理：超时时必须连同 `scoop run` 及其后代可执行文件一起终止/回收，并稳定返回 `scoop::fixtures::run_exec_timeout`，不能留下继承 stdout/stderr 的 orphan process 让 `scoop test` 假性挂起。
+  4. 补最小回归测试，覆盖 top-level `@Global __AtomicInt` cross-thread runtime_gc 场景与 timeout descendant cleanup。
+
+- 必须遵从的约束：
+  - 不允许通过增大 `gc_stw_cross_thread_roots_basic.scoop` 的 `TIMEOUT`、改 fixture 握手形状、移除 `@Global`、或去掉跨线程 busy-loop 分配来规避问题。
+  - 不允许在 runner 层把 `runtime_gc` fixture 特判成“超时后忽略 orphan 子进程”的局部 workaround；必须修正真实的 top-level atomic lvalue contract 与 timeout cleanup 语义。
+
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+  3. `cargo test -p scoop run_fixture_command_timeout_has_stable_code -- --nocapture`
+  4. 新增或重跑 timeout descendant cleanup 定向测试（命名待实现）
+  5. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - `gc_stw_cross_thread_roots_basic.scoop` 在默认 refactor runtime_gc path 下稳定输出 `hello 7`、`ok`。
+  - `scoop test` 遇到超时 fixture 时不再因 orphan descendant + inherited pipe 挂住。
+- 依赖：`CG-T07R`，`CG-T07S0a24`
+
+- 完成记录：
+  - 2026-05-09：作为 `CG-T07S0a` 的新前置 blocker 补录。`tools/run_fixture_scan.sh --no-build --timeout-secs 20 tests/fixtures/runtime_gc` 显示 `gc_stw_cross_thread_roots_basic.scoop` 是 `runtime_gc` 组唯一失败项；`sample` / `lsof` 进一步确认顶层 `scoop test` 只是卡在 reader join，而真实挂起的是超时后未被回收的后代 `a.out`。同时导出的 LLVM IR 证明 top-level `@Global __AtomicInt` lvalue 仍被退化成普通 top-level var `load`，缺少应有的 atomic store/load。
+
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
 - 参考：
@@ -1706,7 +1744,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`，`CG-T07S0a16a`，`CG-T07S0a16`，`CG-T07S0a17`，`CG-T07S0a18`，`CG-T07S0a19`，`CG-T07S0a20`，`CG-T07S0a21`，`CG-T07S0a22`，`CG-T07S0a24`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`，`CG-T07S0a16a`，`CG-T07S0a16`，`CG-T07S0a17`，`CG-T07S0a18`，`CG-T07S0a19`，`CG-T07S0a20`，`CG-T07S0a21`，`CG-T07S0a22`，`CG-T07S0a24`，`CG-T07S0a24a`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1733,8 +1771,9 @@
   - 2026-05-08：`CG-T07S0a17` 完成并补齐 `Array<*>` 读视图 build / run-pass / full-suite 验证后，默认 full-suite 已越过 `star_projection_array_read_view.scoop`，但继续在 `stdlib_string_basic.scoop` 暴露 `String.byteLength()` support-source member call 仍退化成 unresolved `MemberAccess` + `CallKind::FunValue` 的新 blocker；按顺序约束新增 prerequisite `CG-T07S0a18`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a18` 完成并补齐 `String.byteLength()` / `getByte()` / `unsafeSliceBytes()` 的 build / run-pass / clippy 验证后，默认 full-suite 已越过 `stdlib_string_basic.scoop`，但继续在 `stdlib_string_methods_extended.scoop` 暴露 remaining `String.isEmpty()` / `replace()` / `charAt()` / `repeat()` builtin member call 新 blocker；按顺序约束新增 prerequisite `CG-T07S0a19`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a19` 完成并补齐 `String.isEmpty()` / `replace()` / `charAt()` / `repeat()` 的 build / run-pass / clippy 验证后，默认 full-suite 已越过 `stdlib_string_methods_extended.scoop`，但继续在 `string_trim_indent_basic.scoop` 暴露 remaining `String.trimIndent()` builtin member call 新 blocker；按顺序约束新增 prerequisite `CG-T07S0a20`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
-  - 2026-05-08：使用 `tools/run_fixture_scan.sh --no-build --out-dir target/fixture-scan/round3-30s` 做逐 fixture 扫描后，确认除 `CG-T07S0a20` 覆盖的 `String.trimIndent()` 之外，还剩若干失败且可按 callable / ctor ABI、top-level / package compilation-unit contract、task/thread/GC coordination、frontend receiver `eff` row contract 四组根因收口；据此新增 prerequisites `CG-T07S0a21`、`CG-T07S0a22`、`CG-T07S0a24`，其中 task/thread/GC coordination 组后续已随 async/Task 清理移除。本任务继续保持未完成，等待剩余 blocker 依序清理并同步更新 `FAILED_FIXTURES.md` 后再重跑 full-suite 验收。
-  - 2026-05-08：`CG-T07S0a20` 已完成并补齐 `trimIndent()` 的编译器回归、build / 单 fixture run-pass / clippy 验证；默认 full-suite 当时继续停在 task/thread/runtime GC 组，但该 blocker 后续已随 async/Task 清理移除，因此本任务当前只等待其余 prerequisites 依序收口。
+- 2026-05-08：使用 `tools/run_fixture_scan.sh --no-build --out-dir target/fixture-scan/round3-30s` 做逐 fixture 扫描后，确认除 `CG-T07S0a20` 覆盖的 `String.trimIndent()` 之外，还剩若干失败且可按 callable / ctor ABI、top-level / package compilation-unit contract、task/thread/GC coordination、frontend receiver `eff` row contract 四组根因收口；据此新增 prerequisites `CG-T07S0a21`、`CG-T07S0a22`、`CG-T07S0a24`，其中 task/thread/GC coordination 组后续已随 async/Task 清理移除。本任务继续保持未完成，等待剩余 blocker 依序清理并同步更新 `FAILED_FIXTURES.md` 后再重跑 full-suite 验收。
+- 2026-05-08：`CG-T07S0a20` 已完成并补齐 `trimIndent()` 的编译器回归、build / 单 fixture run-pass / clippy 验证；默认 full-suite 当时继续停在 task/thread/runtime GC 组，但该 blocker 后续已随 async/Task 清理移除，因此本任务当前只等待其余 prerequisites 依序收口。
+- 2026-05-09：重跑 `effect_handle_top_level_val_pattern_access_basic.scoop` 的单 fixture build/test 后，该任务原始 `top-level value ref` 故障已不再复现；但默认 full-suite / `runtime_gc` phase 继续暴露 `gc_stw_cross_thread_roots_basic.scoop`。导出的 LLVM IR 显示 top-level `@Global __AtomicInt` lvalue 仍被退化成普通 top-level var `load`，同时 run-pass timeout 只 kill 外层 `scoop run` 会留下继承 pipe 的 orphan `a.out`，导致顶层 `scoop test` 假性挂起。按顺序约束新增 prerequisite `CG-T07S0a24a`，本任务保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 
