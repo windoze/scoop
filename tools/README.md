@@ -9,3 +9,4 @@
   - `spec-fixtures check`：检查生成结果是否与规范一致（CI 会执行）
   - `safepoint-baseline`：自动构建内置 workload，统计 `statepoint` / `gc-live` roots 基线，供 `T5000j4` 与后续 GC / `mem2reg` 研究复用
 - `tools/gc_microbench.sh`：GC microbench 一键对比脚本（baseline vs Immix；TODO T1406d）
+- `tools/run_fixture_scan.sh`：逐个 fixture 扫描脚本；默认用 `target/debug/scoop test --fixtures <fixture>` 逐条执行，支持 30s 超时、额外环境变量注入，并把 pass/fail/timeout 汇总写到 `target/fixture-scan/`

@@ -137,10 +137,41 @@ pub fn run_all(
         return Ok(1);
     }
 
+    if is_resolve_multi_case_root(fixtures_root) {
+        let session = new_fixture_session(session_options)?;
+        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_resolve_multi_case(&session, case_root, fixtures_root)
+            .wrap_err_with(|| format!("resolve_multi case 失败：{}", fixtures_root.display()));
+    }
+    if is_resolve_cone_case_root(fixtures_root) {
+        let session = new_fixture_session(session_options)?;
+        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_resolve_cone_case(&session, case_root, fixtures_root)
+            .wrap_err_with(|| format!("resolve_cone case 失败：{}", fixtures_root.display()));
+    }
     if is_typecheck_multi_case_root(fixtures_root) {
         let session = new_fixture_session(session_options)?;
-        return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
+        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_typecheck_multi_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
+    }
+    if is_typecheck_cone_case_root(fixtures_root) {
+        let session = new_fixture_session(session_options)?;
+        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_typecheck_cone_case(&session, case_root, fixtures_root)
+            .wrap_err_with(|| format!("typecheck_cone case 失败：{}", fixtures_root.display()));
+    }
+    if is_typecheck_cone_archive_case_root(fixtures_root) {
+        let session = new_fixture_session(session_options)?;
+        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
+        return run_typecheck_cone_archive_case(&session, case_root, fixtures_root).wrap_err_with(
+            || {
+                format!(
+                    "typecheck_cone_archive case 失败：{}",
+                    fixtures_root.display()
+                )
+            },
+        );
     }
     if is_run_pass_cone_case_root(fixtures_root) {
         let run_pass_cone_root = fixtures_root.parent().unwrap_or(fixtures_root);
@@ -262,20 +293,35 @@ pub fn run_all(
     Ok(ok)
 }
 
+fn has_parent_dir_name(path: &Path, name: &str) -> bool {
+    path.parent()
+        .and_then(Path::file_name)
+        .is_some_and(|dir| dir == std::ffi::OsStr::new(name))
+}
+
+fn is_resolve_multi_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "resolve_multi")
+}
+
+fn is_resolve_cone_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "resolve_cone")
+}
+
 fn is_typecheck_multi_case_root(fixtures_root: &Path) -> bool {
-    fixtures_root.is_dir()
-        && fixtures_root
-            .parent()
-            .and_then(Path::file_name)
-            .is_some_and(|name| name == "typecheck_multi")
+    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "typecheck_multi")
+}
+
+fn is_typecheck_cone_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "typecheck_cone")
+}
+
+fn is_typecheck_cone_archive_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "typecheck_cone_archive")
 }
 
 fn is_run_pass_cone_case_root(fixtures_root: &Path) -> bool {
     fixtures_root.is_dir()
-        && fixtures_root
-            .parent()
-            .and_then(Path::file_name)
-            .is_some_and(|name| name == "run_pass_cone")
+        && has_parent_dir_name(fixtures_root, "run_pass_cone")
         && fixtures_root.join("Cone.toml").is_file()
         && fixtures_root.join("src").join("main.scoop").is_file()
 }
@@ -3339,6 +3385,66 @@ val bad: Int = Box("oops").bodyCopy
         )
         .unwrap();
         assert_eq!(ok, 2);
+    }
+
+    #[test]
+    fn run_all_treats_resolve_multi_case_root_as_single_case() {
+        let case_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/resolve_multi/cross_file_type_ref");
+
+        let ok = run_all(
+            &case_dir,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 2);
+    }
+
+    #[test]
+    fn run_all_treats_resolve_cone_case_root_as_single_case() {
+        let case_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/resolve_cone/cross_cone_visibility");
+
+        let ok = run_all(
+            &case_dir,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 4);
+    }
+
+    #[test]
+    fn run_all_treats_typecheck_cone_case_root_as_single_case() {
+        let case_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/typecheck_cone/cross_cone_extension_imports");
+
+        let ok = run_all(
+            &case_dir,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 3);
+    }
+
+    #[test]
+    fn run_all_treats_typecheck_cone_archive_case_root_as_single_case() {
+        let case_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/typecheck_cone_archive/deps_api_injection");
+
+        let ok = run_all(
+            &case_dir,
+            None,
+            scoopc::session::SessionOptions::default(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 1);
     }
 
     #[test]
