@@ -6320,12 +6320,16 @@ impl MirInstanceMaterializer {
     }
 
     fn repair_array_call_transport_types(&mut self, body: &mut Body) {
+        let locals = body.locals.clone();
         for block in &mut body.blocks {
             for stmt in &mut block.stmts {
                 let StatementKind::Assign { value, .. } = &mut stmt.kind else {
                     continue;
                 };
-                let Rvalue::Call { transport, .. } = value else {
+                let Rvalue::Call {
+                    args, transport, ..
+                } = value
+                else {
                     continue;
                 };
                 let Some(array) = transport.array.as_mut() else {
@@ -6346,12 +6350,18 @@ impl MirInstanceMaterializer {
                         element_ty
                     }
                     super::ArrayTransportOperation::BuilderPush => {
-                        if type_contains_param(&self.types, array.array_ty)
-                            || type_contains_param(&self.types, array.element_ty)
-                        {
-                            continue;
+                        if let Some(element_ty) = args.get(1).and_then(|arg| {
+                            operand_type(&self.types, self.builtins, &locals, &arg.value)
+                        }) {
+                            element_ty
+                        } else {
+                            if type_contains_param(&self.types, array.array_ty)
+                                || type_contains_param(&self.types, array.element_ty)
+                            {
+                                continue;
+                            }
+                            array.element_ty
                         }
-                        array.element_ty
                     }
                     super::ArrayTransportOperation::BuilderNew => continue,
                 };

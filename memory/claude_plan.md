@@ -1,56 +1,32 @@
-# Claude Plan
+## 本次执行计划
 
-## Note
+1. 先读取 `TODO.md`，确认按标题是否带有 `[DONE]` 判断的首个未完成任务。
+2. 检查最近一次提交是否明确提到与该任务直接相关且尚未完成的问题；若存在且会阻塞当前任务，则先把它视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
+3. 阅读当前任务涉及的代码、测试、规范和依赖项，确认需要修改的最小范围。
+4. 实现当前任务，避免绕过已有缺陷；若遇到阻塞当前任务的真实缺口，则先在 `TODO.md` 中补最小前置任务并停止在该前置整理处。
+5. 运行当前任务要求的验证，以及必要的回归测试、`cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若与当前任务相关且可在合理时间内完成）。
+6. 更新 `TODO.md`：仅当任务真正完成时，给任务标题加上 `[DONE]` 并填写完成记录；若只是发现阻塞，则保持未完成并补充前置任务与依赖关系。
+7. 仅在阶段级计划或依赖关系发生变化时更新 `PLAN.md`；否则不改。
+8. 检查工作区变更，保留不属于我的现有修改；按要求创建一次清晰的 git 提交，然后停止。
 
-按要求先写计划文件，再开始读取和执行仓库任务。此文件记录可审计的执行计划、决策依据摘要、关键进展与必要调整；不记录私有逐词推理。
+## 执行原则摘要
 
-## Initial Execution Plan
+- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
+- 一次只完成一个任务；除非当前任务被具体前置问题阻塞，否则不拆分。
+- 不用变通方案规避规格缺口；若遇阻塞，先把缺口显式写入 `TODO.md`。
+- 只做解决当前任务所需的最小正确改动。
 
-1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务，确认它是本次唯一执行目标。
-2. 检查最近提交是否直接提到与该任务相关且未完成的问题；若该问题构成当前任务前置条件，则按要求在 `TODO.md` 中显式记录并停止继续后续实现。
-3. 阅读当前任务涉及的说明、依赖、验收与 completion record，并只调查完成该任务所需的最小代码范围。
-4. 如任务可直接实现，进行最小且正确的代码修改；如遇到会阻塞该任务的真实缺口或 spec mismatch，则先在 `TODO.md` 中添加最小前置任务并调整顺序。
-5. 运行任务要求的验证，以及必要的回归测试；如果修改影响范围明确扩大，则补充相应测试。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
-7. 更新 `TODO.md`：仅当任务真正完成时，将该任务标题前缀改为 `[DONE]` 并补全完成记录；若被阻塞，则保持未完成并记录新的前置任务。
-8. 仅当阶段级计划发生变化时更新 `PLAN.md`；否则不改。
-9. 按要求创建一次 git 提交，提交本次任务相关的全部未提交改动，然后停止，不继续下一个任务。
+## 进度记录
 
-## Current Task
-
-- 第一个未完成任务：`CG-T07S0a4`。
-- 任务目标：修复 `tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop` 在默认 full-suite 下触发的 `assignment place contract references an unallocated local`，解除 `CG-T07S0a` 的新 blocker。
-
-## Root Cause Summary
-
-- 已复现：`cargo run -p scoop -- build tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop -o /tmp/kotlin_ranges_progressions_basic` 会在 `crates/scoopc/src/mir/lower.rs:2453` panic。
-- 单独 `dump-mir stdlib/prelude.scoop` 可成功 lower `IntProgression.forEach`，说明原始单文件 typed-HIR -> MIR 主线正常。
-- build 走的是 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources`，会在 explicit MIR instance lowering 中重新 lower 同一源码函数体。
-- `AssignPlaceContract` 侧表按 `source_path + stmt span` 查找，但 contract 内部保存的 `SymbolId` 来自某个 `HirLowering` 上下文；`SymbolInterner` 目前是每个 `HirLowering` 私有分配，因此同一 `decl_span` 在不同 lowering 上下文里的 `SymbolId` 可漂移。
-- MIR lowering 当前只按 `SymbolId -> LocalId` 取目标 local，遇到 monomorphic instance body 时，contract 命中的是同源码 span 的 authoritative 记录，但其中 `SymbolId` 可能不属于当前函数体，于是触发 `unallocated local` panic。
-
-## Planned Fix
-
-1. 在 MIR `FnLowering` 中为 assign-place local contract 增加 `decl_span` 重绑定逻辑。
-2. 消费 `AssignPlaceKind::Local` contract 时，先按 `SymbolId` 查；若当前函数体没有该 symbol，则按 contract 自带的 `name + decl_span` 在当前 MIR body 的 source local 中选取最窄匹配声明 span，重新绑定当前 body 的 `LocalId`。
-3. 保持 typed assign-place contract 仍是 authoritative source；只修正 explicit MIR instance re-lowering 时 local identity 的再绑定方式，不放宽 validator、也不把问题推迟到 backend。
-4. 增加 build-like 回归测试，覆盖 `kotlin_ranges_progressions_basic.scoop` 通过 production single-file codegen frontend 准备阶段。
-5. 运行任务要求的 build / fixture / full-suite / clippy 验证，之后更新 `TODO.md` 并提交。
-
-## Progress Log
-
-- 已创建计划文件。
-- 已读取 `TODO.md`，定位当前任务为 `CG-T07S0a4`。
-- 已确认最近提交已把该 blocker 显式补录进 `TODO.md`，无需再新增 prerequisite。
-- 已完成复现与根因定位，下一步开始实施 `decl_span -> LocalId` 重新绑定修复。
-- 已在 `crates/scoopc/src/mir/lower.rs` 落地修复：assign-place local contract 命中 stale `SymbolId` 时，改按 contract 自带的 `name + decl_span` 在当前 MIR body 的 source local 中重新绑定目标 local。
-- 已新增回归测试：`llvm::tests::production_codegen_progression_fixture_prepares_generic_for_each_assign_contracts`。
-- 已完成定向验证：
-  - `cargo test -p scoopc production_codegen_progression_fixture_prepares_generic_for_each_assign_contracts`
-  - `cargo run -p scoop -- build tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop -o /tmp/kotlin_ranges_progressions_basic`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop`
-  - `cargo clippy --all-targets -- -D warnings`
-- 默认 `cargo run -p scoop -- test` 已越过 `kotlin_ranges_progressions_basic.scoop`，新的下一处 blocker 为 `tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`，build 诊断：`materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`。
-- 已更新 `TODO.md`：
-  - 将 `CG-T07S0a4` 标记为 `[DONE]` 并补全完成记录。
-  - 新增 prerequisite `CG-T07S0a5`，供下次调用处理。
+- 已创建本计划文件，下一步读取 `TODO.md` 并定位首个未完成任务。
+- 已读取 `TODO.md` 任务索引，确认首个未完成任务为 `CG-T07S0a5`：修复 `list_and_mutable_list_basic` 中 `MutableList.add/push` materialized MIR 的 array transport element type 残留 unresolved generic `T`。
+- 已检查最近一次提交信息：`[CG-T07S0a4] Fix progression assign local rebind and record list blocker`。其中 “record list blocker” 与 `CG-T07S0a5` 直接相关，因此后续会把该未竟项纳入当前任务上下文，先核对任务正文与相关代码，再决定是否存在必须先补写到 `TODO.md` 的新前置问题。
+- 已读取 `CG-T07S0a5` 正文并单独复现：`cargo run -p scoop -- build tests/fixtures/run-pass/list_and_mutable_list_basic.scoop -o /tmp/list_and_mutable_list_basic` 稳定报 `materialized MIR 'scoop.core.push' contains unresolved generic parameter in array transport element type ...: T`。
+- 当前判断：优先检查 `crates/scoopc/src/mir/lower.rs` 的 array transport metadata 生成，以及 `crates/scoopc/src/mir/materialize.rs` 的 repair/substitution 路径，确认 `scoop.core.push` 的 materialized body 为什么没有把 element type 刷新成具体类型。
+- 进一步判断：`BuilderPush` metadata 在 lowering 阶段把 `array_ty` 记为 builder 的 `Any`，materialization 后现有 repair 逻辑只能在 `array_ty` 与 `element_ty` 已经 concrete 时原样保留，因此像 `this.get(i)` 这类先经 generic `get` 再进入 builder append 的路径，可能在 call result local 已被修正为 `Int` 后仍错过 `array.element_ty` 刷新。
+- 计划中的最小修复：在 `repair_array_call_transport_types` 中为 `BuilderPush` 改为优先从第二个实参 operand/local 的 concrete type 回填 element type，并同步刷新 value transport contract；同时补一个 production frontend 回归测试，直接检查 `list_and_mutable_list_basic` materialized 出来的 `scoop.core.push` body 不再携带 unresolved generic `T`。
+- 已完成代码修复：`crates/scoopc/src/mir/materialize.rs` 的 `repair_array_call_transport_types()` 现为 `BuilderPush` 优先从第二个调用实参的 concrete operand/local type 回填 `array.element_ty`，修复 `MutableList<Int>.add` / `MutableArray<Int>.push` 经 generic `get` 后 append 时残留 template `T` 的问题。
+- 已完成回归测试：`crates/scoopc/src/llvm/tests.rs` 新增 `production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances`，通过 production `materialized_pass_view()` 验证 list fixture 会保留 `add`/`push` 实例，且 `push` body 的 builder append transport element type 已具体化为 `Int`。
+- 已完成定向验证：`cargo test -p scoopc production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances`、`cargo run -p scoop -- build tests/fixtures/run-pass/list_and_mutable_list_basic.scoop -o /tmp/list_and_mutable_list_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/list_and_mutable_list_basic.scoop`、`cargo clippy --all-targets -- -D warnings` 均通过。
+- 默认 full-suite 状态已更新：`cargo run -p scoop -- test` 不再停在 `list_and_mutable_list_basic.scoop`，而是继续暴露 `tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop` 的 stdout mismatch；已在 `TODO.md` 中把 `CG-T07S0a5` 标记为 `[DONE]`，并新增前置任务 `CG-T07S0a6` 记录下一处 blocker。
+- 收尾计划：检查最终 diff 与 git 状态，确认只包含本次任务及 required bookkeeping，然后创建一次提交并停止。

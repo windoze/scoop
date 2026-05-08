@@ -6552,6 +6552,88 @@ fn production_codegen_progression_fixture_prepares_generic_for_each_assign_contr
     );
 }
 
+#[test]
+fn production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/list_and_mutable_list_basic.scoop");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session = Session::new().unwrap();
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
+            .unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend 应保留 materialized MIR");
+    let pass_view = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend 应保留 materialized pass view");
+    let mut pass_fun_fqns = Vec::new();
+    for family in pass_view.instances() {
+        pass_fun_fqns.extend(family.callable_bodies().map(|fun| fun.fqn.clone()));
+    }
+    assert!(
+        pass_fun_fqns
+            .iter()
+            .any(|fqn| fqn.starts_with("scoop.core.add")),
+        "expected list fixture to materialize MutableList.add instance in pass view, actual callables: {pass_fun_fqns:?}"
+    );
+    assert!(
+        pass_fun_fqns
+            .iter()
+            .any(|fqn| fqn.starts_with("scoop.core.push")),
+        "expected list fixture to materialize MutableArray.push instance in pass view, actual callables: {pass_fun_fqns:?}"
+    );
+
+    let mut seen_push_builder_append = false;
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            if !fun.fqn.starts_with("scoop.core.push") {
+                continue;
+            }
+            let body = fun
+                .body
+                .as_ref()
+                .expect("callable_bodies should only yield functions with bodies");
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let crate::mir::StatementKind::Assign {
+                        value:
+                            crate::mir::Rvalue::Call {
+                                kind: crate::mir::CallKind::Direct { callee_fqn },
+                                transport,
+                                ..
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+                        continue;
+                    }
+                    let array = transport
+                        .array
+                        .as_ref()
+                        .expect("array builder push call 应发布 array transport metadata");
+                    assert_eq!(
+                        materialized.types.display(array.element_ty).to_string(),
+                        "Int",
+                        "callable `{}` 的 array builder push transport element type 应具体化为 Int",
+                        fun.fqn
+                    );
+                    seen_push_builder_append = true;
+                }
+            }
+        }
+    }
+    assert!(
+        seen_push_builder_append,
+        "expected MutableArray.push body to retain at least one builder append site in pass view"
+    );
+}
+
 fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;
