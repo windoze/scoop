@@ -16,7 +16,7 @@ use crate::mir::{
     ValueTransportMetadata,
 };
 use crate::span::Span;
-use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind, is_builtin_scalar_nominal_value_type};
 
 use super::{MainCodegen, sanitize_llvm_ident};
 
@@ -449,6 +449,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn type_needs_composite_transport_layout(&self, mir_types: &TypeStore, ty: TypeId) -> bool {
         match mir_types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(_))
+                if is_builtin_scalar_nominal_value_type(mir_types, ty) =>
+            {
+                false
+            }
             TypeKind::Value(ValueTypeKind::Option(_))
             | TypeKind::Value(ValueTypeKind::Tuple(_))
             | TypeKind::Value(ValueTypeKind::Nominal(_)) => true,

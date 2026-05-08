@@ -51,7 +51,7 @@
 | `CG-T07S0a14` | CG7S0a14 | [DONE] 修复 smart_cast_any_member_access_generic_class_basic 中 smart-cast 分支 generic class field access 仍把 result/frame slot 保留为 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a15a` | CG7S0a15a | [DONE] 修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker |
 | `CG-T07S0a15` | CG7S0a15 | [DONE] 修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a16a` | CG7S0a16a | 修复 literal_numeric_expected_type_absorption_basic 中 direct `Array<UInt8>` element path 再次退回 nominal/composite surface，解除 CG-T07S0a16 的前置 blocker |
+| `CG-T07S0a16a` | CG7S0a16a | [DONE] 修复 literal_numeric_expected_type_absorption_basic 中 direct `Array<UInt8>` element path 再次退回 nominal/composite surface，解除 CG-T07S0a16 的前置 blocker |
 | `CG-T07S0a16` | CG7S0a16 | 修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
@@ -1334,7 +1334,7 @@
   - 2026-05-08：`CG-T07S0a15a` 已完成后，`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、直接执行 `/tmp/stdlib_hash_set_map_basic` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 均通过；本任务现只剩按原验证要求恢复 `cargo run -p scoop -- test` 的默认 full-suite 验证，留待下一次调用继续。
   - 2026-05-08：重跑 `cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 与 `cargo run -p scoop -- test`；默认 full-suite 已越过 `stdlib_hash_set_map_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop`。为锁定后续 blocker，直接 build/run 该 fixture 观测到 `bytes.get(0) == 3` 与 `argByte == 4` 两处实际输出为 `false`，而 `Float32` 路径保持正确，因此按顺序约束新增 prerequisite `CG-T07S0a16`。
 
-## CG-T07S0a16a：修复 literal_numeric_expected_type_absorption_basic 中 direct `Array<UInt8>` element path 再次退回 nominal/composite surface，解除 CG-T07S0a16 的前置 blocker
+## [DONE] CG-T07S0a16a：修复 literal_numeric_expected_type_absorption_basic 中 direct `Array<UInt8>` element path 再次退回 nominal/composite surface，解除 CG-T07S0a16 的前置 blocker
 
 - 参考：
   - `CG-T07S0a6`
@@ -1364,6 +1364,10 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a16` 的更前置 blocker 补录。对照验证发现 `literal_numeric_expected_type_absorption_basic.scoop` 再次报 stdout mismatch；直接 build/run 末两行输出回退为 `false` / `false`，而 `dump-mir` 显示 `bytes` array builder push 仍保留 `UInt8` scalar transport，但 `scoop.core.get` / `==` 路径又把 element surface 发布成 nominal/composite `Struct`，因此需先修复该 regression 后才能继续 `CG-T07S0a16`。
+  - 2026-05-08：根因定位为 direct `Array<UInt8>.get` 路径的 transport/composite-layout 分类仍把 builtin nominal scalar value type 当成普通 nominal aggregate：`mir_transport_kind_for_ty` / `mir_is_aggregate_transport_ty` / `mir_transport_trace_requirement_for_type` 与 LLVM `type_needs_composite_transport_layout()` 对 `scoop.core.UInt8` 这类 zero-arg builtin nominal 统一走 conservative nominal 分支，导致 `get` 结果重新发布 trace/drop/aggregate-return/composite-runtime metadata，尽管 builder push 已保留 scalar `UInt8` surface。
+  - 2026-05-08：新增共享 helper `is_builtin_scalar_nominal_value_type()`，并让 MIR transport 分类与 LLVM composite transport verifier 对 builtin nominal scalar value type 统一按 scalar 处理；`bytes.get(0)` / `bytes.get(1)` 的 `CallTransportMetadata` 现恢复为 `Scalar` result、`aggregate_return = None`、`trace = false`、`drop = false`，不再退回 composite runtime path。
+  - 2026-05-08：扩充 `llvm::tests::production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata`，继续守护 `Array<UInt8>` builder push 的 scalar metadata；新增 `mir::lower::tests::dump_mir_uint8_array_get_keeps_scalar_transport_metadata`，锁定 direct `bytes.get(...)` 两个读取站点继续发布 scalar transport contract。
+  - 2026-05-08：验证通过：`cargo fmt --all`、`cargo test -p scoopc uint8_array`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo run -p scoop -- dump-mir tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a16：修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker
 

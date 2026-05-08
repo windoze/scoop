@@ -1,7 +1,7 @@
 use crate::span::Span;
 use crate::ty::TypeId;
 use crate::ty::layout::{NicheDomain, NicheStorage};
-use crate::ty::{TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{TypeKind, TypeStore, ValueTypeKind, is_builtin_scalar_nominal_value_type};
 
 use super::LocalId;
 
@@ -94,8 +94,13 @@ pub(crate) fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: Ty
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
             .iter()
             .any(|element| mir_transport_trace_requirement_for_type(types, *element)),
+        TypeKind::Value(ValueTypeKind::Nominal(_))
+            if is_builtin_scalar_nominal_value_type(types, ty) =>
+        {
+            false
+        }
         // Nominal value fields are not in `TypeKind`; keep the contract conservative and let
-        // later layout/codegen query declaration metadata instead of guessing scalar shape.
+        // later layout/codegen query declaration metadata instead of guessing non-builtin shape.
         TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
         TypeKind::Value(
             ValueTypeKind::Unit

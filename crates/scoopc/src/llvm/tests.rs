@@ -6967,6 +6967,10 @@ fn production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadat
                 "main's UInt8 array builder push should stay on scalar transport path"
             );
             assert!(
+                !array.element.requirements.drop,
+                "main's UInt8 array builder push should not claim aggregate drop obligations"
+            );
+            assert!(
                 array.element.boxing.is_none(),
                 "main's UInt8 array builder push should not publish composite boxing metadata"
             );

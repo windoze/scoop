@@ -126,6 +126,41 @@ pub struct NominalType {
     pub eff: Option<EffectRow>,
 }
 
+pub fn is_builtin_scalar_nominal_value_type(types: &TypeStore, ty: TypeId) -> bool {
+    let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+        return false;
+    };
+    nominal.args.is_empty() && is_builtin_scalar_nominal_value_fqn(&nominal.fqn)
+}
+
+fn is_builtin_scalar_nominal_value_fqn(fqn: &str) -> bool {
+    matches!(
+        fqn,
+        "scoop.core.Bool"
+            | "scoop.core.Char"
+            | "scoop.core.Float64"
+            | "scoop.core.Double"
+            | "scoop.core.Float32"
+            | "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.UIntPtr"
+            | "scoop.core.Short"
+            | "scoop.core.Long"
+            | "scoop.core.Byte"
+            | "scoop.core.UShort"
+            | "scoop.core.ULong"
+    ) || fqn
+        .strip_prefix("scoop.core.Int")
+        .and_then(|suffix| (!suffix.is_empty()).then_some(suffix))
+        .and_then(|suffix| suffix.parse::<u16>().ok())
+        .is_some()
+        || fqn
+            .strip_prefix("scoop.core.UInt")
+            .and_then(|suffix| (!suffix.is_empty()).then_some(suffix))
+            .and_then(|suffix| suffix.parse::<u16>().ok())
+            .is_some()
+}
+
 /// `*` star projection 的最小内部表示。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StarProjectionType {

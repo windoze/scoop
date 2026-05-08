@@ -25,6 +25,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    is_builtin_scalar_nominal_value_type,
 };
 
 use super::{
@@ -1307,6 +1308,11 @@ fn mir_transport_kind_for_ty(
         TypeKind::Ref(_) => MirTransportKind::Reference,
         TypeKind::Value(ValueTypeKind::Tuple(_)) => MirTransportKind::Tuple,
         TypeKind::Value(ValueTypeKind::Option(_)) => MirTransportKind::EnumPayload,
+        TypeKind::Value(ValueTypeKind::Nominal(_))
+            if is_builtin_scalar_nominal_value_type(types, ty) =>
+        {
+            MirTransportKind::Scalar
+        }
         TypeKind::Value(ValueTypeKind::Nominal(nominal))
             if facts.nominal_kind(&nominal.fqn) == Some(ast::TypeKind::Enum) =>
         {
@@ -1323,12 +1329,13 @@ fn mir_type_requires_trace(types: &TypeStore, ty: TypeId) -> bool {
 }
 
 pub(crate) fn mir_is_aggregate_transport_ty(types: &TypeStore, ty: TypeId) -> bool {
-    matches!(
-        types.kind(ty),
-        TypeKind::Value(
-            ValueTypeKind::Tuple(_) | ValueTypeKind::Nominal(_) | ValueTypeKind::Option(_)
-        )
-    )
+    match types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Tuple(_) | ValueTypeKind::Option(_)) => true,
+        TypeKind::Value(ValueTypeKind::Nominal(_)) => {
+            !is_builtin_scalar_nominal_value_type(types, ty)
+        }
+        _ => false,
+    }
 }
 
 pub(crate) fn mir_transport_requirements(
@@ -7378,6 +7385,98 @@ fun readValue(x: Any): Int {
         assert!(
             saw_none_write,
             "cell.k = none_k 应发布显式 member write contract，而不是 TODO"
+        );
+    }
+
+    #[test]
+    fn dump_mir_uint8_array_get_keeps_scalar_transport_metadata() {
+        let sess = Session::new().unwrap();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop")
+            .canonicalize()
+            .unwrap();
+        let source = SourceFile::load(&fixture).unwrap();
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                _ => None,
+            })
+            .expect("expected main MIR root");
+        let body = fun.body.as_ref().expect("main should have a MIR body");
+
+        let mut seen_uint8_gets = 0;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        kind: CallKind::Direct { callee_fqn },
+                        transport,
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if callee_fqn != "scoop.core.get" {
+                continue;
+            }
+            if stmt.span != Span::new(1062, 1074) && stmt.span != Span::new(1106, 1118) {
+                continue;
+            }
+            let array = transport
+                .array
+                .as_ref()
+                .expect("UInt8 array get should publish array transport metadata");
+            assert_eq!(
+                array.operation,
+                ArrayTransportOperation::Get,
+                "direct bytes.get call should stay on get transport metadata"
+            );
+            assert_eq!(
+                transport.result.kind,
+                MirTransportKind::Scalar,
+                "UInt8 array get result should stay on scalar transport path"
+            );
+            assert!(
+                lowered
+                    .types
+                    .display(transport.result.source_ty)
+                    .to_string()
+                    .ends_with("UInt8"),
+                "UInt8 array get result should still surface as UInt8"
+            );
+            assert!(
+                !transport.result.requirements.trace,
+                "UInt8 array get result should not require trace metadata"
+            );
+            assert!(
+                !transport.result.requirements.drop,
+                "UInt8 array get result should not claim aggregate drop requirements"
+            );
+            assert!(
+                transport.aggregate_return.is_none(),
+                "UInt8 array get should not publish aggregate return metadata"
+            );
+            assert!(
+                !array.element.requirements.trace,
+                "UInt8 array get element transport should stay on scalar path"
+            );
+            assert!(
+                !array.element.requirements.drop,
+                "UInt8 array get element transport should not claim aggregate drop obligations"
+            );
+            seen_uint8_gets += 1;
+        }
+
+        assert_eq!(
+            seen_uint8_gets, 2,
+            "expected direct bytes.get compare path to retain two UInt8 scalar get sites"
         );
     }
 }
