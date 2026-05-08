@@ -1742,6 +1742,55 @@ fun bad() {
     }
 
     #[test]
+    fn refactor_mir_task_field_perform_contract_keeps_task_payload_type() {
+        let output = run_fixture("run-pass", "gc_trace_task_field_basic.scoop");
+        let body = callable_body(&output, "main");
+        let (perform_metadata, perform_args) = body
+            .blocks
+            .iter()
+            .find_map(|block| match &block.terminator.kind {
+                TerminatorKind::Perform {
+                    op_fqn,
+                    metadata,
+                    args,
+                    ..
+                } if op_fqn == "scoop.core.Async.await" => Some((metadata, args)),
+                _ => None,
+            })
+            .expect("main should contain Async.await perform terminator");
+
+        assert_eq!(perform_metadata.arg_mapping, vec![0]);
+        assert_eq!(perform_metadata.payload_component_tys.len(), 1);
+        assert_eq!(perform_metadata.payload_transport.len(), 1);
+        assert_eq!(
+            output
+                .types()
+                .display(perform_metadata.payload_component_tys[0])
+                .to_string(),
+            "scoop.core.Task<String>"
+        );
+        assert_eq!(
+            output
+                .types()
+                .display(perform_metadata.payload_transport[0].source_ty)
+                .to_string(),
+            "scoop.core.Task<String>"
+        );
+
+        let operand_local = match &perform_args[0].value {
+            Operand::Local(local) => *local,
+            other => panic!("expected Async.await payload to be a local, got {other:?}"),
+        };
+        assert_eq!(
+            output
+                .types()
+                .display(body.locals[operand_local.as_u32() as usize].ty)
+                .to_string(),
+            "scoop.core.Task<String>"
+        );
+    }
+
+    #[test]
     fn refactor_mir_effect_site_contract_missing_perform_contract_is_stage_error() {
         let source = SourceFile::new_virtual(
             "<mem>/missing_perform_contract.scoop",

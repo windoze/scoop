@@ -138,13 +138,13 @@ File {
                                                                         Expr {
                                                                             span: 99..104,
                                                                             ty: TypeId(
-                                                                                0,
+                                                                                5,
                                                                             ),
                                                                             kind: MemberAccess {
                                                                                 receiver: Expr {
                                                                                     span: 97..99,
                                                                                     ty: TypeId(
-                                                                                        0,
+                                                                                        10,
                                                                                     ),
                                                                                     kind: VarRef(
                                                                                         Local {

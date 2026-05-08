@@ -3488,7 +3488,7 @@ File {
                                                     ),
                                                 ],
                                                 body_ty: TypeId(
-                                                    13,
+                                                    2,
                                                 ),
                                                 kind: NonResuming,
                                             },

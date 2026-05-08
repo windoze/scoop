@@ -1050,7 +1050,7 @@ impl<'a> HirLowering<'a> {
                 self.invalid_expr_kind_after_stage_error(e.span)
             }
             ast::ExprKind::MemberAccess { receiver, member } => {
-                self.lower_member_access_expr(pkg_prefix, receiver, member)
+                self.lower_member_access_expr(pkg_prefix, e.span, receiver, member)
             }
             ast::ExprKind::SpliceField { receiver, field } => {
                 self.lower_splice_field_expr(pkg_prefix, e.span, receiver, field)
@@ -4981,11 +4981,13 @@ impl<'a> HirLowering<'a> {
     fn lower_member_access_expr(
         &mut self,
         pkg_prefix: &str,
+        span: Span,
         receiver: &ast::Expr,
         member: &ast::MemberIdent,
     ) -> (ExprKind, TypeId) {
         let receiver = self.lower_expr(pkg_prefix, receiver);
-        self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member)
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+        self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member, result_ty)
     }
 
     fn lower_splice_field_expr(
@@ -5064,6 +5066,7 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         receiver: Expr,
         member: &ast::MemberIdent,
+        result_ty: TypeId,
     ) -> (ExprKind, TypeId) {
         let resolved = self.resolved_member_for_lowering(member);
 
@@ -5109,7 +5112,7 @@ impl<'a> HirLowering<'a> {
                             callee: Box::new(callee),
                             args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
                         },
-                        self.builtins.any,
+                        result_ty,
                     );
                 }
                 DelegatedPropertyInfo::Observable(info) => {
@@ -5156,7 +5159,7 @@ impl<'a> HirLowering<'a> {
                     callee: Box::new(callee),
                     args: vec![CallArg::Positional(receiver)],
                 },
-                self.builtins.any,
+                result_ty,
             );
         }
 
@@ -5180,7 +5183,7 @@ impl<'a> HirLowering<'a> {
                     callee: Box::new(callee),
                     args: vec![CallArg::Positional(receiver)],
                 },
-                self.builtins.any,
+                result_ty,
             );
         }
 
@@ -5194,10 +5197,7 @@ impl<'a> HirLowering<'a> {
             resolved,
         };
 
-        (
-            ExprKind::MemberAccess { receiver, member },
-            self.builtins.any,
-        )
+        (ExprKind::MemberAccess { receiver, member }, result_ty)
     }
 
     fn lower_resolved_member_ref(&mut self, resolved: &ast::ResolvedMemberRef) -> MemberRef {
@@ -5641,7 +5641,7 @@ impl<'a> HirLowering<'a> {
 
         let v_ref = Expr {
             span: op_span,
-            ty: self.builtins.any,
+            ty: binder_ty,
             kind: ExprKind::VarRef(ValueRef::Local {
                 id: v_sym,
                 name: "__safe_v".to_string(),
@@ -5651,8 +5651,13 @@ impl<'a> HirLowering<'a> {
 
         // T0152：Some 分支内与普通 member access 共享同一条 lowering 路径；
         // `?.` 只负责在外层包一层 `Some(...)` 并处理 `None` 分支。
-        let (inner_kind, inner_ty) =
-            self.lower_member_access_expr_from_receiver(pkg_prefix, v_ref.clone(), member);
+        let inner_result_ty = self.option_inner_ty(result_ty).unwrap_or(self.builtins.any);
+        let (inner_kind, inner_ty) = self.lower_member_access_expr_from_receiver(
+            pkg_prefix,
+            v_ref.clone(),
+            member,
+            inner_result_ty,
+        );
         let inner_access = Expr {
             span: member.span,
             ty: inner_ty,
