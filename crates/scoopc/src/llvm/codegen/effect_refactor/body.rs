@@ -602,6 +602,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 callable.root_fqn()
             ))
         })?;
+        let mir_types = &pass_view.materialized().types;
         body.validate_cfg()
             .map_err(|_| LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor plain callable cfg",
@@ -611,7 +612,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callable.root_fqn(),
             mir_fun.span,
             body,
-            source_types,
+            mir_types,
         )?;
         let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
 
@@ -625,12 +626,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
 
-        let declared_return_cg = self
-            .cg_ty_of_mir_type(source_types, mir_fun.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor plain callable return type",
                 at: mir_fun.span.into(),
-            })?;
+            },
+        )?;
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
@@ -694,7 +695,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.function_cx.current_sret_return_ptr = None;
             return Ok(());
         }
-        let mut slots = self.create_mir_local_slots(body, source_types)?;
+        let mut slots = self.create_mir_local_slots(body, mir_types)?;
         if let Ok(source_id) =
             self.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)
         {
@@ -711,7 +712,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.bind_mir_closure_params(
                 mir_fun,
-                source_types,
+                mir_types,
                 function,
                 u32::from(uses_hidden_sret),
                 &mut slots,
@@ -747,8 +748,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             })?;
             {
-                let mut values =
-                    RefactorValuePrimitives::new(self, source_types, body, &slots, abi);
+                let mut values = RefactorValuePrimitives::new(self, mir_types, body, &slots, abi);
                 for stmt in &block.stmts
                     [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
                 {

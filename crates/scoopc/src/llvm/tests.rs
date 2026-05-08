@@ -6425,6 +6425,101 @@ fun main(): Int {
     );
 }
 
+#[test]
+fn refactor_plain_array_string_get_keeps_string_surface_for_println() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t1703_string_array_println_surface.scoop",
+        r#"
+package fixtures.t1703
+
+import scoop.core.*
+
+fun printArray(label: String, xs: Array<String>): Unit {
+    println(label)
+    println(xs.get(0))
+}
+
+fun main() {
+    val xs: Array<String> = ["alpha"]
+    printArray("arr1:", xs)
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_println"),
+        "expected String println path to lower successfully\n{ir}"
+    );
+}
+
+#[test]
+fn materialized_gc_array_fixture_keeps_string_locals_for_println_string_sites() {
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session = Session::new().unwrap();
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let pass_view = codegen_unit
+        .lowered
+        .materialized_pass_view()
+        .expect("production frontend 应保留 materialized pass view");
+    let materialized_types = &pass_view.materialized().types;
+
+    let mut seen_sites = 0usize;
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    let crate::mir::StatementKind::Assign {
+                        value:
+                            crate::mir::Rvalue::Call {
+                                kind: crate::mir::CallKind::Direct { callee_fqn },
+                                args,
+                                ..
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        continue;
+                    };
+                    if callee_fqn != "scoop.core.println::<String>" {
+                        continue;
+                    }
+                    let [arg] = args.as_slice() else {
+                        continue;
+                    };
+                    let crate::mir::Operand::Local(local) = arg.value else {
+                        continue;
+                    };
+                    let local_ty = body
+                        .locals
+                        .get(local.as_u32() as usize)
+                        .expect("println::<String> arg local should exist")
+                        .ty;
+                    assert_eq!(
+                        materialized_types.display(local_ty).to_string(),
+                        "String",
+                        "callable `{}` 应把 println::<String> 的 arg local{} 保持为 String surface",
+                        fun.fqn,
+                        local.as_u32()
+                    );
+                    seen_sites += 1;
+                }
+            }
+        }
+    }
+
+    assert!(
+        seen_sites > 0,
+        "expected fixture to materialize at least one println::<String> call site"
+    );
+}
+
 fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
     for chunk in ir.split("\ndefine ").skip(1) {
         let end = chunk.find("\n}").expect("expected end of function body") + 2;

@@ -7729,9 +7729,7 @@ impl MirInstanceMaterializer {
         {
             return Some(binding);
         }
-        let Some(template) = self.remap_site_binding_template(&binding.template, callee_fqn) else {
-            return is_canonical_array_member_intrinsic_fqn(callee_fqn).then_some(binding);
-        };
+        let template = self.remap_site_binding_template(&binding.template, callee_fqn)?;
         Some(SiteInstanceBinding {
             template,
             type_args: binding.type_args,
