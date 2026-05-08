@@ -1897,6 +1897,66 @@ fn top_level_generic_named_args_keep_canonical_param_order_in_pass_mir() {
 }
 
 #[test]
+fn callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir() {
+    fn call_arg_spans_at_stmt(
+        fun: &crate::mir::FunDecl,
+        stmt_span: crate::span::Span,
+    ) -> Vec<crate::span::Span> {
+        let body = fun.body.as_ref().expect("expected MIR body");
+        let args = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let crate::mir::Rvalue::Call { args, .. } = value else {
+                    return None;
+                };
+                (stmt.span == stmt_span).then_some(args)
+            })
+            .unwrap_or_else(|| panic!("expected call statement at span {stmt_span:?}"));
+        args.iter().map(|arg| arg.span).collect()
+    }
+
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let materialized = codegen_unit
+        .lowered
+        .materialized_mir()
+        .expect("production frontend should keep materialized MIR");
+    let main_mir = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.name == "main")
+        .expect("main should enter caller-side pass candidates");
+
+    assert_eq!(
+        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1442, 1469)),
+        vec![
+            crate::span::Span::new(1463, 1468),
+            crate::span::Span::new(1449, 1450)
+        ],
+        "named receiver callable-value call should reorder args to receiver-then-a0 in MIR"
+    );
+    assert_eq!(
+        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1770, 1797)),
+        vec![
+            crate::span::Span::new(1795, 1796),
+            crate::span::Span::new(1781, 1782)
+        ],
+        "top-level FunPtr named direct call should reorder args to receiver-then-a0 in MIR"
+    );
+}
+
+#[test]
 fn unsafe_funptr_aggregate_return_uses_native_return_abi() {
     let session = Session::new().unwrap();
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))

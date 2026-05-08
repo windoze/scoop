@@ -62,7 +62,7 @@
 | `CG-T07S0a24` | CG7S0a24 | [DONE] 回收 per-fixture scan 暴露的 frontend authoritative contract 回归：use-site eff row receiver mismatch |
 | `CG-T07S0a24a` | CG7S0a24a | [DONE] 修复 runtime_gc cross-thread roots 中 top-level `@Global __AtomicInt` atomic lowering 漂移，并让 run-pass timeout 正确回收后代进程，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | [DONE] 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
-| `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
+| `CG-T07S0` | CG7S0 | [DONE] 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
 | `CG-T08` | CG8 | 建立 codegen regression 矩阵并完成阶段退出审计 |
 | `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
@@ -1782,7 +1782,7 @@
 - 2026-05-09：在 `CG-T07S0a24a` 修复 top-level atomic storage / timeout descendant cleanup 后，重新执行 `cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 与默认 `cargo run -p scoop -- test`，确认 `effect_handle_top_level_val_pattern_access_basic.scoop` 的原始 EffectStep `top-level value ref` blocker 已稳定消失，默认 full-suite 也不再停在该 fixture；据此本任务完成。
 - 验证通过：`cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
+## [DONE] CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 
 - 参考：
   - `CG-T03`
@@ -1815,6 +1815,10 @@
   - 2026-05-08：作为 `CG-T07S` 的新前置阻塞补录。`mir_refactor` snapshot 漂移修复后，默认 full-suite 首个失败转为 `callable_value_pattern_binder_receiver_named_args_basic.scoop`；build 诊断显示 `CallKind::FunValue` lowering 仍把 receiver / named-arg 槽位错配，需单独成 task 修复后才能重新闭合 `CG-T07S`。
   - 2026-05-08：已修复 typecheck callable surface、typed HIR contract、direct-style MIR lowering 与 canonical materialized MIR 对 callable value / `FunPtr` named-arg 绑定的遗漏；`callable_value_pattern_binder_receiver_named_args_basic.scoop` 的 build / 单 fixture test 通过，新增 HIR/MIR 定向单测、`aggregate_transport.scoop` snapshot 回归复核与 `cargo clippy --all-targets -- -D warnings` 通过。
   - 2026-05-08：默认 full-suite 继续前进后又暴露 `effect_handle_top_level_val_pattern_access_basic.scoop` 的 EffectStep `top-level value ref` codegen blocker；按顺序约束新增 prerequisite `CG-T07S0a`，本任务保持未完成，等待 `CG-T07S0a` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-09：恢复 `12185b94` 收紧后被误删的 callable/FunPtr direct-call named-arg surface：typecheck 重新接受 function value / `FunPtr` 的 synthetic `receiver` / `a0` 形参名映射，HIR 在缺少 top-level/ctor `plan` 的 callable fallback 中保留 `CallArg::Named`，让 MIR 继续消费 authoritative `arg_binding` 做 receiver-first canonicalization；据此 `when` pattern binder 的 `FunValue` 调用与顶层 `topFp(a0=..., receiver=...)` 都不再退回源码顺序 positional 形态。
+  - 2026-05-09：恢复 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` / `.stdout` 正向回归，并删除 `function_value_named_args_not_supported_is_error.scoop` 与 `funptr_named_args_not_supported_is_error.scoop` 两条与当前任务目标冲突的负例；新增 `callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir` 单测，直接锁定 `FunValue` 与顶层 `FunPtr` named-arg 在 materialized MIR 中的 receiver-first 实参顺序。
+  - 2026-05-09：默认 `cargo run -p scoop -- test` 现已完整通过（`fixtures: ok (1270)`），`CG-T07S0` 不再是 `CG-T07S` 的 full-suite 首个 blocker；当前任务完成。
+  - 验证通过：`cargo test -p scoopc callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir -- --nocapture`、`cargo test -p scoopc top_level_generic_named_args_keep_canonical_param_order_in_pass_mir -- --nocapture`、`cargo run -p scoop -- build tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop -o /tmp/callable_value_pattern_binder_receiver_named_args_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`、`cargo run -p scoop -- test`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S：修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞
 

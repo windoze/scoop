@@ -1,37 +1,33 @@
-# 本次执行计划
+# Claude Plan
 
-1. 先读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务；不做开放式问题排查。
-2. 检查最近提交是否直接提到与该任务相关的未完成问题；若该问题阻塞当前任务，则先在 `TODO.md` 中显式记录为前置依赖。
-3. 阅读当前任务涉及的代码、测试、规格说明与约束，整理最小正确改动方案。
-4. 实现当前任务，避免使用变通方案；若发现规格缺口或阻塞问题，按要求更新 `TODO.md` / `PLAN.md` 并停止在该前置问题上。
-5. 运行任务要求的验证命令，以及必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若适用且不与任务要求冲突）。
-6. 根据执行结果更新 `memory/claude_plan.md` 进度，记录关键发现、计划调整和已完成步骤。
-7. 完成后在 `TODO.md` 中将该任务标题标记为 `[DONE]`，补全完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
-8. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+## 执行约束
+- 先以 `TODO.md` 为唯一任务真源，定位第一个未完成任务。
+- 在未确认当前任务前，不做开放式问题排查。
+- 如遇到阻塞当前任务的真实缺陷或缺失能力，不绕过；最小化更新 `TODO.md` / 必要时更新 `PLAN.md`，提交后停止。
 
-> 说明：在确认具体任务后，会把更具体的实施步骤补充到本文件。
+## 初始计划
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
+2. 检查最近提交是否直接提到与该任务相关且未完成的问题；若是，则将其视为任务一部分或在 `TODO.md` 中补成前置任务。
+3. 阅读当前任务涉及的代码、测试、规范和依赖约束，确认实现边界。
+4. 实现当前任务所需改动，只做满足任务要求的最小正确修改。
+5. 运行任务要求的验证、相关测试，以及必要的 `cargo fmt` / `cargo clippy --all-targets -- -D warnings`。
+6. 更新 `memory/claude_plan.md` 记录进展；将任务在 `TODO.md` 中标记为 `[DONE]` 并补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
 
-## 当前任务：`CG-T07S0a`
+## 当前任务
+- 已定位第一个未完成任务：`CG-T07S0`。
+- 任务目标：修复 receiver callable value / `FunPtr` 在 receiver + named args 组合下的 lowering 槽位映射回归，并恢复默认 full-suite 继续前进。
+- 最近提交 `[CG-T07S0a] Complete effect-handle top-level val blocker` 只完成了已记录前置任务 `CG-T07S0a`，未引入新的同任务未完成条目。
 
-目标：完成 `effect_handle_top_level_val_pattern_access_basic.scoop` 的最终验收，并在不引入变通方案的前提下解除其对默认 full-suite 的阻塞。
+## 当前进展
+- 已读取 `CG-T07S0` / `CG-T07S` 条目，确认当前 invocation 只处理 `CG-T07S0`。
+- 已定位根因：最新相关提交 `12185b94` 删除了任务要求的 run-pass fixture，并把 function value / `FunPtr` direct call 的 named args 改成 typecheck 直接拒绝；这与 `CG-T07S0` 目标冲突。
+- 已确认历史正确行为：旧实现通过 synthetic param names `receiver` / `a0` / `a1` 做 callable value / `FunPtr` named-arg 绑定，且存在配套 run-pass fixture `callable_value_pattern_binder_receiver_named_args_basic.scoop`。
+- 已恢复 callable value / `FunPtr` direct-call named-arg typecheck 绑定，补回正向 run-pass fixture，并删除与当前任务目标冲突的两个 typecheck 负例。
+- 已修复 HIR generic call fallback：当 callable surface 有 authoritative `arg_binding` 但没有 top-level/ctor `plan` 时，保留 `CallArg::Named` 交给 MIR canonicalize，避免 `when` binder / 顶层 `FunPtr` 重新退回源码顺序 positional 实参。
+- 已新增 `callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir` 单测，锁定 `FunValue` 与顶层 `FunPtr` 的 receiver-first MIR 实参顺序。
+- 验证完成：定向单测、单 fixture build/test、默认 `cargo run -p scoop -- test`（`fixtures: ok (1270)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。
+- 下一步：检查工作树，提交本次 `CG-T07S0` 改动并停止。
 
-具体步骤：
-
-1. 先检查当前工作树状态，避免误覆盖已有未提交修改。
-2. 阅读与 `effect_handle_top_level_val_pattern_access_basic`、EffectStep lowering、top-level value ref / once-init / pattern binder 相关的实现与最近回归测试，确认该任务原始修复当前是否仍成立。
-3. 先重跑任务要求的定向 build/test，确认该 fixture 当前状态；若原始问题复发，则直接修复该根因并补最小回归。
-4. 在原始 fixture 通过的前提下，重跑默认 `cargo run -p scoop -- test`，确认当前阻塞是否已解除，或定位新的、与本任务直接相关的 blocker。
-5. 若 full-suite 暴露新的直接前置 blocker，则按用户要求把最小 prerequisite 插入 `TODO.md` 的正确位置，更新依赖与完成记录，并停止在该 blocker 记录上。
-6. 若 full-suite 通过并且当前任务完整满足验收条件，则把 `CG-T07S0a` 标记为 `[DONE]`，补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 运行所需格式化/静态检查（至少包含任务要求验证，以及必要的 `cargo clippy --all-targets -- -D warnings`），确认无警告。
-8. 将本次相关改动提交为单个 git commit，然后停止。
-
-## 当前进度
-
-- 已确认首个未完成任务为 `CG-T07S0a`。
-- 已执行 `cargo run -p scoop -- build tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop -o /tmp/effect_handle_top_level_val_pattern_access_basic`，通过。
-- 已执行 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop`，通过。
-- 已执行 `cargo run -p scoop -- test`，默认 full-suite 通过（`fixtures: ok (1271)`）。
-- 已执行 `cargo clippy --all-targets -- -D warnings`，通过。
-- 已更新 `TODO.md`，将 `CG-T07S0a` 标记为 `[DONE]` 并补充最终完成记录。
-- 下一步：检查工作树差异，提交本轮变更后停止。
+## 说明
+- 这里记录的是可审阅的执行计划与进展摘要，不包含私有推理细节。

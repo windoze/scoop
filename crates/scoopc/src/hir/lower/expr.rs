@@ -854,7 +854,9 @@ impl<'a> HirLowering<'a> {
                         Box::new(self.lower_expr(pkg_prefix, callee))
                     };
 
-                    if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span) {
+                    let arg_binding = self.typechecked_call_arg_binding(e.span);
+                    let preserve_named_call_args = arg_binding.is_some();
+                    if let Some(arg_binding) = arg_binding {
                         let ctor_binding = self.typechecked_ctor_call_binding(e.span);
                         let canonical_param_count = arg_binding.params.len();
                         let plan = if let Some(fun_binding) =
@@ -914,7 +916,13 @@ impl<'a> HirLowering<'a> {
                             if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
                                 positional_index = positional_index.saturating_add(1);
                             }
-                            out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
+                            out.push(if preserve_named_call_args {
+                                self.lower_call_arg_with_expected_preserving_name(
+                                    pkg_prefix, arg, expected,
+                                )
+                            } else {
+                                self.lower_call_arg_with_expected(pkg_prefix, arg, expected)
+                            });
                         }
                         out
                     };
@@ -3813,6 +3821,22 @@ impl<'a> HirLowering<'a> {
     ) -> CallArg {
         let (value, _) = Self::call_arg_value_expr(arg);
         CallArg::Positional(self.lower_expr_with_expected(pkg_prefix, value, expected))
+    }
+
+    fn lower_call_arg_with_expected_preserving_name(
+        &mut self,
+        pkg_prefix: &str,
+        arg: &ast::Expr,
+        expected: ExpectedExpr,
+    ) -> CallArg {
+        let ast::ExprKind::NamedArg { name, value, .. } = &arg.kind else {
+            return self.lower_call_arg_with_expected(pkg_prefix, arg, expected);
+        };
+        CallArg::Named {
+            name: name.text(self.source).to_string(),
+            name_span: name.span,
+            value: self.lower_expr_with_expected(pkg_prefix, value, expected),
+        }
     }
 
     /// T0113: Lower call arguments when the callee has a vararg parameter.

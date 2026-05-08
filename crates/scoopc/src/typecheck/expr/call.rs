@@ -561,6 +561,17 @@ pub(super) fn map_call_args_to_params_with_defaults(
     Some(mapping)
 }
 
+fn callable_value_param_names(fun: &crate::ty::FunctionType) -> Vec<String> {
+    let mut out = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+    if fun.receiver.is_some() {
+        out.push("receiver".to_string());
+    }
+    for idx in 0..fun.params.len() {
+        out.push(format!("a{idx}"));
+    }
+    out
+}
+
 #[derive(Debug, Clone)]
 enum ParamArgBinding {
     /// 该形参由默认值补齐（调用点未提供实参）。
@@ -1052,7 +1063,8 @@ fn infer_function_type_call_expr_type(
         synthesized_args.as_deref().unwrap_or(args),
         lower,
     )?;
-    let expected_arity = param_tys.len();
+    let param_names = callable_value_param_names(&fun);
+    let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -1064,12 +1076,12 @@ fn infer_function_type_call_expr_type(
             span: span.into(),
         });
     }
-    if let Some(span) = first_named_arg_span(&call_args) {
-        return Err(ExprTypeError::NamedArgsNotSupportedForCallableType {
-            callee: callee_name.to_string(),
-            span: span.into(),
-        });
-    }
+    check_call_arg_named_rules(callee_name, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        callee_name,
+        &call_args,
+        std::iter::once(param_names.as_slice()),
+    )?;
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -1079,9 +1091,19 @@ fn infer_function_type_call_expr_type(
             span: call_expr.span.into(),
         });
     }
+
+    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for (param_idx, mapped_param) in arg_to_param.iter_mut().enumerate() {
-        *mapped_param = Some(param_idx);
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let slot = arg_to_param
+            .get_mut(arg_idx)
+            .expect("mapped function-value arg index should stay in range");
+        *slot = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {
@@ -1156,7 +1178,7 @@ fn infer_function_type_call_expr_type(
         });
     }
 
-    let binding_mapping = (0..call_args.len()).map(Some).collect::<Vec<_>>();
+    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
     if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
@@ -1272,7 +1294,8 @@ fn infer_funptr_type_call_expr_type(
         synthesized_args.as_deref().unwrap_or(args),
         lower,
     )?;
-    let expected_arity = param_tys.len();
+    let param_names = callable_value_param_names(&fun);
+    let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
         let span = call_args
             .iter()
@@ -1284,12 +1307,12 @@ fn infer_funptr_type_call_expr_type(
             span: span.into(),
         });
     }
-    if let Some(span) = first_named_arg_span(&call_args) {
-        return Err(ExprTypeError::NamedArgsNotSupportedForCallableType {
-            callee: callee_name.to_string(),
-            span: span.into(),
-        });
-    }
+    check_call_arg_named_rules(callee_name, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        callee_name,
+        &call_args,
+        std::iter::once(param_names.as_slice()),
+    )?;
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -1299,9 +1322,19 @@ fn infer_funptr_type_call_expr_type(
             span: call_expr.span.into(),
         });
     }
+
+    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
     let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
-    for (param_idx, mapped_param) in arg_to_param.iter_mut().enumerate() {
-        *mapped_param = Some(param_idx);
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let slot = arg_to_param
+            .get_mut(arg_idx)
+            .expect("mapped funptr arg index should stay in range");
+        *slot = Some(param_idx);
     }
 
     let expected_arg_ty = |param_idx: usize| match fun.receiver {
@@ -1373,7 +1406,7 @@ fn infer_funptr_type_call_expr_type(
         });
     }
 
-    let binding_mapping = (0..call_args.len()).map(Some).collect::<Vec<_>>();
+    let binding_mapping = mapping.iter().copied().map(Some).collect::<Vec<_>>();
     if let Some(binding) = call_arg_binding_from_optional_mapping(&binding_mapping, &call_args) {
         lower.record_typechecked_call_arg_binding(call_expr.span, binding);
     }
