@@ -19,20 +19,19 @@ I will keep this file updated with a concise execution plan, progress, and any b
 
 ## Selected Task
 
-- Current task: `CG-T07S0a18`
-- Goal: fix `tests/fixtures/run-pass/stdlib_string_basic.scoop` failure where `sysroot/string.scoop` support-source String intrinsic member calls such as `byteLength()`, `getByte()`, and `unsafeSliceBytes()` degrade into unresolved `MemberAccess` plus `CallKind::FunValue` instead of authoritative typed member/intrinsic call lowering.
-- Latest commit subject checked: `[CG-T07S0a17] Close star-projection array read-view blocker`. No directly stated unfinished follow-up for the new `String` blocker was found in that subject alone.
+- Current task: `CG-T07S0a19`
+- Goal: fix `tests/fixtures/run-pass/stdlib_string_methods_extended.scoop` failure where `String.isEmpty()`, `replace(...)`, `charAt(...)`, and `repeat(...)` builtin member calls still degrade into unresolved `MemberAccess` plus `CallKind::FunValue` instead of authoritative typed direct/member call lowering.
+- Latest commit message checked: `[CG-T07S0a18] Close String support-source intrinsic call blocker`. The commit body explicitly records that full-suite now advances to `stdlib_string_methods_extended.scoop`; this is already tracked as the next prerequisite task `CG-T07S0a19` in `TODO.md`, so no extra task insertion is needed before execution.
 
 ## Task-Specific Plan
 
-1. Reproduce the failure with the task-specified fixture command.
-2. Inspect `sysroot/string.scoop` and the lowering pipeline artifacts/tests around String intrinsic support-source calls.
-3. Identify the earliest stage where authoritative resolution/type information is lost.
-4. Implement the minimal spec-correct fix in the responsible stage(s), without backend guessing or fixture reshaping.
-5. Add or update focused regression coverage for at least `byteLength()` and one of `getByte()` / `unsafeSliceBytes()`.
-6. Run the task validation commands, plus any targeted compiler tests needed for confidence.
-7. Update `TODO.md` completion record and task title if the task is fully complete; otherwise record the blocker and prerequisite ordering.
-8. Commit all required changes with a `CG-T07S0a18`-scoped message and stop.
+1. Reproduce the `stdlib_string_methods_extended.scoop` failure with the task-specified build command.
+2. Inspect the current String builtin member typecheck/codegen paths and compare them with the already-fixed `byteLength/getByte/unsafeSliceBytes` extension-style contract.
+3. Publish authoritative receiver-prefixed extension/direct-call metadata for `isEmpty`, `replace`, `charAt`, and `repeat` in typecheck so HIR/MIR/materialized MIR stop emitting unresolved member callee values.
+4. Add the matching legacy dispatch/codegen and refactor direct-call lowering hooks for `scoop.core.isEmpty`, `scoop.core.replace`, `scoop.core.charAt`, and `scoop.core.repeat`.
+5. Add a focused compiler regression test that proves the affected member calls lower to direct calls instead of `FunValue` calls.
+6. Run task validation: focused compiler test, fixture build/test, default full-suite, and `cargo clippy --all-targets -- -D warnings`.
+7. If validation uncovers a new blocker, record the minimum prerequisite in `TODO.md`; otherwise mark `CG-T07S0a19` as `[DONE]`, update its completion record, commit, and stop.
 
 ## Progress
 
@@ -47,3 +46,12 @@ I will keep this file updated with a concise execution plan, progress, and any b
 - Validation passed for the focused work: the new compiler test passed; `string_byte_accessors.scoop`, `string_unsafe_slice_bytes.scoop`, and `stdlib_string_basic.scoop` all build/test successfully; `cargo clippy --all-targets -- -D warnings` passed.
 - Full suite result: `cargo run -p scoop -- test` no longer stops at `stdlib_string_basic.scoop` and now advances to a new blocker at `tests/fixtures/run-pass/stdlib_string_methods_extended.scoop`.
 - Follow-up bookkeeping required: mark `CG-T07S0a18` done in `TODO.md`, add the new prerequisite task for the `stdlib_string_methods_extended.scoop` blocker, update `CG-T07S0a` dependencies, then commit and stop.
+- 2026-05-08 current invocation: re-read `TODO.md`; confirmed `CG-T07S0a18` is already marked `[DONE]`, the worktree is clean, and the first incomplete task is now `CG-T07S0a19`.
+- Read the `CG-T07S0a19` task body, the latest commit message, and the current String builtin code paths. Initial inspection shows the same pattern as `CG-T07S0a18`: `isEmpty` / `replace` / `charAt` / `repeat` are typed in `typecheck/expr/call.rs` but do not yet publish authoritative member resolution/call-arg binding, and neither legacy dispatch nor refactor direct-call lowering has the corresponding `scoop.core.*` extension handlers.
+- Reproduced the `CG-T07S0a19` failure with `cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_string_methods_extended.scoop -o /tmp/stdlib_string_methods_extended`; it failed in frontend prepare with `refactor plain function-value callee type`, confirming the unresolved member-call contract regression.
+- Implemented the fix: typecheck now publishes receiver-prefixed extension-style call contracts for `String.isEmpty`, `String.replace`, `String.charAt`, and `String.repeat`; legacy LLVM dispatch, refactor direct-call lowering, and effect-facts plain-intrinsic classification were updated to consume the same synthetic `scoop.core.*` direct-call FQNs.
+- Added focused regression coverage in `crates/scoopc/src/llvm/tests.rs` to assert HIR/materialized MIR lower these four String member calls to direct calls and no longer emit `FunValue` callees.
+- Validation passed for the task-targeted work: `cargo test -p scoopc builtin_string_member_calls_lower_to_direct_calls -- --nocapture`, `cargo test -p scoopc builtin_string_intrinsic_member_calls_lower_to_direct_calls -- --nocapture`, `cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_string_methods_extended.scoop -o /tmp/stdlib_string_methods_extended`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_methods_extended.scoop`, and `cargo clippy --all-targets -- -D warnings` all succeeded.
+- Full-suite validation advanced past `stdlib_string_methods_extended.scoop`; `cargo run -p scoop -- test` now fails later at `tests/fixtures/run-pass/string_trim_indent_basic.scoop`.
+- Reproduced the new blocker with `cargo run -p scoop -- build tests/fixtures/run-pass/string_trim_indent_basic.scoop -o /tmp/string_trim_indent_basic`; it fails with the same `refactor plain function-value callee type` shape, indicating the remaining `String.trimIndent()` builtin member call still lacks an authoritative direct-call contract.
+- Updated `TODO.md`: marked `CG-T07S0a19` as `[DONE]`, recorded the implementation and validation, inserted the new prerequisite task `CG-T07S0a20` for the `trimIndent()` blocker, and updated `CG-T07S0a` dependencies accordingly.

@@ -752,6 +752,111 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_string_method(span, receiver, "unsafeSliceBytes", &args[1..])
     }
 
+    /// T0115: body-less extension function `String.isEmpty()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.isEmpty()` 改写为 `scoop.core.isEmpty(receiver)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_is_empty_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isEmpty ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isEmpty ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "isEmpty", &args[1..])
+    }
+
+    /// T0115: body-less extension function `String.replace()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.replace(old, new)` 改写为
+    /// `scoop.core.replace(receiver, old, new)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_replace_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 3 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "replace ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "replace ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "replace", &args[1..])
+    }
+
+    /// T0115: body-less extension function `String.charAt()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.charAt(index)` 改写为 `scoop.core.charAt(receiver, index)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_char_at_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "charAt ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "charAt ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "charAt", &args[1..])
+    }
+
+    /// T0115: body-less extension function `String.repeat()` codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.repeat(n)` 改写为 `scoop.core.repeat(receiver, n)`。
+    pub(in crate::llvm::codegen) fn codegen_sysroot_string_repeat_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "repeat ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(receiver) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "repeat ext receiver arg",
+                at: callee_span.into(),
+            });
+        };
+
+        self.codegen_string_method(span, receiver, "repeat", &args[1..])
+    }
+
     pub(in crate::llvm::codegen) fn codegen_sysroot_abs_ext(
         &mut self,
         span: crate::span::Span,

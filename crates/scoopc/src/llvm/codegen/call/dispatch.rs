@@ -284,6 +284,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.unsafeSliceBytes" {
                 return self.codegen_sysroot_string_unsafe_slice_bytes_ext(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.isEmpty" {
+                return self.codegen_sysroot_string_is_empty_ext(span, callee.span, args);
+            }
+            if dispatch_fqn == "scoop.core.replace" {
+                return self.codegen_sysroot_string_replace_ext(span, callee.span, args);
+            }
+            if dispatch_fqn == "scoop.core.charAt" {
+                return self.codegen_sysroot_string_char_at_ext(span, callee.span, args);
+            }
+            if dispatch_fqn == "scoop.core.repeat" {
+                return self.codegen_sysroot_string_repeat_ext(span, callee.span, args);
+            }
             if dispatch_fqn == "scoop.core.toInt" {
                 return self.codegen_sysroot_to_int_ext(span, callee.span, args);
             }

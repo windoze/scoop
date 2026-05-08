@@ -5461,62 +5461,42 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.int);
         }
-        // T0115: String.isEmpty() — 0 args → Bool
-        if member_name == "isEmpty" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "isEmpty".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.bool_);
-        }
-        // T0115: String.replace(old, new) — 2 args → String
-        if member_name == "replace" {
-            if args.len() != 2 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "replace".into(),
-                    expected: 2,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
-        }
-        // T0115: String.charAt(index) — 1 arg → Int
-        if member_name == "charAt" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "charAt".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
-        }
-        // T0115: String.repeat(n) — 1 arg → String
-        if member_name == "repeat" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "repeat".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
-        }
-        // T0120/T0121: `byteLength/getByte/unsafeSliceBytes` 没有普通 sysroot 函数体，
-        // 但必须发布稳定的 extension-style call contract，避免 HIR/MIR 把成员调用退化成
-        // unresolved `MemberAccess` + `FunValue` callee。
-        if matches!(member_name, "byteLength" | "getByte" | "unsafeSliceBytes") {
+        // T0115/T0120/T0121: 这些 String builtin surface 没有普通 sysroot 函数体，
+        // 但 production HIR/MIR/codegen 仍必须消费稳定的 extension-style direct-call contract，
+        // 不能退化成 unresolved `MemberAccess` + `FunValue` callee。
+        if matches!(
+            member_name,
+            "isEmpty"
+                | "replace"
+                | "charAt"
+                | "repeat"
+                | "byteLength"
+                | "getByte"
+                | "unsafeSliceBytes"
+        ) {
             let callee_fqn = format!("scoop.core.{member_name}");
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(&callee_fqn, &call_args)?;
             let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
+                "isEmpty" => (Vec::new(), Vec::new(), builtins.bool_, false),
+                "replace" => (
+                    vec!["old".to_string(), "new".to_string()],
+                    vec![builtins.string, builtins.string],
+                    builtins.string,
+                    false,
+                ),
+                "charAt" => (
+                    vec!["index".to_string()],
+                    vec![builtins.int],
+                    builtins.int,
+                    false,
+                ),
+                "repeat" => (
+                    vec!["n".to_string()],
+                    vec![builtins.int],
+                    builtins.string,
+                    false,
+                ),
                 "byteLength" => (Vec::new(), Vec::new(), builtins.int, false),
                 "getByte" => (
                     vec!["index".to_string()],

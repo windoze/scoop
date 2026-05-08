@@ -1355,6 +1355,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if callee_fqn == "scoop.core.compareTo" {
             return self.lower_refactor_core_string_compare_to_call(span, args, target_cg);
         }
+        if callee_fqn == "scoop.core.isEmpty" {
+            return self.lower_refactor_core_string_is_empty_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.replace" {
+            return self.lower_refactor_core_string_replace_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.charAt" {
+            return self.lower_refactor_core_string_char_at_call(span, args, target_cg);
+        }
+        if callee_fqn == "scoop.core.repeat" {
+            return self.lower_refactor_core_string_repeat_call(span, args, target_cg);
+        }
         if callee_fqn == "scoop.core.byteLength" {
             return self.lower_refactor_core_string_byte_length_call(span, args, target_cg);
         }
@@ -4548,6 +4560,230 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             },
         );
         self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_is_empty_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core isEmpty arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core isEmpty receiver value",
+        )?;
+        let runtime = self.codegen.declare_runtime_string_is_empty();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into()],
+            "refactor_core_string_is_empty",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core isEmpty return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(result) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core isEmpty return type",
+                at: span.into(),
+            });
+        };
+        let bool_val = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            result,
+            self.codegen.context.i64_type().const_zero(),
+            "refactor_core_is_empty_to_bool",
+        )?;
+        self.codegen
+            .coerce_value(span, CgValue::bool(bool_val), target_cg)
+    }
+
+    fn lower_refactor_core_string_replace_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core replace arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core replace receiver value",
+        )?;
+        let old = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let old_ptr =
+            self.string_like_pointer(args[1].span, old, "refactor core replace old value")?;
+        let new = self.codegen.codegen_mir_operand_expected(
+            args[2].span,
+            &args[2].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let new_ptr =
+            self.string_like_pointer(args[2].span, new, "refactor core replace new value")?;
+        let runtime = self.codegen.declare_runtime_string_replace();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), old_ptr.into(), new_ptr.into()],
+            "refactor_core_string_replace",
+        )?;
+        let string = self.string_result_from_runtime_call(span, call, "scoop.core.replace")?;
+        self.codegen.coerce_value(span, string, target_cg)
+    }
+
+    fn lower_refactor_core_string_char_at_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core charAt arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core charAt receiver value",
+        )?;
+        let index = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+        )?;
+        let Some(BasicValueEnum::IntValue(index_val)) = index.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core charAt index value",
+                at: args[1].span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_string_char_at();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), index_val.into()],
+            "refactor_core_string_char_at",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core charAt return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(result) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core charAt return type",
+                at: span.into(),
+            });
+        };
+        let value = CgValue::int(
+            result,
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.codegen.coerce_value(span, value, target_cg)
+    }
+
+    fn lower_refactor_core_string_repeat_call(
+        &mut self,
+        span: Span,
+        args: &[mir::CallArg],
+        target_cg: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core repeat arg contract",
+                at: span.into(),
+            });
+        }
+
+        let receiver = self.codegen.codegen_mir_operand_expected(
+            args[0].span,
+            &args[0].value,
+            self.slots,
+            Some(CgTy::String),
+        )?;
+        let receiver_ptr = self.string_like_pointer(
+            args[0].span,
+            receiver,
+            "refactor core repeat receiver value",
+        )?;
+        let count = self.codegen.codegen_mir_operand_expected(
+            args[1].span,
+            &args[1].value,
+            self.slots,
+            Some(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+        )?;
+        let Some(BasicValueEnum::IntValue(count_val)) = count.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor core repeat count value",
+                at: args[1].span.into(),
+            });
+        };
+        let runtime = self.codegen.declare_runtime_string_repeat();
+        let call = self.codegen.build_call_preserving_gc_local_roots(
+            span,
+            runtime,
+            &[receiver_ptr.into(), count_val.into()],
+            "refactor_core_string_repeat",
+        )?;
+        let string = self.string_result_from_runtime_call(span, call, "scoop.core.repeat")?;
+        self.codegen.coerce_value(span, string, target_cg)
     }
 
     fn lower_refactor_core_string_byte_length_call(
