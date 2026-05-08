@@ -43,7 +43,8 @@
 | `CG-T07S0a6` | CG7S0a6 | [DONE] 修复 literal_numeric_expected_type_absorption_basic 中 `Array<UInt8>` element expected-type absorption 失效导致 run-pass 输出漂移，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a7` | CG7S0a7 | [DONE] 修复 literal_ops_compare_direct_matrix_basic 中 String 字面量 receiver 的 compareTo/concat 直接调用退化成 FunValue callee，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a8` | CG7S0a8 | [DONE] 修复 local_val_destructuring_nested_variant_mismatch_is_error 中 nested variant destructuring runtime-error path 的 direct-arg tuple payload contract 缺少 source component，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a9` | CG7S0a9 | 修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a9` | CG7S0a9 | [DONE] 修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a10` | CG7S0a10 | 修复 nothing_raise_coerce_to_any_type 中 nested try/catch + `Raise.raise` 的 Nothing/bottom-type HandleDispatch routing contract 歧义，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1049,7 +1050,7 @@
   - 2026-05-08：新增 `llvm::tests::effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload`，覆盖 effect-step callable 的单 tuple 形参在 refactor LLVM codegen 下仍能稳定走 effect wrapper / tuple-arg path。
   - 2026-05-08：验证通过：`cargo test -p scoopc effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload`、`cargo run -p scoop -- build tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop -o /tmp/local_val_destructuring_nested_variant_mismatch_is_error`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `local_val_destructuring_nested_variant_mismatch_is_error.scoop`，下一处失败转为 `tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a9`。
 
-## CG-T07S0a9：修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a9：修复 member_call_devirt_final_receiver_direct_call_basic 中 final receiver direct-call 去虚化后 `Base` vtable 仍引用未发射的 `Base.ping` 符号，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `CG-T03`
@@ -1080,6 +1081,40 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a8` 修复后，默认 full-suite 继续前进到 `member_call_devirt_final_receiver_direct_call_basic.scoop`；单 fixture build 诊断显示链接阶段 `_Base.ping` 仍未发射，但 `__scoop_vtable__Base` 已引用该符号，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
+  - 2026-05-08：`crates/scoopc/src/llvm/reachability.rs` 的 materialized MIR reachable scan 现在会在遇到 `Rvalue::ClassCtor` 时显式 `enqueue_ctor(class_fqn, selected_ctor_span)`，把 ctor/super/vtable/itable reachability 接回 LLVM MIR 主线，避免 final receiver direct-call 去虚化后只有 `Derived.ping` 被 direct-call 命中、但 `Base` vtable 仍引用 declaration-only `Base.ping` 的漂移。
+  - 2026-05-08：扩充 `llvm::tests::via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch`，除继续验证 via-MIR exact receiver direct call 不回退成 vtable dispatch 外，还断言 `Base` vtable 仍发布且 `Base.ping` 必须被定义而不是只声明。
+  - 2026-05-08：验证通过：`cargo test -p scoopc via_mir_direct_class_call_is_not_reinterpreted_as_vtable_dispatch`、`cargo run -p scoop -- build tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop -o /tmp/member_call_devirt_final_receiver_direct_call_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_devirt_final_receiver_direct_call_basic.scoop`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `member_call_devirt_final_receiver_direct_call_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a10`。
+
+## CG-T07S0a10：修复 nothing_raise_coerce_to_any_type 中 nested try/catch + `Raise.raise` 的 Nothing/bottom-type HandleDispatch routing contract 歧义，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `CG-T05`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop`
+- 背景：
+  - 在 `CG-T07S0a9` 修复 `member_call_devirt_final_receiver_direct_call_basic.scoop` 后，默认 `cargo run -p scoop -- test` 不再停在 final receiver direct-call 去虚化 / `Base` vtable 符号漏发射，而是继续暴露 `tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop -o /tmp/nothing_raise_coerce_to_any_type` 会在 LLVM 单文件前端准备阶段报 `refactor callable 'main' step schema s0 (ABI s0) state st9 terminator lowering failed: LLVM 单文件前端准备失败：refactor boundary bd1 case c0 命中多个 HandleDispatch routing contract`，说明 nested try/catch + `Raise.raise(...)` 的 Nothing/bottom-type path 仍把同一 handle boundary case 发布成歧义的 HandleDispatch routing contract。
+
+- 必须实现的内容：
+  1. 修复 refactor effect-lowered / late-lowered handle boundary routing contract，使 nested try/catch 中 `Raise.raise(...)` 的 Nothing-return / dead-code path 对同一 boundary case 只发布单一 authoritative `HandleDispatch` routing contract，供 EffectStep codegen 消费。
+  2. 保持 `nothing_raise_coerce_to_any_type.scoop` 的 bottom-type / dead-code / catch propagation 语义：`Raise.raise(...)` 之后的 dead code 不执行，inner/outer catch 分派与值传播保持正确；不得通过改 fixture、弱化 `Nothing` 到 expected type / `Any` 的 coercion、或绕开 nested handle/try state-machine path 规避问题。
+  3. 补最小回归验证，确保该 fixture 在默认 full-suite 下稳定通过。
+
+- 必须遵从的约束：
+  - 不允许在 LLVM backend 现场按 boundary/case 猜测或静默挑选其中一个 routing contract；必须修正 authoritative effect-lowered / late-lowered publication。
+  - 不允许通过禁用 nested try/catch、移除 `Raise.raise(...)` dead-code path、改变 `Nothing` 语义、或回退到 legacy handler stack 规避该问题。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop -o /tmp/nothing_raise_coerce_to_any_type`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/nothing_raise_coerce_to_any_type.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `nothing_raise_coerce_to_any_type.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a9`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a9` 修复后，默认 full-suite 继续前进到 `nothing_raise_coerce_to_any_type.scoop`；单 fixture build 诊断显示 refactor EffectStep/HandleDispatch lowering 仍把同一 boundary case 发布成多个 routing contract，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1107,7 +1142,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1122,6 +1157,7 @@
   - 2026-05-08：`CG-T07S0a6` 修复后，默认 full-suite 又继续前进到 `literal_ops_compare_direct_matrix_basic.scoop`；build 诊断显示 `"ab".compareTo("ac")` 的 String 字面量 receiver 直接调用仍退化成 `CallKind::FunValue` 并报 `unsupported main codegen node: refactor plain function-value callee type`，按顺序约束新增 prerequisite `CG-T07S0a7`，本任务保持未完成，等待 `CG-T07S0a7` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a7` 修复后，默认 full-suite 又继续前进到 `local_val_destructuring_nested_variant_mismatch_is_error.scoop`；build 诊断显示 refactor ABI tuple payload `refactor_carrier_direct_args` 仍缺少 source component 1，按顺序约束新增 prerequisite `CG-T07S0a8`，本任务保持未完成，等待 `CG-T07S0a8` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a8` 修复后，默认 full-suite 又继续前进到 `member_call_devirt_final_receiver_direct_call_basic.scoop`；单 fixture build 诊断显示链接阶段 `_Base.ping` 仍未发射，但 `__scoop_vtable__Base` 已引用该符号，按顺序约束新增 prerequisite `CG-T07S0a9`，本任务保持未完成，等待 `CG-T07S0a9` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
+  - 2026-05-08：`CG-T07S0a9` 修复后，默认 full-suite 又继续前进到 `nothing_raise_coerce_to_any_type.scoop`；build 诊断显示 refactor HandleDispatch lowering 仍把同一 boundary case 发布成多个 routing contract，按顺序约束新增 prerequisite `CG-T07S0a10`，本任务保持未完成，等待 `CG-T07S0a10` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

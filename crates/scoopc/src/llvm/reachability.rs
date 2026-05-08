@@ -686,7 +686,16 @@ impl<'a> ReachabilityCollector<'a> {
                     self.scan_mir_operand(&arg.value);
                 }
             }
-            mir::Rvalue::ClassCtor { args, .. } => {
+            mir::Rvalue::ClassCtor {
+                class_fqn,
+                ctor,
+                args,
+                ..
+            } => {
+                // materialized MIR 上的 class ctor 不再保留 HIR call-site side table；
+                // 这里必须显式把 ctor/class reachability 接回主线，才能同步发布
+                // vtable/itable impl targets 与 super ctor chain。
+                self.enqueue_ctor(class_fqn.clone(), ctor.selected_ctor_span);
                 for arg in args {
                     self.scan_mir_operand(&arg.value);
                 }

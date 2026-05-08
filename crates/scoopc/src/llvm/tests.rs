@@ -503,6 +503,17 @@ fun main(): Int {
         !frontend_ir.contains("call_vtable"),
         "via-MIR frontend 已把 exact receiver class call 去虚化为 direct call，backend 不应再按 FQN 猜回 vtable dispatch:\n{frontend_ir}"
     );
+    assert!(
+        frontend_ir.contains(
+            "@__scoop_vtable__fixtures_t5000gr_Base = internal constant [1 x ptr] [ptr @fixtures.t5000gr.Base.ping]"
+        ),
+        "test setup 应继续发布 Base vtable，确保 direct-call 去虚化不会跳过 class runtime surface:\n{frontend_ir}"
+    );
+    assert!(
+        frontend_ir.contains("define i64 @fixtures.t5000gr.Base.ping(ptr addrspace(1)")
+            && !frontend_ir.contains("declare i64 @fixtures.t5000gr.Base.ping(ptr addrspace(1))"),
+        "即使 main 中的 final receiver 调用已去虚化为 direct call，Base vtable 仍要求 authoritative Base.ping body 被发射，而不是只留 declaration:\n{frontend_ir}"
+    );
 
     let legacy_lowered = lower_single_source_legacy(&session, &source);
     let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
