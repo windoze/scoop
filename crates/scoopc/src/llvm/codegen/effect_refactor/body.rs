@@ -7105,9 +7105,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 return false;
             };
             surface_sites.contains(parent_site)
-                && !matches!(
+                && handle_dispatch_region_implies_runtime_nesting(
                     contract.state_region(dispatch_state),
-                    LateLoweredHandleStateRegion::OutsideHandle
                 )
         })
     }
@@ -7123,9 +7122,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 _ => None,
             })
             .filter(|contract| {
-                !matches!(
+                handle_dispatch_region_implies_runtime_nesting(
                     contract.state_region(dispatch_state),
-                    LateLoweredHandleStateRegion::OutsideHandle
                 )
             })
             .count()
@@ -9189,6 +9187,14 @@ fn refactor_source_layout_component_count(layout: &RefactorSourceAbiLayout<'_>) 
             .max()
             .unwrap_or(0),
     }
+}
+
+fn handle_dispatch_region_implies_runtime_nesting(region: LateLoweredHandleStateRegion) -> bool {
+    // `Exit` 只是前一个 handle 的收尾落点，不代表当前 dispatch 仍在它的动态作用域内。
+    !matches!(
+        region,
+        LateLoweredHandleStateRegion::OutsideHandle | LateLoweredHandleStateRegion::Exit
+    )
 }
 
 fn frontend_error(message: String) -> LlvmEmitError {

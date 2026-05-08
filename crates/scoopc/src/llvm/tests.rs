@@ -6381,6 +6381,59 @@ fun main(): Int {
 }
 
 #[test]
+fn nested_raise_try_catch_uses_innermost_handle_dispatch_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000j1e_nested_raise_try_catch.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val r1: Int = try {
+        println("try1")
+        Raise.raise(10)
+        println("unreachable1")
+        0
+    } catch (e: Int) {
+        println("catch1")
+        e
+    }
+    println(r1)
+
+    val r2: Int = try {
+        val inner: Int = try {
+            println("inner_try")
+            Raise.raise(20)
+            println("unreachable_inner")
+            0
+        } catch (e: Int) {
+            println("inner_catch")
+            e
+        }
+        println("outer_try_after_inner")
+        inner + 1
+    } catch (e: Int) {
+        println("outer_catch_unreachable")
+        e
+    }
+    println(r2)
+
+    println("done")
+    return 0
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("define i32 @main("),
+        "nested Raise.raise try/catch fixture should lower through refactor EffectStep main codegen\n{ir}"
+    );
+}
+
+#[test]
 fn effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload() {
     let source = SourceFile::new_virtual(
         "<mem>/t5000j1d_effect_step_tuple_param_carrier.scoop",
