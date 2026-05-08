@@ -52,7 +52,8 @@
 | `CG-T07S0a15a` | CG7S0a15a | [DONE] 修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker |
 | `CG-T07S0a15` | CG7S0a15 | [DONE] 修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a16a` | CG7S0a16a | [DONE] 修复 literal_numeric_expected_type_absorption_basic 中 direct `Array<UInt8>` element path 再次退回 nominal/composite surface，解除 CG-T07S0a16 的前置 blocker |
-| `CG-T07S0a16` | CG7S0a16 | 修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a16` | CG7S0a16 | [DONE] 修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker |
+| `CG-T07S0a17` | CG7S0a17 | 修复 star_projection_array_read_view 中 `Array<*>` 读视图把带 GC slot 的 `Any?` element transport trace contract 发布成漂移 shape，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
@@ -1369,7 +1370,7 @@
   - 2026-05-08：扩充 `llvm::tests::production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadata`，继续守护 `Array<UInt8>` builder push 的 scalar metadata；新增 `mir::lower::tests::dump_mir_uint8_array_get_keeps_scalar_transport_metadata`，锁定 direct `bytes.get(...)` 两个读取站点继续发布 scalar transport contract。
   - 2026-05-08：验证通过：`cargo fmt --all`、`cargo test -p scoopc uint8_array`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo run -p scoop -- dump-mir tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo clippy --all-targets -- -D warnings`。
 
-## CG-T07S0a16：修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker
+## [DONE] CG-T07S0a16：修复 literal_array_expected_type_nested_basic 中嵌套 `Array<UInt8>` element expected-type 传播仍退回 `Int`，解除 CG-T07S0a 默认 full-suite 新 blocker
 
 - 参考：
   - `T0150h-2`
@@ -1401,6 +1402,41 @@
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a15` 修复后，默认 full-suite 继续前进到 `literal_array_expected_type_nested_basic.scoop`；直接 build/run 观测到 `bytes.get(0) == 3` 与 `argByte == 4` 两处输出为 `false`，而 `Float32` 路径仍正确，说明嵌套 `Array<UInt8>` element expected-type 传播主线仍需独立修复后，才能继续完成 `CG-T07S0a` 的默认 full-suite 验证。
   - 2026-05-08：在执行 `CG-T07S0a16` 前的对照验证中发现更前置 regression：`literal_numeric_expected_type_absorption_basic.scoop` 的 direct `Array<UInt8>` bytes path 已重新回退；直接 build/run 末两行输出再次为 `false` / `false`，`dump-mir` 显示 `scoop.core.get` / compare path 把 element surface 退回 nominal/composite `Struct`，按顺序约束新增 prerequisite `CG-T07S0a16a`，本任务保持未完成，等待其修复后继续处理嵌套 expected-type 传播。
+  - 2026-05-08：在 `CG-T07S0a16a` 修复 shared builtin scalar canonicalization 后重新验证，`cargo run -p scoop -- build tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop -o /tmp/literal_array_expected_type_nested_basic && /tmp/literal_array_expected_type_nested_basic` 已恢复输出 `true / 2.5 / true / 0.75 / 1.5 / 3.5`，`bytes.get(0) == 3` 与 `argByte == 4` 不再回退为 `false`。
+  - 2026-05-08：新增 `mir::lower::tests::dump_mir_nested_uint8_array_literals_keep_expected_element_type`，直接锁定嵌套 `Array<UInt8>` 的 `if` / `when` / 函数参数三条 array-builder push 路径继续把 element local/type/transport source 发布为 `UInt8`，不退回 `Int` 或 composite boxing surface。
+  - 2026-05-08：验证通过：`cargo test -p scoopc dump_mir_nested_uint8_array_literals_keep_expected_element_type`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_array_expected_type_nested_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop`、`cargo run -p scoop -- test`（默认 full-suite 已越过 `literal_array_expected_type_nested_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/star_projection_array_read_view.scoop`）、`cargo clippy --all-targets -- -D warnings`。
+
+## CG-T07S0a17：修复 star_projection_array_read_view 中 `Array<*>` 读视图把带 GC slot 的 `Any?` element transport trace contract 发布成漂移 shape，解除 CG-T07S0a 默认 full-suite 新 blocker
+
+- 参考：
+  - `T4001`
+  - `CG-T04d`
+  - `CG-T08`
+  - `tests/fixtures/run-pass/star_projection_array_read_view.scoop`
+- 背景：
+  - `CG-T07S0a16` 完成后，默认 `cargo run -p scoop -- test` 不再停在 `literal_array_expected_type_nested_basic.scoop`，而是继续暴露 `tests/fixtures/run-pass/star_projection_array_read_view.scoop` 的 run-pass 失败。
+  - 单独执行 `cargo run -p scoop -- build tests/fixtures/run-pass/star_projection_array_read_view.scoop -o /tmp/star_projection_array_read_view` 会在 `firstIsSome` 的 `xs.get(0)` 路径报 `composite transport layout descriptor has GC slots but MIR trace requirement is false`（source_span=412..421，inventory suggested owner `CG-T04d / MIR-T10R`），说明 `Array<*>` 读视图的 `Any?` element transport trace contract 在 materialize/codegen 主线上仍有漂移。
+
+- 必须实现的内容：
+  1. 修复 `Array<String> -> Array<*>` 读视图的 authoritative typecheck/HIR/MIR/materialize/codegen contract，确保 `xs.get(0)` 对 `Any?` 结果稳定发布带 trace 的 element transport metadata，并与实际 composite layout 的 GC slots 保持一致。
+  2. 保持 `Array<*>` 读取语义为 `Any?` 读视图：`firstIsSome(view)` 继续通过 `Some/None` 分支判断，不得退回裸 `Any`、去掉 nullability、或在 backend/verifier 现场补 star-projection 私有特判规避。
+  3. 补最小回归验证，覆盖 star-projection array read view 的 trace contract 与 run-pass 行为。
+
+- 必须遵从的约束：
+  - 不允许通过把 `Array<*>` 降级成 `Array<Any>`、绕开 `scoop.core.get` transport metadata、或放宽 verifier 检查规避问题。
+  - 不允许只在 LLVM backend 现场兜底；必须修正 authoritative transport/layout contract 的发布。
+
+- 验证：
+  1. `cargo run -p scoop -- build tests/fixtures/run-pass/star_projection_array_read_view.scoop -o /tmp/star_projection_array_read_view`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/star_projection_array_read_view.scoop`
+  3. `cargo run -p scoop -- test`
+
+- 完成条件：
+  - 默认 full-suite 不再在 `star_projection_array_read_view.scoop` 停止，`CG-T07S0a` 可继续恢复最终默认 full-suite 验证。
+- 依赖：`CG-T07R`，`CG-T07S0a16`
+
+- 完成记录：
+  - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a16` 完成后，默认 full-suite 继续前进到 `star_projection_array_read_view.scoop`；单 fixture build 诊断显示 `firstIsSome` 的 `xs.get(0)` 仍把带 GC slot 的 composite layout descriptor 与 `trace = false` 的 MIR contract 组合发布，需先独立修复后才能继续完成 `CG-T07S0a` 的默认 full-suite 验证。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 
@@ -1428,7 +1464,7 @@
 
 - 完成条件：
   - 默认 full-suite 不再在 `effect_handle_top_level_val_pattern_access_basic.scoop` 停止，`CG-T07S0` 可继续验证 callable value / `FunPtr` named-arg 回归是否已完全解除。
-- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`，`CG-T07S0a16a`，`CG-T07S0a16`
+- 依赖：`CG-T07R`，`CG-T07S0a1`，`CG-T07S0a2`，`CG-T07S0a3`，`CG-T07S0a4`，`CG-T07S0a5`，`CG-T07S0a6`，`CG-T07S0a7`，`CG-T07S0a8`，`CG-T07S0a9`，`CG-T07S0a10`，`CG-T07S0a11`，`CG-T07S0a12`，`CG-T07S0a13`，`CG-T07S0a14`，`CG-T07S0a15`，`CG-T07S0a16a`，`CG-T07S0a16`，`CG-T07S0a17`
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0` 的新前置阻塞补录。callable value / `FunPtr` named-arg 槽位映射修复后，默认 full-suite 继续前进到 `effect_handle_top_level_val_pattern_access_basic.scoop`；build 诊断显示 refactor EffectStep codegen 仍不支持 top-level value ref，需先独立修复后才能完成 `CG-T07S0` 的默认 full-suite 验证。
@@ -1451,6 +1487,7 @@
   - 2026-05-08：`CG-T07S0a14` 修复后，默认 full-suite 又继续前进到 `stdlib_hash_set_map_basic.scoop`；build 诊断显示 materialized MIR `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved generic `T`，按顺序约束新增 prerequisite `CG-T07S0a15`，本任务保持未完成，等待 `CG-T07S0a15` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：`CG-T07S0a15` 修复并补齐其 build / run-pass / full-suite 验证后，默认 full-suite 已越过 `stdlib_hash_set_map_basic.scoop`，但继续在 `literal_array_expected_type_nested_basic.scoop` 暴露新的 stdout mismatch；直接 build/run 可见嵌套 `Array<UInt8>` expected-type 路径仍使 `bytes.get(0) == 3` 与 `argByte == 4` 输出为 `false`，按顺序约束新增 prerequisite `CG-T07S0a16`，本任务保持未完成，等待 `CG-T07S0a16` 修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
   - 2026-05-08：在 `CG-T07S0a16` 的对照验证中又发现更前置的 direct `Array<UInt8>` regression：`literal_numeric_expected_type_absorption_basic.scoop` 重新失败，`dump-mir` 显示 `scoop.core.get` / compare path 把 element surface 退回 nominal/composite `Struct`；因此按顺序约束再前插 `CG-T07S0a16a`，本任务继续保持未完成，等待其先行修复。
+  - 2026-05-08：`CG-T07S0a16` 完成并补齐嵌套 `UInt8` MIR 回归验证后，默认 full-suite 已越过 `literal_array_expected_type_nested_basic.scoop`，但继续在 `star_projection_array_read_view.scoop` 暴露新的 `Array<*>` 读视图 transport trace contract 漂移；按顺序约束新增 prerequisite `CG-T07S0a17`，本任务继续保持未完成，等待其修复后再重跑 `cargo run -p scoop -- test` 完成最终验收。
 
 ## CG-T07S0：修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞
 

@@ -7389,6 +7389,110 @@ fun readValue(x: Any): Int {
     }
 
     #[test]
+    fn dump_mir_nested_uint8_array_literals_keep_expected_element_type() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_nested_uint8_array_expected_type.scoop",
+            r#"
+import scoop.core.*
+
+fun takeByte(xs: Array<UInt8>): UInt8 {
+    return xs.get(0)
+}
+
+fun main(): Int {
+    val bytesIf: Array<UInt8> = [if (true) { 1 + 2 } else { 9 }]
+    val bytesWhen: Array<UInt8> = [when (false) {
+        true -> 7
+        false -> 4
+    }]
+    val argByte: UInt8 = takeByte([if (false) { 7 } else { 4 }])
+    return 0
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                _ => None,
+            })
+            .expect("expected main MIR root");
+        let body = fun.body.as_ref().expect("main should have a MIR body");
+
+        let mut seen_uint8_pushes = 0;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign {
+                value:
+                    Rvalue::Call {
+                        kind: CallKind::Direct { callee_fqn },
+                        args,
+                        transport,
+                        ..
+                    },
+                ..
+            } = &stmt.kind
+            else {
+                continue;
+            };
+            if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+                continue;
+            }
+            let array = transport
+                .array
+                .as_ref()
+                .expect("array builder push should publish array transport metadata");
+            if lowered.types.display(array.element_ty).to_string() != "UInt8" {
+                continue;
+            }
+            let value_local = match args.get(1).map(|arg| &arg.value) {
+                Some(Operand::Local(local)) => *local,
+                _ => panic!("array builder push value should stay in a local"),
+            };
+            assert_eq!(
+                lowered
+                    .types
+                    .display(body.locals[value_local.as_u32() as usize].ty)
+                    .to_string(),
+                "UInt8",
+                "nested UInt8 array literal element local should keep UInt8 expected type"
+            );
+            assert_eq!(
+                lowered.types.display(array.element.source_ty).to_string(),
+                "UInt8",
+                "nested UInt8 array literal transport should keep UInt8 source surface"
+            );
+            assert_eq!(
+                array.element.kind,
+                MirTransportKind::ArrayElement,
+                "nested UInt8 array literal transport should stay on array-element path"
+            );
+            assert!(
+                !array.element.requirements.trace,
+                "nested UInt8 array literal should not claim trace metadata"
+            );
+            assert!(
+                !array.element.requirements.drop,
+                "nested UInt8 array literal should not claim aggregate drop obligations"
+            );
+            assert!(
+                array.element.boxing.is_none(),
+                "nested UInt8 array literal should not publish composite boxing metadata"
+            );
+            seen_uint8_pushes += 1;
+        }
+
+        assert_eq!(
+            seen_uint8_pushes, 3,
+            "expected UInt8 builder push sites for if / when / call-arg nested array literals"
+        );
+    }
+
+    #[test]
     fn dump_mir_uint8_array_get_keeps_scalar_transport_metadata() {
         let sess = Session::new().unwrap();
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
