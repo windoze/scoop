@@ -1422,7 +1422,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let sig_fun = match self.codegen.fun_index.get(callee_fqn).copied() {
+        let sig_fun = match self.codegen.hir_fun_for_callable_fqn(callee_fqn) {
             Some(sig_fun) => sig_fun,
             None => {
                 if let Some(value) =

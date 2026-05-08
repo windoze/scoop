@@ -49,7 +49,7 @@
 | `CG-T07S0a12` | CG7S0a12 | [DONE] 修复 operator_overload_struct_basic 中 struct `compareTo` direct-call lowering 把 `Int` 结果误强制成 struct target，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a13` | CG7S0a13 | [DONE] 修复 safe_member_access_ref_and_extension_basic 中 safe-call `Option` `Some`/`None` lowering 仍退化成 `ctor call lowering pending`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a14` | CG7S0a14 | [DONE] 修复 smart_cast_any_member_access_generic_class_basic 中 smart-cast 分支 generic class field access 仍把 result/frame slot 保留为 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
-| `CG-T07S0a15a` | CG7S0a15a | 修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker |
+| `CG-T07S0a15a` | CG7S0a15a | [DONE] 修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker |
 | `CG-T07S0a15` | CG7S0a15 | 修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker |
 | `CG-T07S0a` | CG7S0a | 修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker |
 | `CG-T07S0` | CG7S0 | 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
@@ -1262,7 +1262,7 @@
   - 2026-05-08：member-access receiver 只会在 `receiver.ty` 比底层 local 更具体且不是 `Any` 时创建 expr-typed 视图 local，避免把值类型 receiver 反向擦除成 `Any`；新增 `mir::lower::tests::dump_mir_smart_cast_member_access_preserves_concrete_generic_field_type`，并同步更新 `tests/fixtures/mir_refactor/generic_materialization.mir`，覆盖 concrete member result 在后续 generic call arg transport 中显式发布 transport metadata。
   - 2026-05-08：验证通过：`cargo test -p scoopc dump_mir_smart_cast_member_access_preserves_concrete_generic_field_type`、`cargo run -p scoop -- build tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop -o /tmp/smart_cast_any_member_access_generic_class_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extension_property_getter_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/generic_materialization.scoop`、`cargo clippy --all-targets -- -D warnings`；默认 `cargo run -p scoop -- test` 已越过 `smart_cast_any_member_access_generic_class_basic.scoop`，下一处失败转为 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`，因此按顺序约束新增 prerequisite `CG-T07S0a15`。
 
-## CG-T07S0a15a：修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker
+## [DONE] CG-T07S0a15a：修复 stdlib_hash_set_map_basic 中 `MutableSet.asSet()` 只读视图在同一 body 联合 `Set.len()` / `Set.contains()` 时的 alias receiver call 结果漂移，解除 CG-T07S0a15 的 run-pass 新 blocker
 
 - 参考：
   - `CG-T07S0a15`
@@ -1291,6 +1291,10 @@
 
 - 完成记录：
   - 2026-05-08：作为 `CG-T07S0a15` 的新前置阻塞补录。`CG-T07S0a15` 已修复 `MutableMap.set(...)` alias receiver array transport 的 unresolved `T` 并让单 fixture `build` 通过；继续执行 run-pass 后，临时最小复现确认新的失败已缩小到 `MutableSet.asSet()` 只读视图在同一 body 组合 `Set.len()` / `Set.contains()` 时的运行期结果漂移，因此按顺序约束先补此 prerequisite。
+  - 2026-05-08：根因定位为 pass-visible 非泛型 alias receiver 扩展的重载符号发布与 call-site rewrite 仍不区分 `Set` / `MutableSet`：`stdlib/collections_set.scoop` 中 `Set.len` / `MutableSet.len`、`Set.contains` / `MutableSet.contains` 共享 `scoop.collections.len` / `scoop.collections.contains` root FQN，materialize/production codegen 会把多个 body 压到同一 callable identity，导致 `MutableSet` 哈希布局查询与 `asSet()` 导出的只读视图查询混用实现。
+  - 2026-05-08：`crates/scoopc/src/mir/materialize.rs` 现在会为 pass-visible 非泛型重名 callable 发布稳定的 overload-aware symbol，并在 reachable-body rewrite 中按 authoritative non-generic callee / receiver type 把 `MutableSet.len` 与 `Set`/`MutableSet.contains` 的 direct-call target 重写到对应 overload；新增 `materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct` 回归，锁定 `stdlib_hash_set_map_basic.scoop` 中 alias receiver call target 不再退回共享 root FQN。
+  - 2026-05-08：`crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_refactor/value.rs` 与 `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 现可把这些 suffixed pass-visible callable 反查回 authoritative HIR signature/root，避免 plain/effect-refactor lowering 再把它们误判成缺 signature 的 function-value call。
+  - 2026-05-08：验证通过：`cargo test -p scoopc materialize_for_dump_keeps_`、`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、直接执行 `/tmp/stdlib_hash_set_map_basic`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`、`cargo fmt --all`、`cargo clippy --all-targets -- -D warnings`。
 
 ## CG-T07S0a15：修复 stdlib_hash_set_map_basic 中 `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved `T`，解除 CG-T07S0a 默认 full-suite 新 blocker
 
@@ -1325,6 +1329,7 @@
   - 2026-05-08：作为 `CG-T07S0a` 的新前置阻塞补录。`CG-T07S0a14` 修复后，默认 full-suite 继续前进到 `stdlib_hash_set_map_basic.scoop`；单 fixture build 诊断显示 materialized MIR `scoop.collections.__map_alloc_empty_table` 的 array transport element type 仍保留 unresolved generic `T`，需先独立修复后才能完成 `CG-T07S0a` 的默认 full-suite 验证。
   - 2026-05-08：已修复 `crates/scoopc/src/mir/materialize.rs` 中 alias receiver `MutableMap.set(...)` 的 array transport repair，`Get` / `Set` / `BuilderPush` 现在优先回读 target/result/value operand 的 authoritative concrete element type，不再依赖 alias `array_ty` 反推；新增 `materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete` 单测锁定 `scoop.collections.__map_alloc_empty_table` 的 `__scoop_array_builder_build_mutable_array` transport metadata 为 `MutableArray<Int>` / `Int`。`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic` 已通过。
   - 2026-05-08：继续执行 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 后，运行期失败已不再是 unresolved-`T` build blocker，而是 `MutableSet.asSet()` 只读视图在同一 body 组合 `Set.len()` / `Set.contains()` 时的结果漂移；按顺序约束新增 prerequisite `CG-T07S0a15a`，本任务保持未完成，等待 `CG-T07S0a15a` 修复后再恢复 run-pass / full-suite 验证。
+  - 2026-05-08：`CG-T07S0a15a` 已完成后，`cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop -o /tmp/stdlib_hash_set_map_basic`、直接执行 `/tmp/stdlib_hash_set_map_basic` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 均通过；本任务现只剩按原验证要求恢复 `cargo run -p scoop -- test` 的默认 full-suite 验证，留待下一次调用继续。
 
 ## CG-T07S0a：修复 effect-handle top-level val pattern access 在 EffectStep codegen 中的 top-level value ref lowering，解除 CG-T07S0 默认 full-suite 新 blocker
 

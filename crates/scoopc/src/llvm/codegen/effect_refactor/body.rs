@@ -587,7 +587,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let hir_fun = self.fun_index.get(callable.root_fqn()).copied();
+        let hir_fun = self.hir_fun_for_callable_fqn(callable.root_fqn());
         let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
         let is_materialized_closure = hir_fun.is_none() && mir_fun.name.starts_with("$lambda");
         if hir_fun.is_none() && !is_materialized_closure {

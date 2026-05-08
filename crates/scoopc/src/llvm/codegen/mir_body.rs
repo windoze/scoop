@@ -356,6 +356,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    pub(super) fn hir_fun_for_callable_fqn(&self, fqn: &str) -> Option<&'a hir::FunDecl> {
+        if let Some(hir_fun) = self.fun_index.get(fqn).copied() {
+            return Some(hir_fun);
+        }
+        if let Some(pass_view) = self.materialized_pass_view()
+            && let Some(owner) = pass_view.owner_of_callable(fqn)
+            && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
+                fun.fqn == owner.template.fqn
+                    && fun.source_path == owner.template.source_path
+                    && fun.span == owner.template.decl_span
+            })
+        {
+            return Some(hir_fun);
+        }
+        let base = mir_direct_call_base_fqn(fqn);
+        (base != fqn)
+            .then(|| self.fun_index.get(base).copied())
+            .flatten()
+    }
+
     pub(super) fn materialized_mir_callable_source_id(
         &self,
         fqn: &str,
@@ -363,12 +383,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<SourceId, LlvmEmitError> {
         let mut owner_fqn = fqn;
         loop {
-            if let Some(hir_fun) = self.fun_index.get(owner_fqn).copied() {
-                return self.source_id_for_path(hir_fun.source_path.as_path(), span);
-            }
-            if let Some((template_fqn, _)) = owner_fqn.split_once("::<")
-                && let Some(hir_fun) = self.fun_index.get(template_fqn).copied()
-            {
+            if let Some(hir_fun) = self.hir_fun_for_callable_fqn(owner_fqn) {
                 return self.source_id_for_path(hir_fun.source_path.as_path(), span);
             }
             let Some((parent, _)) = owner_fqn.rsplit_once(".$lambda") else {
@@ -969,7 +984,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: true,
                     }));
                 }
-                let fun = self.fun_index.get(callee_fqn).copied()?;
+                let fun = self.hir_fun_for_callable_fqn(callee_fqn)?;
                 self.cg_ty_of(fun.return_ty)
             }
             crate::mir::CallKind::Closure { callee, .. }
@@ -5763,7 +5778,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                if let Some(fun) = self.fun_index.get(fn_ptr).copied()
+                if let Some(fun) = self.hir_fun_for_callable_fqn(fn_ptr)
                     && self.known_fun_body_may_outward_effect(fn_ptr, fun.ty)
                 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -6166,13 +6181,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(value);
         }
         let is_extern = self.extern_funs.contains_key(fqn);
-        let sig_fun = self
-            .fun_index
-            .get(fqn)
-            .copied()
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!("pass MIR direct call 缺少 callee `{fqn}` 的 callable signature"),
-            })?;
+        let sig_fun =
+            self.hir_fun_for_callable_fqn(fqn)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "pass MIR direct call 缺少 callee `{fqn}` 的 callable signature"
+                    ),
+                })?;
         if fqn == "scoop.core.getPlatform" {
             if !args.is_empty() {
                 return Err(LlvmEmitError::UnsupportedMainBody {

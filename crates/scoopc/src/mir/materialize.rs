@@ -5528,13 +5528,18 @@ impl MirInstanceMaterializer {
         }
 
         let mut candidate_fun = reachable_fun.fun.clone();
-        let candidate_root_fqn = candidate_fun.fqn.clone();
+        let template_root_fqn = candidate_fun.fqn.clone();
+        let candidate_root_fqn = self.pass_visible_non_generic_callable_fqn(
+            reachable_fun.source_path.as_path(),
+            &candidate_fun,
+        );
+        candidate_fun.fqn = candidate_root_fqn.clone();
         if let Some(candidate_body) = candidate_fun.body.as_mut() {
             self.rewrite_reachable_body(
                 candidate_body,
                 &substitution,
                 reachable_fun.source_path.as_path(),
-                &candidate_root_fqn,
+                &template_root_fqn,
                 &candidate_root_fqn,
             )?;
         }
@@ -5579,6 +5584,8 @@ impl MirInstanceMaterializer {
                     scan.template_source_path,
                     scan.span,
                     callee_fqn,
+                    args,
+                    scan.locals,
                 ) {
                     self.scan_reachable_non_generic_fun(&reachable_callee, out)?;
                 }
@@ -5805,32 +5812,155 @@ impl MirInstanceMaterializer {
         })
     }
 
+    fn pass_visible_non_generic_callable_fqn(&self, source_path: &Path, fun: &FunDecl) -> String {
+        let overloaded = self
+            .all_fun_bodies_by_fqn
+            .get(&fun.fqn)
+            .map(|candidates| {
+                candidates
+                    .iter()
+                    .filter(|candidate| !self.generic_family_fqns.contains(&candidate.fqn))
+                    .count()
+                    > 1
+            })
+            .unwrap_or(false);
+        if !overloaded {
+            return fun.fqn.clone();
+        }
+        let template = TemplateKey {
+            fqn: fun.fqn.clone(),
+            source_path: source_path.to_path_buf(),
+            decl_span: fun.span,
+        };
+        format!(
+            "{}$overload${}",
+            fun.fqn,
+            stable_template_symbol_suffix(&template, "pass-non-generic")
+        )
+    }
+
+    fn non_generic_direct_callee_receiver_matches(
+        &self,
+        fun: &FunDecl,
+        receiver_ty: TypeId,
+    ) -> bool {
+        if fun
+            .params
+            .first()
+            .is_some_and(|param| param.ty == receiver_ty)
+        {
+            return true;
+        }
+        if fun.params.first().is_some_and(|param| {
+            nominal_type_fqn(&self.types, param.ty) == nominal_type_fqn(&self.types, receiver_ty)
+        }) {
+            return true;
+        }
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun.ty) else {
+            return false;
+        };
+        let Some(declared_receiver) = fun_ty.receiver else {
+            return false;
+        };
+        nominal_type_fqn(&self.types, declared_receiver)
+            == nominal_type_fqn(&self.types, receiver_ty)
+    }
+
+    fn resolve_non_generic_fun_body_by_receiver(
+        &self,
+        default_source_path: &Path,
+        fqn: &str,
+        receiver_ty: TypeId,
+    ) -> Option<ReachableMirFun> {
+        if let Some(candidates) = self.reachable_fun_bodies_by_fqn.get(fqn) {
+            let matching = candidates
+                .iter()
+                .filter(|candidate| {
+                    !self.generic_family_fqns.contains(&candidate.fun.fqn)
+                        && self
+                            .non_generic_direct_callee_receiver_matches(&candidate.fun, receiver_ty)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            return (matching.len() == 1).then(|| matching.into_iter().next().unwrap());
+        }
+        let candidates = self.all_fun_bodies_by_fqn.get(fqn)?;
+        let matching = candidates
+            .iter()
+            .filter(|candidate| {
+                !self.generic_family_fqns.contains(&candidate.fqn)
+                    && self.non_generic_direct_callee_receiver_matches(candidate, receiver_ty)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (matching.len() == 1).then(|| ReachableMirFun {
+            source_path: default_source_path.to_path_buf(),
+            fun: matching.into_iter().next().unwrap(),
+        })
+    }
+
+    fn resolve_bound_non_generic_fun_call(
+        &self,
+        template_source_path: &Path,
+        enclosing_span: Span,
+        callee_fqn: &str,
+    ) -> Option<ReachableMirFun> {
+        let binding = lookup_overlapping_direct_call_binding(
+            &self.direct_call_bindings,
+            template_source_path,
+            enclosing_span,
+        )?;
+        if binding.is_intrinsic
+            || !binding.type_args.is_empty()
+            || !binding.eff_args.is_empty()
+            || binding.fqn != callee_fqn
+        {
+            return None;
+        }
+        self.reachable_fun_bodies_by_request
+            .get(&(
+                binding.fqn.clone(),
+                binding.decl_file.clone(),
+                binding.decl_span,
+            ))
+            .cloned()
+            .filter(|fun| !self.generic_family_fqns.contains(&fun.fun.fqn))
+    }
+
     fn resolve_non_generic_direct_callee(
         &self,
         template_source_path: &Path,
         call_span: Span,
         callee_fqn: &str,
+        args: &[CallArg],
+        locals: &[LocalDecl],
     ) -> Option<ReachableMirFun> {
-        let call_site = (template_source_path.to_path_buf(), call_span);
-        if let Some(binding) = self.direct_call_bindings.get(&call_site) {
-            if binding.type_args.is_empty() && binding.eff_args.is_empty() {
-                if let Some(fun) = self
-                    .reachable_fun_bodies_by_request
-                    .get(&(
-                        binding.fqn.clone(),
-                        binding.decl_file.clone(),
-                        binding.decl_span,
-                    ))
-                    .cloned()
-                {
-                    return (!self.generic_family_fqns.contains(&fun.fun.fqn)).then_some(fun);
-                }
-            } else {
-                return None;
-            }
+        if let Some(fun) =
+            self.resolve_bound_non_generic_fun_call(template_source_path, call_span, callee_fqn)
+        {
+            return Some(fun);
         }
 
-        self.resolve_non_generic_fun_body_by_fqn(template_source_path, callee_fqn)
+        if let Some(fun) =
+            self.resolve_non_generic_fun_body_by_fqn(template_source_path, callee_fqn)
+        {
+            return Some(fun);
+        }
+
+        let receiver_ty = args
+            .first()
+            .and_then(|arg| operand_type(&self.types, self.builtins, locals, &arg.value))?;
+        self.resolve_non_generic_fun_body_by_receiver(template_source_path, callee_fqn, receiver_ty)
+    }
+
+    fn resolve_non_generic_top_level_ref_target(
+        &self,
+        template_source_path: &Path,
+        enclosing_span: Span,
+        fqn: &str,
+    ) -> Option<ReachableMirFun> {
+        self.resolve_bound_non_generic_fun_call(template_source_path, enclosing_span, fqn)
+            .or_else(|| self.resolve_non_generic_fun_body_by_fqn(template_source_path, fqn))
     }
 
     fn run(mut self, initial_requests: Vec<InstanceKey>) -> MaterializeResult<MaterializedMir> {
@@ -7424,7 +7554,13 @@ impl MirInstanceMaterializer {
             ctx.template_source_path,
             ctx.call_span,
             callee_fqn,
+            args,
+            ctx.locals,
         ) {
+            *callee_fqn = self.pass_visible_non_generic_callable_fqn(
+                reachable_callee.source_path.as_path(),
+                &reachable_callee.fun,
+            );
             let mut discovered = Vec::new();
             self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
             for instance in discovered {
@@ -7455,6 +7591,22 @@ impl MirInstanceMaterializer {
         {
             *fqn = self.instance_fqn(&instance_key);
             self.enqueue(instance_key);
+            return Ok(());
+        }
+        if let Some(reachable_fun) = self.resolve_non_generic_top_level_ref_target(
+            ctx.template_source_path,
+            ctx.call_span,
+            fqn,
+        ) {
+            *fqn = self.pass_visible_non_generic_callable_fqn(
+                reachable_fun.source_path.as_path(),
+                &reachable_fun.fun,
+            );
+            let mut discovered = Vec::new();
+            self.scan_reachable_non_generic_fun(&reachable_fun, &mut discovered)?;
+            for instance in discovered {
+                self.enqueue(instance);
+            }
             return Ok(());
         }
         if self.roots_by_fqn.contains_key(fqn) {
@@ -8608,6 +8760,45 @@ fn lookup_overlapping_site_instance_binding<'a>(
             continue;
         };
         if found_binding != binding {
+            return None;
+        }
+        if span.end - span.start < found_span.end - found_span.start {
+            found = Some((*span, binding));
+        }
+    }
+    found.map(|(_, binding)| binding)
+}
+
+fn same_top_level_fun_call_binding(
+    lhs: &ast::TopLevelFunCallBinding,
+    rhs: &ast::TopLevelFunCallBinding,
+) -> bool {
+    lhs.fqn == rhs.fqn
+        && lhs.decl_file == rhs.decl_file
+        && lhs.decl_span == rhs.decl_span
+        && lhs.is_intrinsic == rhs.is_intrinsic
+        && lhs.type_args == rhs.type_args
+        && lhs.eff_args == rhs.eff_args
+}
+
+fn lookup_overlapping_direct_call_binding<'a>(
+    bindings: &'a HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    template_source_path: &Path,
+    enclosing_span: Span,
+) -> Option<&'a ast::TopLevelFunCallBinding> {
+    let mut found: Option<(Span, &ast::TopLevelFunCallBinding)> = None;
+    for ((source_path, span), binding) in bindings {
+        if source_path != template_source_path
+            || span.start >= enclosing_span.end
+            || enclosing_span.start >= span.end
+        {
+            continue;
+        }
+        let Some((found_span, found_binding)) = found else {
+            found = Some((*span, binding));
+            continue;
+        };
+        if !same_top_level_fun_call_binding(found_binding, binding) {
             return None;
         }
         if span.end - span.start < found_span.end - found_span.start {
@@ -11489,6 +11680,8 @@ fun main() {
                         &reachable_fun.source_path,
                         stmt.span,
                         callee_fqn,
+                        args,
+                        &body.locals,
                     ) {
                         stack.push(reachable_callee);
                     }
@@ -11674,6 +11867,79 @@ fun use_zap(): Int / Zap {
             Item::Fun(fun)
                 if fun.fqn == "fixtures.materialize.Box.Companion.forward::<eff fixtures.materialize.Zap>"
         )));
+    }
+
+    #[test]
+    fn materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct() {
+        let sess = Session::new().unwrap();
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop");
+        let source = SourceFile::load(&fixture).expect("fixture 应可加载");
+
+        let materialized = materialize_for_dump(&sess, &source)
+            .expect("stdlib_hash_set_map_basic 应可 materialize");
+        let pass_view = materialized.pass_view();
+        let main_body = pass_view
+            .callable("main")
+            .and_then(|fun| fun.body.as_ref())
+            .expect("应保留 main 的 materialized body");
+
+        let direct_targets = |predicate: &dyn Fn(&str) -> bool| {
+            main_body
+                .blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .filter_map(|stmt| {
+                    let StatementKind::Assign {
+                        value:
+                            Rvalue::Call {
+                                kind: CallKind::Direct { callee_fqn },
+                                ..
+                            },
+                        ..
+                    } = &stmt.kind
+                    else {
+                        return None;
+                    };
+                    predicate(callee_fqn).then_some(callee_fqn.clone())
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+
+        let len_targets =
+            direct_targets(&|callee_fqn| callee_fqn.starts_with("scoop.collections.len"));
+        let contains_targets = direct_targets(&|callee_fqn| {
+            callee_fqn == "scoop.collections.contains"
+                || callee_fqn.starts_with("scoop.collections.contains$overload$")
+        });
+        assert_eq!(
+            len_targets.len(),
+            1,
+            "main 中的 MutableSet.len direct-call target 应统一重写到 overload-aware symbol：{len_targets:#?}"
+        );
+        assert!(
+            len_targets
+                .iter()
+                .all(|target| target.starts_with("scoop.collections.len$overload$")),
+            "main 中不应再保留未重写的 `scoop.collections.len` root target：{len_targets:#?}"
+        );
+        assert_eq!(
+            contains_targets.len(),
+            2,
+            "main 中的 contains direct-call target 应区分 Set 与 MutableSet overload：{contains_targets:#?}"
+        );
+        assert!(
+            contains_targets
+                .iter()
+                .all(|target| target.starts_with("scoop.collections.contains$overload$")),
+            "main 中不应再保留未重写的 `scoop.collections.contains` root target：{contains_targets:#?}"
+        );
+        for target in len_targets.iter().chain(contains_targets.iter()) {
+            assert!(
+                pass_view.callable(target).is_some(),
+                "pass-view 应发布 direct-call target `{target}` 的 canonical body"
+            );
+        }
     }
 
     #[test]
