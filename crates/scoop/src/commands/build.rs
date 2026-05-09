@@ -18,6 +18,7 @@ use scoopc::session::SessionOptions;
 use thiserror::Error;
 
 type BuildInput = scoopc::frontend::ProjectInput;
+type BuildContext = scoopc::frontend::ProjectContext;
 type FrontendOutput = scoopc::frontend::FrontendOutput;
 pub(crate) type EntryPackageMissingMain = scoopc::frontend::EntryPackageMissingMain;
 pub(crate) type EntryPackageMainNotInConsumerCone =
@@ -174,14 +175,14 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
 
-    let input = load_build_input(&input, entry_package)?;
+    let context = load_build_context(&input, entry_package)?;
     let opt_level = resolve_opt_level(
         opt_level_override,
-        input.cone_manifest().native_build.opt_level,
+        context.input().cone_manifest().native_build.opt_level,
         profile,
     );
-    let output =
-        output.unwrap_or_else(|| default_output_path_for_input_and_emit(&input, emit, profile));
+    let output = output
+        .unwrap_or_else(|| default_output_path_for_input_and_emit(context.input(), emit, profile));
     ensure_output_parent_dir(&output)?;
 
     if output.exists() && output.is_dir() {
@@ -195,15 +196,15 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let incremental_ctx =
         if !incremental || !cfg!(feature = "llvm") || emit != BuildEmit::Executable {
             None
-        } else if !input.is_explicit_cone() {
+        } else if !context.input().is_explicit_cone() {
             None
         } else {
-            let root = input.cone_root().to_path_buf();
+            let root = context.input().cone_root().to_path_buf();
             let expected_out = layout::cone_exe_path(
                 &root,
                 None,
                 profile.as_str(),
-                &input.cone_manifest().cone.name,
+                &context.input().cone_manifest().cone.name,
             );
             if output != expected_out {
                 None
@@ -232,13 +233,8 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     let session = scoopc::session::Session::with_options(session_options)?;
 
-    let deps = if input.is_explicit_cone() {
-        deps::load_dependency_graph(input.cone_manifest(), input.cone_root())?
-    } else {
-        Vec::new()
-    };
     let warning_capture = scoopc::warnings::begin_capture();
-    let front = run_frontend(&session, input, &deps)?;
+    let front = run_frontend(&session, context)?;
     let warnings = warning_capture.finish();
     emit_frontend_warnings(&session, &front, &warnings);
     // 非 llvm 构建下，codegen 分支会被编译掉；这里显式访问一次 main 以避免 dead_code 警告，
@@ -348,6 +344,19 @@ fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Res
     scoopc::frontend::load_project_input_from_path(input, entry_package_override)
 }
 
+fn load_build_context(
+    input: &Path,
+    entry_package_override: Option<String>,
+) -> Result<BuildContext> {
+    let input = load_build_input(input, entry_package_override)?;
+    let deps = if input.is_explicit_cone() {
+        deps::load_dependency_graph(input.cone_manifest(), input.cone_root())?
+    } else {
+        Vec::new()
+    };
+    Ok(BuildContext::new(input, deps))
+}
+
 fn default_output_path_for_input_and_emit(
     input: &BuildInput,
     emit: BuildEmit,
@@ -389,10 +398,9 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 
 fn run_frontend(
     session: &scoopc::session::Session,
-    input: BuildInput,
-    deps: &[scoopc::cone::ConeArchiveApi],
+    context: BuildContext,
 ) -> Result<FrontendOutput> {
-    scoopc::frontend::run_frontend(session, input, deps)
+    scoopc::frontend::run_project_frontend(session, context)
 }
 
 fn ensure_output_parent_dir(path: &Path) -> Result<()> {
@@ -443,23 +451,10 @@ fn emit_refactor_llvm_artifact_for_build(
 ) -> Result<Vec<String>> {
     // P6-T05 handoff：`build --emit-*`、`run`（通过 executable build）和 build fixtures
     // 都必须经由同一 refactor LLVM stage helper，避免为某个产物种类保留测试专用语义入口。
-    let lowered = lower_main_hir_for_build(session, front, opt_level)?;
-    let extern_libs = lowered.extern_libs.clone();
-    let abi_visibility_lowered =
-        refactor_abi_visibility_lowered_hir_for_build(session, front, opt_level)?;
-    let (source_map, entry_source_id) = build_codegen_source_map(session, front);
-    scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
-        session,
-        &source_map,
-        entry_source_id,
-        lowered,
-        abi_visibility_lowered,
-        output,
-        front.input().entry_main_fqn(),
-        opt_level,
-        artifact,
-    )?;
-    Ok(extern_libs)
+    scoopc::effect_refactor_pipeline::emit_project_llvm_artifact_to_file(
+        session, front, output, opt_level, artifact,
+    )
+    .map_err(Into::into)
 }
 
 #[cfg(feature = "llvm")]
@@ -584,7 +579,7 @@ fn run_codegen_and_link(
     Ok(())
 }
 
-#[cfg(feature = "llvm")]
+#[cfg(all(feature = "llvm", test))]
 fn lower_hir_for_build_with_request_root_mode(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
@@ -599,7 +594,7 @@ fn lower_hir_for_build_with_request_root_mode(
     )
 }
 
-#[cfg(feature = "llvm")]
+#[cfg(all(feature = "llvm", test))]
 fn lower_main_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
@@ -613,7 +608,7 @@ fn lower_main_hir_for_build(
     )
 }
 
-#[cfg(feature = "llvm")]
+#[cfg(all(feature = "llvm", test))]
 fn refactor_abi_visibility_lowered_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
@@ -630,7 +625,7 @@ fn refactor_abi_visibility_lowered_hir_for_build(
     .map(Some)
 }
 
-#[cfg(feature = "llvm")]
+#[cfg(all(feature = "llvm", test))]
 fn build_codegen_source_map(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
@@ -952,8 +947,8 @@ public fun main() / Pure! {
         std::fs::write(&input, "fun main() {}\n").unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
 
         assert_eq!(
             front.input().mir_request_source_paths(),
@@ -996,8 +991,8 @@ version = "0.0.0"
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&pkg, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&pkg, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let cone_root = pkg.canonicalize().unwrap();
         let roots = front.input().mir_request_source_paths();
 
@@ -1009,6 +1004,63 @@ version = "0.0.0"
         assert!(
             roots.iter().all(|path| path.starts_with(&cone_root)),
             "cone build request roots 不应包含 stdlib/sysroot support sources: {roots:?}"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root() {
+        let dir = tempdir().unwrap();
+        let pkg = dir.path().join("pkg");
+        let src = pkg.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        std::fs::write(
+            pkg.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-file-mode"
+version = "0.0.0"
+"#,
+        )
+        .unwrap();
+        let main = src.join("main.scoop");
+        let helper = src.join("helper.scoop");
+        std::fs::write(
+            &main,
+            "package fixture.file_mode\nfun main(): Int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &helper,
+            "package fixture.file_mode\nfun helper(): Int { return 1 }\n",
+        )
+        .unwrap();
+
+        let session = scoopc::session::Session::new().unwrap();
+        let build_context = super::load_build_context(&main, None).unwrap();
+
+        assert!(
+            build_context.input().is_virtual_cone(),
+            "裸文件输入即使位于 cone root 下，也必须保持 virtual-cone contract"
+        );
+        assert!(
+            build_context.deps().is_empty(),
+            "virtual-cone contract 不应偷偷解析 explicit cone 依赖"
+        );
+        assert_eq!(
+            build_context.input().mir_request_source_paths(),
+            vec![main.clone()]
+        );
+
+        let front = super::run_frontend(&session, build_context).unwrap();
+        assert!(
+            front
+                .input()
+                .sources()
+                .iter()
+                .all(|source| source.path() != helper.as_path()),
+            "bare file -> project frontend 不应自动把同 cone 的其它源文件塞进 context"
         );
     }
 
@@ -1039,8 +1091,8 @@ fun main(): Int {
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         assert!(
             front
                 .monomorph_requests()
@@ -1109,8 +1161,8 @@ fun helperOnly(): Int {
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&pkg, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&pkg, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         assert!(
             front.input().mir_request_source_paths().len() >= 2,
             "cone build 仍应把 consumer cone sources 作为 request-source 过滤集合"
@@ -1144,8 +1196,8 @@ fun helperOnly(): Int {
             .join("../../tests/fixtures/run-pass/std_sync_basic.scoop");
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
 
         assert!(
@@ -1202,8 +1254,8 @@ fun main(): Int / Pure! {
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let materialized = lowered
             .materialized_mir()
@@ -1307,8 +1359,8 @@ fun main(): Int {
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
         let ir = scoopc::llvm::emit_minimal_main_ir_from_materialized_lowered_hir(
@@ -1361,8 +1413,8 @@ fun main(): Int / Pure! {
         .unwrap();
 
         let session = scoopc::session::Session::new().unwrap();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let lowered_member_fqns = lowered
             .member_funs
@@ -1408,8 +1460,8 @@ fun main(): Int {
         .unwrap();
 
         let session = refactor_session();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let abi_visibility_lowered =
             super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
@@ -1453,8 +1505,8 @@ fun main(): Int {
         write_reachable_legacy_effect_fixture(&input);
 
         let session = refactor_session();
-        let build_input = super::load_build_input(&input, None).unwrap();
-        let front = super::run_frontend(&session, build_input, &[]).unwrap();
+        let build_context = super::load_build_context(&input, None).unwrap();
+        let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let abi_visibility_lowered =
             super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)

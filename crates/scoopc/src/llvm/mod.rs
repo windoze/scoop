@@ -65,6 +65,7 @@ pub use target::{HostTargetInfo, LlvmTargetError};
 pub(crate) use emit::{
     build_minimal_main_module, build_minimal_main_module_with_opt_level,
     build_refactor_main_module_from_stage_output, build_single_file_source_map,
+    emit_materialized_ir_for_root_callable,
 };
 #[cfg(test)]
 pub(crate) use pipeline::run_pass_pipeline;

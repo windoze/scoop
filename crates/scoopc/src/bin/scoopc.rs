@@ -1,8 +1,8 @@
 //! `scoopc` 独立命令行入口（早期阶段）。
 //!
-//! 当前支持两个单文件 artifact 能力：
-//! - `--emit-llvm <input.scoop> [-o <out.ll>]`：经 refactor LLVM stage 生成 LLVM IR。
-//! - `--emit-obj <input.scoop> [-o <out.o>]`：经 refactor LLVM stage 生成 object 文件。
+//! 当前支持 single-source virtual cone 的默认 artifact 能力：
+//! - `scoopc <input.scoop> [-o <out.ll>]`：经 refactor LLVM stage 生成 LLVM IR。
+//! - `scoopc --obj <input.scoop> [-o <out.o>]`：经 refactor LLVM stage 生成 object 文件。
 
 use std::path::{Path, PathBuf};
 
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     {
         match cli.emit_mode {
             scoopc::driver_cli::EmitMode::LlvmIr => {
-                scoopc::effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+                scoopc::effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
                     &session,
                     &source,
                     &output,
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
                 eprintln!("已写入 LLVM IR：{}", output.display());
             }
             scoopc::driver_cli::EmitMode::Object => {
-                scoopc::effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+                scoopc::effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
                     &session,
                     &source,
                     &output,
@@ -65,8 +65,8 @@ fn main() -> Result<()> {
         let _ = &source;
         let _ = &output;
         let subcommand = match cli.emit_mode {
-            scoopc::driver_cli::EmitMode::LlvmIr => "--emit-llvm",
-            scoopc::driver_cli::EmitMode::Object => "--emit-obj",
+            scoopc::driver_cli::EmitMode::LlvmIr => "<file>",
+            scoopc::driver_cli::EmitMode::Object => "--obj",
         };
         Err(miette::miette!(
             "`scoopc {subcommand}` 需要启用 LLVM 后端：若你用了 `--no-default-features`，去掉它或加上 `--features llvm`"

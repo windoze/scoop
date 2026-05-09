@@ -10,12 +10,13 @@ use crate::session::SessionOptions;
 
 pub const USAGE: &str = "\
 用法：
-  scoopc --emit-llvm <input.scoop> [-o <out.ll>]
-  scoopc --emit-obj  <input.scoop> [-o <out.o>]
+  scoopc [--emit-llvm] <input.scoop> [-o <out.ll>]
+  scoopc --obj <input.scoop> [-o <out.o>]
 
 说明：
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
-  - 当前只 codegen 入口 `fun main` 的一小部分表达式子集；其它顶层声明会被忽略。
+  - 裸 `<input.scoop>` 按 single-source virtual cone 处理，不会根据相邻 `Cone.toml` 自动恢复 explicit cone/project context。
+  - `--obj` 为 object 输出模式；省略时默认输出 LLVM IR。
 ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,7 +48,7 @@ where
         match arg.as_str() {
             "-h" | "--help" => return Ok(None),
             "--emit-llvm" => emit_llvm = true,
-            "--emit-obj" => emit_obj = true,
+            "--emit-obj" | "--obj" => emit_obj = true,
             "-o" | "--output" => {
                 let Some(value) = args.next() else {
                     return Err(miette::miette!("参数 `{arg}` 需要一个输出路径\n\n{USAGE}"));
@@ -69,14 +70,10 @@ where
     let emit_mode = match (emit_llvm, emit_obj) {
         (true, false) => EmitMode::LlvmIr,
         (false, true) => EmitMode::Object,
-        (false, false) => {
-            return Err(miette::miette!(
-                "缺少输出模式（需要 `--emit-llvm` 或 `--emit-obj`）\n\n{USAGE}"
-            ));
-        }
+        (false, false) => EmitMode::LlvmIr,
         (true, true) => {
             return Err(miette::miette!(
-                "`--emit-llvm` 与 `--emit-obj` 不能同时使用\n\n{USAGE}"
+                "`--emit-llvm` 与 `--obj`/`--emit-obj` 不能同时使用\n\n{USAGE}"
             ));
         }
     };
@@ -98,8 +95,8 @@ mod tests {
     use super::{EmitMode, parse_args};
 
     #[test]
-    fn single_pipeline_is_used_for_scoopc_cli() {
-        let cli = parse_args(["--emit-llvm", "input.scoop"]).unwrap().unwrap();
+    fn bare_file_defaults_to_virtual_cone_llvm_ir_cli() {
+        let cli = parse_args(["input.scoop"]).unwrap().unwrap();
 
         assert_eq!(cli.emit_mode, EmitMode::LlvmIr);
         assert_eq!(cli.input, PathBuf::from("input.scoop"));
@@ -107,9 +104,16 @@ mod tests {
     }
 
     #[test]
+    fn obj_flag_selects_object_output_mode() {
+        let cli = parse_args(["--obj", "input.scoop"]).unwrap().unwrap();
+
+        assert_eq!(cli.emit_mode, EmitMode::Object);
+        assert_eq!(cli.input, PathBuf::from("input.scoop"));
+    }
+
+    #[test]
     fn effect_pipeline_selector_removed_for_scoopc_cli() {
-        let err =
-            parse_args(["--effect-pipeline", "legacy", "--emit-obj", "input.scoop"]).unwrap_err();
+        let err = parse_args(["--effect-pipeline", "legacy", "--obj", "input.scoop"]).unwrap_err();
 
         assert!(err.to_string().contains("未知参数：--effect-pipeline"));
     }
@@ -121,5 +125,12 @@ mod tests {
 
         let message = err.to_string();
         assert!(message.contains("未知参数：--effect-pipeline"));
+    }
+
+    #[test]
+    fn llvm_and_object_modes_conflict() {
+        let err = parse_args(["--emit-llvm", "--obj", "input.scoop"]).unwrap_err();
+
+        assert!(err.to_string().contains("不能同时使用"));
     }
 }

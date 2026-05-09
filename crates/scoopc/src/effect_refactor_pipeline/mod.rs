@@ -180,7 +180,11 @@ pub(crate) fn run_llvm_codegen_stage(
 }
 
 #[cfg(feature = "llvm")]
-pub fn emit_single_file_llvm_artifact_to_file(
+/// 以 single-source virtual-cone contract 发射 LLVM artifact。
+///
+/// 该入口只接受裸 `SourceFile` 语义；若调用方拥有显式 cone / 多源 project context，
+/// 应改用 `emit_project_llvm_artifact_to_file(...)`，而不是让末端 helper 猜目录语义。
+pub fn emit_virtual_cone_llvm_artifact_to_file(
     session: &Session,
     source: &SourceFile,
     output: &Path,
@@ -193,6 +197,56 @@ pub fn emit_single_file_llvm_artifact_to_file(
         artifact,
         OptLevel::O0,
     )
+}
+
+#[cfg(feature = "llvm")]
+/// 以 authoritative project context（`FrontendOutput`）发射 LLVM artifact。
+///
+/// 这条入口对应 `scoop` -> `scoopc` 的 project build contract：上层驱动负责先确定
+/// `ProjectInput + deps`，`scoopc` 负责消费完整 context 运行 frontend/lowering/codegen。
+pub fn emit_project_llvm_artifact_to_file(
+    session: &Session,
+    front: &crate::frontend::FrontendOutput,
+    output: &Path,
+    opt_level: crate::opt::OptLevel,
+    artifact: LlvmArtifactKind,
+) -> Result<Vec<String>, crate::llvm::LlvmEmitError> {
+    let lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        front,
+        opt_level,
+        crate::frontend::MirRequestRootMode::EntryMain,
+    )
+    .map_err(project_frontend_prepare_error)?;
+    let extern_libs = lowered.extern_libs.clone();
+    let abi_visibility_lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        front,
+        opt_level,
+        crate::frontend::MirRequestRootMode::RequestSources,
+    )
+    .map(Some)
+    .map_err(project_frontend_prepare_error)?;
+    let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
+    emit_production_llvm_artifact_to_file(
+        session,
+        &source_map,
+        entry_source_id,
+        lowered,
+        abi_visibility_lowered,
+        output,
+        front.input().entry_main_fqn(),
+        opt_level,
+        artifact,
+    )?;
+    Ok(extern_libs)
+}
+
+#[cfg(feature = "llvm")]
+fn project_frontend_prepare_error(error: impl std::fmt::Display) -> crate::llvm::LlvmEmitError {
+    crate::llvm::LlvmEmitError::Frontend {
+        message: error.to_string(),
+    }
 }
 
 #[cfg(feature = "llvm")]

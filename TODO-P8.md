@@ -474,14 +474,15 @@
   - [`PLAN.md`](./PLAN.md) §2/P8，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
   - 前置实现参考：[`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02o、[`TODO-P7.md`](./TODO-P7.md) P7-T02V / P7-T02W
+- 术语约定：本节后文所说 default single-file path/stage/entry，现均指“默认 project 设置下、只含一个用户源文件的 virtual cone 路径”；自 2026-05-10 起它已与显式 cone build 共用 `crate::frontend` 的 parse/resolve/typecheck/request-root/entry-main 主线，不再代表独立“单文件前端/入口”。
 - 背景 / blocker：
-  - 2026-05-10 在执行 `P8-T03a`、把默认单文件 helper/入口切到 refactor LLVM stage 后，`helper(Derived())` / `helper(Impl())` 这一类“实参是具体 nominal subtype、callee 参数是 base/interface supertype”的单文件 outward helper 样本不再能通过 default path。
+  - 2026-05-10 在执行 `P8-T03a`、把默认 virtual-cone（单文件输入）helper/入口切到 refactor LLVM stage 后，`helper(Derived())` / `helper(Impl())` 这一类“实参是具体 nominal subtype、callee 参数是 base/interface supertype”的 outward helper 样本不再能通过 default path。
   - 复现表现：`cargo run -p scoopc -- --emit-llvm <sample>` 与 `crates/scoopc/src/llvm/tests.rs` 中对应 default helper 测试都会在 late lowering 失败：`refactor late-lowering stage 无法为 a.main 的 Call site1 发布 boundary operand contract：local4 的类型为 t388，但 published operand contract 期望 t385`。
-  - 复核后确认：当前 default single-file refactor stage 在发布 direct call boundary operand contract 时，仍把 nominal source 要求成“operand local.ty 与 published expected_ty 全等”，没有接受已经由前端 typecheck 证明合法的 `Derived <: Base` / `Impl <: IFace` source route。
-  - 这不是 `P8-T03a` 可接受的“先把测试改成显式 materialized helper”问题；默认单文件主线路径本身就必须支持这类 nominal upcast call boundary，否则 `P8-T03a` 无法完成默认 virtual/interface outward helper 迁移。
+  - 复核后确认：当前 default virtual-cone refactor stage 在发布 direct call boundary operand contract 时，仍把 nominal source 要求成“operand local.ty 与 published expected_ty 全等”，没有接受已经由前端 typecheck 证明合法的 `Derived <: Base` / `Impl <: IFace` source route。
+  - 这不是 `P8-T03a` 可接受的“先把测试改成显式 materialized helper”问题；默认 virtual-cone 主线路径本身就必须支持这类 nominal upcast call boundary，否则 `P8-T03a` 无法完成默认 virtual/interface outward helper 迁移。
 
 - 目标：
-  - 让 default single-file refactor stage 能正确发布并消费 nominal upcast direct call boundary operand contract；
+  - 让 default virtual-cone refactor stage 能正确发布并消费 nominal upcast direct call boundary operand contract；
   - 覆盖 class-supertype 与 interface-supertype 两类 outward helper 场景；
   - 为随后恢复 `P8-T03a` 的默认 helper/public entry 迁移提供稳定前提。
 
@@ -495,7 +496,7 @@
         - 已 typecheck 合法的 nominal upcast source（例如 `Derived` -> `Base`、`Impl` -> `IFace`）必须能在 published operand contract 下通过；
         - 不允许靠恢复旧 helper、恢复旧 wrapper，或把 default tests 改回 explicit materialized helper 绕过；
         - 不允许把 operand contract 放宽成“丢失 source_ty / 不再可验证”的模糊表达。
-  2. 为 default single-file refactor stage 增加窄回归守护。
+  2. 为 default virtual-cone refactor stage 增加窄回归守护。
       - 至少覆盖：
         - outward virtual helper 默认路径；
         - outward interface helper 默认路径；
@@ -510,15 +511,15 @@
   1. 至少运行并通过：
      - `cargo test -p scoopc --lib llvm::tests::virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
      - `cargo test -p scoopc --lib llvm::tests::interface_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
-  2. 如上面两条仍不足以证明 public single-file path：
-     - 增加等价的 default single-file LLVM unit test / smoke，证明 `scoopc` 默认单文件 stage 入口不会再在 nominal upcast call boundary 处 fail fast。
+  2. 如上面两条仍不足以证明 public virtual-cone path：
+     - 增加等价的 default virtual-cone LLVM unit test / smoke，证明 `scoopc` 默认 virtual-cone stage 入口不会再在 nominal upcast call boundary 处 fail fast。
 
 - 完成条件：
-  - default single-file refactor stage 不再因 nominal upcast call boundary 在 virtual/interface outward helper 上失败；
+  - default virtual-cone refactor stage 不再因 nominal upcast call boundary 在 virtual/interface outward helper 上失败；
   - `P8-T03a` 可以继续迁移默认 helper/public entry，而不再被该 blocker 卡住。
 - 依赖：`P8-T03R`
 - 完成记录：
-  - 2026-05-10：已把 `crates/scoopc/src/frontend.rs` 抽成共享 project frontend，并把单文件输入收敛为“默认 project 设置下、只含一个用户源文件的 virtual cone”；`scoop build <file>`、显式 cone build 与 `llvm/frontend.rs` 的默认单文件 codegen 现在共用同一套 parse/resolve/typecheck/request-root/entry-main 逻辑，不再保留分裂的“单文件前端”。
+  - 2026-05-10：已把 `crates/scoopc/src/frontend.rs` 抽成共享 project frontend，并把单文件输入收敛为“默认 project 设置下、只含一个用户源文件的 virtual cone”；`scoop build <file>`、显式 cone build 与 `llvm/frontend.rs` 的默认 virtual-cone codegen 现在共用同一套 parse/resolve/typecheck/request-root/entry-main 逻辑，不再保留分裂的“单文件前端”。
   - 2026-05-10：已修复 late-lowering nominal supertype 事实来源。`crates/scoopc/src/effect_lowered/builder.rs` 不再从会丢失 supertype metadata 的 canonical materialized MIR file 收集 nominal direct supertypes，而是允许由 `RefactorMirStageOutput.file()` 的 authoritative direct-style MIR metadata 注入；`effect_lowering_stage.rs` 现显式把这张表传给 `LateLoweredProgramBuilder`，从而让 `Derived <: Base` / `Impl <: IFace` 的 direct call boundary contract 在 default refactor stage 下稳定通过。
   - 2026-05-10：已新增 late-lowering 窄回归 `refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources`，直接守护 `a.main -> helper(Derived())` 这类 nominal upcast arg source 不再在 P5 fail fast。
   - 2026-05-10：已把 `crates/scoopc/src/llvm/tests.rs` 中的 outward virtual/interface helper 默认路径断言改写到 refactor stage authoritative surface：检查 `__scoop_refactor_direct_invoke__a_helper`、step-tag dispatch、surface-resume owner dispatch，以及 helper body 本身不回落到 legacy TLS/outcome runtime 符号，而不再依赖旧式 `a.helper` wrapper/TLS 命名。
@@ -535,58 +536,62 @@
   - 验证：`cargo test -p scoop build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper`
   - 验证：`cargo test -p scoop no_hidden_legacy_fallback_for_default_refactor_build_output`
 
-## P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
+## [DONE] P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
   - 前置实现参考：[`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03f / P6-T03g / P6-T05、[`TODO-P8.md`](./TODO-P8.md) P8-T01 / P8-T02 / P8-T03R
+- 术语约定：本任务中的“单文件 LLVM artifact 入口”现统一指“单用户源文件经 virtual cone 包装后的默认 `<file>` / `scoopc` artifact 路径”；frontend 侧已与显式 cone build 合并，本任务剩余工作仅是 LLVM artifact handoff 与默认 helper 的收口，不再存在独立“单文件前端/入口”实现。
+- 边界约定（类比 `cargo` / `rustc`）：裸 `scoopc <file>` / `SourceFile` 只承载 single-source virtual-cone contract；若目标语义是显式 cone / 多源 project，则 authoritative project context（至少包括 project sources、cone root / manifest、entry 选择，以及依赖 cone 位置或其已解析结果）必须由 `scoop` 等上层驱动预先确定并传给 `scoopc` 的 project frontend（`ProjectInput + deps` 或等价输入），不得指望 `scoopc` 在末端从单个源码路径自行恢复。
 - 背景 / blocker：
   - 2026-05-10 执行 `P8-T04` 的首步 `cargo test --all` 时，`crates/scoopc/src/llvm/tests.rs` 一批单文件 LLVM 测试统一失败，错误为 `UnsupportedMainBody { kind: "HIR handle lowering removed; use refactor MIR lowering" }`。
-  - 复核后确认：`crates/scoopc/src/llvm/emit.rs` 的 `emit_minimal_main_ir` / `emit_minimal_main_obj_to_file` / `emit_minimal_main_asm_to_file` / `build_minimal_main_module*`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 暴露给 `scoopc` bin 的 `emit_single_file_llvm_artifact_to_file(...)`，默认仍经 `materialized_lowered_hir` 入口构建 LLVM module。
-  - 该入口的 raw materialized MIR backend 明确把 `TerminatorKind::Handle` 视为 unsupported，而 HIR `handle` lowering 已在 P8 前移除；因此只要入口 `main` 里出现 `handle` / `try`，默认单文件路径就会回落到已删除的 HIR 旧路并失败。
-  - 这不是 `P8-T04` 可接受的“修一个测试就继续”的局部问题，而是一个尚未跟踪的前置依赖：默认单文件 LLVM artifact 入口和对应默认测试 helper 还没有真正切到唯一 refactor 主线。
+  - 复核后确认：`crates/scoopc/src/llvm/emit.rs` 的 `emit_minimal_main_ir` / `emit_minimal_main_obj_to_file` / `emit_minimal_main_asm_to_file` / `build_minimal_main_module*`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 暴露给 `scoopc` bin 的 virtual-cone artifact 入口，默认仍经 `materialized_lowered_hir` 入口构建 LLVM module。
+  - 该入口的 raw materialized MIR backend 明确把 `TerminatorKind::Handle` 视为 unsupported，而 HIR `handle` lowering 已在 P8 前移除；因此只要入口 `main` 里出现 `handle` / `try`，默认 virtual-cone 路径就会回落到已删除的 HIR 旧路并失败。
+  - 这不是 `P8-T04` 可接受的“修一个测试就继续”的局部问题，而是一个尚未跟踪的前置依赖：默认 virtual-cone LLVM artifact 路径和对应默认测试 helper 还没有真正切到唯一 refactor 主线。
   - 2026-05-10：在切换默认 helper 到 refactor stage 的执行过程中，又暴露出 default virtual/interface outward helper 的 nominal upcast call boundary blocker；已新增前置任务 `P8-T03aa`，必须先修复该 contract 缺口，再继续完成本任务。
 
 - 目标：
-  - 把默认单文件 LLVM artifact 入口、以及表示“默认/生产单文件路径”的测试 helper，迁移到 refactor LLVM stage handoff；
+  - 把默认 virtual-cone（单文件输入）LLVM artifact 入口、以及表示“默认/生产 virtual-cone 路径”的测试 helper，迁移到 refactor LLVM stage handoff；
   - 清除默认 helper 对 raw materialized MIR entry-main / HIR handle fallback 的隐藏依赖；
-  - 只在显式的历史/对照测试 helper 上保留 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 语义，禁止它们继续作为默认单文件主入口生效。
+  - 只在显式的历史/对照测试 helper 上保留 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 语义，禁止它们继续作为默认 virtual-cone 主入口生效。
 
 - 必须实现的内容：
-  1. 审计并迁移默认单文件 LLVM artifact 入口。
+  1. 审计并迁移默认 virtual-cone LLVM artifact 入口。
      - 至少检查并修改：
        - `crates/scoopc/src/llvm/emit.rs`
        - `crates/scoopc/src/effect_refactor_pipeline/mod.rs`
        - `crates/scoopc/src/bin/scoopc.rs`
-       - 任何仍把“单文件默认 LLVM 发射”接到 `LoweredCodegenEntry::from_materialized_lowered_hir(...)` 的入口/包装层
+       - 任何仍把“默认 virtual-cone LLVM 发射”接到 `LoweredCodegenEntry::from_materialized_lowered_hir(...)` 的入口/包装层
      - 要求：
-       - 默认 `emit_minimal_main_*` / `emit_single_file_llvm_artifact_to_file(...)` 必须经 refactor LLVM stage handoff 构建产物；
-       - 不允许继续把 raw materialized MIR entry-main + HIR fallback 当成默认生产入口；
-       - 不允许通过恢复 HIR `handle` lowering、恢复 selector、或在默认入口里做“遇到 handle 再切 stage”的隐藏 bifurcation 规避问题。
+        - 默认 `emit_minimal_main_*` / `emit_virtual_cone_llvm_artifact_to_file(...)` 必须经 refactor LLVM stage handoff 构建产物；
+        - 不允许继续把 raw materialized MIR entry-main + HIR fallback 当成默认生产入口；
+        - 不允许把默认 `<file>` / `scoopc` artifact 路径偷偷扩张成“既处理 virtual cone，又靠猜目录恢复 explicit cone/project context”的混合入口；
+        - 不允许通过恢复 HIR `handle` lowering、恢复 selector、或在默认入口里做“遇到 handle 再切 stage”的隐藏 bifurcation 规避问题。
   2. 明确区分“默认生产 helper”与“显式历史/对照 helper”。
      - 若 `emit_*_from_lowered_hir` / `emit_*_from_materialized_lowered_hir` 仍需保留：
        - 必须仅作为显式测试/对照入口；
-       - 不得再被默认单文件 artifact 入口、`scoopc` bin 默认命令、或默认 LLVM 单测 helper 间接调用；
+       - 不得再被默认 virtual-cone artifact 入口、`scoopc` bin 默认命令、或默认 LLVM 单测 helper 间接调用；
        - 相关注释/命名要明确它们不是当前单一主线的默认入口。
   3. 迁移或重写受影响的默认 LLVM 单测。
      - 至少检查并修改：
        - `crates/scoopc/src/llvm/tests.rs`
-       - 如需要，新增更窄的 helper，把“默认单文件主线”与“显式 materialized/raw-MIR 对照”分开
+       - 如需要，新增更窄的 helper，把“默认 virtual-cone 主线”与“显式 materialized/raw-MIR 对照”分开
      - 要求：
-       - 仍在验证默认单文件主线的测试，必须改为断言 refactor LLVM stage 的 authoritative 语义；
+       - 仍在验证默认 virtual-cone 主线的测试，必须改为断言 refactor LLVM stage 的 authoritative 语义；
        - 只有在测试目的明确是 raw materialized MIR bridge / direct-HIR 对照时，才允许继续使用显式 `*_from_materialized_lowered_hir` / `*_from_lowered_hir` helper；
        - 禁止继续让默认 helper 承担“旧 materialized-HIR path”的语义断言。
-  4. 增加回归守护，证明默认单文件入口已真正走 stage。
+  4. 增加回归守护，证明默认 virtual-cone 入口已真正走 stage。
      - 至少要有一条自动化验证覆盖：
-       - 默认单文件 LLVM IR/object/asm 入口会触发 refactor LLVM stage；
-       - `main` 含 `handle` / `try` 的单文件样本不再触发 `HIR handle lowering removed`；
-       - `scoopc` bin 的默认单文件 artifact 路径不再存在 hidden fallback。
+       - 默认 virtual-cone LLVM IR/object/asm 入口会触发 refactor LLVM stage；
+       - `main` 含 `handle` / `try` 的单用户源文件样本不再触发 `HIR handle lowering removed`；
+       - `scoopc` bin 的默认 virtual-cone artifact 路径不再存在 hidden fallback。
 
 - 必须遵从的约束：
   - 禁止恢复 HIR `handle` lowering 作为临时过桥。
-  - 禁止在默认单文件入口保留“普通情况走旧 helper、遇到 effectful main 再偷偷切新 helper”的分叉。
-  - 禁止把 raw materialized MIR backend 对 `TerminatorKind::Handle` 的不支持继续暴露成默认单文件主线路径的一部分。
+  - 禁止在默认 virtual-cone 入口保留“普通情况走旧 helper、遇到 effectful main 再偷偷切新 helper”的分叉。
+  - 禁止把 raw materialized MIR backend 对 `TerminatorKind::Handle` 的不支持继续暴露成默认 virtual-cone 主线路径的一部分。
+  - 禁止让 `scoopc` 裸 `<file>` 入口根据工作目录、相邻 `Cone.toml` 或其它环境线索隐式切换为 explicit-cone 语义；virtual-cone vs explicit-cone project context 必须由上层调用方显式确定。
   - 若某个旧 helper 仅剩历史/对照用途，必须在完成记录中明确说明它为何不会再形成 production hidden dependency。
 
 - 验证：
@@ -596,23 +601,40 @@
      - `cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`
      - `cargo test -p scoopc --lib llvm::tests::boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint -- --exact`
      - `cargo test -p scoopc --lib effect_refactor_pipeline::llvm_codegen_stage::tests::single_pipeline_llvm_codegen_stage_build_entry_uses_stage -- --exact`
-  2. 对 `scoopc` 默认单文件 artifact 路径做最小 smoke：
-     - `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
-     - `cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
+  2. 对 `scoopc` 默认 virtual-cone artifact 路径做最小 smoke：
+      - `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
+      - `cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
   3. 需要在完成记录中总结：
-     - 默认 helper / public single-file entry 与显式历史 helper 的最终边界；
-     - 仍保留的 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 用途说明；
-     - 为什么它们不再构成 hidden legacy / hidden fallback。
+      - 默认 helper / public virtual-cone entry 与显式历史 helper 的最终边界；
+      - 仍保留的 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 用途说明；
+      - 为什么它们不再构成 hidden legacy / hidden fallback。
 
 - 完成条件：
-  - 默认单文件 LLVM artifact 入口已真正切到 refactor LLVM stage；
-  - `main` 含 `handle` / `try` 的默认单文件路径不再触发已删除的 HIR handle lowering；
+  - 默认 virtual-cone LLVM artifact 入口已真正切到 refactor LLVM stage；
+  - `main` 含 `handle` / `try` 的默认 virtual-cone 路径不再触发已删除的 HIR handle lowering；
   - 默认 LLVM 单测 helper 与显式历史/对照 helper 已语义分层；
   - `P8-T04` 可以在不先撞上该 blocker 的前提下重新执行完整矩阵。
 - 依赖：`P8-T03R`，`P8-T03aa`
 - 完成记录：
-  - 2026-05-10：已完成一部分默认入口迁移骨架：`effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(...)` 与 `llvm::emit` 默认 `emit_minimal_main_*` / `build_minimal_main_module*` 已改为经 refactor LLVM stage handoff 发射产物；同时新增 stage-use 与 `handle main` 默认路径守护测试。
-  - 2026-05-10：执行定向回归时发现 default virtual/interface outward helper 在 refactor stage 上会因 nominal upcast call boundary contract 失败而阻塞；已新增前置任务 `P8-T03aa`，因此本任务保持未完成，待 blocker 修复后继续。
+  - 2026-05-10：在 `P8-T03aa` 修复 nominal upcast call boundary blocker 后，本任务继续完成收口。`llvm::emit` 默认 `emit_minimal_main_*` / `build_minimal_main_module*` 与 `llvm/frontend.rs` 默认 helper 现统一经 virtual-cone context + refactor LLVM stage handoff 发射产物；`main` 含 `handle` / `try` 的默认路径不再触发已删除的 HIR handle lowering。
+  - 2026-05-10：已正式区分 `scoop` -> `scoopc` 的两类调用规范。`crates/scoopc/src/frontend.rs` 新增 `ProjectContext` / `run_project_frontend(...)`；`scoop build` 现在先构造 authoritative project context（`ProjectInput + deps`），再把它交给 `scoopc` 的 project frontend，不再把 explicit-cone 语义留给末端 helper 从裸文件路径猜测。新增 `build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root` 守护：即便文件位于某个 cone root 下，bare file 入口也必须保持 virtual-cone contract。
+  - 2026-05-10：已把 LLVM artifact 入口按 contract 分层。`effect_refactor_pipeline::emit_project_llvm_artifact_to_file(...)` 负责消费完整 project context；`effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(...)` 负责 bare `SourceFile` / `scoopc <file>` 的 single-source virtual-cone 入口。`scoop build` 现改走前者，`scoopc` bin 与默认 virtual-cone helper 改走后者。
+  - 2026-05-10：`scoopc` CLI 现支持 bare `<file>` 默认输出 LLVM IR，`--obj <file>` 输出 object；帮助文本也已明确写出“裸 `<file>` 仅代表 single-source virtual cone，不会自动恢复 explicit cone/project context”。这使 `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop` 与 `cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop` 都能按任务要求通过。
+  - 2026-05-10：默认 helper / public virtual-cone entry 与显式历史 helper 的边界现已明确：`*_from_lowered_hir` / `*_from_materialized_lowered_hir` 仍只保留给显式历史/对照测试；新增更窄的 `emit_materialized_ir_for_root_callable(...)` 供 raw-materialized 对照测试按 root callable 精确取 IR，避免默认 helper 继续替旧 materialized-HIR path 背历史语义。
+  - 验证：`cargo fmt`
+  - 验证：`cargo test -p scoopc driver_cli`
+  - 验证：`cargo test -p scoop build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root`
+  - 验证：`cargo test -p scoop build_frontend_`
+  - 验证：`cargo test -p scoop no_hidden_legacy_fallback_for_default_refactor_build_output`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::effect_contract_struct_types_are_registered_for_effect_codegen -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint -- --exact`
+  - 验证：`cargo test -p scoopc --lib effect_refactor_pipeline::llvm_codegen_stage::tests::single_pipeline_llvm_codegen_stage_build_entry_uses_stage -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::default_single_file_ir_helper_lowers_handle_main_without_hir_fallback -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::single_file_frontend_keeps_distinct_effect_row_generic_instances -- --exact`
+  - 验证：`cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
+  - 验证：`cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
 
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 

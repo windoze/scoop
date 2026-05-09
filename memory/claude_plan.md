@@ -1,61 +1,59 @@
-# Claude Plan
+## 执行计划
 
-说明：出于安全与协作可读性考虑，这里记录可审计的执行计划、关键判断依据与进度更新，不记录逐字内部推理。
+说明：我不会写出逐字逐句的内部思维过程，但会在这里持续维护足够详细的执行摘要、决策依据与步骤计划，供你检查进度。
 
-## 初始计划
+### 初始计划
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
-2. 检查最近一次提交信息，确认是否存在与该任务直接相关且尚未完成的问题；如果有，将其视为当前任务的一部分或在 `TODO.md` 中补充为前置任务。
-3. 阅读该任务对应说明、依赖、验证要求，并只收集完成该任务所需的最小上下文。
-4. 实现该任务；若遇到阻塞当前任务的真实缺陷或缺失特性，不绕过，改为先修复或在 `TODO.md` 中插入最小前置任务。
-5. 运行任务要求的验证，以及必要的 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`。
-6. 更新文档记录：
-   - 将已完成任务在 `TODO.md` 中标记为 `[DONE]` 并补充 completion record。
-   - 仅当阶段计划或依赖结构变化时更新 `PLAN.md`。
-   - 在本文件追加进度与计划调整。
-7. 按仓库约定创建一次 git commit，然后停止，不继续下一项任务。
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断第一个未完成任务。
+2. 检查最近一次提交信息，确认是否有与该任务直接相关且明确未完成的问题需要并入当前任务或作为前置任务。
+3. 阅读当前任务涉及的说明、依赖、验证要求，以及必要的实现文件与测试。
+4. 如任务可直接完成：实现该任务，补充或调整测试，并运行任务要求的验证命令。
+5. 如存在阻塞当前任务的真实缺陷或缺失能力：先在 `TODO.md` 中以最小必要粒度加入前置任务、调整依赖顺序，并记录阻塞原因；仅在阶段计划发生变化时更新 `PLAN.md`。
+6. 完成后更新 `TODO.md`：将该任务标题改为 `[DONE]`，补全完成记录。
+7. 整理并提交本次变更，提交信息使用当前任务号，随后停止，不继续下一个任务。
 
-## 进度日志
+### 执行约束
 
-- 已创建执行计划文件；下一步读取 `TODO.md` 并识别当前应执行的首个未完成任务。
-- 已确认首个未完成任务为 `P8-T03a`：迁移默认单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖。
-- 最近一次提交为 `[P8-T03a] Track single-file LLVM stage blocker`，与当前任务直接相关；当前无需新增更早前置任务，直接按 `TODO-P8.md` 中的 blocker 描述实现该任务。
+- 只处理 `TODO.md` 中第一个未完成任务。
+- 不用变通方案掩盖规范不匹配；若遇到阻塞，先建前置任务。
+- 仅在阶段/依赖结构变化时更新 `PLAN.md`。
+- 在执行过程中，如计划变化或关键步骤完成，将继续更新本文件。
 
-## 当前执行分解
+### 当前任务识别
 
-1. 审计默认单文件 LLVM artifact 入口：`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`crates/scoopc/src/bin/scoopc.rs` 以及相关包装层，确认默认路径当前如何接到 `from_materialized_lowered_hir(...)`。
-2. 审计默认 LLVM 单测 helper：`crates/scoopc/src/llvm/tests.rs` 与 stage 测试，区分默认生产 helper 和显式历史/对照 helper 的现状。
-3. 进行最小必要修改：
-   - 默认单文件入口改走 refactor LLVM stage handoff；
-   - 保留的 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 仅作为显式对照 helper；
-   - 更新默认单测 helper 与命名/注释，避免隐式回退。
-4. 增加或调整回归守护，覆盖：
-   - 默认单文件入口会触发 stage；
-   - 含 `handle` / `try` 的 `main` 不再命中已删除 HIR lowering；
-   - `scoopc` 默认单文件 artifact 路径无 hidden fallback。
-5. 运行任务要求的代表性测试、smoke、格式化与 `clippy`。
-6. 更新 `TODO-P8.md` 完成记录、将 `TODO.md` 中 `P8-T03a` 标为 `[DONE]`，然后提交本轮改动并停止。
+- 首个未完成任务：`P8-T03a`（`TODO-P8.md`）。
+- 最近提交为 `P8-T03aa`，内容直接修复了执行 `P8-T03a` 时暴露的 nominal upcast blocker；`TODO-P8.md` 已把它记录为本任务前置，当前无需再新增前置任务。
+- 当前工作树除本文件外，已存在与 `P8-T03a` 直接相关的未提交改动：
+  - `crates/scoopc/src/llvm/emit.rs`
+  - `crates/scoopc/src/llvm/mod.rs`
+  - `crates/scoopc/src/llvm/tests.rs`
+  这些改动看起来是在继续完成 `P8-T03a`，需要纳入本次任务一起验证并提交。
 
-## 当前实现状态
+### 当前执行步骤
 
-- 已把 `effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(...)` 改为经 crate 内部的 refactor LLVM stage helper 发射 `.ll/.o/.s`，不再复用默认 `emit_minimal_main_*` 的旧 materialized-HIR 隐式路径。
-- 已把 `llvm::emit` 中默认 `build_minimal_main_module_with_opt_level(...)` 改为先构建 single-file refactor stage output，再从 stage handoff 建 module；因此默认 `emit_minimal_main_ir/obj/asm` 已不再间接调用 `from_materialized_lowered_hir(...)`。
-- 已保留显式 `*_from_materialized_lowered_hir` helper，但在注释中明确其仅用于显式历史/对照测试，不能再作为默认单文件生产入口。
-- 已新增两类回归守护：
-  - stage 计数测试：验证默认 `emit_minimal_main_ir` helper 和 public `emit_single_file_llvm_artifact_to_file` 均会触发 refactor LLVM stage；
-  - 默认 helper 回归：验证 `main` 含 `handle` 的默认单文件 IR helper 能成功生成 IR，且不会回落旧 effect backend 符号。
+1. 审核 `P8-T03a` 的要求与现有未提交实现，确认默认单文件 LLVM 入口是否已经完全切到 refactor stage。
+2. 审核默认 LLVM 单测与显式历史 helper 的边界，必要时继续改写测试 helper 或断言。
+3. 运行 `P8-T03a` 指定的定向验证，若失败则直接修复。
+4. 若定向验证通过，再更新 `TODO-P8.md`，将 `P8-T03a` 标记为 `[DONE]` 并补全完成记录。
+5. 提交当前任务相关的全部未提交文件并停止。
 
-## 当前阻塞
+### 当前进展
 
-- 在运行 `P8-T03a` 定向回归时，`llvm::tests::effect_contract_struct_types_are_registered_for_effect_codegen` 已按 refactor 默认路径改写并通过；但后续继续迁移默认 outward helper 测试时，发现 default single-file refactor stage 在 nominal upcast direct call boundary 上存在真实 stage 缺口：`helper(Derived())` / `helper(Impl())` 一类样本会在 late lowering 失败，报 `local4 的类型为 t388，但 published operand contract 期望 t385`。
-- 这不是测试能改回 explicit materialized helper 规避的问题，因为它直接阻塞 `P8-T03a` 要求的“默认 helper/public single-file entry 迁移到唯一 refactor 主线”。
-- 因此已在 `TODO-P8.md` / `TODO.md` 中新增前置任务 `P8-T03aa`，并把 `P8-T03a` 依赖更新为 `P8-T03R, P8-T03aa`。
+- 已确认默认单文件 `emit_minimal_main_*` / `build_minimal_main_module*` 与 `scoopc` 单文件 artifact 入口都已指向 refactor LLVM stage。
+- 已确认尚存的 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` helper 主要是显式历史/对照入口；本次继续补一条更窄的 raw-materialized helper，以避免默认 helper 再替历史对照测试背锅。
+- 第一次定向回归发现两个缺口：
+  1. `direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome` 被改名后，TODO 里的 `--exact` 命令只跑到 0 个测试；已恢复原测试名。
+  2. `boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint` 仍断言旧式 boxed payload GEP；已改为断言 refactor IR 中“从 explicit frame reload 并重建 aggregate，再发布 Step payload”的现行语义。
+- 还发现 `RootCallableSelector::Callable` 在非测试构建会触发 `dead_code` 警告；已在实现侧消除此警告，避免后续 `clippy -D warnings` 被卡住。
 
-## 本轮结论
+### 本次接手说明
 
-- 本轮不继续尝试完成 `P8-T03a`；按工作流要求，在记录 blocker 和前置任务后停止。
-- 提交内容将包含：
-  - 已完成的默认入口/默认 helper refactor-stage 迁移骨架；
-  - 新增的 stage-use / `handle main` 守护测试；
-  - 对一条已过时默认测试的 refactor 语义改写；
-  - `TODO-P8.md` / `TODO.md` 中新增的 blocker 前置任务与依赖更新。
+- 本次从现有未提交状态继续完成 `P8-T03a`，不会另起范围，也不会跳到 `P8-T04`。
+- 接下来优先确认最近提交是否只是在 `P8-T03aa` 收尾，以及当前工作树未提交改动是否全部属于 `P8-T03a`。
+- 若这些改动与任务目标一致，就在其基础上继续做最小修正、跑完任务要求的定向验证、更新 `TODO-P8.md` 并提交。
+
+### 新发现与调整
+
+- 已完成 `P8-T03a` 指定的核心 LLVM 定向回归，当前未提交代码在 stage 迁移与默认/历史 helper 分层上是成立的。
+- 但执行任务要求的 smoke 命令时，发现 `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop` 仍失败于 `driver_cli`：当前 CLI 还要求显式 `--emit-llvm` / `--emit-obj`，与 `TODO-P8.md` 中“默认单文件 artifact 入口”契约不一致。
+- 这属于 `P8-T03a` 直接覆盖的 public single-file entry 缺口，不新增前置任务；改为在本任务内最小修复 `crates/scoopc/src/driver_cli.rs` / `crates/scoopc/src/bin/scoopc.rs` 及相关测试，使 bare `<file>` 默认为 LLVM IR，`--obj <file>` 走 object 路径，同时继续保持入口走 refactor LLVM stage。

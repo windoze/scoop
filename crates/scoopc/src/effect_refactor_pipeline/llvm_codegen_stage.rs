@@ -1685,7 +1685,7 @@ fun main(): Int {
         reset_test_stage_run_count();
         for (artifact, rel) in artifacts {
             let out = temp.path().join(rel);
-            effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+            effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
                 &session, &source, &out, artifact,
             )
             .unwrap();

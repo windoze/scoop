@@ -883,12 +883,12 @@ pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
     lowered: &hir::LoweredHir,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    build_main_module_from_codegen_entry(
+    build_module_from_codegen_entry_with_root_selector(
         source_map,
         entry_source_id,
         context,
         LoweredCodegenEntry::from_lowered_hir(lowered),
-        entry_main_fqn,
+        RootCallableSelector::EntryMain { entry_main_fqn },
     )
 }
 
@@ -898,6 +898,40 @@ fn build_main_module_from_codegen_entry<'ctx>(
     context: &'ctx Context,
     codegen_entry: LoweredCodegenEntry<'_>,
     entry_main_fqn: Option<&str>,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    build_module_from_codegen_entry_with_root_selector(
+        source_map,
+        entry_source_id,
+        context,
+        codegen_entry,
+        RootCallableSelector::EntryMain { entry_main_fqn },
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn emit_materialized_ir_for_root_callable(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    lowered: &hir::LoweredHir,
+    callable_fqn: &str,
+) -> Result<String, LlvmEmitError> {
+    let context = Context::create();
+    let module = build_module_from_codegen_entry_with_root_selector(
+        source_map,
+        entry_source_id,
+        &context,
+        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
+        RootCallableSelector::Callable { callable_fqn },
+    )?;
+    Ok(module.print_to_string().to_string())
+}
+
+fn build_module_from_codegen_entry_with_root_selector<'ctx>(
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
+    context: &'ctx Context,
+    codegen_entry: LoweredCodegenEntry<'_>,
+    root_selector: RootCallableSelector<'_>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     configure_llvm_global_options_once();
 
@@ -922,15 +956,15 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    let selected_main = select_entry_main(lowered, entry_main_fqn)?;
-    let hir_main = selected_main.fun;
+    let selected_root = select_root_callable(lowered, root_selector)?;
+    let root_fun = selected_root.fun;
     if let Some(program) = late_lowered_program
-        && program.callable(&hir_main.fqn).is_none()
+        && program.callable(&root_fun.fqn).is_none()
     {
         return Err(LlvmEmitError::Frontend {
             message: format!(
                 "refactor LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
-                hir_main.fqn
+                root_fun.fqn
             ),
         });
     }
@@ -997,7 +1031,7 @@ fn build_main_module_from_codegen_entry<'ctx>(
     let mut declare = unit_codegen.fresh_main_codegen();
 
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
-        hir_main,
+        root_fun,
         &fun_index,
         unit_codegen.materialized_pass_view(),
         ReachabilityInputs {
@@ -1031,6 +1065,12 @@ fn build_main_module_from_codegen_entry<'ctx>(
             }
         }
         reachable.extend(monomorphized);
+    }
+
+    if selected_root.entry_main_arg_shape.is_none()
+        && !reachable.iter().any(|fun| fun.fqn == root_fun.fqn)
+    {
+        reachable.push(root_fun);
     }
 
     // T0126: Helper to check if a function's signature contains TypeKind::Param
@@ -1140,83 +1180,84 @@ fn build_main_module_from_codegen_entry<'ctx>(
         }
     }
 
-    let i32_type = context.i32_type();
-    let i8_ptr_ptr_ty = context.ptr_type(inkwell::AddressSpace::default());
-    let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
+    if let Some(arg_shape) = selected_root.entry_main_arg_shape {
+        let i32_type = context.i32_type();
+        let i8_ptr_ptr_ty = context.ptr_type(inkwell::AddressSpace::default());
+        let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
-    let main = module.add_function("main", fn_type, None);
-    let entry = context.append_basic_block(main, "entry");
-    builder.position_at_end(entry);
+        let main = module.add_function("main", fn_type, None);
+        let entry = context.append_basic_block(main, "entry");
+        builder.position_at_end(entry);
 
-    let argc = main
-        .get_nth_param(0)
-        .ok_or(LlvmEmitError::ModuleVerificationFailed {
-            message: "entry main 缺少 argc 参数".to_string(),
-        })?
-        .into_int_value();
-    let argv = main
-        .get_nth_param(1)
-        .ok_or(LlvmEmitError::ModuleVerificationFailed {
-            message: "entry main 缺少 argv 参数".to_string(),
-        })?
-        .into_pointer_value();
-    argc.set_name("argc");
-    argv.set_name("argv");
+        let argc = main
+            .get_nth_param(0)
+            .ok_or(LlvmEmitError::ModuleVerificationFailed {
+                message: "entry main 缺少 argc 参数".to_string(),
+            })?
+            .into_int_value();
+        let argv = main
+            .get_nth_param(1)
+            .ok_or(LlvmEmitError::ModuleVerificationFailed {
+                message: "entry main 缺少 argv 参数".to_string(),
+            })?
+            .into_pointer_value();
+        argc.set_name("argc");
+        argv.set_name("argv");
 
-    // T0815：在入口函数里调用 runtime init（当前阶段先只调用一次）。
-    let rt_init = module
-        .get_function("scoop_runtime_init")
-        .unwrap_or_else(|| {
-            module.add_function(
-                "scoop_runtime_init",
-                context.void_type().fn_type(&[], false),
-                None,
-            )
-        });
-    builder.build_call(rt_init, &[], "rt_init")?;
+        let rt_init = module
+            .get_function("scoop_runtime_init")
+            .unwrap_or_else(|| {
+                module.add_function(
+                    "scoop_runtime_init",
+                    context.void_type().fn_type(&[], false),
+                    None,
+                )
+            });
+        builder.build_call(rt_init, &[], "rt_init")?;
 
-    let mut main_codegen = unit_codegen.fresh_main_codegen();
-    main_codegen.begin_function_explicit_frame_layout(main)?;
+        let mut main_codegen = unit_codegen.fresh_main_codegen();
+        main_codegen.begin_function_explicit_frame_layout(main)?;
 
-    let entry_argv_array = match selected_main.arg_shape {
-        EntryMainArgShape::None => None,
-        EntryMainArgShape::ArrayString => {
-            let argv_array_fn = module
-                .get_function("scoop_entry_argv_array")
-                .unwrap_or_else(|| {
-                    module.add_function(
-                        "scoop_entry_argv_array",
-                        context
-                            .ptr_type(inkwell::AddressSpace::from(1u16))
-                            .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
-                        None,
-                    )
-                });
-            let call =
-                builder.build_call(argv_array_fn, &[argc.into(), argv.into()], "entry_argv")?;
-            let raw = call.try_as_basic_value().basic().ok_or(
-                LlvmEmitError::ModuleVerificationFailed {
-                    message: "entry argv helper 未返回值".to_string(),
-                },
-            )?;
-            Some(raw.into_pointer_value())
-        }
-    };
+        let entry_argv_array = match arg_shape {
+            EntryMainArgShape::None => None,
+            EntryMainArgShape::ArrayString => {
+                let argv_array_fn = module
+                    .get_function("scoop_entry_argv_array")
+                    .unwrap_or_else(|| {
+                        module.add_function(
+                            "scoop_entry_argv_array",
+                            context
+                                .ptr_type(inkwell::AddressSpace::from(1u16))
+                                .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
+                            None,
+                        )
+                    });
+                let call =
+                    builder.build_call(argv_array_fn, &[argc.into(), argv.into()], "entry_argv")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::ModuleVerificationFailed {
+                        message: "entry argv helper 未返回值".to_string(),
+                    },
+                )?;
+                Some(raw.into_pointer_value())
+            }
+        };
 
-    let exit_code = if let (Some(program), Some(abi_query)) =
-        (late_lowered_program, refactor_abi_query.as_ref())
-    {
-        main_codegen.codegen_refactor_main_exit_code(
-            hir_main,
-            entry_argv_array,
-            program,
-            abi_query,
-        )?
-    } else {
-        main_codegen.codegen_main_exit_code(hir_main, entry_argv_array)?
-    };
-    builder.build_return(Some(&exit_code))?;
-    main_codegen.finish_function_explicit_frame_layout(hir_main.span)?;
+        let exit_code = if let (Some(program), Some(abi_query)) =
+            (late_lowered_program, refactor_abi_query.as_ref())
+        {
+            main_codegen.codegen_refactor_main_exit_code(
+                root_fun,
+                entry_argv_array,
+                program,
+                abi_query,
+            )?
+        } else {
+            main_codegen.codegen_main_exit_code(root_fun, entry_argv_array)?
+        };
+        builder.build_return(Some(&exit_code))?;
+        main_codegen.finish_function_explicit_frame_layout(root_fun.span)?;
+    }
 
     module
         .verify()
@@ -1291,6 +1332,23 @@ struct SelectedEntryMain<'a> {
     arg_shape: EntryMainArgShape,
 }
 
+#[derive(Clone, Copy)]
+struct SelectedRootCallable<'a> {
+    fun: &'a hir::FunDecl,
+    entry_main_arg_shape: Option<EntryMainArgShape>,
+}
+
+#[derive(Clone, Copy)]
+enum RootCallableSelector<'a> {
+    EntryMain {
+        entry_main_fqn: Option<&'a str>,
+    },
+    #[cfg_attr(not(test), allow(dead_code))]
+    Callable {
+        callable_fqn: &'a str,
+    },
+}
+
 fn classify_entry_main_arg_shape(
     lowered: &hir::LoweredHir,
     fun: &hir::FunDecl,
@@ -1354,6 +1412,38 @@ fn select_entry_main<'a>(
             entry: entry_main_fqn.unwrap_or("main").to_string(),
             count,
         }),
+    }
+}
+
+fn select_root_callable<'a>(
+    lowered: &'a hir::LoweredHir,
+    selector: RootCallableSelector<'_>,
+) -> Result<SelectedRootCallable<'a>, LlvmEmitError> {
+    match selector {
+        RootCallableSelector::EntryMain { entry_main_fqn } => {
+            let selected_main = select_entry_main(lowered, entry_main_fqn)?;
+            Ok(SelectedRootCallable {
+                fun: selected_main.fun,
+                entry_main_arg_shape: Some(selected_main.arg_shape),
+            })
+        }
+        RootCallableSelector::Callable { callable_fqn } => lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                hir::Item::Fun(fun) => Some(fun),
+                _ => None,
+            })
+            .chain(lowered.member_funs.iter())
+            .find(|fun| fun.fqn == callable_fqn && fun.body.is_some())
+            .map(|fun| SelectedRootCallable {
+                fun,
+                entry_main_arg_shape: None,
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("显式历史 codegen helper 找不到 root callable `{callable_fqn}`"),
+            }),
     }
 }
 

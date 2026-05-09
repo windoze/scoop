@@ -130,6 +130,38 @@ impl ProjectInput {
     }
 }
 
+/// `scoop` -> `scoopc` 的 authoritative project context。
+///
+/// 约定：
+/// - 裸 `SourceFile` / `<file>` 只表达 single-source virtual cone；
+/// - 若目标语义是显式 cone / 多源 project，则上层驱动必须先构造完整的 project context，
+///   再把它交给 `run_project_frontend`；
+/// - `scoopc` 不应在末端通过工作目录、相邻 `Cone.toml` 或其它环境线索，从单个源码路径
+///   隐式恢复 explicit-cone 语义。
+#[derive(Debug, Clone)]
+pub struct ProjectContext {
+    input: ProjectInput,
+    deps: Vec<ConeArchiveApi>,
+}
+
+impl ProjectContext {
+    pub fn new(input: ProjectInput, deps: Vec<ConeArchiveApi>) -> Self {
+        Self { input, deps }
+    }
+
+    pub fn input(&self) -> &ProjectInput {
+        &self.input
+    }
+
+    pub fn deps(&self) -> &[ConeArchiveApi] {
+        &self.deps
+    }
+
+    pub fn into_parts(self) -> (ProjectInput, Vec<ConeArchiveApi>) {
+        (self.input, self.deps)
+    }
+}
+
 #[derive(Debug)]
 pub struct FrontendOutput {
     input: ProjectInput,
@@ -299,6 +331,15 @@ pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
         virtual_root,
         manifest,
     ))
+}
+
+pub fn prepare_virtual_cone_context(source: SourceFile) -> Result<ProjectContext> {
+    prepare_virtual_cone_input(source).map(|input| ProjectContext::new(input, Vec::new()))
+}
+
+pub fn run_project_frontend(session: &Session, context: ProjectContext) -> Result<FrontendOutput> {
+    let (input, deps) = context.into_parts();
+    run_frontend(session, input, &deps)
 }
 
 pub fn run_frontend(

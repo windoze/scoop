@@ -2512,10 +2512,11 @@ fun main(): Int {
         "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 top-level immutable init"
     );
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -2588,10 +2589,11 @@ fun main(): Int {
         "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 object value init"
     );
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -2659,10 +2661,11 @@ fun main(): Int {
         "test setup 需要确认 raw entry MIR 通过 TopLevelRef 访问 object value init"
     );
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        entry_fqn,
     )
     .unwrap();
     let entry_ir = function_ir_named(&ir, entry_fqn);
@@ -2760,10 +2763,11 @@ fun main(): Int {
         "test setup 需要确认 helper 的 raw MIR 仍包含 MakeClosure 形状"
     );
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -2814,10 +2818,11 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
         .expect("immutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -2878,10 +2883,11 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
         .expect("mutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -3084,7 +3090,7 @@ fun main(): Int { return helper() }
     let entry_source_id = source_map.add_source_clone(&src_main);
 
     let ir =
-        emit_minimal_main_ir_from_materialized_lowered_hir(&source_map, entry_source_id, &lowered)
+        emit_materialized_ir_for_root_callable(&source_map, entry_source_id, &lowered, helper_fqn)
             .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
     let lambda_ir = function_ir_named(&ir, lambda_fqn);
@@ -3140,10 +3146,11 @@ fun main(): Int {
         "implicit tail return body should now be normalized before production codegen"
     );
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        helper_fqn,
     )
     .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
@@ -3900,10 +3907,11 @@ fun main(): Int {
             .set_instance_summary(owner, summary);
     }
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        "fixtures.t5000h0e.entry",
     )
     .unwrap();
     let entry_ir = function_ir_named(&ir, "fixtures.t5000h0e.entry");
@@ -4452,7 +4460,7 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4493,7 +4501,7 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4537,7 +4545,7 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4578,28 +4586,26 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
-    let wrapper_ir = function_ir_named(&ir, "__scoop_effect_call_wrapper__a.outward");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
+    let outward_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_outward");
 
     assert!(
-        entry_ir.contains("@__scoop_effect_call_wrapper__a.outward")
-            && entry_ir.contains("@scoop_effect_outcome_publish")
-            && !entry_ir.contains("@scoop_effect_is_active"),
-        "ordinary direct outward-effect call 应改走显式 wrapper + outcome，而不是 post-call TLS active probing:\n{entry_ir}"
+        entry_ir.contains("@__scoop_refactor_direct_invoke__a_outward")
+            && entry_ir.contains("switch i32 %refactor_step_tag")
+            && !entry_ir.contains("@scoop_effect_is_active")
+            && !entry_ir.contains("scoop_effect_outcome"),
+        "ordinary direct outward-effect call 应改走 refactor Step boundary，而不是旧 wrapper/TLS probing:\n{entry_ir}"
     );
     assert!(
-        wrapper_ir.contains("@scoop_effect_handler_stack_swap_top")
-            && wrapper_ir.contains("@scoop_effect_outcome_consume_current")
-            && wrapper_ir.contains("@scoop_callee_suspend_state_publish"),
-        "direct-call wrapper 应负责安装 ctx、显式发布 incoming resume token，并把旧式 TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+        outward_ir.contains("store i32 1")
+            && !outward_ir.contains("@scoop_effect_is_active")
+            && !outward_ir.contains("__scoop_effect_call_wrapper__a.outward"),
+        "effectful callee 自身应直接发布 refactor Step case，而不是再经旧 wrapper/outcome runtime:\n{outward_ir}"
     );
-    let wrapper_call = entry_ir
-        .lines()
-        .find(|line| line.contains("@__scoop_effect_call_wrapper__a.outward"))
-        .expect("expected outward wrapper call in entry IR");
     assert!(
-        wrapper_call.contains("ptr addrspace(1) null"),
-        "fresh outward-effect direct call 应显式传入 null incoming_resume_token_ref:\n{wrapper_call}"
+        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_entry__k")
+            && ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_outward__k"),
+        "refactor direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
     );
 }
 
@@ -4635,18 +4641,17 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
     let closure_call = entry_ir
         .lines()
         .find(|line| line.contains("call_closure"))
         .expect("expected closure call in entry IR");
 
     assert!(
-        entry_ir.contains("@scoop_effect_outcome_consume_current")
-            && entry_ir.contains("@scoop_effect_outcome_publish")
-            && entry_ir.contains("@scoop_callee_suspend_state_publish")
-            && !entry_ir.contains("@scoop_effect_is_active"),
-        "outward-effect closure call 应在 higher-order boundary 上显式 publish incoming token、consume/publish outcome，而不是 post-call TLS probing:\n{entry_ir}"
+        entry_ir.contains("switch i32 %refactor_step_tag")
+            && !entry_ir.contains("@scoop_effect_is_active")
+            && !entry_ir.contains("scoop_effect_outcome"),
+        "outward-effect closure call 应改走 refactor Step boundary，而不是 post-call TLS probing:\n{entry_ir}"
     );
     assert!(
         entry_ir.contains("closure_call_obj_reload"),
@@ -4711,10 +4716,11 @@ fun main(): Int {
         mir_fun_contains_closure_call(pass_caller),
         "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
     );
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        caller_fqn,
     )
     .unwrap();
     let caller_ir = function_ir_named(&ir, caller_fqn);
@@ -4791,10 +4797,11 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(raw_caller)
         .expect("caller 的 raw MIR 应保留 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        caller_fqn,
     )
     .unwrap();
     let lambda_ir = function_ir_named(&ir, lambda_fqn);
@@ -4867,10 +4874,11 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(pass_caller)
         .expect("caller 的 pass-visible MIR body 应保留 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
+    let ir = emit_materialized_ir_for_root_callable(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
+        caller_fqn,
     )
     .unwrap();
     let caller_ir = function_ir_named(&ir, caller_fqn);
@@ -4931,18 +4939,17 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "a.entry");
+    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
     let funptr_call = entry_ir
         .lines()
         .find(|line| line.contains("call_funptr"))
         .expect("expected funptr call in entry IR");
 
     assert!(
-        entry_ir.contains("@scoop_effect_outcome_consume_current")
-            && entry_ir.contains("@scoop_effect_outcome_publish")
-            && entry_ir.contains("@scoop_callee_suspend_state_publish")
-            && !entry_ir.contains("@scoop_effect_is_active"),
-        "effectful funptr call 应在 boundary 上显式 publish incoming token、consume/publish outcome，而不是继续依赖 TLS active probing:\n{entry_ir}"
+        entry_ir.contains("switch i32 %refactor_step_tag")
+            && !entry_ir.contains("@scoop_effect_is_active")
+            && !entry_ir.contains("scoop_effect_outcome"),
+        "effectful funptr call 应改走 refactor Step boundary，而不是继续依赖 TLS active probing:\n{entry_ir}"
     );
     assert!(
         funptr_call.contains("ptr addrspace(1) null"),
@@ -6381,22 +6388,27 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let go_ir = function_ir_named(&ir, "@a.go(");
+    let go_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_go");
     let box_idx = go_ir
-        .find("effect_value_box_payload_gep")
-        .expect("expected boxed effect payload store in go() IR");
+        .find("refactor_outward_payload_reload_frame_reload")
+        .expect("expected refactor outward payload reload in go() IR");
     let reload_window_start = box_idx.saturating_sub(1400);
     let reload_window = &go_ir[reload_window_start..std::cmp::min(box_idx + 400, go_ir.len())];
 
     assert!(
-        go_ir.contains("effect_transport_box_value_reload_rebuild = alloca"),
-        "boxed composite payload should rebuild a fresh aggregate before boxing\n{go_ir}"
+        go_ir.contains("refactor_outward_payload_reload_rebuild = alloca %a.Named")
+            && go_ir.contains("refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef")
+            && go_ir.contains(
+                "refactor_step_payload_insert = insertvalue %scoop.refactor.StepCase__a_go__case0 undef, %a.Named %refactor_outward_payload_reload, 0"
+            ),
+        "refactor outward payload should rebuild a fresh aggregate before publishing Step payload\n{go_ir}"
     );
     assert!(
-        reload_window.contains(
-            "effect_transport_box_value_reload_frame_reload = load ptr addrspace(1), ptr %explicit_root_frame"
-        ),
-        "boxed composite payload rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
+        reload_window.contains("refactor_outward_payload_reload_frame_reload = load ptr addrspace(1)")
+            && reload_window.contains(
+                "refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef, ptr addrspace(1) %refactor_outward_payload_reload_frame_reload, 0"
+            ),
+        "refactor outward payload rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
     );
 }
 
