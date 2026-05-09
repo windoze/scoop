@@ -25,3 +25,48 @@
 - 2026-05-09：已完成产物抽查：`crates/scoop/tests/cg8_codegen_regression_matrix.rs` 覆盖 `CG-T01`-`CG-T07` 与 `P7-T02Z` 代表样本；`crates/scoop/src/fixtures/mod.rs` 保留 `run_all_recreates_session_between_independent_fixtures`；`crates/scoop/tests/p7_default_pipeline.rs` 持续守护 omission=refactor 与 default-vs-explicit refactor 等价。
 - 2026-05-09：已重跑验证并全部通过：`cargo test --all`、`cargo run -p scoop -- test`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings`。
 - 2026-05-09：复核结论：未发现需要回退到 `CG-T08` 的遗漏缺口；已在 `TODO.md` 将 `CG-T08R` 标记为 `[DONE]`，下一步执行 git 提交并停止。
+
+---
+
+## P7-T02Z 执行记录（2026-05-09）
+
+### 初始计划
+
+这里只记录可审计的理由摘要、决策与执行步骤，不记录私有内部推理细节。
+
+1. 读取 `TODO.md`，确认首个标题未带 `[DONE]` 的任务。
+2. 检查最近一次提交是否直接提到与该任务相关的未完成工作。
+3. 阅读对应任务条目，确认依赖、约束和验证要求。
+4. 只检查当前任务相关的代码与测试。
+5. 以最小正确改动完成任务，不引入 workaround。
+6. 先跑定向验证，再跑更广验证。
+7. 如发现新的真实前置阻塞，则更新 `TODO.md` 并停止。
+8. 如任务已满足完成条件，则更新 `TODO` 记录、提交并停止。
+
+### 进展摘要
+
+- 已读取 `TODO.md`，确认当前首个未完成任务为 `P7-T02Z`（位于 `TODO-P7.md`）。
+- 已检查最新提交消息 `Update plan`，未发现需要并入 `P7-T02Z` 的直接未完成实现说明。
+- 当前任务目标：闭合剩余默认 refactor `run-pass` 阻塞，使 `P7-T03` 可以回到标准 full-regression 矩阵。
+
+### 本轮执行计划
+
+1. 检查 git worktree，避免误动无关修改。
+2. 从 `TODO-P7.md` 记录的已知 blocker 开始复现当前剩余 `run-pass` 失败。
+3. 如果失败仍可复现，则沿相关 handoff/contract 定位并修复。
+4. 逐 fixture 重跑并扩展到任务要求的更广验证。
+5. 若未发现新的 blocker 且验证通过，则把 `P7-T02Z` 标记为 `[DONE]` 并提交。
+
+### 验证进展
+
+- `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`：通过。
+- `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：通过（`fixtures: ok (391)`）。
+- `cargo test --all`：通过。
+- `cargo run -p scoop -- test`：通过（`fixtures: ok (1270)`）。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+
+### 结论
+
+- `P7-T02Z` 记录的剩余默认-refactor `run-pass` blocker 在当前树上已不再复现。
+- 本轮验证未发现新的前置阻塞任务。
+- 剩余工作仅是任务账本更新：在 `TODO-P7.md` / `TODO.md` 将 `P7-T02Z` 标记为完成，并提交相关记录。
