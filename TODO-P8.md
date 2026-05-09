@@ -161,7 +161,7 @@
   - 验证：`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`，结果为 clap 失败：`unexpected argument '--effect-pipeline' found`。
   - 仓库搜索摘要：`EffectPipelineMode`、session pipeline bifurcation 与 CLI selector 解析路径已从主实现中删净；剩余 `rg` 命中仅包含删除说明/负向测试文案、placeholder inventory 的历史对照注释，以及 `effect_refactor` / `legacy` 命名的历史回归测试名或 fixture 名，不再构成可执行的顶层 legacy 入口。
 
-## P8-T01R：Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点
+## [DONE] P8-T01R：Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -192,7 +192,18 @@
   - 可进入 P8-T02。
 - 依赖：P8-T01
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：完成 review。复核 `crates/scoop/src/cli.rs`、`crates/scoop/src/commands/mod.rs`、`crates/scoopc/src/bin/scoopc.rs`、`crates/scoopc/src/session/mod.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、fixture helper 与 `crates/scoop/tests/p7_default_pipeline.rs`，确认 CLI/session/dispatcher 已收口为单一路径；`SessionOptions` 仅剩不承载 pipeline bifurcation 的空配置壳。
+  - 2026-05-09：额外确认 `crates/scoopc/src/effect_refactor_pipeline/` 已不再包含 `legacy.rs` / `refactor.rs` 顶层 dispatcher 子模块；目录仅剩单一路径 stage API 与实现文件，未发现隐藏 legacy 切换点。
+  - 2026-05-09：搜索 `--effect-pipeline|EffectPipelineMode|SessionOptions|legacy.*selector|refactor.*selector`（限定 `crates` / `tools` / `tests`）后，命中仅剩：负向测试里断言 `--effect-pipeline` 已被移除、`SessionOptions` 的单一路径空配置用法、`effect_refactor_pipeline/mod.rs` 的迁移说明，以及与 LLVM callable-version 相关但不承载 effect pipeline bifurcation 的“selector”术语；未发现可执行 legacy 顶层入口或隐藏 helper。
+  - 验证：`cargo test -p scoop cli`
+  - 验证：`cargo test -p scoopc session`
+  - 验证：`cargo test -p scoopc driver_cli`
+  - 验证：`cargo test -p scoop --test p7_default_pipeline`
+  - 验证：`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`
+  - 验证：`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p8_single_pipeline.ll`
+  - 验证：`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`
+  - 验证：`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`，结果为 clap 失败：`unexpected argument '--effect-pipeline' found`。
+  - 验证：`cargo clippy --all-targets -- -D warnings`
 
 ## P8-T02：删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口
 
