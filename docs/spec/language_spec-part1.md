@@ -9,7 +9,7 @@
 - 第 1 部分：总览、源文件、包与词法
 - 第 2 部分：类型系统、泛型与名义结构
 - 第 3 部分：表达式、函数、属性、模式匹配与推断
-- 第 4 部分：效果系统、异常语法糖与 async/await
+- 第 4 部分：效果系统与异常语法糖
 - 第 5 部分：编译期执行、静态反射与注解
 - 第 6 部分：unsafe、FFI、GC 互操作与程序边界
 
@@ -194,7 +194,7 @@ const val Value: Int = triple(Base)
 ```text
 public internal private open abstract sealed inline override const vararg annotation
 package import typealias fun val var class interface struct enum effect object companion
-handle with perform try catch finally async await
+handle with perform try catch finally
 do return comptime if else when for in out where while break continue is as as?
 ```
 

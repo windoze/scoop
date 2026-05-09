@@ -428,7 +428,7 @@
     4. `crates/scoop/src/commands/build.rs` 的 anti-fallback 断言文案。
     未发现公开命令示例、fixtures 主路径、主测试索引或 live helper docs 继续把 legacy 主线或已删除 async/task surface 当作现行入口。
 
-## P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface
+## [DONE] P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -458,7 +458,15 @@
   - 可进入 P8-T04。
 - 依赖：P8-T03
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：执行 `P8-T03R` 复核时发现 `docs/spec/language_spec-part1.md` 仍在分卷目录与关键字列表中写出 `async/await`，`docs/spec/language_spec-part3.md` 仍把 `async` / `await` 写成现行表达式语法与前缀运算符；已同步修正文档，并把 `crates/scoop/tests/p8_docs_cleanup.rs` 扩展到覆盖这些漏网项，防止同类 live-spec 残留回流。
+  - 2026-05-09：复核结论：`crates/scoop/src/fixtures/**`、`crates/scoopc/src/llvm/tests.rs`、`tools/scoop_tools/src/fixtures_matrix.rs` 与 live helper/docs 中，未再把 legacy 主线当作可执行入口；`crates/scoopc/src/llvm/tests.rs` 中保留的 `legacy` 文本只存在于 `legacy_compare_harness_removed_*` / `legacy_effect_backend_removed_*` 等负向守护，compare harness 本体与误导性命名未回流。
+  - 2026-05-09：搜索结论：按任务要求执行 `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'` 后，命中已可分类为：历史 `TODO/PLAN` 记录、`SCOOP_FULL_SPEC.md` / `ASYNC_REFACTOR.md` 的删除或设计说明、`crates/scoop/tests/p8_docs_cleanup.rs` 负向守护，以及 `crates/scoop/src/commands/build.rs` 的 anti-fallback 断言。额外执行排除 `TODO*.md` / `PLAN*.md` / `memory/**` 的 live-path 搜索后，不再存在其它公开命令示例、fixture helper 或 live docs 命中；更宽的 `async/await` live-doc 搜索仅剩 `docs/spec/language_spec-part4.md` 的“当前版本不定义”负向说明、`SCOOP_FULL_SPEC.md` 的英文删除说明、`ASYNC_REFACTOR.md` 的历史设计文档与本次负向守护文本。
+  - 验证：`cargo fmt`
+  - 验证：`cargo test -p scoop legacy_pipeline_docs_removed`
+  - 验证：`cargo test -p scoopc legacy_compare_harness_removed`
+  - 验证：`cargo clippy --all-targets -- -D warnings`
+  - 验证：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
+  - 验证：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
 
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 

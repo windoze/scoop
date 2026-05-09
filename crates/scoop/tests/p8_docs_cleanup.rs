@@ -33,7 +33,20 @@ fn legacy_pipeline_docs_removed_spec_and_tool_indexes_drop_deleted_async_task_su
     for (relative, needles) in [
         (
             "docs/spec/language_spec-part1.md",
-            vec!["async fun", "Task<T>"],
+            vec![
+                "第 4 部分：效果系统、异常语法糖与 async/await",
+                "handle with perform try catch finally async await",
+                "async fun",
+                "Task<T>",
+            ],
+        ),
+        (
+            "docs/spec/language_spec-part3.md",
+            vec![
+                "`if`、`when`、`try`、`handle`、`do`、`async` 都是表达式",
+                "`async {}`",
+                "| prefix | `!`, unary `-`, `~`, `await`, `perform` |",
+            ],
         ),
         (
             "docs/spec/language_spec-part4.md",

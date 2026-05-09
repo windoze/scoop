@@ -148,6 +148,6 @@
 | `P8-T02` | `TODO-P8.md` | [DONE] 删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口 |
 | `P8-T02R` | `TODO-P8.md` | [DONE] Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失 |
 | `P8-T03` | `TODO-P8.md` | [DONE] 清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归 |
-| `P8-T03R` | `TODO-P8.md` | Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface |
+| `P8-T03R` | `TODO-P8.md` | [DONE] Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface |
 | `P8-T04` | `TODO-P8.md` | 在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态 |
 | `P8-T04R` | `TODO-P8.md` | Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束 |

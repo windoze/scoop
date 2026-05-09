@@ -6,7 +6,7 @@
 
 ## 1. 表达式与语句
 
-Scoop 使用表达式导向语义。`if`、`when`、`try`、`handle`、`do`、`async` 都是表达式。函数体和块由语句序列组成，尾表达式可作为块值。
+Scoop 使用表达式导向语义。`if`、`when`、`try`、`handle`、`do` 都是表达式。函数体和块由语句序列组成，尾表达式可作为块值。
 
 普通 block 表达式必须写作 `do { ... }`：
 
@@ -23,7 +23,7 @@ val n = do {
 - 普通局部 block 必须写 `do { ... }`。
 - `do { ... }` 的值是最后一个未以 `;` 终止的表达式。
 - 若没有尾表达式，block 值为 `Unit`。
-- 由语言结构引入的块，例如 `if {}`、`when {}`、`handle {}`、`try {}`、`async {}`、声明体，不受“裸 `{}` 是 closure”规则影响。
+- 由语言结构引入的块，例如 `if {}`、`when {}`、`handle {}`、`try {}`、声明体，不受“裸 `{}` 是 closure”规则影响。
 
 ## 2. 变量绑定与赋值
 
@@ -58,7 +58,7 @@ y = 20
 | 优先级 | 运算符/结构 | 结合性 |
 |---|---|---|
 | postfix | 调用 `()`, 成员 `.`, safe-call `?.`, not-null `!!`, class literal `::class`, type application | 左 |
-| prefix | `!`, unary `-`, `~`, `await`, `perform` | 右 |
+| prefix | `!`, unary `-`, `~`, `perform` | 右 |
 | multiplicative | `*`, `/`, `%` | 左 |
 | additive | `+`, `-` | 左 |
 | shift | `<<`, `>>` | 左 |
