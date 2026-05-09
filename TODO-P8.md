@@ -339,7 +339,7 @@
   - 验证：`cargo test -p scoopc single_effect_lowering_path`
   - 验证：`cargo clippy --all-targets -- -D warnings`
 
-## P8-T03：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归
+## [DONE] P8-T03：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -414,7 +414,19 @@
   - 后续只剩“在只有新主线存在”的前提下跑最终完整矩阵。
 - 依赖：P8-T02R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：已清理 live docs 中仍把 pipeline selector 或 async/task surface 当作现行入口的叙述。`docs/spec/language_spec-part1.md` 去掉顶层 `async fun` 声明项与 `Task<T>` 现行库名示例；`docs/spec/language_spec-part4.md` 改写为“async/structured-concurrency surface 当前未定义”，删除把 `Async.await` / `Task<T>` / `async fun` 当作现行规范的示例与规则；`EFFECT_REFACTOR.md`、`HIR_COMPLETENESS_HANDOFF.md`、`MIR_REFACTOR_PHASE_EXIT_AUDIT.md` 的现行命令示例已统一改成单一路径 CLI，不再要求显式 selector。
+  - 2026-05-09：已清理主工具/测试索引中的误导性命名。`tools/scoop_tools/src/fixtures_matrix.rs` 删除 `Task / Executor (async)` 域并重排后续 domain id；`crates/scoopc/src/llvm/tests.rs` 中 direct-HIR compare helper/test 已从 `legacy_*` 改为中立命名，并同步去掉若干把 effect boundary / TLS 信号仍写成 `legacy` 的断言文本。
+  - 2026-05-09：已新增定向守护，锁定主路径清理结果。`crates/scoop/tests/p8_docs_cleanup.rs` 新增 `legacy_pipeline_docs_removed_*`，断言 live docs / tools 索引不再暴露 selector 或 async/task 现行 surface；`crates/scoopc/src/llvm/tests.rs` 新增 `legacy_compare_harness_removed_from_llvm_test_source`，防止 direct-HIR compare harness 误导性 `legacy` 命名回流。
+  - 验证：`cargo fmt`
+  - 验证：`cargo test -p scoop legacy_pipeline_docs_removed`
+  - 验证：`cargo test -p scoopc legacy_compare_harness_removed`
+  - 验证：`cargo clippy --all-targets -- -D warnings`
+  - 仓库搜索摘要：执行 `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|default.*legacy|legacy pipeline|old effect mainline|parallel pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'` 后，剩余命中已收敛为四类：
+    1. `TODO*.md` / `PLAN*.md` 中的历史阶段记录与任务说明；
+    2. `SCOOP_FULL_SPEC.md` 的“已移除 async/task surface”说明，以及 `ASYNC_REFACTOR.md` 的历史设计文档；
+    3. 本任务新增的 `crates/scoop/tests/p8_docs_cleanup.rs` 负向守护文本；
+    4. `crates/scoop/src/commands/build.rs` 的 anti-fallback 断言文案。
+    未发现公开命令示例、fixtures 主路径、主测试索引或 live helper docs 继续把 legacy 主线或已删除 async/task surface 当作现行入口。
 
 ## P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface
 

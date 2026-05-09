@@ -369,12 +369,11 @@ const STDLIB_DOMAINS: &[(&str, &str, &[&str])] = &[
         "Concurrency / Threading",
         &["std_sync_", "std_thread_"],
     ),
-    ("15", "Task / Executor (async)", &["std_task_"]),
-    ("16", "Net", &["std_net_"]),
-    ("17", "Unsafe / Pointers", &["unsafe_", "nogc_"]),
-    ("18", "Scope functions", &["kotlin_scope_functions"]),
+    ("15", "Net", &["std_net_"]),
+    ("16", "Unsafe / Pointers", &["unsafe_", "nogc_"]),
+    ("17", "Scope functions", &["kotlin_scope_functions"]),
     (
-        "19",
+        "18",
         "Preconditions",
         &[
             "kotlin_require_",
@@ -382,9 +381,9 @@ const STDLIB_DOMAINS: &[(&str, &str, &[&str])] = &[
             "stdlib_smoke_test_and_preconditions",
         ],
     ),
-    ("20", "Test utilities", &["std_test_"]),
+    ("19", "Test utilities", &["std_test_"]),
     (
-        "21",
+        "20",
         "Reflection",
         &["comptime_reflect", "comptime_fields", "comptime_variants"],
     ),
@@ -529,8 +528,8 @@ mod tests {
 
         let report = run_stdlib_check(&fixtures_root).unwrap();
 
-        // Should have 21 domains total.
-        assert_eq!(report.domain_count, 21);
+        // Should have 20 domains total.
+        assert_eq!(report.domain_count, 20);
 
         // IO, Collections, and Scope functions should be covered.
         let covered_ids: Vec<&str> = report
@@ -541,7 +540,7 @@ mod tests {
         assert!(covered_ids.contains(&"3"), "Collections should be covered");
         assert!(covered_ids.contains(&"11"), "IO should be covered");
         assert!(
-            covered_ids.contains(&"18"),
+            covered_ids.contains(&"17"),
             "Scope functions should be covered"
         );
 
@@ -549,7 +548,7 @@ mod tests {
         let gap_ids: Vec<&str> = report.gaps.iter().map(|g| g.domain_id.as_str()).collect();
         assert!(gap_ids.contains(&"7"), "Math should be a gap");
         assert!(gap_ids.contains(&"9"), "Random should be a gap");
-        assert!(gap_ids.contains(&"16"), "Net should be a gap");
+        assert!(gap_ids.contains(&"15"), "Net should be a gap");
     }
 
     #[test]

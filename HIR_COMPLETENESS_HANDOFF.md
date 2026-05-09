@@ -1,6 +1,6 @@
 # Refactor HIR Completeness Handoff
 
-This document freezes the completion contract for the effect-refactor typed HIR stage. It only applies to `--effect-pipeline refactor`; legacy HIR/MIR/codegen paths may still contain dump-only `Todo(...)` nodes.
+This document freezes the completion contract for the effect-refactor typed HIR stage that now serves the single remaining pipeline. Older direct-HIR/debug-only paths may still contain dump-only `Todo(...)` nodes, but current CLI usage no longer carries a pipeline selector.
 
 ## Final Invariants
 
@@ -34,7 +34,7 @@ This document freezes the completion contract for the effect-refactor typed HIR 
 | Custom iterator and recovery sentinels | Custom iterator for-loop unit tests and parser recovery negative fixture cover remaining debug fallbacks. | `cargo test -p scoopc --no-default-features refactor_hir_for_loop` |
 | Top-level init/storage | `tests/fixtures/hir/refactor_top_level_init.scoop` covers const/runtime values, mutable globals, object init, and extern globals. | `cargo test -p scoopc --no-default-features refactor_hir_top_level_init` |
 | HIR to next-stage preflight | `crates/scoopc/src/effect_refactor_pipeline/hir_preflight.rs` enumerates the HIR completeness fixture set and representative MIR smoke subset. | `cargo test -p scoopc --no-default-features refactor_hir_preflight` |
-| CLI HIR dump gate | `dump-hir --effect-pipeline refactor` goes through the verified typed HIR stage; legacy dump remains separate. | `cargo test -p scoop --no-default-features dump_hir` |
+| CLI HIR dump gate | `dump-hir` goes through the verified typed HIR stage; there is no separate pipeline selector. | `cargo test -p scoop --no-default-features dump_hir` |
 
 ## HIR Completeness Fixture Set
 
@@ -69,9 +69,9 @@ rg "Todo\(" crates/scoopc/src/hir crates/scoopc/src/effect_refactor_pipeline
 
 Expected classifications for remaining matches:
 
-- `crates/scoopc/src/hir/mod.rs`: enum variants and legacy dump-only documentation.
-- `crates/scoopc/src/hir/lower/block.rs`, `crates/scoopc/src/hir/lower/expr.rs`, and `crates/scoopc/src/hir/lower/stmt.rs`: legacy HIR lowerer placeholder traversal or constructors tracked by `refactor_hir_placeholder_inventory`; the refactor production stage enters typed HIR lowering and is guarded by the verifier.
-- `crates/scoopc/src/hir/lower/mod.rs` and `crates/scoopc/src/hir/lower/util.rs`: legacy/debug traversal, cleanup, or test helpers that tolerate placeholder nodes when operating on legacy `LoweredHir` values.
+- `crates/scoopc/src/hir/mod.rs`: enum variants and historical dump-only documentation.
+- `crates/scoopc/src/hir/lower/block.rs`, `crates/scoopc/src/hir/lower/expr.rs`, and `crates/scoopc/src/hir/lower/stmt.rs`: older direct-HIR lowerer placeholder traversal or constructors tracked by `refactor_hir_placeholder_inventory`; the refactor production stage enters typed HIR lowering and is guarded by the verifier.
+- `crates/scoopc/src/hir/lower/mod.rs` and `crates/scoopc/src/hir/lower/util.rs`: historical/debug traversal, cleanup, or test helpers that tolerate placeholder nodes when operating on direct `LoweredHir` values.
 - `crates/scoopc/src/hir/lower/placeholder_inventory.rs`: executable inventory and scan patterns, not production output.
 - `crates/scoopc/src/effect_refactor_pipeline/hir_completeness.rs`: verifier rejection paths for `Item::Todo`, `StmtKind::Todo`, `ExprKind::Todo`, and `ExprKind::Missing`.
 - `crates/scoopc/src/effect_refactor_pipeline/hir_preflight.rs`: MIR fallback scan denylist and representative MIR smoke assertions.

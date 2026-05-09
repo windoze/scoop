@@ -1,29 +1,50 @@
 # 执行计划
 
-## 当前状态
-- 已读取 `TODO.md`，第一项未完成任务为 `P8-T02R`：review legacy 主线删除结果。
-- 已检查最新提交：`[P8-T02] Remove legacy effect lowering backend`，未见额外显式标注的未完 blocker。
-- 本次只处理 `P8-T02R`，完成后立即停止。
+## 当前任务
+- 已读取 `TODO.md`，当前第一项未完成任务是 `P8-T03`：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归。
+- 下一步先补读 `TODO-P8.md` 中 `P8-T03` 的完整要求与验证项，再检查最新提交是否带有与该任务直接相关的未完事项。
 
 ## 执行步骤
-1. 复核 `TODO-P8.md` 中 `P8-T02` / `P8-T02R` 的要求与验证项。
-2. 检查 `crates/scoopc/src/effect/**`、`crates/scoopc/src/llvm/codegen/effect/**`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/mod.rs`、`crates/scoopc/src/llvm/frontend.rs`、`crates/scoopc/src/llvm/tests.rs`，确认 legacy effect/state-machine backend 与 code-shape-specific 入口是否真的删净，只剩中立 helper 或负向测试文字。
-3. 重新运行 `P8-T02R` 要求的验证，至少包含 `P8-T02` 列出的定向测试/检查与额外搜索；若发现阻塞当前 review 的真实问题，则先修复或把最小前置任务写回 `TODO.md`。
-4. 若 review 通过，则更新 `TODO-P8.md` 与 `TODO.md`，把 `P8-T02R` 标记为 `[DONE]` 并补充完成记录；若阶段计划未变，则不改 `PLAN.md`。
-5. 提交本次改动并停止。
+1. 读取 `TODO-P8.md` 中 `P8-T03` / `P8-T03R` 的完整定义、验证要求与完成条件。
+2. 查看最新提交信息，判断是否明确提到与 `P8-T03` 直接相关但尚未完成的收尾项；若有，纳入本任务范围或按要求写回 `TODO.md` 作为前置。
+3. 针对 `tests`、`fixtures`、`docs`、`README`、`tools` 和相关测试 helper 做定向搜索，找出以下残留：
+   - 把 legacy 主线当作可执行入口或 compare 对象的文本、命令、fixture/harness。
+   - 把 `async` / `await` / `Task` 当作现行 surface、现行标准库入口或主路径分类的文本、fixture、测试命名。
+4. 逐项修改最小必要文件：
+   - 将 compare/rollback 资产改写为纯新主线路径回归，或在对新主线无价值时删除。
+   - 清理 README / 文档 / 注释 / 帮助文本中的过时叙述。
+   - 更新或新增定向守护测试，确保仓库主路径只剩新主线，且已删除 surface 不再被当作现行能力。
+5. 运行本任务要求的定向验证；如改动影响面需要，再补充必要的 smoke 或相关测试。
+6. 若任务完成，则更新 `TODO-P8.md` 与 `TODO.md`，把 `P8-T03` 标为 `[DONE]` 并补全完成记录；只有阶段计划变化时才修改 `PLAN.md`。
+7. 检查工作区状态，按仓库约定创建一次提交，然后停止，不进入下一任务。
 
-## 记录方式
-- 在识别出具体任务后，补充更具体的执行说明。
-- 在关键步骤完成或计划变化时，持续更新本文件。
+## 记录原则
+- 发现 blocker 时，不绕过；若必须新增前置任务，则先改 `TODO.md`，保持当前任务未完成并记录原因。
+- 每完成一个关键步骤，或计划因新发现而调整，立即回写本文件。
 
-## 当前检查重点
-- 搜索命中中允许存在的内容：历史迁移注释、负向删除测试、非 effect 语义的普通 `legacy` 文本。
-- 搜索命中中不允许存在的内容：effect/continuation 主实现里仍可执行的旧 lowering/backend 路径，或伪装成中立 helper 的旧入口。
+## 当前已知信息
+- `TODO.md` 已显示 `P8-T01`、`P8-T01R`、`P8-T02`、`P8-T02R` 均完成，因此本次不能回头重做前序任务，只能围绕 `P8-T03` 执行。
+- 目前尚未核对 `P8-T03` 的完整验证列表，也尚未检查最新提交是否提到直接相关的未完事项；这两步优先于广泛改动。
 
 ## 进展记录
-- 已复核 `crates/scoopc/src/effect/**` 与 `crates/scoopc/src/llvm/codegen/effect/**` 的目录形状：旧 `segments.rs` / `transform.rs` / `step_summary.rs` / `state_machine_bridge.rs` / `state_machine_emitter.rs` 确已删除，只剩共享 ordinary-callee 分析与当前 LLVM backend 代码。
-- 复核过程中发现主实现仍残留少量误导性 `legacy` 命名/注释（不是完整旧 backend，但会干扰 P8-T02R 结论），已开始一并清理：包括 continuation payload helper 命名、effect call wrapper 变量名、callable carrier fallback 命名，以及若干注释/测试 helper 命名。
-- 已完成 `cargo fmt`、`cargo check -p scoopc --features llvm`、`cargo test -p scoopc legacy_effect_backend_removed`、`cargo test -p scoopc single_effect_lowering_path`、`cargo clippy --all-targets -- -D warnings`。
-- 已完成 P8-T02R 要求的搜索复核：旧 backend marker 仅剩 `crates/scoopc/src/llvm/tests.rs` 负向 inventory 测试字面量；泛化 `legacy` 搜索剩余命中已归类为负向删除测试、迁移说明、direct-HIR/dump 兼容注释或已删除语法诊断，并未发现 effect/continuation 主实现里的可执行旧路径。
-- 已把 `P8-T02R` 在 `TODO-P8.md` 和 `TODO.md` 中标记为 `[DONE]`。
-- 下一步：做提交前检查并创建本次任务提交，然后停止。
+- 已读取 `TODO.md` 并确认本次目标任务为 `P8-T03`。
+- 已读取 `memory/claude_plan.md` 旧内容并重写为本次任务计划，避免继续沿用上一次 `P8-T02R` 的记录。
+- 已补读 `TODO-P8.md` 中 `P8-T03` / `P8-T03R` 的完整要求；最新提交仅为 `[P8-T02R] Review legacy backend removal`，未声明与 `P8-T03` 直接相关的未完 blocker。
+- 已完成首次残留盘点：当前主路径中的实质问题集中在 `docs/spec/language_spec-part1.md`、`docs/spec/language_spec-part4.md`、`EFFECT_REFACTOR.md`、`HIR_COMPLETENESS_HANDOFF.md`、`MIR_REFACTOR_PHASE_EXIT_AUDIT.md`、`tools/scoop_tools/src/fixtures_matrix.rs`，以及 `crates/scoopc/src/llvm/tests.rs` 中若干仍把 direct-HIR compare 路径称为 `legacy` 的 helper / 测试名。
+- 已判定 `PLAN.md` / `PLAN-pipeline-gaps-*.md` / `ASYNC_REFACTOR.md` / `SCOOP_FULL_SPEC.md` 当前命中属于阶段计划或历史/移除说明，不作为本任务的首批强制改动对象；完成记录中需对它们做分类解释。
+- 下一步将执行最小编辑：
+  1. 更新上述 live docs，去掉把 selector 当作现行命令或把 async/Task 当作现行 surface 的表述；
+  2. 从 stdlib fixture matrix 中删除 `Task / Executor (async)` 域并同步测试；
+  3. 把 `llvm/tests.rs` 中误导性的 `legacy` compare 命名改为中立 direct-HIR 命名，并新增 `legacy_compare_harness_removed_*` 守护；
+  4. 新增 `legacy_pipeline_docs_removed_*` 守护测试覆盖主文档/工具索引残留。
+- 已完成上述编辑：`docs/spec/language_spec-part1.md` / `language_spec-part4.md` 已去掉把 async/task 当作现行 surface 的叙述；`EFFECT_REFACTOR.md`、`HIR_COMPLETENESS_HANDOFF.md`、`MIR_REFACTOR_PHASE_EXIT_AUDIT.md` 已改为只描述当前单一路径命令；`tools/scoop_tools/src/fixtures_matrix.rs` 已删除 `Task / Executor (async)` 域并同步域编号/单测；`crates/scoopc/src/llvm/tests.rs` 已把 direct-HIR compare 命名从 `legacy` 改为中立表达，并新增窄的 source guard；`crates/scoop/tests/p8_docs_cleanup.rs` 已新增主文档/工具索引负向守护。
+- 已完成定向验证：
+  - `cargo fmt`
+  - `cargo test -p scoop legacy_pipeline_docs_removed`
+  - `cargo test -p scoopc legacy_compare_harness_removed`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已完成两轮搜索核对：
+  - 聚焦已改文件的搜索已确认不再残留 `--effect-pipeline legacy|refactor`、`Task<`、`Async.await`、`std_task_` 等现行误导文本。
+  - 扩展搜索（排除 `docs/archive/**`、`target/**`、`TODO*.md`、`PLAN*.md`、`memory/**`、`.git/**`）后，剩余命中仅有：`SCOOP_FULL_SPEC.md` 的删除说明、`ASYNC_REFACTOR.md` 的历史设计文档、`crates/scoop/src/commands/build.rs` 的 anti-fallback 断言文本，以及本次新增 `crates/scoop/tests/p8_docs_cleanup.rs` 负向守护；未发现主文档/主测试/fixture helper 继续把 legacy 或 async/task surface 当作现行入口。
+- 已更新 `TODO-P8.md` 与 `TODO.md`：`P8-T03` 已标记为 `[DONE]`，并补齐完成记录、验证命令与搜索分类摘要。
+- 下一步：检查最终工作区状态，按任务要求创建提交，然后停止。

@@ -8,14 +8,14 @@ Scope: this audit closes the MIR-facing portion of `PIPELINE_GAPS.md` for the re
 
 ## Verification Matrix
 
-The phase exit matrix is intentionally MIR-only and uses targeted commands rather than full fixtures.
+The phase exit matrix is intentionally MIR-only and uses targeted commands rather than full fixtures. Older notes may still mention a pipeline selector, but the current repository state has already removed it, so the live commands below always use the single remaining pipeline.
 
 | Surface | Command |
 | --- | --- |
 | HIR completeness to strict MIR smoke | `cargo test -p scoopc --no-default-features refactor_hir_preflight` |
 | Direct-style strict MIR no-placeholder verifier | `cargo test -p scoopc --no-default-features refactor_mir_no_todo` |
 | Materialized MIR no-placeholder/no-param verifier | `cargo test -p scoopc --no-default-features refactor_materialized_mir` |
-| MIR golden matrix | `cargo run -p scoop --no-default-features -- --effect-pipeline refactor test --fixtures tests/fixtures/mir_refactor` |
+| MIR golden matrix | `cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/mir_refactor` |
 | MIR snapshot formatter shared by CLI/Rust tests | `cargo test -p scoop --no-default-features dump_mir` |
 | MIR-stage lint | `cargo clippy -p scoopc --no-default-features --all-targets -- -D warnings` |
 

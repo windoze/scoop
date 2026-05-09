@@ -98,7 +98,7 @@ Scoop 包称为 Cone。语言层面需要固定以下内容：
 
 源文件顶层允许：
 
-- `fun` / `async fun`
+- `fun`
 - `const fun`
 - `val` / `const val`
 - 受限的 `var`
@@ -378,4 +378,4 @@ Scoop 有独立但可交互的命名空间：
 - 测试框架、包仓库、构建命令。
 - Kotlin 标准库函数的完整复制。
 
-若语言语法提到 `Option<T>`、`Array<T>`、`MutableArray<T>`、`Task<T>`、`RuntimeError`、`Continuation<...>`、`GC` 等核心名字，其目的只是说明语法脱糖、类型检查或运行时边界的最小契约，不等于定义完整标准库。
+若语言语法提到 `Option<T>`、`Array<T>`、`MutableArray<T>`、`RuntimeError`、`Continuation<...>`、`GC` 等核心名字，其目的只是说明语法脱糖、类型检查或运行时边界的最小契约，不等于定义完整标准库。

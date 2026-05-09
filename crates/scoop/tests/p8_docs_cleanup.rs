@@ -1,0 +1,55 @@
+use std::path::PathBuf;
+
+fn workspace_path(relative: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative)
+}
+
+fn read_workspace_file(relative: &str) -> String {
+    std::fs::read_to_string(workspace_path(relative))
+        .unwrap_or_else(|err| panic!("failed to read {relative}: {err}"))
+}
+
+#[test]
+fn legacy_pipeline_docs_removed_live_docs_omit_pipeline_selector_commands() {
+    for relative in [
+        "EFFECT_REFACTOR.md",
+        "HIR_COMPLETENESS_HANDOFF.md",
+        "MIR_REFACTOR_PHASE_EXIT_AUDIT.md",
+    ] {
+        let text = read_workspace_file(relative);
+        for needle in ["--effect-pipeline legacy", "--effect-pipeline refactor"] {
+            assert!(
+                !text.contains(needle),
+                "live doc {relative} should not advertise removed pipeline selector text: {needle}"
+            );
+        }
+    }
+}
+
+#[test]
+fn legacy_pipeline_docs_removed_spec_and_tool_indexes_drop_deleted_async_task_surface() {
+    for (relative, needles) in [
+        (
+            "docs/spec/language_spec-part1.md",
+            vec!["async fun", "Task<T>"],
+        ),
+        (
+            "docs/spec/language_spec-part4.md",
+            vec!["Async.await", "Task<", "async fun"],
+        ),
+        (
+            "tools/scoop_tools/src/fixtures_matrix.rs",
+            vec!["Task / Executor (async)", "std_task_"],
+        ),
+    ] {
+        let text = read_workspace_file(relative);
+        for needle in needles {
+            assert!(
+                !text.contains(needle),
+                "live doc/tool index {relative} should not expose removed async/task surface text: {needle}"
+            );
+        }
+    }
+}

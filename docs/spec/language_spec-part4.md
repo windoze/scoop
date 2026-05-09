@@ -1,8 +1,8 @@
-# Scoop 语言规范 第 4 部分：效果系统、异常语法糖与 async/await
+# Scoop 语言规范 第 4 部分：效果系统与异常语法糖
 
 版本：0.1 草案
 
-本部分定义代数效果、effect row、handler、continuation、`try` / `catch` / `finally`、运行期错误、`async` / `await` 与程序边界的效果规则。
+本部分定义代数效果、effect row、handler、continuation、`try` / `catch` / `finally`、运行期错误与程序边界的效果规则。
 
 ## 1. 总览
 
@@ -10,7 +10,6 @@ Scoop 使用代数效果系统统一表达：
 
 - 可恢复或不可恢复的控制流效果。
 - 错误处理。
-- async/await。
 - generator/yield 风格流程。
 - 用户自定义效果。
 
@@ -19,10 +18,6 @@ Scoop 使用代数效果系统统一表达：
 ## 2. Effect 声明
 
 ```kotlin
-effect Async {
-    fun <T> await(task: Task<T>): T
-}
-
 effect Raise<E> {
     fun raise(error: E): Nothing
 }
@@ -61,7 +56,7 @@ fun fetchData(): String / Raise<IOError> {
 - 若没有 handler，效果成为 unhandled effect，必须由函数签名 required effect row 表示。
 - 若 unhandled effect 到达程序边界，well-typed 程序应已阻止；实现可将其作为运行期 panic。
 
-注：`async fun foo(): T` 不等价于 `fun foo(): T / Async`。它脱糖为 `fun foo(): Task<T>`；`Async` effect 只存在于任务 computation 内部。
+注：当前版本不定义内建 task runtime surface，也不定义 `async` / `await`、用户可见 `spawn` / `join` 等语法；这些属于后续库/语言设计话题，不影响本部分对一般 effect/continuation 的规则。
 
 ## 4. Effect row
 
@@ -69,9 +64,9 @@ Effect row 是编译期集合表达式：
 
 ```kotlin
 / Pure
-/ Async
+/ Emit<Int>
 / Raise<IOError>
-/ (Async + Raise<IOError>)
+/ (Emit<Int> + Raise<IOError>)
 / E
 / (E + Raise<IOError>)
 ```
@@ -79,7 +74,7 @@ Effect row 是编译期集合表达式：
 语法元素：
 
 - `Pure`：空 row。
-- `Async`、`Raise<IOError>`：effect item。
+- `Emit<Int>`、`Raise<IOError>`：effect item。
 - `E`：effect row 变量，由 `<eff E>` 引入。
 - `R1 + R2`：row union。
 
@@ -231,7 +226,7 @@ handle {
 - 若恢复后的 computation 正常完成 delimiter，`k.resume(...)` 返回 delimiter answer。
 - 若恢复过程中再次通过另一个 resuming handler suspend，会捕获 fresh continuation；`k.resume(...)` 本身仍只返回最终 answer 或 raise。
 - Continuation 可立即恢复、保存后恢复、或从另一个 OS 线程恢复。
-- Continuation 是高级控制流 API；普通 async 应优先暴露 `Task<T>`。
+- Continuation 是高级控制流 API；普通库抽象应优先暴露常规函数/对象接口，而不是把 raw continuation 当默认 API。
 
 旧式 `Effect.op(args) -> resume { ... }` 语法已移除。
 
@@ -259,7 +254,7 @@ handle {
 
 定义：
 
-- Effect operation：`Raise.raise`、`Async.await` 等限定 operation 名。
+- Effect operation：`Raise.raise`、`Emit.emit` 等限定 operation 名。
 - Handler instance：一次进入 `handle` 表达式产生的动态 handler。
 - Active handler：当前 computation 动态作用域内的 handler。
 - Handled set：handler `with { ... }` 中 arm 覆盖的 operation 集合。
@@ -386,86 +381,19 @@ enum RuntimeError {
 
 `panic(message: String): Nothing` 可作为不可恢复 trap；它不替代上述可表达为 effect 的运行期错误。
 
-## 11. Async / Await
+## 11. Async / structured concurrency surface（当前未定义）
 
-`Async` 是内建 effect：
+当前版本不定义内建 task runtime surface，也不定义 `async` / `await` 语法、用户可见 `spawn` / `join` 语法或公共 executor API。
 
-```kotlin
-effect Async {
-    fun await<T>(task: Task<T>): T
-}
-```
+本部分当前只固定：
 
-核心任务形态：
+- 一般 effect 系统；
+- continuation 的可恢复语义；
+- `Raise<RuntimeError>`、程序边界与 `panic(...)` 等基础运行期边界。
 
-```kotlin
-enum TaskStep<T> {
-    Pending,
-    Ready(T),
-}
+若未来重新引入相应库或语法，应在独立设计文档中给出新的 surface 与 lowering contract；不得把历史 task/executor 叙事视为现行规范。
 
-class Task<T> {
-    fun step(): TaskStep<T>
-}
-```
-
-语言语义：
-
-- `async { body }` 创建惰性 `Task<T>`。
-- `async fun foo(): T` 脱糖为 `fun foo(): Task<T>`。
-- `await expr` 只在 async computation 内有意义，脱糖为 `perform Async.await(expr)`。
-- 调用 `async fun` 的 caller 获得 `Task<T>`，caller 签名不因此需要 `/ Async`。
-- `/ Async` effect 存在于 Task 的 computation 内部。
-
-示例：
-
-```kotlin
-async fun fetch(): Int {
-    val inner: Task<Int> = async { 1 }
-    return await inner + 1
-}
-
-val outer: Task<Int> = async {
-    await fetch() + 10
-}
-```
-
-### 11.1 Task stepping
-
-`Task<T>` 是惰性、可手动驱动的核心抽象：
-
-```kotlin
-while (true) {
-    when (task.step()) {
-        Pending -> ()
-        Ready(value) -> {
-            println(value)
-            break
-        }
-    }
-}
-```
-
-规则：
-
-- `step()` 启动或恢复 task，直到完成为 `Ready(value)` 或再次 suspend 为 `Pending`。
-- `Pending` 表示尚未完成且当前不能继续推进；不是并发争用信号。
-- Task 可由不同线程顺序驱动，但同一时刻最多一个 public driver。
-- 并发 `step()`、重入同一 task、或观察到内部 Running 状态，是 executor/driver misuse，必须 trap；不表示为 `Pending`，也不表示为 `Raise<RuntimeError>`。
-- Task 内部可保存入口 closure、内部 continuation、完成值和私有 step-result carrier；这些都是实现细节。
-- Task 不引入独立于 `Continuation.resume(...)` 的第二套用户可见 resume ABI。
-
-### 11.2 非目标
-
-本阶段不定义：
-
-- 公共 executor API。
-- `spawn` / `join` 语法。
-- 结构化并发语法。
-- wakeup 注册、队列、work stealing。
-- `scoop.task` 公共包。
-
-这些是未来库或语言扩展主题。
+这些能力在当前仓库中只保留为历史设计背景，见根目录 `ASYNC_REFACTOR.md` 与 `SCOOP_FULL_SPEC.md` 的相关说明。
 
 ## 12. Generator / Yield 风格
 

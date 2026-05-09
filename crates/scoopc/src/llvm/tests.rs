@@ -178,8 +178,8 @@ fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
     dir
 }
 
-/// 构造 legacy eager-HIR lowering，供边界回归对比“旧后端猜测路径”和主 frontend/via-MIR 路径。
-fn lower_single_source_legacy(session: &Session, source: &SourceFile) -> hir::LoweredHir {
+/// 构造 direct-HIR lowering，供边界回归对比“直接 HIR codegen 路径”和主 frontend/via-MIR 路径。
+fn lower_single_source_direct_hir(session: &Session, source: &SourceFile) -> hir::LoweredHir {
     let mut ast = parse_file(source).unwrap();
     let index = {
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
@@ -464,14 +464,14 @@ fun main(): Int {
         "即使 main 中的 final receiver 调用已去虚化为 direct call，Base vtable 仍要求 authoritative Base.ping body 被发射，而不是只留 declaration:\n{frontend_ir}"
     );
 
-    let legacy_lowered = lower_single_source_legacy(&session, &source);
+    let direct_hir_lowered = lower_single_source_direct_hir(&session, &source);
     let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
-    let legacy_ir =
-        emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &legacy_lowered)
+    let direct_hir_ir =
+        emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &direct_hir_lowered)
             .unwrap();
     assert!(
-        legacy_ir.contains("call_vtable"),
-        "legacy eager-HIR lowering 仍保留 dispatch_call_sites 时，backend 应只按 side table 走 vtable dispatch，而不是因为 class member FQN 自动去虚化:\n{legacy_ir}"
+        direct_hir_ir.contains("call_vtable"),
+        "direct-HIR lowering 仍保留 dispatch_call_sites 时，backend 应只按 side table 走 vtable dispatch，而不是因为 class member FQN 自动去虚化:\n{direct_hir_ir}"
     );
 }
 
@@ -2001,15 +2001,15 @@ fun main(): Int {
 "#,
     );
 
-    let legacy_lowered = lower_single_source_legacy(&session, &source);
+    let direct_hir_lowered = lower_single_source_direct_hir(&session, &source);
     let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
     let err = emit_minimal_main_ir_from_materialized_lowered_hir(
         &source_map,
         entry_source_id,
-        &legacy_lowered,
+        &direct_hir_lowered,
     )
     .expect_err(
-        "production codegen 入口不应静默接受缺少 materialized pass view 的 legacy lowering",
+        "production codegen 入口不应静默接受缺少 materialized pass view 的 direct-HIR lowering",
     );
 
     assert!(
@@ -2656,9 +2656,9 @@ fun main(): Int {
 }
 
 #[test]
-fn legacy_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref() {
+fn direct_hir_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref() {
     let source = SourceFile::new_virtual(
-        "<mem>/t5000j3ar_legacy_object_init_helper_dep.scoop",
+        "<mem>/t5000j3ar_direct_hir_object_init_helper_dep.scoop",
         r#"
 package a
 
@@ -2683,7 +2683,7 @@ fun main(): Int {
 
     assert!(
         object_init_ir.contains("a.helper"),
-        "legacy HIR reachability 也必须保留 object init body 对 helper 的调用:\n{object_init_ir}"
+        "direct-HIR reachability 也必须保留 object init body 对 helper 的调用:\n{object_init_ir}"
     );
     assert!(
         ir.lines()
@@ -4567,7 +4567,7 @@ fun main(): Int {
         wrapper_ir.contains("@scoop_effect_handler_stack_swap_top")
             && wrapper_ir.contains("@scoop_effect_outcome_consume_current")
             && wrapper_ir.contains("@scoop_callee_suspend_state_publish"),
-        "direct-call wrapper 应负责安装 ctx、显式发布 incoming resume token，并把 legacy TLS signal 收口到显式 outcome:\n{wrapper_ir}"
+        "direct-call wrapper 应负责安装 ctx、显式发布 incoming resume token，并把旧式 TLS signal 收口到显式 outcome:\n{wrapper_ir}"
     );
     let wrapper_call = entry_ir
         .lines()
@@ -4626,7 +4626,7 @@ fun main(): Int {
     );
     assert!(
         entry_ir.contains("closure_call_obj_reload"),
-        "function-value call 应在参数求值/legacy boundary 之后重新加载 closure receiver，避免继续使用旧 SSA:\n{entry_ir}"
+        "function-value call 应在参数求值/effect boundary 之后重新加载 closure receiver，避免继续使用旧 SSA:\n{entry_ir}"
     );
     assert!(
         closure_call.contains("ptr addrspace(1) null"),
@@ -4982,7 +4982,7 @@ fun main(): Int {
     );
     assert!(
         helper_ir.contains("vtable_call_receiver_reload"),
-        "vtable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+        "vtable receiver 应在 effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
     );
     assert!(
         vtable_call.contains("ptr addrspace(1) null"),
@@ -5044,7 +5044,7 @@ fun main(): Int {
     );
     assert!(
         helper_ir.contains("itable_call_receiver_reload"),
-        "itable receiver 应在 legacy effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+        "itable receiver 应在 effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
     );
     assert!(
         itable_call.contains("ptr addrspace(1) null"),
@@ -7348,6 +7348,28 @@ fn mir_fun_has_implicit_tail_return(fun: &crate::mir::FunDecl) -> bool {
             crate::mir::TerminatorKind::Return { value: None }
         )
     })
+}
+
+#[test]
+fn legacy_compare_harness_removed_from_llvm_test_source() {
+    let source = include_str!("tests.rs");
+
+    for needle in [
+        ["lower_single_source_", "legacy("].concat(),
+        [
+            "legacy_",
+            "reachability_emits_object_init_helper_dependency_for_hir_top_level_ref",
+        ]
+        .concat(),
+        ["legacy eager-", "HIR lowering"].concat(),
+        ["legacy ", "effect boundary"].concat(),
+        ["legacy ", "TLS signal"].concat(),
+    ] {
+        assert!(
+            !source.contains(&needle),
+            "stale compare-harness wording should be removed from llvm tests: {needle}"
+        );
+    }
 }
 
 #[test]

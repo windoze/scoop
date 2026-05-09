@@ -1727,9 +1727,9 @@ P6 应按 contract-first 的小任务继续推进，而不是继续扩大单个 
 
 #### 5.6.6 P6 -> P7 定向验证矩阵与 handoff
 
-P6 完成时，refactor LLVM path 的定向验证矩阵固定为显式 selector 下的 build / run-pass / runtime_gc fixtures。P7 只负责把 selector 默认值切到 refactor 并运行 full regression；不得在 P7 重新设计 LLVM effect backend、ABI、GC/runtime 或 legacy fallback 边界。
+P6 完成时，refactor LLVM path 的定向验证矩阵固定为 build / run-pass / runtime_gc fixtures。当时 handoff 仍带有 pipeline selector；当前仓库已在 P8 删除该 selector，因此等价验证命令都应直接走默认单一路径。P7/P8 之后也不得重新设计 LLVM effect backend、ABI、GC/runtime 或 fallback 边界。
 
-build matrix 通过 `cargo run -p scoop -- --effect-pipeline refactor test --fixtures <fixture>` 运行，覆盖以下固定样本：
+build matrix 通过 `cargo run -p scoop -- test --fixtures <fixture>` 运行，覆盖以下固定样本：
 
 | 覆盖点 | fixture |
 | --- | --- |
@@ -1752,19 +1752,19 @@ run-pass / runtime_gc matrix 继续使用真实 CLI path，不引入测试专用
 | surface `Continuation.resume` Unit sugar and tuple payload | `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` |
 | frame/continuation roots、effect body writeback、payload refs under moving GC | `tests/fixtures/runtime_gc/effect_outer_mutable_state_body_writeback_basic.scoop` |
 | delayed cross-thread resume with captured payload refs under moving GC | `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop` |
-| direct `scoop run` entry uses the same refactor executable build path | `cargo run -p scoop -- --effect-pipeline refactor run tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` |
-| direct `build --emit-llvm` entry uses the same refactor artifact helper | `cargo run -p scoop -- --effect-pipeline refactor build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_resume.ll` |
+| direct `scoop run` entry uses the same executable build path | `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` |
+| direct `build --emit-llvm` entry uses the same refactor artifact helper | `cargo run -p scoop -- build --emit-llvm tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/p6_refactor_resume.ll` |
 
-`scoop build` is the single CLI owner for refactor LLVM artifact generation. `scoop run` calls executable `build`; build fixtures call `commands::build::run`; `--emit-llvm` / `--emit-obj` / `--emit-asm` all enter `effect_refactor_pipeline::emit_production_llvm_artifact_to_file` through the same build helper. This is the P6 -> P7 handoff boundary: P7 may change selector defaults and widen regression scope, but not add another lowering route.
+`scoop build` is the single CLI owner for refactor LLVM artifact generation. `scoop run` calls executable `build`; build fixtures call `commands::build::run`; `--emit-llvm` / `--emit-obj` / `--emit-asm` all enter `effect_refactor_pipeline::emit_production_llvm_artifact_to_file` through the same build helper. In the current repository state, this is already the only remaining lowering route.
 
-P7 flips omission-based CLI/session defaults to refactor. The P6 commands above are historical handoff examples that used an explicit selector before the default flip; current default smoke and regression commands should omit `--effect-pipeline`. Explicit `--effect-pipeline refactor` is retained only for default-vs-explicit equivalence checks, and explicit `--effect-pipeline legacy` is retained only for short-term compare/rollback smoke until P8 deletes the legacy selector path.
+P7 has already flipped omission-based CLI/session defaults to refactor, and P8 has already deleted the pipeline selector plus the short-lived compare/rollback branch. The historical explicit-selector command forms are therefore obsolete; current smoke and regression commands should always use the default single-pipeline CLI entry.
 
-The P7 -> P8 handoff is frozen as follows:
+The P7 -> P8 handoff is now reflected in the repository state as follows:
 
-- omission/default CLI and session entry always mean refactor;
-- explicit `legacy` remains only as a short-term compare/rollback entry until deletion;
-- P8 deletes the legacy selector branch, the old effect/continuation lowering pipeline, and temporary adapters that still exist only to keep the legacy path alive;
-- P8 must not reopen `Step`, continuation, LLVM, GC/runtime, or runtime-error semantics. It only removes the old path and reruns the full regression matrix with the single refactor mainline.
+- CLI/session entry no longer carries a pipeline selector;
+- legacy compare/rollback entry has been deleted;
+- refactor is the only remaining lowering route;
+- remaining work after this handoff is residual cleanup plus full-regression reruns, not another lowering redesign.
 
 ## 6. 计算 `actual_outward_cases` 与 `resolved_outward_cases`
 
