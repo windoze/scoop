@@ -6,6 +6,7 @@
 > 前置条件：`TODO-P7.md` 已完整完成；refactor 路径已经是默认主线；标准 full regression 与 GC env 全开验证已在默认主线下通过；legacy 路径只剩显式 compare/rollback 入口。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
 > 本阶段目标：删掉旧的 legacy effect/continuation 主线，实现真正收口；保证仓库中不再存在“默认靠新主线，但旧主线还悄悄救场”的隐藏依赖；在“只剩新主线”的前提下再次跑完整回归与 GC env 验证，证明新路径单独存在时仍完整通过。
+> 2026-05-09 更新：语言层 `async` / `await` / `Task` 等 surface 已移除；P8 中与 tests / fixtures / docs 相关的清理任务必须一并覆盖这些已删除语法的现行残留。历史归档可保留相关叙述，但不得继续出现在主文档、主 fixtures 路径或主测试索引中。
 
 ## 全局约束
 
@@ -295,7 +296,7 @@
 - 完成记录：
   - （执行时填写）
 
-## P8-T03：清理 tests / fixtures / docs 中的 legacy 主线残留，并把 compare 型资产改写为纯新主线回归
+## P8-T03：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -303,43 +304,51 @@
   - 前置实现参考：[`TODO-P7.md`](./TODO-P7.md) P7-T02 / P7-T04
 - 目标：
   - 删除测试、fixtures、文档、注释、示例命令中对 legacy 主线仍可作为正常入口的引用；
+  - 删除测试、fixtures、文档、注释、示例命令中把已移除 `async` / `await` / `Task` surface 仍写成现行语法或现行能力入口的残留；
   - 把原先以 compare/rollback 为目的保留到 P7 的资产，改写成纯新主线路径的回归断言，或直接删除；
   - 确保仓库的公开叙述与测试主路径都符合“只有新主线存在”的最终状态。
 
 - 必须实现的内容：
   1. 清理 tests / fixtures / helper 中的 legacy selector 与 legacy compare 假设。
-     - 至少检查并必要时修改：
-       - `crates/scoop/src/fixtures/mod.rs`
-       - `crates/scoop/src/fixtures/expectations.rs`
-       - `crates/scoopc/src/llvm/tests.rs`
-       - 任何还显式使用 `--effect-pipeline legacy` 的测试 helper、fixture 注释、或 compare harness
+      - 至少检查并必要时修改：
+        - `crates/scoop/src/fixtures/mod.rs`
+        - `crates/scoop/src/fixtures/expectations.rs`
+        - `crates/scoopc/src/llvm/tests.rs`
+        - `tools/scoop_tools/src/fixtures_matrix.rs`
+        - 任何还显式使用 `--effect-pipeline legacy` 的测试 helper、fixture 注释、或 compare harness
      - 要求：
        - 如果某测试原本只是为了证明 default/refactor/legacy 三者差异，现在应改写成只断言新主线行为；
        - 如果某测试仅为了保留 legacy 可执行性而存在，且对新主线已无价值，应删除。
-  2. 清理 docs / README / 开发文档 / 迁移注释中的 legacy 主线叙述。
-     - 至少要去掉：
-       - “默认还是 legacy”
-       - “可通过 `--effect-pipeline legacy|refactor` 选择”
-       - “P8 前暂时保留 legacy” 之类已经过时的过渡说明
-     - 若需保留历史背景，只能作为已完成迁移的历史说明，而不能继续给出可执行 legacy 用法。
-  3. 清理 build/run/spec-fixture 命令示例中的 legacy 入口。
-     - 所有正常示例命令都应直接使用默认新主线；
-     - 不再出现显式 `--effect-pipeline refactor` 作为必须参数；
-     - 不再出现显式 `--effect-pipeline legacy` 作为可选主线。
+  2. 清理 docs / README / 开发文档 / 迁移注释中的 legacy 主线叙述与已删除 async/Task surface 叙述。
+      - 至少要去掉：
+        - “默认还是 legacy”
+        - “可通过 `--effect-pipeline legacy|refactor` 选择”
+        - “P8 前暂时保留 legacy” 之类已经过时的过渡说明
+        - 把 `async` / `await` / `Task` 当作现行 surface 语法、现行标准库入口或现行 fixture 分类的说明
+      - 若需保留历史背景，只能作为已完成迁移的历史说明，而不能继续给出可执行 legacy 用法。
+  3. 清理 build/run/spec-fixture 命令示例与主路径资产中的已删除 async/Task surface 残留。
+      - 所有正常示例命令都应直接使用默认新主线；
+      - 不再出现显式 `--effect-pipeline refactor` 作为必须参数；
+      - 不再出现显式 `--effect-pipeline legacy` 作为可选主线。
+      - 若 parse/typecheck/run-pass/spec-fixture/tools 索引里仍把 `async` / `await` / `Task` 作为现行 surface 分类、fixture 前缀、feature gate 或示例主题，必须删除、改名或改写为当前语义等价的回归资产。
+      - 若某资产只对已删除 surface 有意义，且不存在新的现行语义价值，应直接删除或转入历史归档，而不是继续留在主路径。
   4. 清理 naming 残留。
-     - 若某些 helper/test/fixture 名仍以 `legacy_` / `old_` 命名，但语义已不再真的对应旧主线，必须改名；
-     - 若某测试的唯一目的就是证明“legacy 已删除”，允许保留 `legacy_removed_*` 这类负向命名；
-     - 但不得让主测试集继续以“legacy 是正常实现之一”的方式组织。
+      - 若某些 helper/test/fixture 名仍以 `legacy_` / `old_` 命名，但语义已不再真的对应旧主线，必须改名；
+      - 若某些 helper/test/fixture 名仍以 `async_` / `await_` / `task_` 暗示当前语言仍暴露对应 surface，且其内容并非历史归档或明确的删除守护，必须改名、改写或删除；
+      - 若某测试的唯一目的就是证明“legacy 已删除”，允许保留 `legacy_removed_*` 这类负向命名；
+      - 但不得让主测试集继续以“legacy 是正常实现之一”的方式组织。
   5. 建立“仓库中仅剩新主线”的定向清理守护。
-     - 至少要新增或更新一组搜索/断言测试，证明：
-       - CLI/help 文本不再暴露 legacy selector；
+      - 至少要新增或更新一组搜索/断言测试，证明：
+        - CLI/help 文本不再暴露 legacy selector；
         - tests / docs / fixtures 中不再把 legacy 当作执行主线；
-       - compare harness 已被删除或彻底改写。
+        - tests / docs / fixtures / tools 索引中不再把已删除 `async` / `await` / `Task` surface 当作现行能力入口；
+        - compare harness 已被删除或彻底改写。
 
 - 必须遵从的约束：
   - 禁止因为删 legacy compare 测试麻烦，就继续保留可执行 legacy 代码。
   - 禁止把历史比较型测试简单跳过；要么改写为新主线回归，要么删除。
   - 禁止在 README/docs 中继续给出任何可执行 legacy 命令示例。
+  - 禁止在主文档、主 fixtures 路径或主测试索引中继续把 `async` / `await` / `Task` 描述成现行 surface。
   - 禁止保留误导性命名，让后续维护者以为仓库里还有第二条主线。
 
 - 验证：
@@ -347,47 +356,50 @@
      - `legacy_pipeline_docs_removed_*`
      - `legacy_compare_harness_removed_*`
   2. 运行：
-     - `cargo test -p scoop legacy_pipeline_docs_removed`
-     - `cargo test -p scoopc legacy_compare_harness_removed`
+      - `cargo test -p scoop legacy_pipeline_docs_removed`
+      - `cargo test -p scoopc legacy_compare_harness_removed`
   3. 仓库搜索（执行时必须在完成记录中附摘要）：
-     - `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|default.*legacy|legacy pipeline|old effect mainline|parallel pipeline" . --glob '!target/**'`
+      - `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|default.*legacy|legacy pipeline|old effect mainline|parallel pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
   4. 要求：
-     - 允许命中：本任务新增的“已删除 legacy”负向测试、迁移说明中的历史叙述；
-     - 不允许命中：公开命令示例、fixtures 主路径、tests 主路径仍把 legacy 当可执行主线。
+      - 允许命中：本任务新增的“已删除 legacy”负向测试、迁移说明中的历史叙述；
+      - 不允许命中：公开命令示例、fixtures 主路径、tests 主路径仍把 legacy 当可执行主线，或仍把已删除 `async` / `await` / `Task` surface 当成现行能力入口。
 
 - 完成条件：
   - tests / fixtures / docs 已完成对 legacy 主线残留的清理；
+  - 主文档、主 fixtures 路径与主测试索引已不再暴露已删除 `async` / `await` / `Task` surface；
   - compare 型资产已改写为纯新主线回归或被删除；
   - 后续只剩“在只有新主线存在”的前提下跑最终完整矩阵。
 - 依赖：P8-T02R
 - 完成记录：
   - （执行时填写）
 
-## P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线
+## P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §8
 - 重点：
   - docs/README/help/fixtures/test helpers 中是否已不再暴露 legacy 主线；
+  - docs/README/help/fixtures/test helpers 中是否已不再把 `async` / `await` / `Task` 描述成现行 surface；
   - compare/rollback 型资产是否已被删除或改写；
   - 是否还保留误导性的命名、注释、或命令示例。
 - 必须检查的文件/位置：
   - `crates/scoop/src/fixtures/**`
   - `crates/scoopc/src/llvm/tests.rs`
+  - `tools/scoop_tools/src/fixtures_matrix.rs`
   - README / 相关开发文档 / fixture 注释
   - 任何保留的迁移说明或“legacy removed”负向测试
 
 - 验证：
   - 重新运行 P8-T03 的全部测试与命令；
   - 额外搜索：
-    - `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline" . --glob '!target/**'`
+    - `rg -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
   - 要求：
-    - 允许命中：历史说明、负向删除测试；
-    - 不允许命中：主文档、主测试、fixtures 主路径中仍把 legacy 当作可执行路径。
+      - 允许命中：历史说明、负向删除测试；
+      - 不允许命中：主文档、主测试、fixtures 主路径中仍把 legacy 当作可执行路径，或仍把已删除 `async` / `await` / `Task` surface 当作现行语法/能力。
 
 - 完成条件：
-  - review 能明确说明：仓库公开叙述与测试主路径已完全收口到新主线；
+  - review 能明确说明：仓库公开叙述与测试主路径已完全收口到新主线，且不再把已删除 `async` / `await` / `Task` surface 当作现行能力；
   - 可进入 P8-T04。
 - 依赖：P8-T03
 - 完成记录：
@@ -425,10 +437,11 @@
        - 新增 hidden fallback
        - 缩小 full regression 范围
   3. 增加最终“无 legacy 主线残留”的守护检查。
-     - 至少要通过测试、搜索、或等价自动化手段证明：
-       - 仓库中不再保留可执行 legacy 主线；
-       - 删除后 full regression 与 GC env 仍完整通过；
-       - 任何 residual `legacy` 文本都只剩历史说明、非 effect 语义、或负向删除测试用途。
+      - 至少要通过测试、搜索、或等价自动化手段证明：
+        - 仓库中不再保留可执行 legacy 主线；
+        - 删除后 full regression 与 GC env 仍完整通过；
+        - 主文档、主 fixtures 路径与主测试索引中不再把已删除 `async` / `await` / `Task` surface 当作现行语法/能力；
+        - 任何 residual `legacy` 文本都只剩历史说明、非 effect 语义、或负向删除测试用途。
   4. 在完成记录中给出最终收口摘要。
      - 至少包括：
        - 全部完整矩阵最终通过列表
@@ -450,14 +463,15 @@
      - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
      - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
   2. 仓库搜索（执行时必须在完成记录中附摘要）：
-     - `rg "legacy|old effect mainline|parallel pipeline|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|--effect-pipeline" . --glob '!target/**'`
+      - `rg "legacy|old effect mainline|parallel pipeline|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|--effect-pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
   3. 要求：
-     - 完整矩阵全部通过；
-     - 搜索结果中不得再有可执行 legacy 主线入口或旧 effect/continuation 主实现残留。
+      - 完整矩阵全部通过；
+      - 搜索结果中不得再有可执行 legacy 主线入口、旧 effect/continuation 主实现残留，或主路径上的已删除 `async` / `await` / `Task` surface 引用。
 
 - 完成条件：
   - 仓库中不再保留旧主线；
   - 完整验证在“只有新主线存在”的条件下仍完整通过；
+  - 主文档、主 fixtures 路径与主测试索引不再暴露已删除 `async` / `await` / `Task` surface；
   - 本轮 effect-refactor 收口工作可以视为真正结束。
 - 依赖：P8-T03R
 - 完成记录：
@@ -471,6 +485,7 @@
 - 重点：
   - legacy selector、legacy 主线实现、legacy compare 资产是否都已被删除或改写；
   - 完整回归与 GC env 全开矩阵是否在“只有新主线存在”的条件下通过；
+  - 已删除 `async` / `await` / `Task` surface 是否已从主文档、主 fixtures 路径与主测试索引中清理干净；
   - residual `legacy` 命中是否都已被解释为安全的历史文本或负向删除测试，而不是隐藏依赖；
   - 是否已经满足 `PLAN.md` §4 的最终完成标准第 10 条。
 

@@ -6,6 +6,7 @@
 > 前置条件：`TODO-P6.md` 已完整完成；refactor LLVM codegen 新路径已在并行模式下端到端生成并运行 effect/continuation 程序；`--effect-pipeline legacy|refactor` 选择器仍存在且当前默认值仍可控。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
 > 本阶段目标：把新的 effect-refactor 路径切成默认主线；在保留显式 `legacy` 参数作为短期回滚/比对入口的前提下，完成一次完整回归与 GC env 验证，证明默认主线已经可以由 refactor 路径承担；同时冻结 P7 -> P8 handoff，确保 P8 只需删除旧主线，而不再补做架构设计。
+> 2026-05-09 更新：语言层 `async` / `await` / `Task` 等 surface 已移除。本文未完成条目均以此为前提；已完成条目与完成记录中保留的相关名字仅作历史 blocker 追踪，不再表示当前主线仍保留对应语法。
 
 ## 全局约束
 
@@ -805,8 +806,8 @@
   3. 修复 runtime type-check/cast 与 parameterized interface/class matching 的 refactor frame/layout gap。
      - 覆盖 `type_check_cast_is_as_asq_basic.scoop`、`type_check_cast_generic_class_instantiation_basic.scoop`、`type_check_cast_parameterized_interface_runtime_match_basic.scoop`；
      - 不得通过禁用 `as` failure 的 ordinary `Raise<RuntimeError>` 或绕过 type descriptor/itable parent-chain 检查来通过。
-  4. 修复 remaining effect/continuation/GC/task run-pass semantic regressions。
-     - 覆盖剩余 effect indirect perform、multi escape/resume/finally、GC continuation/task/manual task fixtures；
+  4. 修复 remaining effect/continuation/GC run-pass semantic regressions。
+     - 覆盖剩余 effect indirect perform、multi escape/resume/finally 与 GC continuation/runtime fixtures；已经随语法移除删除的 async/Task surface 及其 fixture 不再纳入本任务范围；
      - 保持 P6 已固定的 Step / continuation / one-shot / runtime-error / GC root contracts，不得新增 legacy fallback 或 case-tag 偶然映射。
   5. 保留本轮已完成的通用修复，并补充必要定向测试。
      - 已完成修复包括：builtin nominal scalar ABI、compiler temporary slot inference、static enum unit-variant member access、effect runtime slot intrinsics、masked MIR shifts、mixed float comparison、Float abs/isNaN/isInfinite direct lowering、f-string stale `Any` part handling、tuple-get slot inference、top-level mutable var MIR store、handle return payload source fallback、completion payload coercion。
