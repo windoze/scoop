@@ -151,6 +151,6 @@
 | `P8-T03R` | `TODO-P8.md` | [DONE] Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface |
 | `P8-T03aa` | `TODO-P8.md` | [DONE] 修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞 |
 | `P8-T03a` | `TODO-P8.md` | [DONE] 迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖 |
-| `P8-T03ab` | `TODO-P8.md` | 消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖 |
+| `P8-T03ab` | `TODO-P8.md` | [DONE] 消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖 |
 | `P8-T04` | `TODO-P8.md` | 在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态 |
 | `P8-T04R` | `TODO-P8.md` | Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束 |

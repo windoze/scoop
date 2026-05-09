@@ -70,8 +70,9 @@ fun main() {
         let ir = module.print_to_string().to_string();
 
         assert!(
-            ir.contains("__scoop_composite_transport_desc__inline__fixtures_clayout_AlignedPacked__Struct")
-                && ir.contains("i64 16, i64 16"),
+            ir.contains(
+                "__scoop_composite_transport_desc__inline__fixtures_clayout_AlignedPacked__Struct"
+            ) && ir.contains("i64 16, i64 16"),
             "@CLayout(aligned=16, packed=1) 应把 composite transport 物理布局发布为 size=16 / align=16\n{ir}"
         );
     }
@@ -104,8 +105,9 @@ fun main() {
         let ir = module.print_to_string().to_string();
 
         assert!(
-            ir.contains("__scoop_composite_transport_desc__inline__fixtures_clayout_Packed__Struct")
-                && ir.contains("i64 9, i64 1"),
+            ir.contains(
+                "__scoop_composite_transport_desc__inline__fixtures_clayout_Packed__Struct"
+            ) && ir.contains("i64 9, i64 1"),
             "@CLayout(packed=1) 应继续把 composite transport 物理布局发布为 size=9 / align=1\n{ir}"
         );
     }
@@ -4145,8 +4147,11 @@ fun main(): Int {
         "multi-payload perform 应以内联 tuple payload 发布 refactor Step case，而不是丢参或回旧 boxing ABI\n{ir}"
     );
     assert!(
-        ir.contains("extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 0")
-            && ir.contains("extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 1"),
+        ir.contains(
+            "extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 0"
+        ) && ir.contains(
+            "extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 1"
+        ),
         "handler binder lowering 应继续按 tuple payload 的两个字段读取 binder，而不是退回单值 transport\n{ir}"
     );
     assert!(
@@ -4212,7 +4217,8 @@ fun main(): Int {
     let resume_window_end = std::cmp::min(resume_idx + 2200, ir.len());
     let resume_window = &ir[resume_window_start..resume_window_end];
     assert!(
-        resume_window.contains("extractvalue %scoop.refactor.Step__schema3 %refactor_resume_step, 0")
+        resume_window
+            .contains("extractvalue %scoop.refactor.Step__schema3 %refactor_resume_step, 0")
             && resume_window.contains("br i1 %refactor_step_is_complete"),
         "surface-resume call return path 应继续按 Step tag dispatch，而不是回答案专用 helper\n{resume_window}"
     );
@@ -4294,7 +4300,10 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(&ir, &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"]);
+    let entry_ir = function_ir_named_any(
+        &ir,
+        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+    );
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4335,7 +4344,10 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(&ir, &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"]);
+    let entry_ir = function_ir_named_any(
+        &ir,
+        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+    );
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4379,7 +4391,10 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(&ir, &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"]);
+    let entry_ir = function_ir_named_any(
+        &ir,
+        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+    );
 
     assert!(
         !entry_ir.contains("@scoop_effect_is_active"),
@@ -4939,8 +4954,49 @@ fun main(): Int {
     assert!(
         helper_ir.contains("switch i32 %refactor_step_tag")
             && !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome"),
+            && !helper_ir.contains("scoop_effect_outcome")
+            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
         "object value init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
+    );
+}
+
+#[test]
+fn object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+object Holder {
+    val broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+}
+
+fun helper(): Int / Raise<RuntimeError> {
+    return Holder.broken
+}
+
+fun main(): Int {
+    return try {
+        helper()
+    } catch (e: RuntimeError) {
+        11
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+
+    assert!(
+        helper_ir.contains("switch i32 %refactor_step_tag")
+            && !helper_ir.contains("@scoop_effect_is_active")
+            && !helper_ir.contains("scoop_effect_outcome")
+            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
+        "object property init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
     );
 }
 
@@ -4976,7 +5032,8 @@ fun main(): Int {
     assert!(
         helper_ir.contains("switch i32 %refactor_step_tag")
             && !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome"),
+            && !helper_ir.contains("scoop_effect_outcome")
+            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
         "top-level immutable init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
     );
 }
@@ -7010,7 +7067,10 @@ fn function_ir_named_any<'a>(ir: &'a str, name_fragments: &[&str]) -> &'a str {
             return function;
         }
     }
-    panic!("expected function containing one of {}", name_fragments.join(", "))
+    panic!(
+        "expected function containing one of {}",
+        name_fragments.join(", ")
+    )
 }
 
 fn object_contains_stackmap_section(obj: &object::File<'_>) -> bool {

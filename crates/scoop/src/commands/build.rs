@@ -193,26 +193,27 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     //
     // 重要：为避免污染 run-pass fixtures 的 stdout，这里统一把“cache hit”信息输出到 stderr。
     let mut computed_fingerprint: Option<incremental::BuildFingerprint> = None;
-    let incremental_ctx =
-        if !incremental || !cfg!(feature = "llvm") || emit != BuildEmit::Executable {
-            None
-        } else if !context.input().is_explicit_cone() {
+    let incremental_ctx = if !incremental
+        || !cfg!(feature = "llvm")
+        || emit != BuildEmit::Executable
+        || !context.input().is_explicit_cone()
+    {
+        None
+    } else {
+        let root = context.input().cone_root().to_path_buf();
+        let expected_out = layout::cone_exe_path(
+            &root,
+            None,
+            profile.as_str(),
+            &context.input().cone_manifest().cone.name,
+        );
+        if output != expected_out {
             None
         } else {
-            let root = context.input().cone_root().to_path_buf();
-            let expected_out = layout::cone_exe_path(
-                &root,
-                None,
-                profile.as_str(),
-                &context.input().cone_manifest().cone.name,
-            );
-            if output != expected_out {
-                None
-            } else {
-                let build_json = layout::cone_build_json_path(&root, None, profile.as_str());
-                Some((root, build_json))
-            }
-        };
+            let build_json = layout::cone_build_json_path(&root, None, profile.as_str());
+            Some((root, build_json))
+        }
+    };
 
     if let Some((cone_root, build_json)) = incremental_ctx.clone()
         && output.is_file()
@@ -548,18 +549,16 @@ fn run_codegen_and_link(
     }
     let options = crate::toolchain::LinkOptions {
         linker,
-        link_flags: front
-            .input()
-            .is_explicit_cone()
-            .then(|| {
-                front
-                    .input()
-                    .cone_manifest()
-                    .native_build
-                    .link_flags
-                    .as_slice()
-            })
-            .unwrap_or(&[]),
+        link_flags: if front.input().is_explicit_cone() {
+            front
+                .input()
+                .cone_manifest()
+                .native_build
+                .link_flags
+                .as_slice()
+        } else {
+            &[]
+        },
     };
     let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
     objs.push(obj.clone());

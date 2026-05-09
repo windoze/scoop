@@ -2247,25 +2247,24 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
-        let plain_class_vtable_targets = self
-            .codegen
-            .class_vtables
-            .values()
-            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
-            .filter(|impl_fqn| {
-                plain_callable_roots.contains(impl_fqn)
-                    || self.pass_view.callable(impl_fqn).is_none()
-                        && self
-                            .codegen
-                            .hir_fun_for_callable_fqn(impl_fqn)
-                            .is_some_and(|sig_fun| {
-                                sig_fun.body.is_some()
-                                    && !self
-                                        .codegen
-                                        .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
-                            })
-            })
-            .collect::<BTreeSet<_>>();
+        let plain_class_vtable_targets =
+            self.codegen
+                .class_vtables
+                .values()
+                .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
+                .filter(|impl_fqn| {
+                    plain_callable_roots.contains(impl_fqn)
+                        || self.pass_view.callable(impl_fqn).is_none()
+                            && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
+                                |sig_fun| {
+                                    sig_fun.body.is_some()
+                                        && !self
+                                            .codegen
+                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
+                                },
+                            )
+                })
+                .collect::<BTreeSet<_>>();
         let interface_itable_targets = self
             .codegen
             .class_itables
@@ -2281,33 +2280,32 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             })
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
-        let plain_interface_itable_targets = self
-            .codegen
-            .class_itables
-            .values()
-            .flat_map(|entries| {
-                entries.iter().flat_map(|entry| {
-                    entry
-                        .method_impl_fqns
-                        .iter()
-                        .filter(|impl_fqn| !impl_fqn.is_empty())
-                        .map(String::as_str)
+        let plain_interface_itable_targets =
+            self.codegen
+                .class_itables
+                .values()
+                .flat_map(|entries| {
+                    entries.iter().flat_map(|entry| {
+                        entry
+                            .method_impl_fqns
+                            .iter()
+                            .filter(|impl_fqn| !impl_fqn.is_empty())
+                            .map(String::as_str)
+                    })
                 })
-            })
-            .filter(|impl_fqn| {
-                plain_callable_roots.contains(impl_fqn)
-                    || self.pass_view.callable(impl_fqn).is_none()
-                        && self
-                            .codegen
-                            .hir_fun_for_callable_fqn(impl_fqn)
-                            .is_some_and(|sig_fun| {
-                                sig_fun.body.is_some()
-                                    && !self
-                                        .codegen
-                                        .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
-                            })
-            })
-            .collect::<BTreeSet<_>>();
+                .filter(|impl_fqn| {
+                    plain_callable_roots.contains(impl_fqn)
+                        || self.pass_view.callable(impl_fqn).is_none()
+                            && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
+                                |sig_fun| {
+                                    sig_fun.body.is_some()
+                                        && !self
+                                            .codegen
+                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
+                                },
+                            )
+                })
+                .collect::<BTreeSet<_>>();
 
         let mut carrier_layouts = HashMap::new();
         let dynamic_dispatch_targets =
@@ -4280,7 +4278,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                             )));
                         }
                         let carrier_source_ty = self.dynamic_call_carrier_source_ty(body, kind);
-                        sites.push((*site_id, kind.clone(), carrier_source_ty, args.len(), facts.clone()));
+                        sites.push((
+                            *site_id,
+                            kind.clone(),
+                            carrier_source_ty,
+                            args.len(),
+                            facts.clone(),
+                        ));
                     }
                 }
             }

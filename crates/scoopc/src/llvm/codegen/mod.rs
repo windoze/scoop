@@ -3440,6 +3440,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    pub(in crate::llvm::codegen) fn ensure_refactor_top_level_immutable_value_init_bridge_defined(
+        &mut self,
+        value_fqn: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let Some(value) = self.top_level_immutable_values.get(value_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor hidden top-level immutable init bridge (missing metadata)",
+                at: crate::span::Span::new(0, 0).into(),
+            });
+        };
+
+        let name = refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn);
+        let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
+        let llvm_fun = self
+            .module
+            .get_function(&name)
+            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+
+        if llvm_fun.get_first_basic_block().is_some() {
+            return Ok(llvm_fun);
+        }
+
+        let saved_block = self.builder.get_insert_block();
+
+        let mut bridge_codegen = self.fresh_child_codegen();
+        bridge_codegen
+            .codegen_refactor_top_level_immutable_value_init_bridge_body(value, llvm_fun)?;
+
+        if let Some(bb) = saved_block {
+            self.builder.position_at_end(bb);
+        }
+
+        Ok(llvm_fun)
+    }
+
+    fn codegen_refactor_top_level_immutable_value_init_bridge_body(
+        &mut self,
+        value: &hir::TopLevelImmutableValue,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let err_span = value
+            .init
+            .as_ref()
+            .map(|init| init.span)
+            .unwrap_or(value.span);
+        self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
+
+        let entry = self.context.append_basic_block(llvm_fun, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun)?;
+
+        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
+        let effect_boundary = self
+            .begin_effect_boundary(err_span, "refactor_hidden_top_level_immutable_init_bridge")?;
+        self.with_conservative_gc_local_root_spills(err_span, |cg| {
+            let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
+            Ok(())
+        })?;
+        let outcome_slot = self.finish_effect_boundary(
+            err_span,
+            effect_boundary,
+            "refactor_hidden_top_level_immutable_init_bridge",
+        )?;
+        let outcome = self.builder.build_load(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            "refactor_hidden_init_bridge_result",
+        )?;
+        self.builder.build_return(Some(&outcome))?;
+        self.finish_function_explicit_frame_layout(err_span)?;
+        Ok(())
+    }
+
     fn codegen_top_level_immutable_value_init_fun_body(
         &mut self,
         value: &hir::TopLevelImmutableValue,
@@ -3637,6 +3710,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             phi.add_incoming(&[(&active_raw, active_end), (&loaded, inactive_end)]);
             return self.cg_value_from_loaded(at, value_cg, phi.as_basic_value());
         }
+        self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
+
+        if value_cg == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+
+        let Some(global) = self.declare_top_level_immutable_value_global(at, value, value_cg)?
+        else {
+            return Ok(CgValue::unit());
+        };
+        let llvm_ty = self.llvm_basic_type_of(at, value_cg)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, global.as_pointer_value(), "load_top_level_val")?;
+        self.cg_value_from_loaded(at, value_cg, loaded)
+    }
+
+    pub(in crate::llvm::codegen) fn load_initialized_top_level_immutable_value(
+        &mut self,
+        at: crate::span::Span,
+        value: &hir::TopLevelImmutableValue,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let value_cg = self
+            .cg_ty_of(value.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value type",
+                at: value.span.into(),
+            })?;
         self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {
@@ -8116,6 +8217,10 @@ fn top_level_callee_resume_entry_fn_name(fun_fqn: &str) -> String {
 
 fn top_level_immutable_value_init_fn_name(value_fqn: &str) -> String {
     format!("__scoop_top_level_val_init__{value_fqn}")
+}
+
+fn refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn: &str) -> String {
+    format!("__scoop_refactor_hidden_top_level_init_bridge__{value_fqn}")
 }
 
 fn top_level_immutable_value_guard_global_name(value_fqn: &str) -> String {

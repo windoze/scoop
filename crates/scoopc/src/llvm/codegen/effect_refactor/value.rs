@@ -824,7 +824,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(None);
         }
-        let TypeKind::Ref(RefTypeKind::Function(source_fun_ty)) = self.source_types.kind(target_ty) else {
+        let TypeKind::Ref(RefTypeKind::Function(source_fun_ty)) = self.source_types.kind(target_ty)
+        else {
             return Ok(None);
         };
         let Some(fun_ty) = self
@@ -972,7 +973,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let missing_layout_error = || {
             frontend_error(format!(
                 "refactor effect-typed plain adapter 缺少匹配 function type args={:?} effects={:?} return=t{} 的 dynamic-invoke layout",
-                expected_args.iter().map(|ty| ty.as_u32()).collect::<Vec<_>>(),
+                expected_args
+                    .iter()
+                    .map(|ty| ty.as_u32())
+                    .collect::<Vec<_>>(),
                 expected_effect_families,
                 fun_ty.return_ty.as_u32(),
             ))
@@ -980,8 +984,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let first = if let Some(layout) = matches.next() {
             layout
         } else {
-            let invoke_args_tuple_ty = source_function_args_tuple_ty(self.source_types, source_fun_ty)
-                .ok_or_else(missing_layout_error)?;
+            let invoke_args_tuple_ty =
+                source_function_args_tuple_ty(self.source_types, source_fun_ty)
+                    .ok_or_else(missing_layout_error)?;
             let mut params = vec![self.codegen.llvm_gc_i8_ptr_type().into()];
             if !function_type_source_args(source_fun_ty).is_empty() {
                 let args_abi = *self.abi.source_value_layout(invoke_args_tuple_ty)?.abi();

@@ -146,6 +146,111 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(at, prop_cg, loaded)
     }
 
+    pub(in crate::llvm::codegen) fn load_initialized_object_property_value(
+        &mut self,
+        at: crate::span::Span,
+        prop_fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some((_obj, prop)) = self.lookup_object_property_by_fqn(prop_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "object property access (missing metadata)",
+                at: at.into(),
+            });
+        };
+        let prop_cg = self
+            .cg_ty_of(prop.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "object property type",
+                at: at.into(),
+            })?;
+        if prop_cg == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+        let Some(global) = self.declare_object_property_global(at, prop_fqn, prop_cg)? else {
+            return Ok(CgValue::unit());
+        };
+        let llvm_ty = self.llvm_basic_type_of(at, prop_cg)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, global.as_pointer_value(), "load_obj_prop")?;
+        self.cg_value_from_loaded(at, prop_cg, loaded)
+    }
+
+    pub(in crate::llvm::codegen) fn ensure_refactor_object_init_bridge_defined(
+        &mut self,
+        object_fqn: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let Some(obj) = self.object_inits.get(object_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "refactor hidden object init bridge (missing metadata)",
+                at: crate::span::Span::new(0, 0).into(),
+            });
+        };
+
+        let name = refactor_hidden_object_init_bridge_fn_name(object_fqn);
+        let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
+        let llvm_fun = self
+            .module
+            .get_function(&name)
+            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+
+        if llvm_fun.get_first_basic_block().is_some() {
+            return Ok(llvm_fun);
+        }
+
+        let saved_block = self.builder.get_insert_block();
+
+        let mut bridge_codegen = self.fresh_child_codegen();
+        bridge_codegen.codegen_refactor_object_init_bridge_body(obj, llvm_fun)?;
+
+        if let Some(bb) = saved_block {
+            self.builder.position_at_end(bb);
+        }
+
+        Ok(llvm_fun)
+    }
+
+    fn codegen_refactor_object_init_bridge_body(
+        &mut self,
+        obj: &hir::ObjectInit,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let err_span = obj
+            .steps
+            .first()
+            .map(|step| match step {
+                hir::ObjectInitStep::PropertyInit { init, .. } => init.span,
+                hir::ObjectInitStep::InitBlock { block } => block.span,
+            })
+            .unwrap_or(crate::span::Span::new(0, 0));
+        self.current_source_id = self.source_id_for_path(obj.source_path.as_path(), err_span)?;
+
+        let entry = self.context.append_basic_block(llvm_fun, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(llvm_fun)?;
+
+        let init_fn = self.ensure_object_init_function_defined(&obj.fqn)?;
+        let effect_boundary =
+            self.begin_effect_boundary(err_span, "refactor_hidden_object_init_bridge")?;
+        self.with_conservative_gc_local_root_spills(err_span, |cg| {
+            let _ = cg.builder.build_call(init_fn, &[], "object_init")?;
+            Ok(())
+        })?;
+        let outcome_slot = self.finish_effect_boundary(
+            err_span,
+            effect_boundary,
+            "refactor_hidden_object_init_bridge",
+        )?;
+        let outcome = self.builder.build_load(
+            self.llvm_effect_outcome_struct_type(),
+            outcome_slot,
+            "refactor_hidden_init_bridge_result",
+        )?;
+        self.builder.build_return(Some(&outcome))?;
+        self.finish_function_explicit_frame_layout(err_span)?;
+        Ok(())
+    }
+
     fn ensure_object_init_function_defined(
         &mut self,
         object_fqn: &str,
@@ -490,6 +595,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(in crate::llvm::codegen) fn load_initialized_object_value(
+        &mut self,
+        _at: crate::span::Span,
+        object_fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let instance = self.declare_object_instance_global(object_fqn);
+        let loaded = self.builder.build_load(
+            self.llvm_gc_i8_ptr_type(),
+            instance.as_pointer_value(),
+            "load_object_instance",
+        )?;
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(loaded),
+        })
+    }
+
     fn declare_object_property_global(
         &mut self,
         at: crate::span::Span,
@@ -527,6 +649,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
 fn object_init_fn_name(object_fqn: &str) -> String {
     format!("__scoop_object_init__{object_fqn}")
+}
+
+fn refactor_hidden_object_init_bridge_fn_name(object_fqn: &str) -> String {
+    format!("__scoop_refactor_hidden_object_init_bridge__{object_fqn}")
 }
 
 fn object_guard_global_name(object_fqn: &str) -> String {

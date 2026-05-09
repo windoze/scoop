@@ -169,16 +169,6 @@ enum RefactorClassCtorBoundarySource<'a> {
     },
 }
 
-impl RefactorClassCtorBoundarySource<'_> {
-    fn span(&self) -> crate::span::Span {
-        match self {
-            Self::ClassCtor { span, .. }
-            | Self::ObjectProperty { span, .. }
-            | Self::TopLevelRef { span, .. } => *span,
-        }
-    }
-}
-
 struct TaskTransportResumeCandidate<'a, 'ctx> {
     callable: &'a LateLoweredCallable,
     adapter: FunctionValue<'ctx>,
@@ -5212,67 +5202,201 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let site_id = boundary_site(boundary, "ClassCtor")?;
         let source = self.class_ctor_boundary_statement(lowering, site_id)?;
-        let class_layout_key = match &source {
-            RefactorClassCtorBoundarySource::ClassCtor { .. } => {
-                Some(self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?)
+        match &source {
+            RefactorClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
+                let class_layout_key =
+                    self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?;
+                let slots = self.slots.clone();
+                let args = args.to_vec();
+                let result = self
+                    .codegen
+                    .with_active_suspend_site_any_effect_outcome_capture(
+                        site_id.as_u32(),
+                        |cg| {
+                            cg.with_ordinary_effect_propagation_suppressed(|cg| {
+                                cg.codegen_mir_refactor_class_ctor_call(
+                                    *span,
+                                    &class_layout_key,
+                                    ctor,
+                                    &args,
+                                    &slots,
+                                )
+                            })
+                        },
+                    )?;
+                let outcome_slot = self
+                    .codegen
+                    .take_suspend_site_explicit_effect_outcome(site_id.as_u32());
+                let Some(outcome_slot) = outcome_slot else {
+                    let _ = self.store_local_value(*span, lowering.result_local(), result)?;
+                    return self.branch_to_state(boundary.resume_state());
+                };
+
+                let active_bb = self
+                    .codegen
+                    .context
+                    .append_basic_block(self.function, "class_ctor_hidden_effect_active");
+                let inactive_bb = self
+                    .codegen
+                    .context
+                    .append_basic_block(self.function, "class_ctor_hidden_effect_inactive");
+                let is_propagating = self.codegen.effect_outcome_is_propagating(
+                    *span,
+                    outcome_slot,
+                    "class_ctor_hidden_effect",
+                )?;
+                self.codegen.builder.build_conditional_branch(
+                    is_propagating,
+                    active_bb,
+                    inactive_bb,
+                )?;
+
+                self.codegen.builder.position_at_end(active_bb);
+                let emission = match lowering.emitted_steps() {
+                    [single] => single,
+                    [] => {
+                        return Err(frontend_error(format!(
+                            "refactor class ctor boundary bd{} 缺少 hidden effect emission",
+                            boundary.boundary_id().as_u32()
+                        )));
+                    }
+                    many => {
+                        return Err(frontend_error(format!(
+                            "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 runtime outcome lowering 需要唯一 ordinary effect case",
+                            boundary.boundary_id().as_u32(),
+                            many.len()
+                        )));
+                    }
+                };
+                let payload = self
+                    .lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
+                self.emit_or_consume_outward_case(
+                    boundary,
+                    emission.case_tag(),
+                    payload,
+                    emission.payload_tuple_ty(),
+                    None,
+                    None,
+                )?;
+
+                self.codegen.builder.position_at_end(inactive_bb);
+                let _ = self.store_local_value(*span, lowering.result_local(), result)?;
+                self.branch_to_state(boundary.resume_state())
             }
-            RefactorClassCtorBoundarySource::ObjectProperty { .. }
-            | RefactorClassCtorBoundarySource::TopLevelRef { .. } => None,
-        };
-        let slots = self.slots.clone();
-        let result = self
-            .codegen
-            .with_active_suspend_site_any_effect_outcome_capture(site_id.as_u32(), |cg| {
-                cg.with_ordinary_effect_propagation_suppressed(|cg| match &source {
-                    RefactorClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
-                        let args = args.to_vec();
-                        let class_layout_key = class_layout_key.as_ref().ok_or_else(|| {
-                            frontend_error(
-                                "refactor class ctor boundary 缺少 class layout key".to_string(),
-                            )
-                        })?;
-                        cg.codegen_mir_refactor_class_ctor_call(
-                            *span,
-                            class_layout_key,
-                            ctor,
-                            &args,
-                            &slots,
-                        )
-                    }
-                    RefactorClassCtorBoundarySource::ObjectProperty { span, fqn } => {
-                        cg.codegen_object_property_access(*span, fqn)
-                    }
-                    RefactorClassCtorBoundarySource::TopLevelRef { span, fqn } => {
-                        cg.codegen_top_level_value_ref(*span, fqn)
-                    }
-                })
-            })?;
-        let outcome_slot = self
-            .codegen
-            .take_suspend_site_explicit_effect_outcome(site_id.as_u32());
-        let Some(outcome_slot) = outcome_slot else {
-            let _ = self.store_local_value(source.span(), lowering.result_local(), result)?;
-            return self.branch_to_state(boundary.resume_state());
-        };
+            RefactorClassCtorBoundarySource::ObjectProperty { span, fqn } => {
+                let object_fqn = self
+                    .codegen
+                    .lookup_object_property_by_fqn(fqn)
+                    .map(|(object, _prop)| object.fqn.clone())
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor class ctor boundary site{} hidden object property `{fqn}` 缺少 metadata",
+                            site_id.as_u32()
+                        ))
+                    })?;
+                let bridge = self
+                    .codegen
+                    .ensure_refactor_object_init_bridge_defined(&object_fqn)?;
+                let outcome_slot = self.call_refactor_hidden_init_bridge(
+                    *span,
+                    bridge,
+                    "refactor_hidden_object_init_bridge",
+                )?;
+                let prop_fqn = (*fqn).to_string();
+                self.lower_hidden_init_boundary_from_bridge(
+                    boundary,
+                    lowering,
+                    *span,
+                    outcome_slot,
+                    move |cg| {
+                        cg.codegen
+                            .load_initialized_object_property_value(*span, &prop_fqn)
+                    },
+                )
+            }
+            RefactorClassCtorBoundarySource::TopLevelRef { span, fqn } => {
+                if self.codegen.object_inits.contains_key(*fqn) {
+                    let object_fqn = (*fqn).to_string();
+                    let bridge = self
+                        .codegen
+                        .ensure_refactor_object_init_bridge_defined(&object_fqn)?;
+                    let outcome_slot = self.call_refactor_hidden_init_bridge(
+                        *span,
+                        bridge,
+                        "refactor_hidden_object_init_bridge",
+                    )?;
+                    self.lower_hidden_init_boundary_from_bridge(
+                        boundary,
+                        lowering,
+                        *span,
+                        outcome_slot,
+                        move |cg| cg.codegen.load_initialized_object_value(*span, &object_fqn),
+                    )
+                } else if let Some(value) =
+                    self.codegen.top_level_immutable_values.get(*fqn).cloned()
+                {
+                    let bridge = self
+                        .codegen
+                        .ensure_refactor_top_level_immutable_value_init_bridge_defined(
+                            &value.fqn,
+                        )?;
+                    let outcome_slot = self.call_refactor_hidden_init_bridge(
+                        *span,
+                        bridge,
+                        "refactor_hidden_top_level_init_bridge",
+                    )?;
+                    self.lower_hidden_init_boundary_from_bridge(
+                        boundary,
+                        lowering,
+                        *span,
+                        outcome_slot,
+                        move |cg| {
+                            cg.codegen
+                                .load_initialized_top_level_immutable_value(*span, &value)
+                        },
+                    )
+                } else {
+                    Err(frontend_error(format!(
+                        "refactor class ctor boundary site{} hidden top-level ref `{fqn}` 不是 object/top-level immutable init",
+                        site_id.as_u32()
+                    )))
+                }
+            }
+        }
+    }
 
-        let active_bb = self
-            .codegen
-            .context
-            .append_basic_block(self.function, "class_ctor_hidden_effect_active");
-        let inactive_bb = self
-            .codegen
-            .context
-            .append_basic_block(self.function, "class_ctor_hidden_effect_inactive");
-        let is_propagating = self.codegen.effect_outcome_is_propagating(
-            source.span(),
-            outcome_slot,
-            "class_ctor_hidden_effect",
-        )?;
+    fn call_refactor_hidden_init_bridge(
+        &mut self,
+        span: crate::span::Span,
+        bridge: FunctionValue<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let outcome_slot = self.codegen.alloc_effect_outcome_slot(span, label)?;
         self.codegen
-            .builder
-            .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
+            .with_conservative_gc_local_root_spills(span, |cg| {
+                let call = cg.builder.build_call(bridge, &[], label)?;
+                let outcome = call.try_as_basic_value().basic().ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor hidden-init bridge `{label}` 未返回 explicit outcome aggregate"
+                    ))
+                })?;
+                cg.builder.build_store(outcome_slot, outcome)?;
+                Ok(())
+            })?;
+        Ok(outcome_slot)
+    }
 
-        self.codegen.builder.position_at_end(active_bb);
+    fn lower_hidden_init_boundary_from_bridge<F>(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
+        span: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        load_result: F,
+    ) -> Result<(), LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<CgValue<'ctx>, LlvmEmitError>,
+    {
         let emission = match lowering.emitted_steps() {
             [single] => single,
             [] => {
@@ -5283,12 +5407,90 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             many => {
                 return Err(frontend_error(format!(
-                    "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 runtime outcome lowering 需要唯一 ordinary effect case",
+                    "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 hidden-init bridge 需要唯一 ordinary effect case",
                     boundary.boundary_id().as_u32(),
                     many.len()
                 )));
             }
         };
+
+        let active_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_active");
+        let inactive_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_inactive");
+        let dispatch_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_dispatch");
+        let complete_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_complete");
+        let case_bb = self.codegen.context.append_basic_block(
+            self.function,
+            &format!(
+                "class_ctor_hidden_effect_case{}",
+                emission.case_tag().as_u32()
+            ),
+        );
+        let unmatched_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "class_ctor_hidden_effect_unmatched");
+
+        let is_propagating = self.codegen.effect_outcome_is_propagating(
+            span,
+            outcome_slot,
+            "class_ctor_hidden_effect",
+        )?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
+
+        self.codegen.builder.position_at_end(active_bb);
+        self.codegen
+            .builder
+            .build_unconditional_branch(dispatch_bb)?;
+        let active_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
+            frontend_error("refactor hidden-init active branch 缺少 insert block".to_string())
+        })?;
+
+        self.codegen.builder.position_at_end(inactive_bb);
+        self.codegen
+            .builder
+            .build_unconditional_branch(dispatch_bb)?;
+        let inactive_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
+            frontend_error("refactor hidden-init inactive branch 缺少 insert block".to_string())
+        })?;
+
+        self.codegen.builder.position_at_end(dispatch_bb);
+        let complete_tag = self.codegen.context.i32_type().const_zero();
+        let outward_tag = self.codegen.context.i32_type().const_int(
+            u64::from(emission.case_tag().as_u32().saturating_add(1)),
+            false,
+        );
+        let step_tag = self
+            .codegen
+            .builder
+            .build_phi(self.codegen.context.i32_type(), "refactor_step_tag")?;
+        step_tag.add_incoming(&[(&outward_tag, active_end), (&complete_tag, inactive_end)]);
+        let refactor_step_tag = step_tag.as_basic_value().into_int_value();
+        self.codegen.builder.build_switch(
+            refactor_step_tag,
+            unmatched_bb,
+            &[(complete_tag, complete_bb), (outward_tag, case_bb)],
+        )?;
+
+        self.codegen.builder.position_at_end(complete_bb);
+        let result = load_result(self)?;
+        let _ = self.store_local_value(span, lowering.result_local(), result)?;
+        self.branch_to_state(boundary.resume_state())?;
+
+        self.codegen.builder.position_at_end(case_bb);
         let payload =
             self.lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
         self.emit_or_consume_outward_case(
@@ -5300,9 +5502,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None,
         )?;
 
-        self.codegen.builder.position_at_end(inactive_bb);
-        let _ = self.store_local_value(source.span(), lowering.result_local(), result)?;
-        self.branch_to_state(boundary.resume_state())
+        self.codegen.builder.position_at_end(unmatched_bb);
+        self.codegen.builder.build_unreachable()?;
+        Ok(())
     }
 
     fn class_ctor_layout_key(
@@ -8006,9 +8208,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     fn body_operand_source_ty(&self, operand: &crate::mir::Operand) -> Option<TypeId> {
         match operand {
-            crate::mir::Operand::Local(local) => {
-                self.body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
-            }
+            crate::mir::Operand::Local(local) => self
+                .body
+                .locals
+                .get(local.as_u32() as usize)
+                .map(|decl| decl.ty),
             crate::mir::Operand::Const(_) => None,
         }
     }
@@ -8024,16 +8228,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee },
                 RefactorDynamicInvokeCarrierLayout::ClosureObject(_),
             ) => (callee, CgTy::Ref),
-            (
-                mir::CallKind::FunValue { callee },
-                RefactorDynamicInvokeCarrierLayout::FunPtr(_),
-            ) => {
-                let source_ty = self
-                    .body_operand_source_ty(callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+            (mir::CallKind::FunValue { callee }, RefactorDynamicInvokeCarrierLayout::FunPtr(_)) => {
+                let source_ty = self.body_operand_source_ty(callee).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor funptr carrier source type",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, source_ty)

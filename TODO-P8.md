@@ -637,7 +637,7 @@
   - 验证：`cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
   - 验证：`cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
 
-## P8-T03ab：消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖
+## [DONE] P8-T03ab：消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8，§4
@@ -692,7 +692,11 @@
   - `P8-T04` 可以继续完整矩阵，而不会再被这两条 hidden-init blocker 卡住。
 - 依赖：`P8-T03a`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-10：完成 hidden-init helper 收口。`crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 不再让默认 refactor helper 直接安装 `begin_effect_boundary(...)` / `scoop_effect_outcome_consume_current(...)` / `scoop_effect_handler_stack_swap_top(...)`；object value / object property / top-level immutable hidden-init 现在统一先调用内部 bridge helper 取得 explicit outcome aggregate，再在 helper 侧用 `refactor_step_tag` switch 做 complete/outward dispatch，并继续通过现有 continuation publication 走 authoritative refactor boundary。
+  - 2026-05-10：新增 object/top-level hidden-init bridge helper：`crates/scoopc/src/llvm/codegen/object_init.rs` 为 object init 发布 `__scoop_refactor_hidden_object_init_bridge__*`，`crates/scoopc/src/llvm/codegen/mod.rs` 为 top-level immutable init 发布 `__scoop_refactor_hidden_top_level_init_bridge__*`。它们把 legacy outcome capture 收口到内部实现细节，默认单文件 refactor helper 自身不再暴露 legacy outcome / handler-stack shim。
+  - 2026-05-10：历史/raw-MIR materialized helper 的边界保持不变：`production_codegen_lowers_raw_mir_object_value_init_access` 与 `production_codegen_lowers_raw_mir_top_level_immutable_init_access` 继续验证 production/raw-MIR path 仍经 explicit outcome bridge；因此 residual bridge 只剩 raw-MIR/materialized helper 与新 hidden-init bridge 内部实现，不再构成 default refactor helper 的 hidden legacy fallback。
+  - 2026-05-10：补充 default helper 定向断言 `object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary`，并加强 object value / object property / top-level immutable 三条默认路径断言：helper body 必须出现 `switch i32 %refactor_step_tag`，且不得再出现 `scoop_effect_outcome*` / `scoop_effect_handler_stack_swap_top` / `@scoop_effect_is_active`。
+  - 2026-05-10：验证通过：`cargo test -p scoopc --lib llvm::tests::object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_object_value_init_access -- --exact`；`cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`；`cargo clippy --all-targets -- -D warnings`。
 
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 

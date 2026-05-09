@@ -4343,6 +4343,7 @@ fn operand_source_with_inferred_ty(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_ordered_call_arg_sources(
     root_fqn: &str,
     site_id: SiteId,
@@ -4638,6 +4639,7 @@ fn validate_source_slice_bounds(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_call_boundary_operand_contract(
     root_fqn: &str,
     body: &Body,
