@@ -8877,7 +8877,7 @@ fn ordinary_callee_resume_slot_type(
 mod plan_tests {
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::typecheck;
 
@@ -9651,7 +9651,7 @@ fun demo(): Int / (Boom) {
     }
 
     fn legacy_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).expect("session")
+        Session::with_options(SessionOptions::new()).expect("session")
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

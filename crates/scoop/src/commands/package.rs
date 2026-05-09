@@ -97,7 +97,7 @@ public fun util() { }
         .unwrap();
 
         let out = dir.path().join("out").join("fixture.cone");
-        super::run(pkg, Some(out.clone()), super::SessionOptions::default()).unwrap();
+        super::run(pkg, Some(out.clone()), super::SessionOptions::new()).unwrap();
 
         assert!(out.is_file(), "应写出 .cone 文件");
 
@@ -144,7 +144,7 @@ public fun util() { }
         .unwrap();
 
         let out = dir.path().join("fixture.cone");
-        super::run(pkg, Some(out.clone()), super::SessionOptions::default()).unwrap();
+        super::run(pkg, Some(out.clone()), super::SessionOptions::new()).unwrap();
 
         let api =
             scoopc::cone::read_cone_archive_entry(&out, scoopc::cone::CONE_API_SCOOPIR_FILE_NAME)

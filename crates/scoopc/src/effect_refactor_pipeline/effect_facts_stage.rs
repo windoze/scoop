@@ -242,12 +242,12 @@ mod tests {
         File, LoweredMir, MirCallableAbiKind, MirCallableImplPlan, MirCodegenBackendRoute,
         MirCodegenRouteFeature,
     };
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn sample_source() -> SourceFile {

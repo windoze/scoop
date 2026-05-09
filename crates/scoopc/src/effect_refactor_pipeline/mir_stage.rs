@@ -384,7 +384,7 @@ mod tests {
         RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue, StatementKind,
         TerminatorKind, UnwindAction, ValueTransportMetadata, lower_hir_file_for_dump_with_facts,
     };
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use std::path::PathBuf;
@@ -392,7 +392,7 @@ mod tests {
     use super::super::TypedHirEffectContracts;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

@@ -7,9 +7,6 @@
 
 use std::path::PathBuf;
 
-#[cfg(test)]
-use std::fmt::Write as _;
-
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use scoopc::session::SessionOptions;
 
@@ -52,29 +49,6 @@ fn load_materialized_mir_for_dump(
         .map_err(|err| miette::Report::from(*err))
 }
 
-#[cfg(test)]
-fn render_materialized_mir_parity_view(materialized: &scoopc::mir::MaterializedMir) -> String {
-    let mut out = String::new();
-    let callable_view = materialized.callable_view();
-
-    // `dump-ir` 的原始 Debug 会包含 `TypeStore` 与若干 hash-backed side table，跨进程顺序不稳定；
-    // parity 测试改为比较稳定的 materialized file + instance family/summary 投影。
-    writeln!(&mut out, "file:").unwrap();
-    writeln!(&mut out, "{:#?}", materialized.file).unwrap();
-    writeln!(&mut out, "instances:").unwrap();
-    for family in callable_view.instances() {
-        writeln!(&mut out, "- key: {:?}", family.key()).unwrap();
-        writeln!(&mut out, "  root_fqn: {}", family.root_fqn()).unwrap();
-        writeln!(&mut out, "  callable_fqns:").unwrap();
-        for callable_fqn in family.callable_fqns() {
-            writeln!(&mut out, "    - {callable_fqn}").unwrap();
-        }
-        writeln!(&mut out, "  summary: {:?}", family.summary()).unwrap();
-    }
-
-    out
-}
-
 /// 读取输入文件并打印实例化后的 MIR Debug 输出。
 pub(super) fn render_dump_output(
     input: PathBuf,
@@ -89,18 +63,6 @@ pub(super) fn render_dump_output(
         lowered,
         render_codegen_route_preflight(&lowered)
     ))
-}
-
-#[cfg(test)]
-pub(super) fn render_parity_output(
-    input: PathBuf,
-    session_options: SessionOptions,
-) -> Result<String> {
-    let file = load_input_source(input)?;
-
-    let session = scoopc::session::Session::with_options(session_options)?;
-    let lowered = load_materialized_mir_for_dump(&session, &file)?;
-    Ok(render_materialized_mir_parity_view(&lowered))
 }
 
 pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {

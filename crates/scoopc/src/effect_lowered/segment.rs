@@ -1012,11 +1012,11 @@ mod tests {
         BoundarySiteKind, LateLoweredBoundarySource, LateLoweredStateRole,
     };
     use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

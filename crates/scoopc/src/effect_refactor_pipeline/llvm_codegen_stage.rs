@@ -794,11 +794,11 @@ mod tests {
     use crate::effect_refactor_pipeline::{self, LlvmArtifactKind};
     use crate::llvm::{LlvmEmitError, build_refactor_main_module_from_stage_output};
     use crate::opt::OptLevel;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
 
-    fn session_for(mode: EffectPipelineMode) -> Session {
-        Session::with_options(SessionOptions::new(mode)).unwrap()
+    fn session() -> Session {
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn test_lock() -> std::sync::MutexGuard<'static, ()> {
@@ -1226,8 +1226,7 @@ fun main(): Int {
         let _guard = test_lock();
         let temp = make_temp_dir();
         let out = temp.path().join(file_name);
-        let (session, source_map, entry_source_id, lowered) =
-            emit_args_for_source(EffectPipelineMode::Refactor, source);
+        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
         effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
@@ -1255,7 +1254,6 @@ fun main(): Int {
     }
 
     fn emit_args_for_source(
-        mode: EffectPipelineMode,
         source: SourceFile,
     ) -> (
         Session,
@@ -1263,33 +1261,29 @@ fun main(): Int {
         crate::source::SourceId,
         crate::hir::LoweredHir,
     ) {
-        let session = session_for(mode);
+        let session = session();
         let lowered = crate::hir::lower_typed_for_dump(&session, &source).unwrap();
         let mut source_map = SourceMap::new();
         let entry_source_id = source_map.add_source_clone(&source);
         (session, source_map, entry_source_id, lowered)
     }
 
-    fn sample_emit_args(
-        mode: EffectPipelineMode,
-    ) -> (
+    fn sample_emit_args() -> (
         Session,
         SourceMap,
         crate::source::SourceId,
         crate::hir::LoweredHir,
     ) {
-        emit_args_for_source(mode, sample_source())
+        emit_args_for_source(sample_source())
     }
 
-    fn effectful_emit_args(
-        mode: EffectPipelineMode,
-    ) -> (
+    fn effectful_emit_args() -> (
         Session,
         SourceMap,
         crate::source::SourceId,
         crate::hir::LoweredHir,
     ) {
-        emit_args_for_source(mode, effectful_source())
+        emit_args_for_source(effectful_source())
     }
 
     #[test]
@@ -1588,8 +1582,7 @@ fun main(): Int {
     #[test]
     fn refactor_llvm_codegen_stage_output_is_constructible() {
         let _guard = test_lock();
-        let (session, source_map, entry_source_id, lowered) =
-            sample_emit_args(EffectPipelineMode::Refactor);
+        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
         let input = RefactorLlvmCodegenStageInput::new(
             lowered,
             None,
@@ -1640,14 +1633,13 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_codegen_stage_build_entry_uses_stage_but_legacy_does_not() {
+    fn single_pipeline_llvm_codegen_stage_build_entry_uses_stage() {
         let _guard = test_lock();
         let temp = make_temp_dir();
-        let out = temp.path().join("refactor.ll");
+        let out = temp.path().join("single.ll");
 
         reset_test_stage_run_count();
-        let (session, source_map, entry_source_id, lowered) =
-            sample_emit_args(EffectPipelineMode::Refactor);
+        let (session, source_map, entry_source_id, lowered) = sample_emit_args();
         effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
@@ -1662,26 +1654,6 @@ fun main(): Int {
         .unwrap();
         assert_eq!(test_stage_run_count(), 1);
         assert!(out.is_file());
-
-        reset_test_stage_run_count();
-        let temp = make_temp_dir();
-        let out = temp.path().join("legacy.ll");
-        let (session, source_map, entry_source_id, lowered) =
-            sample_emit_args(EffectPipelineMode::Legacy);
-        let err = effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
-            &session,
-            &source_map,
-            entry_source_id,
-            lowered,
-            None,
-            &out,
-            None,
-            OptLevel::O0,
-            LlvmArtifactKind::LlvmIr,
-        )
-        .expect_err("legacy 路径应继续沿用原有 production_lowered_hir 入口");
-        assert!(matches!(err, LlvmEmitError::MissingMaterializedPassView));
-        assert_eq!(test_stage_run_count(), 0);
     }
 
     #[test]
@@ -1697,8 +1669,7 @@ fun main(): Int {
         reset_test_stage_run_count();
         for (artifact, rel) in artifacts {
             let out = temp.path().join(rel);
-            let (session, source_map, entry_source_id, lowered) =
-                sample_emit_args(EffectPipelineMode::Refactor);
+            let (session, source_map, entry_source_id, lowered) = sample_emit_args();
             effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
                 &session,
                 &source_map,
@@ -1725,8 +1696,7 @@ fun main(): Int {
         let out = temp.path().join("effect.ll");
 
         reset_test_stage_run_count();
-        let (session, source_map, entry_source_id, lowered) =
-            effectful_emit_args(EffectPipelineMode::Refactor);
+        let (session, source_map, entry_source_id, lowered) = effectful_emit_args();
         effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,

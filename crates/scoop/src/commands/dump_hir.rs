@@ -5,36 +5,15 @@
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
-use scoopc::session::{EffectPipelineMode, SessionOptions};
-
-enum DumpHirOutput {
-    Legacy(Box<scoopc::hir::LoweredHir>),
-    Refactor(Box<scoopc::effect_refactor_pipeline::TypedHirStageOutput>),
-}
-
-impl DumpHirOutput {
-    fn render(&self) -> String {
-        match self {
-            Self::Legacy(lowered) => format!("{:#?}\n", lowered.file),
-            Self::Refactor(output) => output.stable_dump(),
-        }
-    }
-}
+use scoopc::session::SessionOptions;
 
 fn load_hir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-) -> Result<DumpHirOutput> {
-    match session.effect_pipeline_mode() {
-        EffectPipelineMode::Legacy => scoopc::hir::lower_for_dump(session, source)
-            .map(|lowered| DumpHirOutput::Legacy(Box::new(lowered)))
-            .map_err(miette::Report::from),
-        EffectPipelineMode::Refactor => {
-            scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
-                .map(|output| DumpHirOutput::Refactor(Box::new(output)))
-                .map_err(miette::Report::from)
-        }
-    }
+) -> Result<Box<scoopc::effect_refactor_pipeline::TypedHirStageOutput>> {
+    scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
+        .map(Box::new)
+        .map_err(miette::Report::from)
 }
 
 /// 读取输入文件并打印 HIR（Debug）。
@@ -50,7 +29,7 @@ pub(super) fn render_dump_output(
 
     let session = scoopc::session::Session::with_options(session_options)?;
     let lowered = load_hir_for_dump(&session, &file)?;
-    Ok(lowered.render())
+    Ok(lowered.stable_dump())
 }
 
 pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
@@ -60,55 +39,25 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::DumpHirOutput;
-    use scoopc::session::{EffectPipelineMode, Session, SessionOptions};
+    use scoopc::session::{Session, SessionOptions};
     use scoopc::source::SourceFile;
 
     #[test]
-    fn refactor_typed_hir_stage_dump_hir_command_uses_new_stage() {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+    fn dump_hir_command_uses_single_typed_hir_stage() {
+        let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
         let hir_output = super::load_hir_for_dump(&session, &source).unwrap();
-        let stage = scoopc::effect_refactor_pipeline::dispatcher_for_session(&session).typed_hir();
 
-        match hir_output {
-            DumpHirOutput::Legacy(_) => panic!("refactor dump-hir 不应走 legacy lower_for_dump"),
-            DumpHirOutput::Refactor(output) => {
-                assert_eq!(output.hir_file().items.len(), 1);
-                assert!(!output.effect_contracts().is_placeholder());
-                assert_eq!(output.effect_contracts().function_effects().len(), 1);
-                assert!(output.stable_dump().contains("TypedHirEffectContracts"));
-            }
-        }
-        assert_eq!(stage.mode(), EffectPipelineMode::Refactor);
+        assert_eq!(hir_output.hir_file().items.len(), 1);
+        assert!(!hir_output.effect_contracts().is_placeholder());
+        assert_eq!(hir_output.effect_contracts().function_effects().len(), 1);
+        assert!(hir_output.stable_dump().contains("TypedHirEffectContracts"));
     }
 
     #[test]
-    fn legacy_dump_hir_command_keeps_lower_for_dump_behavior() {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap();
-        let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
-
-        let hir_output = super::load_hir_for_dump(&session, &source).unwrap();
-        let legacy = scoopc::hir::lower_for_dump(&session, &source).unwrap();
-
-        match hir_output {
-            DumpHirOutput::Legacy(lowered) => {
-                assert_eq!(
-                    format!("{:#?}\n", lowered.file),
-                    format!("{:#?}\n", legacy.file)
-                );
-            }
-            DumpHirOutput::Refactor(_) => panic!("legacy dump-hir 不应走 refactor typed HIR stage"),
-        }
-    }
-
-    #[test]
-    fn refactor_dump_hir_output_appends_typed_contract_section() {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+    fn dump_hir_output_appends_typed_contract_section() {
+        let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -124,7 +73,7 @@ fun use(k: Continuation<Int, Int, eff Pure>): Int / Raise<RuntimeError> {
 
         let rendered = super::load_hir_for_dump(&session, &source)
             .unwrap()
-            .render();
+            .stable_dump();
 
         assert!(rendered.contains("TypedHirEffectContracts"));
         assert!(rendered.contains("continuation_resume_sites"));

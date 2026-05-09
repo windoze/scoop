@@ -408,7 +408,7 @@ mod tests {
 
     use super::super::{MaterializedMir, Statement, StatementKind};
     use crate::mir::materialize_for_dump;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
     fn pass_view_fixture_source() -> SourceFile {
@@ -456,7 +456,7 @@ fun main(): Int {
     }
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

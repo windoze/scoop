@@ -15,8 +15,6 @@ mod dump_rtti;
 mod dump_stackmaps;
 mod new;
 mod package;
-#[cfg(test)]
-mod parity;
 mod run;
 pub(crate) mod temp;
 mod test;
@@ -44,11 +42,8 @@ pub fn init_tracing() {
 }
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {
-    let Args {
-        effect_pipeline,
-        command,
-    } = args;
-    let session_options = SessionOptions::new(effect_pipeline);
+    let Args { command } = args;
+    let session_options = SessionOptions::new();
 
     match command {
         Command::New { project_name } => new::run(project_name),

@@ -7021,7 +7021,7 @@ mod tests {
     use crate::llvm::target;
     use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
     use crate::program_facts::ProgramFacts;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
     use crate::ty::{TypeParamType, TypeStore};
     use inkwell::context::Context;
@@ -7036,7 +7036,7 @@ mod tests {
     }
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

@@ -176,11 +176,11 @@ mod tests {
     use super::RefactorEffectLoweredStageOutput;
     use crate::effect_facts::{CallableAbiKind, CanonicalMirQuerySurface};
     use crate::opt::OptLevel;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn sample_source() -> SourceFile {

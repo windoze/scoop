@@ -1988,7 +1988,7 @@ mod transform_tests {
     use crate::hir;
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use crate::typecheck;
@@ -4455,7 +4455,7 @@ fun demo(flag: Bool): Int {
     }
 
     fn legacy_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn collect_scoop_files_for_test(dir: &Path, out: &mut Vec<PathBuf>) {

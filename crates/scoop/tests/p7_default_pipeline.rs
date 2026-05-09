@@ -24,107 +24,70 @@ where
     Command::new(scoop_bin()).args(args).output().unwrap()
 }
 
-fn assert_same_observable(default: &Output, explicit: &Output, context: &str) {
-    assert_eq!(
-        default.status.success(),
-        explicit.status.success(),
-        "{context}: default/refactor success differed\ndefault={default:?}\nexplicit={explicit:?}"
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&default.stdout),
-        String::from_utf8_lossy(&explicit.stdout),
-        "{context}: default/refactor stdout differed"
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&default.stderr),
-        String::from_utf8_lossy(&explicit.stderr),
-        "{context}: default/refactor stderr differed"
-    );
-}
-
 #[test]
-fn default_pipeline_matches_explicit_refactor_dump_mir_cli() {
-    let fixture = workspace_path("tests/fixtures/mir/handle_perform.scoop");
-
-    let default = run_scoop([OsStr::new("dump-mir"), fixture.as_os_str()]);
-    let explicit = run_scoop([
+fn effect_pipeline_selector_removed_for_scoop_cli_smoke() {
+    let fixture = workspace_path("tests/fixtures/parse/hello.scoop");
+    let output = run_scoop([
         OsStr::new("--effect-pipeline"),
-        OsStr::new("refactor"),
-        OsStr::new("dump-mir"),
+        OsStr::new("legacy"),
+        OsStr::new("dump-ast"),
         fixture.as_os_str(),
     ]);
 
-    assert_same_observable(&default, &explicit, "dump-mir");
-    assert!(default.status.success(), "dump-mir failed: {default:?}");
     assert!(
-        String::from_utf8_lossy(&default.stdout).contains("site_id: site"),
-        "default dump-mir should expose refactor MIR site metadata"
+        !output.status.success(),
+        "removed selector should fail: {output:?}"
     );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--effect-pipeline"));
 }
 
 #[test]
-fn default_pipeline_matches_explicit_refactor_build_emit_llvm_cli() {
+fn single_effect_pipeline_dump_mir_cli_works() {
+    let fixture = workspace_path("tests/fixtures/mir/handle_perform.scoop");
+    let output = run_scoop([OsStr::new("dump-mir"), fixture.as_os_str()]);
+
+    assert!(output.status.success(), "dump-mir failed: {output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("site_id: site"));
+}
+
+#[test]
+fn single_effect_pipeline_build_emit_llvm_cli_works() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
     let dir = tempdir().unwrap();
-    let default_ll = dir.path().join("default.ll");
-    let explicit_ll = dir.path().join("explicit_refactor.ll");
+    let output_ll = dir.path().join("single.ll");
 
-    let default = run_scoop([
+    let output = run_scoop([
         OsStr::new("build"),
         OsStr::new("--emit-llvm"),
         OsStr::new("--no-incremental"),
         fixture.as_os_str(),
         OsStr::new("-o"),
-        default_ll.as_os_str(),
-    ]);
-    let explicit = run_scoop([
-        OsStr::new("--effect-pipeline"),
-        OsStr::new("refactor"),
-        OsStr::new("build"),
-        OsStr::new("--emit-llvm"),
-        OsStr::new("--no-incremental"),
-        fixture.as_os_str(),
-        OsStr::new("-o"),
-        explicit_ll.as_os_str(),
+        output_ll.as_os_str(),
     ]);
 
-    assert_same_observable(&default, &explicit, "build --emit-llvm");
-    assert!(
-        default.status.success(),
-        "default build failed: {default:?}"
-    );
-    let default_ir = std::fs::read_to_string(&default_ll).unwrap();
-    let explicit_ir = std::fs::read_to_string(&explicit_ll).unwrap();
-    assert_eq!(default_ir, explicit_ir, "default/refactor LLVM IR differed");
-    assert!(default_ir.contains("define i32 @main("));
+    assert!(output.status.success(), "build failed: {output:?}");
+    let ir = std::fs::read_to_string(&output_ll).unwrap();
+    assert!(ir.contains("define i32 @main("));
 }
 
 #[test]
-fn default_pipeline_matches_explicit_refactor_run_cli() {
+fn single_effect_pipeline_run_cli_works() {
     let fixture = workspace_path(
         "tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop",
     );
 
-    let default = run_scoop([
-        OsStr::new("run"),
-        OsStr::new("--no-incremental"),
-        fixture.as_os_str(),
-    ]);
-    let explicit = run_scoop([
-        OsStr::new("--effect-pipeline"),
-        OsStr::new("refactor"),
+    let output = run_scoop([
         OsStr::new("run"),
         OsStr::new("--no-incremental"),
         fixture.as_os_str(),
     ]);
 
-    assert_same_observable(&default, &explicit, "run");
-    assert!(default.status.success(), "default run failed: {default:?}");
-    assert!(String::from_utf8_lossy(&default.stdout).contains("done"));
+    assert!(output.status.success(), "run failed: {output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("done"));
 }
 
 #[test]
-fn default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli() {
+fn single_pipeline_runs_hidden_suspend_dynamic_dispatch_helpers_cli() {
     for (fixture, expected_stdout) in [
         (
             "tests/fixtures/run-pass/effect_handle_hidden_suspend_virtual_helper_basic.scoop",
@@ -144,14 +107,14 @@ fn default_refactor_runs_hidden_suspend_dynamic_dispatch_helpers_cli() {
 
         assert!(
             output.status.success(),
-            "default refactor dynamic dispatch hidden suspend fixture should run: {output:?}"
+            "single pipeline dynamic dispatch hidden suspend fixture should run: {output:?}"
         );
         assert_eq!(String::from_utf8_lossy(&output.stdout), expected_stdout);
     }
 }
 
 #[test]
-fn default_refactor_runs_higher_order_function_value_handled_effect_cli() {
+fn single_pipeline_runs_higher_order_function_value_handled_effect_cli() {
     let fixture = workspace_path(
         "tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop",
     );
@@ -165,7 +128,7 @@ fn default_refactor_runs_higher_order_function_value_handled_effect_cli() {
     assert_eq!(
         output.status.code(),
         Some(10),
-        "default refactor higher-order function-value fixture should exit 10: {output:?}"
+        "single pipeline higher-order function-value fixture should exit 10: {output:?}"
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
@@ -174,7 +137,7 @@ fn default_refactor_runs_higher_order_function_value_handled_effect_cli() {
 }
 
 #[test]
-fn default_refactor_runs_indirect_perform_closure_resume_cli() {
+fn single_pipeline_runs_indirect_perform_closure_resume_cli() {
     let fixture = workspace_path(
         "tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop",
     );
@@ -187,7 +150,7 @@ fn default_refactor_runs_indirect_perform_closure_resume_cli() {
 
     assert!(
         output.status.success(),
-        "default refactor closure continuation fixture should run: {output:?}"
+        "single pipeline closure continuation fixture should run: {output:?}"
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
@@ -196,7 +159,7 @@ fn default_refactor_runs_indirect_perform_closure_resume_cli() {
 }
 
 #[test]
-fn default_refactor_runs_multi_type_param_effect_payload_dispatch_cli() {
+fn single_pipeline_runs_multi_type_param_effect_payload_dispatch_cli() {
     let fixture =
         workspace_path("tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.scoop");
 
@@ -208,7 +171,7 @@ fn default_refactor_runs_multi_type_param_effect_payload_dispatch_cli() {
 
     assert!(
         output.status.success(),
-        "default refactor multi type-param effect payload fixture should run: {output:?}"
+        "single pipeline multi type-param effect payload fixture should run: {output:?}"
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
@@ -217,7 +180,7 @@ fn default_refactor_runs_multi_type_param_effect_payload_dispatch_cli() {
 }
 
 #[test]
-fn default_refactor_runs_raise_cleanup_gc_cli() {
+fn single_pipeline_runs_raise_cleanup_gc_cli() {
     let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop");
 
     let output = run_scoop([
@@ -228,13 +191,13 @@ fn default_refactor_runs_raise_cleanup_gc_cli() {
 
     assert!(
         output.status.success(),
-        "default refactor raise cleanup GC fixture should run: {output:?}"
+        "single pipeline raise cleanup GC fixture should run: {output:?}"
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout), "0\n");
 }
 
 #[test]
-fn default_refactor_preserves_raise_trace_hook_cli() {
+fn single_pipeline_preserves_raise_trace_hook_cli() {
     let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop");
 
     let output = run_scoop([
@@ -245,13 +208,13 @@ fn default_refactor_preserves_raise_trace_hook_cli() {
 
     assert!(
         output.status.success(),
-        "default refactor raise trace hook fixture should run: {output:?}"
+        "single pipeline raise trace hook fixture should run: {output:?}"
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout), "16\n5\n");
 }
 
 #[test]
-fn default_refactor_runs_receiver_effect_op_cli() {
+fn single_pipeline_runs_receiver_effect_op_cli() {
     let fixture = workspace_path("tests/fixtures/run-pass/effect_receiver_op_basic.scoop");
 
     let output = run_scoop([
@@ -263,7 +226,7 @@ fn default_refactor_runs_receiver_effect_op_cli() {
     assert_eq!(
         output.status.code(),
         Some(30),
-        "default refactor receiver effect op fixture should exit 30: {output:?}"
+        "single pipeline receiver effect op fixture should exit 30: {output:?}"
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
@@ -272,32 +235,20 @@ fn default_refactor_runs_receiver_effect_op_cli() {
 }
 
 #[test]
-fn default_pipeline_matches_explicit_refactor_test_fixtures_cli() {
+fn single_effect_pipeline_test_fixtures_cli_works() {
     let fixture = workspace_path("tests/fixtures/build/emit_llvm_basic.scoop");
-
-    let default = run_scoop([
-        OsStr::new("test"),
-        OsStr::new("--fixtures"),
-        fixture.as_os_str(),
-    ]);
-    let explicit = run_scoop([
-        OsStr::new("--effect-pipeline"),
-        OsStr::new("refactor"),
+    let output = run_scoop([
         OsStr::new("test"),
         OsStr::new("--fixtures"),
         fixture.as_os_str(),
     ]);
 
-    assert_same_observable(&default, &explicit, "test --fixtures");
-    assert!(
-        default.status.success(),
-        "default fixture run failed: {default:?}"
-    );
-    assert!(String::from_utf8_lossy(&default.stdout).contains("fixtures: ok (1)"));
+    assert!(output.status.success(), "fixture run failed: {output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("fixtures: ok (1)"));
 }
 
 #[test]
-fn no_hidden_legacy_fallback_for_default_refactor_fixture_harness() {
+fn single_pipeline_fixture_harness_has_no_hidden_legacy_fallback() {
     let fixture =
         workspace_path("tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop");
     let output = run_scoop([
@@ -308,7 +259,7 @@ fn no_hidden_legacy_fallback_for_default_refactor_fixture_harness() {
 
     assert!(
         output.status.success(),
-        "default fixture harness should run the refactor-only build fixture without an explicit selector: {output:?}"
+        "single pipeline fixture harness should run the refactor-only build fixture: {output:?}"
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("fixtures: ok (1)"));
 }

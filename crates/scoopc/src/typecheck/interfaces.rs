@@ -499,13 +499,12 @@ mod tests {
     use crate::ast;
     use crate::parser::parse_file;
     use crate::resolve::{self, Index};
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::typecheck;
 
     fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<refactor_continuation_interface>", source_text);
         let mut ast = parse_file(&source).expect("parse");
 

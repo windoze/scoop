@@ -66,7 +66,7 @@
   - 若只是历史注释/测试名/错误消息残留，也必须在本阶段清理；
   - P8 结束时不允许在 effect/continuation 主实现、CLI/help、或测试主路径中保留误导性的 legacy 主线术语。
 
-## P8-T01：删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口
+## [DONE] P8-T01：删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -146,7 +146,20 @@
   - 后续任务可以只围绕“删除旧实现与清理残留”继续推进。
 - 依赖：`TODO-P7.md` 最后一项 review 完成
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：已删除 `scoop` / `scoopc` CLI 的 `--effect-pipeline` 解析、帮助文本与显式 legacy/refactor 传递；相关负向测试现断言该参数会被稳定拒绝。
+  - 2026-05-09：已删除 `crates/scoopc/src/session/mod.rs` 中的 `EffectPipelineMode` 与 session bifurcation，`SessionOptions` 收口为不承载 pipeline 分叉的空配置壳；`Session::new()` / `with_options()` 只代表唯一主线。
+  - 2026-05-09：已折叠 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 的顶层 dispatcher，并删除 `effect_refactor_pipeline/legacy.rs`、`effect_refactor_pipeline/refactor.rs` 与 `crates/scoop/src/commands/parity.rs`；stage API 现直接调用唯一生产路径。
+  - 2026-05-09：已清理 fixture/run-pass/build/frontend 对 selector 的注入与 mode 分支；`mir_refactor`、`infer`、`dump-*`、`build`、`scoop test` 相关测试已改为验证“只有单一路径”或“参数已移除”。
+  - 验证：`cargo fmt`
+  - 验证：`cargo test -p scoop cli`
+  - 验证：`cargo test -p scoopc session`
+  - 验证：`cargo test -p scoopc driver_cli`
+  - 验证：`cargo clippy --all-targets -- -D warnings`
+  - 验证：`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`
+  - 验证：`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p8_single_pipeline.ll`
+  - 验证：`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`
+  - 验证：`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`，结果为 clap 失败：`unexpected argument '--effect-pipeline' found`。
+  - 仓库搜索摘要：`EffectPipelineMode`、session pipeline bifurcation 与 CLI selector 解析路径已从主实现中删净；剩余 `rg` 命中仅包含删除说明/负向测试文案、placeholder inventory 的历史对照注释，以及 `effect_refactor` / `legacy` 命名的历史回归测试名或 fixture 名，不再构成可执行的顶层 legacy 入口。
 
 ## P8-T01R：Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点
 

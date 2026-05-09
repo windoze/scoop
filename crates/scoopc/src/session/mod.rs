@@ -4,10 +4,7 @@
 //! - 把“加载 sysroot / 读取源文件 / 驱动前端各阶段”的入口集中在一个地方
 //! - 确保任何编译流程默认都包含 sysroot，从而让名字解析/类型检查在同一环境下工作
 //!
-//! P7 起，省略 selector 时默认进入 refactor 主线；显式 legacy 仅保留为短期 compare/rollback 入口。
-
-use std::fmt;
-use std::str::FromStr;
+//! P8 起，effect pipeline 已收口为单一路径；session 不再承载 legacy/refactor bifurcation。
 
 use miette::{Context as _, Result};
 use thiserror::Error;
@@ -18,58 +15,13 @@ use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
 
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[error("无效的 effect pipeline `{value}`；可选值：legacy, refactor")]
-pub struct ParseEffectPipelineModeError {
-    value: String,
-}
-
-/// 顶层 effect 主线选择。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum EffectPipelineMode {
-    Legacy,
-    #[default]
-    Refactor,
-}
-
-impl EffectPipelineMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Legacy => "legacy",
-            Self::Refactor => "refactor",
-        }
-    }
-}
-
-impl fmt::Display for EffectPipelineMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for EffectPipelineMode {
-    type Err = ParseEffectPipelineModeError;
-
-    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
-        match value {
-            "legacy" => Ok(Self::Legacy),
-            "refactor" => Ok(Self::Refactor),
-            _ => Err(ParseEffectPipelineModeError {
-                value: value.to_string(),
-            }),
-        }
-    }
-}
-
 /// 会话构造时一次性收口的配置项。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct SessionOptions {
-    pub effect_pipeline: EffectPipelineMode,
-}
+pub struct SessionOptions;
 
 impl SessionOptions {
-    pub const fn new(effect_pipeline: EffectPipelineMode) -> Self {
-        Self { effect_pipeline }
+    pub const fn new() -> Self {
+        Self
     }
 }
 
@@ -98,7 +50,7 @@ pub struct Session {
 impl Session {
     /// 使用默认 sysroot 创建会话。
     pub fn new() -> Result<Self> {
-        Self::with_options(SessionOptions::default())
+        Self::with_options(SessionOptions::new())
     }
 
     /// 使用显式 session options 创建会话。
@@ -110,7 +62,7 @@ impl Session {
 
     /// 直接注入 sysroot（用于测试或未来的自定义工具链）。
     pub fn with_sysroot(sysroot: Sysroot) -> Self {
-        Self::with_sysroot_and_options(sysroot, SessionOptions::default())
+        Self::with_sysroot_and_options(sysroot, SessionOptions::new())
     }
 
     /// 直接注入 sysroot，并显式指定 session options。
@@ -124,10 +76,6 @@ impl Session {
 
     pub const fn options(&self) -> SessionOptions {
         self.options
-    }
-
-    pub const fn effect_pipeline_mode(&self) -> EffectPipelineMode {
-        self.options.effect_pipeline
     }
 
     /// 解析一个源文件为 AST。
@@ -173,24 +121,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_effect_pipeline_is_refactor_for_session_new() {
+    fn session_new_uses_single_pipeline_defaults() {
         let sess = Session::new().unwrap();
-        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Refactor);
+        assert_eq!(sess.options(), SessionOptions::new());
     }
 
     #[test]
-    fn explicit_legacy_pipeline_still_available_for_session_options() {
-        let sess = Session::with_options(SessionOptions::new(EffectPipelineMode::Legacy)).unwrap();
-        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Legacy);
-        assert_eq!(sess.options().effect_pipeline, EffectPipelineMode::Legacy);
-    }
-
-    #[test]
-    fn explicit_refactor_pipeline_still_available_for_session_options() {
-        let sess =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
-        assert_eq!(sess.effect_pipeline_mode(), EffectPipelineMode::Refactor);
-        assert_eq!(sess.options().effect_pipeline, EffectPipelineMode::Refactor);
+    fn explicit_session_options_use_same_single_pipeline() {
+        let sess = Session::with_options(SessionOptions::new()).unwrap();
+        assert_eq!(sess.options(), SessionOptions::new());
     }
 
     #[test]

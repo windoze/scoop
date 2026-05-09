@@ -224,7 +224,7 @@ impl Default for BuildOptions {
             profile: BuildProfile::Debug,
             opt_level: None,
             incremental: true,
-            session_options: SessionOptions::default(),
+            session_options: SessionOptions::new(),
         }
     }
 }
@@ -584,9 +584,9 @@ fn run_frontend(
     // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
     let mut asts = Vec::with_capacity(input.sources.len());
     for source in &input.sources {
-        let ast =
-            scoopc::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
-                .map_err(miette::Report::from)?;
+        let ast = scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
+            .map(scoopc::effect_refactor_pipeline::AstStageOutput::into_ast)
+            .map_err(miette::Report::from)?;
         asts.push(ast);
     }
     {
@@ -1183,10 +1183,6 @@ fn refactor_abi_visibility_lowered_hir_for_build(
     front: &FrontendOutput,
     opt_level: OptLevel,
 ) -> Result<Option<scoopc::hir::LoweredHir>> {
-    if session.effect_pipeline_mode() != scoopc::session::EffectPipelineMode::Refactor {
-        return Ok(None);
-    }
-
     // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给 refactor
     // LLVM stage；真正的 reachable body lowering 仍由 entry-main rooted build lowering 决定。
     lower_hir_for_build_with_request_root_mode(
@@ -1233,10 +1229,9 @@ mod tests {
 
     #[cfg(feature = "llvm")]
     fn refactor_session() -> scoopc::session::Session {
-        use scoopc::session::{EffectPipelineMode, SessionOptions};
+        use scoopc::session::SessionOptions;
 
-        scoopc::session::Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor))
-            .unwrap()
+        scoopc::session::Session::with_options(SessionOptions::new()).unwrap()
     }
 
     #[cfg(feature = "llvm")]

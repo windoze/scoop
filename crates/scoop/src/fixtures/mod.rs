@@ -46,7 +46,7 @@ use std::process::Command;
 use miette::Diagnostic;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 use scoopc::opt::OptLevel;
-use scoopc::session::{EffectPipelineMode, SessionOptions};
+use scoopc::session::SessionOptions;
 use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
@@ -104,13 +104,6 @@ pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
     }
 
     Ok(current)
-}
-
-fn append_effect_pipeline_selector(cmd: &mut Command, session_options: SessionOptions) {
-    if session_options.effect_pipeline == EffectPipelineMode::Legacy {
-        cmd.arg("--effect-pipeline")
-            .arg(EffectPipelineMode::Legacy.as_str());
-    }
 }
 
 fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
@@ -505,12 +498,11 @@ fn build_run_pass_cone_run_command(
     scoop_exe: &Path,
     case_dir: &Path,
     opt_level: Option<OptLevel>,
-    session_options: SessionOptions,
+    _session_options: SessionOptions,
     run_pass_env: &RunPassEnvOverrides,
     exp: &FixtureExpectation<'_>,
 ) -> Command {
     let mut cmd = Command::new(scoop_exe);
-    append_effect_pipeline_selector(&mut cmd, session_options);
     cmd.arg("run");
     if let Some(level) = opt_level {
         let args_has_opt_level = exp
@@ -840,15 +832,6 @@ struct MirGoldenMismatch {
     line: usize,
     expected_line: String,
     actual_line: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error(
-    "`mir_refactor` fixtures 需要 refactor effect pipeline（默认或显式 `--effect-pipeline refactor`）；显式 legacy 不支持（fixture: {fixture}）"
-)]
-#[diagnostic(code(scoop::fixtures::mir_refactor_requires_refactor_pipeline))]
-struct MirRefactorRequiresRefactorPipeline {
-    fixture: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -1207,7 +1190,8 @@ fn parse_file_via_ast_stage(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<scoopc::ast::File, scoopc::parser::ParseError> {
-    scoopc::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
+    scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
+        .map(scoopc::effect_refactor_pipeline::AstStageOutput::into_ast)
 }
 
 fn parse_fixture(
@@ -1431,12 +1415,6 @@ fn mir_refactor_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    if session.effect_pipeline_mode() != scoopc::session::EffectPipelineMode::Refactor {
-        return Err(box_diagnostic(MirRefactorRequiresRefactorPipeline {
-            fixture: fixture_path.display().to_string(),
-        }));
-    }
-
     let output = scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(
         session, source,
     )
@@ -1826,19 +1804,13 @@ fn parse_target_platform_from_fixture_args(args: &[String]) -> Option<String> {
 fn infer_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-    exp: &FixtureExpectation<'_>,
+    _exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    // `infer` fixtures 在默认 refactor 模式下必须消费 typed HIR 主线，
-    // 否则会继续复用旧 typecheck 入口，漏掉仅在 authoritative refactor frontend
-    // 中才能观测到的 receiver/call contract 诊断。
-    if session.effect_pipeline_mode() == scoopc::session::EffectPipelineMode::Refactor {
-        scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
-            .map(|_| ())
-            .map_err(box_diagnostic)
-    } else {
-        // legacy compare/rollback 模式暂时保持既有 infer fixture 行为。
-        typecheck_fixture(session, source, exp)
-    }
+    // `infer` fixtures 必须消费 authoritative typed HIR 主线，确保观测到唯一 production
+    // frontend 发布的 receiver/call contract 诊断。
+    scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
+        .map(|_| ())
+        .map_err(box_diagnostic)
 }
 
 /// 运行一个 `tests/fixtures/resolve_multi/<case>/` 的多文件编译单元。
@@ -3319,7 +3291,7 @@ mod tests {
     }
 
     #[test]
-    fn run_pass_cone_default_refactor_pipeline_omits_selector() {
+    fn run_pass_cone_single_pipeline_omits_selector() {
         let exp = super::expectations::FixtureExpectation::from_source(
             "// EXPECT: pass\n// ARGS: --release\n",
         );
@@ -3327,7 +3299,7 @@ mod tests {
             Path::new("scoop"),
             Path::new("tests/fixtures/run_pass_cone/demo"),
             None,
-            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
             &exp,
         );
@@ -3336,22 +3308,6 @@ mod tests {
         assert_eq!(args.first().map(String::as_str), Some("run"));
         assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
         assert!(args.iter().any(|arg| arg == "--release"));
-    }
-
-    #[test]
-    fn run_pass_cone_explicit_legacy_pipeline_includes_selector() {
-        let exp = super::expectations::FixtureExpectation::from_source("// EXPECT: pass\n");
-        let cmd = build_run_pass_cone_run_command(
-            Path::new("scoop"),
-            Path::new("tests/fixtures/run_pass_cone/demo"),
-            None,
-            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Legacy),
-            &RunPassEnvOverrides::new(),
-            &exp,
-        );
-
-        let args = command_args(&cmd);
-        assert_eq!(args[0..3], ["--effect-pipeline", "legacy", "run"]);
     }
 
     #[test]
@@ -3393,7 +3349,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &case_dir,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3408,7 +3364,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &case_dir,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3423,7 +3379,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &case_dir,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3438,7 +3394,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &case_dir,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3453,7 +3409,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &case_dir,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3475,7 +3431,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &fixture,
             None,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3501,7 +3457,7 @@ val bad: Int = Box("oops").bodyCopy
         let ok = run_all(
             &fixture,
             None,
-            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3511,7 +3467,7 @@ val bad: Int = Box("oops").bodyCopy
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn build_fixtures_propagate_refactor_session_options_to_build_command() {
+    fn build_fixtures_propagate_single_pipeline_session_options_to_build_command() {
         let dir = tempdir().unwrap();
         let fixture_dir = dir.path().join("build");
         fs::create_dir_all(&fixture_dir).unwrap();
@@ -3542,7 +3498,7 @@ fun main(): Int {
         let ok = run_all(
             &fixture_dir,
             None,
-            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();
@@ -3594,7 +3550,7 @@ fun main(): Int {
         let ok = run_all(
             &root,
             None,
-            scoopc::session::SessionOptions::new(scoopc::session::EffectPipelineMode::Refactor),
+            scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),
         )
         .unwrap();

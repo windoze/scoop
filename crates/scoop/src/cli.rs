@@ -6,29 +6,12 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use scoopc::session::{EffectPipelineMode, ParseEffectPipelineModeError};
 
 #[derive(Debug, Parser)]
 #[command(name = "scoop", version, about = "Scoop compiler + tooling")]
 pub struct Args {
-    /// 显式选择 effect 主线；缺省进入 refactor，legacy 仅作短期 compare/rollback 入口。
-    #[arg(
-        long = "effect-pipeline",
-        global = true,
-        value_name = "MODE",
-        default_value_t = EffectPipelineMode::Refactor,
-        value_parser = parse_effect_pipeline_mode,
-    )]
-    pub effect_pipeline: EffectPipelineMode,
-
     #[command(subcommand)]
     pub command: Command,
-}
-
-fn parse_effect_pipeline_mode(value: &str) -> Result<EffectPipelineMode, String> {
-    value
-        .parse()
-        .map_err(|err: ParseEffectPipelineModeError| err.to_string())
 }
 
 #[derive(Debug, Subcommand)]
@@ -223,43 +206,20 @@ mod tests {
 
     use super::{Args, Command};
     use clap::Parser as _;
-    use scoopc::session::EffectPipelineMode;
 
     #[test]
-    fn default_effect_pipeline_is_refactor_for_scoop_cli() {
-        let args =
-            Args::try_parse_from(["scoop", "dump-hir", "tests/fixtures/parse/minimal.scoop"])
-                .unwrap();
-
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
-    }
-
-    #[test]
-    fn explicit_legacy_pipeline_still_available_for_scoop_cli() {
-        let args = Args::try_parse_from([
+    fn effect_pipeline_selector_removed_for_scoop_cli() {
+        let err = Args::try_parse_from([
             "scoop",
             "--effect-pipeline",
             "legacy",
             "dump-ast",
             "tests/fixtures/parse/minimal.scoop",
         ])
-        .unwrap();
+        .unwrap_err();
 
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Legacy);
-    }
-
-    #[test]
-    fn explicit_refactor_pipeline_still_available_for_scoop_cli() {
-        let args = Args::try_parse_from([
-            "scoop",
-            "--effect-pipeline",
-            "refactor",
-            "dump-mir",
-            "tests/fixtures/parse/minimal.scoop",
-        ])
-        .unwrap();
-
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
+        assert_eq!(err.kind(), clap::error::ErrorKind::UnknownArgument);
+        assert!(err.to_string().contains("--effect-pipeline"));
     }
 
     #[test]
@@ -271,7 +231,6 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
         match args.command {
             Command::DumpEffectFacts { input } => {
                 assert_eq!(
@@ -292,7 +251,6 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(args.effect_pipeline, EffectPipelineMode::Refactor);
         match args.command {
             Command::DumpEffectLowered { input } => {
                 assert_eq!(
@@ -305,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_effect_pipeline_rejects_invalid_value() {
+    fn effect_pipeline_selector_removed_for_invalid_value_too() {
         let err = Args::try_parse_from([
             "scoop",
             "--effect-pipeline",
@@ -315,10 +273,7 @@ mod tests {
         ])
         .unwrap_err();
 
-        assert!(matches!(
-            err.kind(),
-            clap::error::ErrorKind::ValueValidation | clap::error::ErrorKind::InvalidValue
-        ));
+        assert_eq!(err.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]

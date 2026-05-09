@@ -1188,16 +1188,6 @@ impl TypedHirStageOutput {
         Self::new_checked(lowered_hir, source_path)
     }
 
-    pub(crate) fn new_unchecked(mut lowered_hir: LoweredHir, source_path: &Path) -> Self {
-        ensure_raise_runtime_error_effect(&mut lowered_hir.types);
-        let effect_contracts = TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)
-            .unwrap_or_default();
-        Self {
-            lowered_hir,
-            effect_contracts,
-        }
-    }
-
     fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         ensure_raise_runtime_error_effect(&mut lowered_hir.types);
         let effect_contracts =
@@ -2899,10 +2889,10 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    use crate::session::{EffectPipelineMode, SessionOptions};
+    use crate::session::SessionOptions;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_hir_fixture(name: &str) -> SourceFile {

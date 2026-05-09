@@ -1261,11 +1261,11 @@ mod tests {
     use crate::mir::materialize_for_dump_with_opt_level;
     use crate::mir::{BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TerminatorKind};
     use crate::opt::OptLevel;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn build_stage_output_for_source(

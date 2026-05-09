@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use crate::mir::{Item as MirItem, Rvalue, StatementKind, TerminatorKind, UnwindAction};
-use crate::session::{EffectPipelineMode, Session, SessionOptions};
+use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
 
 use super::{RefactorMirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for_dump};
@@ -257,7 +257,7 @@ fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
 }
 
 fn refactor_session() -> Session {
-    Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+    Session::with_options(SessionOptions::new()).unwrap()
 }
 
 fn run_typed_hir_preflight(

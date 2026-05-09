@@ -1,25 +1,39 @@
 ## 本次执行计划
 
-1. 读取 `TODO.md`，严格按标题是否带有 `[DONE]` 判断首个未完成任务。
-2. 检查最近提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若有，按要求并入当前任务范围或作为前置任务写回 `TODO.md`。
-3. 阅读当前任务涉及的代码、测试、规范与依赖约束，确认是否能直接完整实现；若存在阻塞，最小化地把前置任务写入 `TODO.md`，并停止在该前置处理上。
-4. 实现当前任务所需代码改动，坚持最小正确修改，不采用规避性方案。
-5. 运行任务要求的验证，包括相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，以及必要的定向命令；若失败，先修复再继续。
-6. 更新本文档，记录关键发现、计划调整、已完成步骤与验证结果。
-7. 更新 `TODO.md`：将已完成任务标题前缀改为 `[DONE]`，填写或补全 completion record；仅在阶段计划变化时更新 `PLAN.md`。
-8. 按仓库提交风格创建一次 git 提交，提交信息包含当前任务编号，然后停止，不进入下一个任务。
+1. 读取 `TODO.md`，确认第一个未标记为 `[DONE]` 的任务，并检查最近一次提交是否包含与该任务直接相关且尚未完成的问题。
+2. 阅读该任务涉及的代码、测试、规范说明与依赖记录，仅围绕当前任务建立上下文，不做开放式问题扫查。
+3. 如任务可直接完成：按最小正确改动原则实现代码与测试，并在关键步骤完成后持续更新本文件。
+4. 如遇到阻塞当前任务的真实缺陷或缺失能力：先确认其是否为当前任务的前置条件；若是，则更新 `TODO.md` 增加最小必要前置任务、说明依赖关系，并停止继续向后推进。
+5. 运行任务要求的验证命令，以及必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若适用于本次改动范围），修复发现的问题。
+6. 完成后更新 `TODO.md`：将当前任务标题显式标记为 `[DONE]`，补全完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
+7. 检查工作区变更，按仓库现有风格撰写一次原子提交，只完成当前这个任务，然后停止。
 
-## 进度记录
+## 进度更新
 
-- 已初始化本次执行计划。
-- 已读取 `TODO.md`，确认首个未完成任务为 `TODO-P7.md` 中的 `P7-T04R`：`Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression`。
-- 已检查最新提交：`[P7-T04] Freeze GC env handoff`。提交正文未记录与 `P7-T04R` 直接相关的额外未完成事项，因此当前按既有 `P7-T04R` 执行。
-- 已完成代码/文档复查：默认 selector 与 handoff 关键落点确认在 `crates/scoopc/src/session/mod.rs`、`crates/scoop/src/cli.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoop/src/commands/mod.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoop/src/fixtures/run_pass.rs`、`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`EFFECT_REFACTOR.md` §5.6.6、`TODO-P8.md` 首部与 `P8-T01`/`P8-T02`。
-- 已完成搜索审计：实现代码中的 selector/legacy/fallback 命中仅剩显式 compare/rollback 入口、legacy unsupported 诊断和 anti-fallback 断言，未发现 omission 默认回 legacy 或 refactor 失败后 hidden fallback。
-- 已完成复验：selector/default 定向测试、default/refactor/legacy smoke、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo clippy --all-targets -- -D warnings`、`P7-T03S` 的 GC stale-root 守护、`P7-T04` 的 GC env 全量矩阵与最终 default/legacy smoke 全部通过。
-- 已更新 `TODO.md` 与 `TODO-P7.md`，将 `P7-T04R` 标记为 `[DONE]` 并写入 completion record。
-- 下一步：检查 worktree、按任务编号创建提交，然后停止，不进入 `P8-T01`。
-
-## 说明
-
-- 本文件记录执行计划、关键决策与进展更新，不包含逐字内部推理。
+- 已写入初始执行计划，下一步读取 `TODO.md` 确认当前任务。
+- 已确认首个未完成任务为 `P8-T01`：删除顶层 legacy selector 与并行 dispatcher 壳层。
+- 最近一次提交为 `P7-T04R` review，不包含当前任务的未完成前置修复说明；当前按 `P8-T01` 直接推进。
+- 已定位本任务的主要改动面：
+  - `crates/scoopc/src/session/mod.rs`：移除 `EffectPipelineMode` 与 session bifurcation。
+  - `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 及相关测试：删除 legacy/refactor dispatcher 分叉，收口为单一路径。
+  - `crates/scoop/src/cli.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoop/src/commands/mod.rs`：删除 CLI selector 解析与传递。
+  - `crates/scoop/src/fixtures/**` 与 `crates/scoop/tests/p7_default_pipeline.rs`：删掉对 `--effect-pipeline` 与显式 legacy/refactor 模式的假设，改为验证“参数已移除 / 默认唯一主线”。
+- 下一步：执行上述代码修改，并在修改完成后跑定向测试与 smoke 验证。
+- 已完成的关键改动：
+  - 删除 `crates/scoopc/src/session/mod.rs` 中的 `EffectPipelineMode` / selector 解析错误，`SessionOptions` 已收口为不承载 bifurcation 的空配置壳。
+  - 删除 `scoop` / `scoopc` CLI 的 `--effect-pipeline` 解析与帮助文本；新增“参数已移除”的单元/集成负向断言。
+  - 删除 `crates/scoopc/src/effect_refactor_pipeline/legacy.rs` / `refactor.rs` 与顶层 dispatcher 壳层；`effect_refactor_pipeline::mod` 现仅保留单一路径 stage API。
+  - 删除 `crates/scoop/src/commands/parity.rs`，不再保留 compare/rollback 顶层测试胶水。
+  - fixture/run-pass/build/frontend 路径已去掉 selector 注入与 session mode 分支，统一走唯一主线。
+- 下一步：运行编译/测试，清理剩余尾部告警或失败，并补齐 `TODO.md` 完成记录所需的验证摘要。
+- 已完成验证：
+  - `cargo test -p scoop cli`
+  - `cargo test -p scoopc session`
+  - `cargo test -p scoopc driver_cli`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`
+  - `cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p8_single_pipeline.ll`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`
+  - `cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`（预期失败，已确认参数不存在）
+- 已更新 `TODO.md` 与 `TODO-P8.md`，将 `P8-T01` 显式标记为 `[DONE]` 并补充完成记录。
+- 下一步：检查工作区变更，按 `P8-T01` 做一次原子提交后停止。

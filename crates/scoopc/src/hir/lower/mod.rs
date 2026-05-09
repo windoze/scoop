@@ -3768,7 +3768,7 @@ mod tests {
     use crate::hir::LiteralKind;
     use crate::hir::{CallArg, CallSite, ClassInitStep, ObjectInitStep, WhenPat};
     use crate::resolve::Index;
-    use crate::session::{EffectPipelineMode, SessionOptions};
+    use crate::session::SessionOptions;
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
     use std::collections::HashSet;
@@ -4316,7 +4316,7 @@ mod tests {
     }
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {

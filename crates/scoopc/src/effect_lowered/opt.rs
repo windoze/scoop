@@ -961,13 +961,13 @@ mod tests {
     };
     use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
     use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId, TemplateKey};
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

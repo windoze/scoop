@@ -4810,13 +4810,13 @@ mod tests {
         load_effect_facts_stage_output_for_dump, load_effect_lowered_stage_output_for_dump,
     };
     use crate::mir::TemplateKey;
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
     use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_fixture(phase: &str, name: &str) -> SourceFile {

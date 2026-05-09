@@ -234,7 +234,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
         )
         .unwrap_err();
         assert!(
@@ -256,7 +256,7 @@ mod tests {
             super::super::build::BuildProfile::Debug,
             None,
             true,
-            scoopc::session::SessionOptions::default(),
+            scoopc::session::SessionOptions::new(),
         )
         .unwrap();
         assert_eq!(code, 0, "最小 main 应返回 0");

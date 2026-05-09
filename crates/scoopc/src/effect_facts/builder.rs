@@ -2885,13 +2885,13 @@ mod tests {
         BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TemplateKey, TerminatorKind,
         materialize_for_dump,
     };
-    use crate::session::{EffectPipelineMode, Session, SessionOptions};
+    use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeKind, TypeStore};
 
     fn refactor_session() -> Session {
-        Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap()
+        Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn sample_source() -> SourceFile {

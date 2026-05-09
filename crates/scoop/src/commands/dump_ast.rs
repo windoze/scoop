@@ -38,20 +38,17 @@ pub fn run(input: PathBuf, session_options: SessionOptions) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use scoopc::session::{EffectPipelineMode, Session, SessionOptions};
+    use scoopc::session::{Session, SessionOptions};
     use scoopc::source::SourceFile;
 
     #[test]
-    fn dump_ast_command_uses_refactor_ast_dispatcher() {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+    fn dump_ast_command_uses_single_ast_stage() {
+        let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
         let ast_output = super::load_ast_for_dump(&session, &source).unwrap();
-        let stage = scoopc::effect_refactor_pipeline::dispatcher_for_session(&session).ast();
 
         assert!(std::ptr::eq(ast_output.source(), &source));
         assert!(ast_output.ast().package.is_some());
-        assert_eq!(stage.mode(), EffectPipelineMode::Refactor);
     }
 }

@@ -50,9 +50,9 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
 
     let mut asts = Vec::with_capacity(input_sources.len());
     for source in &input_sources {
-        let ast =
-            crate::effect_refactor_pipeline::enter_ast_stage(session, || session.parse(source))
-                .map_err(frontend_error)?;
+        let ast = crate::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
+            .map(crate::effect_refactor_pipeline::AstStageOutput::into_ast)
+            .map_err(frontend_error)?;
         asts.push(ast);
     }
     {

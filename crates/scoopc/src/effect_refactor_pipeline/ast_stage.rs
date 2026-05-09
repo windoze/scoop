@@ -48,12 +48,11 @@ pub(crate) fn run<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::{EffectPipelineMode, SessionOptions};
+    use crate::session::SessionOptions;
 
     #[test]
     fn ast_stage_output_is_constructible_for_refactor_pipeline() {
-        let session =
-            Session::with_options(SessionOptions::new(EffectPipelineMode::Refactor)).unwrap();
+        let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
         let output = run(&session, &source).unwrap();
