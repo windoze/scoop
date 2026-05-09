@@ -616,6 +616,7 @@
   - `P8-T04` 可以在不先撞上该 blocker 的前提下重新执行完整矩阵。
 - 依赖：`P8-T03R`，`P8-T03aa`
 - 完成记录：
+  - 2026-05-10：已复核并同步 `TODO.md` 索引状态。针对 `P8-T03a` 重新运行默认 virtual-cone 入口与 helper 的定向验证矩阵：`driver_cli`、`build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root`、`build_frontend_*`、`no_hidden_legacy_fallback_for_default_refactor_build_output`、关键 LLVM 单测，以及 `scoopc <file>` / `scoopc --obj <file>` smoke（本次用 `-o /var/.../opencode/*` 避免污染工作区）；结果均通过。
   - 2026-05-10：在 `P8-T03aa` 修复 nominal upcast call boundary blocker 后，本任务继续完成收口。`llvm::emit` 默认 `emit_minimal_main_*` / `build_minimal_main_module*` 与 `llvm/frontend.rs` 默认 helper 现统一经 virtual-cone context + refactor LLVM stage handoff 发射产物；`main` 含 `handle` / `try` 的默认路径不再触发已删除的 HIR handle lowering。
   - 2026-05-10：已正式区分 `scoop` -> `scoopc` 的两类调用规范。`crates/scoopc/src/frontend.rs` 新增 `ProjectContext` / `run_project_frontend(...)`；`scoop build` 现在先构造 authoritative project context（`ProjectInput + deps`），再把它交给 `scoopc` 的 project frontend，不再把 explicit-cone 语义留给末端 helper 从裸文件路径猜测。新增 `build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root` 守护：即便文件位于某个 cone root 下，bare file 入口也必须保持 virtual-cone contract。
   - 2026-05-10：已把 LLVM artifact 入口按 contract 分层。`effect_refactor_pipeline::emit_project_llvm_artifact_to_file(...)` 负责消费完整 project context；`effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(...)` 负责 bare `SourceFile` / `scoopc <file>` 的 single-source virtual-cone 入口。`scoop build` 现改走前者，`scoopc` bin 与默认 virtual-cone helper 改走后者。

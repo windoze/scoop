@@ -57,3 +57,10 @@
 - 已完成 `P8-T03a` 指定的核心 LLVM 定向回归，当前未提交代码在 stage 迁移与默认/历史 helper 分层上是成立的。
 - 但执行任务要求的 smoke 命令时，发现 `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop` 仍失败于 `driver_cli`：当前 CLI 还要求显式 `--emit-llvm` / `--emit-obj`，与 `TODO-P8.md` 中“默认单文件 artifact 入口”契约不一致。
 - 这属于 `P8-T03a` 直接覆盖的 public single-file entry 缺口，不新增前置任务；改为在本任务内最小修复 `crates/scoopc/src/driver_cli.rs` / `crates/scoopc/src/bin/scoopc.rs` 及相关测试，使 bare `<file>` 默认为 LLVM IR，`--obj <file>` 走 object 路径，同时继续保持入口走 refactor LLVM stage。
+
+### 本次复核收尾
+
+- 当前 `HEAD` 已为 `[P8-T03a] Split project and virtual-cone LLVM entry contracts`；本次继续执行的原因是 `TODO-P8.md` 已记为 `[DONE]`，但总索引 `TODO.md` 仍未同步该状态，因此按规则 `P8-T03a` 仍是首个未完成任务。
+- 已重新运行 `P8-T03a` 的定向验证矩阵：`cargo test -p scoopc driver_cli`、`cargo test -p scoop build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root`、`cargo test -p scoop build_frontend_`、`cargo test -p scoop no_hidden_legacy_fallback_for_default_refactor_build_output`、5 条关键 `scoopc` LLVM 单测，以及将 `scoopc <file>` / `scoopc --obj <file>` 输出重定向到 `/var/.../opencode` 的两条 smoke；结果全部通过。
+- 已同步 `TODO.md` 将 `P8-T03a` 标记为 `[DONE]`，并在 `TODO-P8.md` 补充本次复核与复跑记录。
+- 下一步：提交 `TODO.md`、`TODO-P8.md` 与本文件，然后停止，不进入 `P8-T04`。
