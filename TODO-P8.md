@@ -468,6 +468,83 @@
   - 验证：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
   - 验证：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
 
+## P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
+  - 前置实现参考：[`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03f / P6-T03g / P6-T05、[`TODO-P8.md`](./TODO-P8.md) P8-T01 / P8-T02 / P8-T03R
+- 背景 / blocker：
+  - 2026-05-10 执行 `P8-T04` 的首步 `cargo test --all` 时，`crates/scoopc/src/llvm/tests.rs` 一批单文件 LLVM 测试统一失败，错误为 `UnsupportedMainBody { kind: "HIR handle lowering removed; use refactor MIR lowering" }`。
+  - 复核后确认：`crates/scoopc/src/llvm/emit.rs` 的 `emit_minimal_main_ir` / `emit_minimal_main_obj_to_file` / `emit_minimal_main_asm_to_file` / `build_minimal_main_module*`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 暴露给 `scoopc` bin 的 `emit_single_file_llvm_artifact_to_file(...)`，默认仍经 `materialized_lowered_hir` 入口构建 LLVM module。
+  - 该入口的 raw materialized MIR backend 明确把 `TerminatorKind::Handle` 视为 unsupported，而 HIR `handle` lowering 已在 P8 前移除；因此只要入口 `main` 里出现 `handle` / `try`，默认单文件路径就会回落到已删除的 HIR 旧路并失败。
+  - 这不是 `P8-T04` 可接受的“修一个测试就继续”的局部问题，而是一个尚未跟踪的前置依赖：默认单文件 LLVM artifact 入口和对应默认测试 helper 还没有真正切到唯一 refactor 主线。
+
+- 目标：
+  - 把默认单文件 LLVM artifact 入口、以及表示“默认/生产单文件路径”的测试 helper，迁移到 refactor LLVM stage handoff；
+  - 清除默认 helper 对 raw materialized MIR entry-main / HIR handle fallback 的隐藏依赖；
+  - 只在显式的历史/对照测试 helper 上保留 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 语义，禁止它们继续作为默认单文件主入口生效。
+
+- 必须实现的内容：
+  1. 审计并迁移默认单文件 LLVM artifact 入口。
+     - 至少检查并修改：
+       - `crates/scoopc/src/llvm/emit.rs`
+       - `crates/scoopc/src/effect_refactor_pipeline/mod.rs`
+       - `crates/scoopc/src/bin/scoopc.rs`
+       - 任何仍把“单文件默认 LLVM 发射”接到 `LoweredCodegenEntry::from_materialized_lowered_hir(...)` 的入口/包装层
+     - 要求：
+       - 默认 `emit_minimal_main_*` / `emit_single_file_llvm_artifact_to_file(...)` 必须经 refactor LLVM stage handoff 构建产物；
+       - 不允许继续把 raw materialized MIR entry-main + HIR fallback 当成默认生产入口；
+       - 不允许通过恢复 HIR `handle` lowering、恢复 selector、或在默认入口里做“遇到 handle 再切 stage”的隐藏 bifurcation 规避问题。
+  2. 明确区分“默认生产 helper”与“显式历史/对照 helper”。
+     - 若 `emit_*_from_lowered_hir` / `emit_*_from_materialized_lowered_hir` 仍需保留：
+       - 必须仅作为显式测试/对照入口；
+       - 不得再被默认单文件 artifact 入口、`scoopc` bin 默认命令、或默认 LLVM 单测 helper 间接调用；
+       - 相关注释/命名要明确它们不是当前单一主线的默认入口。
+  3. 迁移或重写受影响的默认 LLVM 单测。
+     - 至少检查并修改：
+       - `crates/scoopc/src/llvm/tests.rs`
+       - 如需要，新增更窄的 helper，把“默认单文件主线”与“显式 materialized/raw-MIR 对照”分开
+     - 要求：
+       - 仍在验证默认单文件主线的测试，必须改为断言 refactor LLVM stage 的 authoritative 语义；
+       - 只有在测试目的明确是 raw materialized MIR bridge / direct-HIR 对照时，才允许继续使用显式 `*_from_materialized_lowered_hir` / `*_from_lowered_hir` helper；
+       - 禁止继续让默认 helper 承担“旧 materialized-HIR path”的语义断言。
+  4. 增加回归守护，证明默认单文件入口已真正走 stage。
+     - 至少要有一条自动化验证覆盖：
+       - 默认单文件 LLVM IR/object/asm 入口会触发 refactor LLVM stage；
+       - `main` 含 `handle` / `try` 的单文件样本不再触发 `HIR handle lowering removed`；
+       - `scoopc` bin 的默认单文件 artifact 路径不再存在 hidden fallback。
+
+- 必须遵从的约束：
+  - 禁止恢复 HIR `handle` lowering 作为临时过桥。
+  - 禁止在默认单文件入口保留“普通情况走旧 helper、遇到 effectful main 再偷偷切新 helper”的分叉。
+  - 禁止把 raw materialized MIR backend 对 `TerminatorKind::Handle` 的不支持继续暴露成默认单文件主线路径的一部分。
+  - 若某个旧 helper 仅剩历史/对照用途，必须在完成记录中明确说明它为何不会再形成 production hidden dependency。
+
+- 验证：
+  1. 至少运行并通过下列代表性回归：
+     - `cargo test -p scoopc --lib llvm::tests::effect_contract_struct_types_are_registered_for_effect_codegen -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint -- --exact`
+     - `cargo test -p scoopc --lib effect_refactor_pipeline::llvm_codegen_stage::tests::single_pipeline_llvm_codegen_stage_build_entry_uses_stage -- --exact`
+  2. 对 `scoopc` 默认单文件 artifact 路径做最小 smoke：
+     - `cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
+     - `cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
+  3. 需要在完成记录中总结：
+     - 默认 helper / public single-file entry 与显式历史 helper 的最终边界；
+     - 仍保留的 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` 用途说明；
+     - 为什么它们不再构成 hidden legacy / hidden fallback。
+
+- 完成条件：
+  - 默认单文件 LLVM artifact 入口已真正切到 refactor LLVM stage；
+  - `main` 含 `handle` / `try` 的默认单文件路径不再触发已删除的 HIR handle lowering；
+  - 默认 LLVM 单测 helper 与显式历史/对照 helper 已语义分层；
+  - `P8-T04` 可以在不先撞上该 blocker 的前提下重新执行完整矩阵。
+- 依赖：`P8-T03R`
+- 完成记录：
+  - （执行时填写）
+
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 
 - 参考：
@@ -536,7 +613,7 @@
   - 完整验证在“只有新主线存在”的条件下仍完整通过；
   - 主文档、主 fixtures 路径与主测试索引不再暴露已删除 `async` / `await` / `Task` surface；
   - 本轮 effect-refactor 收口工作可以视为真正结束。
-- 依赖：P8-T03R
+- 依赖：P8-T03a
 - 完成记录：
   - （执行时填写）
 

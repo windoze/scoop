@@ -1,48 +1,40 @@
 # 执行计划
 
 ## 当前任务
-- 已读取 `TODO.md`，当前第一项未完成任务是 `P8-T03R`：review 测试/文档残留清理，确认公开叙述与主测试路径只剩新主线，且不再暴露已删除 `async` / `await` / `Task` surface。
-- 最新提交是 `[P8-T03] Clean stale pipeline and async-task residue`；提交信息未声明需要先处理的新 blocker，因此本次直接执行 `P8-T03R` 的复核与验证。
+- 本次调用起始任务是 `P8-T04`：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态。
+- 当前结论：`P8-T04` 被一个新发现且未跟踪的前置 blocker 阻塞；本次调用将按规则把该 blocker 写成新的前置任务 `P8-T03a`，更新 `TODO-P8.md` / `TODO.md`，提交 git commit，然后停止。
+
+## 已知约束
+- 必须先检查最新提交是否声明了与 `P8-T04` 直接相关的未完事项；若有，需并入当前任务或写入前置依赖。
+- 必须按任务要求运行完整矩阵，且若中途修复问题，最终至少再完整重跑一遍整个矩阵。
+- 不允许通过恢复 legacy selector、恢复旧主线、添加 hidden fallback、缩小验证范围或改写 fixture 形状来绕过问题。
+- 只有在阶段级计划/依赖变化时才更新 `PLAN.md`；常规任务记录只更新 `TODO` 与本文件。
 
 ## 执行步骤
-1. 读取 `TODO-P8.md` 中 `P8-T03R` 的 review 要求、必须检查的位置和验证命令。
-2. 检查 `P8-T03` 的提交结果与当前工作区状态，确认 review 基线是否干净、是否存在未提交续作。
-3. 逐项复核 `P8-T03R` 指定位置：
-   - `crates/scoop/src/fixtures/**`
-   - `crates/scoopc/src/llvm/tests.rs`
-   - `tools/scoop_tools/src/fixtures_matrix.rs`
-   - README / 开发文档 / fixture 注释
-   - 保留的迁移说明与负向删除测试
-4. 重新运行 `P8-T03` 要求的测试与命令，并执行 `P8-T03R` 指定的额外搜索，分类判断剩余命中是否仅为历史说明或负向守护。
-5. 若复核发现问题，做最小必要修复并重跑相关验证；若没有问题，则仅更新文档记录。
-6. 更新 `TODO-P8.md` 与 `TODO.md`，把 `P8-T03R` 标为 `[DONE]` 并写入 review 结论；仅在阶段计划变化时更新 `PLAN.md`。
-7. 更新本文件记录关键进展，最后按仓库约定提交一次 git commit，然后停止。
-
-## 记录原则
-- 发现 blocker 时，不绕过；若必须新增前置任务，则先改 `TODO.md`，保持 `P8-T03R` 未完成并记录原因。
-- 每完成一个关键步骤或调整验证范围，立即回写本文件。
+1. 运行 `git log -1` 与 `git status --short`，确认最新提交、当前工作区状态以及是否存在需要一并纳入的未提交续作。
+2. 如果最新提交信息暴露出与 `P8-T04` 直接相关的未完 blocker，先判断是否需要在 `TODO-P8.md` 中补充前置任务；否则直接继续执行 `P8-T04`。
+3. 按 `TODO-P8.md` 要求的顺序运行完整回归矩阵：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo clippy --all-targets -- -D warnings`
+   - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+   - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+4. 若任一步失败：定位根因，做最小正确修复；若问题表明当前任务被新的真实前置缺口阻塞，则在 `TODO-P8.md` / `TODO.md` 中插入最小前置任务并停止。
+5. 当前已确认阻塞来自“默认单文件 LLVM artifact/helper 仍走 materialized-HIR entry-main 路径，而 raw materialized MIR backend 不支持 `TerminatorKind::Handle`”。
+6. 将该 blocker 写成新的前置任务 `P8-T03a`，把 `P8-T04` 依赖改到该任务，并记录触发证据与验证入口。
+7. 撤回本次为验证 blocker 做的试探性代码改动，避免把未完成方案混入提交。
+8. 如阶段计划未变化，不改 `PLAN.md`；最后提交 `TODO` / `memory` 更新并停止，等待下一次调用执行 `P8-T03a`。
 
 ## 进展记录
-- 已读取 `TODO.md`，确认当前首个未完成任务为 `P8-T03R`。
-- 已读取 `TODO-P8.md` 中 `P8-T03R` / `P8-T04` 条目，明确本次需要复核指定文件、重跑 `P8-T03` 的全部验证，并执行额外 `rg` 搜索分类。
-- 已查看最新提交 `1f948efc [P8-T03] Clean stale pipeline and async-task residue`；未发现提交信息中声明的直接相关未完 blocker。
-- 已检查工作区状态：当前未提交改动仅为本文件；review 可以在干净基线上继续。
-- 已完成首轮定向搜索与文件复核：`crates/scoop/src/fixtures/**`、`crates/scoopc/src/llvm/tests.rs`、`tools/scoop_tools/src/fixtures_matrix.rs` 未再暴露 pipeline selector 或 async/task 现行 surface；`ASYNC_REFACTOR.md` 与 `SCOOP_FULL_SPEC.md` 的相关命中属于历史/移除说明；`crates/scoop/src/commands/build.rs` 的 `legacy` 命中属于 anti-fallback 负向断言。
-- 发现 `P8-T03` 的漏网项：`docs/spec/language_spec-part1.md` 仍在目录与关键字列表中写出 `async/await`；`docs/spec/language_spec-part3.md` 仍把 `async` / `await` 描述成现行表达式语法与前缀运算符。这直接违反 `P8-T03R` 的 live-doc review 要求。
-- 已完成修正：
-  1. `docs/spec/language_spec-part1.md` 已将第 4 部分目录项改回“效果系统与异常语法糖”，并从关键字列表删除 `async await`；
-  2. `docs/spec/language_spec-part3.md` 已删除把 `async` 视为现行表达式、把 `async {}` 视为现行块形状、以及把 `await` 视为前缀运算符的描述；
-  3. `crates/scoop/tests/p8_docs_cleanup.rs` 已把上述 part1/part3 漏网项纳入负向守护。
-- 已完成验证：
-  - `cargo fmt`
-  - `cargo test -p scoop legacy_pipeline_docs_removed`
-  - `cargo test -p scoopc legacy_compare_harness_removed`
-  - `cargo clippy --all-targets -- -D warnings`
-  - 任务要求搜索：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
-  - 追加 live-spec 搜索：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
-- 验证结果：
-  - 定向测试与 clippy 均通过。
-  - 任务要求搜索的剩余命中集中在历史 `TODO/PLAN` 记录、`SCOOP_FULL_SPEC.md` / `ASYNC_REFACTOR.md` 的删除或设计说明、`crates/scoop/tests/p8_docs_cleanup.rs` 负向守护，以及 `crates/scoop/src/commands/build.rs` anti-fallback 断言。
-  - 追加 live-spec 搜索确认：`docs/spec/language_spec-part1.md` / `language_spec-part3.md` 的漏网项已清理；live spec 中仅剩 `language_spec-part4.md` 对“当前版本不定义 async/await”的负向说明。
-- 已更新 `TODO-P8.md` 与 `TODO.md`：`P8-T03R` 已标记为 `[DONE]` 并写入复核记录。
-- 下一步：检查最终工作区状态，创建 `[P8-T03R]` 提交，然后停止。
+- 已读取 `TODO.md` 索引，确认首个未完成任务为 `P8-T04`。
+- 已读取 `TODO-P8.md` 中 `P8-T04` / `P8-T04R` 条目，明确本次只执行 `P8-T04`，且需要完整矩阵、最终再跑一遍整矩阵、并附搜索摘要。
+- 已在未运行任何 bash/git/cargo 命令前更新本文件，满足“先写计划再执行命令”的要求。
+- 已检查最新提交 `2ca6ab3264f517fb1b753790e1e898f33327bfdd [P8-T03R] Close docs cleanup review gaps`；提交信息未声明需要先插入的 `P8-T04` 直接 blocker。
+- 已检查工作区状态：当前未提交改动仅为本文件，可在此基线上继续执行完整回归矩阵。
+- 第一轮完整矩阵在首步 `cargo test --all` 即失败；失败集中在 `crates/scoopc/src/llvm/tests.rs` 的 effectful/handle 相关测试，统一报 `UnsupportedMainBody { kind: "HIR handle lowering removed; use refactor MIR lowering" }`。
+- 根因定位：`emit_minimal_main_ir`、`emit_minimal_main_obj_to_file`、`emit_minimal_main_asm_to_file` 与 `build_minimal_main_module_with_opt_level` 虽然会准备 `materialized_lowered_hir`，但仍只调用 `build_main_module_from_codegen_entry(... from_materialized_lowered_hir ...)`；可达普通函数可经 MIR bridge 发射，而入口 `main` 在缺少 late-lowered stage handoff 时仍回到 `codegen_main_exit_code` 的 HIR body lowering，因此 `main` 中一旦出现 `handle/try` 就会触发已删除的 HIR handle lowering 路径。
+- 进一步验证表明：即使把 C `main` 改成调用包级 `pkg.main`，`pkg.main` 自身仍会因为 raw materialized MIR backend 明确不支持 `TerminatorKind::Handle` 而回退到已删除的 HIR handle lowering；说明 blocker 不只是 entry wrapper，而是“默认单文件 LLVM 入口仍建在 materialized-HIR/raw-MIR path 上”。
+- 已据此在 `TODO-P8.md` / `TODO.md` 中插入新的前置任务 `P8-T03a`，要求先迁移默认单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，再回到 `P8-T04` 重跑完整矩阵。
+- 已撤回为验证 blocker 做的试探性代码改动，避免把未完成方案混入 blocker 提交。
+- 下一步：检查工作区，仅保留 `TODO` / `memory` 更新，创建 `[P8-T03a]` blocker 提交，然后停止。
