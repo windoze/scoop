@@ -1759,6 +1759,13 @@ run-pass / runtime_gc matrix 继续使用真实 CLI path，不引入测试专用
 
 P7 flips omission-based CLI/session defaults to refactor. The P6 commands above are historical handoff examples that used an explicit selector before the default flip; current default smoke and regression commands should omit `--effect-pipeline`. Explicit `--effect-pipeline refactor` is retained only for default-vs-explicit equivalence checks, and explicit `--effect-pipeline legacy` is retained only for short-term compare/rollback smoke until P8 deletes the legacy selector path.
 
+The P7 -> P8 handoff is frozen as follows:
+
+- omission/default CLI and session entry always mean refactor;
+- explicit `legacy` remains only as a short-term compare/rollback entry until deletion;
+- P8 deletes the legacy selector branch, the old effect/continuation lowering pipeline, and temporary adapters that still exist only to keep the legacy path alive;
+- P8 must not reopen `Step`, continuation, LLVM, GC/runtime, or runtime-error semantics. It only removes the old path and reruns the full regression matrix with the single refactor mainline.
+
 ## 6. 计算 `actual_outward_cases` 与 `resolved_outward_cases`
 
 在语义/理想分析层面，真正希望得到的精确结果仍然是：

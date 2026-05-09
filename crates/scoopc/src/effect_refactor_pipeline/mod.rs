@@ -1,7 +1,10 @@
 //! effect-refactor 并行主线的顶层 dispatcher 壳层。
 //!
 //! P7 状态：省略 selector 时由 session 默认进入 `refactor`，显式 `legacy` 仅保留为短期
-//! compare/rollback 入口，P8 将删除该显式旧主线入口。
+//! compare/rollback 入口。
+//! P7 -> P8 handoff 已冻结：P8 只删除 legacy selector 分支、旧 effect/continuation
+//! lowering 主线与仅为 legacy 存活而保留的临时适配层；不得重新设计 `Step`、
+//! continuation、LLVM 或 GC/runtime 语义。
 //!
 //! 边界约束：新旧主线只允许在这里分流；低层业务模块不应自行读取 pipeline mode。
 

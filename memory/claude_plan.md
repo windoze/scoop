@@ -1,29 +1,40 @@
-## 执行计划
+# 执行计划
 
-1. 读取 `TODO.md`，识别第一个标题未标记 `[DONE]` 的任务，并确认其依赖、验证要求、完成记录约束。
-2. 检查最近一次提交是否直接提到与该任务相关的未完成问题；若存在且会影响当前任务，则将其视为当前任务组成部分或在 `TODO.md` 中补充为前置任务。
-3. 阅读为完成当前任务所必需的最小范围代码、测试、规范与文档，避免进行无边界问题排查。
-4. 实现当前任务要求的改动；若遇到阻塞当前任务的真实缺口或规格不匹配，不采用规避方案，而是在 `TODO.md` 中添加最小前置任务并调整顺序。
-5. 运行当前任务要求的验证与必要的回归测试，并修复发现的问题，直到当前任务满足要求或确认被前置阻塞。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划调整。
-7. 按要求更新 `TODO.md`：若任务完成，则将任务标题标记为 `[DONE]` 并填写/更新完成记录；若被阻塞，则保持任务未完成并写入新增前置任务与依赖关系。
-8. 仅在阶段级计划、依赖结构或完成标准发生变化时更新 `PLAN.md`。
-9. 检查工作区变更，按要求提交一次清晰的 Git 提交，包含本次任务涉及的全部未提交文件。
-10. 停止，不继续处理下一个任务。
+说明：按你的要求，我先把可公开的执行计划写入这里，再开始读取任务与执行命令。这里记录的是执行步骤、决策点、进度与变更，不包含内部私有推理细节。
+
+## 初始计划
+
+1. 读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务，并以它作为本次唯一执行目标。
+2. 检查最近提交是否直接提到与该任务相关且未完成的问题；如果该问题构成当前任务的直接前置阻塞，则先在 `TODO.md` 中补成最小前置任务并调整依赖/顺序。
+3. 阅读该任务涉及的代码、测试、规范与相关文档，只收集完成当前任务所必需的信息，避免开放式问题扫荡。
+4. 实现当前任务要求的代码改动；如遇到会破坏规范一致性的缺口、回归、实现边界或缺失特性，不绕过，转而修复它，或将其作为新的最小前置任务写入 `TODO.md`。
+5. 运行与当前任务直接相关的验证，包括必要测试；如任务完成范围较大，再补充 `cargo test`、`cargo clippy --all-targets -- -D warnings` 等仓库要求的验证。
+6. 更新文档记录：
+   - 在 `TODO.md` 中将当前任务标题显式改为带 `[DONE]`，并补全完成记录；
+   - 仅在阶段计划或依赖结构发生变化时更新 `PLAN.md`；
+   - 在本文件持续记录关键进展、计划变化、阻塞与已完成步骤。
+7. 按仓库约定创建一次 git 提交，提交信息以当前任务 ID 为前缀。
+8. 完成后立即停止，不继续处理下一个任务。
 
 ## 进度记录
 
-- 初始状态：已写入执行计划，尚未读取 `TODO.md`。
-- 已读取 `TODO.md` 索引，确认首个未完成任务为 `P7-T03S`：修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker。
-- 已检查最新提交 `897b82183711a840a0362ca783e8ad3cc83b8e79`，提交主题直接对应 `P7-T03S`，说明当前任务已有部分修复但仍保留 blocker；后续工作需在该基础上继续闭合，而不是跳到 `P7-T04`。
-- 已读取 `TODO-P7.md` 中 `P7-T03S` 定义：本轮必须复现 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下的 `verify-roots` abort，定位 explicit-frame stale-root / `ptr poison` 来源，修复 compiler-owned spill/writeback 或 root-home contract，并保持既有三个 GC env 守护样本不回归。
-- 下一步：先查看当前工作树状态，再定向复现 `P7-T03S` 失败并检查相关 LLVM/codegen 路径与现有定向单测覆盖。
-- 已复现失败：`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在第二次 replay 进入 composed call-boundary 前触发 `verify-roots`，runtime 报 explicit-frame invalid roots。
-- 已通过 emitted LLVM IR 缩小问题范围：`fetch` direct entry 本身无可达 `ptr poison`；真正可达的 poison 出现在 `main` mixed replay 的 composed continuation materialization 路径，表现为 `refactor_composed_callee_root` / `refactor_cont_root` 等 compiler-generated root slot 只有当前块初始化，没有 entry 级初始化，SROA 后在可达路径上退化为 `ptr poison`，再被同步进 explicit-frame slot。
-- 当前修复思路：让 `create_refactor_gc_root_slot(...)` 对底层 entry alloca 做 entry-level null 初始化，避免 compiler-owned root spill slot 在任何路径上未定义；随后补一条 production LLVM 回归，锁定 mixed replay fixture 不再出现 `ptr poison`，再跑任务要求的 GC env 验证矩阵。
-- 后续定位确认：真正剩余 blocker 不是 `fetch` direct entry，而是 composed replay 进入 `__scoop_refactor_surface_resume_owner_dispatch__fetch__k0` 之前，owner-dispatch / composed-resume call args 把 continuation 与 payload 长时间保留在 SSA 中，跨 replay prefix/runtime call 后直接拿旧 SSA 发起 surface resume。
-- 已完成修复：
-  1. explicit-frame 模式下的 compiler-generated refactor GC root slot 改为以 explicit-frame mirror 为 authoritative home，不再依赖单独 stack shadow 的 load/store/track；
-  2. `resume_composed_call_boundary_case(...)` 现在会把 composed-resume 的 callee continuation 与 payload 都接入 defer/reload contract，在 replay prefix 之后、真正调用 surface resume 之前从 explicit-frame-backed homes reload，并在调用后清理临时 root homes。
-- 已完成验证：`cargo fmt --all`；`cargo test -p scoopc --lib cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame -- --nocapture`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all`。
-- 当前状态：`P7-T03S` 已满足完成条件；下一步只需检查工作树、更新 `TODO.md`/`TODO-P7.md` 完成标记，并创建本次任务提交。
+- 已完成：创建本计划文件。
+- 已完成：读取 `TODO.md`，确认首个未完成任务是 `P7-T04`（运行 GC env 全开验证，并冻结 P7 -> P8 handoff）。
+- 已完成：检查最近一次提交 `[P7-T03S] Close mixed replay verify-roots blocker`；未发现需要先补入 `TODO.md` 的新未完成前置项。
+- 当前计划：
+  1. 检查工作树状态，确认是否存在未提交改动需要一并吸收。
+  2. 按 `P7-T04` 要求运行默认 refactor 下的 GC env 全开矩阵：`run-pass` 与 `runtime_gc`。
+  3. 若矩阵失败，定位是否为当前任务直接暴露的真实 blocker；若可直接修复，则修复并重跑；若必须先引入新的最小前置任务，则更新 `TODO.md` 并停止。
+  4. 若矩阵通过，补跑要求的显式 `legacy` smoke，并整理仍保留到 P8 的 legacy 入口/测试/文档摘要。
+  5. 更新 `TODO-P7.md`、`TODO.md`（必要时）以及可能需要补充的 handoff 注释/文档；最后提交本任务并停止。
+- 已完成：工作树检查确认本轮起始时仅有 `memory/claude_plan.md` 未提交。
+- 已完成：默认 refactor GC env 全开矩阵通过：
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` → `fixtures: ok (391)`
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` → `fixtures: ok (25)`
+- 已完成：显式 `legacy` compare/rollback smoke 通过：
+  - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/run-pass/minimal_main.scoop` → `fixtures: ok (1)`
+  - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop` → `fixtures: ok (1)`
+- 已完成：补强 `P7 -> P8` handoff 文档/注释，更新 `EFFECT_REFACTOR.md` 与 `crates/scoopc/src/effect_refactor_pipeline/mod.rs`。
+- 已完成：把 `P7-T04` 标记为 `[DONE]`，并在 `TODO-P7.md` / `TODO.md` 中写回完成记录与索引状态。
+- 已完成：运行 `cargo fmt --all`。
+- 下一步：检查最终工作树并创建本轮 git 提交。

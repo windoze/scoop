@@ -989,7 +989,7 @@
   - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame -- --nocapture`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all`。
   - 依据上述修复与验证，`P7-T04` 可以恢复执行完整 GC env 矩阵：当前 multi-escape mixed replay 样本已不再在 explicit-frame slots 中留下 invalid root / `ptr poison`，此前三个 GC env 守护样本也继续通过，因此后续可以重新聚焦 `run-pass` / `runtime_gc` 的整套 GC env 收口，而不是再被这条 stale-root blocker 卡住。
 
-## P7-T04：运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口
+## [DONE] P7-T04：运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P7，§2/P8，§3，§4
@@ -1052,6 +1052,19 @@
     - `create_continuation_object_with_state_tag` 现在会把 extracted callee continuation 先 root 到专用 slot，等 wrapper allocation safepoint 之后再 reload 写入 composed edge；定向恢复 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop` 的 GC env 通过。
     - `handle_boundary_case` 现在会把会穿过 continuation materialization safepoint 的 arm/outward payload 先 deferred，再在真正绑定/发射 `Step` 前 reload；定向恢复 `effect_escape_continuation_indirect_perform_binder_string_use.scoop` 的 GC env 通过，并保持 `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` default 路径不回归。
   - 继续执行完整 `tests/fixtures/run-pass` GC env 矩阵时，`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 仍在第一次 resume 进入 mixed replay 后触发 runtime `verify-roots`：explicit-frame slots 中残留 invalid roots，emit 的 LLVM IR 仍可观察到大量 `ptr poison` 相关 spill/writeback 形状。该问题属于当前任务的真实 blocker，且不能通过缩小覆盖或绕过 verify-roots 解决；已新增前置任务 `P7-T03S`，本任务保持未完成。
+  - 2026-05-09：完成 `P7-T03S` 后重新执行 `P7-T04` 所要求的默认 GC env 全开矩阵，结果均在 omission/default=`refactor` 下通过：
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` → `fixtures: ok (391)`；
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` → `fixtures: ok (25)`。
+  - 按任务要求补跑显式 `legacy` compare/rollback smoke，确认 legacy 仍只作为显式入口存活，而默认 GC env 与 full regression 不依赖它：
+    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/run-pass/minimal_main.scoop` → `fixtures: ok (1)`；
+    - `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop` → `fixtures: ok (1)`。
+  - 依据本轮结果，已在 `EFFECT_REFACTOR.md` §5.6.6 与 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 顶层注释中冻结 `P7 -> P8` handoff：省略 selector 的默认主线已经是 refactor；显式 `legacy` 仅保留为短期 compare/rollback 入口；P8 只删除 legacy selector 分支、旧 effect/continuation lowering 主线与仅为 legacy 存活的临时适配层；P8 不再重新设计 `Step` / continuation / LLVM / GC/runtime 语义，只需删除旧主线并再次 full regression。
+  - 仍保留到 P8 的 legacy 入口/测试/文档摘要：
+    - 入口与 parse/availability 覆盖：`crates/scoop/src/cli.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoopc/src/session/mod.rs`；
+    - dispatcher/主线分流与 legacy stage 入口：`crates/scoopc/src/effect_refactor_pipeline/mod.rs`、`crates/scoopc/src/effect_refactor_pipeline/legacy.rs`；
+    - fixture/helper 显式 legacy 传播与 compare 守护：`crates/scoop/src/fixtures/mod.rs`、`crates/scoop/src/fixtures/run_pass.rs`；
+    - 仍覆盖 legacy 存活性的 dump/build/state-machine 测试落点：`crates/scoop/src/commands/dump_hir.rs`、`dump_mir.rs`、`dump_effect_facts.rs`、`dump_effect_lowered.rs`，以及 `crates/scoopc/src/effect/state_machine/**`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`；
+    - handoff/说明文档中仍保留的 legacy 文字：`EFFECT_REFACTOR.md` 中 P6 历史 handoff 示例与当前 P7/P8 过渡说明。
 
 ## P7-T04R：Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression
 
