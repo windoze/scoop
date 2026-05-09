@@ -3730,9 +3730,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     }
 
     fn current_frame_ptr(&mut self) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let frame_gc = self
-            .codegen
-            .load_refactor_gc_root_slot(self.frame_root_slot, "refactor_frame_root")?;
+        let frame_gc = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            self.frame_root_slot,
+            "refactor_frame_root",
+        )?;
         self.codegen.refactor_cast_ptr(
             frame_gc,
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
@@ -3755,7 +3757,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
         self.codegen
             .store_refactor_gc_root_slot(self.mir_fun.span, slot, value, name)?;
-        self.codegen.load_refactor_gc_root_slot(slot, name)
+        self.codegen
+            .load_refactor_gc_root_slot(self.mir_fun.span, slot, name)
     }
 
     fn emit_direct(
@@ -4196,6 +4199,33 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 composition.input_step_schema().as_u32(),
             )));
         }
+        let deferred_callee_continuation = self.codegen.defer_gc_ref_pointer(
+            self.mir_fun.span,
+            "refactor_composed_resume_callee_continuation",
+            callee_continuation,
+        )?;
+        let deferred_payload = payload
+            .map(|raw| {
+                let payload_cg = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, resume_tuple_ty)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor composed call boundary bd{} payload t{} 缺少 codegen type",
+                            boundary.boundary_id().as_u32(),
+                            resume_tuple_ty.as_u32(),
+                        ))
+                    })?;
+                self.codegen.defer_gc_sensitive_cg_value(
+                    self.mir_fun.span,
+                    "refactor_composed_resume_payload",
+                    CgValue {
+                        ty: payload_cg,
+                        value: Some(raw),
+                    },
+                )
+            })
+            .transpose()?;
         if let Some(call_lowering) = dispatch_context.call_lowering
             && self
                 .call_boundary_prefix_replay_matches_prior_resuming_route(boundary, call_lowering)?
@@ -4204,10 +4234,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.replay_call_boundary_prefix(boundary, call_lowering)?;
         }
         let callee = self.codegen.refactor_function(surface.symbol_name())?;
+        let callee_continuation = self.codegen.reload_deferred_gc_ref_without_clearing(
+            self.mir_fun.span,
+            "refactor_composed_resume_callee_continuation_reload",
+            &deferred_callee_continuation,
+        )?;
         let mut args = vec![callee_continuation.into()];
         if surface.param_count() > 1 {
             args.push(
-                payload
+                deferred_payload
+                    .as_ref()
+                    .map(|value| {
+                        self.codegen.reload_deferred_cg_value_without_clearing(
+                            self.mir_fun.span,
+                            "refactor_composed_resume_payload_reload",
+                            value,
+                        )
+                    })
+                    .transpose()?
+                    .and_then(|value| value.value)
                     .ok_or_else(|| {
                         frontend_error(format!(
                             "refactor composed call boundary bd{} callee resume 需要 non-elided payload",
@@ -4223,6 +4268,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &args,
             "refactor_composed_callee_resume",
         )?;
+        self.codegen.clear_deferred_cg_value_root_homes(
+            self.mir_fun.span,
+            "refactor_composed_resume_callee_continuation_clear",
+            &deferred_callee_continuation,
+        )?;
+        if let Some(deferred_payload) = &deferred_payload {
+            self.codegen.clear_deferred_cg_value_root_homes(
+                self.mir_fun.span,
+                "refactor_composed_resume_payload_clear",
+                deferred_payload,
+            )?;
+        }
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(
                 "refactor composed call boundary callee resume 未返回 Step_F".to_string(),
@@ -6309,6 +6366,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 case_tag.as_u32(),
             )));
         }
+        let deferred_callee_continuation = callee_continuation
+            .map(|continuation| {
+                self.codegen.defer_gc_ref_pointer(
+                    self.mir_fun.span,
+                    "refactor_outward_callee_continuation",
+                    continuation,
+                )
+            })
+            .transpose()?;
         self.sync_frame_slots_from_locals()?;
         let mut routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
         let skip_finalized_site =
@@ -6355,6 +6421,26 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     None
                 };
                 if let Some(binder) = action.continuation_binder {
+                    let callee_continuation = if let Some(deferred) = deferred_callee_continuation {
+                        Some(
+                            self.codegen
+                                .materialize_deferred_cg_value(
+                                    self.mir_fun.span,
+                                    "refactor_handle_arm_callee_continuation_reload",
+                                    deferred,
+                                )?
+                                .value
+                                .ok_or_else(|| {
+                                    frontend_error(
+                                        "refactor handle arm callee continuation reload 缺少值"
+                                            .to_string(),
+                                    )
+                                })?
+                                .into_pointer_value(),
+                        )
+                    } else {
+                        callee_continuation
+                    };
                     let continuation = if composition.is_some() {
                         self.create_continuation_object(
                             boundary.resume_state(),
@@ -6413,6 +6499,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 )
             })
             .transpose()?;
+        let callee_continuation = if let Some(deferred) = deferred_callee_continuation {
+            Some(
+                self.codegen
+                    .materialize_deferred_cg_value(
+                        self.mir_fun.span,
+                        "refactor_outward_callee_continuation_reload",
+                        deferred,
+                    )?
+                    .value
+                    .ok_or_else(|| {
+                        frontend_error(
+                            "refactor outward callee continuation reload 缺少值".to_string(),
+                        )
+                    })?
+                    .into_pointer_value(),
+            )
+        } else {
+            callee_continuation
+        };
         let continuation = self.create_continuation_object(
             boundary.resume_state(),
             callee_continuation,
@@ -8252,9 +8357,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_cont_composed_callee_gep",
         )?;
         let composed_callee = match callee_continuation_root {
-            Some(slot) => self
-                .codegen
-                .load_refactor_gc_root_slot(slot, "refactor_composed_callee_root")?,
+            Some(slot) => self.codegen.load_refactor_gc_root_slot(
+                self.mir_fun.span,
+                slot,
+                "refactor_composed_callee_root",
+            )?,
             None => self.codegen.llvm_gc_i8_ptr_type().const_null(),
         };
         self.codegen.store_gc_pointer_slot_with_write_barrier(
@@ -8533,6 +8640,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn refactor_gc_root_explicit_frame_slot(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<Option<PointerValue<'ctx>>, LlvmEmitError> {
+        self.explicit_frame_single_gc_ptr_reload_slot_for_storage_slot(
+            at,
+            slot,
+            self.llvm_gc_i8_ptr_type().into(),
+            name,
+        )
+    }
+
     fn create_refactor_gc_root_slot(
         &mut self,
         at: crate::span::Span,
@@ -8540,9 +8661,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
         let slot = self.create_entry_alloca_raw(at, name, gc_ptr_ty.into())?;
-        self.builder.build_store(slot, gc_ptr_ty.const_null())?;
-        self.sync_storage_slot_into_explicit_frame(at, slot, gc_ptr_ty.into(), name)?;
-        self.track_gc_root_slots_for_spill_slot(at, slot, gc_ptr_ty.into(), name)?;
+        if let Some(frame_slot) = self.refactor_gc_root_explicit_frame_slot(at, slot, name)? {
+            // In explicit-frame mode the mirror slot is the authoritative root home. Keep
+            // compiler-generated refactor root slots out of a second stack shadow so SROA cannot
+            // turn reload/store pairs on the shadow slot into reachable `ptr poison` and then
+            // leak that poison back into explicit-frame roots.
+            self.builder
+                .build_store(frame_slot, gc_ptr_ty.const_null())?;
+        } else {
+            self.builder.build_store(slot, gc_ptr_ty.const_null())?;
+            self.track_gc_root_slots_for_spill_slot(at, slot, gc_ptr_ty.into(), name)?;
+        }
         Ok(slot)
     }
 
@@ -8555,23 +8684,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let value =
             self.refactor_cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
-        self.builder.build_store(slot, value)?;
-        self.sync_storage_slot_into_explicit_frame(
-            at,
-            slot,
-            self.llvm_gc_i8_ptr_type().into(),
-            name,
-        )
+        if let Some(frame_slot) = self.refactor_gc_root_explicit_frame_slot(at, slot, name)? {
+            self.builder.build_store(frame_slot, value)?;
+            Ok(())
+        } else {
+            self.builder.build_store(slot, value)?;
+            self.sync_storage_slot_into_explicit_frame(
+                at,
+                slot,
+                self.llvm_gc_i8_ptr_type().into(),
+                name,
+            )
+        }
     }
 
     fn load_refactor_gc_root_slot(
         &mut self,
+        at: crate::span::Span,
         slot: PointerValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let load_slot = self
+            .refactor_gc_root_explicit_frame_slot(at, slot, name)?
+            .unwrap_or(slot);
         Ok(self
             .builder
-            .build_load(self.llvm_gc_i8_ptr_type(), slot, &format!("{name}_reload"))?
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                load_slot,
+                &format!("{name}_reload"),
+            )?
             .into_pointer_value())
     }
 

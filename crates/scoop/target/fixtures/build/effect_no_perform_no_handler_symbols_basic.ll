@@ -85,10 +85,7 @@ entry:
   %explicit_root_frame_slot_1 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 24
   %explicit_root_frame_slot_0 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 16
   store ptr addrspace(1) null, ptr %explicit_root_frame_slot_2, align 8
-  %tracked_explicit_gc_root_slot_0 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
-  %gc_root_keepalive_4294967295 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_0, align 8
   %rt_alloc_refactor_frame = call ptr addrspace(1) @scoop_alloc_typed(ptr @__scoop_refactor_frame_layout__fixtures_build_main__type_desc, i64 64)
-  %gc_root_keepalive_reload = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_0, align 8
   %refactor_frame_zero_field_1 = getelementptr inbounds nuw %scoop.refactor.Frame__fixtures_build_main, ptr addrspace(1) %rt_alloc_refactor_frame, i32 0, i32 1
   store i64 0, ptr addrspace(1) %refactor_frame_zero_field_1, align 8
   %refactor_frame_zero_field_2 = getelementptr inbounds nuw %scoop.refactor.Frame__fixtures_build_main, ptr addrspace(1) %rt_alloc_refactor_frame, i32 0, i32 2
@@ -118,22 +115,19 @@ refactor.st0:                                     ; preds = %entry
   br label %refactor.st2
 
 refactor.st1:                                     ; No predecessors!
-  %explicit_root_frame_pop_prev_ptr13 = getelementptr inbounds nuw %scoop.runtime.ScoopRootFrameHeader, ptr %explicit_root_frame_storage, i32 0, i32 0
-  %explicit_root_frame_pop_prev14 = load ptr, ptr %explicit_root_frame_pop_prev_ptr13, align 8
-  %explicit_root_frame_pop_slot_015 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 16
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_015, align 8
-  %explicit_root_frame_pop_slot_116 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 24
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_116, align 8
-  %explicit_root_frame_pop_slot_217 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_217, align 8
-  store ptr %explicit_root_frame_pop_prev14, ptr @__scoop_explicit_root_frame_top, align 8
+  %explicit_root_frame_pop_prev_ptr6 = getelementptr inbounds nuw %scoop.runtime.ScoopRootFrameHeader, ptr %explicit_root_frame_storage, i32 0, i32 0
+  %explicit_root_frame_pop_prev7 = load ptr, ptr %explicit_root_frame_pop_prev_ptr6, align 8
+  %explicit_root_frame_pop_slot_08 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 16
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_08, align 8
+  %explicit_root_frame_pop_slot_19 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 24
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_19, align 8
+  %explicit_root_frame_pop_slot_210 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_210, align 8
+  store ptr %explicit_root_frame_pop_prev7, ptr @__scoop_explicit_root_frame_top, align 8
   unreachable
 
 refactor.st2:                                     ; preds = %refactor.st0
-  %tracked_explicit_gc_root_slot_02 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
-  %gc_root_keepalive_42949672953 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_02, align 8
   %pass_mir_call = call i64 @fixtures.build.helper(i64 41)
-  %gc_root_keepalive_reload4 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_02, align 8
   br label %refactor.st4
 
 refactor.st3:                                     ; No predecessors!
@@ -141,22 +135,19 @@ refactor.st3:                                     ; No predecessors!
   br label %refactor.st4
 
 refactor.st4:                                     ; preds = %refactor.st3, %refactor.st2
-  %tracked_explicit_gc_root_slot_010 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
-  %gc_root_keepalive_429496729511 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_010, align 8
   call void @"scoop.core.println::<Int>"(i64 %pass_mir_call)
-  %gc_root_keepalive_reload12 = load ptr addrspace(1), ptr %tracked_explicit_gc_root_slot_010, align 8
   br label %return
 
 refactor.st5:                                     ; No predecessors!
-  %explicit_root_frame_pop_prev_ptr18 = getelementptr inbounds nuw %scoop.runtime.ScoopRootFrameHeader, ptr %explicit_root_frame_storage, i32 0, i32 0
-  %explicit_root_frame_pop_prev19 = load ptr, ptr %explicit_root_frame_pop_prev_ptr18, align 8
-  %explicit_root_frame_pop_slot_020 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 16
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_020, align 8
-  %explicit_root_frame_pop_slot_121 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 24
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_121, align 8
-  %explicit_root_frame_pop_slot_222 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
-  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_222, align 8
-  store ptr %explicit_root_frame_pop_prev19, ptr @__scoop_explicit_root_frame_top, align 8
+  %explicit_root_frame_pop_prev_ptr11 = getelementptr inbounds nuw %scoop.runtime.ScoopRootFrameHeader, ptr %explicit_root_frame_storage, i32 0, i32 0
+  %explicit_root_frame_pop_prev12 = load ptr, ptr %explicit_root_frame_pop_prev_ptr11, align 8
+  %explicit_root_frame_pop_slot_013 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 16
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_013, align 8
+  %explicit_root_frame_pop_slot_114 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 24
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_114, align 8
+  %explicit_root_frame_pop_slot_215 = getelementptr inbounds i8, ptr %explicit_root_frame_storage, i64 32
+  store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_215, align 8
+  store ptr %explicit_root_frame_pop_prev12, ptr @__scoop_explicit_root_frame_top, align 8
   unreachable
 }
 

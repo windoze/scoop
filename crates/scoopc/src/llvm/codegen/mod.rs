@@ -3462,6 +3462,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(ptr)
     }
 
+    fn reload_deferred_cg_value_without_clearing(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: &DeferredCgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(raw) = value.immediate {
+            return Ok(CgValue {
+                ty: value.ty,
+                value: Some(raw),
+            });
+        }
+
+        if let Some(spill) = &value.spill {
+            let reload_slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
+            let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
+            let loaded = self.builder.build_load(llvm_ty, reload_slot, name)?;
+            return Ok(CgValue {
+                ty: value.ty,
+                value: Some(loaded),
+            });
+        }
+
+        match value.ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "reload deferred value without clearing",
+                at: at.into(),
+            }),
+        }
+    }
+
     fn clear_deferred_cg_value_root_homes(
         &mut self,
         at: crate::span::Span,

@@ -933,7 +933,7 @@
   - 额外执行 `rg "effect[-_]pipeline.*legacy|fallback.*legacy|retry.*legacy" crates tools tests --glob '!target/**'` 等价搜索。命中仅来自 `crates/scoop/src/fixtures/run_pass.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoop/src/commands/build.rs` 中的显式 legacy compare 测试、legacy unsupported/help 文案与 anti-fallback 断言；未发现为标准 full regression 新增 hidden fallback、retry legacy 或 omission 默认回 legacy 的实现路径。
   - 结合 `P7-T03` 完成记录与当前复验结果，确认本阶段 full-regression 修复均落在 refactor/default 路径或中立共享模块；`spec-fixtures check` 当前通过，说明此前同步的 generated fixtures/goldens 未偏离 `EFFECT_REFACTOR.md` §8 所规定的基线：默认主线是 refactor，显式 `legacy` 只保留到 P8 前的短期 compare/rollback 场景。可进入 `P7-T04`。
 
-## P7-T03S：修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker，恢复 multi-escape mixed replay 的 verify-roots 正确性
+## [DONE] P7-T03S：修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker，恢复 multi-escape mixed replay 的 verify-roots 正确性
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P7，§3，§4
@@ -982,7 +982,12 @@
   - `P7-T04` 可以重新聚焦完整 GC env 矩阵与 handoff 收口。
 - 依赖：P7-T03R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：完成 `P7-T03S`。本轮先按任务要求复现 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`，确认剩余 abort 不是 runtime visitor 本身，而是两类 compiler-owned stale-root source-of-truth 漏洞共同叠加：
+    - `create_refactor_gc_root_slot(...)` 生成的 compiler-owned refactor root spill 在 explicit-frame 模式下仍保留“stack shadow + explicit-frame mirror”双轨写法；其中 `refactor_composed_callee_root` / `refactor_cont_root` 这类 mid-function root slot 会在 O0 + SROA 下把 shadow slot 的 load/store 退化成可达 `ptr poison`，再把 poison 同步回 explicit-frame root home。现已把 explicit-frame mirror 固化为该类 root slot 的 authoritative home：explicit 模式下不再通过单独 stack shadow 读写/track 这类 refactor root slot，从而不再把 shadow poison 回灌到 root frame。
+    - composed call-boundary replay 的 owner-dispatch surface-resume 实参此前把 `composed_callee` 与 resume payload 长时间保留在 SSA 中，跨过 replay prefix 期间的 runtime call / write barrier 后仍直接拿旧 SSA 去调用 `__scoop_refactor_surface_resume__k0`。现已在 `resume_composed_call_boundary_case(...)` 中把 callee continuation 与 payload 都接入统一 defer/reload contract：先落到 explicit-frame-backed home，再在真正发起 surface-resume 调用前 reload，并在调用后清理临时 root homes。
+  - 修复后 explicit-frame/root spill contract 在该 mixed replay 形状下重新闭合：owner-dispatch `fetch__k0` 第二次 resume 进入时，slot 1/2/4/5 不再从 stale composed-callee/payload SSA 派生，`fetch_resume -> after_indirect -> abort_arm -> after_resume2` 路径在 moving/stress/verify-roots 下稳定通过。
+  - 验证通过：`cargo fmt --all`；`cargo test -p scoopc --lib cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame -- --nocapture`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`；`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all`。
+  - 依据上述修复与验证，`P7-T04` 可以恢复执行完整 GC env 矩阵：当前 multi-escape mixed replay 样本已不再在 explicit-frame slots 中留下 invalid root / `ptr poison`，此前三个 GC env 守护样本也继续通过，因此后续可以重新聚焦 `run-pass` / `runtime_gc` 的整套 GC env 收口，而不是再被这条 stale-root blocker 卡住。
 
 ## P7-T04：运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口
 
