@@ -2039,9 +2039,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         payload_transport: Option<&mir::ValueTransportMetadata>,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
-        let legacy_u64 = dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64";
+        let u64_resume_dispatch = dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64";
         let typed_transport = dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume";
-        if !legacy_u64 && !typed_transport {
+        if !u64_resume_dispatch && !typed_transport {
             return Ok(None);
         }
         if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
@@ -2137,7 +2137,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "refactor_thread_resume_k_i8",
         )?;
 
-        if legacy_u64 {
+        if u64_resume_dispatch {
             if surface.resume_payload_abi().is_elided()
                 || !matches!(surface.resume_payload_abi().llvm_ty(), BasicTypeEnum::IntType(int_ty) if int_ty == self.codegen.context.i64_type())
             {

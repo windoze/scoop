@@ -152,7 +152,7 @@ pub enum LlvmEmitError {
     MissingMaterializedPassView,
 
     #[error(
-        "refactor LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到 legacy handler-stack / EffectOutcome backend"
+        "refactor LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到已删除的 handler-stack / EffectOutcome backend"
     )]
     #[diagnostic(code(scoop::llvm::refactor_effect_lowering_unsupported))]
     RefactorEffectLoweringUnsupported {

@@ -2358,7 +2358,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         self.codegen
             .register_refactor_plain_callable_carrier_fallback(kind, callable_fqn)?;
         if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
-            && let Some(alias) = legacy_hir_closure_carrier_alias(callable_fqn)
+            && let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn)
         {
             self.codegen
                 .register_refactor_plain_callable_carrier_fallback(kind, &alias)?;
@@ -2446,7 +2446,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             &symbol_name,
             carrier_layouts,
         )?;
-        if let Some(alias) = legacy_hir_closure_carrier_alias(callable_fqn) {
+        if let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn) {
             self.register_callable_carrier_target_contract(
                 RefactorCallableCarrierKind::ClosureObject,
                 &alias,
@@ -6833,7 +6833,7 @@ fn expected_source_types_for_carrier(
     }
 }
 
-fn legacy_hir_closure_carrier_alias(root_fqn: &str) -> Option<String> {
+fn direct_hir_closure_carrier_alias(root_fqn: &str) -> Option<String> {
     let (_, suffix) = root_fqn.rsplit_once(".$lambda")?;
     suffix
         .chars()
@@ -12321,7 +12321,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_layout_binds_pure_direct_entries_without_legacy_typestore() {
+    fn refactor_llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallback() {
         with_fixture_query(
             "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
             |inputs, query, module| {

@@ -127,10 +127,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(wrapper);
         }
 
-        let legacy_fun = self.declare_top_level_fun(fun)?;
+        let callee_fun = self.declare_top_level_fun(fun)?;
         let saved_block = self.builder.get_insert_block();
         let mut wrapper_codegen = self.fresh_child_codegen();
-        wrapper_codegen.codegen_top_level_fun_effect_call_wrapper(fun, legacy_fun, wrapper)?;
+        wrapper_codegen.codegen_top_level_fun_effect_call_wrapper(fun, callee_fun, wrapper)?;
 
         if let Some(bb) = saved_block {
             self.builder.position_at_end(bb);
@@ -141,7 +141,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_top_level_fun_effect_call_wrapper_impl(
         &mut self,
         fun: &hir::FunDecl,
-        legacy_fun: FunctionValue<'ctx>,
+        callee_fun: FunctionValue<'ctx>,
         wrapper_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let entry = self.context.append_basic_block(wrapper_fun, "entry");
@@ -206,17 +206,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "effect_wrapper",
         )?;
 
-        let mut legacy_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+        let mut callee_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
             Vec::with_capacity(
                 fun.params.len()
                     + usize::from(sret_param.is_some())
                     + usize::from(self.top_level_fun_uses_hidden_incoming_resume_token(fun)),
             );
         if let Some(sret_ptr) = sret_param {
-            legacy_args.push(sret_ptr.into());
+            callee_args.push(sret_ptr.into());
         }
         if self.top_level_fun_uses_hidden_incoming_resume_token(fun) {
-            legacy_args.push(incoming_resume_token_param.into());
+            callee_args.push(incoming_resume_token_param.into());
         }
         for offset in 0..fun.params.len() {
             let arg = wrapper_fun
@@ -225,12 +225,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "effect call wrapper arg",
                     at: fun.span.into(),
                 })?;
-            legacy_args.push(arg.into());
+            callee_args.push(arg.into());
         }
 
         let call_site = self
             .builder
-            .build_call(legacy_fun, &legacy_args, "call_effect_legacy")?;
+            .build_call(callee_fun, &callee_args, "call_effect_body")?;
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }

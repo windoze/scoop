@@ -146,7 +146,7 @@
 | `P8-T01` | `TODO-P8.md` | [DONE] 删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口 |
 | `P8-T01R` | `TODO-P8.md` | [DONE] Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点 |
 | `P8-T02` | `TODO-P8.md` | [DONE] 删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口 |
-| `P8-T02R` | `TODO-P8.md` | Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失 |
+| `P8-T02R` | `TODO-P8.md` | [DONE] Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失 |
 | `P8-T03` | `TODO-P8.md` | 清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归 |
 | `P8-T03R` | `TODO-P8.md` | Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface |
 | `P8-T04` | `TODO-P8.md` | 在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态 |

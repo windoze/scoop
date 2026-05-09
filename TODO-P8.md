@@ -299,7 +299,7 @@
   - 验证：`rg -n "state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|begin_legacy_effect_boundary|finish_legacy_effect_boundary|production_lowered_hir|legacy_eager_hir|single perform|tail-resume|statement-only|linear body" crates/scoopc/src crates/scoop/src tools --glob '!target/**'`
   - 仓库搜索摘要：唯一命中位于 `crates/scoopc/src/llvm/tests.rs` 新增的负向守护测试字面量；`crates/scoopc/src` / `crates/scoop/src` / `tools` 主实现中已无上述 legacy lowering marker 命中。
 
-## P8-T02R：Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失
+## [DONE] P8-T02R：Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -329,7 +329,15 @@
   - 可进入 P8-T03。
 - 依赖：P8-T02
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：完成 review。复核 `crates/scoopc/src/effect/**`、`crates/scoopc/src/llvm/codegen/effect/**`、`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/mod.rs`、`crates/scoopc/src/llvm/frontend.rs` 与 `crates/scoopc/src/llvm/tests.rs`，确认 P8-T02 删除的 `segments.rs` / `transform.rs` / `step_summary.rs` / `state_machine_bridge.rs` / `state_machine_emitter.rs` 未回流，`effect/mod.rs` 与 `effect/state_machine/mod.rs` 仅剩 ordinary-callee 共享分析与当前 backend 仍需的中立 helper。
+  - 2026-05-09：review 过程中发现当前 LLVM/effect 主实现仍残留少量误导性 `legacy` 命名/注释；已同步清理为中立命名（例如 continuation payload helper、effect-call wrapper 参数、callable-carrier fallback 命名，以及相关注释/测试 helper 命名），避免把已删除旧 backend 误写成仍在生效的路径。
+  - 2026-05-09：复查 `rg "state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|begin_legacy_effect_boundary|finish_legacy_effect_boundary|production_lowered_hir|legacy_eager_hir|single perform|tail-resume|statement-only|linear body" crates/scoopc/src crates/scoop/src tools --glob '!target/**'` 后，命中仅剩 `crates/scoopc/src/llvm/tests.rs` 的负向 inventory 测试字面量；主实现中已无这些旧 backend / code-shape-specific marker。
+  - 2026-05-09：额外搜索 `legacy|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|single perform|tail-resume|statement-only|linear body`（限定 `crates/scoopc/src` / `crates/scoop/src` / `tools`）后，剩余命中均已判定为非阻塞残留：负向删除测试、迁移说明、direct-HIR/dump 兼容注释或“已删除语法”的诊断文本；未发现 effect/continuation 主实现中仍可执行的旧 lowering/backend 路径。
+  - 验证：`cargo fmt`
+  - 验证：`cargo check -p scoopc --features llvm`
+  - 验证：`cargo test -p scoopc legacy_effect_backend_removed`
+  - 验证：`cargo test -p scoopc single_effect_lowering_path`
+  - 验证：`cargo clippy --all-targets -- -D warnings`
 
 ## P8-T03：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归
 

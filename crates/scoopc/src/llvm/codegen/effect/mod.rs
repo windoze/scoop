@@ -155,7 +155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn codegen_continuation_resume_legacy_payload_value(
+    fn codegen_continuation_resume_single_payload_value(
         &mut self,
         payload_ty: Option<TypeId>,
         args: &[hir::CallArg],
@@ -294,7 +294,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if let Some(payload) =
-            self.codegen_continuation_resume_legacy_payload_value(Some(payload_ty), args)?
+            self.codegen_continuation_resume_single_payload_value(Some(payload_ty), args)?
         {
             return Ok(payload);
         }
@@ -906,7 +906,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 显式 outcome 版 ordinary call boundary：
     ///
     /// - callee/wrapper 已把当前 boundary 的完成/传播结果写入 `outcome_slot`；
-    /// - 若结果为 `Propagate`，当前 legacy ordinary function 仍需把该 outcome 回写到 TLS，
+    /// - 若结果为 `Propagate`，当前 ordinary function 仍需把该 outcome 回写到 TLS，
     ///   再沿现有“默认返回值 + 交由更外层 caller/wrapper 继续处理”的路径退出；
     /// - 若结果为 `Complete`，后续 IR 只在 continue block 上继续生成。
     pub(super) fn emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -1001,7 +1001,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload = if let Some(payload_ty) = payload_ty {
             self.codegen_continuation_resume_payload_value(span, payload_ty, payload_args)?
         } else {
-            self.codegen_continuation_resume_legacy_payload_value(None, payload_args)?
+            self.codegen_continuation_resume_single_payload_value(None, payload_args)?
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume payload type",
                     at: receiver.span.into(),
@@ -1086,7 +1086,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload = if let Some(payload_ty) = payload_ty {
             self.codegen_continuation_resume_payload_value(span, payload_ty, payload_args)?
         } else {
-            self.codegen_continuation_resume_legacy_payload_value(None, payload_args)?
+            self.codegen_continuation_resume_single_payload_value(None, payload_args)?
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "Continuation.resume payload type",
                     at: receiver.span.into(),

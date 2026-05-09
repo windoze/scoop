@@ -7986,11 +7986,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             RefactorCallableCarrierKind::ClosureObject,
             fn_ptr,
         );
-        let legacy_target = if target_fn_ptr.is_some() {
+        let fallback_target = if target_fn_ptr.is_some() {
             self.llvm_i8_ptr_type().const_null()
         } else if self.refactor_callable_carrier_contract_enabled() && !use_plain_fallback {
             // Refactor callable carriers publish their own dynamic entry shell; do
-            // not define the legacy lambda body just to obtain a fallback pointer.
+            // not define a fallback lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
         } else if let Some(plain_entry) = self.module.get_function(fn_ptr) {
             plain_entry.as_global_value().as_pointer_value()
@@ -8004,7 +8004,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.callable_carrier_target_fn_ptr(
                 RefactorCallableCarrierKind::ClosureObject,
                 fn_ptr,
-                legacy_target,
+                fallback_target,
             )?,
         };
         let fn_i8 = self

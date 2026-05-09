@@ -858,7 +858,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(Some(symbol));
         }
         if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
-            && is_legacy_hir_closure_carrier_alias(callable_fqn)
+            && is_direct_hir_closure_carrier_alias(callable_fqn)
         {
             return Ok(None);
         }
@@ -897,11 +897,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         kind: RefactorCallableCarrierKind,
         callable_fqn: &str,
-        legacy_target: PointerValue<'ctx>,
+        fallback_target: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let Some(symbol_name) = self.refactor_callable_carrier_entry_symbol(kind, callable_fqn)?
         else {
-            return Ok(legacy_target);
+            return Ok(fallback_target);
         };
         let function = self
             .module
@@ -2315,10 +2315,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_top_level_fun_effect_call_wrapper(
         &mut self,
         fun: &hir::FunDecl,
-        legacy_fun: FunctionValue<'ctx>,
+        callee_fun: FunctionValue<'ctx>,
         wrapper_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        self.codegen_top_level_fun_effect_call_wrapper_impl(fun, legacy_fun, wrapper_fun)
+        self.codegen_top_level_fun_effect_call_wrapper_impl(fun, callee_fun, wrapper_fun)
     }
 
     pub(super) fn mark_gc_leaf_function(&self, function: FunctionValue<'ctx>) {
@@ -3799,11 +3799,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
         self.build_fun_callee_suspend_plan_impl(fun)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn fun_requires_legacy_effect_body_lowering(&self, fun: &hir::FunDecl) -> bool {
-        self.build_fun_callee_suspend_plan(fun).is_some()
     }
 
     fn top_level_fun_uses_hidden_incoming_resume_token(&self, fun: &hir::FunDecl) -> bool {
@@ -8097,7 +8092,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-fn is_legacy_hir_closure_carrier_alias(callable_fqn: &str) -> bool {
+fn is_direct_hir_closure_carrier_alias(callable_fqn: &str) -> bool {
     callable_fqn
         .strip_prefix("scoop.lambda$")
         .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|ch| ch.is_ascii_digit()))

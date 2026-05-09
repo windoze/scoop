@@ -8904,7 +8904,7 @@ fun demo(k: Continuation<Int, Int>): Int {
 "#;
         let lowered = lower_typed_single_source(source_text);
         let source = SourceFile::new_virtual("<mem>", source_text);
-        let session = legacy_session();
+        let session = test_session();
         let materialized = crate::mir::materialize_for_dump(&session, &source)
             .expect("materialized MIR should be available");
         let pass_view = materialized.pass_view();
@@ -8966,7 +8966,7 @@ fun demo(k: Continuation<Int, Int>): Int {
 "#;
         let lowered = lower_typed_single_source(source_text);
         let source = SourceFile::new_virtual("<mem>", source_text);
-        let session = legacy_session();
+        let session = test_session();
         let materialized = crate::mir::materialize_for_dump(&session, &source)
             .expect("materialized MIR should be available");
         let pass_view = materialized.pass_view();
@@ -9580,7 +9580,7 @@ fun demo(): Int / (Boom) {
     }
 
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
-        let session = legacy_session();
+        let session = test_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).expect("parse");
 
@@ -9652,7 +9652,7 @@ fun demo(): Int / (Boom) {
         .expect("lower")
     }
 
-    fn legacy_session() -> Session {
+    fn test_session() -> Session {
         Session::with_options(SessionOptions::new()).expect("session")
     }
 

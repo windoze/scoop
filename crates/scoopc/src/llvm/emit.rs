@@ -166,7 +166,7 @@ pub fn emit_minimal_main_ir_from_lowered_hir(
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR。
 ///
 /// 该入口要求 `lowered` 显式携带 `LoweredHir::materialized_pass_view()`；
-/// 若调用方只提供 legacy/测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
+/// 若调用方只提供不带 canonical pass view 的测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
 /// 兼容 body。
 pub fn emit_minimal_main_ir_from_materialized_lowered_hir(
     source_map: &SourceMap,
