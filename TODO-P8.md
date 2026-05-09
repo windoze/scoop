@@ -464,9 +464,61 @@
   - 验证：`cargo fmt`
   - 验证：`cargo test -p scoop legacy_pipeline_docs_removed`
   - 验证：`cargo test -p scoopc legacy_compare_harness_removed`
-  - 验证：`cargo clippy --all-targets -- -D warnings`
-  - 验证：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
-  - 验证：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
+- 验证：`cargo clippy --all-targets -- -D warnings`
+- 验证：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
+- 验证：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
+
+## P8-T03aa：修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
+  - 前置实现参考：[`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02o、[`TODO-P7.md`](./TODO-P7.md) P7-T02V / P7-T02W
+- 背景 / blocker：
+  - 2026-05-10 在执行 `P8-T03a`、把默认单文件 helper/入口切到 refactor LLVM stage 后，`helper(Derived())` / `helper(Impl())` 这一类“实参是具体 nominal subtype、callee 参数是 base/interface supertype”的单文件 outward helper 样本不再能通过 default path。
+  - 复现表现：`cargo run -p scoopc -- --emit-llvm <sample>` 与 `crates/scoopc/src/llvm/tests.rs` 中对应 default helper 测试都会在 late lowering 失败：`refactor late-lowering stage 无法为 a.main 的 Call site1 发布 boundary operand contract：local4 的类型为 t388，但 published operand contract 期望 t385`。
+  - 复核后确认：当前 default single-file refactor stage 在发布 direct call boundary operand contract 时，仍把 nominal source 要求成“operand local.ty 与 published expected_ty 全等”，没有接受已经由前端 typecheck 证明合法的 `Derived <: Base` / `Impl <: IFace` source route。
+  - 这不是 `P8-T03a` 可接受的“先把测试改成显式 materialized helper”问题；默认单文件主线路径本身就必须支持这类 nominal upcast call boundary，否则 `P8-T03a` 无法完成默认 virtual/interface outward helper 迁移。
+
+- 目标：
+  - 让 default single-file refactor stage 能正确发布并消费 nominal upcast direct call boundary operand contract；
+  - 覆盖 class-supertype 与 interface-supertype 两类 outward helper 场景；
+  - 为随后恢复 `P8-T03a` 的默认 helper/public entry 迁移提供稳定前提。
+
+- 必须实现的内容：
+  1. 审计并修复 late-lowering boundary operand contract 的 nominal source compatibility。
+      - 至少检查并修改：
+        - `crates/scoopc/src/effect_lowered/materialize.rs`
+        - 如有必要，联动 `crates/scoopc/src/effect_lowered/builder.rs`
+        - 如有必要，联动 `crates/scoopc/src/llvm/codegen/effect_refactor/types.rs` 或等价 ABI/query 消费点
+      - 要求：
+        - 已 typecheck 合法的 nominal upcast source（例如 `Derived` -> `Base`、`Impl` -> `IFace`）必须能在 published operand contract 下通过；
+        - 不允许靠恢复旧 helper、恢复旧 wrapper，或把 default tests 改回 explicit materialized helper 绕过；
+        - 不允许把 operand contract 放宽成“丢失 source_ty / 不再可验证”的模糊表达。
+  2. 为 default single-file refactor stage 增加窄回归守护。
+      - 至少覆盖：
+        - outward virtual helper 默认路径；
+        - outward interface helper 默认路径；
+        - 断言点必须针对 refactor stage authoritative 语义，而不是旧 wrapper/TLS helper 命名。
+
+- 必须遵从的约束：
+  - 禁止把 `P8-T03a` 的默认 helper 测试改回 `*_from_materialized_lowered_hir` 作为规避；
+  - 禁止通过恢复 selector、恢复 legacy path、或在 default entry 上做 hidden bifurcation 让样本“只在这些 nominal upcast 场景回旧 helper”；
+  - 禁止把 nominal upcast 问题下沉成 LLVM backend 现场猜测；contract 必须在 late-lowering/ABI handoff 上被正确发布。
+
+- 验证：
+  1. 至少运行并通过：
+     - `cargo test -p scoopc --lib llvm::tests::virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::interface_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+  2. 如上面两条仍不足以证明 public single-file path：
+     - 增加等价的 default single-file LLVM unit test / smoke，证明 `scoopc` 默认单文件 stage 入口不会再在 nominal upcast call boundary 处 fail fast。
+
+- 完成条件：
+  - default single-file refactor stage 不再因 nominal upcast call boundary 在 virtual/interface outward helper 上失败；
+  - `P8-T03a` 可以继续迁移默认 helper/public entry，而不再被该 blocker 卡住。
+- 依赖：`P8-T03R`
+- 完成记录：
+  - （执行时填写）
 
 ## P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
 
@@ -479,6 +531,7 @@
   - 复核后确认：`crates/scoopc/src/llvm/emit.rs` 的 `emit_minimal_main_ir` / `emit_minimal_main_obj_to_file` / `emit_minimal_main_asm_to_file` / `build_minimal_main_module*`，以及 `crates/scoopc/src/effect_refactor_pipeline/mod.rs` 暴露给 `scoopc` bin 的 `emit_single_file_llvm_artifact_to_file(...)`，默认仍经 `materialized_lowered_hir` 入口构建 LLVM module。
   - 该入口的 raw materialized MIR backend 明确把 `TerminatorKind::Handle` 视为 unsupported，而 HIR `handle` lowering 已在 P8 前移除；因此只要入口 `main` 里出现 `handle` / `try`，默认单文件路径就会回落到已删除的 HIR 旧路并失败。
   - 这不是 `P8-T04` 可接受的“修一个测试就继续”的局部问题，而是一个尚未跟踪的前置依赖：默认单文件 LLVM artifact 入口和对应默认测试 helper 还没有真正切到唯一 refactor 主线。
+  - 2026-05-10：在切换默认 helper 到 refactor stage 的执行过程中，又暴露出 default virtual/interface outward helper 的 nominal upcast call boundary blocker；已新增前置任务 `P8-T03aa`，必须先修复该 contract 缺口，再继续完成本任务。
 
 - 目标：
   - 把默认单文件 LLVM artifact 入口、以及表示“默认/生产单文件路径”的测试 helper，迁移到 refactor LLVM stage handoff；
@@ -541,9 +594,10 @@
   - `main` 含 `handle` / `try` 的默认单文件路径不再触发已删除的 HIR handle lowering；
   - 默认 LLVM 单测 helper 与显式历史/对照 helper 已语义分层；
   - `P8-T04` 可以在不先撞上该 blocker 的前提下重新执行完整矩阵。
-- 依赖：`P8-T03R`
+- 依赖：`P8-T03R`，`P8-T03aa`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-10：已完成一部分默认入口迁移骨架：`effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(...)` 与 `llvm::emit` 默认 `emit_minimal_main_*` / `build_minimal_main_module*` 已改为经 refactor LLVM stage handoff 发射产物；同时新增 stage-use 与 `handle main` 默认路径守护测试。
+  - 2026-05-10：执行定向回归时发现 default virtual/interface outward helper 在 refactor stage 上会因 nominal upcast call boundary contract 失败而阻塞；已新增前置任务 `P8-T03aa`，因此本任务保持未完成，待 blocker 修复后继续。
 
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 

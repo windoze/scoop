@@ -35,6 +35,8 @@ mod target;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "llvm")]
+pub(crate) use emit::emit_single_file_llvm_artifact_to_file_with_opt_level;
 pub use emit::{
     RefactorStageEmitInput, emit_minimal_main_asm_to_file,
     emit_minimal_main_asm_to_file_from_lowered_hir,

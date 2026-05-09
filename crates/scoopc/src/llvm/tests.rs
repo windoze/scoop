@@ -301,6 +301,37 @@ fun main(args: Array<String>): Int {
 }
 
 #[test]
+fn default_single_file_ir_helper_lowers_handle_main_without_hir_fallback() {
+    let source = SourceFile::new_virtual(
+        "<mem>/t5000_single_file_handle_main_stage.scoop",
+        r#"
+package a
+
+import scoop.core.Raise
+
+fun main(): Int {
+    return handle {
+        Raise.raise(1)
+        0
+    } with {
+        Raise.raise(e) -> 2
+    }
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).expect(
+        "默认单文件 helper 应走 refactor LLVM stage，而不是命中已删除的 HIR handle lowering",
+    );
+
+    assert!(ir.contains("define i32 @main("));
+    assert!(
+        !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
+        "默认单文件 helper 不应回落到旧 effect backend:\n{ir}"
+    );
+}
+
+#[test]
 fn single_file_frontend_keeps_distinct_effect_row_generic_instances() {
     let source = SourceFile::new_virtual(
         "<mem>/t5000e2c_single_file.scoop",
@@ -4046,20 +4077,23 @@ package a
 
 import scoop.core.*
 
+struct Payload(val value: Int)
+
 effect Ping {
-    fun pong(value: Int): Int
+    fun pong(value: Payload): Payload
 }
 
-fun go(): Int / Ping {
-    return Ping.pong(7)
+fun go(): Payload / Ping {
+    return Ping.pong(Payload(7))
 }
 
 fun main(): Int {
-    return handle {
+    val payload: Payload = handle {
         go()
     } with {
-        Ping.pong(value: Int) -> value
+        Ping.pong(value: Payload) -> value
     }
+    return payload.value
 }
 "#,
     );
@@ -4067,49 +4101,39 @@ fun main(): Int {
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
 
-    let effect_ctx = context
-        .get_struct_type("scoop.runtime.ScoopEffectCtx")
-        .expect("effect codegen 应注册 ScoopEffectCtx");
-    assert_eq!(effect_ctx.count_fields(), 1);
+    let composite_transport = context
+        .get_struct_type("scoop.runtime.ScoopCompositeTransportDescriptor")
+        .expect("refactor effect codegen 应注册共享的 composite transport descriptor 类型");
+    assert_eq!(composite_transport.count_fields(), 11);
 
-    let value_transport = context
-        .get_struct_type("scoop.runtime.ScoopValueTransport")
-        .expect("effect codegen 应注册 ScoopValueTransport");
-    assert_eq!(value_transport.count_fields(), 2);
+    let step = context
+        .get_struct_type("scoop.refactor.Step__a_go")
+        .expect("默认单文件 refactor path 应为 outward callable 注册 Step shell");
+    assert_eq!(step.count_fields(), 2);
 
-    let effect_signal = context
-        .get_struct_type("scoop.runtime.ScoopEffectSignal")
-        .expect("effect codegen 应注册 ScoopEffectSignal");
-    assert_eq!(effect_signal.count_fields(), 4);
-    assert_eq!(
-        effect_signal.get_field_types()[2].into_struct_type(),
-        value_transport,
-        "EffectSignal.payload 应继续复用共享的 ValueTransport contract"
-    );
+    let step_complete = context
+        .get_struct_type("scoop.refactor.StepComplete__a_go")
+        .expect("refactor Step 应发布 complete payload shell");
+    assert_eq!(step_complete.count_fields(), 1);
 
-    let effect_outcome = context
-        .get_struct_type("scoop.runtime.ScoopEffectOutcome")
-        .expect("effect codegen 应注册 ScoopEffectOutcome");
-    assert_eq!(effect_outcome.count_fields(), 4);
-    assert_eq!(
-        effect_outcome.get_field_types()[2].into_struct_type(),
-        value_transport,
-        "EffectOutcome.complete 应继续走 ValueTransport contract"
-    );
-    assert_eq!(
-        effect_outcome.get_field_types()[3].into_struct_type(),
-        effect_signal,
-        "EffectOutcome.propagate 分支应显式承载 EffectSignal"
+    let resume_vtable = context
+        .get_struct_type("scoop.refactor.ResumeVtable__a_go__a_Ping")
+        .expect("refactor continuation 应发布 authoritative surface-resume vtable");
+    assert_eq!(resume_vtable.count_fields(), 1);
+
+    let continuation = context
+        .get_struct_type("scoop.refactor.Continuation__a_go")
+        .expect("默认单文件 refactor path 应为 handled perform 注册 continuation object");
+    assert!(
+        continuation.count_fields() >= 6,
+        "continuation object 至少应包含 header/frame/state/one-shot/composed-callee/vtable 字段"
     );
 
     let ir = module.print_to_string().to_string();
-    let wrapper_call = ir
-        .lines()
-        .find(|line| line.contains("call") && line.contains("@__scoop_effect_call_wrapper__a.go"))
-        .expect("expected direct effect wrapper call for a.go");
     assert!(
-        wrapper_call.contains("ptr addrspace(1) null"),
-        "fresh direct effect call 应显式传入 null incoming_resume_token_ref，而不是完全依赖 TLS scratch:\n{wrapper_call}"
+        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_go__k0")
+            && ir.contains("@__scoop_refactor_continuation_layout__a_go__type_desc"),
+        "默认单文件 refactor path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor:\n{ir}"
     );
 }
 

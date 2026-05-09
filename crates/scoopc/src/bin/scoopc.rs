@@ -1,8 +1,8 @@
 //! `scoopc` 独立命令行入口（早期阶段）。
 //!
-//! 当前阶段（T0802～T0808）支持两个能力：
-//! - `--emit-llvm <input.scoop> [-o <out.ll>]`：生成 LLVM IR（`main` v1 子集 codegen）。
-//! - `--emit-obj <input.scoop> [-o <out.o>]`：把 module 编译为 object 文件（为链接做准备）。
+//! 当前支持两个单文件 artifact 能力：
+//! - `--emit-llvm <input.scoop> [-o <out.ll>]`：经 refactor LLVM stage 生成 LLVM IR。
+//! - `--emit-obj <input.scoop> [-o <out.o>]`：经 refactor LLVM stage 生成 object 文件。
 
 use std::path::{Path, PathBuf};
 

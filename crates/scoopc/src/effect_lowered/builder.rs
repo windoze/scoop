@@ -19,11 +19,11 @@ use super::ir::{
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
-    ContinuationRouteOwnerPlan, StepMaterialization, build_cross_callable_continuation_provenance,
-    materialize_boundary_map, materialize_completion_payload_bindings,
-    materialize_continuation_object, materialize_dynamic_invoke_entry,
-    materialize_resume_payload_bindings, materialize_source_statement_classifications,
-    materialize_step_and_resume_interfaces,
+    ContinuationRouteOwnerPlan, NominalDirectSupertypeIndex, StepMaterialization,
+    build_cross_callable_continuation_provenance, materialize_boundary_map,
+    materialize_completion_payload_bindings, materialize_continuation_object,
+    materialize_dynamic_invoke_entry, materialize_resume_payload_bindings,
+    materialize_source_statement_classifications, materialize_step_and_resume_interfaces,
 };
 use super::segment::build_callable_segmentation;
 
@@ -51,6 +51,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
         let types = self.types;
+        let nominal_direct_supertypes = collect_nominal_direct_supertypes(pass_view.materialized());
 
         let StepMaterialization {
             step_types,
@@ -109,6 +110,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     cross_callable_continuation_provenance: Some(
                         &cross_callable_continuation_provenance,
                     ),
+                    nominal_direct_supertypes: &nominal_direct_supertypes,
                     types,
                 })?;
                 if let Some(object) = plain.continuation_object {
@@ -213,6 +215,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         continuation_object: continuation_object_id,
                         step_types: &step_types,
                         types,
+                        nominal_direct_supertypes: &nominal_direct_supertypes,
                         cross_callable_continuation_provenance: Some(
                             &cross_callable_continuation_provenance,
                         ),
@@ -299,6 +302,34 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
+fn collect_nominal_direct_supertypes(
+    materialized: &MaterializedMir,
+) -> NominalDirectSupertypeIndex {
+    let mut out = NominalDirectSupertypeIndex::new();
+    for item in &materialized.file.items {
+        match item {
+            Item::Metadata(crate::mir::MetadataRoot::Nominal(nominal)) => {
+                let supers = nominal
+                    .supertypes
+                    .iter()
+                    .filter_map(|supertype| supertype.fqn.clone())
+                    .collect::<Vec<_>>();
+                out.insert(nominal.fqn.clone(), supers);
+            }
+            Item::Metadata(crate::mir::MetadataRoot::Object(object)) => {
+                let supers = object
+                    .supertypes
+                    .iter()
+                    .filter_map(|supertype| supertype.fqn.clone())
+                    .collect::<Vec<_>>();
+                out.insert(object.fqn.clone(), supers);
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 fn plan_continuation_route_owners(
     pass_view: &MaterializedMirPassView<'_>,
     effect_facts: &MaterializedEffectFacts,
@@ -356,6 +387,7 @@ struct PlainCallableBuildInputs<'a> {
     continuation_object_id: ContinuationObjectId,
     cross_callable_continuation_provenance:
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
+    nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
 }
 
@@ -378,6 +410,7 @@ fn build_plain_callable_abi(
         resume_packing_ids_by_group,
         continuation_object_id,
         cross_callable_continuation_provenance,
+        nominal_direct_supertypes,
         types,
     } = inputs;
     let body_slices = fun.body.as_ref().map(plain_body_slices).unwrap_or_default();
@@ -403,6 +436,7 @@ fn build_plain_callable_abi(
                 resume_packing_ids_by_group,
                 continuation_object_id,
                 cross_callable_continuation_provenance,
+                nominal_direct_supertypes,
                 types,
                 return_ty: fun.return_ty,
             })?,
@@ -446,6 +480,7 @@ struct PlainLocalEffectControlBuildInputs<'a> {
     continuation_object_id: ContinuationObjectId,
     cross_callable_continuation_provenance:
         Option<&'a super::materialize::CrossCallableContinuationProvenance>,
+    nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     types: &'a TypeStore,
     return_ty: crate::ty::TypeId,
 }
@@ -469,6 +504,7 @@ fn build_plain_local_effect_control(
         resume_packing_ids_by_group,
         continuation_object_id,
         cross_callable_continuation_provenance,
+        nominal_direct_supertypes,
         types,
         return_ty,
     } = inputs;
@@ -533,6 +569,7 @@ fn build_plain_local_effect_control(
         continuation_object: continuation_object_id,
         step_types,
         types,
+        nominal_direct_supertypes,
         cross_callable_continuation_provenance,
     })?;
     let state_graph = boundary_map.state_graph;

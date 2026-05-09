@@ -48,6 +48,8 @@ use super::ir::{
     LateLoweredSurfaceResumeDispatchPublication,
 };
 
+pub(crate) type NominalDirectSupertypeIndex = HashMap<String, Vec<String>>;
+
 pub(crate) struct StepMaterialization {
     pub(crate) step_types: Vec<LateLoweredStepType>,
     pub(crate) resume_packings: Vec<LateLoweredResumeInterface>,
@@ -68,6 +70,7 @@ pub(crate) struct BoundaryMaterializationInputs<'a> {
     pub(crate) continuation_object: ContinuationObjectId,
     pub(crate) step_types: &'a [LateLoweredStepType],
     pub(crate) types: &'a TypeStore,
+    pub(crate) nominal_direct_supertypes: &'a NominalDirectSupertypeIndex,
     pub(crate) cross_callable_continuation_provenance:
         Option<&'a CrossCallableContinuationProvenance>,
 }
@@ -1281,6 +1284,7 @@ pub(crate) fn materialize_boundary_map(
         continuation_object,
         step_types,
         types,
+        nominal_direct_supertypes,
         cross_callable_continuation_provenance,
     } = inputs;
 
@@ -1344,6 +1348,7 @@ pub(crate) fn materialize_boundary_map(
                     &facts,
                     result_local,
                     types,
+                    nominal_direct_supertypes,
                 )?;
                 let consumed_runtime_error_case =
                     call_dispatch.consumed_runtime_error_case.map(|pending| {
@@ -1436,6 +1441,7 @@ pub(crate) fn materialize_boundary_map(
                     boundary,
                     operand_payload_ty,
                     types,
+                    nominal_direct_supertypes,
                 )?;
                 LateLoweredBoundaryLowering::Perform(LateLoweredPerformBoundaryLowering::new(
                     facts,
@@ -1496,6 +1502,7 @@ pub(crate) fn materialize_boundary_map(
                     &continuation_provenance,
                     continuation_object,
                     types,
+                    nominal_direct_supertypes,
                 )?;
                 LateLoweredBoundaryLowering::Resume(LateLoweredResumeBoundaryLowering::new(
                     facts,
@@ -4169,6 +4176,7 @@ fn operand_source_with_expected_ty(
     kind: &'static str,
     body: &Body,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
     operand: &Operand,
     expected_ty: crate::ty::TypeId,
     span: Option<crate::span::Span>,
@@ -4179,6 +4187,12 @@ fn operand_source_with_expected_ty(
             if local_ty != expected_ty
                 && !local_defines_static_member_value_of_type(body, types, *local, expected_ty)
                 && !function_value_source_type_compatible(types, local_ty, expected_ty)
+                && !nominal_source_type_compatible(
+                    types,
+                    local_ty,
+                    expected_ty,
+                    nominal_direct_supertypes,
+                )
             {
                 return Err(invalid_boundary_operand_contract(
                     root_fqn,
@@ -4204,6 +4218,50 @@ fn operand_source_with_expected_ty(
             span,
         )),
     }
+}
+
+fn nominal_source_type_compatible(
+    types: &TypeStore,
+    local_ty: TypeId,
+    expected_ty: TypeId,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
+) -> bool {
+    let (local_nominal, expected_nominal) = match (types.kind(local_ty), types.kind(expected_ty)) {
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(local_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(local_nominal)),
+            TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
+        ) => (local_nominal, expected_nominal),
+        _ => return false,
+    };
+    if local_nominal == expected_nominal {
+        return true;
+    }
+    if !local_nominal.args.is_empty()
+        || local_nominal.eff.is_some()
+        || !expected_nominal.args.is_empty()
+        || expected_nominal.eff.is_some()
+    {
+        return false;
+    }
+
+    let mut stack = vec![local_nominal.fqn.clone()];
+    let mut seen = HashSet::new();
+    while let Some(current) = stack.pop() {
+        if !seen.insert(current.clone()) {
+            continue;
+        }
+        if current == expected_nominal.fqn {
+            return true;
+        }
+        if let Some(supers) = nominal_direct_supertypes.get(&current) {
+            stack.extend(supers.iter().cloned());
+        }
+    }
+    false
 }
 
 fn function_value_source_type_compatible(
@@ -4293,6 +4351,7 @@ fn build_ordered_call_arg_sources(
     args: &[CallArg],
     expected_tuple_ty: crate::ty::TypeId,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> Result<Vec<LateLoweredOperandSource>, EffectLoweringError> {
     let expected_components =
         expected_source_types_for_carrier(types, expected_tuple_ty, args.len())
@@ -4319,6 +4378,7 @@ fn build_ordered_call_arg_sources(
                 kind,
                 body,
                 types,
+                nominal_direct_supertypes,
                 &arg.value,
                 expected_ty,
                 Some(arg.span),
@@ -4370,6 +4430,7 @@ fn build_known_instance_closure_call_arg_sources(
     kind: &'static str,
     body: &Body,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
     callee: &Operand,
     args: &[CallArg],
     expected_tuple_ty: TypeId,
@@ -4385,6 +4446,7 @@ fn build_known_instance_closure_call_arg_sources(
             kind,
             body,
             types,
+            nominal_direct_supertypes,
             env_operand,
             expected_tuple_ty,
             None,
@@ -4422,6 +4484,7 @@ fn build_known_instance_closure_call_arg_sources(
                             kind,
                             body,
                             types,
+                            nominal_direct_supertypes,
                             element,
                             expected_ty,
                             None,
@@ -4436,6 +4499,7 @@ fn build_known_instance_closure_call_arg_sources(
                     kind,
                     body,
                     types,
+                    nominal_direct_supertypes,
                     source,
                     expected_components[0],
                     None,
@@ -4447,6 +4511,7 @@ fn build_known_instance_closure_call_arg_sources(
                 kind,
                 body,
                 types,
+                nominal_direct_supertypes,
                 env_operand,
                 expected_components[0],
                 None,
@@ -4480,6 +4545,7 @@ fn build_known_instance_closure_call_arg_sources(
             kind,
             body,
             types,
+            nominal_direct_supertypes,
             &arg.value,
             expected_ty,
             Some(arg.span),
@@ -4495,6 +4561,7 @@ fn build_ordered_perform_payload_sources(
     args: &[PerformArg],
     payload_tuple_ty: crate::ty::TypeId,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> Result<Vec<LateLoweredOperandSource>, EffectLoweringError> {
     let expected_components =
         expected_source_types_for_carrier(types, payload_tuple_ty, args.len()).map_err(
@@ -4522,6 +4589,7 @@ fn build_ordered_perform_payload_sources(
                 "Perform",
                 body,
                 types,
+                nominal_direct_supertypes,
                 &arg.value,
                 expected_ty,
                 Some(arg.span),
@@ -4578,6 +4646,7 @@ fn build_call_boundary_operand_contract(
     facts: &CallSiteEffectFacts,
     result_local: LocalId,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> Result<LateLoweredCallBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
         site_id,
@@ -4670,6 +4739,7 @@ fn build_call_boundary_operand_contract(
                         "Call",
                         body,
                         types,
+                        nominal_direct_supertypes,
                         callee,
                         args,
                         facts.invoke_args_tuple_ty(),
@@ -4683,6 +4753,7 @@ fn build_call_boundary_operand_contract(
                             args,
                             facts.invoke_args_tuple_ty(),
                             types,
+                            nominal_direct_supertypes,
                         )?,
                     }
                 }
@@ -4694,6 +4765,7 @@ fn build_call_boundary_operand_contract(
                     args,
                     facts.invoke_args_tuple_ty(),
                     types,
+                    nominal_direct_supertypes,
                 )?,
             };
             let contract = LateLoweredCallBoundaryOperandContract::new(
@@ -4838,6 +4910,7 @@ fn build_perform_boundary_operand_contract(
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
     payload_tuple_ty: crate::ty::TypeId,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> Result<LateLoweredPerformBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
         site_id,
@@ -4879,6 +4952,7 @@ fn build_perform_boundary_operand_contract(
             args,
             payload_tuple_ty,
             types,
+            nominal_direct_supertypes,
         )?;
         let contract = LateLoweredPerformBoundaryOperandContract::new(
             LateLoweredBoundarySourceConsumption::terminator(source_slice),
@@ -4918,6 +4992,7 @@ fn build_resume_boundary_operand_contract(
     continuation_provenance: &PublishedContinuationProvenance,
     continuation_object: ContinuationObjectId,
     types: &TypeStore,
+    nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> Result<LateLoweredResumeBoundaryOperandContract, EffectLoweringError> {
     let LateLoweredBoundarySource::Site {
         site_id,
@@ -4994,6 +5069,7 @@ fn build_resume_boundary_operand_contract(
                 "Resume",
                 body,
                 types,
+                nominal_direct_supertypes,
                 continuation,
                 resume.continuation_ty,
                 None,
@@ -5031,6 +5107,7 @@ fn build_resume_boundary_operand_contract(
                 args,
                 facts.resume_tuple_ty(),
                 types,
+                nominal_direct_supertypes,
             )?;
             let statement_index = source_slice.start_statement_index() + offset as u32;
             let contract = LateLoweredResumeBoundaryOperandContract::new(

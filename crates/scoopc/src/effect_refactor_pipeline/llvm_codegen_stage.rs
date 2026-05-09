@@ -1657,6 +1657,46 @@ fun main(): Int {
     }
 
     #[test]
+    fn default_minimal_main_ir_helper_uses_stage() {
+        let _guard = test_lock();
+
+        reset_test_stage_run_count();
+        let session = session();
+        let source = effectful_source();
+        let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
+            .expect("默认单文件 IR helper 应经 refactor LLVM stage 成功 lower effectful main");
+
+        assert!(ir.contains("define i32 @main("));
+        assert_eq!(test_stage_run_count(), 1);
+    }
+
+    #[test]
+    fn single_pipeline_single_file_artifact_entry_uses_stage_for_all_artifacts() {
+        let _guard = test_lock();
+        let temp = make_temp_dir();
+        let session = session();
+        let source = effectful_source();
+        let artifacts = [
+            (LlvmArtifactKind::LlvmIr, PathBuf::from("single.ll")),
+            (LlvmArtifactKind::Object, PathBuf::from("single.o")),
+            (LlvmArtifactKind::Asm, PathBuf::from("single.s")),
+        ];
+
+        reset_test_stage_run_count();
+        for (artifact, rel) in artifacts {
+            let out = temp.path().join(rel);
+            effect_refactor_pipeline::emit_single_file_llvm_artifact_to_file(
+                &session, &source, &out, artifact,
+            )
+            .unwrap();
+            let size = std::fs::metadata(&out).unwrap().len();
+            assert!(size > 0, "产物不应为空：{}", out.display());
+        }
+
+        assert_eq!(test_stage_run_count(), 3);
+    }
+
+    #[test]
     fn refactor_llvm_codegen_stage_shares_same_stage_entry_for_ir_obj_and_asm() {
         let _guard = test_lock();
         let temp = make_temp_dir();

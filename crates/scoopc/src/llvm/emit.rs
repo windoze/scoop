@@ -6,6 +6,9 @@
 //! - 在进入 backend lowering 前完成 reachability 与 eager inclusion。
 //!
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
+//! P8-T03a 起，默认单文件 `emit_minimal_main_*` / `build_minimal_main_module*` 统一经 refactor
+//! LLVM stage handoff 构建；显式 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` helper
+//! 仅保留给测试、对照和历史桥接调用方，不能再作为默认生产单文件入口。
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -60,6 +63,73 @@ impl<'a> RefactorStageEmitInput<'a> {
             hir_compat_scaffold,
             effect_lowered_stage_output,
             abi_visibility_effect_lowered_stage_output,
+        }
+    }
+}
+
+fn build_single_file_refactor_stage_output(
+    session: &Session,
+    source: &SourceFile,
+    opt_level: OptLevel,
+) -> Result<crate::effect_refactor_pipeline::RefactorLlvmCodegenStageOutput, LlvmEmitError> {
+    let codegen_unit =
+        frontend::prepare_single_file_codegen_unit_with_opt_level(session, source, opt_level)?;
+    crate::effect_refactor_pipeline::run_llvm_codegen_stage(
+        session,
+        crate::effect_refactor_pipeline::RefactorLlvmCodegenStageInput::new(
+            codegen_unit.lowered,
+            None,
+            codegen_unit.source_map,
+            codegen_unit.entry_source_id,
+            None,
+            opt_level,
+        ),
+    )
+}
+
+pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    artifact: crate::effect_refactor_pipeline::LlvmArtifactKind,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    let stage_output = build_single_file_refactor_stage_output(session, source, opt_level)?;
+    let stage_input = RefactorStageEmitInput::new(
+        stage_output.hir_compat_scaffold(),
+        stage_output.effect_lowered_stage_output(),
+        stage_output.abi_visibility_effect_lowered_stage_output(),
+    );
+    match artifact {
+        crate::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr => {
+            emit_refactor_main_ir_to_file_from_stage_output(
+                stage_output.source_map(),
+                stage_output.entry_source_id(),
+                stage_input,
+                output,
+                stage_output.entry_main_fqn(),
+                stage_output.opt_level(),
+            )
+        }
+        crate::effect_refactor_pipeline::LlvmArtifactKind::Object => {
+            emit_refactor_main_obj_to_file_from_stage_output(
+                stage_output.source_map(),
+                stage_output.entry_source_id(),
+                stage_input,
+                output,
+                stage_output.entry_main_fqn(),
+                stage_output.opt_level(),
+            )
+        }
+        crate::effect_refactor_pipeline::LlvmArtifactKind::Asm => {
+            emit_refactor_main_asm_to_file_from_stage_output(
+                stage_output.source_map(),
+                stage_output.entry_source_id(),
+                stage_input,
+                output,
+                stage_output.entry_main_fqn(),
+                stage_output.opt_level(),
+            )
         }
     }
 }
@@ -127,9 +197,12 @@ impl<'a> LoweredCodegenEntry<'a> {
     }
 }
 
-/// 为一个 Scoop 程序生成 LLVM IR（`.ll` 文本）。
+/// 为一个 Scoop 程序生成默认单文件 LLVM IR（`.ll` 文本）。
 ///
-/// 当前阶段（T0808）的输出形态：
+/// 当前默认路径会先运行 refactor LLVM stage，再消费其 authoritative handoff 发射产物；
+/// 仅显式 `*_from_materialized_lowered_hir` helper 仍保留 raw materialized-MIR 对照语义。
+///
+/// 输出形态：
 /// - 一个 LLVM module（module name 取决于输入文件名）；
 /// - module target triple / data layout 设为 host；
 /// - `i32 @main(i32 argc, i8** argv)` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
@@ -164,6 +237,8 @@ pub fn emit_minimal_main_ir_from_lowered_hir(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR。
+///
+/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
 ///
 /// 该入口要求 `lowered` 显式携带 `LoweredHir::materialized_pass_view()`；
 /// 若调用方只提供不带 canonical pass view 的测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
@@ -274,6 +349,8 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR，并写入到指定路径。
+///
+/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
 pub fn emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -490,6 +567,8 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM object。
+///
+/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
 pub fn emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -697,6 +776,8 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM assembly。
+///
+/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
 pub fn emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -781,13 +862,16 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
     context: &'ctx Context,
     opt_level: OptLevel,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    let codegen_unit =
-        frontend::prepare_single_file_codegen_unit_with_opt_level(session, source, opt_level)?;
-    build_main_module_from_codegen_entry(
-        &codegen_unit.source_map,
-        codegen_unit.entry_source_id,
+    let stage_output = build_single_file_refactor_stage_output(session, source, opt_level)?;
+    build_refactor_main_module_from_stage_output(
+        stage_output.source_map(),
+        stage_output.entry_source_id(),
         context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(&codegen_unit.lowered)?,
+        RefactorStageEmitInput::new(
+            stage_output.hir_compat_scaffold(),
+            stage_output.effect_lowered_stage_output(),
+            stage_output.abi_visibility_effect_lowered_stage_output(),
+        ),
         None,
     )
 }

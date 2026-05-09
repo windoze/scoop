@@ -34,6 +34,8 @@ pub use llvm_codegen_stage::{RefactorLlvmCodegenStageInput, RefactorLlvmCodegenS
 pub use mir_stage::RefactorMirStageOutput;
 
 #[cfg(feature = "llvm")]
+use crate::opt::OptLevel;
+#[cfg(feature = "llvm")]
 use crate::source::{SourceId, SourceMap};
 #[cfg(feature = "llvm")]
 use std::path::Path;
@@ -170,23 +172,27 @@ pub enum LlvmArtifactKind {
 }
 
 #[cfg(feature = "llvm")]
+pub(crate) fn run_llvm_codegen_stage(
+    session: &Session,
+    input: RefactorLlvmCodegenStageInput,
+) -> Result<RefactorLlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
+    llvm_codegen_stage::run(session, input)
+}
+
+#[cfg(feature = "llvm")]
 pub fn emit_single_file_llvm_artifact_to_file(
     session: &Session,
     source: &SourceFile,
     output: &Path,
     artifact: LlvmArtifactKind,
 ) -> Result<(), crate::llvm::LlvmEmitError> {
-    match artifact {
-        LlvmArtifactKind::LlvmIr => {
-            crate::llvm::emit_minimal_main_ir_to_file(session, source, output)
-        }
-        LlvmArtifactKind::Object => {
-            crate::llvm::emit_minimal_main_obj_to_file(session, source, output)
-        }
-        LlvmArtifactKind::Asm => {
-            crate::llvm::emit_minimal_main_asm_to_file(session, source, output)
-        }
-    }
+    crate::llvm::emit_single_file_llvm_artifact_to_file_with_opt_level(
+        session,
+        source,
+        output,
+        artifact,
+        OptLevel::O0,
+    )
 }
 
 #[cfg(feature = "llvm")]
