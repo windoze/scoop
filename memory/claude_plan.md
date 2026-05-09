@@ -26,7 +26,7 @@
 - 2026-05-09：已重跑验证并全部通过：`cargo test --all`、`cargo run -p scoop -- test`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings`。
 - 2026-05-09：复核结论：未发现需要回退到 `CG-T08` 的遗漏缺口；已在 `TODO.md` 将 `CG-T08R` 标记为 `[DONE]`，下一步执行 git 提交并停止。
 
----
+----
 
 ## P7-T02Z 执行记录（2026-05-09）
 
@@ -70,3 +70,43 @@
 - `P7-T02Z` 记录的剩余默认-refactor `run-pass` blocker 在当前树上已不再复现。
 - 本轮验证未发现新的前置阻塞任务。
 - 剩余工作仅是任务账本更新：在 `TODO-P7.md` / `TODO.md` 将 `P7-T02Z` 标记为完成，并提交相关记录。
+
+----
+
+## P7-T03 执行记录（2026-05-09）
+
+### 初始计划
+
+说明：这里只记录可公开的执行计划、进度与关键决策，不包含隐藏的内部推理细节。
+
+1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务。
+2. 检查最近一次提交是否存在与该任务直接相关且未完成的问题；若有，则按要求并入当前任务或在 `TODO.md` 中加入前置任务。
+3. 阅读当前任务涉及的代码、测试、规范与依赖文件，确认实现边界与验证要求。
+4. 实现该任务所需的最小正确修改；若遇到阻塞当前任务的真实缺口，先在 `TODO.md` 中加入最小前置任务并停止继续向前。
+5. 运行与该任务直接相关的验证；在需要时补充或修复测试，并确保通过。
+6. 更新 `memory/claude_plan.md` 记录关键进展与必要的计划调整。
+7. 按要求更新 `TODO.md` 完成状态与 completion record；仅在阶段计划实际变化时更新 `PLAN.md`。
+8. 检查工作区变更，使用清晰的提交信息创建一次 git 提交，然后停止。
+
+### 进展摘要
+
+- 已确认首个未完成任务为 `TODO-P7.md` 中的 `P7-T03`：在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归。
+- 已核对最近一次提交：`[P7-T02Z] Mark run-pass blockers complete`。提交信息未显式引入新的与 `P7-T03` 直接相关且尚未纳入 `TODO.md` 的 unfinished issue，因此当前直接按 `P7-T03` 执行。
+- `git status --short` 确认开始执行时仅有 `memory/claude_plan.md` 变更，没有额外未提交代码需要并入恢复性提交。
+
+### 验证进展
+
+- `cargo test --all`：通过。
+- `cargo run -p scoop -- test`：首轮失败在 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop` 的 3000ms 超时。
+- 定向复验：`cargo run -p scoop -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop`（default）通过；`cargo run -p scoop -- --effect-pipeline legacy run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop` 通过；`target/debug/scoop test --fixtures tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop` 连续 5 次通过，单次耗时约 1.47s-1.72s。
+- `cargo run -p scoop -- test`：重跑通过（`fixtures: ok (1270)`）。
+- `cargo run -p scoop_tools -- spec-fixtures check`：通过（`spec fixtures: ok (1)`）。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- 已整套重跑标准矩阵：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo clippy --all-targets -- -D warnings`，全部通过。
+- 已补显式 `legacy` compare smoke：`cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/run-pass/minimal_main.scoop` 与 `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_post_regression_legacy.ll`，均通过。
+
+### 结论
+
+- 本轮未发现需要新增到 `TODO.md` 的稳定 blocker；首次 `run-pass` timeout 经复验未稳定复现。
+- `P7-T03` 的标准 full regression 已在 omission/default=refactor 条件下通过，且显式 `legacy` 入口仍可用。
+- 已更新 `TODO-P7.md` 与 `TODO.md`，把 `P7-T03` 标记为 `[DONE]`；下一步只需提交本轮记录并停止，不继续处理 `P7-T03R`。

@@ -138,7 +138,7 @@
 | `P7-T02Zc` | `TODO-P7.md` | [DONE] 发布 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract，解除 multi-function continuation resume schema 共享阻塞 |
 | `P7-T02Zd` | `TODO-P7.md` | [DONE] 闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞 |
 | `P7-T02Z` | `TODO-P7.md` | [DONE] 闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级 |
-| `P7-T03` | `TODO-P7.md` | 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
+| `P7-T03` | `TODO-P7.md` | [DONE] 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
 | `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |
 | `P7-T04R` | `TODO-P7.md` | Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression |
