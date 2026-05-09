@@ -65,7 +65,7 @@
 | `CG-T07S0` | CG7S0 | [DONE] 修复 receiver callable value / FunPtr named-arg lowering 顺序回归，解除 CG-T07S 默认 full-suite run-pass 阻塞 |
 | `CG-T07S` | CG7S | [DONE] 修复 full-suite cross-fixture transport metadata drift，解除 CG-T08 默认回归阻塞 |
 | `CG-T08` | CG8 | [DONE] 建立 codegen regression 矩阵并完成阶段退出审计 |
-| `CG-T08R` | CG8R | Review CG-T08 codegen phase exit audit |
+| `CG-T08R` | CG8R | [DONE] Review CG-T08 codegen phase exit audit |
 
 ## 全局约束
 
@@ -1892,7 +1892,7 @@
   - 2026-05-09：完成最终阶段退出审计：`cargo test --all` 通过（覆盖 `cg8_codegen_regression_matrix`、fixture fresh-session isolation regression 与 refactor MIR stable-dump canonicalization 审计）；默认 `cargo run -p scoop -- test` 通过并稳定为 `fixtures: ok (1270)`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 通过并稳定为 `fixtures: ok (25)`。
   - 2026-05-09：更新 `PIPELINE_GAPS.md` 状态审计，确认 codegen-stage scope（`§3`、`§4`、`§5.1-§5.7`、`§6.1-§6.5` 与默认 refactor 路径可达的 `§7.6`）已关闭或重分类为非本阶段 owner；`CG-T08` 完成。
 
-## CG-T08R：Review CG-T08 codegen phase exit audit
+## [DONE] CG-T08R：Review CG-T08 codegen phase exit audit
 
 - 参考：
   - `CG-T08`
@@ -1909,3 +1909,8 @@
 - 完成条件：
   - Review 结论明确说明 `CG-T08` 已正确实现，codegen-stage scope 可进入下一阶段；若发现缺口，`CG-T08R` 保持未完成并把修复归回 `CG-T08`。
 - 依赖：`CG-T08`
+
+- 完成记录：
+  - 2026-05-09：复核 `CG-T08` 的阶段退出审计产物，确认 `crates/scoop/tests/cg8_codegen_regression_matrix.rs` 已覆盖 `CG-T01` 至 `CG-T07` 与 `P7-T02Z` 的代表样本，`crates/scoop/src/fixtures/mod.rs` 保留 fixture fresh-session isolation 守护，`crates/scoop/tests/p7_default_pipeline.rs` 继续锁定默认 omission=refactor 且未依赖 legacy selector / hidden fallback 达成回归通过。
+  - 2026-05-09：复查 `PIPELINE_GAPS.md` 顶部状态更新、`§5.7` 历史 blocker 记录与 `§9` 验证矩阵收口说明，确认 codegen-stage scope 已按 `CG-T01`-`CG-T08` 关闭或重分类为非本阶段 owner，未发现需要回退到 `CG-T08` 继续修复的遗漏项。
+  - 2026-05-09：验证通过：`cargo test --all`、`cargo run -p scoop -- test`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings`。

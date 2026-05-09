@@ -1,38 +1,27 @@
-# Claude Plan
+## 当前执行计划
 
-## Initial execution plan
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判定第一个未完成任务。
+2. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若该问题构成当前任务的直接前置，则把它视为当前任务的一部分或在 `TODO.md` 中登记为前置依赖。
+3. 阅读当前任务涉及的代码、文档、测试与约束，确认实现边界、依赖关系和验证要求。
+4. 在不引入规避方案的前提下完成该任务；若发现阻塞当前任务的真实缺陷或缺失能力，则先修复该阻塞，或在 `TODO.md` 中以最小新增前置任务显式记录后停止。
+5. 运行与该任务直接相关的验证，并补充必要测试；若有失败，立即修复直到通过，必要时再跑更广的检查。
+6. 更新文档与跟踪文件：
+   - 在 `TODO.md` 中将完成的任务标题改为 `[DONE]` 前缀，并更新完成记录；
+   - 仅当阶段计划/依赖发生变化时更新 `PLAN.md`；
+   - 在本文件记录关键进展、计划调整和阻塞信息。
+7. 检查工作区改动，按要求提交当前任务相关的全部未提交更改，提交信息使用任务编号。
+8. 完成后停止，不继续下一个任务。
 
-1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message for any directly relevant unfinished work tied to that task.
-3. Inspect only the code and documents needed for the selected task and its dependencies.
-4. Implement the task completely, avoiding workarounds and stopping only if a concrete prerequisite blocker is discovered.
-5. Run the task-required validation, then broader required checks as needed.
-6. Update `memory/claude_plan.md` with progress, update `TODO.md` completion state and records, and update `PLAN.md` only if phase-level planning changes.
-7. Create one git commit covering the task work, then stop.
+## 说明
 
-## Progress log
+- 这里记录的是可审计的执行计划与关键决策，不包含冗长的内部推理草稿。
+- 如果后续发现阻塞、计划变更或关键步骤完成，会继续更新本文件。
 
-- Wrote the initial execution plan before repository inspection.
-- Read `TODO.md` and identified `CG-T08` as the first task whose heading is not prefixed with `[DONE]`.
-- Checked the latest commit message: `[CG-T07S] Complete cross-fixture transport drift audit`. It is directly relevant as the prerequisite unblocker for `CG-T08`, but it does not introduce a newer unfinished prerequisite beyond what `TODO.md` already records.
+## 进展记录
 
-## Task-specific plan for CG-T08
-
-1. Inspect the existing `CG-T08` matrix test, task notes, and `PIPELINE_GAPS.md` audit state.
-2. Run the required validation for `CG-T08`:
-   - `cargo test --all`
-   - `cargo run -p scoop -- test`
-   - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
-3. If validation exposes a blocker that belongs to the current task, fix it immediately; if it reveals a concrete prerequisite outside `CG-T08`, add that prerequisite to `TODO.md` ahead of `CG-T08`, keep `CG-T08` incomplete, and stop.
-4. If validation passes, update `PIPELINE_GAPS.md` with a codegen-stage exit audit addendum, then mark `CG-T08` as `[DONE]` in `TODO.md` and extend the completion record with the final validation summary.
-5. Commit all task changes in one git commit and stop.
-
-## Execution progress
-
-- Inspected the existing `CG-T08` matrix test in `crates/scoop/tests/cg8_codegen_regression_matrix.rs` and confirmed that the representative fixture coverage for `CG-T01` through `CG-T07` and `P7-T02Z` is already present in the repository.
-- Verified the required `CG-T08` commands successfully:
-  - `cargo test --all`
-  - `cargo run -p scoop -- test` -> `fixtures: ok (1270)`
-  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` -> `fixtures: ok (25)`
-- Updated `PIPELINE_GAPS.md` with a 2026-05-09 codegen-stage exit audit addendum and converted the historical `§5.7` blocker note into a resolved historical record.
-- Marked `CG-T08` as `[DONE]` in `TODO.md` and appended the final completion record.
+- 2026-05-09：已读取 `TODO.md` 并确认首个未完成任务为 `CG-T08R`（Review CG-T08 codegen phase exit audit）。
+- 2026-05-09：已检查最新提交 `dc4251d3`（`[CG-T08] Complete codegen phase exit audit`）；提交信息未直接声明新的未完成缺陷，因此按 `CG-T08R` 既定范围执行复核。
+- 2026-05-09：下一步先抽查 `CG-T08` 相关产物（codegen regression matrix、阶段退出审计与 `PIPELINE_GAPS.md` 状态更新），再重跑 `CG-T08` 要求的验证命令；若复核无缺口，则把 `CG-T08R` 标记为完成并提交。
+- 2026-05-09：已完成产物抽查：`crates/scoop/tests/cg8_codegen_regression_matrix.rs` 覆盖 `CG-T01`-`CG-T07` 与 `P7-T02Z` 代表样本；`crates/scoop/src/fixtures/mod.rs` 保留 `run_all_recreates_session_between_independent_fixtures`；`crates/scoop/tests/p7_default_pipeline.rs` 持续守护 omission=refactor 与 default-vs-explicit refactor 等价。
+- 2026-05-09：已重跑验证并全部通过：`cargo test --all`、`cargo run -p scoop -- test`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo clippy --all-targets -- -D warnings`。
+- 2026-05-09：复核结论：未发现需要回退到 `CG-T08` 的遗漏缺口；已在 `TODO.md` 将 `CG-T08R` 标记为 `[DONE]`，下一步执行 git 提交并停止。
