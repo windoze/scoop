@@ -110,3 +110,44 @@
 - 本轮未发现需要新增到 `TODO.md` 的稳定 blocker；首次 `run-pass` timeout 经复验未稳定复现。
 - `P7-T03` 的标准 full regression 已在 omission/default=refactor 条件下通过，且显式 `legacy` 入口仍可用。
 - 已更新 `TODO-P7.md` 与 `TODO.md`，把 `P7-T03` 标记为 `[DONE]`；下一步只需提交本轮记录并停止，不继续处理 `P7-T03R`。
+
+----
+
+## P7-T03R 执行记录（2026-05-09）
+
+### 初始计划
+
+说明：这里只记录可公开的执行计划、进度与关键决策，不包含隐藏的内部推理细节。
+
+1. 读取 `TODO.md`，确认首个未完成任务为 `P7-T03R`。
+2. 检查最新提交是否声明与该 review 直接相关的未完成问题；若有则先并入当前任务。
+3. 阅读 `TODO-P7.md` 中 `P7-T03` / `P7-T03R` 定义与完成记录，确认需要复跑的标准矩阵、explicit legacy smoke 与 hidden-fallback 搜索范围。
+4. 重新运行 `P7-T03` 的全部验证命令，确认结果仍在 omission/default=`refactor` 条件下稳定通过。
+5. 搜索并抽查 `legacy` / fallback 相关命中，确认没有为了 full regression 通过而新引入 hidden fallback。
+6. 若 review 通过，则更新 `TODO.md` / `TODO-P7.md` / 本文件并提交；若发现阻塞，则按要求在 `TODO.md` 增加最小前置任务后停止。
+
+### 进展摘要
+
+- 已读取 `TODO.md`，确认当前首个未完成任务为 `P7-T03R`。
+- 已检查最新提交 `fd2f974e`（`[P7-T03] Complete default full regression matrix`）；提交信息未声明需要先处理的直接未完成问题，因此按 `P7-T03R` 的既定 review 范围继续。
+- 已读取 `TODO-P7.md` 中 `P7-T03` / `P7-T03R` 条目与 `EFFECT_REFACTOR.md` P7/P8 handoff 说明，确认 review 的核心是证明默认主线的常规 full regression 已真实由 refactor 承担，而不是靠 legacy 兜底。
+
+### 验证进展
+
+- `cargo test --all`：通过。
+- `cargo run -p scoop -- test`：通过（`fixtures: ok (1270)`）。
+- `cargo run -p scoop_tools -- spec-fixtures check`：通过（`spec fixtures: ok (1)`）。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/run-pass/minimal_main.scoop`：通过（`fixtures: ok (1)`）。
+- `cargo run -p scoop -- --effect-pipeline legacy build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /tmp/p7_post_regression_legacy.ll`：通过。
+- `rg "effect[-_]pipeline.*legacy|fallback.*legacy|retry.*legacy" crates tools tests --glob '!target/**'` 等价搜索仅命中四处：
+  - `crates/scoop/src/fixtures/run_pass.rs`：显式 legacy compare 测试断言；
+  - `crates/scoop/src/fixtures/mod.rs`：`mir_refactor` legacy unsupported 诊断与显式 legacy compare 测试断言；
+  - `crates/scoopc/src/driver_cli.rs`：CLI/help 文案，声明 omission 默认是 refactor；
+  - `crates/scoop/src/commands/build.rs`：断言默认 build 不得回退到 legacy handler-stack/outcome lowering。
+
+### 结论
+
+- 本轮未发现需要新增到 `TODO.md` 的 blocker，也未发现为了让标准 full regression 通过而新增的 hidden fallback、retry legacy 或 omission 默认回 legacy 的实现路径。
+- `P7-T03` 的标准矩阵与 explicit legacy compare smoke 在当前树上仍全部通过，`spec-fixtures check` 也保持通过；这与 `EFFECT_REFACTOR.md` 中“默认主线是 refactor、legacy 仅作短期 compare/rollback”基线一致。
+- 已更新 `TODO-P7.md` 与 `TODO.md`，将 `P7-T03R` 标记为 `[DONE]`；下一步仅需提交本轮 review 记录并停止。
