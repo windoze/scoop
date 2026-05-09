@@ -933,6 +933,57 @@
   - 额外执行 `rg "effect[-_]pipeline.*legacy|fallback.*legacy|retry.*legacy" crates tools tests --glob '!target/**'` 等价搜索。命中仅来自 `crates/scoop/src/fixtures/run_pass.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/driver_cli.rs`、`crates/scoop/src/commands/build.rs` 中的显式 legacy compare 测试、legacy unsupported/help 文案与 anti-fallback 断言；未发现为标准 full regression 新增 hidden fallback、retry legacy 或 omission 默认回 legacy 的实现路径。
   - 结合 `P7-T03` 完成记录与当前复验结果，确认本阶段 full-regression 修复均落在 refactor/default 路径或中立共享模块；`spec-fixtures check` 当前通过，说明此前同步的 generated fixtures/goldens 未偏离 `EFFECT_REFACTOR.md` §8 所规定的基线：默认主线是 refactor，显式 `legacy` 只保留到 P8 前的短期 compare/rollback 场景。可进入 `P7-T04`。
 
+## P7-T03S：修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker，恢复 multi-escape mixed replay 的 verify-roots 正确性
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P7，§3，§4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §7.3, §8
+  - 前置实现参考：[`TODO-P6.md`](./TODO-P6.md) P6-T04 / P6-T05、[`TODO-P7.md`](./TODO-P7.md) P7-T03 / P7-T03R
+- 目标：
+  - 修复 default refactor 路径在 moving/stress/verify-roots 条件下暴露的 explicit-frame stale-root 问题；
+  - 闭合 multi-escape direct+indirect mixed replay 样本中的 root spill/writeback / payload / continuation 组合合同；
+  - 让 `P7-T04` 能继续执行完整 GC env 矩阵，而不是反复卡在 verify-roots abort。
+
+- 必须实现的内容：
+  1. 复现并修复当前 blocker：
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+     - 当前失败症状：第一次 resume 进入 mixed replay 后，runtime `verify-roots` 在 explicit-frame slots 中发现无效 root 并 abort。
+  2. 查清并修复 explicit-frame stale-root 来源。
+     - 必须明确是哪些 local/temporary/payload/continuation home 在 safepoint 或 replay 之后留下了 stale from-space 指针、`ptr poison` 派生地址、或非 heap 值；
+     - 若问题来自 compiler-owned spill/writeback contract，必须修 contract 本身，不能靠关闭 verify-roots、缩小 fixture、或改成显式 legacy 规避。
+  3. 保持此前已恢复的 GC env 定向样本继续正确。
+     - 至少不得回归：
+       - `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`
+       - `effect_escape_continuation_indirect_perform_binder_string_use.scoop`
+       - `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+  4. 若需要新增定向测试，优先选择快速的 LLVM/codegen 单测或单 fixture smoke；避免引入超过 1 分钟的单个测试用例。
+
+- 必须遵从的约束：
+  - 禁止通过关闭 `SCOOP_GC_VERIFY_ROOTS`、减少 replay 路径、删掉 mixed direct/indirect block 形状、或把样本改成显式 `legacy` 来让任务“通过”；
+  - 禁止把 explicit-frame 当成“只对部分 local 生效”的 best-effort root 来源；一旦 slot 被发布为 root home，就必须在整个 replay/safepoint 周期保持 authoritative；
+  - 禁止为了修复 stale-root 而重新打开 P6 已冻结的 continuation ABI / `Step` ABI / dropped-continuation / runtime-error 语义设计。
+
+- 验证：
+  1. 必跑：
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  2. 回归守护：
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_binder_string_use.scoop`
+     - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop`
+     - `cargo test -p scoopc --lib cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame`
+  3. 完成记录必须说明：
+     - stale-root 的具体来源类别；
+     - 修复后为什么 explicit-frame/root spill contract 在该 replay 形状下已重新闭合；
+     - `P7-T04` 可以恢复执行完整 GC env 矩阵的依据。
+
+- 完成条件：
+  - 上述 multi-escape mixed replay 样本在 GC env 全开 + verify-roots 下通过；
+  - 不再出现 explicit-frame invalid root / `ptr poison` 导致的 verify-roots abort；
+  - `P7-T04` 可以重新聚焦完整 GC env 矩阵与 handoff 收口。
+- 依赖：P7-T03R
+- 完成记录：
+  - （执行时填写）
+
 ## P7-T04：运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口
 
 - 参考：
@@ -990,9 +1041,12 @@
   - GC env 全开验证在默认 refactor 主线下全部通过；
   - legacy 只剩显式 compare/rollback 入口；
   - P7 -> P8 handoff 已明确锁定为“删除旧主线并再次 full regression”。
-- 依赖：P7-T03R
+- 依赖：P7-T03S
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：本轮开始执行 `P7-T04` 的 GC env 全开矩阵。已先修复两类在 default refactor 下直接暴露的 safepoint/root 问题：
+    - `create_continuation_object_with_state_tag` 现在会把 extracted callee continuation 先 root 到专用 slot，等 wrapper allocation safepoint 之后再 reload 写入 composed edge；定向恢复 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop` 的 GC env 通过。
+    - `handle_boundary_case` 现在会把会穿过 continuation materialization safepoint 的 arm/outward payload 先 deferred，再在真正绑定/发射 `Step` 前 reload；定向恢复 `effect_escape_continuation_indirect_perform_binder_string_use.scoop` 的 GC env 通过，并保持 `effect_escape_continuation_arm_nested_handle_replay_tail_basic.scoop` default 路径不回归。
+  - 继续执行完整 `tests/fixtures/run-pass` GC env 矩阵时，`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 仍在第一次 resume 进入 mixed replay 后触发 runtime `verify-roots`：explicit-frame slots 中残留 invalid roots，emit 的 LLVM IR 仍可观察到大量 `ptr poison` 相关 spill/writeback 形状。该问题属于当前任务的真实 blocker，且不能通过缩小覆盖或绕过 verify-roots 解决；已新增前置任务 `P7-T03S`，本任务保持未完成。
 
 ## P7-T04R：Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression
 

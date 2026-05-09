@@ -140,6 +140,7 @@
 | `P7-T02Z` | `TODO-P7.md` | [DONE] 闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级 |
 | `P7-T03` | `TODO-P7.md` | [DONE] 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
 | `P7-T03R` | `TODO-P7.md` | [DONE] Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
+| `P7-T03S` | `TODO-P7.md` | 修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker，恢复 multi-escape mixed replay 的 verify-roots 正确性 |
 | `P7-T04` | `TODO-P7.md` | 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |
 | `P7-T04R` | `TODO-P7.md` | Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression |
 | `P8-T01` | `TODO-P8.md` | 删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口 |

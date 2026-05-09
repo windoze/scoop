@@ -1882,14 +1882,16 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
   }
 
   // 与 `scoop_alloc` 一致：写屏障也作为 safepoint（poll）边界，避免 GC 请求 STW 时卡住。
+  // 但 `value` 只是当前调用帧里的普通 C 实参，不会像 explicit-frame slots 那样在 poll 时被
+  // moving GC 重定位；因此必须先把它写入真实 traced slot，再 poll，让 slot 自身成为权威 root。
   void scoop_thread_register(void);
   void scoop_gc_safepoint_poll(void);
   scoop_thread_register();
-  scoop_gc_safepoint_poll();
 
   ScoopGcImmixState *state = scoop_gc_immix_state();
   if (state == 0 || !state->lock_inited) {
     (void)memcpy(slot_addr, &value, sizeof(void *));
+    scoop_gc_safepoint_poll();
     return value;
   }
 
@@ -1906,6 +1908,7 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
 
   if (!needs_promote) {
     (void)memcpy(slot_addr, &value, sizeof(void *));
+    scoop_gc_safepoint_poll();
     return value;
   }
 
@@ -1921,6 +1924,7 @@ void *scoop_gc_write_barrier(void *slot_addr, void *value) {
 
   (void)memcpy(slot_addr, &value, sizeof(void *));
   scoop_gc_immix_unlock(state);
+  scoop_gc_safepoint_poll();
   return value;
 }
 

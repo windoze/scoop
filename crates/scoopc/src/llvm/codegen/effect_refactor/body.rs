@@ -6329,6 +6329,31 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         match routed_action {
             Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) => {
+                let deferred_payload = if action.continuation_binder.is_some() {
+                    let payload_cg = self
+                        .codegen
+                        .cg_ty_of_mir_type(self.source_types, payload_ty)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor handle arm payload t{} 缺少 codegen type",
+                                payload_ty.as_u32()
+                            ))
+                        })?;
+                    payload
+                        .map(|raw| {
+                            self.codegen.defer_gc_sensitive_cg_value(
+                                self.mir_fun.span,
+                                "refactor_handle_arm_payload",
+                                CgValue {
+                                    ty: payload_cg,
+                                    value: Some(raw),
+                                },
+                            )
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
                 if let Some(binder) = action.continuation_binder {
                     let continuation = if composition.is_some() {
                         self.create_continuation_object(
@@ -6343,6 +6368,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     };
                     self.store_gc_ref_to_binder(binder, continuation)?;
                 }
+                let payload = if let Some(deferred_payload) = deferred_payload {
+                    self.codegen
+                        .materialize_deferred_cg_value(
+                            self.mir_fun.span,
+                            "refactor_handle_arm_payload_reload",
+                            deferred_payload,
+                        )?
+                        .value
+                } else {
+                    payload
+                };
                 self.store_case_payload_to_arm_binders(
                     &action.payload_binders,
                     payload,
@@ -6356,6 +6392,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             Some(RefactorHandleBoundaryRuntimeAction::EmitOutward) | None => {}
         }
+        let deferred_payload = payload
+            .map(|raw| {
+                let payload_cg = self
+                    .codegen
+                    .cg_ty_of_mir_type(self.source_types, payload_ty)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor outward payload t{} 缺少 codegen type",
+                            payload_ty.as_u32()
+                        ))
+                    })?;
+                self.codegen.defer_gc_sensitive_cg_value(
+                    self.mir_fun.span,
+                    "refactor_outward_payload",
+                    CgValue {
+                        ty: payload_cg,
+                        value: Some(raw),
+                    },
+                )
+            })
+            .transpose()?;
         let continuation = self.create_continuation_object(
             boundary.resume_state(),
             callee_continuation,
@@ -6369,6 +6426,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 case_tag.as_u32()
             ))
         })?;
+        let payload = if let Some(deferred_payload) = deferred_payload {
+            self.codegen
+                .materialize_deferred_cg_value(
+                    self.mir_fun.span,
+                    "refactor_outward_payload_reload",
+                    deferred_payload,
+                )?
+                .value
+        } else {
+            payload
+        };
         let step = self.codegen.refactor_build_step_case(
             self.step_layout,
             out_layout,
@@ -8104,6 +8172,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 composition.caller_resume_state().as_u32(),
             )));
         }
+        // A continuation extracted from a Step case may only exist as an SSA value here.
+        // Root it in an explicit-frame slot before allocating the wrapper continuation, then
+        // reload from that slot after the allocation safepoint before writing the composition
+        // edge. Otherwise moving GC can relocate the callee continuation while the stale SSA
+        // value still gets written into the wrapper.
+        let callee_continuation_root = match callee_continuation {
+            Some(callee_continuation) => {
+                let slot = self.codegen.create_refactor_gc_root_slot(
+                    self.mir_fun.span,
+                    "refactor_composed_callee_root",
+                )?;
+                self.codegen.store_refactor_gc_root_slot(
+                    self.mir_fun.span,
+                    slot,
+                    callee_continuation,
+                    "refactor_composed_callee_root",
+                )?;
+                Some(slot)
+            }
+            None => None,
+        };
         let cont_layout = self
             .abi
             .continuation_layout(self.callable.continuation_object())
@@ -8162,8 +8251,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             CONT_FIELD_COMPOSED_CALLEE,
             "refactor_cont_composed_callee_gep",
         )?;
-        let composed_callee =
-            callee_continuation.unwrap_or_else(|| self.codegen.llvm_gc_i8_ptr_type().const_null());
+        let composed_callee = match callee_continuation_root {
+            Some(slot) => self
+                .codegen
+                .load_refactor_gc_root_slot(slot, "refactor_composed_callee_root")?,
+            None => self.codegen.llvm_gc_i8_ptr_type().const_null(),
+        };
         self.codegen.store_gc_pointer_slot_with_write_barrier(
             self.mir_fun.span,
             composed_gep,

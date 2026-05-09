@@ -4370,6 +4370,28 @@ fun main(): Int {
 }
 
 #[test]
+fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(
+            "../../../../tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop"
+        ),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("explicit_root_frame_slot_"),
+        "emitted IR should keep refactor-owned roots in explicit frame homes\n{ir}"
+    );
+    assert!(
+        !ir.contains("ptr poison"),
+        "cross-call escaped continuation resume roots must not degrade to poisoned spill homes\n{ir}"
+    );
+}
+
+#[test]
 fn direct_effectful_signature_without_outward_effect_skips_tls_check() {
     let source = SourceFile::new_virtual(
         "<mem>",
