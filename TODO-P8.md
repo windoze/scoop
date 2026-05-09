@@ -637,6 +637,63 @@
   - 验证：`cargo run -p scoopc -- tests/fixtures/build/emit_llvm_basic.scoop`
   - 验证：`cargo run -p scoopc -- --obj tests/fixtures/build/emit_llvm_basic.scoop`
 
+## P8-T03ab：消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
+  - 前置实现参考：[`TODO-P7.md`](./TODO-P7.md) P7-T02W、[`TODO-P8.md`](./TODO-P8.md) P8-T03a
+- 背景 / blocker：
+  - 2026-05-10 在 `P8-T04` 的 `cargo test --all` / `cargo test -p scoopc --lib` 收尾回归中，默认单文件 LLVM 路径只剩两条真实 blocker：
+    - `llvm::tests::object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary`
+    - `llvm::tests::top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary`
+  - 复核 IR 确认：`crates/scoopc/src/llvm/codegen/effect_refactor/body.rs` 的 `lower_class_ctor_boundary(...)` 仍通过 `with_active_suspend_site_any_effect_outcome_capture(...)` 包裹 `codegen_object_property_access(...)` / `codegen_top_level_value_ref(...)`；而 `crates/scoopc/src/llvm/codegen/object_init.rs` 的 object/top-level init 访问仍依赖 `begin_effect_boundary(...)`、`scoop_effect_outcome_consume_current(...)` 与 `scoop_effect_handler_stack_swap_top(...)`。
+  - 这意味着默认新主线 helper `__scoop_refactor_direct_invoke__a_helper` 仍暴露 legacy outcome/handler-stack runtime shim，违反 P7-T02W 与 P8 的“无 hidden fallback / 无 hidden legacy mainline”要求，也直接阻塞 `P8-T04` 的最终 full regression。
+
+- 目标：
+  - 让 object value init / object property init / top-level immutable init 在默认 refactor LLVM 路径下按 authoritative `Step` / continuation contract 传播 hidden ordinary effect；
+  - 删除 helper 级别对 legacy `scoop_effect_outcome_*` / `scoop_effect_handler_stack_swap_top` 的隐藏依赖；
+  - 保持 outward payload、continuation、frame/root 更新语义不回退、不分叉。
+
+- 必须实现的内容：
+  1. 重新审计并改写 hidden-init boundary lowering。
+     - 至少检查并修改：
+       - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs`
+       - `crates/scoopc/src/llvm/codegen/object_init.rs`
+       - 任何 top-level immutable init / object property init / object value access 仍经 legacy effect-outcome shim 的 helper
+     - 要求：
+       - 默认单文件 refactor helper 不再显式调用 `scoop_effect_outcome_consume_current`、`scoop_effect_handler_stack_swap_top`、或等价 legacy ordinary-effect transport；
+       - hidden-init outward case 仍必须被转换为 authoritative `Step` case，并保持 continuation/frame 更新正确。
+  2. 对齐 object/top-level hidden-init 的 default helper 回归断言。
+     - 至少覆盖：
+       - `BoomObject` object init outward sample
+       - top-level immutable `Broken` outward sample
+     - 要求：
+       - helper body 继续有 refactor `Step` dispatch / continuation publication；
+       - 但不再暴露 legacy outcome/handler-stack shim。
+  3. 确认历史 / materialized helper 不会重新成为 hidden fallback。
+     - 若某些 raw-MIR / materialized helper 仍需要 legacy-neutral bridge，请在完成记录里说明其边界；
+     - 禁止通过“默认 helper 仍调旧 shim，但测试不看”来过关。
+
+- 验证：
+  1. 运行：
+     - `cargo test -p scoopc --lib llvm::tests::object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+  2. 建议补跑：
+     - `cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_object_value_init_access -- --exact`
+     - `cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`
+  3. 完成记录中必须总结：
+     - helper 新旧 contract 的最终边界；
+     - 为什么 object/top-level hidden-init 不再构成 hidden legacy fallback。
+
+- 完成条件：
+  - 默认 refactor helper 已不再显式依赖 legacy `effect_outcome` / handler-stack swap shim；
+  - object/top-level hidden-init outward sample 在默认单文件 LLVM 路径下走纯 refactor `Step` / continuation contract；
+  - `P8-T04` 可以继续完整矩阵，而不会再被这两条 hidden-init blocker 卡住。
+- 依赖：`P8-T03a`
+- 完成记录：
+  - （执行时填写）
+
 ## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 
 - 参考：
@@ -705,9 +762,9 @@
   - 完整验证在“只有新主线存在”的条件下仍完整通过；
   - 主文档、主 fixtures 路径与主测试索引不再暴露已删除 `async` / `await` / `Task` surface；
   - 本轮 effect-refactor 收口工作可以视为真正结束。
-- 依赖：P8-T03a
+- 依赖：P8-T03a，P8-T03ab
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-10：执行 `cargo test --all` / `cargo test -p scoopc --lib` 收尾回归时，默认单文件 LLVM helper 仅剩 object/top-level hidden-init blocker：`__scoop_refactor_direct_invoke__a_helper` 仍通过 legacy `scoop_effect_outcome_*` / `scoop_effect_handler_stack_swap_top` shim 传播 hidden ordinary effect。已前插前置任务 `P8-T03ab`，`P8-T04` 暂停，待该 blocker 消除后再继续完整矩阵。
 
 ## P8-T04R：Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束
 

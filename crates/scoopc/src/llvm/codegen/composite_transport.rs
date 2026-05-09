@@ -402,13 +402,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let trace_hook = metadata.requirements.trace && !gc_slot_offsets.is_empty();
 
+        let mut size_bytes = store_size_bytes(self, llvm_ty);
+        let mut align_bytes = u64::from(abi_align_bytes(self, llvm_ty));
+        let clayout_aligned = self
+            .equivalent_codegen_type_id(mir_types, metadata.source_ty)
+            .and_then(|codegen_ty| self.struct_clayout(codegen_ty).and_then(|c| c.aligned));
+        if let Some(aligned) = clayout_aligned {
+            align_bytes = align_bytes.max(u64::from(aligned));
+            size_bytes = super::align_to(size_bytes, align_bytes);
+        }
+
         Ok(CompositeTransportLayoutDescriptor {
             source_ty,
             source_name: mir_types.display(metadata.source_ty).to_string(),
             kind: metadata.kind,
             storage_kind: composite_transport_storage_kind(metadata),
-            size_bytes: store_size_bytes(self, llvm_ty),
-            align_bytes: u64::from(abi_align_bytes(self, llvm_ty)),
+            size_bytes,
+            align_bytes,
             gc_slot_offsets,
             trace_hook,
             copy_hook: metadata.requirements.copy,

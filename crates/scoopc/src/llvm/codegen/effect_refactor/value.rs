@@ -65,6 +65,25 @@ fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
         .collect()
 }
 
+fn source_function_args_tuple_ty(
+    source_types: &TypeStore,
+    source_fun_ty: &crate::ty::FunctionType,
+) -> Option<TypeId> {
+    let args = function_type_source_args(source_fun_ty);
+    match args.as_slice() {
+        [] => source_types
+            .iter_ids()
+            .find(|&ty| matches!(source_types.kind(ty), TypeKind::Value(ValueTypeKind::Unit))),
+        [single] => Some(*single),
+        many => source_types.iter_ids().find(|&candidate| {
+            matches!(
+                source_types.kind(candidate),
+                TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements == many
+            )
+        }),
+    }
+}
+
 fn direct_call_dispatch_fqn(fqn: &str) -> &str {
     if let Some((base, _)) = fqn.rsplit_once("::<") {
         return base;
@@ -805,12 +824,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(None);
         }
-        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.source_types.kind(target_ty) else {
+        let TypeKind::Ref(RefTypeKind::Function(source_fun_ty)) = self.source_types.kind(target_ty) else {
             return Ok(None);
         };
         let Some(fun_ty) = self
             .codegen
-            .equivalent_codegen_function_type(self.source_types, fun_ty)
+            .equivalent_codegen_function_type(self.source_types, source_fun_ty)
         else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor effect-typed plain adapter function type",
@@ -820,7 +839,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if fun_ty.effects.is_pure() {
             return Ok(None);
         }
-        let layout = self.effect_typed_plain_adapter_layout(&fun_ty)?;
+        let layout = self.effect_typed_plain_adapter_layout(fn_ptr, source_fun_ty, &fun_ty)?;
         self.build_effect_typed_plain_closure_adapter(span, fn_ptr, &fun_ty, layout)
             .map(Some)
     }
@@ -918,6 +937,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn effect_typed_plain_adapter_layout(
         &self,
+        _fn_ptr: &str,
+        source_fun_ty: &crate::ty::FunctionType,
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<RefactorPlainAdapterLayout<'ctx>, LlvmEmitError> {
         let expected_args = function_type_source_args(fun_ty);
@@ -948,14 +969,55 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 return_step_schema: layout.return_step_schema(),
             })
         });
-        let first = matches.next().ok_or_else(|| {
+        let missing_layout_error = || {
             frontend_error(format!(
                 "refactor effect-typed plain adapter 缺少匹配 function type args={:?} effects={:?} return=t{} 的 dynamic-invoke layout",
                 expected_args.iter().map(|ty| ty.as_u32()).collect::<Vec<_>>(),
                 expected_effect_families,
                 fun_ty.return_ty.as_u32(),
             ))
-        })?;
+        };
+        let first = if let Some(layout) = matches.next() {
+            layout
+        } else {
+            let invoke_args_tuple_ty = source_function_args_tuple_ty(self.source_types, source_fun_ty)
+                .ok_or_else(missing_layout_error)?;
+            let mut params = vec![self.codegen.llvm_gc_i8_ptr_type().into()];
+            if !function_type_source_args(source_fun_ty).is_empty() {
+                let args_abi = *self.abi.source_value_layout(invoke_args_tuple_ty)?.abi();
+                if !args_abi.is_elided() {
+                    params.push(args_abi.llvm_ty().into());
+                }
+            }
+            let mut synth_matches = self.abi.step_layouts().filter_map(|step_layout| {
+                let effect_families = self.step_layout_effect_family_match_keys(step_layout)?;
+                if effect_families != expected_effect_families {
+                    return None;
+                }
+                let payload_ty = self.codegen.equivalent_codegen_type_id(
+                    self.source_types,
+                    step_layout.complete_variant().payload_source_ty(),
+                )?;
+                (payload_ty == fun_ty.return_ty).then_some(RefactorPlainAdapterLayout {
+                    llvm_ty: step_layout.llvm_ty().fn_type(&params, false),
+                    invoke_args_tuple_ty,
+                    return_step_schema: step_layout.step_schema(),
+                })
+            });
+            let first = synth_matches.next().ok_or_else(missing_layout_error)?;
+            if synth_matches.next().is_some() {
+                return Err(frontend_error(format!(
+                    "refactor effect-typed plain adapter function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
+                    expected_args
+                        .iter()
+                        .map(|ty| ty.as_u32())
+                        .collect::<Vec<_>>(),
+                    expected_effect_families,
+                    fun_ty.return_ty.as_u32(),
+                )));
+            }
+            first
+        };
         if matches.next().is_some() {
             return Err(frontend_error(format!(
                 "refactor effect-typed plain adapter function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
@@ -1218,6 +1280,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         function: FunctionValue<'ctx>,
         invoke_args_tuple_ty: TypeId,
     ) -> Result<Vec<BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
+        if function.get_nth_param(1).is_none() {
+            return Ok(Vec::new());
+        }
         let layout = self.abi.source_value_layout(invoke_args_tuple_ty)?;
         if layout.abi().is_elided() {
             return Ok(Vec::new());

@@ -684,6 +684,7 @@ impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
 #[derive(Debug)]
 pub(super) enum RefactorDynamicInvokeCarrierLayout<'ctx> {
     ClosureObject(RefactorClosureCarrierLayout<'ctx>),
+    FunPtr(RefactorAbiValue<'ctx>),
     VirtualReceiver(RefactorDispatchReceiverLayout<'ctx>),
     InterfaceReceiver(RefactorDispatchReceiverLayout<'ctx>),
 }
@@ -692,6 +693,7 @@ impl<'ctx> RefactorDynamicInvokeCarrierLayout<'ctx> {
     pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
         match self {
             Self::ClosureObject(layout) => layout.receiver_abi(),
+            Self::FunPtr(abi) => abi,
             Self::VirtualReceiver(layout) | Self::InterfaceReceiver(layout) => {
                 layout.receiver_abi()
             }
@@ -2341,6 +2343,10 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         step_schema: StepSchemaId,
     ) -> Option<&RefactorStepLayout<'ctx>> {
         self.step_layouts.get(&step_schema)
+    }
+
+    pub(super) fn step_layouts(&self) -> impl Iterator<Item = &RefactorStepLayout<'ctx>> {
+        self.step_layouts.values()
     }
 
     pub(super) fn dynamic_invoke_layouts(

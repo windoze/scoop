@@ -4,7 +4,7 @@ use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
 use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteKind, CallTargetMode, CallableAbiKind, ContinuationSchemaId,
+    CallSiteEffectFacts, CallSiteKind, CallTargetMode, ContinuationSchemaId,
     MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
 use crate::effect_lowered::LateLoweredProgram;
@@ -101,6 +101,7 @@ type BoundaryOperandLayoutSets = (
 struct MaterializedDynamicCallSite {
     kind: MirCallKind,
     arg_count: usize,
+    carrier_source_ty: Option<TypeId>,
 }
 
 impl ProgramLayoutView {
@@ -2251,7 +2252,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
-            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
+            .filter(|impl_fqn| {
+                plain_callable_roots.contains(impl_fqn)
+                    || self.pass_view.callable(impl_fqn).is_none()
+                        && self
+                            .codegen
+                            .hir_fun_for_callable_fqn(impl_fqn)
+                            .is_some_and(|sig_fun| {
+                                sig_fun.body.is_some()
+                                    && !self
+                                        .codegen
+                                        .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
+                            })
+            })
             .collect::<BTreeSet<_>>();
         let interface_itable_targets = self
             .codegen
@@ -2281,7 +2294,19 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                         .map(String::as_str)
                 })
             })
-            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
+            .filter(|impl_fqn| {
+                plain_callable_roots.contains(impl_fqn)
+                    || self.pass_view.callable(impl_fqn).is_none()
+                        && self
+                            .codegen
+                            .hir_fun_for_callable_fqn(impl_fqn)
+                            .is_some_and(|sig_fun| {
+                                sig_fun.body.is_some()
+                                    && !self
+                                        .codegen
+                                        .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
+                            })
+            })
             .collect::<BTreeSet<_>>();
 
         let mut carrier_layouts = HashMap::new();
@@ -2382,7 +2407,8 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
                     RefactorCallableCarrierKind::InterfaceItable
                 }
-                RefactorDynamicInvokeCarrierLayout::ClosureObject(_) => continue,
+                RefactorDynamicInvokeCarrierLayout::ClosureObject(_)
+                | RefactorDynamicInvokeCarrierLayout::FunPtr(_) => continue,
             };
             for fqn in layout.candidate_targets() {
                 let key = (kind, fqn.clone());
@@ -4149,6 +4175,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                 site_id,
                 lowering.facts(),
                 &call_site.kind,
+                call_site.carrier_source_ty,
                 call_site.arg_count,
                 step_layouts,
                 layouts,
@@ -4252,26 +4279,21 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                                 site_id.as_u32(),
                             )));
                         }
-                        if facts.target_mode() == CallTargetMode::KnownInstance {
-                            continue;
-                        }
-                        if facts.callee_abi_kind() == CallableAbiKind::Plain {
-                            continue;
-                        }
-
-                        sites.push((*site_id, kind.clone(), args.len(), facts.clone()));
+                        let carrier_source_ty = self.dynamic_call_carrier_source_ty(body, kind);
+                        sites.push((*site_id, kind.clone(), carrier_source_ty, args.len(), facts.clone()));
                     }
                 }
             }
             sites
         };
 
-        for (site_id, kind, arg_count, facts) in source_slice_sites {
+        for (site_id, kind, carrier_source_ty, arg_count, facts) in source_slice_sites {
             self.publish_dynamic_invoke_layout(
                 callable,
                 site_id,
                 &facts,
                 &kind,
+                carrier_source_ty,
                 arg_count,
                 step_layouts,
                 layouts,
@@ -4287,6 +4309,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         site_id: crate::mir::SiteId,
         facts: &CallSiteEffectFacts,
         call_kind: &MirCallKind,
+        carrier_source_ty: Option<TypeId>,
         arg_count: usize,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         layouts: &mut BTreeMap<
@@ -4308,6 +4331,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             site_id,
             facts,
             call_kind,
+            carrier_source_ty,
             arg_count,
             step_layouts,
         )?;
@@ -4323,6 +4347,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         site_id: crate::mir::SiteId,
         facts: &CallSiteEffectFacts,
         call_kind: &MirCallKind,
+        carrier_source_ty: Option<TypeId>,
         arg_count: usize,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorDynamicInvokeLayout<'ctx>, LlvmEmitError> {
@@ -4341,22 +4366,36 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let args_abi = *args_layout.abi();
         let carrier = match call_kind {
             MirCallKind::FunValue { .. } | MirCallKind::Closure { .. } => {
-                if facts.target_mode() != CallTargetMode::DynamicFallback {
+                if !matches!(
+                    facts.target_mode(),
+                    CallTargetMode::DynamicFallback | CallTargetMode::KnownInstance
+                ) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 DynamicFallback，但实际 target_mode 为 {:?}",
+                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
                         site_id.as_u32(),
                         call_kind,
                         facts.target_mode(),
                     )));
                 }
-                RefactorDynamicInvokeCarrierLayout::ClosureObject(
-                    RefactorClosureCarrierLayout::new(
-                        self.codegen.llvm_closure_object_type(),
-                        RefactorAbiValue::new(self.codegen.llvm_gc_i8_ptr_type().into(), false),
-                        1,
-                        2,
-                    ),
-                )
+                let carrier_source_ty = carrier_source_ty.ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 callable carrier source type",
+                        site_id.as_u32(),
+                    ))
+                })?;
+                let receiver_abi = *self.source_value_layout(carrier_source_ty)?.abi();
+                if self.is_funptr_source_ty(carrier_source_ty) {
+                    RefactorDynamicInvokeCarrierLayout::FunPtr(receiver_abi)
+                } else {
+                    RefactorDynamicInvokeCarrierLayout::ClosureObject(
+                        RefactorClosureCarrierLayout::new(
+                            self.codegen.llvm_closure_object_type(),
+                            receiver_abi,
+                            1,
+                            2,
+                        ),
+                    )
+                }
             }
             MirCallKind::Virtual { dispatch, .. } => {
                 let method_slot = self.resolve_virtual_dispatch_slot(
@@ -5384,6 +5423,43 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         })
     }
 
+    fn materialized_operand_source_ty(
+        &self,
+        body: &crate::mir::Body,
+        operand: &crate::mir::Operand,
+    ) -> Option<TypeId> {
+        match operand {
+            crate::mir::Operand::Local(local) => {
+                body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
+            }
+            crate::mir::Operand::Const(_) => None,
+        }
+    }
+
+    fn dynamic_call_carrier_source_ty(
+        &self,
+        body: &crate::mir::Body,
+        kind: &MirCallKind,
+    ) -> Option<TypeId> {
+        match kind {
+            MirCallKind::Closure { callee, .. } | MirCallKind::FunValue { callee } => {
+                self.materialized_operand_source_ty(body, callee)
+            }
+            MirCallKind::Virtual { receiver, .. } | MirCallKind::Interface { receiver, .. } => {
+                self.materialized_operand_source_ty(body, receiver)
+            }
+            MirCallKind::Direct { .. } | MirCallKind::Resume { .. } => None,
+        }
+    }
+
+    fn is_funptr_source_ty(&self, ty: TypeId) -> bool {
+        matches!(
+            self.source_types.kind(ty),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.unsafe.FunPtr"
+        )
+    }
+
     fn lookup_materialized_call_site(
         &self,
         owner_root_fqn: &str,
@@ -5406,9 +5482,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                     continue;
                 };
                 if *stmt_site_id == site_id {
+                    let carrier_source_ty = self.dynamic_call_carrier_source_ty(body, kind);
                     return Ok(MaterializedDynamicCallSite {
                         kind: kind.clone(),
                         arg_count: args.len(),
+                        carrier_source_ty,
                     });
                 }
             }

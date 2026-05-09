@@ -5773,18 +5773,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain closure call effect-typed surface requires adapter",
-                        at: span.into(),
-                    });
-                }
-                if let Some(fun) = self.hir_fun_for_callable_fqn(fn_ptr)
-                    && self.known_fun_body_may_outward_effect(fn_ptr, fun.ty)
-                {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain closure call target may outward-effect",
-                        at: span.into(),
-                    });
+                    if self.refactor_plain_callable_carrier_fallback_allowed(
+                        RefactorCallableCarrierKind::ClosureObject,
+                        fn_ptr,
+                    ) {
+                        return self.codegen_mir_plain_function_value_call(
+                            span, callee, args, &fun_ty, slots,
+                        );
+                    }
+                    let Some(fun) = self.hir_fun_for_callable_fqn(fn_ptr) else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor plain closure call effect-typed surface requires adapter",
+                            at: span.into(),
+                        });
+                    };
+                    if self.known_fun_body_may_outward_effect(fn_ptr, fun.ty) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "refactor plain closure call target may outward-effect",
+                            at: span.into(),
+                        });
+                    }
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
@@ -9418,7 +9426,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 ast::BinaryOp::Ne => {
                     self.builder
-                        .build_float_compare(FloatPredicate::ONE, l, r, "pass_mir_fne")?
+                        .build_float_compare(FloatPredicate::UNE, l, r, "pass_mir_fne")?
                 }
                 _ => {
                     return Err(LlvmEmitError::UnsupportedMainBody {

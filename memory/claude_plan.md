@@ -64,3 +64,39 @@
 - 已重新运行 `P8-T03a` 的定向验证矩阵：`cargo test -p scoopc driver_cli`、`cargo test -p scoop build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root`、`cargo test -p scoop build_frontend_`、`cargo test -p scoop no_hidden_legacy_fallback_for_default_refactor_build_output`、5 条关键 `scoopc` LLVM 单测，以及将 `scoopc <file>` / `scoopc --obj <file>` 输出重定向到 `/var/.../opencode` 的两条 smoke；结果全部通过。
 - 已同步 `TODO.md` 将 `P8-T03a` 标记为 `[DONE]`，并在 `TODO-P8.md` 补充本次复核与复跑记录。
 - 下一步：提交 `TODO.md`、`TODO-P8.md` 与本文件，然后停止，不进入 `P8-T04`。
+
+### 2026-05-10 当前轮次：P8-T04
+
+- 已重新读取 `TODO.md` / `TODO-P8.md`。当前首个未完成任务已变为 `P8-T04`。
+- 最近提交仅为 `[P8-T03a] Sync task completion records`，未声明与 `P8-T04` 直接相关的额外未完成事项；当前工作树干净，因此本轮直接执行 `P8-T04`。
+
+### P8-T04 执行计划
+
+1. 按任务要求顺序运行完整回归矩阵，先从 `cargo test --all` 开始，定位首个失败点。
+2. 若发现失败：仅修复 refactor 主线、中立共享模块、runtime/GC 基础设施或纯新主线测试/文档问题；禁止恢复任何 legacy 分支或 fallback。
+3. 修复后重跑受影响命令，直到整套矩阵全部通过。
+4. 执行任务要求的 residual `legacy` / `async` / `Task` 搜索，并把命中分类为“历史文本/负向测试/非 effect 语义”或“必须继续清理的残留”。
+5. 至少再完整重跑一遍 P8-T04 矩阵，确认不是局部修复后的未汇总状态。
+6. 更新 `TODO.md` / `TODO-P8.md` 完成记录，并提交本轮变更；不进入 `P8-T04R`。
+
+### P8-T04 当前进展
+
+- 已确认当前执行范围：只做 `P8-T04`，不提前进入 review 任务。
+- 已执行首个完整矩阵命令 `cargo test --all`，结果失败；当前不需要新增前置任务，因为失败点都属于本任务要求的“删除旧主线后最终回归修复”范围。
+- 首轮失败按性质暂分三类：
+  1. 测试基础设施问题：`effect_refactor_pipeline::llvm_codegen_stage` 的 stage-run 计数在全量并行测试下被其它测试污染，随后触发 `Mutex` poison 连锁失败。
+  2. 旧 helper / 旧断言残留：若干 LLVM 单测仍假定 `*_from_lowered_hir` 可处理 `handle`，或仍假定旧函数名/旧 wrapper/旧 descriptor 形状。
+  3. 真实代码缺口：至少已看到 effect-typed plain closure adapter 缺少 dynamic-invoke layout、effectful funptr carrier ABI drift 等前端/ABI 问题。
+- 下一步先修第 1 类共享问题，并对第 2/3 类失败继续做定向回归与最小修复。
+
+### P8-T04 阻塞更新（本轮结论）
+
+- 在修掉 stage 计数污染、默认 helper 断言漂移、FunPtr dynamic carrier、float `!=` predicate、direct-HIR vtable fallback、`CLayout(aligned)` descriptor 发布、以及多条 LLVM regression 之后，`cargo test -p scoopc --lib` 已收敛到只剩 2 条失败：
+  1. `llvm::tests::object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary`
+  2. `llvm::tests::top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary`
+- 这两条不是简单断言漂移，而是同一个真实 blocker：默认 refactor helper `__scoop_refactor_direct_invoke__a_helper` 仍通过 `scoop_effect_outcome_consume_current` / `scoop_effect_handler_stack_swap_top` 包装 object/top-level hidden init。
+- 复核定位：
+  - `crates/scoopc/src/llvm/codegen/effect_refactor/body.rs::lower_class_ctor_boundary(...)`
+  - `crates/scoopc/src/llvm/codegen/object_init.rs` 中的 object/top-level init access
+- 这已经构成 `P8-T04` 的明确前置缺口；因此已把它前插为 `P8-T03ab`，并把 `P8-T04` 依赖更新为 `P8-T03a, P8-T03ab`。
+- 本轮到这里停止，不继续硬冲 `P8-T04`。

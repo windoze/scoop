@@ -21,6 +21,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(test)]
 static TEST_STAGE_RUNS: AtomicUsize = AtomicUsize::new(0);
 
+#[cfg(test)]
+thread_local! {
+    static TEST_STAGE_RUN_COUNTING_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// refactor LLVM codegen stage 的显式输入。
 ///
 /// 约束：
@@ -768,12 +773,33 @@ fn stage_error(stage: &'static str, error: impl std::fmt::Display) -> LlvmEmitEr
 
 #[cfg(test)]
 fn record_test_stage_run() {
-    TEST_STAGE_RUNS.fetch_add(1, Ordering::SeqCst);
+    TEST_STAGE_RUN_COUNTING_ENABLED.with(|enabled| {
+        if enabled.get() {
+            TEST_STAGE_RUNS.fetch_add(1, Ordering::SeqCst);
+        }
+    });
 }
 
 #[cfg(test)]
 fn reset_test_stage_run_count() {
     TEST_STAGE_RUNS.store(0, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+struct TestStageRunCountGuard;
+
+#[cfg(test)]
+impl Drop for TestStageRunCountGuard {
+    fn drop(&mut self) {
+        TEST_STAGE_RUN_COUNTING_ENABLED.with(|enabled| enabled.set(false));
+    }
+}
+
+#[cfg(test)]
+fn enable_test_stage_run_counting() -> TestStageRunCountGuard {
+    reset_test_stage_run_count();
+    TEST_STAGE_RUN_COUNTING_ENABLED.with(|enabled| enabled.set(true));
+    TestStageRunCountGuard
 }
 
 #[cfg(test)]
@@ -790,7 +816,9 @@ mod tests {
 
     use inkwell::context::Context;
 
-    use super::{RefactorLlvmCodegenStageInput, reset_test_stage_run_count, test_stage_run_count};
+    use super::{
+        RefactorLlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count,
+    };
     use crate::effect_refactor_pipeline::{self, LlvmArtifactKind};
     use crate::llvm::{LlvmEmitError, build_refactor_main_module_from_stage_output};
     use crate::opt::OptLevel;
@@ -803,7 +831,9 @@ mod tests {
 
     fn test_lock() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
     }
 
     struct TempDirGuard(PathBuf);
@@ -1635,10 +1665,10 @@ fun main(): Int {
     #[test]
     fn single_pipeline_llvm_codegen_stage_build_entry_uses_stage() {
         let _guard = test_lock();
+        let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
         let out = temp.path().join("single.ll");
 
-        reset_test_stage_run_count();
         let (session, source_map, entry_source_id, lowered) = sample_emit_args();
         effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
@@ -1659,8 +1689,8 @@ fun main(): Int {
     #[test]
     fn default_minimal_main_ir_helper_uses_stage() {
         let _guard = test_lock();
+        let _stage_run_guard = enable_test_stage_run_counting();
 
-        reset_test_stage_run_count();
         let session = session();
         let source = effectful_source();
         let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
@@ -1673,6 +1703,7 @@ fun main(): Int {
     #[test]
     fn single_pipeline_single_file_artifact_entry_uses_stage_for_all_artifacts() {
         let _guard = test_lock();
+        let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
         let session = session();
         let source = effectful_source();
@@ -1682,7 +1713,6 @@ fun main(): Int {
             (LlvmArtifactKind::Asm, PathBuf::from("single.s")),
         ];
 
-        reset_test_stage_run_count();
         for (artifact, rel) in artifacts {
             let out = temp.path().join(rel);
             effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
@@ -1699,6 +1729,7 @@ fun main(): Int {
     #[test]
     fn refactor_llvm_codegen_stage_shares_same_stage_entry_for_ir_obj_and_asm() {
         let _guard = test_lock();
+        let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
         let artifacts = [
             (LlvmArtifactKind::LlvmIr, PathBuf::from("stage.ll")),
@@ -1706,7 +1737,6 @@ fun main(): Int {
             (LlvmArtifactKind::Asm, PathBuf::from("stage.s")),
         ];
 
-        reset_test_stage_run_count();
         for (artifact, rel) in artifacts {
             let out = temp.path().join(rel);
             let (session, source_map, entry_source_id, lowered) = sample_emit_args();
@@ -1732,10 +1762,10 @@ fun main(): Int {
     #[test]
     fn refactor_llvm_backend_gate_smoke_lowers_effectful_handle_body_without_legacy() {
         let _guard = test_lock();
+        let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
         let out = temp.path().join("effect.ll");
 
-        reset_test_stage_run_count();
         let (session, source_map, entry_source_id, lowered) = effectful_emit_args();
         effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
             &session,
