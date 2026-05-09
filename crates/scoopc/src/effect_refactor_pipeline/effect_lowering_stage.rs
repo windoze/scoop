@@ -90,12 +90,17 @@ impl RefactorEffectLoweredStageOutput {
 pub(crate) fn run(
     effect_facts_stage_output: RefactorEffectFactsStageOutput,
 ) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    let nominal_direct_supertypes =
+        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
+            effect_facts_stage_output.file(),
+        );
     let program = optimize_program(
         LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
             effect_facts_stage_output.types(),
         )
+        .with_nominal_direct_supertypes(nominal_direct_supertypes)
         .build()?,
     );
     Ok(RefactorEffectLoweredStageOutput::new(
@@ -119,12 +124,17 @@ fn run_with_opt_options(
     effect_facts_stage_output: RefactorEffectFactsStageOutput,
     opt_options: LateLoweredOptOptions,
 ) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    let nominal_direct_supertypes =
+        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
+            effect_facts_stage_output.file(),
+        );
     let program = optimize_program_with_options(
         LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
             effect_facts_stage_output.types(),
         )
+        .with_nominal_direct_supertypes(nominal_direct_supertypes)
         .build()?,
         opt_options,
     );

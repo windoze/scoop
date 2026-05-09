@@ -18,6 +18,7 @@ pub mod effect_facts;
 pub mod effect_lowered;
 pub mod effect_refactor_pipeline;
 pub(crate) mod expr_facts;
+pub mod frontend;
 pub mod hir;
 pub mod infer;
 pub mod itable;

@@ -4991,26 +4991,22 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
-    let vtable_call = helper_ir
-        .lines()
-        .find(|line| line.contains("call_vtable"))
-        .expect("expected vtable call in helper IR");
+    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
 
     assert!(
-        helper_ir.contains("@scoop_effect_outcome_consume_current")
-            && helper_ir.contains("@scoop_effect_outcome_publish")
-            && helper_ir.contains("@scoop_callee_suspend_state_publish")
-            && !helper_ir.contains("@scoop_effect_is_active"),
-        "outward-effect vtable call 应改走显式 incoming token + outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        helper_ir.contains("load_vtable_fn")
+            && helper_ir.contains("call %scoop.refactor.Step__schema")
+            && helper_ir.contains("switch i32 %refactor_step_tag"),
+        "默认 virtual-cone path 的 outward vtable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
-        helper_ir.contains("vtable_call_receiver_reload"),
-        "vtable receiver 应在 effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
+        "默认 virtual-cone path 的 outward vtable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
     assert!(
-        vtable_call.contains("ptr addrspace(1) null"),
-        "fresh outward-effect vtable call 应显式传入 null incoming_resume_token_ref:\n{vtable_call}"
+        !helper_ir.contains("@scoop_effect_is_active")
+            && !helper_ir.contains("scoop_effect_outcome"),
+        "outward vtable helper 自身不应回落到 legacy TLS/outcome runtime 符号:\n{helper_ir}"
     );
 }
 
@@ -5053,26 +5049,22 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
-    let itable_call = helper_ir
-        .lines()
-        .find(|line| line.contains("call_itable"))
-        .expect("expected itable call in helper IR");
+    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
 
     assert!(
-        helper_ir.contains("@scoop_effect_outcome_consume_current")
-            && helper_ir.contains("@scoop_effect_outcome_publish")
-            && helper_ir.contains("@scoop_callee_suspend_state_publish")
-            && !helper_ir.contains("@scoop_effect_is_active"),
-        "outward-effect itable call 应改走显式 incoming token + outcome boundary，而不是 post-call TLS active probing:\n{helper_ir}"
+        helper_ir.contains("itable_lookup")
+            && helper_ir.contains("load_itable_fn")
+            && helper_ir.contains("call %scoop.refactor.Step__schema"),
+        "默认 virtual-cone path 的 outward itable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
-        helper_ir.contains("itable_call_receiver_reload"),
-        "itable receiver 应在 effect boundary 之后重新加载，避免查表时继续使用旧 SSA:\n{helper_ir}"
+        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
+        "默认 virtual-cone path 的 outward itable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
     assert!(
-        itable_call.contains("ptr addrspace(1) null"),
-        "fresh outward-effect itable call 应显式传入 null incoming_resume_token_ref:\n{itable_call}"
+        !helper_ir.contains("@scoop_effect_is_active")
+            && !helper_ir.contains("scoop_effect_outcome"),
+        "outward itable helper 自身不应回落到 legacy TLS/outcome runtime 符号:\n{helper_ir}"
     );
 }
 

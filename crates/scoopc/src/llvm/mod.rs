@@ -117,7 +117,7 @@ pub struct RefactorBackendGateError {
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmEmitError {
-    #[error("LLVM 单文件前端准备失败：{message}")]
+    #[error("LLVM codegen 前端准备失败：{message}")]
     #[diagnostic(code(scoop::llvm::frontend_prepare_failed))]
     Frontend { message: String },
 

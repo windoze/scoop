@@ -5684,7 +5684,7 @@ mod tests {
         LateLoweredSurfaceResumeWrapperCompletePayloadSource, SystemSlotKind,
     };
     use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
-    use crate::mir::SiteId;
+    use crate::mir::{CallArg, Operand, Rvalue, SiteId, StatementKind};
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -5723,6 +5723,11 @@ mod tests {
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
             effect_facts_stage_output.types(),
+        )
+        .with_nominal_direct_supertypes(
+            crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
+                effect_facts_stage_output.file(),
+            ),
         )
         .build()
         .expect("fixture 应可通过 raw late-lowering builder");
@@ -6347,6 +6352,120 @@ mod tests {
                 .span()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources() {
+        let source = SourceFile::new_virtual(
+            "<mem>/nominal_upcast_boundary.scoop",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+open class Base() {
+    open fun ping(): Int / (Ask) {
+        Ask.ask(1)
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int / (Ask) {
+        Ask.ask(41)
+    }
+}
+
+fun helper(base: Base): Int / (Ask) {
+    return base.ping()
+}
+
+fun main(): Int {
+    return handle {
+        helper(Derived())
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+        );
+        let session = refactor_session();
+        let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, &source)
+            .expect("nominal upcast sample 应可通过 refactor effect-facts stage");
+        let pass_view = effect_facts_stage_output.materialized_pass_view();
+        let main_family = pass_view
+            .instances()
+            .find(|family| family.root_fqn() == "a.main")
+            .expect("main family should exist");
+        let body = main_family
+            .root_body()
+            .and_then(|fun| fun.body.as_ref())
+            .expect("main should have a root body");
+        let body_facts = effect_facts_stage_output
+            .effect_facts()
+            .body(main_family.key())
+            .expect("main body facts should exist");
+        let call_facts = match body_facts.site(SiteId::from_raw(1)) {
+            Some(crate::effect_facts::SiteEffectFacts::Call(facts)) => facts,
+            other => panic!("site1 应为 call facts，实际为: {other:?}"),
+        };
+        let arg_local = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::Call { site_id, args, .. },
+                    ..
+                } if *site_id == SiteId::from_raw(1) => match args.as_slice() {
+                    [
+                        CallArg {
+                            value: Operand::Local(local),
+                            ..
+                        },
+                    ] => Some(*local),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("site1 应发布单一 local arg");
+
+        let nominal_direct_supertypes =
+            crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
+                effect_facts_stage_output.file(),
+            );
+        let expected_ty = call_facts.invoke_args_tuple_ty();
+        let local_ty = body.locals[arg_local.as_u32() as usize].ty;
+
+        assert!(
+            super::nominal_source_type_compatible(
+                effect_facts_stage_output.types(),
+                local_ty,
+                expected_ty,
+                &nominal_direct_supertypes,
+            ),
+            "raw late-lowering 应接受 direct nominal upcast source；local=t{} ({})，expected=t{} ({})，supertypes={nominal_direct_supertypes:?}",
+            local_ty.as_u32(),
+            effect_facts_stage_output.types().display(local_ty),
+            expected_ty.as_u32(),
+            effect_facts_stage_output.types().display(expected_ty),
+        );
+
+        super::operand_source_with_expected_ty(
+            "a.main",
+            SiteId::from_raw(1),
+            "Call",
+            body,
+            effect_facts_stage_output.types(),
+            &nominal_direct_supertypes,
+            &Operand::Local(arg_local),
+            expected_ty,
+            None,
+        )
+        .expect("late-lowering 应接受 direct nominal upcast arg source");
     }
 
     #[test]

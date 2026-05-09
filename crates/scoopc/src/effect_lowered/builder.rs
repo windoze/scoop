@@ -32,6 +32,7 @@ pub(crate) struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
     types: &'a TypeStore,
+    nominal_direct_supertypes: NominalDirectSupertypeIndex,
 }
 
 impl<'a> LateLoweredProgramBuilder<'a> {
@@ -41,17 +42,28 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         types: &'a TypeStore,
     ) -> Self {
         Self {
+            nominal_direct_supertypes: collect_nominal_direct_supertypes_from_mir_file(
+                &pass_view.materialized().file,
+            ),
             pass_view,
             effect_facts,
             types,
         }
     }
 
+    pub(crate) fn with_nominal_direct_supertypes(
+        mut self,
+        nominal_direct_supertypes: NominalDirectSupertypeIndex,
+    ) -> Self {
+        self.nominal_direct_supertypes = nominal_direct_supertypes;
+        self
+    }
+
     pub(crate) fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
         let types = self.types;
-        let nominal_direct_supertypes = collect_nominal_direct_supertypes(pass_view.materialized());
+        let nominal_direct_supertypes = self.nominal_direct_supertypes;
 
         let StepMaterialization {
             step_types,
@@ -302,11 +314,11 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
-fn collect_nominal_direct_supertypes(
-    materialized: &MaterializedMir,
+pub(crate) fn collect_nominal_direct_supertypes_from_mir_file(
+    file: &crate::mir::File,
 ) -> NominalDirectSupertypeIndex {
     let mut out = NominalDirectSupertypeIndex::new();
-    for item in &materialized.file.items {
+    for item in &file.items {
         match item {
             Item::Metadata(crate::mir::MetadataRoot::Nominal(nominal)) => {
                 let supers = nominal

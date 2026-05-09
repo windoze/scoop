@@ -17,97 +17,11 @@ use scoopc::opt::OptLevel;
 use scoopc::session::SessionOptions;
 use thiserror::Error;
 
-#[derive(Debug)]
-struct BuildInput {
-    /// 当前编译单元的全部源文件。
-    ///
-    /// 约定（T1315a）：
-    /// - 始终包含 stdlib 注入的 `stdlib/*.scoop`（纯 Scoop prelude）；
-    /// - 单文件模式下额外包含 1 个 user source；
-    /// - cone 包模式下额外包含 `src/**/*.scoop`。
-    sources: Vec<scoopc::source::SourceFile>,
-    /// 可执行入口（选定的 `fun main` 所在源文件）在 `sources` 中的下标。
-    main_index: usize,
-    /// cone 包模式下的“锚点 main 文件”（`src/main.scoop`）在 `sources` 中的下标。
-    ///
-    /// 用途：
-    /// - 当未显式配置 `entry-package` 时，用它的 package 作为默认 entry package；
-    /// - 未来其它 driver/fixture 逻辑也可以用它作为“case 的稳定入口文件”。
-    cone_anchor_main_index: Option<usize>,
-    /// 若输入为 cone 包目录，则包含其 root 与 manifest（用于 T1107 依赖图解析）。
-    cone_root: Option<PathBuf>,
-    cone_manifest: Option<scoopc::cone::ConeManifest>,
-    /// （cone 包模式）入口 package 覆盖（来自 CLI）。
-    entry_package_override: Option<String>,
-    /// 已选择的入口函数 FQN（仅 cone 包模式下会填充）。
-    entry_main_fqn: Option<String>,
-}
-
-impl BuildInput {
-    fn main_source(&self) -> &scoopc::source::SourceFile {
-        &self.sources[self.main_index]
-    }
-
-    #[cfg(feature = "llvm")]
-    fn is_mir_request_source_index(&self, idx: usize) -> bool {
-        if let Some(root) = self.cone_root.as_ref() {
-            return self.sources[idx].path().starts_with(root);
-        }
-        idx == self.main_index
-    }
-
-    #[cfg(feature = "llvm")]
-    fn mir_request_source_paths(&self) -> Vec<PathBuf> {
-        self.sources
-            .iter()
-            .enumerate()
-            .filter(|(idx, _)| self.is_mir_request_source_index(*idx))
-            .map(|(_, source)| source.path().to_path_buf())
-            .collect()
-    }
-
-    #[allow(dead_code)]
-    fn cone_anchor_main_source(&self) -> Option<&scoopc::source::SourceFile> {
-        self.cone_anchor_main_index.map(|idx| &self.sources[idx])
-    }
-}
-
-#[derive(Debug)]
-struct FrontendOutput {
-    input: BuildInput,
-    #[cfg(feature = "llvm")]
-    asts: Vec<scoopc::ast::File>,
-    #[cfg(feature = "llvm")]
-    index: scoopc::resolve::Index,
-    /// T0127/T5000: typecheck 收集到的带 call-site 来源的实例请求种子。
-    ///
-    /// 当前 build/frontend 主路径会把它交给 MIR materializer 建立 `InstanceKey` 集，
-    /// 而不是回到 HIR eager lowering 现场扫描并克隆具体实例。
-    #[cfg(feature = "llvm")]
-    monomorph_requests: Vec<scoopc::monomorph::MonomorphRequest>,
-    /// T0130: typecheck 阶段的 `TypeStore`。
-    ///
-    /// 用途：
-    /// - 供 MIR materializer 把请求里的 `TypeId` / effect row re-intern 到实例化用的类型表；
-    /// - 供 HIR compatibility lowering 只按显式 `InstanceKey` 集恢复当前 LLVM codegen 仍需要的
-    ///   monomorphic HIR fun/member。
-    #[cfg(feature = "llvm")]
-    typecheck_types: scoopc::ty::TypeStore,
-    #[cfg(feature = "llvm")]
-    type_env: scoopc::typecheck::TypeEnv,
-}
-
-impl FrontendOutput {
-    fn main_source(&self) -> &scoopc::source::SourceFile {
-        self.input.main_source()
-    }
-
-    #[cfg(feature = "llvm")]
-    #[allow(dead_code)]
-    fn main_ast(&self) -> &scoopc::ast::File {
-        &self.asts[self.input.main_index]
-    }
-}
+type BuildInput = scoopc::frontend::ProjectInput;
+type FrontendOutput = scoopc::frontend::FrontendOutput;
+pub(crate) type EntryPackageMissingMain = scoopc::frontend::EntryPackageMissingMain;
+pub(crate) type EntryPackageMainNotInConsumerCone =
+    scoopc::frontend::EntryPackageMainNotInConsumerCone;
 
 fn emit_frontend_warnings(
     session: &scoopc::session::Session,
@@ -133,8 +47,8 @@ fn find_warning_source<'a>(
     path: &Path,
 ) -> Option<&'a scoopc::source::SourceFile> {
     front
-        .input
-        .sources
+        .input()
+        .sources()
         .iter()
         .find(|source| source.path() == path)
         .or_else(|| {
@@ -236,25 +150,6 @@ pub(crate) struct EntryPackageOnlyForCone {
     input: String,
 }
 
-#[derive(Debug, Error, Diagnostic)]
-#[error("入口包 `{entry_package}` 中找不到入口函数 `fun main`")]
-#[diagnostic(code(scoop::driver::entry_package_missing_main))]
-pub(crate) struct EntryPackageMissingMain {
-    entry_package: String,
-    #[label("该 package 没有 `main`")]
-    span: miette::SourceSpan,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error(
-    "入口包 `{entry_package}` 的 `fun main` 不属于 consumer cone（它声明在依赖/其它 cone：{decl_file}）"
-)]
-#[diagnostic(code(scoop::driver::entry_package_main_not_in_consumer_cone))]
-pub(crate) struct EntryPackageMainNotInConsumerCone {
-    entry_package: String,
-    decl_file: String,
-}
-
 /// 执行 `scoop build <input> [-o <output>]`。
 ///
 /// 当前阶段验收点：
@@ -282,10 +177,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let input = load_build_input(&input, entry_package)?;
     let opt_level = resolve_opt_level(
         opt_level_override,
-        input
-            .cone_manifest
-            .as_ref()
-            .and_then(|m| m.native_build.opt_level),
+        input.cone_manifest().native_build.opt_level,
         profile,
     );
     let output =
@@ -300,21 +192,26 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     //
     // 重要：为避免污染 run-pass fixtures 的 stdout，这里统一把“cache hit”信息输出到 stderr。
     let mut computed_fingerprint: Option<incremental::BuildFingerprint> = None;
-    let incremental_ctx = (|| {
+    let incremental_ctx =
         if !incremental || !cfg!(feature = "llvm") || emit != BuildEmit::Executable {
-            return None;
-        }
-        let (root, manifest) = match (input.cone_root.as_ref(), input.cone_manifest.as_ref()) {
-            (Some(root), Some(manifest)) => (root, manifest),
-            _ => return None,
+            None
+        } else if !input.is_explicit_cone() {
+            None
+        } else {
+            let root = input.cone_root().to_path_buf();
+            let expected_out = layout::cone_exe_path(
+                &root,
+                None,
+                profile.as_str(),
+                &input.cone_manifest().cone.name,
+            );
+            if output != expected_out {
+                None
+            } else {
+                let build_json = layout::cone_build_json_path(&root, None, profile.as_str());
+                Some((root, build_json))
+            }
         };
-        let expected_out = layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
-        if output != expected_out {
-            return None;
-        }
-        let build_json = layout::cone_build_json_path(root, None, profile.as_str());
-        Some((root.clone(), build_json))
-    })();
 
     if let Some((cone_root, build_json)) = incremental_ctx.clone()
         && output.is_file()
@@ -335,9 +232,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     let session = scoopc::session::Session::with_options(session_options)?;
 
-    let deps = match (&input.cone_root, &input.cone_manifest) {
-        (Some(root), Some(manifest)) => deps::load_dependency_graph(manifest, root)?,
-        _ => Vec::new(),
+    let deps = if input.is_explicit_cone() {
+        deps::load_dependency_graph(input.cone_manifest(), input.cone_root())?
+    } else {
+        Vec::new()
     };
     let warning_capture = scoopc::warnings::begin_capture();
     let front = run_frontend(&session, input, &deps)?;
@@ -441,67 +339,13 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 }
 
 fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Result<BuildInput> {
-    let stdlib_sources = load_stdlib_sources()?;
-
-    // 单文件模式：保持 `scoop build <file.scoop>` 的原有行为。
-    if input.is_file() {
-        if entry_package_override.is_some() {
-            return Err(EntryPackageOnlyForCone {
-                input: input.display().to_string(),
-            }
-            .into());
+    if input.is_file() && entry_package_override.is_some() {
+        return Err(EntryPackageOnlyForCone {
+            input: input.display().to_string(),
         }
-        let mut sources = stdlib_sources;
-        let main_index = sources.len();
-        sources.push(scoopc::source::SourceFile::load(input)?);
-        return Ok(BuildInput {
-            sources,
-            main_index,
-            cone_anchor_main_index: None,
-            cone_root: None,
-            cone_manifest: None,
-            entry_package_override: None,
-            entry_main_fqn: None,
-        });
+        .into());
     }
-
-    // cone 包模式：`scoop build <cone-root>`（按 T1102 规则定位 `src/main.scoop`）。
-    if input.is_dir() {
-        let pkg = scoopc::cone::load_cone_source_package(input)?;
-        let mut sources = stdlib_sources;
-        let stdlib_len = sources.len();
-        sources.reserve(pkg.sources.len());
-        let mut main_index = None;
-        for (idx, path) in pkg.sources.iter().enumerate() {
-            let source = scoopc::source::SourceFile::load(path)?;
-            if source.path() == pkg.main.as_path() {
-                main_index = Some(stdlib_len + idx);
-            }
-            sources.push(source);
-        }
-
-        let main_index = main_index.ok_or_else(|| {
-            miette::miette!(
-                "cone package 的 main 未出现在 sources 列表中：{}",
-                pkg.main.display()
-            )
-        })?;
-
-        return Ok(BuildInput {
-            sources,
-            main_index,
-            cone_anchor_main_index: Some(main_index),
-            cone_root: Some(pkg.root),
-            cone_manifest: Some(pkg.manifest),
-            entry_package_override,
-            entry_main_fqn: None,
-        });
-    }
-
-    Err(miette::miette!(
-        "输入既不是文件也不是目录：{}",
-        input.display()
-    ))
+    scoopc::frontend::load_project_input_from_path(input, entry_package_override)
 }
 
 fn default_output_path_for_input_and_emit(
@@ -509,48 +353,19 @@ fn default_output_path_for_input_and_emit(
     emit: BuildEmit,
     profile: BuildProfile,
 ) -> PathBuf {
-    if emit == BuildEmit::Executable
-        && let (Some(root), Some(manifest)) =
-            (input.cone_root.as_ref(), input.cone_manifest.as_ref())
-    {
-        return layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
+    if emit == BuildEmit::Executable && input.is_explicit_cone() {
+        return layout::cone_exe_path(
+            input.cone_root(),
+            None,
+            profile.as_str(),
+            &input.cone_manifest().cone.name,
+        );
     }
     default_output_path_for_emit(emit)
 }
 
 fn default_stdlib_path() -> PathBuf {
-    // 开发期路径：相对于 `crates/scoop` 的 `../../stdlib`。
-    // 后续可随“工具链安装/分发”演进为：
-    // - `SCOOP_STDLIB` 环境变量
-    // - 或可执行文件旁的资源目录
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
-}
-
-fn load_stdlib_sources() -> Result<Vec<scoopc::source::SourceFile>> {
-    let root = default_stdlib_path()
-        .canonicalize()
-        .into_diagnostic()
-        .wrap_err("无法定位 stdlib 目录（T1315a）")?;
-
-    let mut paths = Vec::new();
-    collect_scoop_files(&root, &mut paths)?;
-
-    // T0143：加载 sysroot 中的"可编译"源文件（如 sysroot/string.scoop）。
-    // 这些文件含有需要编译的函数体（纯 Scoop 实现），与 stdlib 一起参与完整管线。
-    // Sysroot::load_from() 会将它们排除在签名索引之外，避免双重声明。
-    let sysroot_root = scoopc::sysroot::Sysroot::default_path()
-        .canonicalize()
-        .into_diagnostic()
-        .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    scoopc::sysroot::collect_compilable_sysroot_files(&sysroot_root, &mut paths)?;
-
-    paths.sort();
-
-    let mut out = Vec::with_capacity(paths.len());
-    for path in paths {
-        out.push(scoopc::source::SourceFile::load(&path)?);
-    }
-    Ok(out)
 }
 
 fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
@@ -574,338 +389,10 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 
 fn run_frontend(
     session: &scoopc::session::Session,
-    mut input: BuildInput,
+    input: BuildInput,
     deps: &[scoopc::cone::ConeArchiveApi],
 ) -> Result<FrontendOutput> {
-    if input.sources.is_empty() {
-        return Err(miette::miette!("内部错误：build 输入 sources 为空"));
-    }
-
-    // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
-    let mut asts = Vec::with_capacity(input.sources.len());
-    for source in &input.sources {
-        let ast = scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
-            .map(scoopc::effect_refactor_pipeline::AstStageOutput::into_ast)
-            .map_err(miette::Report::from)?;
-        asts.push(ast);
-    }
-    {
-        let source_refs = input.sources.iter().collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        // T1220b：在 resolver/index 之前按整编译单元裁剪 package-level `comptime if`
-        //（未选中分支不进入后续阶段），并让条件表达式复用 const/comptime 的 typechecked 调用绑定主线。
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::from)?;
-    }
-
-    // 先运行不依赖 resolver/index 的 typecheck 预检查（与 fixtures/typecheck pipeline 对齐）。
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
-        scoopc::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
-        scoopc::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
-    }
-
-    // 构建 Index：sysroot 作为 cone 0；当前被 build 的 cone 作为 cone 1。
-    let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
-    for f in &session.sysroot().files {
-        indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(0),
-            source: &f.source,
-            file: &f.ast,
-        });
-    }
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
-        indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(1),
-            source,
-            file: ast,
-        });
-    }
-
-    let mut index =
-        scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
-
-    // T0629b：program boundary 的“库导出入口 / host entry points”由 Cone.toml 指定，
-    // 在 typecheck 阶段按 entry point 规则强制 `Pure!`。
-    if let Some(manifest) = input.cone_manifest.as_ref() {
-        index.set_export_entry_points(manifest.export_entry_points.clone());
-    }
-
-    // T1107：注入 `.cone` 依赖的 public API（用于 import/类型检查）。
-    //
-    // cone id 分配约定：
-    // - 0：sysroot
-    // - 1：当前被 build 的 cone（consumer）
-    // - 2+：按依赖拓扑序分配（deps 由 build/deps.rs 负责解析为 DAG 顺序）
-    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
-        .map_err(miette::Report::from)?;
-    for (next_dep_cone, dep) in (2_u32..).zip(deps.iter()) {
-        let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
-        scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)?;
-    }
-
-    // T1113：选择“入口包”的 `fun main`，并将其作为 runtime entry point。
-    //
-    // 说明：
-    // - 该选择仅在 cone 包模式下生效；单文件模式保持现有行为。
-    // - 该选择会影响：
-    //   - typecheck：仅对选定 `main` 按 entry point 规则强制 `Pure!`；
-    //   - HIR lowering / LLVM codegen：选定 `main` 所在文件作为 entry source（允许 source-backed literals）。
-    if input.cone_manifest.is_some() {
-        select_cone_entry_main(&mut input, &asts, &mut index)?;
-    }
-
-    // resolver phase：headers + bodies（逐文件运行，但共享同一个 index）。
-    let mut headers = Vec::with_capacity(input.sources.len());
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
-        let h = scoopc::resolve::check_file_headers(source, ast, &index)
-            .map_err(miette::Report::from)?;
-        headers.push(h);
-    }
-    for ((source, ast), h) in input
-        .sources
-        .iter()
-        .zip(asts.iter_mut())
-        .zip(headers.iter())
-    {
-        scoopc::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
-    }
-
-    // type env：sysroot + 依赖 cones（已注入）+ 当前 cone 全部文件（用于跨文件 TypeRef lowering）。
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
-        env.extend_from_file(source, ast, &index)
-            .map_err(miette::Report::from)?;
-    }
-
-    let mut types = scoopc::ty::TypeStore::new();
-    let builtins = types.intern_builtins();
-
-    // T0127: 收集 typecheck 观察到的 generic/effect 实例请求，作为后续 MIR materialization 的种子。
-    #[cfg(feature = "llvm")]
-    let mut all_monomorph_requests: Vec<scoopc::monomorph::MonomorphRequest> = Vec::new();
-
-    // typecheck phase：逐文件执行（共享 env/index/types）。
-    #[cfg(feature = "llvm")]
-    let file_iter = input
-        .sources
-        .iter()
-        .zip(asts.iter())
-        .zip(headers.iter())
-        .enumerate();
-    #[cfg(not(feature = "llvm"))]
-    let file_iter = input.sources.iter().zip(asts.iter()).zip(headers.iter());
-
-    for item in file_iter {
-        #[cfg(feature = "llvm")]
-        let (source_index, ((source, ast), h)) = item;
-        #[cfg(not(feature = "llvm"))]
-        let ((source, ast), h) = item;
-
-        scoopc::typecheck::check_file_annotations(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-        scoopc::typecheck::check_file_properties(source, ast, &index, &env)
-            .map_err(|err| miette::Report::from(*err))?;
-        scoopc::typecheck::check_file_inheritance(source, ast, &index)
-            .map_err(miette::Report::from)?;
-
-        scoopc::typecheck::check_file_interfaces(source, ast, &index, &env)
-            .map_err(miette::Report::from)?;
-        scoopc::typecheck::check_file_override_effects(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(|err| miette::Report::from(*err))?;
-
-        scoopc::typecheck::check_file_type_refs(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-
-        scoopc::typecheck::check_file_where_clauses(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-
-        scoopc::typecheck::check_file_overload_conflicts(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
-
-        // T0127/T5000: 只有 request roots 贡献初始 monomorph seeds；stdlib/sysroot
-        // support sources 仍完整 typecheck/lower，但不把内部泛型调用提升为实例根。
-        #[cfg(feature = "llvm")]
-        {
-            if input.is_mir_request_source_index(source_index) {
-                let requests = scoopc::typecheck::check_file_exprs_with_monomorph_requests(
-                    source, ast, &index, &h.imports, &env, &mut types, builtins,
-                )
-                .map_err(miette::Report::from)?;
-                all_monomorph_requests.extend(requests);
-            } else {
-                scoopc::typecheck::check_file_exprs(
-                    source, ast, &index, &h.imports, &env, &mut types, builtins,
-                )
-                .map_err(miette::Report::from)?;
-            }
-        }
-        #[cfg(not(feature = "llvm"))]
-        {
-            scoopc::typecheck::check_file_exprs(
-                source, ast, &index, &h.imports, &env, &mut types, builtins,
-            )
-            .map_err(miette::Report::from)?;
-        }
-    }
-
-    // 对整个编译单元中出现过的类型做一次 layout/metadata 计算（与 fixtures/typecheck_multi 对齐）。
-    scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
-        .map_err(miette::Report::from)?;
-
-    Ok(FrontendOutput {
-        input,
-        #[cfg(feature = "llvm")]
-        asts,
-        #[cfg(feature = "llvm")]
-        index,
-        #[cfg(feature = "llvm")]
-        monomorph_requests: all_monomorph_requests,
-        #[cfg(feature = "llvm")]
-        typecheck_types: types,
-        #[cfg(feature = "llvm")]
-        type_env: env,
-    })
-}
-
-fn package_prefix(
-    source: &scoopc::source::SourceFile,
-    pkg: Option<&scoopc::ast::PackageDecl>,
-) -> String {
-    let Some(pkg) = pkg else {
-        return String::new();
-    };
-    pkg.path
-        .iter()
-        .map(|id| source.slice(id.span))
-        .collect::<Vec<_>>()
-        .join(".")
-}
-
-fn cone_entry_main_fqn(entry_package: &str) -> String {
-    if entry_package.is_empty() {
-        "main".to_string()
-    } else {
-        format!("{entry_package}.main")
-    }
-}
-
-fn find_consumer_package_decl_span(
-    input: &BuildInput,
-    asts: &[scoopc::ast::File],
-    entry_package: &str,
-) -> miette::SourceSpan {
-    let Some(root) = input.cone_root.as_ref() else {
-        return scoopc::span::Span::new(0, 0).into();
-    };
-
-    for (source, file) in input.sources.iter().zip(asts.iter()) {
-        if !source.path().starts_with(root) {
-            continue;
-        }
-        let Some(pkg) = file.package.as_ref() else {
-            continue;
-        };
-        if package_prefix(source, Some(pkg)) == entry_package {
-            return pkg.span.into();
-        }
-    }
-
-    // fallback：锚点 main 文件的 package（如果存在）。
-    if let Some(anchor) = input.cone_anchor_main_index
-        && let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref())
-    {
-        return pkg.span.into();
-    }
-
-    scoopc::span::Span::new(0, 0).into()
-}
-
-fn select_cone_entry_main(
-    input: &mut BuildInput,
-    asts: &[scoopc::ast::File],
-    index: &mut scoopc::resolve::Index,
-) -> Result<()> {
-    let Some(manifest) = input.cone_manifest.as_ref() else {
-        return Ok(());
-    };
-
-    let entry_package = if let Some(v) = input.entry_package_override.as_deref() {
-        v.trim().to_string()
-    } else if let Some(v) = manifest.native_build.entry_package.as_deref() {
-        v.trim().to_string()
-    } else {
-        let anchor = input.cone_anchor_main_index.unwrap_or(input.main_index);
-        let anchor_source = &input.sources[anchor];
-        let anchor_file = &asts[anchor];
-        package_prefix(anchor_source, anchor_file.package.as_ref())
-    };
-
-    let entry_main_fqn = cone_entry_main_fqn(&entry_package);
-    index.set_runtime_entry_point(entry_main_fqn.clone());
-    input.entry_main_fqn = Some(entry_main_fqn.clone());
-
-    // 约定（与本模块 build pipeline 对齐）：
-    // - cone 0：sysroot
-    // - cone 1：consumer（当前被 build 的 cone）
-    // - cone 2+：依赖 cones
-    let consumer_cone = scoopc::resolve::ConeId::new(1);
-
-    let overload_in_consumer = index.by_fqn.get(&entry_main_fqn).and_then(|syms| {
-        syms.fun.iter().find(|o| {
-            o.symbol.decl_cone == consumer_cone
-                && o.sig.receiver.is_none()
-                && o.sig.kind == scoopc::ast::FunDeclKind::Regular
-        })
-    });
-
-    if let Some(overload) = overload_in_consumer {
-        let decl_file = overload.symbol.decl_file.as_path();
-        let Some((idx, _)) = input
-            .sources
-            .iter()
-            .enumerate()
-            .find(|(_idx, s)| s.path() == decl_file)
-        else {
-            return Err(miette::miette!(
-                "内部错误：入口 main 源文件未在 sources 列表中：{}",
-                decl_file.display()
-            ));
-        };
-
-        input.main_index = idx;
-        return Ok(());
-    }
-
-    if let Some(syms) = index.by_fqn.get(&entry_main_fqn)
-        && let Some(overload) = syms.fun.first()
-        && overload.symbol.decl_cone != consumer_cone
-    {
-        return Err(EntryPackageMainNotInConsumerCone {
-            entry_package,
-            decl_file: overload.symbol.decl_file.display().to_string(),
-        }
-        .into());
-    }
-
-    let span = find_consumer_package_decl_span(input, asts, &entry_package);
-    Err(EntryPackageMissingMain {
-        entry_package,
-        span,
-    }
-    .into())
+    scoopc::frontend::run_frontend(session, input, deps)
 }
 
 fn ensure_output_parent_dir(path: &Path) -> Result<()> {
@@ -968,7 +455,7 @@ fn emit_refactor_llvm_artifact_for_build(
         lowered,
         abi_visibility_lowered,
         output,
-        front.input.entry_main_fqn.as_deref(),
+        front.input().entry_main_fqn(),
         opt_level,
         artifact,
     )?;
@@ -986,14 +473,10 @@ fn run_codegen_and_link(
     // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
     // - cone 包：写入 `build/<profile>/obj/`（由 `scoop build --debug/--release` 控制）。
     // - 单文件模式：仍使用临时目录（保持行为不变）。
-    let is_cone = front.input.cone_root.is_some() && front.input.cone_manifest.is_some();
+    let is_cone = front.input().is_explicit_cone();
 
     let (work_dir, keep_work_dir) = if is_cone {
-        let root = front
-            .input
-            .cone_root
-            .as_ref()
-            .ok_or_else(|| miette::miette!("内部错误：cone build 缺少 cone_root"))?;
+        let root = front.input().cone_root();
         let dir = layout::cone_obj_dir(root, None, profile.as_str());
         std::fs::create_dir_all(&dir)
             .into_diagnostic()
@@ -1018,10 +501,9 @@ fn run_codegen_and_link(
     // - `c-flags` 仅作用于这些 user sources（不影响 runtime/c 的编译选项）。
     let mut extra_objs: Vec<PathBuf> = Vec::new();
     let mut use_cxx_linker_driver = false;
-    if let (Some(root), Some(manifest)) = (
-        front.input.cone_root.as_ref(),
-        front.input.cone_manifest.as_ref(),
-    ) {
+    if front.input().is_explicit_cone() {
+        let root = front.input().cone_root();
+        let manifest = front.input().cone_manifest();
         if !manifest.native_build.c_sources.is_empty() {
             extra_objs.reserve(manifest.native_build.c_sources.len());
             for (idx, rel) in manifest.native_build.c_sources.iter().enumerate() {
@@ -1060,10 +542,10 @@ fn run_codegen_and_link(
 
     // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
     let mut linker = front
-        .input
-        .cone_manifest
-        .as_ref()
-        .and_then(|m| m.native_build.linker.as_deref());
+        .input()
+        .is_explicit_cone()
+        .then(|| front.input().cone_manifest().native_build.linker.as_deref())
+        .flatten();
     if use_cxx_linker_driver && linker.is_none() {
         // 默认策略（v0）：仅在用户启用 `cxx-sources` 时才切换到 C++ driver，
         // 以避免在纯 C/纯 Scoop 场景引入额外工具链依赖。
@@ -1072,10 +554,16 @@ fn run_codegen_and_link(
     let options = crate::toolchain::LinkOptions {
         linker,
         link_flags: front
-            .input
-            .cone_manifest
-            .as_ref()
-            .map(|m| m.native_build.link_flags.as_slice())
+            .input()
+            .is_explicit_cone()
+            .then(|| {
+                front
+                    .input()
+                    .cone_manifest()
+                    .native_build
+                    .link_flags
+                    .as_slice()
+            })
             .unwrap_or(&[]),
     };
     let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
@@ -1097,70 +585,18 @@ fn run_codegen_and_link(
 }
 
 #[cfg(feature = "llvm")]
-#[derive(Clone, Copy)]
-enum BuildMirRequestRootMode {
-    EntryMain,
-    RequestSources,
-}
-
-#[cfg(feature = "llvm")]
 fn lower_hir_for_build_with_request_root_mode(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     opt_level: OptLevel,
-    request_root_mode: BuildMirRequestRootMode,
+    request_root_mode: scoopc::frontend::MirRequestRootMode,
 ) -> Result<scoopc::hir::LoweredHir> {
-    // 该返回值仍是当前 LLVM codegen 消费的 HIR 兼容输入，但在 via-MIR 主路径上会额外挂住
-    // `LoweredHir::materialized_pass_view()`，把 canonical materialized body / summary /
-    // 后续 MIR pass 产物视图显式保留在 build frontend 产物里，避免 production 入口只能停留在
-    // dump/test 路径。
-    // compilation unit：sysroot + 当前 cone 全部源文件（稳定顺序）。
-    let mut unit: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
-        unit.push((&f.source, &f.ast));
-    }
-    for (source, ast) in front.input.sources.iter().zip(front.asts.iter()) {
-        unit.push((source, ast));
-    }
-
-    // T1315a：stdlib 注入后需要 multi-file lowering（否则 stdlib 顶层函数不会出现在 fun_index 中）。
-    let files_to_lower = front
-        .input
-        .sources
-        .iter()
-        .zip(front.asts.iter())
-        .collect::<Vec<_>>();
-
-    let request_source_paths = front.input.mir_request_source_paths();
-    let entry_main_fqn = front.input.entry_main_fqn.clone().unwrap_or_else(|| {
-        let source = front.input.main_source();
-        let ast = &front.asts[front.input.main_index];
-        cone_entry_main_fqn(&package_prefix(source, ast.package.as_ref()))
-    });
-
-    let request_root_mode = match request_root_mode {
-        BuildMirRequestRootMode::EntryMain => scoopc::mir::MaterializeRequestRootMode::EntryMain {
-            fqn: Some(entry_main_fqn.as_str()),
-        },
-        BuildMirRequestRootMode::RequestSources => {
-            scoopc::mir::MaterializeRequestRootMode::RequestSources
-        }
-    };
-
-    scoopc::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
-        &front.index,
-        &unit,
-        &files_to_lower,
-        &front.monomorph_requests,
-        Some(&front.type_env),
-        &front.typecheck_types,
-        scoopc::hir::MirInstanceCollectionOptions {
-            request_source_paths: &request_source_paths,
-            request_root_mode,
-            opt_level,
-        },
+    scoopc::frontend::lower_hir_for_codegen_with_request_root_mode(
+        session,
+        front,
+        opt_level,
+        request_root_mode,
     )
-    .map_err(|err| miette::Report::from(*err))
 }
 
 #[cfg(feature = "llvm")]
@@ -1173,7 +609,7 @@ fn lower_main_hir_for_build(
         session,
         front,
         opt_level,
-        BuildMirRequestRootMode::EntryMain,
+        scoopc::frontend::MirRequestRootMode::EntryMain,
     )
 }
 
@@ -1189,7 +625,7 @@ fn refactor_abi_visibility_lowered_hir_for_build(
         session,
         front,
         opt_level,
-        BuildMirRequestRootMode::RequestSources,
+        scoopc::frontend::MirRequestRootMode::RequestSources,
     )
     .map(Some)
 }
@@ -1199,23 +635,7 @@ fn build_codegen_source_map(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
 ) -> (scoopc::source::SourceMap, scoopc::source::SourceId) {
-    let mut source_map = scoopc::source::SourceMap::new();
-    for file in &session.sysroot().files {
-        let _ = source_map.add_source_clone(&file.source);
-    }
-
-    let mut entry_source_id = None;
-    for (idx, source) in front.input.sources.iter().enumerate() {
-        let source_id = source_map.add_source_clone(source);
-        if idx == front.input.main_index {
-            entry_source_id = Some(source_id);
-        }
-    }
-
-    (
-        source_map,
-        entry_source_id.expect("main source should always be present in build source map"),
-    )
+    scoopc::frontend::build_source_map(session, front.input())
 }
 
 #[cfg(test)]
@@ -1536,14 +956,14 @@ public fun main() / Pure! {
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
 
         assert_eq!(
-            front.input.mir_request_source_paths(),
+            front.input().mir_request_source_paths(),
             vec![input.clone()],
             "单文件 build 只能让用户入口源贡献 MIR request roots"
         );
         assert!(
-            front.monomorph_requests.is_empty(),
+            front.monomorph_requests().is_empty(),
             "不含泛型调用的单文件入口不应因为 stdlib/sysroot support sources 产生初始 monomorph seeds: {:?}",
-            front.monomorph_requests
+            front.monomorph_requests()
         );
     }
 
@@ -1579,7 +999,7 @@ version = "0.0.0"
         let build_input = super::load_build_input(&pkg, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
         let cone_root = pkg.canonicalize().unwrap();
-        let roots = front.input.mir_request_source_paths();
+        let roots = front.input().mir_request_source_paths();
 
         assert_eq!(
             roots.len(),
@@ -1623,7 +1043,7 @@ fun main(): Int {
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
         assert!(
             front
-                .monomorph_requests
+                .monomorph_requests()
                 .iter()
                 .any(|request| request.key.symbol.fqn == "fixture.request_roots.id"),
             "test setup 应先证明同源 helper 的泛型调用会被 typecheck 记录为 request"
@@ -1692,12 +1112,12 @@ fun helperOnly(): Int {
         let build_input = super::load_build_input(&pkg, None).unwrap();
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
         assert!(
-            front.input.mir_request_source_paths().len() >= 2,
+            front.input().mir_request_source_paths().len() >= 2,
             "cone build 仍应把 consumer cone sources 作为 request-source 过滤集合"
         );
         assert!(
             front
-                .monomorph_requests
+                .monomorph_requests()
                 .iter()
                 .any(|request| request.key.symbol.fqn == "fixture.entry_roots.id"),
             "test setup 应先证明非入口源文件中的泛型调用会被收集到 request 列表"
@@ -2004,7 +1424,7 @@ fun main(): Int {
             lowered,
             Some(abi_visibility_lowered),
             &out,
-            front.input.entry_main_fqn.as_deref(),
+            front.input().entry_main_fqn(),
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )
@@ -2048,7 +1468,7 @@ fun main(): Int {
             lowered,
             abi_visibility_lowered,
             &out,
-            front.input.entry_main_fqn.as_deref(),
+            front.input().entry_main_fqn(),
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )

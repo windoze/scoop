@@ -468,7 +468,7 @@
 - 验证：`rg -n -e "--effect-pipeline legacy|--effect-pipeline refactor|legacy pipeline|parallel pipeline|old effect mainline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'`
 - 验证：`rg -n "async/await|\basync\b|\bawait\b|Task<|Async\.await|std_task_|async_await_" docs/spec crates/scoop/tests/p8_docs_cleanup.rs tools/scoop_tools/src/fixtures_matrix.rs SCOOP_FULL_SPEC.md ASYNC_REFACTOR.md EFFECT_REFACTOR.md HIR_COMPLETENESS_HANDOFF.md MIR_REFACTOR_PHASE_EXIT_AUDIT.md README.md`
 
-## P8-T03aa：修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞
+## [DONE] P8-T03aa：修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8，§4
@@ -518,7 +518,22 @@
   - `P8-T03a` 可以继续迁移默认 helper/public entry，而不再被该 blocker 卡住。
 - 依赖：`P8-T03R`
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-10：已把 `crates/scoopc/src/frontend.rs` 抽成共享 project frontend，并把单文件输入收敛为“默认 project 设置下、只含一个用户源文件的 virtual cone”；`scoop build <file>`、显式 cone build 与 `llvm/frontend.rs` 的默认单文件 codegen 现在共用同一套 parse/resolve/typecheck/request-root/entry-main 逻辑，不再保留分裂的“单文件前端”。
+  - 2026-05-10：已修复 late-lowering nominal supertype 事实来源。`crates/scoopc/src/effect_lowered/builder.rs` 不再从会丢失 supertype metadata 的 canonical materialized MIR file 收集 nominal direct supertypes，而是允许由 `RefactorMirStageOutput.file()` 的 authoritative direct-style MIR metadata 注入；`effect_lowering_stage.rs` 现显式把这张表传给 `LateLoweredProgramBuilder`，从而让 `Derived <: Base` / `Impl <: IFace` 的 direct call boundary contract 在 default refactor stage 下稳定通过。
+  - 2026-05-10：已新增 late-lowering 窄回归 `refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources`，直接守护 `a.main -> helper(Derived())` 这类 nominal upcast arg source 不再在 P5 fail fast。
+  - 2026-05-10：已把 `crates/scoopc/src/llvm/tests.rs` 中的 outward virtual/interface helper 默认路径断言改写到 refactor stage authoritative surface：检查 `__scoop_refactor_direct_invoke__a_helper`、step-tag dispatch、surface-resume owner dispatch，以及 helper body 本身不回落到 legacy TLS/outcome runtime 符号，而不再依赖旧式 `a.helper` wrapper/TLS 命名。
+  - 验证：`cargo check -p scoopc --quiet`
+  - 验证：`cargo check -p scoop --quiet`
+  - 验证：`cargo test -p scoopc --lib effect_lowered::materialize::tests::refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::virtual_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::interface_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::default_single_file_ir_helper_lowers_handle_main_without_hir_fallback -- --exact`
+  - 验证：`cargo test -p scoopc --lib llvm::tests::single_file_frontend_keeps_distinct_effect_row_generic_instances -- --exact`
+  - 验证：`cargo test -p scoop build_frontend_single_file_request_roots_exclude_stdlib_support_sources`
+  - 验证：`cargo test -p scoop build_frontend_cone_request_roots_exclude_stdlib_support_sources`
+  - 验证：`cargo test -p scoop build_frontend_entry_roots_skip_same_file_unreachable_generic_helper`
+  - 验证：`cargo test -p scoop build_frontend_entry_roots_skip_unreachable_cone_source_generic_helper`
+  - 验证：`cargo test -p scoop no_hidden_legacy_fallback_for_default_refactor_build_output`
 
 ## P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
 
