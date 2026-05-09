@@ -1,4 +1,4 @@
-//! LLVM codegen bridge into the shared effect state-machine skeleton.
+//! Shared ordinary-callee suspend analysis bridge for the current LLVM backend.
 
 use std::cell::Ref;
 use std::collections::HashMap;
@@ -6,8 +6,9 @@ use std::rc::Rc;
 
 use crate::effect::analysis::{ContinuationEscapeFacts, EffectAnalysisCtx, KnownLocalMetadata};
 use crate::effect::state_machine::{
-    self, CalleeSuspendPlan, SuspendCallAnalysis, collect_known_fun_call_suspendability,
-    function_ty_declared_effectful, hir_ty_is_function_value,
+    CalleeSuspendPlan, SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
+    collect_known_fun_call_suspendability, function_ty_declared_effectful,
+    hir_ty_is_function_value,
 };
 use crate::ty::TypeId;
 
@@ -64,7 +65,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declared_return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
         let mut context = self.effect_analysis_ctx();
-        state_machine::build_ordinary_callee_suspend_plan_with_context(
+        build_ordinary_callee_suspend_plan_with_context(
             self.types,
             body,
             declared_return_ty,
@@ -143,13 +144,5 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             context: &context,
         }
         .function_value_may_suspend_when_called(expr, &context.known_local_fun_effects)
-    }
-
-    pub(super) fn build_unified_lowering_contract(
-        &self,
-        handle: &hir::HandleExpr,
-    ) -> state_machine::UnifiedHandleLoweringContract {
-        let mut context = self.effect_analysis_ctx();
-        state_machine::build_unified_lowering_contract(self.types, handle, &mut context)
     }
 }

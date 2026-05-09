@@ -205,7 +205,7 @@
   - 验证：`cargo run -p scoop -- --effect-pipeline legacy dump-ast tests/fixtures/parse/hello.scoop`，结果为 clap 失败：`unexpected argument '--effect-pipeline' found`。
   - 验证：`cargo clippy --all-targets -- -D warnings`
 
-## P8-T02：删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口
+## [DONE] P8-T02：删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8
@@ -286,7 +286,18 @@
   - 后续任务只需清理 tests / docs / fixtures 残留并做最终全量验证。
 - 依赖：P8-T01R
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-09：已删除 `crates/scoopc/src/effect/state_machine/segments.rs`、`crates/scoopc/src/effect/state_machine/transform.rs`、`crates/scoopc/src/effect/step_summary.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_bridge.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`；仓库不再保留旧 unified-handle state-machine emitter/bridge 主线。
+  - 2026-05-09：已把 `crates/scoopc/src/effect/mod.rs` / `effect/state_machine/mod.rs` 收窄为仅承载当前 backend 仍需的共享 suspendability / ordinary-callee 分析；保留的 `effect/analysis.rs` 与 `effect/state_machine/analysis.rs` 只提供中立 shared helper，不再导出旧 lowering pipeline、旧 segment/transform 主线或 step-summary glue。
+  - 2026-05-09：已新增 `crates/scoopc/src/llvm/codegen/effect/ordinary_callee.rs` 承接现行 ordinary-callee suspend plan bridge，并恢复 `llvm/codegen/call/resume.rs` 中仍被现行 backend 使用的 call-resume ABI helper；同时删除 HIR `handle` 旧 state-machine lowering 入口、旧 continuation replay shim，以及一批已无调用的 legacy runtime ABI / contract helper。
+  - 2026-05-09：已把 `begin_legacy_effect_boundary` / `finish_legacy_effect_boundary` 改名为中立 effect-boundary helper，把 `production_lowered_hir` 族 API/注释/测试改名为 `materialized_lowered_hir`，并把 `legacy_eager_hir` 改名为 `direct_lowered_hir`；这些保留 API 当前仅表达“带 materialized pass-view 的 HIR/LLVM handoff”或“直接 HIR lowering 模式”，不再承载旧 effect 主线语义。
+  - 2026-05-09：已新增 `legacy_effect_backend_removed_source_inventory` 与 `single_effect_lowering_path_source_inventory` 定向守护测试，确认 legacy backend marker 只剩负向测试文本。
+  - 验证：`cargo check -p scoopc --features llvm`
+  - 验证：`cargo fmt`
+  - 验证：`cargo test -p scoopc legacy_effect_backend_removed`
+  - 验证：`cargo test -p scoopc single_effect_lowering_path`
+  - 验证：`cargo clippy --all-targets -- -D warnings`
+  - 验证：`rg -n "state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|begin_legacy_effect_boundary|finish_legacy_effect_boundary|production_lowered_hir|legacy_eager_hir|single perform|tail-resume|statement-only|linear body" crates/scoopc/src crates/scoop/src tools --glob '!target/**'`
+  - 仓库搜索摘要：唯一命中位于 `crates/scoopc/src/llvm/tests.rs` 新增的负向守护测试字面量；`crates/scoopc/src` / `crates/scoop/src` / `tools` 主实现中已无上述 legacy lowering marker 命中。
 
 ## P8-T02R：Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失
 

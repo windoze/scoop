@@ -55,24 +55,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv
     }
 
-    pub(super) fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
-        // 说明：
-        // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；
-        // - v0 只要求 `{ prev: i8*, op_tag: i32, active: i32 }` 的稳定布局；
-        // - codegen 不直接访问字段，只负责在栈上分配并把指针传给 runtime push/pop/active API。
-        const TY_NAME: &str = "scoop.runtime.ScoopEffectHandlerFrame";
-
-        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
-            return existing;
-        }
-
-        let ty = self.context.opaque_struct_type(TY_NAME);
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let i32_ty = self.context.i32_type();
-        ty.set_body(&[i8_ptr_ty.into(), i32_ty.into(), i32_ty.into()], false);
-        ty
-    }
-
     pub(super) fn llvm_effect_ctx_struct_type(&self) -> StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopEffectCtx";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -1259,44 +1241,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_effect_clear_active(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_CLEAR_ACTIVE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_clear_active(void)`
-        let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_PUSH;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_handler_stack_push(ScoopEffectHandlerFrame* frame, uint32_t op_tag)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_effect_handler_stack_pop(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_POP;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_handler_stack_pop(ScoopEffectHandlerFrame* frame)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     pub(super) fn declare_runtime_effect_handler_stack_top(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_TOP;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1361,61 +1305,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_callee_suspend_state_get(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_GET;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // T1607：step_fn 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)。
-        // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void*, uint64_t, void*))`
-        // LLVM 侧将 `state` / `resume_gc_ref` 都视为 addrspace(1) GC ref，
-        // 这样 continuation trace 与 statepoint rewrite 都使用同一套 GC 指针约定。
-        let state_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let step_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
-            [state_ptr_ty.into(), step_fn_ptr_ty.into()];
-        let fn_ty = state_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_continuation_discard(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_DISCARD;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_continuation_set_captured_callee_suspend_state(
-        &self,
-    ) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_SET_CAPTURED_CALLEE_SUSPEND_STATE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
-            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收
     /// answer transport 与显式 effect outcome。
     pub(super) fn declare_runtime_continuation_resume_with(&self) -> FunctionValue<'ctx> {
@@ -1437,63 +1326,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ];
         let fn_ty = self.context.i32_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `Continuation.resume(...)` 的 resumed body 若再次 suspend outward，
-    /// runtime 会把“当前待继续的 inner continuation”发布到 active resume scope：
-    /// - 显式 outcome 路径由 `scoop_continuation_resume_with(...)` 消费并转成
-    ///   `EffectSignal.resume_token`；
-    /// - legacy 无 outcome 调用方仍保留 TLS replay-state 兼容 transport。
-    pub(super) fn declare_runtime_continuation_resume_publish_pending_continuation(
-        &self,
-    ) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_PUBLISH_PENDING_CONTINUATION;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// T1607：返回 `ScoopContinuation` 的 LLVM 结构类型（用于 GEP 到
-    /// `resume_word` / `resume_gc_ref` / captured callee suspend state）。
-    ///
-    /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
-    ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
-    ///     i64 state_handle, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref,
-    ///     i64 captured_callee_suspend_state_handle }
-    pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
-        const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
-        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
-            return existing;
-        }
-        // Stage T4017c：field #3 仍物理上存放 `captured_handler_stack_top` 指针，
-        // 但语义上它已经代表 `captured EffectCtx.handler_top`。
-        let _ = self.llvm_effect_ctx_struct_type();
-        let ty = self.context.opaque_struct_type(TY_NAME);
-        let header_ty = self.llvm_gc_object_header_type();
-        let i32_ty = self.context.i32_type();
-        let i64_ty = self.context.i64_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
-        ty.set_body(
-            &[
-                header_ty.into(),    // 0: hdr
-                i32_ty.into(),       // 1: resumed (_Atomic uint32_t)
-                i32_ty.into(),       // 2: resume_state_tag
-                i8_ptr_ty.into(),    // 3: captured_handler_stack_top
-                i64_ty.into(),       // 4: state_handle
-                i8_ptr_ty.into(),    // 5: step_fn
-                i64_ty.into(),       // 6: resume_word
-                gc_i8_ptr_ty.into(), // 7: resume_gc_ref
-                i64_ty.into(),       // 8: captured_callee_suspend_state_handle
-            ],
-            false,
-        );
-        ty
     }
 
     pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
@@ -1638,17 +1470,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_effect_perform_slot_read_len_words(void)`
         let fn_ty = self.context.i32_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_effect_perform_slot_read_gc_ref(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void* scoop_effect_perform_slot_read_gc_ref(void)`
-        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

@@ -1,50 +1,13 @@
-//! Backend-agnostic effect state-machine planning skeleton.
+//! Shared ordinary-callee suspend planning helpers.
 //!
-//! This module owns the shared plan -> segment -> unified contract pipeline. LLVM codegen consumes
-//! the resulting `UnifiedHandleLoweringContract`; it does not own the middle-end analysis.
+//! The legacy unified handle state-machine lowering has been removed; this
+//! module now retains only the analysis pieces still consumed by the current
+//! LLVM backend for ordinary callee suspend/resume planning.
 
-#![allow(dead_code)]
+mod analysis;
 
-include!("analysis.rs");
-include!("segments.rs");
-include!("transform.rs");
-
-/// Build the shared lowering contract for a `handle` expression.
-///
-/// Pipeline: `HandleExpr` -> plan -> segments (+ validation) -> unified state machine -> contract.
-pub(crate) fn build_unified_lowering_contract(
-    types: &TypeStore,
-    handle: &hir::HandleExpr,
-    context: &mut EffectAnalysisCtx,
-) -> UnifiedHandleLoweringContract {
-    context.extend_known_local_metadata_from_handle(handle);
-    let source_plan = HandleStateMachinePlan::build_with_context(types, handle, context);
-
-    let segment_list = source_plan.build_segment_list();
-    #[cfg(debug_assertions)]
-    if let Err(message) = segment_list.validate_builder_contract() {
-        panic!("invalid handle segment builder contract: {message}");
-    }
-
-    #[cfg(debug_assertions)]
-    {
-        let segment_signature = segment_list.structural_signature();
-        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
-            .unwrap_or_else(|message| {
-                panic!("failed to rebuild handle state machine plan: {message}")
-            });
-        let rebuilt_segment_list = rebuilt_plan.build_segment_list();
-        let rebuilt_segment_signature = rebuilt_segment_list.structural_signature();
-        if rebuilt_segment_signature != segment_signature {
-            panic!(
-                "segment round-trip mismatch: source={segment_signature} rebuilt={rebuilt_segment_signature}"
-            );
-        }
-    }
-
-    let machine = segment_list
-        .build_unified_state_machine()
-        .unwrap_or_else(|message| panic!("failed to build unified state machine: {message}"));
-
-    UnifiedHandleLoweringContract { machine }
-}
+pub(crate) use analysis::{
+    CalleeSuspendPlan, CalleeSuspendResumeSite, SuspendCallAnalysis,
+    build_ordinary_callee_suspend_plan_with_context, collect_known_fun_call_suspendability,
+    function_ty_declared_effectful, hir_ty_is_function_value,
+};

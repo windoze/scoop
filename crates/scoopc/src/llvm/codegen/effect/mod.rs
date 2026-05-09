@@ -1,21 +1,13 @@
-//! 统一 state-machine effect codegen。
+//! Runtime-effect ABI helpers shared by the current LLVM backend.
 //!
-//! - plan builder / segment 投影 / transform / lowering contract 在 `crate::effect::state_machine`
-//!   shared 模块
-//! - LLVM emitter 在 `state_machine_emitter` 模块
-//! - lowering 只从统一合同（`UnifiedHandleLoweringContract`）出发。
+//! This module intentionally retains only transport, runtime-error, and ordinary
+//! propagation utilities that are still consumed by the refactor path.
 
 use super::*;
 
 mod contract;
+mod ordinary_callee;
 use contract::EffectOutcome;
-
-// Backend bridge：从 MainCodegen 收集当前函数级上下文，并调用 shared state-machine skeleton。
-mod state_machine_bridge;
-
-// State machine LLVM emitter：从 UnifiedHandleLoweringContract 生成
-// LLVM IR（frame type、step function、handle 入口）。
-mod state_machine_emitter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EffectTransportKind {
@@ -104,14 +96,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<Option<&hir::EffectOpCallInfo>, LlvmEmitError> {
         let site = self.current_call_site(span)?;
         Ok(self.effect_op_call_sites.get(&site))
-    }
-
-    pub(super) fn handle_payload_tuple_ty_for_span(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<Option<TypeId>, LlvmEmitError> {
-        let site = self.current_call_site(span)?;
-        Ok(self.handle_payload_tuple_tys.get(&site).copied())
     }
 
     fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
@@ -381,15 +365,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_expr_in_expected_context(expr, None)
     }
 
-    pub(super) fn read_perform_slot_payload(
-        &mut self,
-        at: crate::span::Span,
-        target: CgTy,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let transport = self.read_current_effect_payload_transport(at, "binder_transport")?;
-        self.decode_effect_transport_value(at, transport.word, transport.gc_ref, target)
-    }
-
     pub(super) fn extract_tuple_payload_element(
         &mut self,
         at: crate::span::Span,
@@ -446,43 +421,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "builder has no parent function",
                 at: at.into(),
             })
-    }
-
-    pub(super) fn ptr_is_non_null(
-        &mut self,
-        _at: crate::span::Span,
-        ptr: PointerValue<'ctx>,
-        name: &str,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let raw =
-            self.builder
-                .build_ptr_to_int(ptr, self.context.i64_type(), &format!("{name}_int"))?;
-        Ok(self.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
-            raw,
-            self.context.i64_type().const_zero(),
-            name,
-        )?)
-    }
-
-    fn llvm_callee_suspend_state_prefix_type(&self) -> StructType<'ctx> {
-        const NAME: &str = "scoop.runtime.CalleeSuspendStatePrefix";
-        if let Some(existing) = self.context.get_struct_type(NAME) {
-            return existing;
-        }
-
-        let ty = self.context.opaque_struct_type(NAME);
-        ty.set_body(
-            &[
-                self.llvm_gc_object_header_type().into(),
-                self.context.i64_type().into(),
-                self.llvm_gc_i8_ptr_type().into(),
-                self.context.i32_type().into(),
-                self.llvm_i8_ptr_type().into(),
-            ],
-            false,
-        );
-        ty
     }
 
     fn current_callee_suspend_state_names(
@@ -703,37 +641,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn emit_resume_payload_into_callee_suspend_state(
-        &mut self,
-        at: crate::span::Span,
-        state_raw: PointerValue<'ctx>,
-        resume_word: IntValue<'ctx>,
-        resume_gc_ref: PointerValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let prefix_ty = self.llvm_callee_suspend_state_prefix_type();
-        let prefix_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            self.llvm_ptr_type(self.gc_address_space()),
-            "callee_suspend_prefix_ptr",
-        )?;
-        let resume_word_gep = self.builder.build_struct_gep(
-            prefix_ty,
-            prefix_ptr,
-            CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX,
-            "callee_suspend_prefix_resume_word",
-        )?;
-        self.builder.build_store(resume_word_gep, resume_word)?;
-        let resume_gc_ref_gep = self.builder.build_struct_gep(
-            prefix_ty,
-            prefix_ptr,
-            CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX,
-            "callee_suspend_prefix_resume_gc_ref",
-        )?;
-        self.builder.build_store(resume_gc_ref_gep, resume_gc_ref)?;
-        let _ = at;
-        Ok(())
-    }
-
     pub(super) fn begin_callee_suspend_resume(
         &mut self,
         at: crate::span::Span,
@@ -798,32 +705,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_gc_ref,
             site_tag,
         })
-    }
-
-    pub(super) fn load_callee_suspend_resume_entry_fn_ptr(
-        &mut self,
-        state_raw: PointerValue<'ctx>,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let prefix_ty = self.llvm_callee_suspend_state_prefix_type();
-        let prefix_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            self.llvm_ptr_type(self.gc_address_space()),
-            "callee_suspend_resume_prefix_ptr",
-        )?;
-        let resume_entry_gep = self.builder.build_struct_gep(
-            prefix_ty,
-            prefix_ptr,
-            CALLEE_SUSPEND_STATE_RESUME_ENTRY_FN_INDEX,
-            "callee_suspend_resume_entry_fn_ptr",
-        )?;
-        Ok(self
-            .builder
-            .build_load(
-                self.llvm_i8_ptr_type(),
-                resume_entry_gep,
-                "callee_suspend_resume_entry_fn",
-            )?
-            .into_pointer_value())
     }
 
     pub(super) fn emit_callee_suspend_resume_site_prologue(
@@ -1107,46 +988,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        if self.current_continuation_resume_replay() {
-            let replay = self.current_continuation_resume_replay_context().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "Continuation.resume replay context",
-                    at: span.into(),
-                },
-            )?;
-            let (out_word_slot, out_gc_ref_slot) =
-                self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "replay")?;
-            let outcome_slot =
-                self.alloc_effect_outcome_slot(span, "continuation_resume_replay")?;
-            let resume_slots = ContinuationResumeResultSlots {
-                out_word_slot,
-                out_gc_ref_slot,
-                outcome_slot,
-            };
-            self.resume_continuation_with_encoded_payload(
-                span,
-                replay.token,
-                replay.resume_word,
-                replay.resume_gc_ref,
-                resume_slots,
-                "continuation_resume_replay",
-            )?;
-            self.maybe_record_active_suspend_site_effect_outcome(span, resume_slots.outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                resume_slots.outcome_slot,
-                "continuation_resume_replay_effect",
-            )?;
-            return self.load_continuation_resume_answer_with_active_fallback(
-                span,
-                answer_cg_ty,
-                resume_slots.out_word_slot,
-                resume_slots.out_gc_ref_slot,
-                resume_slots.outcome_slot,
-                "replay",
-            );
-        }
-
         let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
         let deferred_continuation = self.defer_gc_sensitive_cg_value(
@@ -1215,38 +1056,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if self.current_continuation_resume_replay() {
-            let replay = self.current_continuation_resume_replay_context().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "Continuation.resume replay context",
-                    at: span.into(),
-                },
-            )?;
-            let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
-            let outcome_slot =
-                self.alloc_effect_outcome_slot(span, "continuation_resume_replay")?;
-            let resume_slots = ContinuationResumeResultSlots {
-                out_word_slot: null_slot,
-                out_gc_ref_slot: null_slot,
-                outcome_slot,
-            };
-            self.resume_continuation_with_encoded_payload(
-                span,
-                replay.token,
-                replay.resume_word,
-                replay.resume_gc_ref,
-                resume_slots,
-                "continuation_resume_replay",
-            )?;
-            self.maybe_record_active_suspend_site_effect_outcome(span, resume_slots.outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                resume_slots.outcome_slot,
-                "continuation_resume_replay_effect",
-            )?;
-            return Ok(CgValue::unit());
-        }
-
         let Some((receiver, payload_args)) = Self::split_continuation_resume_call(callee, args)
         else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1537,9 +1346,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &hir::HandleExpr,
-        expected: Option<CgTy>,
+        _expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.codegen_handle_expr_via_state_machine(span, handle, expected)
+        let _ = handle;
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "HIR handle lowering removed; use refactor MIR lowering",
+            at: span.into(),
+        })
     }
 
     /// Emit code to raise a runtime error variant through the effect system.

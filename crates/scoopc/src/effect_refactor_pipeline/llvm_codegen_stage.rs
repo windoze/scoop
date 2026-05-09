@@ -68,7 +68,7 @@ impl RefactorLlvmCodegenStageInput {
 ///   request-source callable shell，可见性与 reachable body lowering 明确分离；
 /// - `hir_compat_scaffold` 只为当前仍未迁出的通用 LLVM 布局/顶层索引查询提供过渡输入；
 /// - 该 scaffold 明确不再携带 `materialized_mir/pass_view`，避免 refactor 路径再回落到旧的
-///   `production_lowered_hir` emit helper；
+///   `materialized_lowered_hir` emit helper；
 /// - `.ll/.o/.s` 三类产物都必须共用这份 handoff，再进入新的 refactor emit API。
 #[derive(Debug)]
 pub struct RefactorLlvmCodegenStageOutput {

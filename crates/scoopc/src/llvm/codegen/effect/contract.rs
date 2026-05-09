@@ -22,7 +22,7 @@ pub(super) struct EffectOutcome<'ctx> {
 }
 
 #[derive(Clone, Copy)]
-pub(in crate::llvm::codegen) struct LegacyEffectBoundary<'ctx> {
+pub(in crate::llvm::codegen) struct EffectBoundary<'ctx> {
     outcome_slot: PointerValue<'ctx>,
     saved_handler_top: PointerValue<'ctx>,
 }
@@ -72,25 +72,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((ctx_slot, outcome_slot))
     }
 
-    pub(in crate::llvm::codegen) fn begin_legacy_effect_boundary(
+    pub(in crate::llvm::codegen) fn begin_effect_boundary(
         &mut self,
         at: crate::span::Span,
         label: &str,
-    ) -> Result<LegacyEffectBoundary<'ctx>, LlvmEmitError> {
+    ) -> Result<EffectBoundary<'ctx>, LlvmEmitError> {
         let (ctx_slot, outcome_slot) = self.prepare_current_effect_call_contract(at, label)?;
         let installed_top = self.load_effect_ctx_handler_top_from_slot(at, ctx_slot, label)?;
         let saved_handler_top =
             self.swap_effect_handler_stack_top(at, installed_top, &format!("{label}_install"))?;
-        Ok(LegacyEffectBoundary {
+        Ok(EffectBoundary {
             outcome_slot,
             saved_handler_top,
         })
     }
 
-    pub(in crate::llvm::codegen) fn finish_legacy_effect_boundary(
+    pub(in crate::llvm::codegen) fn finish_effect_boundary(
         &mut self,
         at: crate::span::Span,
-        boundary: LegacyEffectBoundary<'ctx>,
+        boundary: EffectBoundary<'ctx>,
         label: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         self.consume_current_effect_outcome_into(at, boundary.outcome_slot, label)?;
@@ -273,36 +273,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(is_propagating)
     }
 
-    pub(in crate::llvm::codegen) fn effect_outcome_resume_token(
-        &mut self,
-        at: crate::span::Span,
-        outcome_slot: PointerValue<'ctx>,
-        label: &str,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let signal_ptr = self.builder.build_struct_gep(
-            self.llvm_effect_outcome_struct_type(),
-            outcome_slot,
-            3,
-            &format!("{label}_effect_outcome_signal_ptr"),
-        )?;
-        let resume_token_ptr = self.builder.build_struct_gep(
-            self.llvm_effect_signal_struct_type(),
-            signal_ptr,
-            3,
-            &format!("{label}_effect_signal_resume_token_ptr"),
-        )?;
-        let resume_token = self
-            .builder
-            .build_load(
-                self.llvm_gc_i8_ptr_type(),
-                resume_token_ptr,
-                &format!("{label}_effect_signal_resume_token"),
-            )?
-            .into_pointer_value();
-        let _ = at;
-        Ok(resume_token)
-    }
-
     pub(in crate::llvm::codegen) fn effect_outcome_payload_transport(
         &mut self,
         at: crate::span::Span,
@@ -409,78 +379,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             is_propagating,
             signal,
         }
-    }
-
-    pub(super) fn read_current_effect_payload_transport(
-        &mut self,
-        at: crate::span::Span,
-        label: &str,
-    ) -> Result<ValueTransport<'ctx>, LlvmEmitError> {
-        let read_word_fn = self.declare_runtime_effect_perform_slot_read_u64();
-        let word = self
-            .builder
-            .build_call(read_word_fn, &[], &format!("{label}_word"))?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_u64 return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let read_gc_ref_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
-        let gc_ref = self
-            .builder
-            .build_call(read_gc_ref_fn, &[], &format!("{label}_gc_ref"))?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_gc_ref return",
-                at: at.into(),
-            })?
-            .into_pointer_value();
-        Ok(self.build_value_transport(word, gc_ref))
-    }
-
-    pub(super) fn read_current_effect_signal(
-        &mut self,
-        at: crate::span::Span,
-        label: &str,
-    ) -> Result<EffectSignal<'ctx>, LlvmEmitError> {
-        let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
-        let op_tag = self
-            .builder
-            .build_call(read_op_tag_fn, &[], &format!("{label}_op_tag"))?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_op_tag return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let read_effect_instance_key_fn =
-            self.declare_runtime_effect_perform_slot_read_effect_instance_key();
-        let effect_instance_key = self
-            .builder
-            .build_call(
-                read_effect_instance_key_fn,
-                &[],
-                &format!("{label}_effect_instance_key"),
-            )?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_effect_instance_key return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let payload =
-            self.read_current_effect_payload_transport(at, &format!("{label}_payload"))?;
-        Ok(self.build_effect_signal(
-            op_tag,
-            effect_instance_key,
-            payload,
-            self.null_effect_resume_token(),
-        ))
     }
 
     pub(super) fn read_current_effect_outcome_status(

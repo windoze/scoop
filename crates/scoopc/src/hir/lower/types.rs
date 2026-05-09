@@ -463,7 +463,7 @@ impl LoweredHir {
     /// - refactor LLVM stage 会显式把 canonical pass-view / late-lowered program 作为新的
     ///   authoritative effect handoff；
     /// - 这里故意丢弃 `materialized_mir`，避免 refactor P6 入口再经由旧的
-    ///   `production_lowered_hir` emit API 隐式回落；
+    ///   `materialized_lowered_hir` emit API 隐式回落；
     /// - P6-T02/P6-T03 会继续收缩这份 scaffolding 的职责，直到 backend 不再依赖它承载
     ///   effect lowering 语义。
     #[cfg_attr(not(feature = "llvm"), allow(dead_code))]

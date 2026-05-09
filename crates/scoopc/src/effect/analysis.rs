@@ -1,5 +1,7 @@
 //! Shared effect/state-machine analysis context and local metadata helpers.
 
+#![allow(dead_code)]
+
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

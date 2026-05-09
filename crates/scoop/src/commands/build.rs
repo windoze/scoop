@@ -1891,7 +1891,7 @@ fun main(): Int {
         let front = super::run_frontend(&session, build_input, &[]).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
-        let ir = scoopc::llvm::emit_minimal_main_ir_from_production_lowered_hir(
+        let ir = scoopc::llvm::emit_minimal_main_ir_from_materialized_lowered_hir(
             &source_map,
             entry_source_id,
             &lowered,

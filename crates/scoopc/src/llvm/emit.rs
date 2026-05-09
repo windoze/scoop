@@ -79,7 +79,7 @@ impl<'a> LoweredCodegenEntry<'a> {
         }
     }
 
-    fn from_production_lowered_hir(lowered: &'a hir::LoweredHir) -> Result<Self, LlvmEmitError> {
+    fn from_materialized_lowered_hir(lowered: &'a hir::LoweredHir) -> Result<Self, LlvmEmitError> {
         let materialized_pass_view = lowered
             .materialized_pass_view()
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
@@ -168,7 +168,7 @@ pub fn emit_minimal_main_ir_from_lowered_hir(
 /// 该入口要求 `lowered` 显式携带 `LoweredHir::materialized_pass_view()`；
 /// 若调用方只提供 legacy/测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
 /// 兼容 body。
-pub fn emit_minimal_main_ir_from_production_lowered_hir(
+pub fn emit_minimal_main_ir_from_materialized_lowered_hir(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
@@ -178,7 +178,7 @@ pub fn emit_minimal_main_ir_from_production_lowered_hir(
         source_map,
         entry_source_id,
         &context,
-        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
         None,
     )?;
     Ok(module.print_to_string().to_string())
@@ -274,7 +274,7 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR，并写入到指定路径。
-pub fn emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+pub fn emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
@@ -287,7 +287,7 @@ pub fn emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_
         source_map,
         entry_source_id,
         &context,
-        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
         entry_main_fqn,
     )?;
 
@@ -490,7 +490,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM object。
-pub fn emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+pub fn emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
@@ -509,7 +509,7 @@ pub fn emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with
         source_map,
         entry_source_id,
         &context,
-        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
         entry_main_fqn,
     )?;
 
@@ -697,7 +697,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
 }
 
 /// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM assembly。
-pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level(
+pub fn emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
@@ -716,7 +716,7 @@ pub fn emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with
         source_map,
         entry_source_id,
         &context,
-        LoweredCodegenEntry::from_production_lowered_hir(lowered)?,
+        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
         entry_main_fqn,
     )?;
 
@@ -787,7 +787,7 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         context,
-        LoweredCodegenEntry::from_production_lowered_hir(&codegen_unit.lowered)?,
+        LoweredCodegenEntry::from_materialized_lowered_hir(&codegen_unit.lowered)?,
         None,
     )
 }
@@ -893,11 +893,9 @@ fn build_main_module_from_codegen_entry<'ctx>(
             ctor_call_sites: &lowered.ctor_call_sites,
             dispatch_call_sites: &lowered.dispatch_call_sites,
             effect_op_call_sites: &lowered.effect_op_call_sites,
-            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
             when_pat_binding_tys: &lowered.when_pat_binding_tys,
             nominal_kinds: &lowered.nominal_kinds,
-            nominal_variances: &lowered.nominal_variances,
             direct_supertypes: &lowered.direct_supertypes,
             builtins: lowered.builtins,
             extern_funs: &lowered.extern_funs,

@@ -49,13 +49,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
-        let effect_boundary = self.begin_legacy_effect_boundary(at, "object_property_init")?;
+        let effect_boundary = self.begin_effect_boundary(at, "object_property_init")?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
             Ok(())
         })?;
         let outcome_slot =
-            self.finish_legacy_effect_boundary(at, effect_boundary, "object_property_init")?;
+            self.finish_effect_boundary(at, effect_boundary, "object_property_init")?;
         self.maybe_record_active_suspend_site_effect_outcome(at, outcome_slot);
         if self.ordinary_effect_propagation_enabled() {
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -396,13 +396,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
-        let effect_boundary = self.begin_legacy_effect_boundary(at, "object_init")?;
+        let effect_boundary = self.begin_effect_boundary(at, "object_init")?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
             Ok(())
         })?;
-        let outcome_slot =
-            self.finish_legacy_effect_boundary(at, effect_boundary, "object_init")?;
+        let outcome_slot = self.finish_effect_boundary(at, effect_boundary, "object_init")?;
         self.maybe_record_active_suspend_site_effect_outcome(at, outcome_slot);
         if self.ordinary_effect_propagation_enabled() {
             self.emit_ordinary_call_effect_propagation_check_from_outcome(

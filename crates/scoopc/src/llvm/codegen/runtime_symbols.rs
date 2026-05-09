@@ -21,22 +21,12 @@ pub(super) const SCOOP_ARRAY_LEN: &str = "scoop_array_len";
 pub(super) const SCOOP_ARRAY_SET_COMPOSITE: &str = "scoop_array_set_composite";
 pub(super) const SCOOP_ARRAY_SET_REF: &str = "scoop_array_set_ref";
 pub(super) const SCOOP_ARRAY_SET_U64: &str = "scoop_array_set_u64";
-pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_PUBLISH: &str = "scoop_callee_suspend_state_publish";
 pub(super) const SCOOP_COMPOSITE_COPY: &str = "scoop_composite_copy";
 pub(super) const SCOOP_COMPOSITE_DROP: &str = "scoop_composite_drop";
 pub(super) const SCOOP_COMPOSITE_TRACE: &str = "scoop_composite_trace";
-pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
-pub(super) const SCOOP_CONTINUATION_DISCARD: &str = "scoop_continuation_discard";
 pub(super) const SCOOP_CONTINUATION_RESUME_WITH: &str = "scoop_continuation_resume_with";
-pub(super) const SCOOP_CONTINUATION_SET_CAPTURED_CALLEE_SUSPEND_STATE: &str =
-    "scoop_continuation_set_captured_callee_suspend_state";
-pub(super) const SCOOP_CONTINUATION_RESUME_PUBLISH_PENDING_CONTINUATION: &str =
-    "scoop_continuation_resume_publish_pending_continuation";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
-pub(super) const SCOOP_EFFECT_CLEAR_ACTIVE: &str = "scoop_effect_clear_active";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_TOP: &str = "scoop_effect_handler_stack_top";
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
@@ -49,8 +39,6 @@ pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =
     "scoop_effect_perform_slot_read_op_tag";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_EFFECT_INSTANCE_KEY: &str =
     "scoop_effect_perform_slot_read_effect_instance_key";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF: &str =
-    "scoop_effect_perform_slot_read_gc_ref";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64: &str = "scoop_effect_perform_slot_read_u64";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64_AT: &str =
     "scoop_effect_perform_slot_read_u64_at";

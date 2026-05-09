@@ -41,18 +41,18 @@ pub use emit::{
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level,
-    emit_minimal_main_asm_to_file_from_production_lowered_hir_with_entry_with_opt_level,
+    emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_with_opt_level, emit_minimal_main_ir,
-    emit_minimal_main_ir_from_lowered_hir, emit_minimal_main_ir_from_production_lowered_hir,
+    emit_minimal_main_ir_from_lowered_hir, emit_minimal_main_ir_from_materialized_lowered_hir,
     emit_minimal_main_ir_to_file, emit_minimal_main_ir_to_file_from_lowered_hir,
     emit_minimal_main_ir_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_ir_to_file_from_production_lowered_hir_with_entry_with_opt_level,
+    emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file, emit_minimal_main_obj_to_file_from_lowered_hir,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level,
-    emit_minimal_main_obj_to_file_from_production_lowered_hir_with_entry_with_opt_level,
+    emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_with_opt_level, emit_refactor_main_asm_to_file_from_stage_output,
     emit_refactor_main_ir_to_file_from_stage_output,
     emit_refactor_main_obj_to_file_from_stage_output,
@@ -61,9 +61,8 @@ pub use target::{HostTargetInfo, LlvmTargetError};
 
 #[cfg(test)]
 pub(crate) use emit::{
-    build_main_module_from_lowered_hir, build_minimal_main_module,
-    build_minimal_main_module_with_opt_level, build_refactor_main_module_from_stage_output,
-    build_single_file_source_map,
+    build_minimal_main_module, build_minimal_main_module_with_opt_level,
+    build_refactor_main_module_from_stage_output, build_single_file_source_map,
 };
 #[cfg(test)]
 pub(crate) use pipeline::run_pass_pipeline;

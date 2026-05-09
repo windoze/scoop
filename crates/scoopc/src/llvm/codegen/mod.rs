@@ -369,11 +369,9 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
-    nominal_variances: &'a hir::NominalVarianceIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
@@ -415,11 +413,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
 #[derive(Default)]
 struct FunctionBodyCodegenCx<'ctx> {
     env: Env<'ctx>,
-    /// state-machine/runtime function 内部，为 heap frame-backed locals 预留的稳定执行期 local home。
-    ///
-    /// key: frame slot 的 `SymbolId`
-    /// value: entry-block alloca（addrspace(0)）
-    state_machine_frame_slot_homes: HashMap<hir::SymbolId, PointerValue<'ctx>>,
     tracked_gc_root_slots: Vec<TrackedGcRootSlot<'ctx>>,
     explicit_frame_layout: ExplicitFrameLayoutPlan<'ctx>,
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
@@ -442,13 +435,6 @@ struct CalleeSuspendLoweringCodegenCx<'ctx> {
     current_resume_entry_fn: Option<FunctionValue<'ctx>>,
 }
 
-/// `Continuation.resume(...)` replay 模式的专属运行态。
-#[derive(Default, Clone, Copy)]
-struct ContinuationResumeReplayCodegenCx<'ctx> {
-    active: bool,
-    replay_context: Option<ContinuationResumeReplayContext<'ctx>>,
-}
-
 /// state-machine step/dispatch 中 suspend-site outcome 捕获的专属运行态。
 #[derive(Default)]
 struct SuspendSiteEffectOutcomeCodegenCx<'ctx> {
@@ -464,18 +450,8 @@ struct SuspendSiteEffectOutcomeCodegenCx<'ctx> {
 /// - `MainCodegen` 的剩余字段更接近 generic lowering / function-body 边界。
 #[derive(Default)]
 struct EffectLoweringCodegenCx<'ctx> {
-    function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
     callee_suspend: CalleeSuspendLoweringCodegenCx<'ctx>,
-    continuation_resume_replay: ContinuationResumeReplayCodegenCx<'ctx>,
     suspend_site_effect_outcomes: SuspendSiteEffectOutcomeCodegenCx<'ctx>,
-}
-
-impl<'ctx> EffectLoweringCodegenCx<'ctx> {
-    fn enclosing_function_return_ty(&self, function_return_ty: Option<CgTy>) -> Option<CgTy> {
-        self.function_return_context
-            .map(|ctx| ctx.return_ty)
-            .or(function_return_ty)
-    }
 }
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
@@ -505,25 +481,6 @@ struct ActiveSuspendSiteEffectOutcomeCapture {
     site_id: u32,
     call_span: crate::span::Span,
     capture_any: bool,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ContinuationResumeReplayContext<'ctx> {
-    token: PointerValue<'ctx>,
-    resume_word: IntValue<'ctx>,
-    resume_gc_ref: PointerValue<'ctx>,
-}
-
-/// 统一 state-machine runtime function 内部的 early-return 桥接上下文。
-///
-/// 当 nested handle 在 step/dispatch function 内观察到 `STATE_TAG_FUNCTION_RETURNED` 时，
-/// 不能直接跳回真实外层函数；它必须先把返回值暂存到当前 runtime function 的本地槽位，再跳到
-/// 本地 return block，由该 block 负责把结果写回外层 handle frame 并接入现有 cleanup/done 合同。
-#[derive(Debug, Clone, Copy)]
-struct EffectFunctionReturnContext<'ctx> {
-    return_bb: inkwell::basic_block::BasicBlock<'ctx>,
-    return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
-    return_ty: CgTy,
 }
 
 /// 稳定 effect op-tag 分配器：为每个 effect op FQN 分配唯一 u32 tag，
@@ -599,11 +556,9 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
-    pub(super) handle_payload_tuple_tys: &'a hir::HandlePayloadTupleSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
-    pub(super) nominal_variances: &'a hir::NominalVarianceIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
@@ -650,11 +605,9 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             ctor_call_sites,
             dispatch_call_sites,
             effect_op_call_sites,
-            handle_payload_tuple_tys,
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
-            nominal_variances,
             direct_supertypes,
             builtins,
             extern_funs,
@@ -690,11 +643,9 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             ctor_call_sites,
             dispatch_call_sites,
             effect_op_call_sites,
-            handle_payload_tuple_tys,
             continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
-            nominal_variances,
             direct_supertypes,
             builtins,
             fun_index,
@@ -1838,34 +1789,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx = function_cx;
     }
 
-    fn take_effect_lowering_cx(&mut self) -> EffectLoweringCodegenCx<'ctx> {
-        std::mem::take(&mut self.effect_cx)
-    }
-
-    fn restore_effect_lowering_cx(&mut self, effect_cx: EffectLoweringCodegenCx<'ctx>) {
-        self.effect_cx = effect_cx;
-    }
-
     fn current_callee_suspend_plan(&self) -> Option<&CalleeSuspendPlan> {
         self.effect_cx.callee_suspend.current_suspend_plan.as_ref()
     }
 
     fn current_callee_resume_entry_fn(&self) -> Option<FunctionValue<'ctx>> {
         self.effect_cx.callee_suspend.current_resume_entry_fn
-    }
-
-    fn effect_function_return_context(&self) -> Option<EffectFunctionReturnContext<'ctx>> {
-        self.effect_cx.function_return_context
-    }
-
-    fn current_continuation_resume_replay(&self) -> bool {
-        self.effect_cx.continuation_resume_replay.active
-    }
-
-    fn current_continuation_resume_replay_context(
-        &self,
-    ) -> Option<ContinuationResumeReplayContext<'ctx>> {
-        self.effect_cx.continuation_resume_replay.replay_context
     }
 
     fn take_suspend_site_explicit_effect_outcome(
@@ -1876,30 +1805,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .suspend_site_effect_outcomes
             .explicit_outcomes
             .remove(&site_id)
-    }
-
-    fn suspend_site_explicit_effect_outcome(&self, site_id: u32) -> Option<PointerValue<'ctx>> {
-        self.effect_cx
-            .suspend_site_effect_outcomes
-            .explicit_outcomes
-            .get(&site_id)
-            .copied()
-    }
-
-    /// 临时安装 effect runtime-function 的“向外层函数返回”桥接上下文。
-    fn with_effect_function_return_context<T, F>(
-        &mut self,
-        function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
-        f: F,
-    ) -> Result<T, LlvmEmitError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
-    {
-        let saved_return_context = self.effect_cx.function_return_context;
-        self.effect_cx.function_return_context = function_return_context;
-        let result = f(self);
-        self.effect_cx.function_return_context = saved_return_context;
-        result
     }
 
     /// 在某段 lowering 内临时安装 ordinary callee suspend/replay 状态。
@@ -1919,32 +1824,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let result = f(self);
         self.effect_cx.callee_suspend = saved_callee_suspend;
-        result
-    }
-
-    /// 在单个 suspend-site 的 fresh path 内临时安装显式 outcome 捕获边界。
-    fn with_active_suspend_site_effect_outcome_capture<T, F>(
-        &mut self,
-        site_id: u32,
-        call_span: crate::span::Span,
-        f: F,
-    ) -> Result<T, LlvmEmitError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
-    {
-        let saved_capture = self.effect_cx.suspend_site_effect_outcomes.active_capture;
-        self.effect_cx.suspend_site_effect_outcomes.active_capture =
-            Some(ActiveSuspendSiteEffectOutcomeCapture {
-                site_id,
-                call_span,
-                capture_any: false,
-            });
-        self.effect_cx
-            .suspend_site_effect_outcomes
-            .explicit_outcomes
-            .remove(&site_id);
-        let result = f(self);
-        self.effect_cx.suspend_site_effect_outcomes.active_capture = saved_capture;
         result
     }
 
@@ -1982,43 +1861,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_return_ty = self.function_cx.current_fun_return_ty.take();
         let result = f(self);
         self.function_cx.current_fun_return_ty = saved_return_ty;
-        result
-    }
-
-    /// 临时安装 `Continuation.resume(...)` 的 replay token + payload 绑定。
-    fn with_continuation_resume_replay<T, F>(
-        &mut self,
-        replay_context: ContinuationResumeReplayContext<'ctx>,
-        f: F,
-    ) -> Result<T, LlvmEmitError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
-    {
-        let saved_replay = self.effect_cx.continuation_resume_replay;
-        self.effect_cx.continuation_resume_replay = ContinuationResumeReplayCodegenCx {
-            active: true,
-            replay_context: Some(replay_context),
-        };
-        let result = f(self);
-        self.effect_cx.continuation_resume_replay = saved_replay;
-        result
-    }
-
-    /// 在局部 lowering 内临时禁用普通函数 return block，并把返回类型视为 `Never`。
-    ///
-    /// 这用于 state-machine runtime function 内部的 replay / arm-body 路径：
-    /// 若其中再次 outward-effect，应立即结束当前 runtime function，而不是误接到外层
-    /// 普通函数返回合同。无论闭包成功还是失败，都必须恢复原有函数级返回状态。
-    fn with_local_never_return_semantics<T, F>(&mut self, f: F) -> Result<T, LlvmEmitError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
-    {
-        let saved_return_context = self.function_cx.return_context.take();
-        let saved_return_ty = self.function_cx.current_fun_return_ty;
-        self.function_cx.current_fun_return_ty = Some(CgTy::Never);
-        let result = f(self);
-        self.function_cx.current_fun_return_ty = saved_return_ty;
-        self.function_cx.return_context = saved_return_context;
         result
     }
 
@@ -2321,162 +2163,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .iter()
             .position(|candidate| *candidate == effect_ty)
             .and_then(|index| u32::try_from(index).ok())
-    }
-
-    fn nominal_is_subtype_by_fqn(&self, found_fqn: &str, expected_fqn: &str) -> bool {
-        if found_fqn == expected_fqn {
-            return true;
-        }
-
-        let mut stack: Vec<&str> = vec![found_fqn];
-        let mut seen: HashSet<&str> = HashSet::new();
-
-        while let Some(current) = stack.pop() {
-            if !seen.insert(current) {
-                continue;
-            }
-            if current == expected_fqn {
-                return true;
-            }
-            let Some(supers) = self.direct_supertypes.get(current) else {
-                continue;
-            };
-            for super_fqn in supers {
-                stack.push(super_fqn.as_str());
-            }
-        }
-
-        false
-    }
-
-    fn dispatch_type_assignable(&self, found: TypeId, expected: TypeId) -> bool {
-        if found == expected {
-            return true;
-        }
-        if found == self.builtins.nothing {
-            return true;
-        }
-        if expected == self.builtins.any {
-            return matches!(
-                self.types.kind(found),
-                TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Param(_)
-            );
-        }
-
-        let found_kind = self.types.kind(found);
-        let expected_kind = self.types.kind(expected);
-
-        if matches!(expected_kind, TypeKind::Param(_)) {
-            return true;
-        }
-        if matches!(found_kind, TypeKind::Param(_)) {
-            return true;
-        }
-
-        match (found_kind, expected_kind) {
-            (
-                TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
-                TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
-            ) => {
-                if found_nominal.fqn != expected_nominal.fqn {
-                    if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
-                        return false;
-                    }
-                    return self
-                        .nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn);
-                }
-
-                match (found_nominal.eff.as_ref(), expected_nominal.eff.as_ref()) {
-                    (None, None) => {}
-                    (Some(found), Some(expected)) => {
-                        if !found.is_subset_of(expected) {
-                            return false;
-                        }
-                    }
-                    _ => return false,
-                }
-
-                if found_nominal.args.len() != expected_nominal.args.len() {
-                    return false;
-                }
-
-                let variances = self.nominal_variances.get(&found_nominal.fqn);
-                for (index, (found_arg, expected_arg)) in found_nominal
-                    .args
-                    .iter()
-                    .copied()
-                    .zip(expected_nominal.args.iter().copied())
-                    .enumerate()
-                {
-                    let declared = variances
-                        .and_then(|values| values.get(index).copied())
-                        .unwrap_or(None);
-                    let both_ref = self.types.is_ref(found_arg) && self.types.is_ref(expected_arg);
-
-                    match declared {
-                        None => {
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::Out) if both_ref => {
-                            if !self.dispatch_type_assignable(found_arg, expected_arg) {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::In) if both_ref => {
-                            if !self.dispatch_type_assignable(expected_arg, found_arg) {
-                                return false;
-                            }
-                        }
-                        Some(_) => {
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                    }
-                }
-
-                true
-            }
-            _ => false,
-        }
-    }
-
-    pub(super) fn handled_effect_matches_performed(
-        &self,
-        handled_effect: TypeId,
-        performed_effect: TypeId,
-    ) -> bool {
-        self.dispatch_type_assignable(handled_effect, performed_effect)
-    }
-
-    pub(super) fn matching_effect_instance_keys_for_handled_effect(
-        &self,
-        handled_effect: TypeId,
-        op_fqn: &str,
-    ) -> Vec<u32> {
-        let effect_fqn = self
-            .effect_nominal(handled_effect)
-            .map(|nominal| nominal.fqn.as_str())
-            .or_else(|| op_fqn.rsplit_once('.').map(|(owner, _)| owner))
-            .unwrap_or(op_fqn);
-        let candidates = self.known_effect_instance_types_for_fqn(effect_fqn);
-        if candidates.is_empty() {
-            return Vec::new();
-        }
-
-        let mut keys = candidates
-            .iter()
-            .copied()
-            .filter(|performed_effect| {
-                self.handled_effect_matches_performed(handled_effect, *performed_effect)
-            })
-            .filter_map(|performed_effect| self.effect_instance_key(performed_effect))
-            .collect::<Vec<_>>();
-        keys.sort_unstable();
-        keys.dedup();
-        keys
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -3854,13 +3540,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: value.span.into(),
             })?;
         let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
-        let effect_boundary = self.begin_legacy_effect_boundary(at, "top_level_val_init")?;
+        let effect_boundary = self.begin_effect_boundary(at, "top_level_val_init")?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
             Ok(())
         })?;
         let outcome_slot =
-            self.finish_legacy_effect_boundary(at, effect_boundary, "top_level_val_init")?;
+            self.finish_effect_boundary(at, effect_boundary, "top_level_val_init")?;
         self.maybe_record_active_suspend_site_effect_outcome(at, outcome_slot);
         if self.ordinary_effect_propagation_enabled() {
             self.emit_ordinary_call_effect_propagation_check_from_outcome(
@@ -4735,16 +4421,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: CallableValueCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_function_value_call_from_closure_obj_impl(closure_obj_i8, call)
-    }
-
-    fn call_callee_resume_entry_with_token(
-        &mut self,
-        span: crate::span::Span,
-        incoming_resume_token: PointerValue<'ctx>,
-        result_cg: CgTy,
-        label: &str,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.call_callee_resume_entry_with_token_impl(span, incoming_resume_token, result_cg, label)
     }
 
     // 控制流 codegen（if/when 等）已拆分到子模块（T0102d）。

@@ -1176,7 +1176,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -1280,7 +1280,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -1428,7 +1428,7 @@ fun main(): Int {
             .is_none()
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -1966,7 +1966,7 @@ fn unsafe_funptr_aggregate_return_uses_native_return_abi() {
     let source = SourceFile::load(&fixture).unwrap();
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2003,7 +2003,7 @@ fun main(): Int {
 
     let legacy_lowered = lower_single_source_legacy(&session, &source);
     let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
-    let err = emit_minimal_main_ir_from_production_lowered_hir(
+    let err = emit_minimal_main_ir_from_materialized_lowered_hir(
         &source_map,
         entry_source_id,
         &legacy_lowered,
@@ -2069,7 +2069,7 @@ fun main(): Int {
             .set_instance_summary(owner, summary);
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2133,7 +2133,7 @@ fun main(): Int {
         "optimized materialized wrap MIR should inline the id direct call"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2191,7 +2191,7 @@ fun main(): Int {
         "test setup 需要确认 mk 的 raw MIR 仍包含 declaration-only array builder direct call"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2250,7 +2250,7 @@ fun main(): Int {
         "production frontend 应保留 materialized MIR"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2310,7 +2310,7 @@ fun main(): Int {
         "production frontend 应保留 materialized MIR"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2371,7 +2371,7 @@ fun main(): Int {
         "generic pattern instance 应在 canonical pass view 上暴露 body-known summary"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2419,7 +2419,7 @@ fun main(): Int {
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
     let show_fqn = "fixtures.t5000j2d.show";
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2481,7 +2481,7 @@ fun main(): Int {
         "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 top-level immutable init"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2557,7 +2557,7 @@ fun main(): Int {
         "test setup 需要确认 raw helper MIR 通过 TopLevelRef 访问 object value init"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2628,7 +2628,7 @@ fun main(): Int {
         "test setup 需要确认 raw entry MIR 通过 TopLevelRef 访问 object value init"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2729,7 +2729,7 @@ fun main(): Int {
         "test setup 需要确认 helper 的 raw MIR 仍包含 MakeClosure 形状"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2783,7 +2783,7 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
         .expect("immutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2847,7 +2847,7 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(helper_mir)
         .expect("mutable capture helper 的 raw MIR 应暴露 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -2908,7 +2908,7 @@ fun main(): Int {
         "test setup 需要确认 helper 的 raw MIR 仍保留 CallKind::FunValue"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3053,7 +3053,7 @@ fun main(): Int { return helper() }
     let entry_source_id = source_map.add_source_clone(&src_main);
 
     let ir =
-        emit_minimal_main_ir_from_production_lowered_hir(&source_map, entry_source_id, &lowered)
+        emit_minimal_main_ir_from_materialized_lowered_hir(&source_map, entry_source_id, &lowered)
             .unwrap();
     let helper_ir = function_ir_named(&ir, helper_fqn);
     let lambda_ir = function_ir_named(&ir, lambda_fqn);
@@ -3109,7 +3109,7 @@ fun main(): Int {
         "implicit tail return body should now be normalized before production codegen"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3164,7 +3164,7 @@ fun main(): Int {
         "test setup 需要确认 add 不属于 top-level/object init 扩张范围"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3265,7 +3265,7 @@ fun main(): Int {
         "ctor-call MIR should now be lowered before production reachability codegen"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3354,7 +3354,7 @@ fun main(): Int {
             .replace_callable_body(rewritten_wrap);
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3492,7 +3492,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3575,7 +3575,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3637,7 +3637,7 @@ fun main(): Int {
         "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3705,7 +3705,7 @@ fun main(): Int {
         );
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3794,7 +3794,7 @@ fun main(): Int {
             .replace_callable_body(rewritten_caller);
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -3869,7 +3869,7 @@ fun main(): Int {
             .set_instance_summary(owner, summary);
     }
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -4687,7 +4687,7 @@ fun main(): Int {
         mir_fun_contains_closure_call(pass_caller),
         "test setup 需要确认 caller 的 pass-visible MIR body 已包含结构化 ClosureCall"
     );
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -4767,7 +4767,7 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(raw_caller)
         .expect("caller 的 raw MIR 应保留 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -4843,7 +4843,7 @@ fun main(): Int {
     let lambda_fqn = mir_fun_first_make_closure_fn_ptr(pass_caller)
         .expect("caller 的 pass-visible MIR body 应保留 closure fn_ptr");
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -5459,7 +5459,7 @@ fun main(): Int {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -6412,7 +6412,7 @@ fun main() {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -6836,7 +6836,7 @@ fn production_codegen_progression_fixture_prepares_generic_for_each_assign_contr
         "expected progression fixture to materialize a stdlib forEach instance"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -7115,7 +7115,7 @@ fn production_codegen_star_projection_array_read_view_keeps_traceable_transport_
         "expected firstIsSome to retain a materialized Array<*> get call"
     );
 
-    let ir = emit_minimal_main_ir_from_production_lowered_hir(
+    let ir = emit_minimal_main_ir_from_materialized_lowered_hir(
         &codegen_unit.source_map,
         codegen_unit.entry_source_id,
         &codegen_unit.lowered,
@@ -7348,4 +7348,64 @@ fn mir_fun_has_implicit_tail_return(fun: &crate::mir::FunDecl) -> bool {
             crate::mir::TerminatorKind::Return { value: None }
         )
     })
+}
+
+#[test]
+fn legacy_effect_backend_removed_source_inventory() {
+    let sources = [
+        include_str!("emit.rs"),
+        include_str!("mod.rs"),
+        include_str!("codegen/effect/contract.rs"),
+        include_str!("codegen/effect/mod.rs"),
+        include_str!("codegen/object_init.rs"),
+        include_str!("codegen/runtime_abi.rs"),
+        include_str!("../effect/mod.rs"),
+        include_str!("../effect/state_machine/mod.rs"),
+    ];
+
+    for source in sources {
+        for needle in [
+            "state_machine_bridge",
+            "state_machine_emitter",
+            "UnifiedHandleLoweringContract",
+            "begin_legacy_effect_boundary",
+            "finish_legacy_effect_boundary",
+            "production_lowered_hir",
+            "legacy_eager_hir",
+        ] {
+            assert!(
+                !source.contains(needle),
+                "legacy effect backend marker should be absent: {needle}"
+            );
+        }
+    }
+}
+
+#[test]
+fn single_effect_lowering_path_source_inventory() {
+    let effect_backend_source = include_str!("codegen/effect/mod.rs");
+    assert!(
+        !effect_backend_source.contains("codegen_handle_expr_via_state_machine"),
+        "HIR handle state-machine lowering entry should be removed"
+    );
+    assert!(
+        !effect_backend_source.contains("ContinuationResumeReplayContext"),
+        "legacy continuation replay shim should be removed"
+    );
+
+    let shared_state_machine_source = include_str!("../effect/state_machine/mod.rs");
+    assert!(
+        !shared_state_machine_source.contains("segments"),
+        "legacy segment builder module should be removed from the shared suspend planner"
+    );
+    assert!(
+        !shared_state_machine_source.contains("transform"),
+        "legacy transform module should be removed from the shared suspend planner"
+    );
+
+    let shared_effect_source = include_str!("../effect/mod.rs");
+    assert!(
+        !shared_effect_source.contains("step_summary"),
+        "legacy step-summary module should no longer be exported"
+    );
 }

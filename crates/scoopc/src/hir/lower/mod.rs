@@ -2804,7 +2804,7 @@ pub fn lower_for_compilation_unit_multi_files(
         monomorph_keys,
         None,
         typecheck_types,
-        CompilationUnitLoweringOptions::legacy_eager_hir(),
+        CompilationUnitLoweringOptions::direct_lowered_hir(),
     )
 }
 
@@ -2823,7 +2823,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         monomorph_keys,
         type_env,
         typecheck_types,
-        CompilationUnitLoweringOptions::legacy_eager_hir(),
+        CompilationUnitLoweringOptions::direct_lowered_hir(),
     )
 }
 
@@ -2970,7 +2970,7 @@ pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
 }
 
 enum CompilationUnitInstanceMode<'a> {
-    LegacyEagerHir,
+    DirectLoweredHir,
     ExplicitMirInstances {
         instance_keys: &'a [crate::mir::InstanceKey],
         instance_types: &'a TypeStore,
@@ -2985,9 +2985,9 @@ struct CompilationUnitLoweringOptions<'a> {
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
-    fn legacy_eager_hir() -> Self {
+    fn direct_lowered_hir() -> Self {
         Self {
-            instance_mode: CompilationUnitInstanceMode::LegacyEagerHir,
+            instance_mode: CompilationUnitInstanceMode::DirectLoweredHir,
             devirtualize_dispatch_calls: false,
             runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
@@ -3270,7 +3270,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     ));
 
     match instance_mode {
-        CompilationUnitInstanceMode::LegacyEagerHir => {
+        CompilationUnitInstanceMode::DirectLoweredHir => {
             // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
             // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
             // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），

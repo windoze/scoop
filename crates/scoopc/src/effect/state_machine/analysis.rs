@@ -1,5 +1,7 @@
 // Shared effect/state-machine planning and direct-step summary analysis.
 
+#![allow(dead_code)]
+
 use crate::ast;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
