@@ -4549,6 +4549,7 @@ pub enum SystemSlotKind {
     CleanupFlag,
     OneShotFlag,
     CompletionTag,
+    CurrentEffectCtx,
 }
 
 /// frame slot 的稳定分类。
@@ -4565,6 +4566,13 @@ pub enum LateLoweredFrameSlotKind {
         site_id: SiteId,
         local: LocalId,
         ordinal: u32,
+    },
+    HandleSavedEffectCtx {
+        site_id: SiteId,
+    },
+    HandleArmEffectCtx {
+        site_id: SiteId,
+        arm_ordinal: u32,
     },
     HandlePendingPayload {
         site_id: SiteId,

@@ -363,7 +363,7 @@
     - §4：review 确认 explicit `EffectOutcome` 的 builder/query/write-back surface 已稳定留在 backend，而非 runtime C bridge。
     - §9（其中与 transport primitive 直接相关的子缺口）：review 确认 task transport / `u64` transport 仍统一走同一组 backend-owned primitive，没有分叉回旧协议。
 
-## G3-T04：重建显式 `EffectCtx` / handler graph 模型
+## [DONE] G3-T04：重建显式 `EffectCtx` / handler graph 模型
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G3
@@ -402,8 +402,24 @@
   - handler context 重新存在为显式 data model，而不是 deleted TLS 语义的缺位。
 - 依赖：G2-T03R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_ctx.rs`：新增 backend-owned `ScoopEffectCtx` / `ScoopEffectHandlerNode` LLVM 布局、field helper、stable `dispatch_identity` 编码，以及 `handler_top_ref` / `prev_ref` / `op_tag` / `flags` / `owner_frame_ref` / `dispatch_identity` 的读写入口。
+    - `crates/scoopc/src/effect_lowered/{ir,frame,dump}.rs`：为 late-lowered frame schema 增加 `CurrentEffectCtx` system slot，以及 `HandleSavedEffectCtx` / `HandleArmEffectCtx` 稳定 slot kind，并把它们纳入 dump 与 frame-lifting 验证面。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：在新 frame 初始化时显式分配空 `EffectCtx`；`HandleDispatch` 入口保存 outer ctx、构造当前 handle 的 active ctx，并为每个 arm 预构造 self-inactive derived ctx；arm 进入时切换到对应 derived ctx；handle 退出/`finally` outward 前恢复 outer ctx；活跃 outward routing 改为扫描显式 ctx 链上的 `dispatch_identity`，不再靠静态嵌套深度决定当前 handler。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`、`crates/scoopc/src/effect_lowered/{materialize,opt}.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`：把新的 ctx/system slot/slot-kind 接入 frame local 映射、layout 验证与 codegen 模块装配。
+  - 核心决策：
+    - `EffectCtx` 明确物化为 managed object `{ hdr, handler_top_ref }`，`HandlerNode` 明确物化为 managed object `{ hdr, prev_ref, op_tag, flags, owner_frame_ref, dispatch_identity }`；不恢复任何 ambient TLS source of truth。
+    - late-lowered frame 现在显式持有 `CurrentEffectCtx`、每个 handle 的 saved outer ctx、以及每个 arm 的 derived ctx，使 handler context 成为 frame/capture 可见的数据，而不是临时栈态。
+    - arm self-inactive 不再依赖共享 node 上的原地 mutation；在进入 handle 时一次性预构造每个 arm 的 derived ctx，进入 arm 时只切换当前 ctx 引用。
+    - 活跃 outward dispatch 路径不再用 `handle_dispatch_nesting_depth(...)` 的静态深度择优，而是按当前 `EffectCtx` 链上的 `op_tag + dispatch_identity + owner_frame_ref` 扫描本帧可见 handler；遇到当前 handle 选择 `EmitOutward` 时继续沿链向外扫描，显式表达“向外传播到外层 ctx”。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `prepare_current_effect_call_contract|load_effect_ctx_handler_top_from_slot|swap_effect_handler_stack_top|publish_incoming_resume_token|clear_incoming_resume_token|__scoop_effect_handler_stack_top|scoop_effect_handler_stack`：无命中。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但无新增 warning，且前沿错误继续停在后续任务缺口：`emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `local_call_may_suspend_from_hir_ty`（G4）、`codegen_call_impl` / `codegen_mir_*call*`（G6）、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator`（G7）等；未出现本任务要求消除的 ctx/TLS helper 缺失。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §7：`EffectCtx` / handler graph 已重新拥有 backend-owned replacement 实体，late-lowered 活跃 handler context 不再缺位于 deleted TLS 之后。
 
-## G3-T04R：Review `EffectCtx` / handler graph，确认不再退回 ambient context
+## [DONE] G3-T04R：Review `EffectCtx` / handler graph，确认不再退回 ambient context
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G3
@@ -424,6 +440,20 @@
   - 可以明确说明 handler context 的 capture/dispatch 生命周期。
 - 依赖：G3-T04
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G3-T04R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务人工复核 `crates/scoopc/src/llvm/codegen/effect_ctx.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`、`crates/scoopc/src/effect_lowered/{frame,ir,dump,materialize,opt}.rs`、`crates/scoopc/src/llvm/codegen/{expr.rs,call/abi.rs}`；无需额外源码修补。
+  - 核心决策：
+    - handler context 的生命周期已经可以明确描述：fresh entry 在 frame `CurrentEffectCtx` system slot 中初始化空 ctx；进入 `HandleDispatch` 时把 outer ctx 存入 `HandleSavedEffectCtx`，为 handle body 构造 active ctx，并为每个 arm 预构造 self-inactive derived ctx；进入 arm 时切换 `CurrentEffectCtx`；向外分发时从当前 ctx 的 `handler_top_ref` 出发，沿 `prev_ref -> op_tag/flags/owner_frame_ref/dispatch_identity` 扫描 managed handler node graph；continuation capture 通过 captured frame 自动携带 `CurrentEffectCtx` 与 handle ctx slots，resume 时通过 `load_frame_from_continuation(...)` 恢复。
+    - 代码中仍存在的 `handle_dispatch_nesting_depth(...)` 只用于编译期 contract 校验/消歧（如 `ResumeUnwind` 与 boundary routing 选择），不是 runtime handler source of truth；真正的 outward/local dispatch 路径已经固定走 `dispatch_handle_boundary_from_ctx(...)`。
+    - `expr.rs` 当前只把 `perform` / `handle` surface 转发到待后续 `G7-T08` 恢复的 lowering 入口，没有复活任何 ambient handler stack fallback 或旧 TLS 语义变量。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `prepare_current_effect_call_contract|load_effect_ctx_handler_top_from_slot|swap_effect_handler_stack_top|publish_incoming_resume_token|clear_incoming_resume_token|__scoop_effect_handler_stack_top|current_handler_stack_top|handler_stack_top`：无命中。
+    - 人工复核 `effect_ctx.rs`、`effect_lowered/body.rs`、`effect_lowered/frame.rs`、`effect_lowered/ir.rs`、`effect_lowered/{materialize,opt,dump}.rs`、`llvm/codegen/{expr.rs,call/abi.rs}`：`enter_handle_dispatch_effect_ctx(...)` 为 body/arm 构造显式 ctx 与 derived ctx；`apply_handle_boundary_consume_to_arm(...)` 在 arm 入口切换 `CurrentEffectCtx`；`dispatch_handle_boundary_from_ctx(...)` 从 `EffectCtx.handler_top_ref` 扫描 managed handler node graph；`create_continuation_object_with_state_tag(...)` 捕获整帧，因此 `CurrentEffectCtx` 与 handle ctx slots 会随 continuation 一并被 capture。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续集中在后续结构性 gap：`local_call_may_suspend_from_hir_ty` / `known_fun_body_may_outward_effect`（G4）、`codegen_call_impl` / `codegen_mir_*call*`（G6）、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator`（G7）、ordinary effect propagation helper 缺口等；未出现 `EffectCtx` / handler graph / deleted TLS helper 回退问题。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §7：review 确认显式 `EffectCtx` / managed handler node graph 已成为当前 handler context 的 authoritative replacement，outward dispatch 不再依赖 ambient TLS handler stack，arm self-inactive 也已稳定落在 derived ctx 语义上。
 
 ## G4-T05：重建 ordinary callee suspend/reentry 分析与 lowering
 

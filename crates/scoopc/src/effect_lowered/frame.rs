@@ -197,12 +197,27 @@ pub(crate) fn build_callable_frame(
         next_slot_raw += 1;
     }
 
+    for (kind, ty) in collect_handle_effect_ctx_slots(&state_graph, builtins.any) {
+        if !seen_kinds.insert(kind) {
+            continue;
+        }
+        slots.push(LateLoweredFrameSlot::new(
+            super::ir::FrameSlotId::new(next_slot_raw),
+            kind,
+            ty,
+            Vec::new(),
+            Vec::new(),
+        ));
+        next_slot_raw += 1;
+    }
+
     for (system_kind, ty) in [
         (SystemSlotKind::StateTag, builtins.int),
         (SystemSlotKind::ResumePayloadCarrier, builtins.any),
         (SystemSlotKind::CleanupFlag, builtins.bool_),
         (SystemSlotKind::OneShotFlag, builtins.bool_),
         (SystemSlotKind::CompletionTag, builtins.int),
+        (SystemSlotKind::CurrentEffectCtx, builtins.any),
     ] {
         let kind = LateLoweredFrameSlotKind::System(system_kind);
         if !seen_kinds.insert(kind) {
@@ -550,6 +565,35 @@ fn collect_handle_pending_payload_slots(
         }
     }
     Ok(slots)
+}
+
+fn collect_handle_effect_ctx_slots(
+    state_graph: &LateLoweredStateGraph,
+    any_ty: crate::ty::TypeId,
+) -> Vec<(LateLoweredFrameSlotKind, crate::ty::TypeId)> {
+    let mut slots = Vec::new();
+    for state in state_graph.states() {
+        let LateLoweredStateTerminator::HandleDispatch {
+            site_id, contract, ..
+        } = state.terminator()
+        else {
+            continue;
+        };
+        slots.push((
+            LateLoweredFrameSlotKind::HandleSavedEffectCtx { site_id: *site_id },
+            any_ty,
+        ));
+        for arm in contract.handled_arms() {
+            slots.push((
+                LateLoweredFrameSlotKind::HandleArmEffectCtx {
+                    site_id: *site_id,
+                    arm_ordinal: arm.arm_ordinal(),
+                },
+                any_ty,
+            ));
+        }
+    }
+    slots
 }
 
 fn collect_binder_info(body: &Body) -> HashMap<LocalId, BinderInfo> {
@@ -1186,6 +1230,7 @@ fun main(): Int {
             SystemSlotKind::CleanupFlag,
             SystemSlotKind::OneShotFlag,
             SystemSlotKind::CompletionTag,
+            SystemSlotKind::CurrentEffectCtx,
         ] {
             assert!(
                 callable
@@ -1197,6 +1242,20 @@ fun main(): Int {
                 "frame lifting 应包含系统槽位 {system:?}"
             );
         }
+        assert!(
+            dump.iter().any(|slot| matches!(
+                slot.kind(),
+                crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleSavedEffectCtx { .. }
+            )),
+            "frame lifting 应包含 handle saved EffectCtx slot"
+        );
+        assert!(
+            dump.iter().any(|slot| matches!(
+                slot.kind(),
+                crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleArmEffectCtx { .. }
+            )),
+            "frame lifting 应包含 handle arm derived EffectCtx slot"
+        );
         assert!(
             output
                 .program()

@@ -4128,7 +4128,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             | LateLoweredFrameSlotKind::JoinValue { local, .. }
             | LateLoweredFrameSlotKind::BoundaryResult { local, .. }
             | LateLoweredFrameSlotKind::HandleBinder { local, .. } => Some(local),
-            LateLoweredFrameSlotKind::HandlePendingPayload { .. }
+            LateLoweredFrameSlotKind::HandleSavedEffectCtx { .. }
+            | LateLoweredFrameSlotKind::HandleArmEffectCtx { .. }
+            | LateLoweredFrameSlotKind::HandlePendingPayload { .. }
             | LateLoweredFrameSlotKind::ResumePayload { .. }
             | LateLoweredFrameSlotKind::System(_) => None,
         }
@@ -8445,6 +8447,7 @@ mod tests {
                     SystemSlotKind::CleanupFlag,
                     SystemSlotKind::OneShotFlag,
                     SystemSlotKind::CompletionTag,
+                    SystemSlotKind::CurrentEffectCtx,
                 ] {
                     assert!(
                         frame_layout.field_index_for_system(required).is_some(),

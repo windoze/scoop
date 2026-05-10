@@ -17,18 +17,20 @@ use inkwell::values::{
 use crate::effect_facts::{CaseTag, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
-    BoundaryId, BoundarySiteKind, LateLoweredBoundary, LateLoweredBoundaryLowering,
+    BoundaryId, BoundarySiteKind, FrameSlotId, LateLoweredBoundary, LateLoweredBoundaryLowering,
     LateLoweredBoundarySource, LateLoweredBoundarySourceConsumption,
     LateLoweredCallBoundaryContinuationComposition, LateLoweredCallBoundaryLowering,
     LateLoweredCallable, LateLoweredCompletionPayloadSource, LateLoweredConsumedRuntimeErrorCase,
-    LateLoweredContinuationResumeBody, LateLoweredHandleBoundaryCaseRoutingAction,
-    LateLoweredHandlePendingCompletion, LateLoweredHandlePendingCompletionOrigin,
-    LateLoweredHandleStateRegion, LateLoweredOperandSource, LateLoweredOperandValueSource,
-    LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
+    LateLoweredContinuationResumeBody, LateLoweredFrameSlotKind,
+    LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
+    LateLoweredHandlePendingCompletionOrigin, LateLoweredHandleStateRegion,
+    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainBodySlice,
+    LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
     LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
     LateLoweredStateTerminator, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
     LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
+    SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
@@ -77,9 +79,17 @@ impl RefactorHandleCompletionMode {
 
 #[derive(Clone)]
 struct RefactorHandleConsumeArmRuntime {
+    site_id: SiteId,
+    arm_ordinal: u32,
     arm_state: StateId,
     payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
     continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+}
+
+#[derive(Clone)]
+struct RefactorHandleBoundaryDispatchCandidate {
+    dispatch_identity: u64,
+    action: RefactorHandleBoundaryRuntimeAction,
 }
 
 #[derive(Clone, Copy)]
@@ -3648,7 +3658,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.frame_layout.layout_anchor_name(),
             "refactor_frame",
         )?;
-        self.store_frame_root(frame_ptr)
+        self.store_frame_root(frame_ptr)?;
+        self.initialize_frame_effect_ctx_root()
     }
 
     fn store_frame_root(&mut self, frame_ptr: PointerValue<'ctx>) -> Result<(), LlvmEmitError> {
@@ -3727,6 +3738,395 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
             "refactor_frame_current",
         )
+    }
+
+    fn current_frame_gc_ref(&mut self, name: &str) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let frame_ptr = self.current_frame_ptr()?;
+        self.codegen
+            .refactor_cast_ptr(frame_ptr, self.codegen.llvm_gc_i8_ptr_type(), name)
+    }
+
+    fn frame_slot_id_for_kind(
+        &self,
+        kind: LateLoweredFrameSlotKind,
+    ) -> Result<FrameSlotId, LlvmEmitError> {
+        self.callable
+            .frame_schema()
+            .slot_for_kind(kind)
+            .map(|slot| slot.slot_id())
+            .ok_or_else(|| frontend_error(format!("refactor frame schema 缺少 slot kind {kind:?}")))
+    }
+
+    fn frame_gc_ref_slot_ptr(
+        &mut self,
+        slot_id: FrameSlotId,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_index = self
+            .frame_layout
+            .field_index_for_slot(slot_id)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor frame layout 缺少 slot{} field index",
+                    slot_id.as_u32()
+                ))
+            })?;
+        self.frame_field_ptr(field_index, name)
+    }
+
+    fn load_gc_ref_from_frame_slot_id(
+        &mut self,
+        slot_id: FrameSlotId,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_ptr = self.frame_gc_ref_slot_ptr(slot_id, name)?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(self.codegen.llvm_gc_i8_ptr_type(), field_ptr, name)?
+            .into_pointer_value())
+    }
+
+    fn store_gc_ref_to_frame_slot_id(
+        &mut self,
+        slot_id: FrameSlotId,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let field_ptr = self.frame_gc_ref_slot_ptr(slot_id, name)?;
+        self.codegen
+            .store_gc_pointer_slot_with_write_barrier(self.mir_fun.span, field_ptr, value)
+    }
+
+    fn current_effect_ctx_slot_ptr(
+        &mut self,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_index = self
+            .frame_layout
+            .field_index_for_system(SystemSlotKind::CurrentEffectCtx)
+            .ok_or_else(|| {
+                frontend_error(
+                    "refactor frame layout 缺少 CurrentEffectCtx system field".to_string(),
+                )
+            })?;
+        self.frame_field_ptr(field_index, name)
+    }
+
+    fn load_current_effect_ctx(&mut self, name: &str) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_ptr = self.current_effect_ctx_slot_ptr(name)?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(self.codegen.llvm_gc_i8_ptr_type(), field_ptr, name)?
+            .into_pointer_value())
+    }
+
+    fn store_current_effect_ctx(
+        &mut self,
+        effect_ctx: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let field_ptr = self.current_effect_ctx_slot_ptr(name)?;
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            field_ptr,
+            effect_ctx,
+        )
+    }
+
+    fn handle_saved_effect_ctx_slot_id(
+        &self,
+        site_id: SiteId,
+    ) -> Result<FrameSlotId, LlvmEmitError> {
+        self.frame_slot_id_for_kind(LateLoweredFrameSlotKind::HandleSavedEffectCtx { site_id })
+    }
+
+    fn handle_arm_effect_ctx_slot_id(
+        &self,
+        site_id: SiteId,
+        arm_ordinal: u32,
+    ) -> Result<FrameSlotId, LlvmEmitError> {
+        self.frame_slot_id_for_kind(LateLoweredFrameSlotKind::HandleArmEffectCtx {
+            site_id,
+            arm_ordinal,
+        })
+    }
+
+    fn load_handle_saved_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.load_gc_ref_from_frame_slot_id(self.handle_saved_effect_ctx_slot_id(site_id)?, name)
+    }
+
+    fn store_handle_saved_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_ref_to_frame_slot_id(
+            self.handle_saved_effect_ctx_slot_id(site_id)?,
+            value,
+            name,
+        )
+    }
+
+    fn load_handle_arm_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        arm_ordinal: u32,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.load_gc_ref_from_frame_slot_id(
+            self.handle_arm_effect_ctx_slot_id(site_id, arm_ordinal)?,
+            name,
+        )
+    }
+
+    fn store_handle_arm_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        arm_ordinal: u32,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_ref_to_frame_slot_id(
+            self.handle_arm_effect_ctx_slot_id(site_id, arm_ordinal)?,
+            value,
+            name,
+        )
+    }
+
+    fn cast_gc_ref_to_effect_ctx_ptr(
+        &mut self,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.codegen.refactor_cast_ptr(
+            value,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            name,
+        )
+    }
+
+    fn cast_gc_ref_to_effect_handler_node_ptr(
+        &mut self,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.codegen.refactor_cast_ptr(
+            value,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            name,
+        )
+    }
+
+    fn alloc_effect_ctx_with_handler_top(
+        &mut self,
+        handler_top: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let ctx_ptr = self.codegen.refactor_alloc_gc_struct(
+            self.mir_fun.span,
+            self.codegen.llvm_effect_ctx_object_type(),
+            self.codegen.effect_ctx_layout_anchor_name(),
+            name,
+        )?;
+        self.codegen
+            .store_effect_ctx_handler_top(self.mir_fun.span, ctx_ptr, handler_top, name)?;
+        self.codegen.refactor_cast_ptr(
+            ctx_ptr,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_gc"),
+        )
+    }
+
+    fn alloc_empty_effect_ctx(&mut self, name: &str) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.alloc_effect_ctx_with_handler_top(
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            name,
+        )
+    }
+
+    fn alloc_effect_handler_node(
+        &mut self,
+        prev_ref: PointerValue<'ctx>,
+        op_tag: u32,
+        flags: u32,
+        owner_frame_ref: PointerValue<'ctx>,
+        site_id: SiteId,
+        arm_ordinal: u32,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let node_ptr = self.codegen.refactor_alloc_gc_struct(
+            self.mir_fun.span,
+            self.codegen.llvm_effect_handler_node_object_type(),
+            self.codegen.effect_handler_node_layout_anchor_name(),
+            name,
+        )?;
+        self.codegen
+            .store_effect_handler_prev_ref(self.mir_fun.span, node_ptr, prev_ref, name)?;
+        self.codegen.store_effect_handler_op_tag(
+            node_ptr,
+            self.codegen
+                .context
+                .i32_type()
+                .const_int(u64::from(op_tag), false),
+            name,
+        )?;
+        self.codegen.store_effect_handler_flags(
+            node_ptr,
+            self.codegen
+                .context
+                .i32_type()
+                .const_int(u64::from(flags), false),
+            name,
+        )?;
+        self.codegen.store_effect_handler_owner_frame_ref(
+            self.mir_fun.span,
+            node_ptr,
+            owner_frame_ref,
+            name,
+        )?;
+        self.codegen.store_effect_handler_dispatch_identity(
+            node_ptr,
+            self.codegen
+                .effect_handler_dispatch_identity_const(site_id, arm_ordinal),
+            name,
+        )?;
+        self.codegen.refactor_cast_ptr(
+            node_ptr,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_gc"),
+        )
+    }
+
+    fn handle_case_op_tag(&mut self, case_tag: CaseTag) -> Result<u32, LlvmEmitError> {
+        let case_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor step schema s{} 缺少 handle case c{} layout",
+                self.abi_step_schema.as_u32(),
+                case_tag.as_u32()
+            ))
+        })?;
+        Ok(self
+            .codegen
+            .effect_op_tag(case_layout.concrete_op_key().effect_family().effect_fqn()))
+    }
+
+    fn restore_handle_saved_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let outer = self.load_handle_saved_effect_ctx(site_id, &format!("{name}_saved"))?;
+        self.store_current_effect_ctx(outer, &format!("{name}_restore"))
+    }
+
+    fn initialize_frame_effect_ctx_root(&mut self) -> Result<(), LlvmEmitError> {
+        let empty_ctx = self.alloc_empty_effect_ctx("refactor_effect_ctx_root")?;
+        self.store_current_effect_ctx(empty_ctx, "refactor_effect_ctx_root")
+    }
+
+    fn enter_handle_dispatch_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+    ) -> Result<(), LlvmEmitError> {
+        let outer_ctx = self.load_current_effect_ctx("refactor_handle_outer_ctx")?;
+        self.store_handle_saved_effect_ctx(site_id, outer_ctx, "refactor_handle_saved_ctx")?;
+        let outer_ctx_ptr =
+            self.cast_gc_ref_to_effect_ctx_ptr(outer_ctx, "refactor_handle_outer_ctx_ptr")?;
+        let outer_handler_top = self
+            .codegen
+            .load_effect_ctx_handler_top(outer_ctx_ptr, "refactor_handle_outer_top")?;
+        let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
+        let active_flag = self.codegen.effect_handler_active_flag();
+
+        let mut arm_metas = Vec::with_capacity(contract.handled_arms().len());
+        for arm in contract.handled_arms() {
+            arm_metas.push((
+                arm.arm_ordinal(),
+                self.handle_case_op_tag(arm.handled_case())?,
+            ));
+        }
+
+        let mut active_top = outer_handler_top;
+        for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
+            active_top = self.alloc_effect_handler_node(
+                active_top,
+                op_tag,
+                active_flag,
+                owner_frame_ref,
+                site_id,
+                arm_ordinal,
+                &format!(
+                    "refactor_handle{}_active_arm{}_node",
+                    site_id.as_u32(),
+                    arm_ordinal
+                ),
+            )?;
+        }
+
+        let body_ctx = self.alloc_effect_ctx_with_handler_top(
+            active_top,
+            &format!("refactor_handle{}_body_ctx", site_id.as_u32()),
+        )?;
+        self.store_current_effect_ctx(body_ctx, "refactor_handle_body_ctx")?;
+
+        for (target_arm_ordinal, _) in &arm_metas {
+            let mut derived_top = outer_handler_top;
+            for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
+                let flags = if arm_ordinal == *target_arm_ordinal {
+                    0
+                } else {
+                    active_flag
+                };
+                derived_top = self.alloc_effect_handler_node(
+                    derived_top,
+                    op_tag,
+                    flags,
+                    owner_frame_ref,
+                    site_id,
+                    arm_ordinal,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_clone{}",
+                        site_id.as_u32(),
+                        target_arm_ordinal,
+                        arm_ordinal
+                    ),
+                )?;
+            }
+            let derived_ctx = self.alloc_effect_ctx_with_handler_top(
+                derived_top,
+                &format!(
+                    "refactor_handle{}_derived_arm{}_ctx",
+                    site_id.as_u32(),
+                    target_arm_ordinal
+                ),
+            )?;
+            self.store_handle_arm_effect_ctx(
+                site_id,
+                *target_arm_ordinal,
+                derived_ctx,
+                "refactor_handle_arm_effect_ctx",
+            )?;
+        }
+        Ok(())
+    }
+
+    fn handle_boundary_site_id(boundary: &LateLoweredBoundary) -> Option<SiteId> {
+        let LateLoweredBoundarySource::Site {
+            site_id,
+            kind: BoundarySiteKind::Handle,
+        } = boundary.source()
+        else {
+            return None;
+        };
+        Some(site_id)
     }
 
     fn root_gc_pointer(
@@ -4934,6 +5334,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let _ =
                     self.abi
                         .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+                self.enter_handle_dispatch_effect_ctx(*site_id, contract)?;
                 self.branch_to_state(*body_state)
             }
             LateLoweredStateTerminator::LocalRuntimeError {
@@ -6168,16 +6569,31 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         boundary: &LateLoweredBoundary,
         lowering: &crate::effect_lowered::ir::LateLoweredHandleBoundaryLowering,
     ) -> Result<(), LlvmEmitError> {
+        let handle_site_id = Self::handle_boundary_site_id(boundary).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor handle boundary bd{} 缺少 Handle site id",
+                boundary.boundary_id().as_u32()
+            ))
+        })?;
         match lowering.outward_emissions() {
-            [] => self.branch_to_state(boundary.resume_state()),
-            [emission] => self.emit_or_consume_outward_case(
-                boundary,
-                emission.case_tag(),
-                None,
-                emission.payload_tuple_ty(),
-                None,
-                None,
-            ),
+            [] => {
+                self.restore_handle_saved_effect_ctx(handle_site_id, "refactor_handle_exit_ctx")?;
+                self.branch_to_state(boundary.resume_state())
+            }
+            [emission] => {
+                self.restore_handle_saved_effect_ctx(
+                    handle_site_id,
+                    "refactor_handle_outward_ctx",
+                )?;
+                self.emit_or_consume_outward_case(
+                    boundary,
+                    emission.case_tag(),
+                    None,
+                    emission.payload_tuple_ty(),
+                    None,
+                    None,
+                )
+            }
             emissions => Err(frontend_error(format!(
                 "refactor handle boundary bd{} 发布了 {} 个 outward emission；需要 HandleDispatch contract 选择具体 case",
                 boundary.boundary_id().as_u32(),
@@ -6478,6 +6894,330 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
+    fn apply_handle_boundary_consume_to_arm(
+        &mut self,
+        boundary: &LateLoweredBoundary,
+        action: &RefactorHandleConsumeArmRuntime,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+        callee_continuation: Option<PointerValue<'ctx>>,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
+    ) -> Result<(), LlvmEmitError> {
+        let arm_ctx = self.load_handle_arm_effect_ctx(
+            action.site_id,
+            action.arm_ordinal,
+            "refactor_handle_arm_effect_ctx_load",
+        )?;
+        self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_store")?;
+
+        let deferred_callee_continuation = callee_continuation
+            .map(|continuation| {
+                self.codegen.defer_gc_ref_pointer(
+                    self.mir_fun.span,
+                    "refactor_outward_callee_continuation",
+                    continuation,
+                )
+            })
+            .transpose()?;
+
+        let deferred_payload = if action.continuation_binder.is_some() {
+            let payload_cg = self
+                .codegen
+                .cg_ty_of_mir_type(self.source_types, payload_ty)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor handle arm payload t{} 缺少 codegen type",
+                        payload_ty.as_u32()
+                    ))
+                })?;
+            payload
+                .map(|raw| {
+                    self.codegen.defer_gc_sensitive_cg_value(
+                        self.mir_fun.span,
+                        "refactor_handle_arm_payload",
+                        CgValue {
+                            ty: payload_cg,
+                            value: Some(raw),
+                        },
+                    )
+                })
+                .transpose()?
+        } else {
+            None
+        };
+
+        if let Some(binder) = action.continuation_binder {
+            let callee_continuation = if let Some(deferred) = deferred_callee_continuation {
+                Some(
+                    self.codegen
+                        .materialize_deferred_cg_value(
+                            self.mir_fun.span,
+                            "refactor_handle_arm_callee_continuation_reload",
+                            deferred,
+                        )?
+                        .value
+                        .ok_or_else(|| {
+                            frontend_error(
+                                "refactor handle arm callee continuation reload 缺少值".to_string(),
+                            )
+                        })?
+                        .into_pointer_value(),
+                )
+            } else {
+                callee_continuation
+            };
+            let continuation = if composition.is_some() {
+                self.create_continuation_object(
+                    boundary.resume_state(),
+                    callee_continuation,
+                    composition,
+                )?
+            } else if let Some(callee_continuation) = callee_continuation {
+                callee_continuation
+            } else {
+                self.create_continuation_object(boundary.resume_state(), None, None)?
+            };
+            self.store_gc_ref_to_binder(binder, continuation)?;
+        }
+
+        let payload = if let Some(deferred_payload) = deferred_payload {
+            self.codegen
+                .materialize_deferred_cg_value(
+                    self.mir_fun.span,
+                    "refactor_handle_arm_payload_reload",
+                    deferred_payload,
+                )?
+                .value
+        } else {
+            payload
+        };
+        self.store_case_payload_to_arm_binders(&action.payload_binders, payload, payload_ty)?;
+        self.branch_to_state(action.arm_state)
+    }
+
+    fn apply_handle_boundary_pending_completion(
+        &mut self,
+        action: &RefactorHandlePendingCompletionRuntime,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        self.begin_handle_pending_completion(action.clone(), Some((payload, payload_ty)))
+    }
+
+    fn dispatch_handle_boundary_from_ctx(
+        &mut self,
+        case_tag: CaseTag,
+        boundary: &LateLoweredBoundary,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+        callee_continuation: Option<PointerValue<'ctx>>,
+        composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
+        candidates: &[RefactorHandleBoundaryDispatchCandidate],
+    ) -> Result<bool, LlvmEmitError> {
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+
+        let function = self.function;
+        let dispatch_index = boundary.boundary_id().as_u32();
+        let dispatch_entry_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
+            frontend_error("refactor handle ctx dispatch 缺少 active insert block".to_string())
+        })?;
+        let loop_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!(
+                "handle_ctx_dispatch_loop_bd{dispatch_index}_c{}",
+                case_tag.as_u32()
+            ),
+        );
+        let scan_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!(
+                "handle_ctx_dispatch_scan_bd{dispatch_index}_c{}",
+                case_tag.as_u32()
+            ),
+        );
+        let advance_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!(
+                "handle_ctx_dispatch_advance_bd{dispatch_index}_c{}",
+                case_tag.as_u32()
+            ),
+        );
+        let switch_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!(
+                "handle_ctx_dispatch_switch_bd{dispatch_index}_c{}",
+                case_tag.as_u32()
+            ),
+        );
+        let no_match_bb = self.codegen.context.append_basic_block(
+            function,
+            &format!(
+                "handle_ctx_dispatch_outward_bd{dispatch_index}_c{}",
+                case_tag.as_u32()
+            ),
+        );
+
+        let current_ctx = self.load_current_effect_ctx("refactor_handle_dispatch_ctx")?;
+        let current_ctx_ptr =
+            self.cast_gc_ref_to_effect_ctx_ptr(current_ctx, "refactor_handle_dispatch_ctx_ptr")?;
+        let handler_top = self
+            .codegen
+            .load_effect_ctx_handler_top(current_ctx_ptr, "refactor_handle_dispatch_top")?;
+        self.codegen.builder.build_unconditional_branch(loop_bb)?;
+
+        let current_frame_gc = self.current_frame_gc_ref("refactor_handle_dispatch_owner_frame")?;
+        let word_ty = self.codegen.llvm_ptr_sized_int_type(None);
+        let current_frame_int = self.codegen.builder.build_ptr_to_int(
+            current_frame_gc,
+            word_ty,
+            "refactor_handle_dispatch_owner_frame_int",
+        )?;
+        let active_mask = self
+            .codegen
+            .context
+            .i32_type()
+            .const_int(u64::from(self.codegen.effect_handler_active_flag()), false);
+        let expected_op_tag = self
+            .codegen
+            .context
+            .i32_type()
+            .const_int(u64::from(self.handle_case_op_tag(case_tag)?), false);
+
+        self.codegen.builder.position_at_end(loop_bb);
+        let node_phi = self.codegen.builder.build_phi(
+            self.codegen.llvm_gc_i8_ptr_type(),
+            "refactor_handle_dispatch_node",
+        )?;
+        node_phi.add_incoming(&[(&handler_top, dispatch_entry_bb)]);
+        let node_gc = node_phi.as_basic_value().into_pointer_value();
+        let is_null = self
+            .codegen
+            .builder
+            .build_is_null(node_gc, "refactor_handle_dispatch_node_is_null")?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_null, no_match_bb, scan_bb)?;
+
+        self.codegen.builder.position_at_end(scan_bb);
+        let node_ptr = self
+            .cast_gc_ref_to_effect_handler_node_ptr(node_gc, "refactor_handle_dispatch_node_ptr")?;
+        let node_flags = self
+            .codegen
+            .load_effect_handler_flags(node_ptr, "refactor_handle_dispatch_flags")?;
+        let node_op_tag = self
+            .codegen
+            .load_effect_handler_op_tag(node_ptr, "refactor_handle_dispatch_op_tag")?;
+        let node_owner = self
+            .codegen
+            .load_effect_handler_owner_frame_ref(node_ptr, "refactor_handle_dispatch_owner")?;
+        let node_owner_int = self.codegen.builder.build_ptr_to_int(
+            node_owner,
+            word_ty,
+            "refactor_handle_dispatch_owner_int",
+        )?;
+        let node_dispatch_identity = self
+            .codegen
+            .load_effect_handler_dispatch_identity(node_ptr, "refactor_handle_dispatch_identity")?;
+        let node_active_bits = self.codegen.builder.build_and(
+            node_flags,
+            active_mask,
+            "refactor_handle_dispatch_active_bits",
+        )?;
+        let is_active = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            node_active_bits,
+            self.codegen.context.i32_type().const_zero(),
+            "refactor_handle_dispatch_is_active",
+        )?;
+        let owner_matches = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            node_owner_int,
+            current_frame_int,
+            "refactor_handle_dispatch_owner_matches",
+        )?;
+        let op_matches = self.codegen.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            node_op_tag,
+            expected_op_tag,
+            "refactor_handle_dispatch_op_matches",
+        )?;
+        let active_owner = self.codegen.builder.build_and(
+            is_active,
+            owner_matches,
+            "refactor_handle_dispatch_active_owner",
+        )?;
+        let should_switch = self.codegen.builder.build_and(
+            active_owner,
+            op_matches,
+            "refactor_handle_dispatch_should_switch",
+        )?;
+
+        let mut switch_cases = Vec::with_capacity(candidates.len());
+        let mut action_blocks = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            let bb = self.codegen.context.append_basic_block(
+                function,
+                &format!(
+                    "handle_ctx_dispatch_site_action_bd{dispatch_index}_c{}_id{:x}",
+                    case_tag.as_u32(),
+                    candidate.dispatch_identity
+                ),
+            );
+            switch_cases.push((
+                self.codegen
+                    .context
+                    .i64_type()
+                    .const_int(candidate.dispatch_identity, false),
+                bb,
+            ));
+            action_blocks.push((candidate.clone(), bb));
+        }
+        self.codegen
+            .builder
+            .build_conditional_branch(should_switch, switch_bb, advance_bb)?;
+
+        self.codegen.builder.position_at_end(switch_bb);
+        self.codegen
+            .builder
+            .build_switch(node_dispatch_identity, advance_bb, &switch_cases)?;
+
+        for (candidate, bb) in action_blocks {
+            self.codegen.builder.position_at_end(bb);
+            match &candidate.action {
+                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                    self.apply_handle_boundary_consume_to_arm(
+                        boundary,
+                        action,
+                        payload,
+                        payload_ty,
+                        callee_continuation,
+                        composition,
+                    )?;
+                }
+                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                    self.apply_handle_boundary_pending_completion(action, payload, payload_ty)?;
+                }
+                RefactorHandleBoundaryRuntimeAction::EmitOutward => {
+                    self.codegen
+                        .builder
+                        .build_unconditional_branch(advance_bb)?;
+                }
+            }
+        }
+
+        self.codegen.builder.position_at_end(advance_bb);
+        let prev_ref = self
+            .codegen
+            .load_effect_handler_prev_ref(node_ptr, "refactor_handle_dispatch_prev")?;
+        self.codegen.builder.build_unconditional_branch(loop_bb)?;
+        node_phi.add_incoming(&[(&prev_ref, advance_bb)]);
+
+        self.codegen.builder.position_at_end(no_match_bb);
+        Ok(true)
+    }
+
     fn emit_or_consume_outward_case(
         &mut self,
         boundary: &LateLoweredBoundary,
@@ -6504,7 +7244,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })
             .transpose()?;
         self.sync_frame_slots_from_locals()?;
-        let mut routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
+        let routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
         let skip_finalized_site =
             if let Some(RefactorHandleBoundaryRuntimeAction::PendingCompletion(action)) =
                 &routed_action
@@ -6514,97 +7254,23 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else {
                 None
             };
-        if let Some(site_id) = skip_finalized_site {
-            routed_action = self.handle_boundary_action_excluding(
-                boundary.boundary_id(),
-                case_tag,
-                Some(site_id),
-            )?;
-        }
-        match routed_action {
-            Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) => {
-                let deferred_payload = if action.continuation_binder.is_some() {
-                    let payload_cg = self
-                        .codegen
-                        .cg_ty_of_mir_type(self.source_types, payload_ty)
-                        .ok_or_else(|| {
-                            frontend_error(format!(
-                                "refactor handle arm payload t{} 缺少 codegen type",
-                                payload_ty.as_u32()
-                            ))
-                        })?;
-                    payload
-                        .map(|raw| {
-                            self.codegen.defer_gc_sensitive_cg_value(
-                                self.mir_fun.span,
-                                "refactor_handle_arm_payload",
-                                CgValue {
-                                    ty: payload_cg,
-                                    value: Some(raw),
-                                },
-                            )
-                        })
-                        .transpose()?
-                } else {
-                    None
-                };
-                if let Some(binder) = action.continuation_binder {
-                    let callee_continuation = if let Some(deferred) = deferred_callee_continuation {
-                        Some(
-                            self.codegen
-                                .materialize_deferred_cg_value(
-                                    self.mir_fun.span,
-                                    "refactor_handle_arm_callee_continuation_reload",
-                                    deferred,
-                                )?
-                                .value
-                                .ok_or_else(|| {
-                                    frontend_error(
-                                        "refactor handle arm callee continuation reload 缺少值"
-                                            .to_string(),
-                                    )
-                                })?
-                                .into_pointer_value(),
-                        )
-                    } else {
-                        callee_continuation
-                    };
-                    let continuation = if composition.is_some() {
-                        self.create_continuation_object(
-                            boundary.resume_state(),
-                            callee_continuation,
-                            composition,
-                        )?
-                    } else if let Some(callee_continuation) = callee_continuation {
-                        callee_continuation
-                    } else {
-                        self.create_continuation_object(boundary.resume_state(), None, None)?
-                    };
-                    self.store_gc_ref_to_binder(binder, continuation)?;
-                }
-                let payload = if let Some(deferred_payload) = deferred_payload {
-                    self.codegen
-                        .materialize_deferred_cg_value(
-                            self.mir_fun.span,
-                            "refactor_handle_arm_payload_reload",
-                            deferred_payload,
-                        )?
-                        .value
-                } else {
-                    payload
-                };
-                self.store_case_payload_to_arm_binders(
-                    &action.payload_binders,
-                    payload,
-                    payload_ty,
-                )?;
-                return self.branch_to_state(action.arm_state);
-            }
-            Some(RefactorHandleBoundaryRuntimeAction::PendingCompletion(action)) => {
-                self.begin_handle_pending_completion(action, Some((payload, payload_ty)))?;
-                return Ok(());
-            }
-            Some(RefactorHandleBoundaryRuntimeAction::EmitOutward) | None => {}
+        let dispatch_candidates = self.handle_boundary_dispatch_candidates_excluding(
+            boundary.boundary_id(),
+            case_tag,
+            skip_finalized_site,
+        )?;
+        if self.dispatch_handle_boundary_from_ctx(
+            case_tag,
+            boundary,
+            payload,
+            payload_ty,
+            callee_continuation,
+            composition,
+            &dispatch_candidates,
+        )? {
+            // The helper leaves the builder positioned at the explicit "no local match" block,
+            // so the fallback outward path below now runs with the innermost matching local
+            // handler (if any) already consumed via explicit `EffectCtx`.
         }
         let deferred_payload = payload
             .map(|raw| {
@@ -7301,6 +7967,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     }
                     RefactorHandleBoundaryRuntimeAction::ConsumeToArm(
                         RefactorHandleConsumeArmRuntime {
+                            site_id: *site_id,
+                            arm_ordinal,
                             arm_state,
                             payload_binders: arm.payload_binders().to_vec(),
                             continuation_binder: arm.continuation_binder(),
@@ -7382,6 +8050,138 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
         }
         Ok(matched.map(|(_, action)| action))
+    }
+
+    fn handle_boundary_dispatch_candidates_excluding(
+        &self,
+        boundary_id: BoundaryId,
+        case_tag: CaseTag,
+        excluded_site: Option<SiteId>,
+    ) -> Result<Vec<RefactorHandleBoundaryDispatchCandidate>, LlvmEmitError> {
+        let mut candidates = Vec::new();
+        for state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = state.terminator()
+            else {
+                continue;
+            };
+            if excluded_site.is_some_and(|excluded| excluded == *site_id) {
+                continue;
+            }
+            let Some(routing) = contract.boundary_routing(boundary_id) else {
+                continue;
+            };
+            let Some(case) = routing.case_routing(case_tag) else {
+                continue;
+            };
+            let layout =
+                self.abi
+                    .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+            let handled_arm = layout.handled_arm(case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 handled arm layout",
+                    site_id.as_u32(),
+                    boundary_id.as_u32(),
+                    case_tag.as_u32(),
+                ))
+            })?;
+            let action = match case.action() {
+                LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                    arm_state,
+                    arm_ordinal,
+                    ..
+                } => {
+                    if handled_arm.arm_ordinal() != arm_ordinal {
+                        return Err(frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} case c{} arm ordinal 漂移：routing=#{} layout=#{}",
+                            site_id.as_u32(),
+                            boundary_id.as_u32(),
+                            case_tag.as_u32(),
+                            arm_ordinal,
+                            handled_arm.arm_ordinal(),
+                        )));
+                    }
+                    if handled_arm.arm_state() != arm_state {
+                        return Err(frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} case c{} arm state 漂移：routing=st{} layout=st{}",
+                            site_id.as_u32(),
+                            boundary_id.as_u32(),
+                            case_tag.as_u32(),
+                            arm_state.as_u32(),
+                            handled_arm.arm_state().as_u32(),
+                        )));
+                    }
+                    RefactorHandleBoundaryRuntimeAction::ConsumeToArm(
+                        RefactorHandleConsumeArmRuntime {
+                            site_id: *site_id,
+                            arm_ordinal,
+                            arm_state,
+                            payload_binders: handled_arm.payload_binders().to_vec(),
+                            continuation_binder: handled_arm.continuation_binder(),
+                        },
+                    )
+                }
+                LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
+                    let origin = LateLoweredHandlePendingCompletionOrigin::new(
+                        completion,
+                        routing.boundary_id(),
+                        routing.owner_state(),
+                        routing.resume_state(),
+                    );
+                    let completion_tag_value = layout.pending_completion_origin_tag_value(origin).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 pending completion origin tag {:?}",
+                            site_id.as_u32(),
+                            boundary_id.as_u32(),
+                            case_tag.as_u32(),
+                            origin
+                        ))
+                    })?;
+                    let finally_state = handle_finally_state(contract).ok_or_else(|| {
+                        frontend_error(format!(
+                            "refactor HandleDispatch site{} boundary bd{} pending completion 缺少 finally region",
+                            site_id.as_u32(),
+                            boundary_id.as_u32()
+                        ))
+                    })?;
+                    RefactorHandleBoundaryRuntimeAction::PendingCompletion(
+                        RefactorHandlePendingCompletionRuntime {
+                            site_id: *site_id,
+                            completion,
+                            completion_tag_value,
+                            completion_tag_field_index: layout.completion_tag_field_index(),
+                            finally_state,
+                            payload_transport: layout
+                                .pending_payload_transport_layout(completion)
+                                .map(|transport| RefactorHandlePendingPayloadRuntime {
+                                    completion: transport.completion(),
+                                    payload_tuple_ty: transport.payload_tuple_ty(),
+                                    frame_field_index: transport.frame_field_index(),
+                                }),
+                        },
+                    )
+                }
+                LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => {
+                    RefactorHandleBoundaryRuntimeAction::EmitOutward
+                }
+            };
+            let action = if self.surface_resume_handle_sites.is_some()
+                && !self.surface_resume_allows_handle_dispatch(*site_id, state.state_id())
+                && !matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward)
+            {
+                RefactorHandleBoundaryRuntimeAction::EmitOutward
+            } else {
+                action
+            };
+            candidates.push(RefactorHandleBoundaryDispatchCandidate {
+                dispatch_identity: self
+                    .codegen
+                    .effect_handler_dispatch_identity(*site_id, handled_arm.arm_ordinal()),
+                action,
+            });
+        }
+        Ok(candidates)
     }
 
     fn surface_resume_allows_handle_dispatch(
@@ -7590,6 +8390,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.build_switch(tag, invalid_bb, &cases)?;
 
         self.codegen.builder.position_at_end(normal_bb);
+        self.restore_handle_saved_effect_ctx(
+            finally.site_id,
+            "refactor_handle_finally_normal_ctx",
+        )?;
         match self.handle_completion_mode {
             RefactorHandleCompletionMode::ContinueToExit => {
                 self.branch_to_state(finally.exit_state)?;
@@ -7608,6 +8412,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         for (outward, bb) in outward_blocks {
             self.codegen.builder.position_at_end(bb);
+            self.restore_handle_saved_effect_ctx(
+                finally.site_id,
+                "refactor_handle_finally_outward_ctx",
+            )?;
             let payload = self.load_handle_pending_payload(outward.payload_transport)?;
             let boundary = self
                 .callable
@@ -9567,7 +10375,9 @@ fn frame_slot_local(kind: crate::effect_lowered::ir::LateLoweredFrameSlotKind) -
         | crate::effect_lowered::ir::LateLoweredFrameSlotKind::BoundaryResult { local, .. } => {
             Some(local)
         }
-        crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload { .. }
+        crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleSavedEffectCtx { .. }
+        | crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleArmEffectCtx { .. }
+        | crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload { .. }
         | crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
         | crate::effect_lowered::ir::LateLoweredFrameSlotKind::System(_) => None,
     }

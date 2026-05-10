@@ -900,6 +900,8 @@ fn rewrite_state_id_list(
 fn slot_is_live(kind: LateLoweredFrameSlotKind, read_points: &[StateId]) -> bool {
     match kind {
         LateLoweredFrameSlotKind::System(_)
+        | LateLoweredFrameSlotKind::HandleSavedEffectCtx { .. }
+        | LateLoweredFrameSlotKind::HandleArmEffectCtx { .. }
         | LateLoweredFrameSlotKind::HandlePendingPayload { .. }
         | LateLoweredFrameSlotKind::ResumePayload { .. }
         | LateLoweredFrameSlotKind::BoundaryResult { .. } => true,

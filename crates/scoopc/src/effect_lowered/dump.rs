@@ -1816,6 +1816,18 @@ fn render_frame_slot_kind(kind: LateLoweredFrameSlotKind) -> String {
                 local.as_u32(),
             )
         }
+        LateLoweredFrameSlotKind::HandleSavedEffectCtx { site_id } => {
+            format!("HandleSavedEffectCtx(site{})", site_id.as_u32())
+        }
+        LateLoweredFrameSlotKind::HandleArmEffectCtx {
+            site_id,
+            arm_ordinal,
+        } => {
+            format!(
+                "HandleArmEffectCtx(site{}, arm#{arm_ordinal})",
+                site_id.as_u32(),
+            )
+        }
         LateLoweredFrameSlotKind::HandlePendingPayload { site_id, case_tag } => {
             format!(
                 "HandlePendingPayload(site{}, c{})",
@@ -1862,6 +1874,7 @@ fn render_system_slot_kind(kind: SystemSlotKind) -> &'static str {
         SystemSlotKind::CleanupFlag => "CleanupFlag",
         SystemSlotKind::OneShotFlag => "OneShotFlag",
         SystemSlotKind::CompletionTag => "CompletionTag",
+        SystemSlotKind::CurrentEffectCtx => "CurrentEffectCtx",
     }
 }
 

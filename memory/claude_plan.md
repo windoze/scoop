@@ -1,39 +1,41 @@
 ## 当前执行计划
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判定首个未完成任务。
-2. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若该问题构成当前任务前置条件，则先在 `TODO.md` 中显式记录依赖。
-3. 阅读当前任务涉及的代码、测试、规范与相关文档，确认实现边界与验证要求。
-4. 以最小正确改动完成当前任务；若遇到阻塞当前任务的真实缺口或回归，则先修复该问题，或按要求在 `TODO.md` 中添加最小前置任务并停止。
-5. 运行与当前任务直接相关的验证，并补充必要测试；再运行任务要求的更广泛检查，确保无警告。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变更。
-7. 按要求更新 `TODO.md` 的完成状态与完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-8. 检查工作区变更，按仓库约定创建一次提交，然后停止，不进入下一个任务。
+说明：按要求先记录可公开的执行计划摘要；不写入内部推理细节。执行过程中如计划调整或关键步骤完成，会继续更新本文件。
+
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，作为本次唯一执行目标。
+2. 检查最近一次提交是否存在与该任务直接相关且明确未完成的事项；若有，将其视为任务范围内内容或在 `TODO.md` 中补成前置依赖。
+3. 阅读任务描述、依赖、验证要求，以及必要的相关代码与测试，确认实现边界。
+4. 实现该任务；若遇到会阻塞任务达成且未被跟踪的真实缺口，在 `TODO.md` 中以最小必要前置任务形式补入，并停止继续向后推进。
+5. 运行任务要求的验证，以及必要的 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`；若失败则先修复再重试。
+6. 完成后更新 `TODO.md`：将该任务标题标记为 `[DONE]`，并填写/更新完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
+7. 检查工作区变更，按仓库提交风格创建一次提交，然后停止，不继续下一个任务。
+
+## 进度
+
+- [x] 已写入初始计划
+- [x] 已定位首个未完成任务
+- [x] 已确认相关上下文与约束
+- [x] 已完成实现
+- [x] 已完成验证
+- [x] 已更新任务记录
+- [ ] 已完成提交
 
 ## 当前任务
 
-- `G2-T03R：Review explicit outcome/transport primitive，确认 contract 已 backend-owned`
+- 目标任务：`G3-T04R`（Review `EffectCtx` / handler graph，确认不再退回 ambient context）
+- 直接依据：`TODO.md` 中 `G3-T04` 已标记 `[DONE]`，其后的 `G3-T04R` 尚未标记完成，因此它是当前顺序上的首个未完成任务。
+- 下一步：
+  1. 查看最近一次提交信息，确认是否存在与 `G3-T04R` 直接相关且明确未完成的事项。
+  2. 阅读 `G3-T04R` 指定的实现位置与 `G3-T04` 刚完成的改动面，核对 `EffectCtx` 是否是 continuation / call / handle 的显式输入，outward dispatch 是否从 ctx 链出发，是否还残留 ambient handler stack 语义。
+  3. 运行 `cargo check -p scoopc` 与定向 grep，判断本 review 是否仅需补完成记录，还是需要在 review 任务内顺手修复直接否定结论的问题。
 
-## 本轮执行步骤
+## 当前结论摘要
 
-1. 复核 `TODO.md` 中 `G2-T03` 与 `G2-T03R` 的要求、验证项和完成条件。
-2. 检查最近一次提交是否与该 review 任务直接相关，并据此聚焦审阅范围。
-3. 阅读以下实现文件，确认 explicit outcome/query/write-back surface 是否真正 backend-owned，且未残留 runtime bridge：
-   - `crates/scoopc/src/llvm/codegen/effect_outcome.rs`
-   - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
-   - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
-   - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
-   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
-4. 运行 `cargo check -p scoopc` 与针对旧 bridge 名字的 grep，验证当前错误是否确已切换到后续结构性 gap。
-5. 若 review 中发现当前任务范围内的真实问题，直接修复并重新验证；若发现阻塞后续但无法在本任务内完成的问题，则按要求在 `TODO.md` 记录前置依赖。
-6. 若 review 通过，则更新 `TODO.md` 将 `G2-T03R` 标为 `[DONE]`，补全完成记录，并同步更新本文件。
-7. 检查工作区、提交本次变更并停止。
-
-## 进展记录
-
-- 已写入初始计划。
-- 已读取 `TODO.md` 并确认首个未完成任务为 `G2-T03R`。
-- 已完成首轮代码复核与验证：旧 bridge 名字 grep 为零命中，`cargo check -p scoopc` 的首批错误确已切到 `G4/G6/G7` 等后续结构性 gap。
-- review 发现一个需要在本任务内收口的问题：`object_init` / top-level immutable init bridge 仍直接返回 `ScoopEffectOutcome::const_zero()`，应改为统一走 `effect_outcome.rs` 中的 backend-owned outcome builder，避免 outcome write-back surface 再次分散。
-- 已将默认 complete outcome 的构造集中到 `effect_outcome.rs::build_zero_complete_effect_outcome(...)`，并让 object/top-level immutable init bridge 复用该 helper。
-- 二次验证完成：`cargo fmt` 通过；旧 bridge 名字 grep 仍为零命中；`cargo check -p scoopc` 仍失败，但首批错误继续集中在 `G4/G6/G7` 等后续结构性缺口，未回退到 outcome/transport primitive 或旧 bridge 残余问题。
-- 已更新 `TODO.md`：将 `G2-T03R` 标记为 `[DONE]`，并补齐 review 完成记录；下一步只做 git 提交并停止。
+- 已确认工作区内未提交源码改动对应 `G3-T04` 的实现面，属于上次中断后遗留的未提交状态；本次会与 `G3-T04R` 一并原子提交。
+- review 结论：未发现会推翻 `G3-T04` 的直接问题。
+- 关键观察：
+  1. `EffectCtx` / handler node 已作为 managed object layout 落地在 `crates/scoopc/src/llvm/codegen/effect_ctx.rs`。
+  2. `effect_lowered/body.rs` 中 `CurrentEffectCtx`、`HandleSavedEffectCtx`、`HandleArmEffectCtx` 已接入 frame，并在 handle body / arm / outward dispatch 路径中显式切换和消费。
+  3. outward dispatch 运行时路径使用 `dispatch_handle_boundary_from_ctx(...)` 从 `EffectCtx.handler_top_ref` 扫描 handler node graph；`handle_dispatch_nesting_depth(...)` 仅剩编译期 contract 消歧用途，不是 runtime source of truth。
+  4. continuation capture 当前通过“捕获整帧”携带 `CurrentEffectCtx` 与 handle ctx slots；resume 通过恢复 captured frame 继续使用该 ctx。
+  5. `cargo check -p scoopc` 的失败前沿仍是后续 G4/G6/G7 缺口，没有回到 G3 范围内的 TLS / handler-context 残余问题。

@@ -75,6 +75,7 @@ mod class_ctor;
 mod closure;
 mod composite_transport;
 mod control_flow;
+mod effect_ctx;
 mod effect_lowered;
 mod effect_outcome;
 mod enum_lowering;

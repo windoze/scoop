@@ -3842,7 +3842,11 @@ fn find_frame_slot_for_local(
                 local: slot_local,
                 ..
             } => Some(slot_local),
-            crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload {
+            crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleSavedEffectCtx {
+                ..
+            }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandleArmEffectCtx { .. }
+            | crate::effect_lowered::ir::LateLoweredFrameSlotKind::HandlePendingPayload {
                 ..
             }
             | crate::effect_lowered::ir::LateLoweredFrameSlotKind::ResumePayload { .. }
