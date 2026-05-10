@@ -1,3 +1,4 @@
 /target
+crates/scoop/target/
 .env*
 tests/fixtures/run_pass_cone/*/build/

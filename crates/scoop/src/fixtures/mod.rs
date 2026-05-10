@@ -1086,7 +1086,9 @@ fn build_fixture(
     // 用于回归“优化确实发生”（T1602）。全局 `scoop test -O...` 仍然优先级更高。
     let opt_level = opt_level.or(parse_opt_level_from_fixture_args(&exp.args, fixture_path)?);
 
-    let mut out = PathBuf::from("target/fixtures").join(rel_fixture);
+    let mut out = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/fixtures")
+        .join(rel_fixture);
     let ext = match emit {
         crate::commands::build::BuildEmit::LlvmIr => "ll",
         crate::commands::build::BuildEmit::Obj => {
