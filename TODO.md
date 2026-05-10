@@ -510,7 +510,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §3：ordinary callee suspend/reentry 分析与 lowering 重新拥有 active replacement；共享 outward/suspendability helper、resume-entry body、resume dispatch 不再悬空在已删除的 legacy effect module 外。
 
-## G4-T05R：Review ordinary callee suspend/reentry，确认 facts 驱动且无 TLS 旁路
+## [DONE] G4-T05R：Review ordinary callee suspend/reentry，确认 facts 驱动且无 TLS 旁路
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G4
@@ -533,6 +533,21 @@
   - ordinary callee reentry contract 可被独立描述，不依赖已删除 bridge。
 - 依赖：G4-T05
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G4-T05R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务人工复核 `crates/scoopc/src/llvm/codegen/{ordinary_callee.rs,mod.rs,closure/mod.rs,control_flow.rs,stmt.rs,effect_lowered/body.rs,effect_lowered/layout.rs,effect_lowered/value.rs}`；无需额外源码修补。
+  - 核心决策：
+    - `needs_reentry` / callee-resume shell 判定继续只走 published late-lowered callable contract：`callable_needs_callee_resume_shell(...)` 最终只读取 `effect_step_abi()` 与 `needs_reentry()`，没有回退到 HIR/AST boolean 或 deleted TLS scratch。
+    - resumed path 的唯一恢复输入仍是显式 `incoming_resume_token_ref`：`codegen_callee_resume_entry_function_impl(...)` 先绑定显式 hidden ABI，再从 `current_incoming_resume_token_ref` 取回 suspend-state 并恢复 saved locals / resume slot；没有重新引入 `__scoop_callee_suspend_state`、`scoop_callee_suspend_state_*`、`publish_incoming_resume_token(...)` 或 `clear_incoming_resume_token(...)`。
+    - ordinary-callee active implementation 仍只存在于 neutral `crates/scoopc/src/llvm/codegen/ordinary_callee.rs`；已删除的 `llvm/codegen/effect/ordinary_callee.rs` 没有被恢复，`mod.rs` / `closure/mod.rs` / `effect_lowered/*` 也都只委托到新的中性入口。
+    - `hir_ty_declared_effectful(...)`、`local_call_may_suspend_from_hir_ty(...)` 与 `function_value_expr_body_may_outward_effect_when_called_for_local(...)` 现在只承担局部 function-value 元数据与 HIR body 的保守分析，不参与 `needs_reentry` shell 判定，也不通过任何 TLS 旁路补语义。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `__scoop_callee_suspend_state|scoop_callee_suspend_state_|publish_incoming_resume_token|clear_incoming_resume_token`：无命中。
+    - 对仓库执行 glob `crates/scoopc/src/llvm/codegen/**/ordinary_callee.rs`：仅命中 `crates/scoopc/src/llvm/codegen/ordinary_callee.rs`，未发现 legacy container 路径残留。
+    - 人工复核 `ordinary_callee.rs`、`mod.rs`、`closure/mod.rs`、`control_flow.rs`、`stmt.rs`、`effect_lowered/{body,layout,value}.rs`：`callable_needs_callee_resume_shell_impl(...)` 仅消费 published callable contract；closure body 在 lowering 前显式设置 lambda callable FQN；resume-entry declaration/body 统一绑定显式 hidden ABI，恢复路径只从 incoming token 取状态。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续停在后续结构性 gap：`emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `declare_runtime_effect_is_active`（既有 ordinary effect propagation 缺口），以及 `codegen_call_impl` / `codegen_top_level_fun_call_impl` / `codegen_mir_*call*`（G6）、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator`（G7）等；未再出现 G4 helper 缺失或 deleted callee TLS bridge 名字回退。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §3：review 确认 ordinary callee suspend/reentry contract 继续由 published callable facts + explicit incoming token 驱动，active implementation 未回退到 deleted callee TLS bridge 或 legacy effect container。
 
 ## G5-T06：重建 codegen-owned continuation object model 与 generated resume driver
 
