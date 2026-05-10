@@ -4806,10 +4806,10 @@ mod tests {
 
     use super::*;
     use crate::effect_lowered::LateLoweredProgramBuilder;
-    use crate::effect_refactor_pipeline::{
+    use crate::mir::TemplateKey;
+    use crate::pipeline::{
         load_effect_facts_stage_output_for_dump, load_effect_lowered_stage_output_for_dump,
     };
-    use crate::mir::TemplateKey;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
@@ -4828,7 +4828,7 @@ mod tests {
     }
 
     struct RawProgramOutput {
-        effect_facts_stage_output: crate::effect_refactor_pipeline::RefactorEffectFactsStageOutput,
+        effect_facts_stage_output: crate::pipeline::EffectFactsStageOutput,
         program: LateLoweredProgram,
     }
 

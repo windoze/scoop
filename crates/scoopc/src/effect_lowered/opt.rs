@@ -959,8 +959,8 @@ mod tests {
         LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
         LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
     };
-    use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
     use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId, TemplateKey};
+    use crate::pipeline::load_effect_lowered_stage_output_for_dump;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
@@ -1445,7 +1445,7 @@ mod tests {
         for forbidden in [
             "MaterializedEffectFacts",
             "MaterializedMirPassView",
-            "RefactorEffectFactsStageOutput",
+            "EffectFactsStageOutput",
             "LateLoweredProgramBuilder",
             "build_callable_segmentation",
             "build_callable_frame",

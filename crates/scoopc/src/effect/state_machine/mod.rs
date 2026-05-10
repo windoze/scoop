@@ -1,6 +1,6 @@
 //! Shared ordinary-callee suspend planning helpers.
 //!
-//! The old unified handle state-machine lowering has been removed; this
+//! The previous handle state-machine lowering has been removed; this
 //! module now retains only the analysis pieces still consumed by the current
 //! LLVM backend for ordinary callee suspend/resume planning.
 

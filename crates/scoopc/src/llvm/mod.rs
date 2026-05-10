@@ -38,8 +38,9 @@ mod tests;
 #[cfg(feature = "llvm")]
 pub(crate) use emit::emit_single_file_llvm_artifact_to_file_with_opt_level;
 pub use emit::{
-    RefactorStageEmitInput, emit_minimal_main_asm_to_file,
-    emit_minimal_main_asm_to_file_from_lowered_hir,
+    StageEmitInput, emit_main_asm_to_file_from_stage_output,
+    emit_main_ir_to_file_from_stage_output, emit_main_obj_to_file_from_stage_output,
+    emit_minimal_main_asm_to_file, emit_minimal_main_asm_to_file_from_lowered_hir,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level,
@@ -55,16 +56,14 @@ pub use emit::{
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level,
     emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level,
     emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_obj_to_file_with_opt_level, emit_refactor_main_asm_to_file_from_stage_output,
-    emit_refactor_main_ir_to_file_from_stage_output,
-    emit_refactor_main_obj_to_file_from_stage_output,
+    emit_minimal_main_obj_to_file_with_opt_level,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
 
 #[cfg(test)]
 pub(crate) use emit::{
-    build_minimal_main_module, build_minimal_main_module_with_opt_level,
-    build_refactor_main_module_from_stage_output, build_single_file_source_map,
+    build_main_module_from_stage_output, build_minimal_main_module,
+    build_minimal_main_module_with_opt_level, build_single_file_source_map,
     emit_materialized_ir_for_root_callable,
 };
 #[cfg(test)]
@@ -102,8 +101,8 @@ fn configure_llvm_global_options_once() {
 #[error(
     "LLVM backend gate 拒绝 `{body_fqn}` 进入 {route}：{detail}（gap {gap_id}, owner {owner_task}, suggested owner {suggested_owner}, source_span={source_span:?}）"
 )]
-#[diagnostic(code(scoop::llvm::refactor_backend_gate))]
-pub struct RefactorBackendGateError {
+#[diagnostic(code(scoop::llvm::backend_gate))]
+pub struct BackendGateError {
     pub(crate) body_fqn: String,
     pub(crate) source_span: Span,
     pub(crate) gap_id: &'static str,
@@ -155,10 +154,10 @@ pub enum LlvmEmitError {
     MissingMaterializedPassView,
 
     #[error(
-        "refactor LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到已删除的 handler-stack / EffectOutcome backend"
+        "LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到已删除的 handler-stack / EffectOutcome backend"
     )]
-    #[diagnostic(code(scoop::llvm::refactor_effect_lowering_unsupported))]
-    RefactorEffectLoweringUnsupported {
+    #[diagnostic(code(scoop::llvm::effect_lowering_unsupported))]
+    EffectLoweringUnsupported {
         entry: String,
         callable: String,
         unsupported_paths: String,
@@ -166,7 +165,7 @@ pub enum LlvmEmitError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    RefactorBackendGate(#[from] Box<RefactorBackendGateError>),
+    BackendGate(#[from] Box<BackendGateError>),
 
     #[error(
         "入口函数 `{entry}` 存在多个合法候选（{count} 个）；可执行程序必须且只能有一个 entry main"

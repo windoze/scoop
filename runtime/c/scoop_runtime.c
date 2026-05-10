@@ -1848,35 +1848,34 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
 // - 该 helper 用于把”跨线程 resume”能力暴露给 end-to-end fixtures（不引入调度器）。
 // - 语义：在一个新线程中调用 `scoop_continuation_resume`，并 join 等待其完成。
 // - 线程会在执行结束后调用 `scoop_thread_unregister`，避免 STW 线程表残留已退出线程的 TLS 槽位。
-typedef struct ScoopThreadResumeU64Args {
+typedef struct ScoopThreadCompatResumeU64Args {
   uint64_t continuation_handle;
   uint64_t resume_value;
-} ScoopThreadResumeU64Args;
+} ScoopThreadCompatResumeU64Args;
 
-typedef void (*ScoopRefactorResumeU64Fn)(void *continuation, uint64_t resume_value);
-typedef void (*ScoopRefactorResumeTransportFn)(void *continuation,
-                                               uint64_t resume_word,
-                                               void *resume_gc_ref,
-                                               void *payload_storage);
+typedef void (*ScoopResumeU64Fn)(void *continuation, uint64_t resume_value);
+typedef void (*ScoopResumeTransportFn)(void *continuation, uint64_t resume_word,
+                                       void *resume_gc_ref,
+                                       void *payload_storage);
 
-typedef struct ScoopThreadRefactorResumeU64Args {
+typedef struct ScoopThreadResumeCallbackU64Args {
   uint64_t continuation_handle;
   uint64_t resume_value;
-  ScoopRefactorResumeU64Fn resume_fn;
-} ScoopThreadRefactorResumeU64Args;
+  ScoopResumeU64Fn resume_fn;
+} ScoopThreadResumeCallbackU64Args;
 
-typedef struct ScoopThreadRefactorResumeTransportArgs {
+typedef struct ScoopThreadResumeTransportArgs {
   uint64_t continuation_handle;
   uint64_t resume_word;
   void *resume_gc_ref;
   const ScoopCompositeTransportDescriptor *payload_desc;
   void *payload_storage;
-  ScoopRefactorResumeTransportFn resume_fn;
+  ScoopResumeTransportFn resume_fn;
   void ***native_root_slots;
   uint32_t native_root_slots_len;
-} ScoopThreadRefactorResumeTransportArgs;
+} ScoopThreadResumeTransportArgs;
 
-static void *scoop_thread_entry_resume_u64(void *arg) {
+static void *scoop_thread_entry_compat_resume_u64(void *arg) {
   if (arg == 0) {
     return 0;
   }
@@ -1885,7 +1884,7 @@ static void *scoop_thread_entry_resume_u64(void *arg) {
   // managed-root-map（explicit root frames），而不是回退到空 stackmap ctx。
   scoop_thread_register();
 
-  ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
+  ScoopThreadCompatResumeU64Args *args = (ScoopThreadCompatResumeU64Args *)arg;
   void *continuation = scoop_handle_get(args->continuation_handle);
   // T1607：payload 已由调用方写入 continuation 的 resume_word/resume_gc_ref 槽位。
   // 这里直接走新 ABI 的公共路径。
@@ -1907,14 +1906,15 @@ static void *scoop_thread_entry_resume_u64(void *arg) {
   return 0;
 }
 
-void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_value) {
+void scoop_thread_spawn_join_compat_resume_u64(void *continuation,
+                                               uint64_t resume_value) {
   // 保持与其它 runtime API 一致：允许在未显式 init/register 的情况下被调用。
   if (!scoop_rt_initialized) {
     scoop_runtime_init();
   }
 
-  ScoopThreadResumeU64Args *args =
-      (ScoopThreadResumeU64Args *)malloc(sizeof(ScoopThreadResumeU64Args));
+  ScoopThreadCompatResumeU64Args *args = (ScoopThreadCompatResumeU64Args *)malloc(
+      sizeof(ScoopThreadCompatResumeU64Args));
   if (args == 0) {
     exit(3);
   }
@@ -1926,7 +1926,8 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   args->resume_value = resume_value;
 
   pthread_t t;
-  int rc = pthread_create(&t, 0, scoop_thread_entry_resume_u64, (void *)args);
+  int rc = pthread_create(&t, 0, scoop_thread_entry_compat_resume_u64,
+                          (void *)args);
   if (rc != 0) {
     if (args->continuation_handle != 0) {
       scoop_handle_drop(args->continuation_handle);
@@ -1947,8 +1948,8 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   }
 }
 
-static void scoop_thread_refactor_resume_transport_copy_payload(
-    ScoopThreadRefactorResumeTransportArgs *args,
+static void scoop_thread_resume_transport_copy_payload(
+    ScoopThreadResumeTransportArgs *args,
     const void *payload_value) {
   if (args == 0 || args->payload_desc == 0) {
     return;
@@ -2014,8 +2015,8 @@ static void scoop_thread_resume_collect_payload_root_slot(void **slot, void *ctx
   }
 }
 
-static void scoop_thread_refactor_resume_transport_prepare_roots(
-    ScoopThreadRefactorResumeTransportArgs *args) {
+static void scoop_thread_resume_transport_prepare_roots(
+    ScoopThreadResumeTransportArgs *args) {
   if (args == 0) {
     return;
   }
@@ -2047,8 +2048,8 @@ static void scoop_thread_refactor_resume_transport_prepare_roots(
   args->native_root_slots_len = roots.len;
 }
 
-static void scoop_thread_refactor_resume_transport_destroy(
-    ScoopThreadRefactorResumeTransportArgs *args) {
+static void scoop_thread_resume_transport_destroy(
+    ScoopThreadResumeTransportArgs *args) {
   if (args == 0) {
     return;
   }
@@ -2060,15 +2061,14 @@ static void scoop_thread_refactor_resume_transport_destroy(
   free(args);
 }
 
-static void *scoop_thread_entry_refactor_resume_transport(void *arg) {
+static void *scoop_thread_entry_resume_transport(void *arg) {
   if (arg == 0) {
     return 0;
   }
 
   scoop_thread_register();
 
-  ScoopThreadRefactorResumeTransportArgs *args =
-      (ScoopThreadRefactorResumeTransportArgs *)arg;
+  ScoopThreadResumeTransportArgs *args = (ScoopThreadResumeTransportArgs *)arg;
   void *continuation = scoop_handle_get(args->continuation_handle);
   if (args->resume_fn != 0 && continuation != 0) {
     args->resume_fn(continuation, args->resume_word, args->resume_gc_ref,
@@ -2085,13 +2085,13 @@ static void *scoop_thread_entry_refactor_resume_transport(void *arg) {
   return 0;
 }
 
-void scoop_thread_spawn_join_refactor_resume_transport(
+void scoop_thread_spawn_join_resume_transport(
     void *continuation,
     uint64_t resume_word,
     void *resume_gc_ref,
     const ScoopCompositeTransportDescriptor *payload_desc,
     const void *payload_value,
-    ScoopRefactorResumeTransportFn resume_fn) {
+    ScoopResumeTransportFn resume_fn) {
   if (!scoop_rt_initialized) {
     scoop_runtime_init();
   }
@@ -2099,13 +2099,12 @@ void scoop_thread_spawn_join_refactor_resume_transport(
     exit(3);
   }
 
-  ScoopThreadRefactorResumeTransportArgs *args =
-      (ScoopThreadRefactorResumeTransportArgs *)malloc(
-          sizeof(ScoopThreadRefactorResumeTransportArgs));
+  ScoopThreadResumeTransportArgs *args = (ScoopThreadResumeTransportArgs *)malloc(
+      sizeof(ScoopThreadResumeTransportArgs));
   if (args == 0) {
     exit(3);
   }
-  (void)memset(args, 0, sizeof(ScoopThreadRefactorResumeTransportArgs));
+  (void)memset(args, 0, sizeof(ScoopThreadResumeTransportArgs));
   args->continuation_handle = scoop_handle_new(continuation);
   if (continuation != 0 && args->continuation_handle == 0) {
     free(args);
@@ -2115,12 +2114,12 @@ void scoop_thread_spawn_join_refactor_resume_transport(
   args->resume_gc_ref = resume_gc_ref;
   args->payload_desc = payload_desc;
   args->resume_fn = resume_fn;
-  scoop_thread_refactor_resume_transport_copy_payload(args, payload_value);
-  scoop_thread_refactor_resume_transport_prepare_roots(args);
+  scoop_thread_resume_transport_copy_payload(args, payload_value);
+  scoop_thread_resume_transport_prepare_roots(args);
 
   pthread_t t;
   scoop_enter_native(args->native_root_slots, args->native_root_slots_len);
-  int rc = pthread_create(&t, 0, scoop_thread_entry_refactor_resume_transport,
+  int rc = pthread_create(&t, 0, scoop_thread_entry_resume_transport,
                           (void *)args);
   if (rc != 0) {
     scoop_leave_native();
@@ -2128,7 +2127,7 @@ void scoop_thread_spawn_join_refactor_resume_transport(
       scoop_handle_drop(args->continuation_handle);
       args->continuation_handle = 0;
     }
-    scoop_thread_refactor_resume_transport_destroy(args);
+    scoop_thread_resume_transport_destroy(args);
     exit(3);
   }
 
@@ -2137,17 +2136,17 @@ void scoop_thread_spawn_join_refactor_resume_transport(
   if (rc != 0) {
     exit(3);
   }
-  scoop_thread_refactor_resume_transport_destroy(args);
+  scoop_thread_resume_transport_destroy(args);
 }
 
-static void *scoop_thread_entry_refactor_resume_u64(void *arg) {
+static void *scoop_thread_entry_resume_callback_u64(void *arg) {
   if (arg == 0) {
     return 0;
   }
 
   scoop_thread_register();
 
-  ScoopThreadRefactorResumeU64Args *args = (ScoopThreadRefactorResumeU64Args *)arg;
+  ScoopThreadResumeCallbackU64Args *args = (ScoopThreadResumeCallbackU64Args *)arg;
   void *continuation = scoop_handle_get(args->continuation_handle);
   if (args->resume_fn != 0 && continuation != 0) {
     args->resume_fn(continuation, args->resume_value);
@@ -2164,8 +2163,8 @@ static void *scoop_thread_entry_refactor_resume_u64(void *arg) {
   return 0;
 }
 
-void scoop_thread_spawn_join_refactor_resume_u64(void *continuation, uint64_t resume_value,
-                                                ScoopRefactorResumeU64Fn resume_fn) {
+void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_value,
+                                        ScoopResumeU64Fn resume_fn) {
   if (!scoop_rt_initialized) {
     scoop_runtime_init();
   }
@@ -2173,8 +2172,8 @@ void scoop_thread_spawn_join_refactor_resume_u64(void *continuation, uint64_t re
     exit(3);
   }
 
-  ScoopThreadRefactorResumeU64Args *args = (ScoopThreadRefactorResumeU64Args *)malloc(
-      sizeof(ScoopThreadRefactorResumeU64Args));
+  ScoopThreadResumeCallbackU64Args *args = (ScoopThreadResumeCallbackU64Args *)malloc(
+      sizeof(ScoopThreadResumeCallbackU64Args));
   if (args == 0) {
     exit(3);
   }
@@ -2187,7 +2186,8 @@ void scoop_thread_spawn_join_refactor_resume_u64(void *continuation, uint64_t re
   args->resume_fn = resume_fn;
 
   pthread_t t;
-  int rc = pthread_create(&t, 0, scoop_thread_entry_refactor_resume_u64, (void *)args);
+  int rc = pthread_create(&t, 0, scoop_thread_entry_resume_callback_u64,
+                          (void *)args);
   if (rc != 0) {
     if (args->continuation_handle != 0) {
       scoop_handle_drop(args->continuation_handle);

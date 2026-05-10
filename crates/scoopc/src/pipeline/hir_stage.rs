@@ -14,7 +14,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::hir_completeness::RefactorHirCompletenessVerifier;
+use super::hir_completeness::HirCompletenessVerifier;
 
 /// MIR lowering should not rediscover the continuation receiver from callee syntax.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1184,7 +1184,7 @@ pub struct TypedHirStageOutput {
 
 impl TypedHirStageOutput {
     pub(crate) fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
-        RefactorHirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
+        HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
         Self::new_checked(lowered_hir, source_path)
     }
 

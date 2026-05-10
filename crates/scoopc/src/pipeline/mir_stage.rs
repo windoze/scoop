@@ -11,7 +11,7 @@ use crate::ty::{TypeId, TypeStore};
 
 use super::{TypedHirEffectContracts, TypedHirStageOutput};
 
-/// refactor direct-style MIR stage 的稳定输出形状。
+/// direct-style MIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P3/P4 及后续阶段直接消费：
 /// - `lowered_mir` 仍是 direct-style MIR，而不是 late-lowered `Step` IR；
@@ -27,7 +27,7 @@ use super::{TypedHirEffectContracts, TypedHirStageOutput};
 /// - 本 stage 仍未提供 `StepSchema`、`ContinuationSchema` 或 `MaterializedEffectFacts`；这些属于
 ///   P4/P5 的职责，而不是 P3 dump / stage 输出应提前伪造的内容。
 #[derive(Debug)]
-pub struct RefactorMirStageOutput {
+pub struct MirStageOutput {
     lowered_mir: LoweredMir,
     effect_contracts: TypedHirEffectContracts,
     callable_body_indices: BTreeMap<String, usize>,
@@ -37,7 +37,7 @@ pub struct RefactorMirStageOutput {
     materialized_mir: Option<MaterializedMir>,
 }
 
-impl RefactorMirStageOutput {
+impl MirStageOutput {
     pub(crate) fn new(
         lowered_mir: LoweredMir,
         effect_contracts: TypedHirEffectContracts,
@@ -334,7 +334,7 @@ fn validate_refactor_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLo
 
 fn lower_refactor_mir_stage_unvalidated(
     typed_hir_output: TypedHirStageOutput,
-) -> (RefactorMirStageOutput, TypeId) {
+) -> (MirStageOutput, TypeId) {
     let facts = MirLoweringFacts::from_refactor_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
@@ -353,7 +353,7 @@ fn lower_refactor_mir_stage_unvalidated(
     let materialized_mir = lowered_hir.into_materialized_mir();
 
     (
-        RefactorMirStageOutput::new(
+        MirStageOutput::new(
             LoweredMir { file, types },
             effect_contracts,
             materialized_mir,
@@ -362,9 +362,7 @@ fn lower_refactor_mir_stage_unvalidated(
     )
 }
 
-pub(crate) fn run(
-    typed_hir_output: TypedHirStageOutput,
-) -> Result<RefactorMirStageOutput, MirLowerError> {
+pub(crate) fn run(typed_hir_output: TypedHirStageOutput) -> Result<MirStageOutput, MirLowerError> {
     let (output, unit_ty) = lower_refactor_mir_stage_unvalidated(typed_hir_output);
     validate_refactor_bodies(output.file(), unit_ty)?;
     Ok(output)
@@ -372,7 +370,7 @@ pub(crate) fn run(
 
 #[cfg(test)]
 mod tests {
-    use super::RefactorMirStageOutput;
+    use super::MirStageOutput;
     use crate::ast;
     use crate::mir::{
         AggregateTransportKind, ArrayTransportOperation, CallKind, GcIntrinsicOperation,
@@ -403,7 +401,7 @@ mod tests {
         SourceFile::load(&path).expect("fixture 应可加载")
     }
 
-    fn run_fixture(phase: &str, name: &str) -> RefactorMirStageOutput {
+    fn run_fixture(phase: &str, name: &str) -> MirStageOutput {
         let session = refactor_session();
         let source = load_fixture(phase, name);
         let typed_hir_output =
@@ -411,17 +409,14 @@ mod tests {
         super::run(typed_hir_output).expect("fixture 应可通过 refactor MIR stage")
     }
 
-    fn callable_body<'a>(output: &'a RefactorMirStageOutput, fqn: &str) -> &'a crate::mir::Body {
+    fn callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
         output
             .callable_body(fqn)
             .and_then(|fun| fun.body.as_ref())
             .unwrap_or_else(|| panic!("应找到 callable body: {fqn}"))
     }
 
-    fn validated_callable_body<'a>(
-        output: &'a RefactorMirStageOutput,
-        fqn: &str,
-    ) -> &'a crate::mir::Body {
+    fn validated_callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
         let body = callable_body(output, fqn);
         body.validate_refactor_direct_style()
             .unwrap_or_else(|err| panic!("refactor MIR body `{fqn}` 应通过验证器: {err}"));
@@ -429,7 +424,7 @@ mod tests {
     }
 
     fn unit_operand_is_visible_in_body(
-        output: &RefactorMirStageOutput,
+        output: &MirStageOutput,
         body: &crate::mir::Body,
         operand: &Operand,
     ) -> bool {
@@ -1473,7 +1468,7 @@ fun bad() {
     fn refactor_direct_mir_stage_keeps_callable_body_query_surface_stable() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let output = RefactorMirStageOutput::new(
+        let output = MirStageOutput::new(
             crate::mir::LoweredMir {
                 file: crate::mir::File {
                     items: vec![crate::mir::Item::Fun(crate::mir::FunDecl {

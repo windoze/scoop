@@ -8,7 +8,7 @@ use inkwell::module::Linkage;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 
-use crate::llvm::{LlvmEmitError, RefactorBackendGateError};
+use crate::llvm::{BackendGateError, LlvmEmitError};
 use crate::mir::{
     AggregateTransportMetadata, ArrayElementTransportMetadata, CallTransportMetadata,
     CaptureBoxTransportMetadata, ClosureEnvTransportMetadata, GcIntrinsicTransportMetadata,
@@ -731,7 +731,7 @@ pub(super) fn composite_transport_gate_error(
 ) -> LlvmEmitError {
     let entry = crate::llvm::codegen_gap_inventory::codegen_gap_entry(gap_id)
         .expect("composite transport gate gap id must be in inventory");
-    LlvmEmitError::RefactorBackendGate(Box::new(RefactorBackendGateError {
+    LlvmEmitError::BackendGate(Box::new(BackendGateError {
         body_fqn: body_fqn.to_string(),
         source_span: span,
         gap_id: entry.gap_id,

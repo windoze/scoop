@@ -122,7 +122,7 @@ fn refactor_hir_placeholder_inventory() {
         "HIR placeholder constructors changed; update the refactor HIR inventory and classification first"
     );
 
-    assert_refactor_hir_stage_does_not_use_legacy_dump_fallback();
+    assert_pipeline_hir_stage_does_not_use_legacy_dump_fallback();
 }
 
 fn assert_inventory_entries_are_actionable() {
@@ -260,8 +260,8 @@ fn collect_item_todo_constructors(source: &str, out: &mut BTreeSet<PlaceholderKe
     }
 }
 
-fn assert_refactor_hir_stage_does_not_use_legacy_dump_fallback() {
-    let hir_stage = include_str!("../../effect_refactor_pipeline/hir_stage.rs");
+fn assert_pipeline_hir_stage_does_not_use_legacy_dump_fallback() {
+    let hir_stage = include_str!("../../pipeline/hir_stage.rs");
     assert!(
         hir_stage.contains("crate::hir::lower_typed_for_dump(session, source)"),
         "refactor typed HIR stage must enter the typed HIR lowering entrypoint"

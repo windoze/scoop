@@ -1,4 +1,4 @@
-//! effect-refactor 单一路径的顶层 stage API。
+//! 统一 pipeline 的顶层 stage API。
 //!
 //! P8 起，legacy/refactor selector 与并行 dispatcher 已删除；本模块只暴露当前唯一
 //! 生效的 production stage 入口，不再承载任何双主线分发语义。
@@ -18,8 +18,8 @@ use crate::session::Session;
 use crate::source::SourceFile;
 
 pub use ast_stage::AstStageOutput;
-pub use effect_facts_stage::RefactorEffectFactsStageOutput;
-pub use effect_lowering_stage::RefactorEffectLoweredStageOutput;
+pub use effect_facts_stage::EffectFactsStageOutput;
+pub use effect_lowering_stage::EffectLoweredStageOutput;
 pub use hir_stage::{
     CallArgBindingContract, CallArgElementContract, CallArgParamContract,
     ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ContinuationResumeSiteContract,
@@ -30,8 +30,8 @@ pub use hir_stage::{
     TypedHirEffectContracts, TypedHirStageOutput, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
-pub use llvm_codegen_stage::{RefactorLlvmCodegenStageInput, RefactorLlvmCodegenStageOutput};
-pub use mir_stage::RefactorMirStageOutput;
+pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput};
+pub use mir_stage::MirStageOutput;
 
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -73,13 +73,13 @@ pub fn lower_direct_style_mir_for_dump(
     source: &SourceFile,
 ) -> Result<crate::mir::LoweredMir, crate::mir::MirLowerError> {
     load_direct_style_mir_stage_output_for_dump(session, source)
-        .map(RefactorMirStageOutput::into_lowered_mir)
+        .map(MirStageOutput::into_lowered_mir)
 }
 
 pub fn load_direct_style_mir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<RefactorMirStageOutput, crate::mir::MirLowerError> {
+) -> Result<MirStageOutput, crate::mir::MirLowerError> {
     let typed_hir_output = load_typed_hir_stage_output_for_dump(session, source)
         .map_err(crate::mir::MirLowerError::from)?;
     mir_stage::run(typed_hir_output)
@@ -88,8 +88,8 @@ pub fn load_direct_style_mir_stage_output_for_dump(
 pub fn build_effect_facts_stage_output(
     session: &Session,
     source: &SourceFile,
-    mir_stage_output: RefactorMirStageOutput,
-) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    mir_stage_output: MirStageOutput,
+) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     build_effect_facts_stage_output_with_compilation_sources(
         session,
         source,
@@ -102,8 +102,8 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
-    mir_stage_output: RefactorMirStageOutput,
-) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    mir_stage_output: MirStageOutput,
+) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     // P4 facts 必须绑定到 canonical materialized MIR snapshot。
     // 当前 P3 dump stage 仍允许在未保留 snapshot 的情况下独立产出 direct-style MIR，
     // 因此在 effect-facts stage 边界用同一 session/source 路由补挂 canonical snapshot。
@@ -124,7 +124,7 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
 pub fn load_effect_facts_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<RefactorEffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     let mir_stage_output = load_direct_style_mir_stage_output_for_dump(session, source)
         .map_err(crate::effect_facts::EffectFactsError::from)?;
     build_effect_facts_stage_output(session, source, mir_stage_output)
@@ -132,10 +132,10 @@ pub fn load_effect_facts_stage_output_for_dump(
 
 pub fn build_effect_lowered_stage_output(
     session: &Session,
-    effect_facts_stage_output: RefactorEffectFactsStageOutput,
-) -> Result<RefactorEffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+    effect_facts_stage_output: EffectFactsStageOutput,
+) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
     // P5 -> P6 canonical handoff contract：
-    // - 输入必须是 P4 的 authoritative `RefactorEffectFactsStageOutput`；
+    // - 输入必须是 P4 的 authoritative `EffectFactsStageOutput`；
     // - 输出中的 `LateLoweredProgram` / types / state graph / frame schema / dynamic invoke /
     //   authoritative per-op/per-schema resume publication（step cases、continuation object、
     //   surface-resume dispatch inventory）以及可选的 effect-family resume packing definitions
@@ -151,7 +151,7 @@ pub fn build_effect_lowered_stage_output(
 pub fn load_effect_lowered_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<RefactorEffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
     let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(session, source)?;
     build_effect_lowered_stage_output(session, effect_facts_stage_output)
 }
@@ -174,8 +174,8 @@ pub enum LlvmArtifactKind {
 #[cfg(feature = "llvm")]
 pub(crate) fn run_llvm_codegen_stage(
     session: &Session,
-    input: RefactorLlvmCodegenStageInput,
-) -> Result<RefactorLlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
+    input: LlvmCodegenStageInput,
+) -> Result<LlvmCodegenStageOutput, crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::run(session, input)
 }
 
@@ -264,7 +264,7 @@ pub fn emit_production_llvm_artifact_to_file(
 ) -> Result<(), crate::llvm::LlvmEmitError> {
     llvm_codegen_stage::emit_artifact_to_file(
         session,
-        llvm_codegen_stage::RefactorLlvmCodegenStageInput::new(
+        llvm_codegen_stage::LlvmCodegenStageInput::new(
             lowered,
             abi_visibility_lowered,
             source_map.clone(),

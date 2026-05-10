@@ -48,7 +48,7 @@ pub struct File {
     /// typecheck 写回的“perform span -> performed effect 实例 TypeId” side table。
     ///
     /// 说明：
-    /// - 该表只记录真正会进入 perform-slot / unified handler dispatch 的 effect 实例；
+    /// - 该表只记录真正会进入 perform-slot / handler dispatch 的 effect 实例；
     /// - HIR lowering 读取它，把 `perform` 从“只知道 op FQN”提升为“同时知道 effect 实例类型”。
     pub(crate) inferred_performed_effect_tys: RefCell<HashMap<Span, TypeId>>,
     /// typecheck 写回的“handle arm op span -> handled effect 实例 TypeId” side table。
@@ -86,7 +86,7 @@ pub struct File {
     pub(crate) with_update_contracts: RefCell<HashMap<Span, WithUpdateContract>>,
     /// typecheck 确认的 assignment LHS typed place contract（按整个 assignment expr span 索引）。
     ///
-    /// 说明：assignment statement 的左侧必须在进入 refactor HIR 前被归类为具体 place；HIR/MIR
+    /// 说明：assignment statement 的左侧必须在进入 typed HIR 前被归类为具体 place；HIR/MIR
     /// 后续阶段只消费这里发布的 binding/type/mutability facts，不再从任意表达式树恢复 lvalue 语义。
     pub(crate) assign_place_contracts: RefCell<HashMap<Span, AssignPlaceContract>>,
     /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
@@ -1076,7 +1076,7 @@ impl PropertyDecl {
     /// 该属性是否是“直接存储字段”。
     ///
     /// 用途：
-    /// - `struct` 的 unified construction / default field / `with` / destructuring 主线只应
+    /// - `struct` 的 construction / default field / `with` / destructuring 主线只应
     ///   作用于真实存储字段；
     /// - 带 delegate 或 accessor 的属性属于计算/转发属性，不应被误当作 direct field。
     pub fn is_direct_field(&self) -> bool {

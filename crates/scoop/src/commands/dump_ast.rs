@@ -11,9 +11,8 @@ use scoopc::session::SessionOptions;
 fn load_ast_for_dump<'a>(
     session: &scoopc::session::Session,
     source: &'a scoopc::source::SourceFile,
-) -> Result<scoopc::effect_refactor_pipeline::AstStageOutput<'a>> {
-    scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
-        .map_err(miette::Report::from)
+) -> Result<scoopc::pipeline::AstStageOutput<'a>> {
+    scoopc::pipeline::load_ast_stage_output_for_dump(session, source).map_err(miette::Report::from)
 }
 
 pub(super) fn render_dump_output(

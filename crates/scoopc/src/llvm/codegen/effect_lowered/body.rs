@@ -36,11 +36,9 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{
-    MainCodegen, RefactorCallableCarrierKind, TypeDescriptorSpec, sanitize_llvm_ident,
-};
+use super::super::{CallableCarrierKind, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
 use super::types::{
-    RefactorAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
+    ProgramAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeLayout, RefactorDynamicInvokeCarrierLayout,
     RefactorDynamicInvokeLayout, RefactorFrameLayout, RefactorHandleContinuationBinderLayout,
     RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorTerminalAction,
@@ -177,9 +175,9 @@ struct TaskTransportResumeCandidate<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    /// Defines all refactor ABI function bodies published by the P5/P6 handoff.
+    /// Defines all published ABI function bodies from the P5/P6 handoff.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn codegen_refactor_program_bodies(
+    pub(crate) fn codegen_program_bodies(
         &mut self,
         program: &'a LateLoweredProgram,
         abi_program: &'a LateLoweredProgram,
@@ -187,7 +185,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi_source_types: &'a TypeStore,
         abi_pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
             let mut child = self.fresh_child_codegen();
@@ -344,13 +342,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    /// Emits the C `main` exit path through the refactor direct-entry ABI.
-    pub(crate) fn codegen_refactor_main_exit_code(
+    /// Emits the C `main` exit path through the stage-owned direct-entry ABI.
+    pub(crate) fn codegen_stage_main_exit_code(
         &mut self,
         hir_main: &crate::hir::FunDecl,
         entry_argv_array: Option<PointerValue<'ctx>>,
         program: &LateLoweredProgram,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let mut entry_callables = program
             .callables()
@@ -489,7 +487,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         hir_main: &crate::hir::FunDecl,
         entry_argv_array: Option<PointerValue<'ctx>>,
         callable: &LateLoweredCallable,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
         if layout.root_fqn() != callable.root_fqn() {
@@ -561,7 +559,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
     ) -> Result<(), LlvmEmitError> {
         let plain = callable.plain_abi().ok_or_else(|| {
@@ -859,7 +857,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
     ) -> Result<(), LlvmEmitError> {
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
@@ -925,12 +923,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_refactor_callable_carrier_entry_shell(
         &mut self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         carrier_fqn: &str,
         target: &super::types::RefactorCallableCarrierTargetLayout,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let target_layout = abi.callable_layout_by_version_key(target.body_version_key())?;
         let function = self.refactor_function(target.symbol_name())?;
@@ -989,7 +987,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn project_refactor_step_to_schema(
         &mut self,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         owner_step: BasicValueEnum<'ctx>,
         owner_step_schema: StepSchemaId,
         wrapper_step_schema: StepSchemaId,
@@ -1123,12 +1121,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     fn build_refactor_carrier_direct_args(
         &mut self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         carrier_fqn: &str,
         function: FunctionValue<'ctx>,
         mir_fun: &mir::FunDecl,
         source_types: &TypeStore,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         direct_entry: &RefactorCallableEntryLayout<'ctx>,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         let direct_args_layout = abi.source_value_layout(direct_entry.invoke_args_tuple_ty())?;
@@ -1141,7 +1139,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
         let mut components = vec![None; direct_component_count.max(mir_fun.params.len())];
         let (explicit_param_start, explicit_component_start) = match kind {
-            RefactorCallableCarrierKind::ClosureObject if mir_fun.name.starts_with("$lambda") => {
+            CallableCarrierKind::ClosureObject if mir_fun.name.starts_with("$lambda") => {
                 let flatten_env = mir_fun.params.first().is_some_and(|param| {
                     mir_fun.params.len() == 1 && param.ty == direct_entry.invoke_args_tuple_ty()
                 });
@@ -1156,9 +1154,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 components.resize(direct_component_count.max(env_component_count), None);
                 (1, env_component_count)
             }
-            RefactorCallableCarrierKind::ClosureObject => (0, 0),
-            RefactorCallableCarrierKind::ClassVtable
-            | RefactorCallableCarrierKind::InterfaceItable => {
+            CallableCarrierKind::ClosureObject => (0, 0),
+            CallableCarrierKind::ClassVtable | CallableCarrierKind::InterfaceItable => {
                 if components.is_empty() {
                     return Err(frontend_error(format!(
                         "refactor dispatch carrier `{carrier_fqn}` direct entry 缺少 receiver 参数"
@@ -1171,7 +1168,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Closure carriers for a single tuple-typed parameter already receive the exact
         // invoke-args ABI payload as their explicit args parameter; forwarding it intact
         // preserves the authoritative tuple source layout without dropping components.
-        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+        if matches!(kind, CallableCarrierKind::ClosureObject)
             && explicit_param_start == 0
             && explicit_component_start == 0
             && mir_fun.params.len() == 1
@@ -1517,7 +1514,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
         symbol_name: &str,
         fn_ty: inkwell::types::FunctionType<'ctx>,
@@ -1581,7 +1578,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_refactor_surface_resume(
         &mut self,
         _program: &LateLoweredProgram,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let function = self
@@ -1715,7 +1712,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_refactor_dynamic_surface_resume_adapter(
         &mut self,
         program: &'a LateLoweredProgram,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let function = self.refactor_function(surface.symbol_name())?;
@@ -1914,7 +1911,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &RefactorAbiQuery<'ctx>,
+        abi: &ProgramAbiQuery<'ctx>,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -2042,7 +2039,7 @@ struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     program: &'a LateLoweredProgram,
     source_types: &'a TypeStore,
     pass_view: &'a mir::MaterializedMirPassView<'a>,
-    abi: &'cg RefactorAbiQuery<'ctx>,
+    abi: &'cg ProgramAbiQuery<'ctx>,
     callable: &'a LateLoweredCallable,
     mir_fun: &'a mir::FunDecl,
     body: &'a mir::Body,
@@ -2075,7 +2072,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
-        abi: &'cg RefactorAbiQuery<'ctx>,
+        abi: &'cg ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
         mir_fun: &'a mir::FunDecl,
         body: &'a mir::Body,

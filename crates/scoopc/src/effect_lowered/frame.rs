@@ -1099,7 +1099,7 @@ fn reachable_case_tags(
 #[cfg(test)]
 mod tests {
     use crate::effect_lowered::ir::SystemSlotKind;
-    use crate::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::pipeline::load_effect_lowered_stage_output_for_dump;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -1107,16 +1107,14 @@ mod tests {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
-    fn load_output(
-        source: &SourceFile,
-    ) -> crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput {
+    fn load_output(source: &SourceFile) -> crate::pipeline::EffectLoweredStageOutput {
         let session = refactor_session();
         load_effect_lowered_stage_output_for_dump(&session, source)
             .expect("fixture 应可通过 refactor late-lowering stage")
     }
 
     fn callable<'a>(
-        output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        output: &'a crate::pipeline::EffectLoweredStageOutput,
         fqn: &str,
     ) -> &'a crate::effect_lowered::LateLoweredCallable {
         output

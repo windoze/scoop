@@ -285,10 +285,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fun: &hir::FunDecl,
     ) -> Option<CalleeSuspendPlan> {
-        self.build_ordinary_callee_suspend_plan_from_unified_contract(
-            fun.body.as_ref()?,
-            fun.return_ty,
-        )
+        self.build_ordinary_callee_suspend_plan(fun.body.as_ref()?, fun.return_ty)
     }
 
     pub(in crate::llvm::codegen) fn codegen_callee_resume_dispatch_impl(

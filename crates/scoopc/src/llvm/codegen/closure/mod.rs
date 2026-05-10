@@ -41,7 +41,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let hir::ExprKind::Block(block) = &closure.body.kind else {
             return None;
         };
-        self.build_ordinary_callee_suspend_plan_from_unified_contract(block, return_ty)
+        self.build_ordinary_callee_suspend_plan(block, return_ty)
     }
 
     pub(in crate::llvm::codegen) fn codegen_closure_expr(
@@ -384,7 +384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let fn_ptr = self.callable_carrier_target_fn_ptr(
-            RefactorCallableCarrierKind::ClosureObject,
+            CallableCarrierKind::ClosureObject,
             &fun_name,
             llvm_fun.as_global_value().as_pointer_value(),
         )?;

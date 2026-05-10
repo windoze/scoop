@@ -24,7 +24,7 @@ use crate::llvm::LlvmEmitError;
 use crate::mir::{InstanceKey, LocalId, SiteId};
 use crate::ty::TypeId;
 
-use super::super::RefactorCallableCarrierKind;
+use super::super::CallableCarrierKind;
 
 /// 单个 refactor ABI 值位的 LLVM 形状。
 ///
@@ -2174,8 +2174,8 @@ impl RefactorCallableCarrierTargetLayout {
     }
 }
 
-/// refactor LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
-pub(crate) struct RefactorAbiQuery<'ctx> {
+/// effect-lowered LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
+pub(crate) struct ProgramAbiQuery<'ctx> {
     source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
     class_instance_layouts: BTreeMap<TypeId, RefactorClassInstanceLayout>,
     step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
@@ -2195,7 +2195,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     known_instance_callable_versions:
         HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>,
     callable_carrier_target_layouts:
-        HashMap<(RefactorCallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
+        HashMap<(CallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
     call_boundary_operand_layouts:
         BTreeMap<(StepSchemaId, SiteId), RefactorCallBoundaryOperandLayout>,
@@ -2214,7 +2214,7 @@ pub(crate) struct RefactorAbiQuery<'ctx> {
     handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
 }
 
-impl<'ctx> RefactorAbiQuery<'ctx> {
+impl<'ctx> ProgramAbiQuery<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
@@ -2249,7 +2249,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             LateLoweredBodyVersionKey,
         >,
         callable_carrier_target_layouts: HashMap<
-            (RefactorCallableCarrierKind, String),
+            (CallableCarrierKind, String),
             RefactorCallableCarrierTargetLayout,
         >,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
@@ -2643,7 +2643,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
 
     pub(super) fn callable_carrier_target_layout(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Result<&RefactorCallableCarrierTargetLayout, LlvmEmitError> {
         self.callable_carrier_target_layouts
@@ -2659,7 +2659,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
 
     pub(super) fn maybe_callable_carrier_target_layout(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Option<&RefactorCallableCarrierTargetLayout> {
         self.callable_carrier_target_layouts
@@ -2670,7 +2670,7 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
         &self,
     ) -> impl Iterator<
         Item = (
-            RefactorCallableCarrierKind,
+            CallableCarrierKind,
             &str,
             &RefactorCallableCarrierTargetLayout,
         ),

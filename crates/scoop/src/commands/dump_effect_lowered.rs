@@ -14,10 +14,8 @@ pub(crate) fn render_effect_lowered_output(
     session: &Session,
     source: &SourceFile,
 ) -> Result<String> {
-    let output = scoopc::effect_refactor_pipeline::load_effect_lowered_stage_output_for_dump(
-        session, source,
-    )
-    .map_err(|err| miette::miette!(err.to_string()))?;
+    let output = scoopc::pipeline::load_effect_lowered_stage_output_for_dump(session, source)
+        .map_err(|err| miette::miette!(err.to_string()))?;
     Ok(output.stable_dump())
 }
 
@@ -87,7 +85,7 @@ fun handled(): Int {
 
         let rendered = super::render_effect_lowered_output(&session, &source).unwrap();
 
-        assert!(rendered.contains("RefactorEffectLoweredStageOutput"));
+        assert!(rendered.contains("EffectLoweredStageOutput"));
         assert!(rendered.contains("opt_level: O2"));
         assert!(rendered.contains("post_opt_program:"));
         assert!(rendered.contains("LateLoweredProgram"));

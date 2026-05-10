@@ -1552,7 +1552,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
 
                     let fn_ptr = self.callable_carrier_target_fn_ptr(
-                        RefactorCallableCarrierKind::InterfaceItable,
+                        CallableCarrierKind::InterfaceItable,
                         impl_fqn,
                         llvm_fun.as_global_value().as_pointer_value(),
                     )?;
@@ -1671,7 +1671,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             let fn_ptr = self.callable_carrier_target_fn_ptr(
-                RefactorCallableCarrierKind::ClassVtable,
+                CallableCarrierKind::ClassVtable,
                 &slot.impl_member_fqn,
                 llvm_fun.as_global_value().as_pointer_value(),
             )?;

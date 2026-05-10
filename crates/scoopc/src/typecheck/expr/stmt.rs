@@ -58,7 +58,7 @@ pub(super) struct StmtExprFlow {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ExprStmtCallMode {
     StructuralOnly,
-    WithUnifiedGate,
+    CheckValueCalls,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -753,7 +753,7 @@ pub(super) fn check_block_exprs(
         lower,
         state,
         flow,
-        ExprStmtCallMode::WithUnifiedGate,
+        ExprStmtCallMode::CheckValueCalls,
     )
 }
 
@@ -795,7 +795,7 @@ pub(super) fn check_stmt_exprs(
         lower,
         state,
         flow,
-        ExprStmtCallMode::WithUnifiedGate,
+        ExprStmtCallMode::CheckValueCalls,
     )
 }
 
@@ -1281,7 +1281,7 @@ pub(super) fn check_expr_stmt(
         lower,
         state,
         flow,
-        ExprStmtCallMode::WithUnifiedGate,
+        ExprStmtCallMode::CheckValueCalls,
     )
 }
 
@@ -1449,10 +1449,10 @@ fn check_expr_stmt_with_mode(
             // 先单独检查 lambda 实参，确保其中的 `return` 仍按“只能离开立即包裹的命名函数”处理。
             check_call_expr_stmt_lambda_args(shared, callee, args, lower, state, flow)?;
 
-            // 然后复用 value-position 的统一调用 typecheck，但暂停普通调用的 required-effects 收集。
+            // 然后复用 value-position 的调用 typecheck，但暂停普通调用的 required-effects 收集。
             // 本任务只收口 statement-position 的调用门禁；若把普通 callee effect row 也一并接通，
             // 会把未单独跟踪的 effect 传播语义变更混入本轮。
-            if matches!(call_mode, ExprStmtCallMode::WithUnifiedGate) {
+            if matches!(call_mode, ExprStmtCallMode::CheckValueCalls) {
                 match lower.with_effect_collection_suspended(|lower| {
                     expr_infer_inputs_with_flow(shared, state, flow).infer(lower, expr)
                 }) {

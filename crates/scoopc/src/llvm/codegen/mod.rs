@@ -76,7 +76,7 @@ mod closure;
 mod composite_transport;
 mod control_flow;
 mod effect;
-mod effect_refactor;
+mod effect_lowered;
 mod enum_lowering;
 mod expr;
 mod gc;
@@ -312,21 +312,19 @@ struct SharedCodegenCaches {
     enum_cg_layout_cache: RefCell<HashMap<TypeId, CgEnumLayout>>,
     class_init_layout_cache: RefCell<HashMap<String, hir::ClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
-    refactor_callable_carrier_contract_enabled: Cell<bool>,
-    refactor_callable_carrier_entry_symbols:
-        RefCell<HashMap<(RefactorCallableCarrierKind, String), String>>,
-    refactor_plain_callable_carrier_fallback_targets:
-        RefCell<HashSet<(RefactorCallableCarrierKind, String)>>,
+    callable_carrier_contract_enabled: Cell<bool>,
+    callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
+    plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum RefactorCallableCarrierKind {
+pub(super) enum CallableCarrierKind {
     ClosureObject,
     ClassVtable,
     InterfaceItable,
 }
 
-impl RefactorCallableCarrierKind {
+impl CallableCarrierKind {
     pub(super) fn label(self) -> &'static str {
         match self {
             Self::ClosureObject => "closure callable object",
@@ -761,38 +759,36 @@ impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(super) fn enable_refactor_callable_carrier_contract(&self) {
+    pub(super) fn enable_callable_carrier_contract(&self) {
         self.shared_caches
-            .refactor_callable_carrier_contract_enabled
+            .callable_carrier_contract_enabled
             .set(true);
     }
 
-    fn refactor_callable_carrier_contract_enabled(&self) -> bool {
-        self.shared_caches
-            .refactor_callable_carrier_contract_enabled
-            .get()
+    fn callable_carrier_contract_enabled(&self) -> bool {
+        self.shared_caches.callable_carrier_contract_enabled.get()
     }
 
-    pub(super) fn register_refactor_callable_carrier_entry_symbol(
+    pub(super) fn register_callable_carrier_entry_symbol(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
         symbol_name: &str,
     ) -> Result<(), LlvmEmitError> {
         let mut symbols = self
             .shared_caches
-            .refactor_callable_carrier_entry_symbols
+            .callable_carrier_entry_symbols
             .borrow_mut();
         let key = (kind, callable_fqn.to_string());
         if self
             .shared_caches
-            .refactor_plain_callable_carrier_fallback_targets
+            .plain_callable_carrier_fallback_targets
             .borrow()
             .contains(&key)
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor callable carrier contract 同时把 {} `{}` 发布为 plain fallback 和 effect-step target",
+                    "callable carrier contract 同时把 {} `{}` 发布为 plain fallback 和 effect-step target",
                     kind.label(),
                     callable_fqn,
                 ),
@@ -804,7 +800,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor callable carrier contract 为 {} `{}` 重复发布了不同 target：已有 `{}`，新值 `{}`",
+                    "callable carrier contract 为 {} `{}` 重复发布了不同 target：已有 `{}`，新值 `{}`",
                     kind.label(),
                     callable_fqn,
                     existing,
@@ -816,56 +812,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn register_refactor_plain_callable_carrier_fallback(
+    pub(super) fn register_plain_callable_carrier_fallback(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Result<(), LlvmEmitError> {
         let key = (kind, callable_fqn.to_string());
         if self
             .shared_caches
-            .refactor_callable_carrier_entry_symbols
+            .callable_carrier_entry_symbols
             .borrow()
             .contains_key(&key)
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor callable carrier contract 同时把 {} `{}` 发布为 effect-step target 和 plain fallback",
+                    "callable carrier contract 同时把 {} `{}` 发布为 effect-step target 和 plain fallback",
                     kind.label(),
                     callable_fqn,
                 ),
             });
         }
         self.shared_caches
-            .refactor_plain_callable_carrier_fallback_targets
+            .plain_callable_carrier_fallback_targets
             .borrow_mut()
             .insert(key);
         Ok(())
     }
 
-    fn refactor_callable_carrier_entry_symbol(
+    fn callable_carrier_entry_symbol(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Result<Option<String>, LlvmEmitError> {
         if let Some(symbol) = self
             .shared_caches
-            .refactor_callable_carrier_entry_symbols
+            .callable_carrier_entry_symbols
             .borrow()
             .get(&(kind, callable_fqn.to_string()))
             .cloned()
         {
             return Ok(Some(symbol));
         }
-        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+        if matches!(kind, CallableCarrierKind::ClosureObject)
             && is_direct_hir_closure_carrier_alias(callable_fqn)
         {
             return Ok(None);
         }
-        if self.refactor_callable_carrier_contract_enabled() {
+        if self.callable_carrier_contract_enabled() {
             if self
                 .shared_caches
-                .refactor_plain_callable_carrier_fallback_targets
+                .plain_callable_carrier_fallback_targets
                 .borrow()
                 .contains(&(kind, callable_fqn.to_string()))
             {
@@ -873,7 +869,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor callable carrier contract 缺少 {} `{}` 的 published target entry",
+                    "callable carrier contract 缺少 {} `{}` 的 published target entry",
                     kind.label(),
                     callable_fqn,
                 ),
@@ -882,25 +878,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(None)
     }
 
-    fn refactor_plain_callable_carrier_fallback_allowed(
+    fn plain_callable_carrier_fallback_allowed(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> bool {
         self.shared_caches
-            .refactor_plain_callable_carrier_fallback_targets
+            .plain_callable_carrier_fallback_targets
             .borrow()
             .contains(&(kind, callable_fqn.to_string()))
     }
 
     pub(super) fn callable_carrier_target_fn_ptr(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
         fallback_target: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let Some(symbol_name) = self.refactor_callable_carrier_entry_symbol(kind, callable_fqn)?
-        else {
+        let Some(symbol_name) = self.callable_carrier_entry_symbol(kind, callable_fqn)? else {
             return Ok(fallback_target);
         };
         let function = self

@@ -10,7 +10,7 @@ use crate::mir::{
 };
 use crate::span::Span;
 
-use super::{LlvmEmitError, RefactorBackendGateError};
+use super::{BackendGateError, LlvmEmitError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CodegenGapRoute {
@@ -385,7 +385,7 @@ pub(crate) struct CodegenBackendGateFailure {
 
 impl CodegenBackendGateFailure {
     pub(crate) fn into_llvm_error(self) -> LlvmEmitError {
-        LlvmEmitError::RefactorBackendGate(Box::new(RefactorBackendGateError {
+        LlvmEmitError::BackendGate(Box::new(BackendGateError {
             body_fqn: self.body_fqn,
             source_span: self.span,
             gap_id: self.entry.gap_id,

@@ -59,7 +59,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
-    pub(in crate::llvm::codegen) fn build_ordinary_callee_suspend_plan_from_unified_contract(
+    pub(in crate::llvm::codegen) fn build_ordinary_callee_suspend_plan(
         &self,
         body: &hir::Block,
         declared_return_ty: TypeId,

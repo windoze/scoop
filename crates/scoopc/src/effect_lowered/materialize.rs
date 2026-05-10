@@ -5685,8 +5685,8 @@ mod tests {
         LateLoweredSurfaceResumeDispatchSourceKind,
         LateLoweredSurfaceResumeWrapperCompletePayloadSource, SystemSlotKind,
     };
-    use crate::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump;
     use crate::mir::{CallArg, Operand, Rvalue, SiteId, StatementKind};
+    use crate::pipeline::load_effect_facts_stage_output_for_dump;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -5703,7 +5703,7 @@ mod tests {
     }
 
     struct RawMaterializedOutput {
-        effect_facts_stage_output: crate::effect_refactor_pipeline::RefactorEffectFactsStageOutput,
+        effect_facts_stage_output: crate::pipeline::EffectFactsStageOutput,
         program: crate::effect_lowered::LateLoweredProgram,
     }
 

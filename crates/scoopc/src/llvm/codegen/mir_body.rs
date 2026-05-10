@@ -5773,8 +5773,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
-                    if self.refactor_plain_callable_carrier_fallback_allowed(
-                        RefactorCallableCarrierKind::ClosureObject,
+                    if self.plain_callable_carrier_fallback_allowed(
+                        CallableCarrierKind::ClosureObject,
                         fn_ptr,
                     ) {
                         return self.codegen_mir_plain_function_value_call(
@@ -7990,13 +7990,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let use_plain_fallback = self.refactor_plain_callable_carrier_fallback_allowed(
-            RefactorCallableCarrierKind::ClosureObject,
-            fn_ptr,
-        );
+        let use_plain_fallback = self
+            .plain_callable_carrier_fallback_allowed(CallableCarrierKind::ClosureObject, fn_ptr);
         let fallback_target = if target_fn_ptr.is_some() {
             self.llvm_i8_ptr_type().const_null()
-        } else if self.refactor_callable_carrier_contract_enabled() && !use_plain_fallback {
+        } else if self.callable_carrier_contract_enabled() && !use_plain_fallback {
             // Refactor callable carriers publish their own dynamic entry shell; do
             // not define a fallback lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
@@ -8010,7 +8008,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_ptr = match target_fn_ptr {
             Some(ptr) => ptr,
             None => self.callable_carrier_target_fn_ptr(
-                RefactorCallableCarrierKind::ClosureObject,
+                CallableCarrierKind::ClosureObject,
                 fn_ptr,
                 fallback_target,
             )?,

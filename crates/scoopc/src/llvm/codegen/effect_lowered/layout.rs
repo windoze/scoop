@@ -34,9 +34,9 @@ use crate::mir::{
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
-use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
+use super::super::{CallableCarrierKind, MainCodegen, sanitize_llvm_ident};
 use super::types::{
-    RefactorAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
+    ProgramAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
     RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorClassInstanceFieldLayout, RefactorClassInstanceLayout, RefactorClosureCarrierLayout,
     RefactorCompletionPayloadBindingLayout, RefactorContinuationFieldKind,
@@ -61,14 +61,14 @@ use super::types::{
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// P6-T02：把 P5 late-lowered contract 显式物化成 LLVM type/layout 查询面。
-    pub(crate) fn materialize_refactor_program_abi(
+    pub(crate) fn materialize_program_abi(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
-    ) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
-        RefactorAbiMaterializer::new(self, program, source_types, pass_view, effect_facts)?
+    ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
+        ProgramAbiMaterializer::new(self, program, source_types, pass_view, effect_facts)?
             .materialize()
     }
 }
@@ -195,7 +195,7 @@ impl ProgramLayoutView {
     }
 }
 
-struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
+struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     codegen: &'cg mut MainCodegen<'a, 'ctx>,
     program: &'a LateLoweredProgram,
     source_types: &'a TypeStore,
@@ -205,7 +205,7 @@ struct RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
 }
 
-impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
         program: &'a LateLoweredProgram,
@@ -224,7 +224,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         })
     }
 
-    fn materialize(self) -> Result<RefactorAbiQuery<'ctx>, LlvmEmitError> {
+    fn materialize(self) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
         let mut this = self;
         let mut step_layouts = BTreeMap::new();
         for step_type in this.program.step_types() {
@@ -343,7 +343,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         this.validate_source_statement_classifications()?;
         let class_instance_layouts = this.materialize_class_instance_layouts()?;
 
-        Ok(RefactorAbiQuery::new(
+        Ok(ProgramAbiQuery::new(
             this.source_value_layouts,
             class_instance_layouts,
             step_layouts,
@@ -2221,7 +2221,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             RefactorDynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<
-        HashMap<(RefactorCallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
+        HashMap<(CallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
         LlvmEmitError,
     > {
         let published_callable_roots = self
@@ -2312,19 +2312,16 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             self.dynamic_dispatch_carrier_targets(dynamic_invoke_layouts)?;
         for callable_fqn in plain_closure_targets {
             self.publish_plain_carrier_fallback_target(
-                RefactorCallableCarrierKind::ClosureObject,
+                CallableCarrierKind::ClosureObject,
                 callable_fqn,
             )?;
         }
         for impl_fqn in plain_class_vtable_targets {
-            self.publish_plain_carrier_fallback_target(
-                RefactorCallableCarrierKind::ClassVtable,
-                impl_fqn,
-            )?;
+            self.publish_plain_carrier_fallback_target(CallableCarrierKind::ClassVtable, impl_fqn)?;
         }
         for impl_fqn in plain_interface_itable_targets {
             self.publish_plain_carrier_fallback_target(
-                RefactorCallableCarrierKind::InterfaceItable,
+                CallableCarrierKind::InterfaceItable,
                 impl_fqn,
             )?;
         }
@@ -2338,13 +2335,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         for impl_fqn in class_vtable_targets {
             let return_step_schema = dynamic_dispatch_targets
-                .get(&(
-                    RefactorCallableCarrierKind::ClassVtable,
-                    impl_fqn.to_string(),
-                ))
+                .get(&(CallableCarrierKind::ClassVtable, impl_fqn.to_string()))
                 .copied();
             self.publish_dispatch_carrier_entry_shell(
-                RefactorCallableCarrierKind::ClassVtable,
+                CallableCarrierKind::ClassVtable,
                 impl_fqn,
                 return_step_schema,
                 callable_layouts,
@@ -2354,13 +2348,10 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         }
         for impl_fqn in interface_itable_targets {
             let return_step_schema = dynamic_dispatch_targets
-                .get(&(
-                    RefactorCallableCarrierKind::InterfaceItable,
-                    impl_fqn.to_string(),
-                ))
+                .get(&(CallableCarrierKind::InterfaceItable, impl_fqn.to_string()))
                 .copied();
             self.publish_dispatch_carrier_entry_shell(
-                RefactorCallableCarrierKind::InterfaceItable,
+                CallableCarrierKind::InterfaceItable,
                 impl_fqn,
                 return_step_schema,
                 callable_layouts,
@@ -2369,22 +2360,22 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             )?;
         }
 
-        self.codegen.enable_refactor_callable_carrier_contract();
+        self.codegen.enable_callable_carrier_contract();
         Ok(carrier_layouts)
     }
 
     fn publish_plain_carrier_fallback_target(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Result<(), LlvmEmitError> {
         self.codegen
-            .register_refactor_plain_callable_carrier_fallback(kind, callable_fqn)?;
-        if matches!(kind, RefactorCallableCarrierKind::ClosureObject)
+            .register_plain_callable_carrier_fallback(kind, callable_fqn)?;
+        if matches!(kind, CallableCarrierKind::ClosureObject)
             && let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn)
         {
             self.codegen
-                .register_refactor_plain_callable_carrier_fallback(kind, &alias)?;
+                .register_plain_callable_carrier_fallback(kind, &alias)?;
         }
         Ok(())
     }
@@ -2395,15 +2386,15 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
             (StepSchemaId, crate::mir::SiteId),
             RefactorDynamicInvokeLayout<'ctx>,
         >,
-    ) -> Result<HashMap<(RefactorCallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
-        let mut targets = HashMap::<(RefactorCallableCarrierKind, String), StepSchemaId>::new();
+    ) -> Result<HashMap<(CallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
+        let mut targets = HashMap::<(CallableCarrierKind, String), StepSchemaId>::new();
         for layout in dynamic_invoke_layouts.values() {
             let kind = match layout.carrier() {
                 RefactorDynamicInvokeCarrierLayout::VirtualReceiver(_) => {
-                    RefactorCallableCarrierKind::ClassVtable
+                    CallableCarrierKind::ClassVtable
                 }
                 RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
-                    RefactorCallableCarrierKind::InterfaceItable
+                    CallableCarrierKind::InterfaceItable
                 }
                 RefactorDynamicInvokeCarrierLayout::ClosureObject(_)
                 | RefactorDynamicInvokeCarrierLayout::FunPtr(_) => continue,
@@ -2432,13 +2423,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         carrier_layouts: &mut HashMap<
-            (RefactorCallableCarrierKind, String),
+            (CallableCarrierKind, String),
             RefactorCallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
         let callable_layout = self.callable_layout_for_carrier_target(
             callable_layouts,
-            RefactorCallableCarrierKind::ClosureObject,
+            CallableCarrierKind::ClosureObject,
             callable_fqn,
         )?;
         let step_ty = step_layouts
@@ -2463,7 +2454,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         );
         self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
         self.register_callable_carrier_target_contract(
-            RefactorCallableCarrierKind::ClosureObject,
+            CallableCarrierKind::ClosureObject,
             callable_fqn,
             callable_layout,
             callable_layout.step_schema(),
@@ -2472,7 +2463,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         )?;
         if let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn) {
             self.register_callable_carrier_target_contract(
-                RefactorCallableCarrierKind::ClosureObject,
+                CallableCarrierKind::ClosureObject,
                 &alias,
                 callable_layout,
                 callable_layout.step_schema(),
@@ -2485,13 +2476,13 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn publish_dispatch_carrier_entry_shell(
         &mut self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         impl_fqn: &str,
         return_step_schema: Option<StepSchemaId>,
         callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
         carrier_layouts: &mut HashMap<
-            (RefactorCallableCarrierKind, String),
+            (CallableCarrierKind, String),
             RefactorCallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
@@ -2517,9 +2508,9 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
         let symbol_name = format!(
             "__scoop_refactor_{}_dynamic_entry__{}",
             match kind {
-                RefactorCallableCarrierKind::ClassVtable => "vtable",
-                RefactorCallableCarrierKind::InterfaceItable => "itable",
-                RefactorCallableCarrierKind::ClosureObject => "closure",
+                CallableCarrierKind::ClassVtable => "vtable",
+                CallableCarrierKind::InterfaceItable => "itable",
+                CallableCarrierKind::ClosureObject => "closure",
             },
             self.view.step_stem(callable_layout.step_schema())
         );
@@ -2537,18 +2528,18 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
 
     fn register_callable_carrier_target_contract(
         &self,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
         callable_layout: &RefactorCallableLayout<'ctx>,
         return_step_schema: StepSchemaId,
         symbol_name: &str,
         carrier_layouts: &mut HashMap<
-            (RefactorCallableCarrierKind, String),
+            (CallableCarrierKind, String),
             RefactorCallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
         self.codegen
-            .register_refactor_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;
+            .register_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;
 
         let key = (kind, callable_fqn.to_string());
         let published = RefactorCallableCarrierTargetLayout::new(
@@ -2576,7 +2567,7 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
     fn callable_layout_for_carrier_target<'b>(
         &self,
         callable_layouts: &'b BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        kind: RefactorCallableCarrierKind,
+        kind: CallableCarrierKind,
         callable_fqn: &str,
     ) -> Result<&'b RefactorCallableLayout<'ctx>, LlvmEmitError> {
         let matches = callable_layouts
@@ -7096,17 +7087,17 @@ mod tests {
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
     };
-    use crate::effect_refactor_pipeline::{
-        RefactorMirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
-        load_typed_hir_stage_output_for_dump,
-    };
     use crate::llvm::build_single_file_source_map;
-    use crate::llvm::codegen::effect_refactor::types::RefactorCallTargetQuery;
+    use crate::llvm::codegen::effect_lowered::types::RefactorCallTargetQuery;
     use crate::llvm::codegen::{
         CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
     };
     use crate::llvm::target;
     use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
+    use crate::pipeline::{
+        MirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
+        load_typed_hir_stage_output_for_dump,
+    };
     use crate::program_facts::ProgramFacts;
     use crate::session::{Session, SessionOptions};
     use crate::source::{SourceFile, SourceMap};
@@ -7117,8 +7108,7 @@ mod tests {
         source_map: SourceMap,
         entry_source_id: crate::source::SourceId,
         hir_compat_scaffold: crate::hir::LoweredHir,
-        effect_lowered_stage_output:
-            crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        effect_lowered_stage_output: crate::pipeline::EffectLoweredStageOutput,
         abi_visibility_program: LateLoweredProgram,
     }
 
@@ -7161,7 +7151,7 @@ mod tests {
         );
         let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
         let materialized_mir = lowered_hir.into_materialized_mir();
-        let mir_stage_output = RefactorMirStageOutput::new(
+        let mir_stage_output = MirStageOutput::new(
             LoweredMir { file, types },
             effect_contracts,
             materialized_mir,
@@ -7203,7 +7193,7 @@ mod tests {
         rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -7265,7 +7255,7 @@ mod tests {
             effect_op_tags,
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
-        let result = codegen.materialize_refactor_program_abi(
+        let result = codegen.materialize_program_abi(
             &program,
             inputs.effect_lowered_stage_output.types(),
             &inputs.effect_lowered_stage_output.materialized_pass_view(),
@@ -7280,7 +7270,7 @@ mod tests {
         rewrite_source_types: impl FnOnce(&FixtureAbiInputs) -> TypeStore,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -7343,7 +7333,7 @@ mod tests {
             effect_op_tags,
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
-        let result = codegen.materialize_refactor_program_abi(
+        let result = codegen.materialize_program_abi(
             &program,
             &source_types,
             &inputs.effect_lowered_stage_output.materialized_pass_view(),
@@ -7358,7 +7348,7 @@ mod tests {
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
             &mut MainCodegen<'_, 'ctx>,
-            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -7421,7 +7411,7 @@ mod tests {
         });
         let mut codegen = unit_codegen.fresh_main_codegen();
         let pass_view = inputs.effect_lowered_stage_output.materialized_pass_view();
-        let result = codegen.materialize_refactor_program_abi(
+        let result = codegen.materialize_program_abi(
             &program,
             inputs.effect_lowered_stage_output.types(),
             &pass_view,
@@ -7435,7 +7425,7 @@ mod tests {
         rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -7448,7 +7438,7 @@ mod tests {
         rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            Result<RefactorAbiQuery<'ctx>, LlvmEmitError>,
+            Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -7463,7 +7453,7 @@ mod tests {
         name: &str,
         check: impl for<'ctx> FnOnce(
             &FixtureAbiInputs,
-            &RefactorAbiQuery<'ctx>,
+            &ProgramAbiQuery<'ctx>,
             &inkwell::module::Module<'ctx>,
         ),
     ) {
@@ -10301,23 +10291,20 @@ mod tests {
 
                 for (kind, fqn) in [
                     (
-                        RefactorCallableCarrierKind::ClosureObject,
+                        CallableCarrierKind::ClosureObject,
                         "fixtures.build.makeClosure",
                     ),
+                    (CallableCarrierKind::ClassVtable, "fixtures.build.Base.ping"),
                     (
-                        RefactorCallableCarrierKind::ClassVtable,
+                        CallableCarrierKind::InterfaceItable,
                         "fixtures.build.Base.ping",
                     ),
                     (
-                        RefactorCallableCarrierKind::InterfaceItable,
-                        "fixtures.build.Base.ping",
-                    ),
-                    (
-                        RefactorCallableCarrierKind::ClassVtable,
+                        CallableCarrierKind::ClassVtable,
                         "fixtures.build.Derived.ping",
                     ),
                     (
-                        RefactorCallableCarrierKind::InterfaceItable,
+                        CallableCarrierKind::InterfaceItable,
                         "fixtures.build.Derived.ping",
                     ),
                 ] {
@@ -10326,7 +10313,7 @@ mod tests {
                         "NoOutward carrier `{fqn}` 不应发布 effect-step dynamic entry target"
                     );
                     assert!(
-                        codegen.refactor_plain_callable_carrier_fallback_allowed(kind, fqn),
+                        codegen.plain_callable_carrier_fallback_allowed(kind, fqn),
                         "NoOutward carrier `{fqn}` 应发布 plain callable fallback"
                     );
                 }
@@ -10411,7 +10398,7 @@ mod tests {
                     None,
                 );
                 let err = match codegen.callable_carrier_target_fn_ptr(
-                    RefactorCallableCarrierKind::ClassVtable,
+                    CallableCarrierKind::ClassVtable,
                     "fixtures.build.Missing.ping",
                     dummy_fn.as_global_value().as_pointer_value(),
                 ) {

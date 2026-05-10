@@ -13,27 +13,27 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::TypeStore;
 
-use super::RefactorMirStageOutput;
+use super::MirStageOutput;
 
-/// refactor effect-facts stage 的稳定输出形状。
+/// effect-facts stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P4/P5 及后续阶段直接消费：
-/// - 输入必须是 P3 的 `RefactorMirStageOutput`，而不是 AST/HIR 或 legacy effect helper；
+/// - 输入必须是 P3 的 `MirStageOutput`，而不是 AST/HIR 或 legacy effect helper；
 /// - `materialized_pass_view()` 是当前 canonical MIR snapshot 的唯一查询面；P4 不混用 raw
 ///   `MaterializedMir.file` 与 pass-view body/summaries；
 /// - `effect_facts()` 是 P5 唯一允许消费的 authoritative effect contract；P5 不得再回
 ///   HIR/typecheck 推断缺失语义；
 /// - 一旦 MIR snapshot 发生结构性 rewrite，必须重新运行本 stage 获取新的 facts 输出。
 #[derive(Debug)]
-pub struct RefactorEffectFactsStageOutput {
-    mir_stage_output: RefactorMirStageOutput,
+pub struct EffectFactsStageOutput {
+    mir_stage_output: MirStageOutput,
     effect_facts: MaterializedEffectFacts,
     codegen_routing_facts: MirCodegenRoutingFacts,
 }
 
-impl RefactorEffectFactsStageOutput {
+impl EffectFactsStageOutput {
     fn new(
-        mir_stage_output: RefactorMirStageOutput,
+        mir_stage_output: MirStageOutput,
         effect_facts: MaterializedEffectFacts,
         codegen_routing_facts: MirCodegenRoutingFacts,
     ) -> Self {
@@ -44,7 +44,7 @@ impl RefactorEffectFactsStageOutput {
         }
     }
 
-    pub fn mir_stage_output(&self) -> &RefactorMirStageOutput {
+    pub fn mir_stage_output(&self) -> &MirStageOutput {
         &self.mir_stage_output
     }
 
@@ -92,8 +92,8 @@ impl RefactorEffectFactsStageOutput {
 pub(crate) fn run(
     session: &Session,
     source: &SourceFile,
-    mir_stage_output: RefactorMirStageOutput,
-) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
+    mir_stage_output: MirStageOutput,
+) -> Result<EffectFactsStageOutput, EffectFactsError> {
     run_with_compilation_sources(
         session,
         source,
@@ -106,8 +106,8 @@ pub(crate) fn run_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
-    mut mir_stage_output: RefactorMirStageOutput,
-) -> Result<RefactorEffectFactsStageOutput, EffectFactsError> {
+    mut mir_stage_output: MirStageOutput,
+) -> Result<EffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
         mir_stage_output
             .materialized_mir()
@@ -162,7 +162,7 @@ pub(crate) fn run_with_compilation_sources(
         solver.solve(seeded_facts)
     };
     let codegen_routing_facts = build_codegen_routing_facts(&mir_stage_output, &effect_facts)?;
-    Ok(RefactorEffectFactsStageOutput::new(
+    Ok(EffectFactsStageOutput::new(
         mir_stage_output,
         effect_facts,
         codegen_routing_facts,
@@ -170,7 +170,7 @@ pub(crate) fn run_with_compilation_sources(
 }
 
 fn build_codegen_routing_facts(
-    mir_stage_output: &RefactorMirStageOutput,
+    mir_stage_output: &MirStageOutput,
     effect_facts: &MaterializedEffectFacts,
 ) -> Result<MirCodegenRoutingFacts, MirCodegenRouteError> {
     let pass_view = mir_stage_output
@@ -235,8 +235,8 @@ fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::super::{RefactorMirStageOutput, TypedHirEffectContracts};
-    use super::RefactorEffectFactsStageOutput;
+    use super::super::{MirStageOutput, TypedHirEffectContracts};
+    use super::EffectFactsStageOutput;
     use crate::effect_facts::{CanonicalMirQuerySurface, EffectFactsError, ImplPlan};
     use crate::mir::{
         File, LoweredMir, MirCallableAbiKind, MirCallableImplPlan, MirCodegenBackendRoute,
@@ -257,13 +257,13 @@ mod tests {
         )
     }
 
-    fn run_sample() -> RefactorEffectFactsStageOutput {
+    fn run_sample() -> EffectFactsStageOutput {
         let session = refactor_session();
         let source = sample_source();
         run_stage(&session, &source)
     }
 
-    fn run_stage(session: &Session, source: &SourceFile) -> RefactorEffectFactsStageOutput {
+    fn run_stage(session: &Session, source: &SourceFile) -> EffectFactsStageOutput {
         let materialized =
             super::super::materialize_direct_style_mir_for_dump(session, source).unwrap();
         let mir_stage_output =
@@ -277,7 +277,7 @@ mod tests {
     fn run_stage_with_opt_level(
         source: &SourceFile,
         opt_level: crate::opt::OptLevel,
-    ) -> RefactorEffectFactsStageOutput {
+    ) -> EffectFactsStageOutput {
         let session = refactor_session();
         let materialized =
             crate::mir::materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
@@ -377,7 +377,7 @@ fun callInterface(i: IFace): Int {
     }
 
     fn schema_case_fqns(
-        output: &RefactorEffectFactsStageOutput,
+        output: &EffectFactsStageOutput,
         step_schema: crate::effect_facts::StepSchemaId,
     ) -> BTreeSet<String> {
         output
@@ -392,7 +392,7 @@ fun callInterface(i: IFace): Int {
     }
 
     fn case_set_fqns(
-        output: &RefactorEffectFactsStageOutput,
+        output: &EffectFactsStageOutput,
         case_set: &crate::effect_facts::CaseSet,
     ) -> BTreeSet<String> {
         if case_set.is_empty() {
@@ -422,7 +422,7 @@ fun callInterface(i: IFace): Int {
     }
 
     fn continuation_surface_tys_for_step_schema(
-        output: &RefactorEffectFactsStageOutput,
+        output: &EffectFactsStageOutput,
         step_schema: crate::effect_facts::StepSchemaId,
     ) -> BTreeSet<String> {
         output
@@ -444,7 +444,7 @@ fun callInterface(i: IFace): Int {
     }
 
     fn callable_facts_for<'a>(
-        output: &'a RefactorEffectFactsStageOutput,
+        output: &'a EffectFactsStageOutput,
         fqn: &str,
     ) -> &'a crate::effect_facts::CallableEffectFacts {
         let key = output
@@ -513,7 +513,7 @@ fun callInterface(i: IFace): Int {
 
     #[test]
     fn refactor_effect_facts_stage_requires_materialized_snapshot() {
-        let output = RefactorMirStageOutput::new(
+        let output = MirStageOutput::new(
             LoweredMir {
                 file: File { items: Vec::new() },
                 types: TypeStore::new(),

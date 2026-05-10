@@ -10,8 +10,8 @@ use scoopc::session::SessionOptions;
 fn load_hir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-) -> Result<Box<scoopc::effect_refactor_pipeline::TypedHirStageOutput>> {
-    scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
+) -> Result<Box<scoopc::pipeline::TypedHirStageOutput>> {
+    scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
         .map(Box::new)
         .map_err(miette::Report::from)
 }

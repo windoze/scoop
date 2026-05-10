@@ -37,20 +37,20 @@ fn main() -> Result<()> {
     {
         match cli.emit_mode {
             scoopc::driver_cli::EmitMode::LlvmIr => {
-                scoopc::effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
+                scoopc::pipeline::emit_virtual_cone_llvm_artifact_to_file(
                     &session,
                     &source,
                     &output,
-                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr,
+                    scoopc::pipeline::LlvmArtifactKind::LlvmIr,
                 )?;
                 eprintln!("已写入 LLVM IR：{}", output.display());
             }
             scoopc::driver_cli::EmitMode::Object => {
-                scoopc::effect_refactor_pipeline::emit_virtual_cone_llvm_artifact_to_file(
+                scoopc::pipeline::emit_virtual_cone_llvm_artifact_to_file(
                     &session,
                     &source,
                     &output,
-                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
+                    scoopc::pipeline::LlvmArtifactKind::Object,
                 )?;
                 eprintln!("已写入 object 文件：{}", output.display());
             }

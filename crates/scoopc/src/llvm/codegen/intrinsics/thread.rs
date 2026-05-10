@@ -303,8 +303,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let value_v = self.codegen_expr(value_expr)?;
                 let value_word = self.coerce_u64_word(value_expr.span, value_v)?;
 
-                // runtime ABI：`void scoop_thread_spawn_join_resume_u64(void* k, uint64_t resume_value)`
-                let rt = self.declare_runtime_thread_spawn_join_resume_u64();
+                // runtime ABI：`void scoop_thread_spawn_join_compat_resume_u64(void* k, uint64_t resume_value)`
+                let rt = self.declare_runtime_thread_spawn_join_compat_resume_u64();
                 let k_i8 = self.builder.build_pointer_cast(
                     k_ptr,
                     self.llvm_gc_i8_ptr_type(),

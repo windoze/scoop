@@ -45,7 +45,7 @@ fn load_materialized_mir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> Result<scoopc::mir::MaterializedMir> {
-    scoopc::effect_refactor_pipeline::materialize_direct_style_mir_for_dump(session, source)
+    scoopc::pipeline::materialize_direct_style_mir_for_dump(session, source)
         .map_err(|err| miette::Report::from(*err))
 }
 

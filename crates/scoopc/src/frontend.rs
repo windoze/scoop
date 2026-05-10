@@ -353,8 +353,8 @@ pub fn run_frontend(
 
     let mut asts = Vec::with_capacity(input.sources.len());
     for source in &input.sources {
-        let ast = crate::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
-            .map(crate::effect_refactor_pipeline::AstStageOutput::into_ast)
+        let ast = crate::pipeline::load_ast_stage_output_for_dump(session, source)
+            .map(crate::pipeline::AstStageOutput::into_ast)
             .map_err(miette::Report::from)?;
         asts.push(ast);
     }

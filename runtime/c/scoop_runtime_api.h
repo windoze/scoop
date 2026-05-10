@@ -198,13 +198,13 @@
   X(scoop_test_unwind_dump_frames_and_stackmap_hits) \
   X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
+  X(scoop_thread_spawn_join_compat_resume_u64) \
   X(scoop_thread_join) \
   X(scoop_thread_register) \
+  X(scoop_thread_spawn_join_resume_transport) \
+  X(scoop_thread_spawn_join_resume_u64) \
   X(scoop_thread_sleep_millis) \
   X(scoop_thread_spawn) \
-  X(scoop_thread_spawn_join_refactor_resume_transport) \
-  X(scoop_thread_spawn_join_refactor_resume_u64) \
-  X(scoop_thread_spawn_join_resume_u64) \
   X(scoop_thread_unregister) \
   X(scoop_thread_yield) \
   X(scoop_unpin)

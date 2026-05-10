@@ -9,12 +9,12 @@ use crate::mir::MirCodegenRoutingFacts;
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
 
-use super::RefactorEffectFactsStageOutput;
+use super::EffectFactsStageOutput;
 
-/// refactor late-lowering stage 的稳定输出形状。
+/// late-lowering stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P5/P6 及后续阶段直接消费：
-/// - 输入必须是 P4 的 `RefactorEffectFactsStageOutput`；
+/// - 输入必须是 P4 的 `EffectFactsStageOutput`；
 /// - stage 只消费 canonical MIR snapshot + `MaterializedEffectFacts`，不回 HIR/typecheck；
 /// - `program()` 返回独立的 `LateLoweredProgram`，后续结构性 rewrite 必须继续在这份
 ///   late-lowered IR 上工作，而不是回头 patch P3/P4 产物；
@@ -29,23 +29,20 @@ use super::RefactorEffectFactsStageOutput;
 ///   reverse-resume 语义主键；
 /// - LLVM 物理布局/ABI/runtime 集成仍属于 P6，而不是在 P5 逆向塞回本阶段。
 #[derive(Debug)]
-pub struct RefactorEffectLoweredStageOutput {
-    effect_facts_stage_output: RefactorEffectFactsStageOutput,
+pub struct EffectLoweredStageOutput {
+    effect_facts_stage_output: EffectFactsStageOutput,
     program: LateLoweredProgram,
 }
 
-impl RefactorEffectLoweredStageOutput {
-    fn new(
-        effect_facts_stage_output: RefactorEffectFactsStageOutput,
-        program: LateLoweredProgram,
-    ) -> Self {
+impl EffectLoweredStageOutput {
+    fn new(effect_facts_stage_output: EffectFactsStageOutput, program: LateLoweredProgram) -> Self {
         Self {
             effect_facts_stage_output,
             program,
         }
     }
 
-    pub fn effect_facts_stage_output(&self) -> &RefactorEffectFactsStageOutput {
+    pub fn effect_facts_stage_output(&self) -> &EffectFactsStageOutput {
         &self.effect_facts_stage_output
     }
 
@@ -82,14 +79,14 @@ impl RefactorEffectLoweredStageOutput {
         render_stage_output(self)
     }
 
-    pub fn into_parts(self) -> (RefactorEffectFactsStageOutput, LateLoweredProgram) {
+    pub fn into_parts(self) -> (EffectFactsStageOutput, LateLoweredProgram) {
         (self.effect_facts_stage_output, self.program)
     }
 }
 
 pub(crate) fn run(
-    effect_facts_stage_output: RefactorEffectFactsStageOutput,
-) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    effect_facts_stage_output: EffectFactsStageOutput,
+) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
     let nominal_direct_supertypes =
         crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
             effect_facts_stage_output.file(),
@@ -103,7 +100,7 @@ pub(crate) fn run(
         .with_nominal_direct_supertypes(nominal_direct_supertypes)
         .build()?,
     );
-    Ok(RefactorEffectLoweredStageOutput::new(
+    Ok(EffectLoweredStageOutput::new(
         effect_facts_stage_output,
         program,
     ))
@@ -111,8 +108,8 @@ pub(crate) fn run(
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 pub(crate) fn run_preserving_published_resume_shells(
-    effect_facts_stage_output: RefactorEffectFactsStageOutput,
-) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+    effect_facts_stage_output: EffectFactsStageOutput,
+) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
     run_with_opt_options(
         effect_facts_stage_output,
         LateLoweredOptOptions::preserve_published_resume_shells(),
@@ -121,9 +118,9 @@ pub(crate) fn run_preserving_published_resume_shells(
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 fn run_with_opt_options(
-    effect_facts_stage_output: RefactorEffectFactsStageOutput,
+    effect_facts_stage_output: EffectFactsStageOutput,
     opt_options: LateLoweredOptOptions,
-) -> Result<RefactorEffectLoweredStageOutput, EffectLoweringError> {
+) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
     let nominal_direct_supertypes =
         crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
             effect_facts_stage_output.file(),
@@ -138,16 +135,16 @@ fn run_with_opt_options(
         .build()?,
         opt_options,
     );
-    Ok(RefactorEffectLoweredStageOutput::new(
+    Ok(EffectLoweredStageOutput::new(
         effect_facts_stage_output,
         program,
     ))
 }
 
-fn render_stage_output(output: &RefactorEffectLoweredStageOutput) -> String {
+fn render_stage_output(output: &EffectLoweredStageOutput) -> String {
     let binding = output.snapshot_binding();
     let mut rendered = String::new();
-    writeln!(&mut rendered, "RefactorEffectLoweredStageOutput").unwrap();
+    writeln!(&mut rendered, "EffectLoweredStageOutput").unwrap();
     writeln!(
         &mut rendered,
         "opt_level: O{}",
@@ -183,7 +180,7 @@ fn render_stage_output(output: &RefactorEffectLoweredStageOutput) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::RefactorEffectLoweredStageOutput;
+    use super::EffectLoweredStageOutput;
     use crate::effect_facts::{CallableAbiKind, CanonicalMirQuerySurface};
     use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
@@ -200,7 +197,7 @@ mod tests {
         )
     }
 
-    fn run_sample() -> RefactorEffectLoweredStageOutput {
+    fn run_sample() -> EffectLoweredStageOutput {
         let session = refactor_session();
         let source = sample_source();
         let effect_facts_output =
@@ -211,7 +208,7 @@ mod tests {
     fn run_stage_with_opt_level(
         source: &SourceFile,
         opt_level: OptLevel,
-    ) -> RefactorEffectLoweredStageOutput {
+    ) -> EffectLoweredStageOutput {
         let session = refactor_session();
         let materialized =
             crate::mir::materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
@@ -308,11 +305,7 @@ fun leaf(): Unit / Ping {
         );
         assert!(output.program().callable("sample.helper").is_some());
         assert!(output.program().callable("sample.main").is_some());
-        assert!(
-            output
-                .stable_dump()
-                .contains("RefactorEffectLoweredStageOutput")
-        );
+        assert!(output.stable_dump().contains("EffectLoweredStageOutput"));
         assert!(output.stable_dump().contains("LateLoweredProgram"));
     }
 
@@ -391,7 +384,7 @@ fun leaf(): Unit / Ping {
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
         let dump = super::run(effect_facts_output).unwrap().stable_dump();
 
-        assert!(dump.contains("RefactorEffectLoweredStageOutput"));
+        assert!(dump.contains("EffectLoweredStageOutput"));
         assert!(dump.contains("opt_level: O2"));
         assert!(dump.contains("snapshot_binding:"));
         assert!(dump.contains("codegen_routing_facts:"));

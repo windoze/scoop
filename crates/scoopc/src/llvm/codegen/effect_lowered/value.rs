@@ -24,9 +24,9 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{MainCodegen, RefactorCallableCarrierKind, sanitize_llvm_ident};
+use super::super::{CallableCarrierKind, MainCodegen, sanitize_llvm_ident};
 use super::types::{
-    RefactorAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
+    ProgramAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
 };
 
@@ -38,7 +38,7 @@ pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
     source_types: &'a TypeStore,
     body: &'a mir::Body,
     slots: &'p [MirLocalSlot<'ctx>],
-    abi: &'p RefactorAbiQuery<'ctx>,
+    abi: &'p ProgramAbiQuery<'ctx>,
 }
 
 #[derive(Clone, Copy)]
@@ -178,7 +178,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         source_types: &'a TypeStore,
         body: &'a mir::Body,
         slots: &'p [MirLocalSlot<'ctx>],
-        abi: &'p RefactorAbiQuery<'ctx>,
+        abi: &'p ProgramAbiQuery<'ctx>,
     ) -> Self {
         Self {
             codegen,
@@ -784,17 +784,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             surface_tys.push(target_ty);
         }
         if let Some(target_local) = target_local
-            && let Some(consumer_ty) = self.local_function_value_consumer_surface_ty(target_local)?
+            && let Some(consumer_ty) =
+                self.local_function_value_consumer_surface_ty(target_local)?
             && !surface_tys.contains(&consumer_ty)
         {
             surface_tys.push(consumer_ty);
         }
         for surface_ty in surface_tys {
-            if let Some(ptr) =
-                self.maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty(
-                    span, surface_ty, fn_ptr,
-                )?
-            {
+            if let Some(ptr) = self.maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty(
+                span, surface_ty, fn_ptr,
+            )? {
                 return Ok(Some(ptr));
             }
         }
@@ -829,7 +828,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         };
         if let Some(source_target) = self
             .abi
-            .maybe_callable_carrier_target_layout(RefactorCallableCarrierKind::ClosureObject, fn_ptr)
+            .maybe_callable_carrier_target_layout(CallableCarrierKind::ClosureObject, fn_ptr)
         {
             let source_step_schema = source_target.step_schema();
             let source_symbol_name = source_target.symbol_name().to_string();
@@ -957,8 +956,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let surface_ty = match kind {
             mir::CallKind::Direct { callee_fqn } => {
                 if let Ok(layout) = self.abi.callable_layout_by_root_fqn(callee_fqn) {
-                    source_carrier_types(self.source_types, layout.direct_entry().invoke_args_tuple_ty())
-                        .and_then(|tys| tys.get(arg_index).copied())
+                    source_carrier_types(
+                        self.source_types,
+                        layout.direct_entry().invoke_args_tuple_ty(),
+                    )
+                    .and_then(|tys| tys.get(arg_index).copied())
                 } else if let Ok(layout) = self.abi.plain_callable_layout_by_root_fqn(callee_fqn) {
                     layout.direct_entry().param_tys().get(arg_index).copied()
                 } else {
@@ -967,9 +969,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             _ => None,
         };
-        Ok(surface_ty.filter(
-            |ty| matches!(self.source_types.kind(*ty), TypeKind::Ref(RefTypeKind::Function(_))),
-        ))
+        Ok(surface_ty.filter(|ty| {
+            matches!(
+                self.source_types.kind(*ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            )
+        }))
     }
 
     fn source_type_matching_codegen_ty(&self, codegen_ty: TypeId) -> Option<TypeId> {
@@ -2361,38 +2366,36 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 || !matches!(surface.resume_payload_abi().llvm_ty(), BasicTypeEnum::IntType(int_ty) if int_ty == self.codegen.context.i64_type())
             {
                 return Err(frontend_error(
-                    "refactor thread spawn+resume u64 需要 i64 resume payload ABI".to_string(),
+                    "thread spawn+resume u64 需要 i64 resume payload ABI".to_string(),
                 ));
             }
             let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
             let thunk =
                 get_or_create_refactor_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
-            let runtime = self
-                .codegen
-                .declare_runtime_thread_spawn_join_refactor_resume_u64();
+            let runtime = self.codegen.declare_runtime_thread_spawn_join_resume_u64();
             let thunk_ptr = self.codegen.builder.build_pointer_cast(
                 thunk.as_global_value().as_pointer_value(),
                 self.codegen.context.ptr_type(AddressSpace::default()),
-                "refactor_thread_resume_fn",
+                "thread_resume_fn",
             )?;
             let _ = self.codegen.build_call_preserving_gc_local_roots(
                 span,
                 runtime,
                 &[k_i8.into(), value_word.into(), thunk_ptr.into()],
-                "refactor_thread_spawn_join_resume_u64",
+                "thread_spawn_join_resume_u64",
             )?;
             return Ok(Some(CgValue::unit()));
         }
 
         let payload_transport = payload_transport.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "refactor thread spawn+resume transport metadata",
+            kind: "thread spawn+resume transport metadata",
             at: span.into(),
         })?;
         if payload_transport.source_ty != resume_ty
             || payload_transport.kind != mir::MirTransportKind::EffectPayload
         {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume payload transport contract",
+                kind: "thread spawn+resume payload transport contract",
                 at: value_arg.span.into(),
             });
         }
@@ -2410,11 +2413,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )?;
         let runtime = self
             .codegen
-            .declare_runtime_thread_spawn_join_refactor_resume_transport();
+            .declare_runtime_thread_spawn_join_resume_transport();
         let thunk_ptr = self.codegen.builder.build_pointer_cast(
             thunk.as_global_value().as_pointer_value(),
             self.codegen.context.ptr_type(AddressSpace::default()),
-            "refactor_thread_resume_fn",
+            "thread_resume_fn",
         )?;
         let _ = self.codegen.build_call_preserving_gc_local_roots(
             span,
@@ -2427,7 +2430,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 payload.payload_ptr.into(),
                 thunk_ptr.into(),
             ],
-            "refactor_thread_spawn_join_resume_transport",
+            "thread_spawn_join_resume_transport",
         )?;
         Ok(Some(CgValue::unit()))
     }

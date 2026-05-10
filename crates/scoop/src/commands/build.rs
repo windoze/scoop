@@ -251,12 +251,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
             {
-                let _extern_libs = emit_refactor_llvm_artifact_for_build(
+                let _extern_libs = emit_llvm_artifact_for_build(
                     &session,
                     &front,
                     &output,
                     opt_level,
-                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr,
+                    scoopc::pipeline::LlvmArtifactKind::LlvmIr,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -271,12 +271,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Obj => {
             #[cfg(feature = "llvm")]
             {
-                let _extern_libs = emit_refactor_llvm_artifact_for_build(
+                let _extern_libs = emit_llvm_artifact_for_build(
                     &session,
                     &front,
                     &output,
                     opt_level,
-                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
+                    scoopc::pipeline::LlvmArtifactKind::Object,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -291,12 +291,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Asm => {
             #[cfg(feature = "llvm")]
             {
-                let _extern_libs = emit_refactor_llvm_artifact_for_build(
+                let _extern_libs = emit_llvm_artifact_for_build(
                     &session,
                     &front,
                     &output,
                     opt_level,
-                    scoopc::effect_refactor_pipeline::LlvmArtifactKind::Asm,
+                    scoopc::pipeline::LlvmArtifactKind::Asm,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -443,16 +443,16 @@ fn default_output_path_for_emit(emit: BuildEmit) -> PathBuf {
 }
 
 #[cfg(feature = "llvm")]
-fn emit_refactor_llvm_artifact_for_build(
+fn emit_llvm_artifact_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     output: &Path,
     opt_level: OptLevel,
-    artifact: scoopc::effect_refactor_pipeline::LlvmArtifactKind,
+    artifact: scoopc::pipeline::LlvmArtifactKind,
 ) -> Result<Vec<String>> {
     // P6-T05 handoff：`build --emit-*`、`run`（通过 executable build）和 build fixtures
-    // 都必须经由同一 refactor LLVM stage helper，避免为某个产物种类保留测试专用语义入口。
-    scoopc::effect_refactor_pipeline::emit_project_llvm_artifact_to_file(
+    // 都必须经由同一 LLVM stage helper，避免为某个产物种类保留测试专用语义入口。
+    scoopc::pipeline::emit_project_llvm_artifact_to_file(
         session, front, output, opt_level, artifact,
     )
     .map_err(Into::into)
@@ -484,12 +484,12 @@ fn run_codegen_and_link(
 
     let obj = work_dir.join(layout::obj_file_name("main"));
 
-    let extern_libs = emit_refactor_llvm_artifact_for_build(
+    let extern_libs = emit_llvm_artifact_for_build(
         session,
         front,
         &obj,
         opt_level,
-        scoopc::effect_refactor_pipeline::LlvmArtifactKind::Object,
+        scoopc::pipeline::LlvmArtifactKind::Object,
     )?;
 
     // T1115：cone native build 的 `c-sources/c-flags`：
@@ -608,12 +608,12 @@ fn lower_main_hir_for_build(
 }
 
 #[cfg(all(feature = "llvm", test))]
-fn refactor_abi_visibility_lowered_hir_for_build(
+fn abi_visibility_lowered_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     opt_level: OptLevel,
 ) -> Result<Option<scoopc::hir::LoweredHir>> {
-    // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给 refactor
+    // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给
     // LLVM stage；真正的 reachable body lowering 仍由 entry-main rooted build lowering 决定。
     lower_hir_for_build_with_request_root_mode(
         session,
@@ -636,9 +636,9 @@ fn build_codegen_source_map(
 mod tests {
     use std::path::PathBuf;
 
-    #[cfg(feature = "llvm")]
-    use scoopc::effect_refactor_pipeline::LlvmArtifactKind;
     use scoopc::opt::OptLevel;
+    #[cfg(feature = "llvm")]
+    use scoopc::pipeline::LlvmArtifactKind;
     use tempfile::tempdir;
 
     #[cfg(feature = "llvm")]
@@ -1463,12 +1463,12 @@ fun main(): Int {
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let abi_visibility_lowered =
-            super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
+            super::abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
                 .unwrap()
                 .expect("refactor build 应额外构造 request-source ABI visibility handoff");
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
 
-        scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+        scoopc::pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
             entry_source_id,
@@ -1508,11 +1508,10 @@ fun main(): Int {
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let abi_visibility_lowered =
-            super::refactor_abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
-                .unwrap();
+            super::abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
 
-        scoopc::effect_refactor_pipeline::emit_production_llvm_artifact_to_file(
+        scoopc::pipeline::emit_production_llvm_artifact_to_file(
             &session,
             &source_map,
             entry_source_id,

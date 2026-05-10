@@ -1810,7 +1810,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(reloaded_ptr)
     }
 
-    /// T0146c2 / T0114 / T1812: Unified `toString()` dispatch。
+    /// T0146c2 / T0114 / T1812: builtin `toString()` dispatch。
     ///
     /// 先用 HIR concrete type 识别 `Char`（因为运行期与 `Int` 同为 `CgTy::Int`），
     /// 再按 `CgTy` 处理 Bool/Int/String 等其它内建路径。

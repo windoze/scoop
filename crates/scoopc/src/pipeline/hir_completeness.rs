@@ -6,13 +6,13 @@ use crate::hir::{
 };
 use crate::span::Span;
 
-/// Verifies that the refactor typed HIR handoff contains no placeholder HIR nodes.
-pub(crate) struct RefactorHirCompletenessVerifier<'a> {
+/// Verifies that the typed HIR handoff contains no placeholder HIR nodes.
+pub(crate) struct HirCompletenessVerifier<'a> {
     lowered_hir: &'a LoweredHir,
     default_source_path: &'a Path,
 }
 
-impl<'a> RefactorHirCompletenessVerifier<'a> {
+impl<'a> HirCompletenessVerifier<'a> {
     pub(crate) fn new(lowered_hir: &'a LoweredHir, default_source_path: &'a Path) -> Self {
         Self {
             lowered_hir,

@@ -1192,8 +1192,8 @@ fn parse_file_via_ast_stage(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<scoopc::ast::File, scoopc::parser::ParseError> {
-    scoopc::effect_refactor_pipeline::load_ast_stage_output_for_dump(session, source)
-        .map(scoopc::effect_refactor_pipeline::AstStageOutput::into_ast)
+    scoopc::pipeline::load_ast_stage_output_for_dump(session, source)
+        .map(scoopc::pipeline::AstStageOutput::into_ast)
 }
 
 fn parse_fixture(
@@ -1375,8 +1375,8 @@ fn hir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered = scoopc::effect_refactor_pipeline::lower_typed_hir_for_dump(session, source)
-        .map_err(box_diagnostic)?;
+    let lowered =
+        scoopc::pipeline::lower_typed_hir_for_dump(session, source).map_err(box_diagnostic)?;
     let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
 
     let golden_path = fixture_path.with_extension("hir");
@@ -1404,9 +1404,8 @@ fn mir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered =
-        scoopc::effect_refactor_pipeline::lower_direct_style_mir_for_dump(session, source)
-            .map_err(box_diagnostic)?;
+    let lowered = scoopc::pipeline::lower_direct_style_mir_for_dump(session, source)
+        .map_err(box_diagnostic)?;
     let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
 
     assert_mir_golden_matches(&actual, fixture_path)
@@ -1417,10 +1416,8 @@ fn mir_refactor_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let output = scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(
-        session, source,
-    )
-    .map_err(box_diagnostic)?;
+    let output = scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
+        .map_err(box_diagnostic)?;
     if std::env::var_os("SCOOP_FIXTURE_REPRO_DIR").is_some() {
         let _ = std::fs::write(
             fixture_path.with_extension("actual.raw.mir"),
@@ -1582,8 +1579,8 @@ fn scoopir_fixture(
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
 
-    let hir = scoopc::effect_refactor_pipeline::lower_typed_hir_for_dump(session, source)
-        .map_err(box_diagnostic)?;
+    let hir =
+        scoopc::pipeline::lower_typed_hir_for_dump(session, source).map_err(box_diagnostic)?;
     let ir = scoopc::cone::scoopir::export_public_api_for_source(source, &index, &env, &hir)
         .map_err(box_boxed_diagnostic)?;
 
@@ -1810,7 +1807,7 @@ fn infer_fixture(
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // `infer` fixtures 必须消费 authoritative typed HIR 主线，确保观测到唯一 production
     // frontend 发布的 receiver/call contract 诊断。
-    scoopc::effect_refactor_pipeline::load_typed_hir_stage_output_for_dump(session, source)
+    scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
         .map(|_| ())
         .map_err(box_diagnostic)
 }

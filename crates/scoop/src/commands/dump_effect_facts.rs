@@ -11,9 +11,8 @@ use scoopc::session::{Session, SessionOptions};
 use scoopc::source::SourceFile;
 
 pub(crate) fn render_effect_facts_output(session: &Session, source: &SourceFile) -> Result<String> {
-    let output =
-        scoopc::effect_refactor_pipeline::load_effect_facts_stage_output_for_dump(session, source)
-            .map_err(|err| miette::miette!(err.to_string()))?;
+    let output = scoopc::pipeline::load_effect_facts_stage_output_for_dump(session, source)
+        .map_err(|err| miette::miette!(err.to_string()))?;
     Ok(output.stable_dump())
 }
 

@@ -13,8 +13,8 @@ use scoopc::session::SessionOptions;
 fn load_mir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-) -> Result<Box<scoopc::effect_refactor_pipeline::RefactorMirStageOutput>> {
-    scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
+) -> Result<Box<scoopc::pipeline::MirStageOutput>> {
+    scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
         .map(Box::new)
         .map_err(miette::Report::from)
 }
@@ -70,11 +70,9 @@ mod tests {
         let session = Session::with_options(session_options).unwrap();
 
         let expected =
-            scoopc::effect_refactor_pipeline::load_direct_style_mir_stage_output_for_dump(
-                &session, &source,
-            )
-            .unwrap()
-            .stable_dump();
+            scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(&session, &source)
+                .unwrap()
+                .stable_dump();
         let actual = super::render_dump_output(fixture, session_options).unwrap();
 
         assert_eq!(actual, expected);

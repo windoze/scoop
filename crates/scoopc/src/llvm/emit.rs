@@ -36,27 +36,26 @@ struct LoweredCodegenEntry<'a> {
     codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
-    refactor_abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    refactor_abi_types: Option<&'a crate::ty::TypeStore>,
-    refactor_abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    refactor_abi_effect_facts: Option<&'a crate::effect_facts::MaterializedEffectFacts>,
+    abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    abi_types: Option<&'a crate::ty::TypeStore>,
+    abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    abi_effect_facts: Option<&'a crate::effect_facts::MaterializedEffectFacts>,
 }
 
 #[derive(Clone, Copy)]
-pub struct RefactorStageEmitInput<'a> {
+pub struct StageEmitInput<'a> {
     hir_compat_scaffold: &'a hir::LoweredHir,
-    effect_lowered_stage_output:
-        &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+    effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
     abi_visibility_effect_lowered_stage_output:
-        Option<&'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput>,
+        Option<&'a crate::pipeline::EffectLoweredStageOutput>,
 }
 
-impl<'a> RefactorStageEmitInput<'a> {
+impl<'a> StageEmitInput<'a> {
     pub fn new(
         hir_compat_scaffold: &'a hir::LoweredHir,
-        effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
         abi_visibility_effect_lowered_stage_output: Option<
-            &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+            &'a crate::pipeline::EffectLoweredStageOutput,
         >,
     ) -> Self {
         Self {
@@ -67,16 +66,16 @@ impl<'a> RefactorStageEmitInput<'a> {
     }
 }
 
-fn build_single_file_refactor_stage_output(
+fn build_single_file_stage_output(
     session: &Session,
     source: &SourceFile,
     opt_level: OptLevel,
-) -> Result<crate::effect_refactor_pipeline::RefactorLlvmCodegenStageOutput, LlvmEmitError> {
+) -> Result<crate::pipeline::LlvmCodegenStageOutput, LlvmEmitError> {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(session, source, opt_level)?;
-    crate::effect_refactor_pipeline::run_llvm_codegen_stage(
+    crate::pipeline::run_llvm_codegen_stage(
         session,
-        crate::effect_refactor_pipeline::RefactorLlvmCodegenStageInput::new(
+        crate::pipeline::LlvmCodegenStageInput::new(
             codegen_unit.lowered,
             None,
             codegen_unit.source_map,
@@ -91,46 +90,40 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
     session: &Session,
     source: &SourceFile,
     output: &Path,
-    artifact: crate::effect_refactor_pipeline::LlvmArtifactKind,
+    artifact: crate::pipeline::LlvmArtifactKind,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
-    let stage_output = build_single_file_refactor_stage_output(session, source, opt_level)?;
-    let stage_input = RefactorStageEmitInput::new(
+    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
+    let stage_input = StageEmitInput::new(
         stage_output.hir_compat_scaffold(),
         stage_output.effect_lowered_stage_output(),
         stage_output.abi_visibility_effect_lowered_stage_output(),
     );
     match artifact {
-        crate::effect_refactor_pipeline::LlvmArtifactKind::LlvmIr => {
-            emit_refactor_main_ir_to_file_from_stage_output(
-                stage_output.source_map(),
-                stage_output.entry_source_id(),
-                stage_input,
-                output,
-                stage_output.entry_main_fqn(),
-                stage_output.opt_level(),
-            )
-        }
-        crate::effect_refactor_pipeline::LlvmArtifactKind::Object => {
-            emit_refactor_main_obj_to_file_from_stage_output(
-                stage_output.source_map(),
-                stage_output.entry_source_id(),
-                stage_input,
-                output,
-                stage_output.entry_main_fqn(),
-                stage_output.opt_level(),
-            )
-        }
-        crate::effect_refactor_pipeline::LlvmArtifactKind::Asm => {
-            emit_refactor_main_asm_to_file_from_stage_output(
-                stage_output.source_map(),
-                stage_output.entry_source_id(),
-                stage_input,
-                output,
-                stage_output.entry_main_fqn(),
-                stage_output.opt_level(),
-            )
-        }
+        crate::pipeline::LlvmArtifactKind::LlvmIr => emit_main_ir_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
+        crate::pipeline::LlvmArtifactKind::Object => emit_main_obj_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
+        crate::pipeline::LlvmArtifactKind::Asm => emit_main_asm_to_file_from_stage_output(
+            stage_output.source_map(),
+            stage_output.entry_source_id(),
+            stage_input,
+            output,
+            stage_output.entry_main_fqn(),
+            stage_output.opt_level(),
+        ),
     }
 }
 
@@ -142,10 +135,10 @@ impl<'a> LoweredCodegenEntry<'a> {
             codegen_routing_facts: None,
             late_lowered_program: None,
             late_lowered_types: None,
-            refactor_abi_program: None,
-            refactor_abi_types: None,
-            refactor_abi_materialized_pass_view: None,
-            refactor_abi_effect_facts: None,
+            abi_program: None,
+            abi_types: None,
+            abi_materialized_pass_view: None,
+            abi_effect_facts: None,
         }
     }
 
@@ -159,18 +152,18 @@ impl<'a> LoweredCodegenEntry<'a> {
             codegen_routing_facts: None,
             late_lowered_program: None,
             late_lowered_types: None,
-            refactor_abi_program: None,
-            refactor_abi_types: None,
-            refactor_abi_materialized_pass_view: None,
-            refactor_abi_effect_facts: None,
+            abi_program: None,
+            abi_types: None,
+            abi_materialized_pass_view: None,
+            abi_effect_facts: None,
         })
     }
 
-    fn from_refactor_stage(
+    fn from_stage_output(
         lowered: &'a hir::LoweredHir,
-        effect_lowered_stage_output: &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+        effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
         abi_visibility_effect_lowered_stage_output: Option<
-            &'a crate::effect_refactor_pipeline::RefactorEffectLoweredStageOutput,
+            &'a crate::pipeline::EffectLoweredStageOutput,
         >,
     ) -> Self {
         debug_assert!(
@@ -185,14 +178,12 @@ impl<'a> LoweredCodegenEntry<'a> {
             codegen_routing_facts: Some(effect_lowered_stage_output.codegen_routing_facts()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
-            refactor_abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
-            refactor_abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
-            refactor_abi_materialized_pass_view: Some(
+            abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
+            abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
+            abi_materialized_pass_view: Some(
                 abi_visibility_effect_lowered_stage_output.materialized_pass_view(),
             ),
-            refactor_abi_effect_facts: Some(
-                abi_visibility_effect_lowered_stage_output.effect_facts(),
-            ),
+            abi_effect_facts: Some(abi_visibility_effect_lowered_stage_output.effect_facts()),
         }
     }
 }
@@ -379,19 +370,19 @@ pub fn emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_wit
     Ok(())
 }
 
-/// 基于 refactor LLVM stage handoff（P5 late-lowered output + HIR compatibility scaffold）构建 LLVM module。
-pub(crate) fn build_refactor_main_module_from_stage_output<'ctx>(
+/// 基于 LLVM stage handoff（P5 late-lowered output + HIR compatibility scaffold）构建 LLVM module。
+pub(crate) fn build_main_module_from_stage_output<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
     context: &'ctx Context,
-    stage_input: RefactorStageEmitInput<'_>,
+    stage_input: StageEmitInput<'_>,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     build_main_module_from_codegen_entry(
         source_map,
         entry_source_id,
         context,
-        LoweredCodegenEntry::from_refactor_stage(
+        LoweredCodegenEntry::from_stage_output(
             stage_input.hir_compat_scaffold,
             stage_input.effect_lowered_stage_output,
             stage_input.abi_visibility_effect_lowered_stage_output,
@@ -400,17 +391,17 @@ pub(crate) fn build_refactor_main_module_from_stage_output<'ctx>(
     )
 }
 
-/// 基于 refactor LLVM stage handoff 生成 LLVM IR，并写入到指定路径。
-pub fn emit_refactor_main_ir_to_file_from_stage_output(
+/// 基于 LLVM stage handoff 生成 LLVM IR，并写入到指定路径。
+pub fn emit_main_ir_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    stage_input: RefactorStageEmitInput<'_>,
+    stage_input: StageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     let context = Context::create();
-    let module = build_refactor_main_module_from_stage_output(
+    let module = build_main_module_from_stage_output(
         source_map,
         entry_source_id,
         &context,
@@ -603,11 +594,11 @@ pub fn emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_wi
     Ok(())
 }
 
-/// 基于 refactor LLVM stage handoff 生成 LLVM object，并写入到指定路径。
-pub fn emit_refactor_main_obj_to_file_from_stage_output(
+/// 基于 LLVM stage handoff 生成 LLVM object，并写入到指定路径。
+pub fn emit_main_obj_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    stage_input: RefactorStageEmitInput<'_>,
+    stage_input: StageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
@@ -619,7 +610,7 @@ pub fn emit_refactor_main_obj_to_file_from_stage_output(
     }
 
     let context = Context::create();
-    let module = build_refactor_main_module_from_stage_output(
+    let module = build_main_module_from_stage_output(
         source_map,
         entry_source_id,
         &context,
@@ -812,11 +803,11 @@ pub fn emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_wi
     Ok(())
 }
 
-/// 基于 refactor LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
-pub fn emit_refactor_main_asm_to_file_from_stage_output(
+/// 基于 LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
+pub fn emit_main_asm_to_file_from_stage_output(
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    stage_input: RefactorStageEmitInput<'_>,
+    stage_input: StageEmitInput<'_>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
@@ -828,7 +819,7 @@ pub fn emit_refactor_main_asm_to_file_from_stage_output(
     }
 
     let context = Context::create();
-    let module = build_refactor_main_module_from_stage_output(
+    let module = build_main_module_from_stage_output(
         source_map,
         entry_source_id,
         &context,
@@ -862,12 +853,12 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
     context: &'ctx Context,
     opt_level: OptLevel,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    let stage_output = build_single_file_refactor_stage_output(session, source, opt_level)?;
-    build_refactor_main_module_from_stage_output(
+    let stage_output = build_single_file_stage_output(session, source, opt_level)?;
+    build_main_module_from_stage_output(
         stage_output.source_map(),
         stage_output.entry_source_id(),
         context,
-        RefactorStageEmitInput::new(
+        StageEmitInput::new(
             stage_output.hir_compat_scaffold(),
             stage_output.effect_lowered_stage_output(),
             stage_output.abi_visibility_effect_lowered_stage_output(),
@@ -941,10 +932,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         codegen_routing_facts,
         late_lowered_program,
         late_lowered_types,
-        refactor_abi_program,
-        refactor_abi_types,
-        refactor_abi_materialized_pass_view,
-        refactor_abi_effect_facts,
+        abi_program,
+        abi_types,
+        abi_materialized_pass_view,
+        abi_effect_facts,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -963,7 +954,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     {
         return Err(LlvmEmitError::Frontend {
             message: format!(
-                "refactor LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
+                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
                 root_fun.fqn
             ),
         });
@@ -1104,23 +1095,21 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .filter(|fun| !fun_has_param_types(fun))
         .collect();
 
-    let refactor_abi_query = if let Some(program) = late_lowered_program {
+    let abi_query = if let Some(program) = late_lowered_program {
         let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "refactor LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
+            message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
         })?;
-        let abi_program = refactor_abi_program.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "refactor LLVM stage handoff 缺少 ABI visibility late-lowered program"
-                .to_string(),
+        let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
+            message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
         })?;
-        let abi_types = refactor_abi_types.unwrap_or(late_lowered_types);
-        let abi_pass_view = refactor_abi_materialized_pass_view
+        let abi_types = abi_types.unwrap_or(late_lowered_types);
+        let abi_pass_view = abi_materialized_pass_view
             .as_ref()
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        let abi_effect_facts =
-            refactor_abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
-                message: "refactor LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
-            })?;
-        let abi_query = declare.materialize_refactor_program_abi(
+        let abi_effect_facts = abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
+            message: "LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
+        })?;
+        let abi_query = declare.materialize_program_abi(
             abi_program,
             abi_types,
             abi_pass_view,
@@ -1129,7 +1118,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         let primary_pass_view = unit_codegen
             .materialized_pass_view()
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        declare.codegen_refactor_program_bodies(
+        declare.codegen_program_bodies(
             program,
             abi_program,
             late_lowered_types,
@@ -1243,18 +1232,17 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             }
         };
 
-        let exit_code = if let (Some(program), Some(abi_query)) =
-            (late_lowered_program, refactor_abi_query.as_ref())
-        {
-            main_codegen.codegen_refactor_main_exit_code(
-                root_fun,
-                entry_argv_array,
-                program,
-                abi_query,
-            )?
-        } else {
-            main_codegen.codegen_main_exit_code(root_fun, entry_argv_array)?
-        };
+        let exit_code =
+            if let (Some(program), Some(abi_query)) = (late_lowered_program, abi_query.as_ref()) {
+                main_codegen.codegen_stage_main_exit_code(
+                    root_fun,
+                    entry_argv_array,
+                    program,
+                    abi_query,
+                )?
+            } else {
+                main_codegen.codegen_main_exit_code(root_fun, entry_argv_array)?
+            };
         builder.build_return(Some(&exit_code))?;
         main_codegen.finish_function_explicit_frame_layout(root_fun.span)?;
     }

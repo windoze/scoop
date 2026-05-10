@@ -1255,12 +1255,12 @@ mod tests {
     use crate::effect_facts::{
         CallSiteKind, CallableAbiKind, EffectPrecision, ImplPlan, SiteEffectFacts,
     };
-    use crate::effect_refactor_pipeline::{
-        build_effect_facts_stage_output, load_direct_style_mir_stage_output_for_dump,
-    };
     use crate::mir::materialize_for_dump_with_opt_level;
     use crate::mir::{BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TerminatorKind};
     use crate::opt::OptLevel;
+    use crate::pipeline::{
+        build_effect_facts_stage_output, load_direct_style_mir_stage_output_for_dump,
+    };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -1271,7 +1271,7 @@ mod tests {
     fn build_stage_output_for_source(
         source: &SourceFile,
         opt_level: OptLevel,
-    ) -> crate::effect_refactor_pipeline::RefactorEffectFactsStageOutput {
+    ) -> crate::pipeline::EffectFactsStageOutput {
         let session = refactor_session();
         let mir_stage_output =
             load_direct_style_mir_stage_output_for_dump(&session, source).unwrap();

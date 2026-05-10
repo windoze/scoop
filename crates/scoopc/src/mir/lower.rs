@@ -13,13 +13,13 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::effect_refactor_pipeline::{
+use crate::hir;
+use crate::pipeline::{
     CallArgBindingContract, CallArgParamContract, ContinuationResumeReceiverRoute,
     ExternGlobalContract, FunctionTargetContract, HandleArmContractKind, MemberCallTargetContract,
     TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
     TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
 };
-use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -183,17 +183,14 @@ fn lowered_call_arg_binding_contract(binding: &ast::CallArgBinding) -> CallArgBi
             .map(|param| match param {
                 ast::CallArgParamBinding::Receiver => CallArgParamContract::Receiver,
                 ast::CallArgParamBinding::Explicit(element) => CallArgParamContract::Explicit(
-                    crate::effect_refactor_pipeline::CallArgElementContract::new(
-                        element.arg_index,
-                        element.spread,
-                    ),
+                    crate::pipeline::CallArgElementContract::new(element.arg_index, element.spread),
                 ),
                 ast::CallArgParamBinding::Default => CallArgParamContract::Default,
                 ast::CallArgParamBinding::Vararg(elements) => CallArgParamContract::Vararg(
                     elements
                         .iter()
                         .map(|element| {
-                            crate::effect_refactor_pipeline::CallArgElementContract::new(
+                            crate::pipeline::CallArgElementContract::new(
                                 element.arg_index,
                                 element.spread,
                             )
@@ -1402,7 +1399,7 @@ fn lower_initializer_root_kind(kind: TopLevelInitRootKind) -> InitializerRootKin
 }
 
 fn lower_initializer_dependency(
-    dependency: &crate::effect_refactor_pipeline::TopLevelInitDependency,
+    dependency: &crate::pipeline::TopLevelInitDependency,
 ) -> InitializerDependency {
     InitializerDependency {
         fqn: dependency.fqn().to_string(),
@@ -3964,7 +3961,7 @@ impl<'a> FnLowering<'a> {
         &mut self,
         span: Span,
         result: LocalId,
-        ctor: &crate::effect_refactor_pipeline::ConstructorCallTargetContract,
+        ctor: &crate::pipeline::ConstructorCallTargetContract,
         args: &[hir::CallArg],
     ) {
         let Some(args) = self.lower_call_args(args) else {
@@ -6759,7 +6756,7 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::effect_refactor_pipeline::TypedHirEffectContracts;
+    use crate::pipeline::TypedHirEffectContracts;
     use crate::session::Session;
     use crate::source::SourceFile;
     use std::path::PathBuf;

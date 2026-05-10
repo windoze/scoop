@@ -220,7 +220,7 @@ impl PlaceholderKey {
 #[test]
 fn refactor_mir_placeholder_inventory() {
     assert_inventory_entries_are_actionable();
-    assert_effect_refactor_pipeline_has_no_placeholder_constructors();
+    assert_pipeline_has_no_placeholder_constructors();
 
     let expected = REFACTOR_MIR_PLACEHOLDER_INVENTORY
         .iter()
@@ -380,9 +380,9 @@ fn assert_materializer_rejects_todo_rewrites(manifest_dir: &Path) {
     );
 }
 
-fn assert_effect_refactor_pipeline_has_no_placeholder_constructors() {
+fn assert_pipeline_has_no_placeholder_constructors() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let pipeline_dir = manifest_dir.join("src/effect_refactor_pipeline");
+    let pipeline_dir = manifest_dir.join("src/pipeline");
     let mut files = Vec::new();
     collect_rust_files(&pipeline_dir, &mut files);
 
