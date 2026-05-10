@@ -53,7 +53,7 @@ use inkwell::values::PointerValue;
 use sha2::{Digest as _, Sha256};
 
 use crate::ast;
-use crate::effect::state_machine::{CalleeSuspendPlan, CalleeSuspendResumeSite};
+use crate::effect::state_machine::CalleeSuspendPlan;
 use crate::expr_facts::ExprFactResolver;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
@@ -377,6 +377,11 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// reachability、callable body-presence、known fun suspendability 查询与显式
     /// pass-rewritten callable body lowering 会优先观察该 pass 产物层。
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    /// ABI 可见性阶段发布的 callable contract。
+    ///
+    /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
+    /// 声明层判断，避免继续从 HIR 的 effectful 布尔值回推 ABI 形状。
+    published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -415,6 +420,9 @@ struct FunctionBodyCodegenCx<'ctx> {
     loop_context_stack: Vec<LoopContext<'ctx>>,
     return_context: Option<ReturnContext<'ctx>>,
     current_sret_return_ptr: Option<PointerValue<'ctx>>,
+    current_effect_ctx_ref: Option<PointerValue<'ctx>>,
+    current_incoming_resume_token_ref: Option<PointerValue<'ctx>>,
+    current_effect_outcome_ptr: Option<PointerValue<'ctx>>,
     top_level_const_eval_stack: Vec<String>,
 }
 
@@ -558,6 +566,8 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    pub(super) published_late_lowered_program:
+        Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) program_facts: Rc<ProgramFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -606,6 +616,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             extern_funs,
             fun_index,
             materialized_pass_view,
+            published_late_lowered_program,
             program_facts,
             effect_op_tags,
         } = inputs;
@@ -642,6 +653,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             builtins,
             fun_index,
             materialized_pass_view,
+            published_late_lowered_program,
             program_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -660,6 +672,12 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
         &self,
     ) -> Option<&crate::mir::MaterializedMirPassView<'a>> {
         self.materialized_pass_view.as_ref()
+    }
+
+    pub(super) fn published_late_lowered_program(
+        &self,
+    ) -> Option<&crate::effect_lowered::LateLoweredProgram> {
+        self.published_late_lowered_program
     }
 }
 
@@ -2120,8 +2138,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
-        let uses_hidden_incoming_resume_token =
-            self.top_level_fun_uses_hidden_incoming_resume_token(fun);
+        let uses_explicit_effect_hidden_abi =
+            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
         let is_gc_leaf =
             is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
@@ -2135,13 +2153,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
                 + usize::from(hidden_sret_result_ty.is_some())
-                + usize::from(uses_hidden_incoming_resume_token),
+                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
+                    as usize,
         );
         if hidden_sret_result_ty.is_some() {
             llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
         }
-        if uses_hidden_incoming_resume_token {
-            llvm_params.push(self.llvm_gc_i8_ptr_type().into());
+        if uses_explicit_effect_hidden_abi {
+            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
         for param in &fun.params {
             let llvm_param_ty = if is_extern {
@@ -2196,37 +2215,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
         return_cg: CgTy,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.declare_callee_resume_entry_function_impl(at, name, return_cg)
+        if let Some(existing) = self.module.get_function(name) {
+            return Ok(existing);
+        }
+
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(at, return_cg)?;
+        let mut llvm_params = Vec::with_capacity(
+            usize::from(hidden_sret_result_ty.is_some())
+                + self.explicit_effect_hidden_abi_param_count(true) as usize,
+        );
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
+
+        let fn_ty = match (hidden_sret_result_ty, return_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_params, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(at, other)?
+                .fn_type(&llvm_params, false),
+        };
+        let llvm_fun = self.module.add_function(name, fn_ty, None);
+        llvm_fun.set_call_conventions(0);
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+        }
+        Ok(llvm_fun)
     }
 
     fn declare_top_level_fun_callee_resume_entry(
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.declare_top_level_fun_callee_resume_entry_impl(fun)
-    }
-
-    fn declare_top_level_fun_effect_call_wrapper(
-        &mut self,
-        fun: &hir::FunDecl,
-    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.declare_top_level_fun_effect_call_wrapper_impl(fun)
-    }
-
-    fn ensure_top_level_fun_effect_call_wrapper_defined(
-        &mut self,
-        fun: &hir::FunDecl,
-    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.ensure_top_level_fun_effect_call_wrapper_defined_impl(fun)
-    }
-
-    fn codegen_top_level_fun_effect_call_wrapper(
-        &mut self,
-        fun: &hir::FunDecl,
-        callee_fun: FunctionValue<'ctx>,
-        wrapper_fun: FunctionValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        self.codegen_top_level_fun_effect_call_wrapper_impl(fun, callee_fun, wrapper_fun)
+        let return_cg = self
+            .cg_ty_of(fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            })?;
+        self.declare_callee_resume_entry_function(
+            fun.span,
+            &top_level_callee_resume_entry_fn_name(&fun.fqn),
+            return_cg,
+        )
     }
 
     pub(super) fn mark_gc_leaf_function(&self, function: FunctionValue<'ctx>) {
@@ -3703,22 +3736,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
-        self.build_fun_callee_suspend_plan_impl(fun)
-    }
-
-    fn top_level_fun_uses_hidden_incoming_resume_token(&self, fun: &hir::FunDecl) -> bool {
-        !self.extern_funs.contains_key(&fun.fqn) && self.hir_ty_declared_effectful(Some(fun.ty))
-    }
-
-    fn mir_fun_uses_hidden_incoming_resume_token(&self, fun: &crate::mir::FunDecl) -> bool {
-        self.hir_ty_declared_effectful(Some(fun.ty))
-    }
-
-    fn function_type_uses_hidden_incoming_resume_token(
-        &self,
-        fun_ty: &crate::ty::FunctionType,
-    ) -> bool {
-        !fun_ty.effects.is_pure()
+        self.callable_needs_callee_resume_shell(&fun.fqn)
+            .then_some(CalleeSuspendPlan {
+                saved_locals: Vec::new(),
+                resume_sites: Vec::new(),
+            })
     }
 
     /// Create the shared function-level return context used by ordinary frames.
@@ -3820,14 +3842,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declared_return_cg: CgTy,
         incoming_resume_token: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        self.codegen_callee_resume_dispatch_impl(
+        let _ = (
             at,
             llvm_fun,
             plan,
             base_env,
             declared_return_cg,
             incoming_resume_token,
-        )
+        );
+        Err(LlvmEmitError::Frontend {
+            message: "ordinary callee resume dispatch lowering 尚未重建；见 G4-T05".to_string(),
+        })
     }
 
     fn codegen_callee_resume_entry_function(
@@ -3837,7 +3862,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: &CalleeSuspendPlan,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
-        self.codegen_callee_resume_entry_function_impl(at, resume_fun, plan, declared_return_cg)
+        let uses_hidden_sret = self
+            .hidden_sret_result_ty(at, declared_return_cg)?
+            .is_some();
+        self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
+            Some(
+                resume_fun
+                    .get_nth_param(0)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "missing callee resume sret param",
+                        at: at.into(),
+                    })?
+                    .into_pointer_value(),
+            )
+        } else {
+            None
+        };
+        self.bind_explicit_effect_hidden_abi_slots(
+            at,
+            resume_fun,
+            u32::from(uses_hidden_sret),
+            true,
+        )?;
+        let _ = plan;
+        Err(LlvmEmitError::Frontend {
+            message: "ordinary callee resume entry body lowering 尚未重建；见 G4-T05".to_string(),
+        })
     }
 
     pub(crate) fn codegen_top_level_fun(
@@ -3872,8 +3922,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(fun.span, declared_return_cg)?
             .is_some();
-        let uses_hidden_incoming_resume_token =
-            self.top_level_fun_uses_hidden_incoming_resume_token(fun);
+        let uses_explicit_effect_hidden_abi =
+            self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -3887,12 +3937,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        self.bind_explicit_effect_hidden_abi_slots(
+            fun.span,
+            llvm_fun,
+            u32::from(uses_hidden_sret),
+            uses_explicit_effect_hidden_abi,
+        )?;
 
         self.function_cx.env.push_scope();
         self.codegen_fun_params(
             fun,
             llvm_fun,
-            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token),
+            u32::from(uses_hidden_sret)
+                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi),
         )?;
 
         // T0141: Set up function-level return context for early return support.
@@ -3927,6 +3984,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 declared_return_cg,
             )?;
         }
+        self.clear_explicit_effect_hidden_abi_slots();
         self.function_cx.current_sret_return_ptr = None;
         self.function_cx.env.pop_scope();
         Ok(())
@@ -4286,6 +4344,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
         self.ordinary_param_abi_impl(span, ty)
+    }
+
+    fn callable_uses_explicit_effect_hidden_abi(&self, callable_fqn: &str) -> bool {
+        self.callable_uses_explicit_effect_hidden_abi_impl(callable_fqn)
+    }
+
+    fn callable_needs_callee_resume_shell(&self, callable_fqn: &str) -> bool {
+        self.callable_needs_callee_resume_shell_impl(callable_fqn)
+    }
+
+    fn explicit_effect_hidden_abi_param_count(&self, uses_explicit_effect_hidden_abi: bool) -> u32 {
+        self.explicit_effect_hidden_abi_param_count_impl(uses_explicit_effect_hidden_abi)
+    }
+
+    fn push_explicit_effect_hidden_abi_param_tys(
+        &self,
+        llvm_params: &mut Vec<BasicMetadataTypeEnum<'ctx>>,
+    ) {
+        self.push_explicit_effect_hidden_abi_param_tys_impl(llvm_params)
+    }
+
+    fn bind_explicit_effect_hidden_abi_slots(
+        &mut self,
+        at: crate::span::Span,
+        llvm_fun: FunctionValue<'ctx>,
+        first_hidden_param_index: u32,
+        uses_explicit_effect_hidden_abi: bool,
+    ) -> Result<(), LlvmEmitError> {
+        self.bind_explicit_effect_hidden_abi_slots_impl(
+            at,
+            llvm_fun,
+            first_hidden_param_index,
+            uses_explicit_effect_hidden_abi,
+        )
+    }
+
+    fn clear_explicit_effect_hidden_abi_slots(&mut self) {
+        self.clear_explicit_effect_hidden_abi_slots_impl()
     }
 
     fn type_contains_gc_refs(&self, ty: TypeId, visiting: &mut HashSet<TypeId>) -> bool {
@@ -7878,10 +7974,6 @@ fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
         StringLiteralParseError::Interpolated => "插值字符串当前阶段不能直接按普通字符串解析",
         StringLiteralParseError::InvalidUtf8 => "解码后的字节不是有效 UTF-8",
     }
-}
-
-fn top_level_effect_call_wrapper_fn_name(fun_fqn: &str) -> String {
-    format!("__scoop_effect_call_wrapper__{fun_fqn}")
 }
 
 fn top_level_callee_resume_entry_fn_name(fun_fqn: &str) -> String {

@@ -521,6 +521,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
             materialized_pass_view,
+            published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
             program_facts: Rc::clone(&program_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });

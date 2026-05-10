@@ -246,19 +246,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-        let uses_hidden_incoming_resume_token =
-            self.mir_fun_uses_hidden_incoming_resume_token(mir_fun);
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-            mir_fun.params.len()
-                + usize::from(hidden_sret_result_ty.is_some())
-                + usize::from(uses_hidden_incoming_resume_token),
-        );
+        // 这里发布的是 plain callable ABI 的 closure body symbol；effect-step callable surface
+        // 由 stage-owned direct/dynamic entry shell 单独承载，不应再为 plain entry 混入 hidden ABI。
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
-        }
-        if uses_hidden_incoming_resume_token {
-            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         }
         llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
         for (param, param_ty) in mir_fun.params.iter().skip(1).zip(param_tys.iter().skip(1)) {
@@ -400,8 +394,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
             .is_some();
-        let uses_hidden_incoming_resume_token =
-            self.mir_fun_uses_hidden_incoming_resume_token(mir_fun);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -415,6 +407,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
+        self.clear_explicit_effect_hidden_abi_slots();
 
         let (return_bb, return_alloca) =
             self.setup_function_return_context(mir_fun.span, llvm_fun, declared_return_cg)?;
@@ -423,7 +416,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir_fun,
             mir_types,
             llvm_fun,
-            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token),
+            u32::from(uses_hidden_sret),
             &mut local_slots,
         )?;
         let used_locals = collect_mir_local_uses(body);
@@ -467,6 +460,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return_alloca,
         )?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        self.clear_explicit_effect_hidden_abi_slots();
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
     }

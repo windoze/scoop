@@ -150,7 +150,7 @@
     - §11：`runtime/c/scoop_runtime.c` 中被误删的中性 substrate 定义已恢复，runtime review 面不再被裸链接失败干扰。
     - §12：活跃 LLVM 回归测试不再围绕旧 bridge 名字，也不再因为清理旧名而退化为空测试。
 
-## G1-T02：重建 effectful callable 的显式 hidden ABI 骨架
+## [DONE] G1-T02：重建 effectful callable 的显式 hidden ABI 骨架
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G1
@@ -198,6 +198,25 @@
   - effectful callable 的 hidden ABI 骨架在声明层闭合，后续步骤可直接在其上实现 `EffectCtx` / `EffectOutcome` / `Step_F`。
 - 依赖：G0-T01R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/mod.rs`：为顶层 callable / callee resume entry 重建显式 hidden ABI 声明；删除旧 effect call wrapper 壳层；在 `FunctionBodyCodegenCx` 中加入 `current_effect_ctx_ref`、`current_incoming_resume_token_ref`、`current_effect_outcome_ptr` 三个显式 hidden ABI 槽位，并在顶层函数 / resume-entry 入口绑定。
+    - `crates/scoopc/src/llvm/codegen/call/abi.rs`：新增基于 published late-lowered callable contract 的 helper，用它替代 `*_uses_hidden_incoming_resume_token(...)` 这类 HIR-level ABI 推断；统一 hidden ABI 参数计数、参数类型拼装与入口槽位绑定逻辑。
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`：closure callable / closure resume entry 改用同一显式 hidden ABI；closure callee resume shell 改为由 published callable contract 决定；不再从函数类型 effect row 直接猜 hidden token。
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`：plain materialized MIR closure declaration/body path 显式保持 plain ABI，不再混入旧 hidden token；effect-step callable surface 继续交由 stage-owned entry shell 承载。
+    - `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`：把 ABI 可见性阶段的 published late-lowered program 接到 `CompilationUnitCodegenCx`，让 legacy declaration path 能消费同一份 callable contract。
+    - `crates/scoopc/src/effect/state_machine/mod.rs`：去掉本任务不再使用的多余 re-export，避免新增 unused-import 警告。
+  - 核心决策：
+    - effectful callable 是否需要 hidden ABI，不再看 `hir_ty_declared_effectful(...)` / `FunctionType.effects.is_pure()` 这类 HIR 布尔值，而是看 ABI 可见性阶段发布的 late-lowered callable contract；只要某个 root callable 仍发布 effect-step surface，就为该 root declaration 预留显式 hidden ABI。
+    - 旧 `effect call wrapper` 概念在活跃实现中已无调用方，本任务直接删除其壳层，而不是再补回 wrapper 过渡层。
+    - plain materialized MIR closure entry 由 `RefactorPlainCallableLayout` 约束为 plain ABI；effect-step callable 的 direct/dynamic surface 继续由 stage-owned shell 表达，避免把 plain entry 再次污染成 hidden-token 变体。
+    - ordinary callee resume body lowering 仍属于后续 `G4-T05`；本任务只把 resume-entry declaration 形状切到新的显式 hidden ABI，并保留显式 fail-fast 边界，避免继续依赖缺失的旧实现体。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `top_level_fun_uses_hidden_incoming_resume_token|mir_fun_uses_hidden_incoming_resume_token|function_type_uses_hidden_incoming_resume_token`：无命中。
+    - 对 `crates/scoopc/src` grep `declare_callee_resume_entry_function_impl|declare_top_level_fun_callee_resume_entry_impl|declare_top_level_fun_effect_call_wrapper_impl|ensure_top_level_fun_effect_call_wrapper_defined_impl|codegen_top_level_fun_effect_call_wrapper_impl`：无命中。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但不再出现本任务目标中的 ABI skeleton 缺失项；首批错误已切到 `local_call_may_suspend_from_hir_ty` / `known_fun_body_may_outward_effect`（G4）、`alloc_effect_outcome_slot` / `effect_outcome_*` / `coerce_u64_word`（G2）、`codegen_perform_expr` / `codegen_handle_expr`（G5）等后续结构性 gap。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §1：effectful callable 仍以“单 hidden incoming token”建模，尚未建立显式 `current_effect_ctx_ref` / `incoming_resume_token_ref` / `ScoopEffectOutcome *outcome` hidden ABI 的缺口。
 
 ## G1-T02R：Review 显式 hidden ABI 骨架，确认不再回退单 token 语义
 

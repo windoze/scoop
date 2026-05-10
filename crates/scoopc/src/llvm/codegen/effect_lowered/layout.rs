@@ -7251,6 +7251,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            published_late_lowered_program: Some(&program),
             program_facts,
             effect_op_tags,
         });
@@ -7328,6 +7329,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            published_late_lowered_program: Some(&program),
             program_facts,
             effect_op_tags,
         });
@@ -7404,6 +7406,7 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
+            published_late_lowered_program: Some(&program),
             program_facts,
             effect_op_tags,
         });

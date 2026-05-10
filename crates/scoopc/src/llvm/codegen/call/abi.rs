@@ -51,6 +51,102 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
+    /// 其遗留声明入口就必须预留显式 hidden ABI，而不能再从 HIR `effectful` 布尔值反推。
+    pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> bool {
+        self.published_late_lowered_program()
+            .is_some_and(|program| {
+                program.callables().iter().any(|callable| {
+                    callable.root_fqn() == callable_fqn && callable.effect_step_abi().is_some()
+                })
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> bool {
+        self.published_late_lowered_program()
+            .is_some_and(|program| {
+                program.callables().iter().any(|callable| {
+                    callable.root_fqn() == callable_fqn
+                        && callable.effect_step_abi().is_some()
+                        && callable.needs_reentry()
+                })
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(
+        &self,
+        uses_explicit_effect_hidden_abi: bool,
+    ) -> u32 {
+        if uses_explicit_effect_hidden_abi {
+            3
+        } else {
+            0
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn push_explicit_effect_hidden_abi_param_tys_impl(
+        &self,
+        llvm_params: &mut Vec<BasicMetadataTypeEnum<'ctx>>,
+    ) {
+        llvm_params.push(self.llvm_gc_i8_ptr_type().into());
+        llvm_params.push(self.llvm_gc_i8_ptr_type().into());
+        llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
+    }
+
+    pub(in crate::llvm::codegen) fn bind_explicit_effect_hidden_abi_slots_impl(
+        &mut self,
+        at: crate::span::Span,
+        llvm_fun: FunctionValue<'ctx>,
+        first_hidden_param_index: u32,
+        uses_explicit_effect_hidden_abi: bool,
+    ) -> Result<(), LlvmEmitError> {
+        if !uses_explicit_effect_hidden_abi {
+            self.clear_explicit_effect_hidden_abi_slots();
+            return Ok(());
+        }
+
+        self.function_cx.current_effect_ctx_ref = Some(
+            llvm_fun
+                .get_nth_param(first_hidden_param_index)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "missing current_effect_ctx_ref param",
+                    at: at.into(),
+                })?
+                .into_pointer_value(),
+        );
+        self.function_cx.current_incoming_resume_token_ref = Some(
+            llvm_fun
+                .get_nth_param(first_hidden_param_index + 1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "missing incoming_resume_token_ref param",
+                    at: at.into(),
+                })?
+                .into_pointer_value(),
+        );
+        self.function_cx.current_effect_outcome_ptr = Some(
+            llvm_fun
+                .get_nth_param(first_hidden_param_index + 2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "missing effect outcome param",
+                    at: at.into(),
+                })?
+                .into_pointer_value(),
+        );
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn clear_explicit_effect_hidden_abi_slots_impl(&mut self) {
+        self.function_cx.current_effect_ctx_ref = None;
+        self.function_cx.current_incoming_resume_token_ref = None;
+        self.function_cx.current_effect_outcome_ptr = None;
+    }
+
     pub(in crate::llvm::codegen) fn cg_value_from_llvm_param_impl(
         &self,
         at: crate::span::Span,

@@ -28,20 +28,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure: &hir::ClosureExpr,
         return_cg: CgTy,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.declare_closure_callee_resume_entry_impl(at, closure, return_cg)
+        self.declare_callee_resume_entry_function(
+            at,
+            &closure_callee_resume_entry_fn_name(closure.id),
+            return_cg,
+        )
     }
 
     fn build_closure_callee_suspend_plan(
         &self,
         closure: &hir::ClosureExpr,
-        return_ty: TypeId,
+        _return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
-        // 对 closure 也沿用同一分层：签名层 `declared_effectful` 不足以要求 frame；
-        // 只有这里返回 `Some(_)` 时，才说明 `needs_resumable_frame = true`。
-        let hir::ExprKind::Block(block) = &closure.body.kind else {
-            return None;
-        };
-        self.build_ordinary_callee_suspend_plan(block, return_ty)
+        let callable_fqn = format!("scoop.lambda${}", closure.id.as_u32());
+        self.callable_needs_callee_resume_shell(&callable_fqn)
+            .then_some(CalleeSuspendPlan {
+                saved_locals: Vec::new(),
+                resume_sites: Vec::new(),
+            })
     }
 
     pub(in crate::llvm::codegen) fn codegen_closure_expr(
@@ -101,20 +105,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-            let uses_hidden_incoming_resume_token =
-                self.function_type_uses_hidden_incoming_resume_token(fun_ty);
+            let uses_explicit_effect_hidden_abi =
+                self.callable_uses_explicit_effect_hidden_abi(&fun_name);
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
                 1 + fun_ty.params.len()
                     + usize::from(fun_ty.receiver.is_some())
                     + usize::from(hidden_sret_result_ty.is_some())
-                    + usize::from(uses_hidden_incoming_resume_token),
+                    + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
+                        as usize,
             );
             if let Some(result_ty) = hidden_sret_result_ty {
                 let _ = result_ty;
                 llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
             }
-            if uses_hidden_incoming_resume_token {
-                llvm_param_tys.push(gc_i8_ptr_ty.into());
+            if uses_explicit_effect_hidden_abi {
+                self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
             }
             // env ptr：GC-managed 引用（closure env 是一个 heap object）。
             llvm_param_tys.push(gc_i8_ptr_ty.into());
@@ -507,8 +512,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
-        let uses_hidden_incoming_resume_token =
-            self.function_type_uses_hidden_incoming_resume_token(fun_ty);
+        let callable_fqn = format!("scoop.lambda${}", closure.id.as_u32());
+        let uses_explicit_effect_hidden_abi =
+            self.callable_uses_explicit_effect_hidden_abi(&callable_fqn);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun
@@ -522,8 +528,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        let env_param_index =
-            u32::from(uses_hidden_sret) + u32::from(uses_hidden_incoming_resume_token);
+        self.bind_explicit_effect_hidden_abi_slots(
+            closure.span,
+            spec.llvm_fun,
+            u32::from(uses_hidden_sret),
+            uses_explicit_effect_hidden_abi,
+        )?;
+        let env_param_index = u32::from(uses_hidden_sret)
+            + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi);
         let (return_bb, return_alloca) =
             self.setup_function_return_context(closure.span, spec.llvm_fun, declared_return_cg)?;
 
@@ -668,6 +680,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 declared_return_cg,
             )?;
         }
+        self.clear_explicit_effect_hidden_abi_slots();
         self.function_cx.current_sret_return_ptr = None;
         self.function_cx.env.pop_scope();
         Ok(())
