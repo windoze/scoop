@@ -76,6 +76,7 @@ mod closure;
 mod composite_transport;
 mod control_flow;
 mod effect_lowered;
+mod effect_outcome;
 mod enum_lowering;
 mod expr;
 mod gc;

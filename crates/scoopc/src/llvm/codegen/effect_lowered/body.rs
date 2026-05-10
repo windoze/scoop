@@ -5082,13 +5082,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     source,
                     lowering.operand_contract(),
                 )?;
-                if self.perform_lowering_is_runtime_error_raise(lowering) {
-                    let span = self.perform_site_span(source)?;
-                    self.emit_effect_set_active_with_trace(
-                        span,
-                        "refactor_raise_set_active_with_trace",
-                    )?;
-                }
                 let payload = self.pack_sources(
                     lowering.emitted_step().payload_tuple_ty(),
                     lowering.operand_contract().payload_sources(),
@@ -6000,71 +5993,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None,
             None,
         )
-    }
-
-    fn perform_lowering_is_runtime_error_raise(
-        &self,
-        lowering: &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering,
-    ) -> bool {
-        lowering
-            .emitted_step()
-            .concrete_op_key()
-            .instance_key()
-            .template
-            .fqn
-            == "scoop.core.Raise.raise"
-            && self.source_ty_is_runtime_error(lowering.emitted_step().payload_tuple_ty())
-    }
-
-    fn perform_site_span(&self, site_id: SiteId) -> Result<crate::span::Span, LlvmEmitError> {
-        for block in &self.body.blocks {
-            if let mir::TerminatorKind::Perform {
-                site_id: terminator_site,
-                ..
-            } = &block.terminator.kind
-                && *terminator_site == site_id
-            {
-                return Ok(block.terminator.span);
-            }
-        }
-        Err(frontend_error(format!(
-            "refactor perform site {} 缺少 canonical MIR terminator span",
-            site_id.as_u32()
-        )))
-    }
-
-    fn emit_effect_set_active_with_trace(
-        &mut self,
-        span: crate::span::Span,
-        name: &str,
-    ) -> Result<(), LlvmEmitError> {
-        let (line, col) = self
-            .codegen
-            .current_source()?
-            .offset_to_line_col(span.start)
-            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect trace source location",
-                at: span.into(),
-            })?;
-        let line = u32::try_from(line).map_err(|_| LlvmEmitError::UnsupportedMainBody {
-            kind: "refactor effect trace line overflow",
-            at: span.into(),
-        })?;
-        let col = u32::try_from(col).map_err(|_| LlvmEmitError::UnsupportedMainBody {
-            kind: "refactor effect trace column overflow",
-            at: span.into(),
-        })?;
-        let i32_ty = self.codegen.context.i32_type();
-        let set_active = self.codegen.declare_runtime_effect_set_active_with_trace();
-        self.codegen.builder.build_call(
-            set_active,
-            &[
-                i32_ty.const_int(line as u64, false).into(),
-                i32_ty.const_int(col as u64, false).into(),
-            ],
-            name,
-        )?;
-        Ok(())
     }
 
     fn lower_runtime_error_boundary_payload(
@@ -8048,13 +7976,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     let transport =
                         self.codegen
                             .cg_value_from_loaded(self.mir_fun.span, resume_cg, raw)?;
-                    let (word, gc_ref) = self
+                    let transport = self
                         .codegen
                         .split_task_transport_tuple_value(self.mir_fun.span, transport)?;
                     let decoded = self.codegen.decode_effect_transport_value(
                         self.mir_fun.span,
-                        word,
-                        gc_ref,
+                        transport.word,
+                        transport.gc_ref,
                         slot.cg_ty,
                     )?;
                     self.codegen.store_local_value(

@@ -253,7 +253,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §1：review 确认显式 `current_effect_ctx_ref` / `incoming_resume_token_ref` / `ScoopEffectOutcome *outcome` hidden ABI 仍然是 declaration 层唯一 authoritative surface，未回退到单 hidden token、wrapper 或 HIR-level 布尔推断语义。
 
-## G2-T03：重建 backend-owned `EffectOutcome` / transport primitive
+## [DONE] G2-T03：重建 backend-owned `EffectOutcome` / transport primitive
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G2
@@ -304,6 +304,24 @@
   - backend 内部拥有完整 explicit outcome / transport primitive，旧 runtime bridge API 不再参与任何传播语义。
 - 依赖：G1-T02R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_outcome.rs`：新增 backend-owned explicit outcome/transport primitive 模块，集中实现 `alloc_effect_outcome_slot(...)`、`build_value_transport(...)`、`build_effect_signal(...)`、`build_effect_outcome(...)`、`effect_outcome_is_propagating(...)`、`effect_outcome_payload_transport(...)`、`effect_outcome_resume_token(...)`、`decode_effect_transport_value(...)`、`coerce_u64_word(...)`、`split_task_transport_tuple_value(...)`，并补上 task transport tuple 识别。
+    - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`：补回 cross-thread resume transport 所需的中性 runtime 声明 `scoop_thread_spawn_join_compat_resume_u64`、`scoop_thread_spawn_join_resume_u64`、`scoop_thread_spawn_join_resume_transport`。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：把 task transport resume payload decode 切到新的 `ValueTransportParts` surface，并删除残留的 `declare_runtime_effect_set_active_with_trace` / `scoop_effect_set_active*` 旧桥调用。
+    - `crates/scoopc/src/llvm/tests.rs`：把仍然 `include_str!` 已删除 `codegen/effect/*` 文件的源清单检查改到当前 target-shape 文件，避免 lint/test 目标被陈旧 inventory 阻断。
+  - 核心决策：
+    - `ScoopEffectOutcome` 继续沿用 `runtime_abi.rs` 中已经稳定的显式布局：`tag = COMPLETE | PROPAGATE`、`complete = ValueTransport`、`signal = { op_tag, effect_instance_key, payload, resume_token }`；builder/query/write-back 全部回到 LLVM backend 自己维护，不再声明任何 `scoop_effect_outcome_*` bridge。
+    - task transport tuple 仅被识别为 codegen type 层的原始 `(u64-word, gc-ref)` 二元 carrier；`split_task_transport_tuple_value(...)` 与 `decode_effect_transport_value(...)` 只为这条 target-shape transport surface 提供拆包/重建，不再回退 runtime slot/TLS 协议。
+    - 对 cross-thread resume 只补中性的 runtime substrate 声明，不恢复任何 continuation/effect policy；transport 语义仍由 backend 侧 `ValueTransport` / composite descriptor 组织。
+    - `Raise<RuntimeError>` perform boundary 上残留的 `declare_runtime_effect_set_active_with_trace` 已直接删除；显式 propagation 不再允许先写 active flag 再经 bridge 物化 outcome。
+  - 验证结果：
+    - `cargo fmt`：通过。
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` grep `declare_runtime_effect_set_active_with_trace|scoop_effect_set_active|scoop_effect_outcome_|scoop_effect_clear`：无命中。
+    - `cargo check -p scoopc`：仍失败，但不再出现 `alloc_effect_outcome_slot`、`effect_outcome_is_propagating`、`effect_outcome_payload_transport`、`decode_effect_transport_value`、`coerce_u64_word`、`split_task_transport_tuple_value`、`declare_runtime_effect_set_active_with_trace` 或 thread resume transport runtime declarations 缺失；剩余首批错误已切到 `emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled`（G7）、`known_fun_body_may_outward_effect` / `local_call_may_suspend_from_hir_ty`（G4）、`codegen_mir_*call*` / `codegen_perform_expr`（G6/G7）等后续结构性 gap。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：仍失败，但已不再被 `crates/scoopc/src/llvm/tests.rs` 对已删除 `codegen/effect/*` 文件的 `include_str!` 阻断；当前失败原因与 `cargo check -p scoopc` 一致，均来自后续任务缺口。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §4：explicit `EffectOutcome` contract 不再只剩 layout/type 名字，backend 已重新拥有 authoritative builder/query/write-back primitive。
+    - §9（其中与 transport primitive 直接相关的子缺口）：`coerce_u64_word(...)`、`split_task_transport_tuple_value(...)` 与 cross-thread resume transport runtime declarations 已重新接回，dynamic/task transport surface 不再因为这些基础 helper 缺失而悬空。
 
 ## G2-T03R：Review explicit outcome/transport primitive，确认 contract 已 backend-owned
 

@@ -4201,8 +4201,10 @@ fn legacy_effect_backend_removed_source_inventory() {
     let sources = [
         include_str!("emit.rs"),
         include_str!("mod.rs"),
-        include_str!("codegen/effect/contract.rs"),
-        include_str!("codegen/effect/mod.rs"),
+        include_str!("codegen/effect_outcome.rs"),
+        include_str!("codegen/effect_lowered/body.rs"),
+        include_str!("codegen/effect_lowered/layout.rs"),
+        include_str!("codegen/effect_lowered/value.rs"),
         include_str!("codegen/object_init.rs"),
         include_str!("codegen/runtime_abi.rs"),
         include_str!("../effect/mod.rs"),
@@ -4229,15 +4231,21 @@ fn legacy_effect_backend_removed_source_inventory() {
 
 #[test]
 fn single_effect_lowering_path_source_inventory() {
-    let effect_backend_source = include_str!("codegen/effect/mod.rs");
-    assert!(
-        !effect_backend_source.contains("codegen_handle_expr_via_state_machine"),
-        "HIR handle state-machine lowering entry should be removed"
-    );
-    assert!(
-        !effect_backend_source.contains("ContinuationResumeReplayContext"),
-        "legacy continuation replay shim should be removed"
-    );
+    for effect_backend_source in [
+        include_str!("codegen/effect_outcome.rs"),
+        include_str!("codegen/effect_lowered/body.rs"),
+        include_str!("codegen/effect_lowered/layout.rs"),
+        include_str!("codegen/effect_lowered/value.rs"),
+    ] {
+        assert!(
+            !effect_backend_source.contains("codegen_handle_expr_via_state_machine"),
+            "HIR handle state-machine lowering entry should be removed"
+        );
+        assert!(
+            !effect_backend_source.contains("ContinuationResumeReplayContext"),
+            "legacy continuation replay shim should be removed"
+        );
+    }
 
     let shared_state_machine_source = include_str!("../effect/state_machine/mod.rs");
     assert!(
