@@ -987,7 +987,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn project_refactor_step_to_schema(
+    pub(super) fn project_refactor_step_to_schema(
         &mut self,
         abi: &RefactorAbiQuery<'ctx>,
         owner_step: BasicValueEnum<'ctx>,

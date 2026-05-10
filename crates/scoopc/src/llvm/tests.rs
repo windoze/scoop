@@ -4161,6 +4161,110 @@ fun main(): Int {
 }
 
 #[test]
+fn effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter() {
+    let source = SourceFile::new_virtual(
+        "<mem>/closure_step_adapter.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun callIt(f: () -> Int / Ask): Int / Ask {
+    f()
+}
+
+fun main(): Int {
+    return handle {
+        val x: Int = 10
+        callIt {
+            val y: Int = Ask.get(x)
+            x + y
+        }
+    } with {
+        Ask.get(key), k -> 99
+    }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("store ptr @__scoop_refactor_closure_step_adapter__a_main__lambda0__")
+            && ir.contains("refactor_carrier_to_effectful"),
+        "effectful closure carrier 应写入 schema-aware adapter，而不是直接写 owner dynamic entry:\n{ir}"
+    );
+    assert!(
+        !ir.contains("store ptr @__scoop_refactor_closure_dynamic_entry__a_main__lambda0"),
+        "closure surface step schema 与 owner step schema 不一致时，不应把 raw owner dynamic entry 直接写进 closure object:\n{ir}"
+    );
+}
+
+#[test]
+fn higher_order_effectful_function_value_uses_schema_aware_carrier_adapter() {
+    let source = SourceFile::new_virtual(
+        "<mem>/higher_order_closure_step_adapter.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+enum Mode {
+    Pure,
+    Effectful(val seed: Int),
+}
+
+fun choose(mode: Mode): () -> Int / Ask {
+    when (mode) {
+        Pure -> {
+            val thunk: () -> Int / Ask = { 5 }
+            thunk
+        }
+        Effectful(seed) -> {
+            val thunk: () -> Int / Ask = { Ask.ask(seed) }
+            thunk
+        }
+    }
+}
+
+fun drive(mode: Mode): Int {
+    return handle {
+        choose(mode)()
+    } with {
+        Ask.ask(seed), k -> seed
+    }
+}
+
+fun main(): Int {
+    return drive(Effectful(9))
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("store ptr @__scoop_refactor_plain_adapter__a_choose__lambda0__")
+            && ir.contains("store ptr @__scoop_refactor_closure_step_adapter__a_choose__lambda1__"),
+        "higher-order callable coercion 应同时保留 pure-branch plain adapter 与 effectful-branch schema-aware carrier adapter:\n{ir}"
+    );
+    assert!(
+        !ir.contains("store ptr @__scoop_refactor_closure_dynamic_entry__a_choose__lambda1"),
+        "effectful higher-order branch 不应把 raw owner dynamic entry 直接写进 closure object:\n{ir}"
+    );
+}
+
+#[test]
 fn state_machine_multi_payload_perform_uses_tuple_transport() {
     let source = SourceFile::new_virtual(
         "main.scoop",
