@@ -2657,6 +2657,15 @@ impl<'ctx> RefactorAbiQuery<'ctx> {
             })
     }
 
+    pub(super) fn maybe_callable_carrier_target_layout(
+        &self,
+        kind: RefactorCallableCarrierKind,
+        callable_fqn: &str,
+    ) -> Option<&RefactorCallableCarrierTargetLayout> {
+        self.callable_carrier_target_layouts
+            .get(&(kind, callable_fqn.to_string()))
+    }
+
     pub(super) fn callable_carrier_target_layouts(
         &self,
     ) -> impl Iterator<

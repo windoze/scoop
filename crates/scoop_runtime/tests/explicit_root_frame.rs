@@ -5,6 +5,7 @@ unsafe extern "C" {
     fn scoop_thread_register();
     fn scoop_thread_unregister();
 
+    #[cfg(not(any(feature = "gc-minimal", feature = "gc-hosted")))]
     fn scoop_test_explicit_root_frame_enter_native_smoke() -> isize;
     fn scoop_test_explicit_root_frame_top() -> usize;
     fn scoop_test_explicit_root_frame_root_map_smoke() -> isize;
@@ -41,6 +42,7 @@ fn explicit_root_frame_tls_top_and_descriptor_walk_smoke() {
     }
 }
 
+#[cfg(not(any(feature = "gc-minimal", feature = "gc-hosted")))]
 #[test]
 fn explicit_root_frame_enter_native_uses_saved_tls_chain() {
     unsafe {

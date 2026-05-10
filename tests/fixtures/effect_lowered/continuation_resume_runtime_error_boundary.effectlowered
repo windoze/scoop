@@ -33,17 +33,17 @@ LateLoweredProgram
       continuation_obj_ty: t390
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t391 out_step_schema=s0 concrete_op=sample.Boom.next
-        - Case(c1) payload_tuple_ty=t212 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c1) payload_tuple_ty=t261 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t261>
     - step_schema: s2
       invoke_args_tuple_ty: t5
       complete_variant: Complete(t2)
       continuation_obj_ty: t394
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k2 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t386 out_step_schema=s2 concrete_op=sample.Boom.next
-        - Case(c1) payload_tuple_ty=t212 continuation_schema=k3 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t395 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c1) payload_tuple_ty=t261 continuation_schema=k3 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t395 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t261>
   continuation_objects:
     - continuation_object: ko0
-      owner_version: instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true
+      owner_version: instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true
       continuation_obj_ty: t390
       implemented_packings: [ri0, ri1]
       captures:
@@ -60,10 +60,10 @@ LateLoweredProgram
         - State(st2)
       authoritative_surface_resumes:
         - case=c0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t391 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Boom.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
       authoritative_internal_methods:
         - case=c0 packed_by=ri0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t391 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Boom.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261> => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s0
       publications:
@@ -75,26 +75,26 @@ LateLoweredProgram
         - internal_method ko0 case=c1 packed_by=ri1 reachability=Reachable
     - continuation_schema: k2 source=ResumeBoundaryOnly resume_tuple_ty=t5 answer_ty=t2 out_step_schema=s2
       publications:
-        - resume_boundary instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        - resume_boundary instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
       wrapper_projection:
-        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
         owner_step_schema: s0
         wrapper_step_schema: s2
         complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
         outward_cases:
           - owner c0 op=sample.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=sample.Boom.next payload_tuple_ty=t2 cont_schema=k2 out_step_schema=s2
-          - owner c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 -> wrapper c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 cont_schema=k3 out_step_schema=s2
+          - owner c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 -> wrapper c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 cont_schema=k3 out_step_schema=s2
     - continuation_schema: k3 source=ResumeBoundaryOnly resume_tuple_ty=t3 answer_ty=t2 out_step_schema=s2
       publications:
-        - resume_boundary instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        - resume_boundary instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
       wrapper_projection:
-        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+        underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
         owner_step_schema: s0
         wrapper_step_schema: s2
         complete: owner_answer_ty=t2 -> wrapper_answer_ty=t2 payload=owner_complete:t2
         outward_cases:
           - owner c0 op=sample.Boom.next payload_tuple_ty=t2 -> wrapper c0 op=sample.Boom.next payload_tuple_ty=t2 cont_schema=k2 out_step_schema=s2
-          - owner c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 -> wrapper c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 cont_schema=k3 out_step_schema=s2
+          - owner c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 -> wrapper c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 cont_schema=k3 out_step_schema=s2
   resume_packing_interfaces:
     - resume_packing_interface: ri0
       packing_effect_family: sample.Boom
@@ -102,13 +102,13 @@ LateLoweredProgram
       packed_methods:
         - case: c0 resume_tuple_ty=t5 answer_ty=t2 surface_ty=t391 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Boom.next
     - resume_packing_interface: ri1
-      packing_effect_family: scoop.core.Raise<t212>
+      packing_effect_family: scoop.core.Raise<t261>
       authoritative_step_schema: s0
       packed_methods:
-        - case: c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212>
+        - case: c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t392 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261>
   callables:
     - root: sample.helper
-      body_version_key: instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true
+      body_version_key: instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true
       resolved_outward_cases: [c0, c1]
       abi: EffectStep
       authoritative_step_schema: s0
@@ -159,7 +159,7 @@ LateLoweredProgram
             operand_contract:
               anchor: statement bb0 stmt1 slice=bb0 stmts[0..2] slice_stmt_index=1 last_in_slice=true
               continuation: local0:t386
-              underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t213 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
+              underlying_route: continuation_schema=k2 via resume_boundary instance=sample.helper allowed_row=(t262 + t385) impl_plan=CanonicalFull needs_reentry=true ko0 site0
               ordered_args:
                 - local2:t5
             continuation_compositions:
@@ -169,10 +169,10 @@ LateLoweredProgram
             complete: answer_ty=t2 target=st2 result=local1
             outward_cases:
               - in c0 op=sample.Boom.next -> out c0 op=sample.Boom.next payload_tuple_ty=t2 ko0 cont_schema=k0 out_step_schema=s0
-              - in c1 op=scoop.core.Raise.raise<t212> -> out c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 ko0 cont_schema=k1 out_step_schema=s0
+              - in c1 op=scoop.core.Raise.raise<t261> -> out c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 ko0 cont_schema=k1 out_step_schema=s0
         - bd1 RuntimeError(site0) owner=st0 resume=st2
           lowering: RuntimeError origin=site0 paired_resume=bd0
-            emit: c1 op=scoop.core.Raise.raise<t212> payload_tuple_ty=t212 ko0 cont_schema=k1 out_step_schema=s0
+            emit: c1 op=scoop.core.Raise.raise<t261> payload_tuple_ty=t261 ko0 cont_schema=k1 out_step_schema=s0
       resume_state_map:
         - bd0 -> st2
         - bd1 -> st2
@@ -182,7 +182,7 @@ LateLoweredProgram
       body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t140 params=[] return=t5
+      ordinary_signature: fn_ty=t125 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..1] + term
       plain_call_sites:

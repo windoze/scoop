@@ -26,7 +26,7 @@ LateLoweredProgram
       continuation_obj_ty: t386
       case_variants:
         - Case(c0) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t5>
-        - Case(c1) payload_tuple_ty=t212 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c1) payload_tuple_ty=t261 continuation_schema=k0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t261>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
@@ -44,10 +44,10 @@ LateLoweredProgram
         - State(st5)
       authoritative_surface_resumes:
         - case=c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
-        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
       authoritative_internal_methods:
         - case=c0 packed_by=ri0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5> => Unreachable
-        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c1 packed_by=ri1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t3 answer_ty=t5 out_step_schema=s0
       publications:
@@ -62,16 +62,16 @@ LateLoweredProgram
       packed_methods:
         - case: c0 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t5>
     - resume_packing_interface: ri1
-      packing_effect_family: scoop.core.Raise<t212>
+      packing_effect_family: scoop.core.Raise<t261>
       authoritative_step_schema: s0
       packed_methods:
-        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t212>
+        - case: c1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t387 out_step_schema=s0 continuation_schema=k0 concrete_op=scoop.core.Raise.raise<t261>
   callables:
     - root: a.main
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t140 params=[] return=t5
+      ordinary_signature: fn_ty=t125 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..2] + term

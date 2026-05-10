@@ -41,7 +41,7 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Other.ping
         - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Step.next
-        - Case(c2) payload_tuple_ty=t212 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c2) payload_tuple_ty=t261 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t261>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.helper allowed_row=(t385) impl_plan=SingleCase(c1) needs_reentry=true
@@ -59,7 +59,7 @@ LateLoweredProgram
       authoritative_surface_resumes:
         - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
         - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
       authoritative_internal_methods:
         - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
@@ -82,7 +82,7 @@ LateLoweredProgram
       body_version_key: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t139 params=[] return=t2
+      ordinary_signature: fn_ty=t120 params=[] return=t2
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -217,7 +217,7 @@ LateLoweredProgram
       body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t140 params=[] return=t5
+      ordinary_signature: fn_ty=t125 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..1] + term
       plain_call_sites:

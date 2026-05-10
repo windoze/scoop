@@ -34,7 +34,7 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s0 concrete_op=sample.Inner.go
         - Case(c1) payload_tuple_ty=t2 continuation_schema=k1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 concrete_op=sample.Outer.again
-        - Case(c2) payload_tuple_ty=t212 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c2) payload_tuple_ty=t261 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t261>
     - step_schema: s1
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
@@ -42,7 +42,7 @@ LateLoweredProgram
       case_variants:
         - Case(c0) payload_tuple_ty=t2 continuation_schema=k3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 concrete_op=sample.Inner.go
         - Case(c1) payload_tuple_ty=t2 continuation_schema=k4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 concrete_op=sample.Outer.again
-        - Case(c2) payload_tuple_ty=t212 continuation_schema=k5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t212>
+        - Case(c2) payload_tuple_ty=t261 continuation_schema=k5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t261>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.nested_may_suspend_outward allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true
@@ -69,7 +69,7 @@ LateLoweredProgram
       authoritative_surface_resumes:
         - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Inner.go => Unreachable
         - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
       authoritative_internal_methods:
         - case=c1 packed_by=ri1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
     - continuation_object: ko1
@@ -90,11 +90,11 @@ LateLoweredProgram
       authoritative_surface_resumes:
         - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
         - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
       authoritative_internal_methods:
         - case=c0 packed_by=ri3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
         - case=c1 packed_by=ri4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
-        - case=c2 packed_by=ri5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t212> => Unreachable
+        - case=c2 packed_by=ri5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s0
       publications:
@@ -135,10 +135,10 @@ LateLoweredProgram
       packed_methods:
         - case: c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again
     - resume_packing_interface: ri5
-      packing_effect_family: scoop.core.Raise<t212>
+      packing_effect_family: scoop.core.Raise<t261>
       authoritative_step_schema: s1
       packed_methods:
-        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t212>
+        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261>
   callables:
     - root: sample.nested_may_suspend_outward
       body_version_key: instance=sample.nested_may_suspend_outward allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true
@@ -387,7 +387,7 @@ LateLoweredProgram
       body_version_key: instance=sample.nested_self_contained allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t140 params=[] return=t5
+      ordinary_signature: fn_ty=t125 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..0] + term

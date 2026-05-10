@@ -65,25 +65,6 @@ fn function_type_source_args(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
         .collect()
 }
 
-fn source_function_args_tuple_ty(
-    source_types: &TypeStore,
-    source_fun_ty: &crate::ty::FunctionType,
-) -> Option<TypeId> {
-    let args = function_type_source_args(source_fun_ty);
-    match args.as_slice() {
-        [] => source_types
-            .iter_ids()
-            .find(|&ty| matches!(source_types.kind(ty), TypeKind::Value(ValueTypeKind::Unit))),
-        [single] => Some(*single),
-        many => source_types.iter_ids().find(|&candidate| {
-            matches!(
-                source_types.kind(candidate),
-                TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements == many
-            )
-        }),
-    }
-}
-
 fn direct_call_dispatch_fqn(fqn: &str) -> &str {
     if let Some((base, _)) = fqn.rsplit_once("::<") {
         return base;
@@ -795,13 +776,29 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         target_local: Option<LocalId>,
         fn_ptr: &str,
     ) -> Result<Option<inkwell::values::PointerValue<'ctx>>, LlvmEmitError> {
-        let Some(target_ty) = target_local
+        let mut surface_tys = Vec::new();
+        if let Some(target_ty) = target_local
             .and_then(|local| self.body.locals.get(local.as_u32() as usize))
             .map(|local| local.ty)
-        else {
-            return Ok(None);
-        };
-        self.maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty(span, target_ty, fn_ptr)
+        {
+            surface_tys.push(target_ty);
+        }
+        if let Some(target_local) = target_local
+            && let Some(consumer_ty) = self.local_function_value_consumer_surface_ty(target_local)?
+            && !surface_tys.contains(&consumer_ty)
+        {
+            surface_tys.push(consumer_ty);
+        }
+        for surface_ty in surface_tys {
+            if let Some(ptr) =
+                self.maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty(
+                    span, surface_ty, fn_ptr,
+                )?
+            {
+                return Ok(Some(ptr));
+            }
+        }
+        Ok(None)
     }
 
     fn maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty(
@@ -827,7 +824,28 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if fun_ty.effects.is_pure() {
             return Ok(None);
         }
-        let layout = self.effect_typed_closure_surface_layout(surface_fun_ty, &fun_ty)?;
+        let Some(layout) = self.effect_typed_closure_surface_layout(&fun_ty)? else {
+            return Ok(None);
+        };
+        if let Some(source_target) = self
+            .abi
+            .maybe_callable_carrier_target_layout(RefactorCallableCarrierKind::ClosureObject, fn_ptr)
+        {
+            let source_step_schema = source_target.step_schema();
+            let source_symbol_name = source_target.symbol_name().to_string();
+            if source_step_schema == layout.return_step_schema {
+                return Ok(None);
+            }
+            return self
+                .build_effect_typed_effectful_closure_adapter(
+                    span,
+                    fn_ptr,
+                    layout,
+                    source_step_schema,
+                    &source_symbol_name,
+                )
+                .map(Some);
+        }
         if self
             .abi
             .maybe_plain_callable_layout_by_root_fqn(fn_ptr)?
@@ -837,22 +855,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .build_effect_typed_plain_closure_adapter(span, fn_ptr, &fun_ty, layout)
                 .map(Some);
         }
-        let source_target = self
-            .abi
-            .callable_carrier_target_layout(RefactorCallableCarrierKind::ClosureObject, fn_ptr)?;
-        let source_step_schema = source_target.step_schema();
-        let source_symbol_name = source_target.symbol_name().to_string();
-        if source_step_schema == layout.return_step_schema {
-            return Ok(None);
-        }
-        self.build_effect_typed_effectful_closure_adapter(
-            span,
+        Err(frontend_error(format!(
+            "refactor effect-typed closure surface `{}` 缺少 published closure carrier target 或 plain callable layout",
             fn_ptr,
-            layout,
-            source_step_schema,
-            &source_symbol_name,
-        )
-        .map(Some)
+        )))
     }
 
     fn install_effect_typed_closure_target_overrides_for_struct_fields(
@@ -905,6 +911,67 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(())
     }
 
+    fn local_function_value_consumer_surface_ty(
+        &self,
+        local: LocalId,
+    ) -> Result<Option<TypeId>, LlvmEmitError> {
+        let mut matched: Option<TypeId> = None;
+        for block in &self.body.blocks {
+            for stmt in &block.stmts {
+                let mir::StatementKind::Assign { value, .. } = &stmt.kind else {
+                    continue;
+                };
+                let Some(surface_ty) = self.call_arg_function_surface_ty(value, local)? else {
+                    continue;
+                };
+                if let Some(existing) = matched {
+                    if existing != surface_ty {
+                        return Err(frontend_error(format!(
+                            "refactor closure local{} 被多个不兼容的 function surface 消费：t{} 与 t{}",
+                            local.as_u32(),
+                            existing.as_u32(),
+                            surface_ty.as_u32(),
+                        )));
+                    }
+                } else {
+                    matched = Some(surface_ty);
+                }
+            }
+        }
+        Ok(matched)
+    }
+
+    fn call_arg_function_surface_ty(
+        &self,
+        value: &mir::Rvalue,
+        local: LocalId,
+    ) -> Result<Option<TypeId>, LlvmEmitError> {
+        let mir::Rvalue::Call { kind, args, .. } = value else {
+            return Ok(None);
+        };
+        let Some(arg_index) = args.iter().position(
+            |arg| matches!(&arg.value, mir::Operand::Local(candidate) if *candidate == local),
+        ) else {
+            return Ok(None);
+        };
+        let surface_ty = match kind {
+            mir::CallKind::Direct { callee_fqn } => {
+                if let Ok(layout) = self.abi.callable_layout_by_root_fqn(callee_fqn) {
+                    source_carrier_types(self.source_types, layout.direct_entry().invoke_args_tuple_ty())
+                        .and_then(|tys| tys.get(arg_index).copied())
+                } else if let Ok(layout) = self.abi.plain_callable_layout_by_root_fqn(callee_fqn) {
+                    layout.direct_entry().param_tys().get(arg_index).copied()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        Ok(surface_ty.filter(
+            |ty| matches!(self.source_types.kind(*ty), TypeKind::Ref(RefTypeKind::Function(_))),
+        ))
+    }
+
     fn source_type_matching_codegen_ty(&self, codegen_ty: TypeId) -> Option<TypeId> {
         let display = self.codegen.types.display(codegen_ty).to_string();
         self.source_types
@@ -948,11 +1015,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn effect_typed_closure_surface_layout(
         &self,
-        surface_fun_ty: &crate::ty::FunctionType,
         fun_ty: &crate::ty::FunctionType,
-    ) -> Result<RefactorClosureSurfaceLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<Option<RefactorClosureSurfaceLayout<'ctx>>, LlvmEmitError> {
         let expected_args = function_type_source_args(fun_ty);
         let expected_effect_families = self.effect_row_family_match_keys(&fun_ty.effects)?;
+        // Contract-first: only consume published dynamic callable surfaces here.
+        // If no dynamic surface was materialized for this function type, there is no
+        // authoritative schema that justifies mutating the closure carrier fn_ptr.
         let mut matches = self.abi.dynamic_invoke_layouts().filter_map(|layout| {
             let args = source_carrier_types(self.source_types, layout.invoke_args_tuple_ty())?
                 .into_iter()
@@ -979,62 +1048,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 return_step_schema: layout.return_step_schema(),
             })
         });
-        let missing_layout_error = || {
-            frontend_error(format!(
-                "refactor effect-typed plain adapter 缺少匹配 function type args={:?} effects={:?} return=t{} 的 dynamic-invoke layout",
-                expected_args
-                    .iter()
-                    .map(|ty| ty.as_u32())
-                    .collect::<Vec<_>>(),
-                expected_effect_families,
-                fun_ty.return_ty.as_u32(),
-            ))
+        let Some(first) = matches.next() else {
+            return Ok(None);
         };
-        let first = if let Some(layout) = matches.next() {
-            layout
-        } else {
-            let invoke_args_tuple_ty =
-                source_function_args_tuple_ty(self.source_types, surface_fun_ty)
-                    .ok_or_else(missing_layout_error)?;
-            let mut params = vec![self.codegen.llvm_gc_i8_ptr_type().into()];
-            if !function_type_source_args(surface_fun_ty).is_empty() {
-                let args_abi = *self.abi.source_value_layout(invoke_args_tuple_ty)?.abi();
-                if !args_abi.is_elided() {
-                    params.push(args_abi.llvm_ty().into());
-                }
-            }
-            let mut synth_matches = self.abi.step_layouts().filter_map(|step_layout| {
-                let effect_families = self.step_layout_effect_family_match_keys(step_layout)?;
-                if effect_families != expected_effect_families {
-                    return None;
-                }
-                let payload_ty = self.codegen.equivalent_codegen_type_id(
-                    self.source_types,
-                    step_layout.complete_variant().payload_source_ty(),
-                )?;
-                (payload_ty == fun_ty.return_ty).then_some(RefactorClosureSurfaceLayout {
-                    llvm_ty: step_layout.llvm_ty().fn_type(&params, false),
-                    invoke_args_tuple_ty,
-                    return_step_schema: step_layout.step_schema(),
-                })
-            });
-            let first = synth_matches.next().ok_or_else(missing_layout_error)?;
-            if synth_matches.next().is_some() {
-                return Err(frontend_error(format!(
-                    "refactor effect-typed plain adapter function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
-                    expected_args
-                        .iter()
-                        .map(|ty| ty.as_u32())
-                        .collect::<Vec<_>>(),
-                    expected_effect_families,
-                    fun_ty.return_ty.as_u32(),
-                )));
-            }
-            first
-        };
-        if matches.next().is_some() {
+        let ambiguous = matches.any(|candidate| {
+            candidate.return_step_schema != first.return_step_schema
+                || candidate.invoke_args_tuple_ty != first.invoke_args_tuple_ty
+                || candidate.llvm_ty != first.llvm_ty
+        });
+        if ambiguous {
             return Err(frontend_error(format!(
-                "refactor effect-typed plain adapter function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
+                "refactor effect-typed closure surface function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
                 expected_args
                     .iter()
                     .map(|ty| ty.as_u32())
@@ -1043,7 +1067,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 fun_ty.return_ty.as_u32(),
             )));
         }
-        Ok(first)
+        Ok(Some(first))
     }
 
     fn effect_row_family_match_keys(
