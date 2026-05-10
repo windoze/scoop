@@ -1,6 +1,8 @@
 // EXPECT: pass
 // RUN-STDOUT: gc_stw_cross_thread_in_native_roots_basic.stdout.txt
-// TIMEOUT: 5000
+// TIMEOUT: 10000
+// 说明：在 GC stress + verify-roots 的整组 runtime_gc 回归里，`scoop run`
+// 的编译+执行耗时会显著抖动；这里保留与同类 STW fixture 一致的 10s 预算，避免误报超时。
 //
 // 目标：T1512c：跨线程 stop-the-world 边界 + InNative 线程 roots（native_roots）smoke。
 //

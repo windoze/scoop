@@ -4277,6 +4277,11 @@ impl<'cg, 'a, 'ctx> RefactorAbiMaterializer<'cg, 'a, 'ctx> {
                                 site_id.as_u32(),
                             )));
                         }
+                        // Control-body 内的 plain dynamic call 继续走普通 ABI lowering，
+                        // 只有真正返回 Step_F 的 effect-step call 才需要 dynamic-invoke contract。
+                        if facts.callee_step_schema().is_none() {
+                            continue;
+                        }
                         let carrier_source_ty = self.dynamic_call_carrier_source_ty(body, kind);
                         sites.push((
                             *site_id,

@@ -58,7 +58,7 @@ use super::{
 /// - 避免 MIR 阶段重新回到 LLVM vtable/itable 细节或 `Continuation.resume` 名字推断。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MirSiteContractSource {
-    LegacyFallbacks,
+    FallbackSideTables,
     RefactorTyped,
 }
 
@@ -67,9 +67,9 @@ pub(crate) struct MirLoweringFacts {
     site_contract_source: MirSiteContractSource,
     dispatch_call_sites: HashMap<hir::DispatchCallSite, DispatchTargetKind>,
     call_arg_bindings: HashMap<hir::CallSite, CallArgBindingContract>,
-    legacy_resume_site_spans: HashSet<Span>,
-    legacy_outward_resume_site_spans: HashSet<Span>,
-    legacy_perform_sites: HashMap<Span, PerformCallSiteInfo>,
+    fallback_resume_site_spans: HashSet<Span>,
+    fallback_outward_resume_site_spans: HashSet<Span>,
+    fallback_perform_sites: HashMap<Span, PerformCallSiteInfo>,
     refactor_resume_sites: HashMap<hir::CallSite, RefactorResumeCallInfo>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
@@ -92,12 +92,12 @@ pub(crate) struct MirLoweringFacts {
 impl Default for MirLoweringFacts {
     fn default() -> Self {
         Self {
-            site_contract_source: MirSiteContractSource::LegacyFallbacks,
+            site_contract_source: MirSiteContractSource::FallbackSideTables,
             dispatch_call_sites: HashMap::new(),
             call_arg_bindings: HashMap::new(),
-            legacy_resume_site_spans: HashSet::new(),
-            legacy_outward_resume_site_spans: HashSet::new(),
-            legacy_perform_sites: HashMap::new(),
+            fallback_resume_site_spans: HashSet::new(),
+            fallback_outward_resume_site_spans: HashSet::new(),
+            fallback_perform_sites: HashMap::new(),
             refactor_resume_sites: HashMap::new(),
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
@@ -272,8 +272,8 @@ impl MirLoweringFacts {
 
     pub(crate) fn from_hir_side_tables_and_resume_spans(
         dispatch_call_sites: &hir::DispatchCallSiteIndex,
-        legacy_resume_site_spans: impl IntoIterator<Item = Span>,
-        legacy_outward_resume_site_spans: impl IntoIterator<Item = Span>,
+        fallback_resume_site_spans: impl IntoIterator<Item = Span>,
+        fallback_outward_resume_site_spans: impl IntoIterator<Item = Span>,
         effect_op_call_sites: &hir::EffectOpCallSiteIndex,
         when_pat_binding_tys: &hir::WhenPatBindingTypeIndex,
         top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
@@ -290,9 +290,9 @@ impl MirLoweringFacts {
             );
         }
 
-        facts.legacy_resume_site_spans = legacy_resume_site_spans.into_iter().collect();
-        facts.legacy_outward_resume_site_spans =
-            legacy_outward_resume_site_spans.into_iter().collect();
+        facts.fallback_resume_site_spans = fallback_resume_site_spans.into_iter().collect();
+        facts.fallback_outward_resume_site_spans =
+            fallback_outward_resume_site_spans.into_iter().collect();
         facts.with_hir_side_tables(
             effect_op_call_sites,
             when_pat_binding_tys,
@@ -307,7 +307,7 @@ impl MirLoweringFacts {
         top_level_fun_call_sites: &hir::TopLevelFunCallSiteIndex,
     ) -> Self {
         for (site, info) in effect_op_call_sites {
-            self.legacy_perform_sites.insert(
+            self.fallback_perform_sites.insert(
                 site.span,
                 PerformCallSiteInfo {
                     arg_mapping: info.arg_mapping.clone(),
@@ -438,9 +438,9 @@ impl MirLoweringFacts {
         contracts: &TypedHirEffectContracts,
     ) -> Self {
         self.site_contract_source = MirSiteContractSource::RefactorTyped;
-        self.legacy_resume_site_spans.clear();
-        self.legacy_outward_resume_site_spans.clear();
-        self.legacy_perform_sites.clear();
+        self.fallback_resume_site_spans.clear();
+        self.fallback_outward_resume_site_spans.clear();
+        self.fallback_perform_sites.clear();
         self.refactor_resume_sites.clear();
         self.refactor_perform_sites.clear();
         self.refactor_handle_sites.clear();
@@ -616,16 +616,16 @@ impl MirLoweringFacts {
         self.continuation_identity_return_funs.get(fqn).copied()
     }
 
-    fn legacy_resume_site_matches(&self, span: Span) -> bool {
-        self.legacy_resume_site_spans.contains(&span)
+    fn fallback_resume_site_matches(&self, span: Span) -> bool {
+        self.fallback_resume_site_spans.contains(&span)
     }
 
-    fn legacy_resume_site_suspends_outward(&self, span: Span) -> bool {
-        self.legacy_outward_resume_site_spans.contains(&span)
+    fn fallback_resume_site_suspends_outward(&self, span: Span) -> bool {
+        self.fallback_outward_resume_site_spans.contains(&span)
     }
 
-    fn legacy_perform_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
-        self.legacy_perform_sites.get(&span)
+    fn fallback_perform_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
+        self.fallback_perform_sites.get(&span)
     }
 
     fn refactor_resume_call_info(
@@ -4658,7 +4658,7 @@ impl<'a> FnLowering<'a> {
             return None;
         }
 
-        let info = self.facts.legacy_perform_site_info(span);
+        let info = self.facts.fallback_perform_site_info(span);
         let arg_mapping = info
             .map(|site| site.arg_mapping.as_slice())
             .filter(|mapping| mapping.len() == lowered_args.len())
@@ -4737,7 +4737,7 @@ impl<'a> FnLowering<'a> {
         }
 
         if !self.facts.uses_refactor_typed_contracts()
-            && self.facts.legacy_resume_site_matches(span)
+            && self.facts.fallback_resume_site_matches(span)
         {
             self.lower_resume_call_expr(span, result, callee, args, None);
             return result;
@@ -5079,7 +5079,7 @@ impl<'a> FnLowering<'a> {
                 out_effects: out_effects.clone(),
                 runtime_error_effect_ty: find_raise_runtime_error_effect(self.types),
                 suspends_outward: !out_effects.is_pure()
-                    || self.facts.legacy_resume_site_suspends_outward(span),
+                    || self.facts.fallback_resume_site_suspends_outward(span),
             }
         });
         let site_id = self.fresh_site_id();
@@ -6765,9 +6765,9 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn refactor_typed_contracts_clear_legacy_resume_and_perform_fallbacks() {
+    fn refactor_typed_contracts_clear_fallback_resume_and_perform_metadata() {
         let span = Span::new(1, 2);
-        let legacy_effect_sites = std::iter::once((
+        let fallback_effect_sites = std::iter::once((
             hir::CallSite::new(PathBuf::from("fixtures/mir_lower_facts.scoop"), span),
             hir::EffectOpCallInfo {
                 arg_mapping: vec![0],
@@ -6783,16 +6783,16 @@ mod tests {
             &dispatch_sites,
             [span],
             [span],
-            &legacy_effect_sites,
+            &fallback_effect_sites,
             &when_pat_binding_tys,
             &top_level_fun_call_sites,
         )
         .with_refactor_typed_contracts(&TypedHirEffectContracts::default());
 
         assert!(facts.uses_refactor_typed_contracts());
-        assert!(!facts.legacy_resume_site_matches(span));
-        assert!(!facts.legacy_resume_site_suspends_outward(span));
-        assert!(facts.legacy_perform_site_info(span).is_none());
+        assert!(!facts.fallback_resume_site_matches(span));
+        assert!(!facts.fallback_resume_site_suspends_outward(span));
+        assert!(facts.fallback_perform_site_info(span).is_none());
     }
 
     #[test]

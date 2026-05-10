@@ -1506,7 +1506,7 @@ static int scoop_is_continuation_resume_replay_state(void *state) {
   return hdr->type_desc == &SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC;
 }
 
-static void scoop_continuation_resume_install_legacy_replay_state(
+static void scoop_continuation_resume_install_pending_replay_state(
     void *pending_continuation) {
   if (pending_continuation == 0) {
     return;
@@ -1719,7 +1719,7 @@ static uint32_t scoop_continuation_resume_after_try(void *continuation,
     if (__scoop_explicit_root_frame_top == 0) {
       scoop_gc_thread_clear_managed_root_snapshot_current();
     }
-    scoop_continuation_resume_install_legacy_replay_state(
+    scoop_continuation_resume_install_pending_replay_state(
         result.pending_continuation);
     return 0;
   }
@@ -1732,7 +1732,7 @@ static uint32_t scoop_continuation_resume_after_try(void *continuation,
     if (__scoop_explicit_root_frame_top == 0) {
       scoop_gc_thread_clear_managed_root_snapshot_current();
     }
-    scoop_continuation_resume_install_legacy_replay_state(
+    scoop_continuation_resume_install_pending_replay_state(
         result.pending_continuation);
   }
 
@@ -1826,7 +1826,7 @@ void scoop_continuation_resume(void *continuation) {
   }
   ScoopContinuationResumeCommonResult result =
       scoop_continuation_resume_common(continuation);
-  scoop_continuation_resume_install_legacy_replay_state(
+  scoop_continuation_resume_install_pending_replay_state(
       result.pending_continuation);
 }
 
@@ -1838,7 +1838,7 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
   scoop_continuation_store_resume_payload(continuation, resume_value, 0);
   ScoopContinuationResumeCommonResult result =
       scoop_continuation_resume_common(continuation);
-  scoop_continuation_resume_install_legacy_replay_state(
+  scoop_continuation_resume_install_pending_replay_state(
       result.pending_continuation);
 }
 

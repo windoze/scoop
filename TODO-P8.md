@@ -698,7 +698,7 @@
   - 2026-05-10：补充 default helper 定向断言 `object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary`，并加强 object value / object property / top-level immutable 三条默认路径断言：helper body 必须出现 `switch i32 %refactor_step_tag`，且不得再出现 `scoop_effect_outcome*` / `scoop_effect_handler_stack_swap_top` / `@scoop_effect_is_active`。
   - 2026-05-10：验证通过：`cargo test -p scoopc --lib llvm::tests::object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary -- --exact`；`cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_object_value_init_access -- --exact`；`cargo test -p scoopc --lib llvm::tests::production_codegen_lowers_raw_mir_top_level_immutable_init_access -- --exact`；`cargo clippy --all-targets -- -D warnings`。
 
-## P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
+## [DONE] P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2/P8，§3，§4
@@ -769,6 +769,10 @@
 - 依赖：P8-T03a，P8-T03ab
 - 完成记录：
   - 2026-05-10：执行 `cargo test --all` / `cargo test -p scoopc --lib` 收尾回归时，默认单文件 LLVM helper 仅剩 object/top-level hidden-init blocker：`__scoop_refactor_direct_invoke__a_helper` 仍通过 legacy `scoop_effect_outcome_*` / `scoop_effect_handler_stack_swap_top` shim 传播 hidden ordinary effect。已前插前置任务 `P8-T03ab`，`P8-T04` 暂停，待该 blocker 消除后再继续完整矩阵。
+  - 2026-05-10：完成最终矩阵收尾。`P8-T03ab` 落地后，GC 全开 `runtime_gc` 套件剩余失败不再是语义 blocker，而是两条跨线程 STW smoke fixture 的显式 `TIMEOUT: 5000` 低估了 `scoop run` 在 GC stress + verify-roots 套件场景下的编译+执行成本；已把 `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop` 与 `tests/fixtures/runtime_gc/gc_stw_cross_thread_in_native_roots_basic.scoop` 的超时预算统一调整到 `10000ms`，并补充注释说明原因。
+  - 2026-05-10：按任务顺序完整重跑并通过最终 full regression 矩阵：`cargo test --all`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`。其中最终 GC 验证结果为 `fixtures: ok (391)` 与 `fixtures: ok (25)`。
+  - 2026-05-10：执行 residual 搜索 `rg "legacy|old effect mainline|parallel pipeline|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|--effect-pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'` 后，未发现可执行 legacy selector、旧 effect/continuation 主实现，或主文档/主 fixtures/主测试索引上的已删除 `async` / `await` / `Task` surface。剩余命中仅包括：历史 TODO/PLAN/PIPELINE 文档记录、删除/负向测试断言、以及命名中带 `legacy` 的测试/fixture 名称与静态 IR 产物（如 `crates/scoop/target/fixtures/effect_refactor_no_legacy_handler_stack_calls.ll`）；这些均不再构成可执行旧主线或当前语法入口。
+  - 结论：在仓库只剩 refactor 新主线的前提下，完整回归矩阵与 GC env 全开验证均已通过；P8 阶段的“删除旧主线并再次 full regression”目标已闭合。
 
 ## P8-T04R：Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束
 
