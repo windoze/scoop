@@ -156,7 +156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = cg.builder.build_call(init_fn, &[], "object_init")?;
             Ok(())
         })?;
-        let outcome = self.llvm_effect_outcome_struct_type().const_zero();
+        let outcome = self.build_zero_complete_effect_outcome()?;
         self.builder.build_return(Some(&outcome))?;
         self.finish_function_explicit_frame_layout(err_span)?;
         Ok(())

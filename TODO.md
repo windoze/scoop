@@ -323,7 +323,7 @@
     - §4：explicit `EffectOutcome` contract 不再只剩 layout/type 名字，backend 已重新拥有 authoritative builder/query/write-back primitive。
     - §9（其中与 transport primitive 直接相关的子缺口）：`coerce_u64_word(...)`、`split_task_transport_tuple_value(...)` 与 cross-thread resume transport runtime declarations 已重新接回，dynamic/task transport surface 不再因为这些基础 helper 缺失而悬空。
 
-## G2-T03R：Review explicit outcome/transport primitive，确认 contract 已 backend-owned
+## [DONE] G2-T03R：Review explicit outcome/transport primitive，确认 contract 已 backend-owned
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G2
@@ -345,6 +345,23 @@
   - 可以明确写出 explicit outcome 的 authoritative query/write-back surface。
 - 依赖：G2-T03
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_outcome.rs`：补出 `build_zero_complete_effect_outcome(...)`，把默认 complete outcome 的构造也收拢到 backend-owned primitive 模块。
+    - `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/object_init.rs`：object/top-level immutable init bridge 不再直接返回 `ScoopEffectOutcome::const_zero()`，统一改为调用 `build_zero_complete_effect_outcome(...)`。
+    - 本任务对 `crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` 做人工复核；无需额外语义修补。
+  - 核心决策：
+    - explicit outcome 的 authoritative surface 明确收敛为 `effect_outcome.rs`：构造/写回走 `build_value_transport(...)`、`build_effect_signal(...)`、`build_effect_outcome(...)`、`build_zero_complete_effect_outcome(...)`、`alloc_effect_outcome_slot(...)`；查询/拆包走 `effect_outcome_is_propagating(...)`、`effect_outcome_payload_transport(...)`、`effect_outcome_resume_token(...)`、`decode_effect_transport_value(...)`。
+    - `runtime_abi.rs` 只保留 layout/type 与中性 runtime substrate 声明，不再承担 propagation policy 或 outcome bridge 语义。
+    - task transport / `u64` word coercion 继续统一走 `coerce_u64_word(...)`、`split_task_transport_tuple_value(...)`、`decode_effect_transport_value(...)`，未发现第二套并行 carrier 协议。
+    - review 中发现 bridge body 直接返回 `const_zero()` 会让 default complete outcome 构造点分散；因此在本任务内直接收口，而不是仅记录问题。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` grep `scoop_effect_outcome_|scoop_effect_set_active|scoop_effect_clear`：无命中。
+    - 对 `crates/scoopc/src/llvm/codegen` grep `llvm_effect_outcome_struct_type().const_zero()`：无命中；active implementation 不再绕开 backend-owned outcome builder 直接手搓默认 complete outcome。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续集中在 `emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `local_call_may_suspend_from_hir_ty`（G4）、`codegen_mir_*call*` / `codegen_funptr_value_call_impl`（G6）、`codegen_perform_expr` / `codegen_handle_expr`（G7）等后续结构性 gap；未再出现 `EffectOutcome` / `ValueTransport` primitive 缺失或旧 bridge 名字残余。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §4：review 确认 explicit `EffectOutcome` 的 builder/query/write-back surface 已稳定留在 backend，而非 runtime C bridge。
+    - §9（其中与 transport primitive 直接相关的子缺口）：review 确认 task transport / `u64` transport 仍统一走同一组 backend-owned primitive，没有分叉回旧协议。
 
 ## G3-T04：重建显式 `EffectCtx` / handler graph 模型
 

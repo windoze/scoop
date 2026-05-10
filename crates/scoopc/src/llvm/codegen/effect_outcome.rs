@@ -47,6 +47,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn zero_effect_signal(&mut self) -> Result<StructValue<'ctx>, LlvmEmitError> {
+        let zero_transport = self.zero_value_transport_parts();
+        self.build_effect_signal(
+            self.context.i32_type().const_zero(),
+            self.context.i32_type().const_zero(),
+            zero_transport,
+            self.llvm_gc_i8_ptr_type().const_null(),
+        )
+    }
+
+    /// Keep the default complete outcome construction centralized in the backend-owned
+    /// primitive instead of hand-rolling the aggregate at individual bridge sites.
+    pub(in crate::llvm::codegen) fn build_zero_complete_effect_outcome(
+        &mut self,
+    ) -> Result<StructValue<'ctx>, LlvmEmitError> {
+        let zero_transport = self.zero_value_transport_parts();
+        let zero_signal = self.zero_effect_signal()?;
+        self.build_effect_outcome(EffectOutcomeTag::Complete, zero_transport, zero_signal)
+    }
+
     pub(in crate::llvm::codegen) fn build_value_transport(
         &mut self,
         transport: ValueTransportParts<'ctx>,
@@ -137,15 +157,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &format!("{label}_outcome"),
             self.llvm_effect_outcome_struct_type().into(),
         )?;
-        let zero_transport = self.zero_value_transport_parts();
-        let zero_signal = self.build_effect_signal(
-            self.context.i32_type().const_zero(),
-            self.context.i32_type().const_zero(),
-            zero_transport,
-            self.llvm_gc_i8_ptr_type().const_null(),
-        )?;
-        let zero_outcome =
-            self.build_effect_outcome(EffectOutcomeTag::Complete, zero_transport, zero_signal)?;
+        let zero_outcome = self.build_zero_complete_effect_outcome()?;
         self.builder.build_store(slot, zero_outcome)?;
         Ok(slot)
     }
