@@ -107,7 +107,7 @@
     - §11：`runtime/c/scoop_runtime.c` 删除后的残余结构引用与前置声明缺口。
     - §12：活跃验证面中仍围绕旧桥名字的断言噪音。
 
-## G0-T01R：Review 物理清场结果，确认没有偷回任何 TLS 语义
+## [DONE] G0-T01R：Review 物理清场结果，确认没有偷回任何 TLS 语义
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G0
@@ -130,6 +130,25 @@
   - 可以明确写出：旧 TLS 语义仍然完全不存在，接下来可以开始补 replacement architecture。
 - 依赖：G0-T01
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`：把 `G0-T01` 清掉旧名断言后变成空壳的几组 LLVM 回归补成新的正向 refactor-surface 断言，并把部分仍以 `tls_check` 命名的测试重命名为 direct-call surface 语义。
+    - `runtime/c/scoop_runtime.c`：恢复被误删的中性 runtime substrate 定义，包括 `#include <stdatomic.h>`、GC-stress 状态/解析 helper、Immix TLS cache/nursery 分配 helper、`scoop_string_trim_indent(...)`、`scoop_runtime_init(...)`、`scoop_alloc(...)` 与 `scoop_gc_collect_safepoint(...)`。
+  - 核心决策：
+    - review 过程中发现的“空验证测试面”和“中性 substrate 被误删导致链接失败”都直接否定了 `G0-T01` 的清场结果，因此在本 review 任务内直接修复，而不是把 review 仅停留在记录问题。
+    - 对 `crates/scoopc/src/llvm/tests.rs` 不再恢复任何围绕旧 bridge/TLS 名字的负向断言，而是改成对 direct-call surface、Step dispatch、once-init/native-call surface 的正向验证。
+    - 对 `runtime/c/scoop_runtime.c` 只恢复 generic substrate / GC allocator / string runtime 所需的中性实现，不恢复任何 deleted continuation/effect TLS symbol、bridge API 或语义容器。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` 执行旧 TLS/bridge 符号 grep：无命中。
+    - `cargo check -p scoop_runtime`：通过。
+    - `cargo test -p scoop_runtime --tests --no-run`：通过；此前 `_scoop_runtime_init` / `_scoop_alloc` 未定义的链接失败已消失。
+    - `cargo test -p scoop_runtime --test runtime_init runtime_init_is_callable_and_observable -- --exact --nocapture`：通过。
+    - `cargo test -p scoop_runtime --test alloc scoop_alloc_returns_non_null_and_can_be_called_repeatedly -- --exact --nocapture`：通过。
+    - `cargo test -p scoop_runtime --test explicit_root_frame explicit_root_frame_tls_top_and_descriptor_walk_smoke -- --exact --nocapture`：通过。
+    - `cargo clippy -p scoop_runtime --all-targets -- -D warnings`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续集中在 `declare_callee_resume_entry_function_impl`、`local_call_may_suspend_from_hir_ty`、`alloc_effect_outcome_slot`、`known_fun_body_may_outward_effect` 等 target-shape helper 缺口；未再出现旧 TLS/bridge 名字残余或 runtime substrate 缺失导致的噪音。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §11：`runtime/c/scoop_runtime.c` 中被误删的中性 substrate 定义已恢复，runtime review 面不再被裸链接失败干扰。
+    - §12：活跃 LLVM 回归测试不再围绕旧 bridge 名字，也不再因为清理旧名而退化为空测试。
 
 ## G1-T02：重建 effectful callable 的显式 hidden ABI 骨架
 

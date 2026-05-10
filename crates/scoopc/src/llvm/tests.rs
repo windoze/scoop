@@ -217,7 +217,12 @@ fun main(): Int {
     );
 
     assert!(ir.contains("define i32 @main("));
-    }
+    assert!(
+        ir.contains("@__scoop_refactor_direct_invoke__a_main")
+            && ir.contains("switch i32 %refactor_step_tag"),
+        "默认单文件 helper 应继续产出 refactor direct-invoke + Step dispatch surface，而不是只剩空壳 C main:\n{ir}"
+    );
+}
 
 #[test]
 fn single_file_frontend_keeps_distinct_effect_row_generic_instances() {
@@ -1626,7 +1631,7 @@ fun main(): Int {
         ),
         "handler binder lowering 应继续按 tuple payload 的两个字段读取 binder，而不是退回单值 transport\n{ir}"
     );
-    }
+}
 
 #[test]
 fn effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter() {
@@ -1803,7 +1808,7 @@ fun main(): Int {
             || ir.contains("store i32 2, ptr addrspace(1) %refactor_cont_state_gep"),
         "surface-resume return path 应继续把 continuation state 写回 object contract\n{resume_window}"
     );
-        }
+}
 
 #[test]
 fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame() {
@@ -1828,7 +1833,7 @@ fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame() {
 }
 
 #[test]
-fn direct_effectful_signature_without_outward_effect_skips_tls_check() {
+fn direct_effectful_signature_without_outward_effect_stays_on_direct_call_surface() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1869,10 +1874,16 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    }
+    assert!(
+        (entry_ir.contains("@a.hidden(")
+            || entry_ir.contains("@__scoop_refactor_direct_invoke__a_hidden"))
+            && !entry_ir.contains("switch i32 %refactor_step_tag"),
+        "签名 effectful 但 body 不 outward 的直调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
+    );
+}
 
 #[test]
-fn direct_call_with_uncalled_effectful_higher_order_param_skips_tls_check() {
+fn direct_call_with_uncalled_effectful_higher_order_param_stays_on_direct_call_surface() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1909,10 +1920,16 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    }
+    assert!(
+        (entry_ir.contains("@a.latent(")
+            || entry_ir.contains("@__scoop_refactor_direct_invoke__a_latent"))
+            && !entry_ir.contains("switch i32 %refactor_step_tag"),
+        "未调用的 higher-order effect 参数不应让外层 ordinary 直调用进入 Step dispatch:\n{entry_ir}"
+    );
+}
 
 #[test]
-fn closure_call_without_outward_effect_skips_tls_check() {
+fn closure_call_without_outward_effect_stays_on_direct_call_surface() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1952,10 +1969,14 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    }
+    assert!(
+        entry_ir.contains("lambda0") && !entry_ir.contains("switch i32 %refactor_step_tag"),
+        "body 不 outward 的 closure 调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
+    );
+}
 
 #[test]
-fn direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome() {
+fn direct_call_with_real_outward_effect_uses_step_boundary_and_surface_resume_dispatch() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -1990,7 +2011,16 @@ fun main(): Int {
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
     let outward_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_outward");
 
-            assert!(
+    assert!(
+        entry_ir.contains("@__scoop_refactor_direct_invoke__a_outward")
+            && entry_ir.contains("switch i32 %refactor_step_tag"),
+        "ordinary direct outward-effect call 应改走 refactor Step boundary，并按 step tag dispatch:\n{entry_ir}"
+    );
+    assert!(
+        outward_ir.contains("store i32 1"),
+        "effectful callee 自身应直接发布 outward Step case，而不是退回额外桥接 surface:\n{outward_ir}"
+    );
+    assert!(
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_entry__k")
             && ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_outward__k"),
         "refactor direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
@@ -2031,9 +2061,13 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
-        assert!(
+    assert!(
+        entry_ir.contains("switch i32 %refactor_step_tag"),
+        "outward-effect closure call 应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
+    );
+    assert!(
         entry_ir.contains("@__scoop_refactor_direct_invoke__a_entry__lambda0"),
-        "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry，而不是回落旧 wrapper/TLS probing:\n{entry_ir}"
+        "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry:\n{entry_ir}"
     );
 }
 
@@ -2073,7 +2107,11 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
-        assert!(
+    assert!(
+        entry_ir.contains("switch i32 %refactor_step_tag"),
+        "effectful FunPtr 调用应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
+    );
+    assert!(
         entry_ir.contains("refactor_dynamic_funptr_fn = inttoptr i64")
             && entry_ir.contains(
                 "refactor_dynamic_call_step = call %scoop.refactor.Step__schema2 %refactor_dynamic_funptr_fn(i64"
@@ -2138,7 +2176,7 @@ fun main(): Int {
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
         "默认 virtual-cone path 的 outward vtable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
-    }
+}
 
 #[test]
 fn interface_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
@@ -2194,7 +2232,7 @@ fun main(): Int {
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
         "默认 virtual-cone path 的 outward itable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
-    }
+}
 
 #[test]
 fn object_value_init_access_stays_plain_without_effect_boundary() {
@@ -2228,7 +2266,12 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    }
+    assert!(
+        helper_ir.contains("@__scoop_object_init__a.BoomObject")
+            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+        "object value init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
+    );
+}
 
 #[test]
 fn object_property_init_access_stays_plain_without_effect_boundary() {
@@ -2255,7 +2298,12 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    }
+    assert!(
+        helper_ir.contains("@__scoop_object_init__a.Holder")
+            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+        "object property init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
+    );
+}
 
 #[test]
 fn top_level_immutable_init_access_stays_plain_without_effect_boundary() {
@@ -2280,7 +2328,12 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    }
+    assert!(
+        helper_ir.contains("@__scoop_top_level_val_init__a.Broken")
+            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+        "top-level immutable init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
+    );
+}
 
 #[test]
 fn pure_extern_call_does_not_install_effect_boundary() {
@@ -2306,7 +2359,12 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    }
+    assert!(
+        helper_ir.contains("@scoop_test_add_int")
+            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+        "ordinary `@Extern` 调用应保持 plain native call surface，而不是进入 Step dispatch:\n{helper_ir}"
+    );
+}
 
 #[test]
 fn refactor_class_ctor_uses_concrete_generic_instance_layout() {

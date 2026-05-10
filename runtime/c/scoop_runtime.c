@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdatomic.h>
 #include <inttypes.h>
 #include <math.h>
 #include <pthread.h>
@@ -87,6 +88,52 @@ void *scoop_alloc(uint64_t size);
 // - 未来会扩展为：线程注册、TLS、effect slots、GC heap 等（TODO T0903/T0904/...）。
 static uint32_t scoop_rt_initialized = 0;
 static uint32_t scoop_rt_init_calls = 0;
+static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
+
+// GC stress（测试/回归用）：通过 env `SCOOP_GC_STRESS` 触发额外 GC。
+//
+// 约定：
+// - 未设置：关闭（0）；
+// - 设为数字 N（N>=1）：每 N 次分配前触发一次 `scoop_gc_collect()`；
+// - 其它非空字符串：视为开启（等价于 1）；
+// - 特判：`0`/`false`/`no` 视为关闭。
+//
+// 说明：
+// - 该开关只影响 `scoop_alloc` 分配路径；默认关闭，避免影响正常性能。
+// - GC 触发点选择为“分配前”：避免在对象尚未被 caller 放入 roots 之前被 GC 误回收。
+static uint64_t scoop_rt_gc_stress_interval = 0;
+static _Atomic(uint64_t) scoop_rt_gc_stress_alloc_counter = 0;
+
+static uint64_t scoop_rt_parse_gc_stress_interval(void) {
+  const char *raw = getenv("SCOOP_GC_STRESS");
+  if (raw == 0) {
+    return 0;
+  }
+
+  // 跳过前导空白（允许 `SCOOP_GC_STRESS=" 1"`）。
+  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
+    raw++;
+  }
+
+  if (raw[0] == 0) {
+    return 1;
+  }
+  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0) {
+    return 0;
+  }
+
+  char *end = 0;
+  unsigned long long v = strtoull(raw, &end, 10);
+  if (end != 0 && end != raw && end[0] == 0) {
+    if (v == 0) {
+      return 0;
+    }
+    return (uint64_t)v;
+  }
+
+  // 非数字：只要不是显式 false/0/no，就视为“开启（每次分配触发）”。
+  return 1;
+}
 
 // GC heap（v0：数据结构骨架）。
 //
@@ -109,6 +156,144 @@ uint32_t scoop_runtime_init_count(void) {
 // - 本文件负责声明 thread-local 实例与读写 API。
 
 static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
+
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+// T1409b：thread-local block cache（批量取还 / per-thread cache）。
+//
+// 说明：
+// - cache 以 `ScoopGcImmixBlock.next_free` 串成单链表；
+// - 所有读写仅发生在“当前线程”，因此不需要额外同步原语；
+// - refill 时会短暂持有全局 GC 锁，并批量从全局 pool 取 blocks 放入 cache，以减少锁进入频率。
+#ifndef SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH
+#define SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH 8u
+#endif
+
+static inline ScoopGcImmixBlock *scoop_gc_immix_tls_cache_pop(void) {
+  ScoopGcImmixBlock *head = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
+  if (head == 0) {
+    return 0;
+  }
+  ScoopGcImmixBlock *next = head->next_free;
+  head->next_free = 0;
+  scoop_tls.gc_immix_block_cache = (void *)next;
+  if (scoop_tls.gc_immix_block_cache_len > 0) {
+    scoop_tls.gc_immix_block_cache_len -= 1;
+  }
+  return head;
+}
+
+static inline void scoop_gc_immix_tls_cache_push(ScoopGcImmixBlock *block) {
+  if (block == 0) {
+    return;
+  }
+  block->next_free = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
+  scoop_tls.gc_immix_block_cache = (void *)block;
+  if (scoop_tls.gc_immix_block_cache_len != UINT32_MAX) {
+    scoop_tls.gc_immix_block_cache_len += 1;
+  }
+}
+
+// 注意：调用方必须持有 `state->lock`。
+static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state) {
+  if (state == 0) {
+    return;
+  }
+  if (scoop_tls.gc_immix_block_cache_len != 0) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < (uint32_t)SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH; i++) {
+    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state);
+    if (b == 0) {
+      break;
+    }
+    scoop_gc_immix_tls_cache_push(b);
+  }
+}
+
+// T1412b：Immix nursery（bump-only）。
+//
+// 设计目标（v0）：
+// - nursery 的分配必须“成本可上界”：只做 bump，不做 holes 搜索/复用；
+// - nursery 的工作量边界由 `nursery_max_blocks` 控制（通过 env 配置；见 immix heap init）；
+// - 当 nursery 用尽时，分配路径回退到 old allocator（现有 hole-bump + reusable blocks 复用）。
+//
+// 注意：
+// - 该实现仅提供分配区与上限；minor evacuation 语义在 TODO T1412c 落地。
+// - 调用方必须持有 `state->lock`（便于与 GC 周期/blocks 列表维护保持一致）。
+static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(
+    ScoopGcImmixState *state) {
+  if (state == 0) {
+    return 0;
+  }
+  if (state->nursery_max_blocks == 0) {
+    return 0;
+  }
+
+  ScoopGcImmixBlock *block = 0;
+  if (state->nursery_free_blocks != 0) {
+    block = state->nursery_free_blocks;
+    state->nursery_free_blocks = block->next_free;
+    block->next_free = 0;
+  } else {
+    if (state->nursery_blocks >= state->nursery_max_blocks) {
+      return 0;
+    }
+
+    block = scoop_gc_immix_block_alloc_new();
+    if (block == 0) {
+      return 0;
+    }
+    block->generation = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+
+    // nursery blocks 仍是“真实 Immix blocks”：挂入 all_blocks，便于 major GC 遍历与统计。
+    block->next_all = state->all_blocks;
+    state->all_blocks = block;
+
+    if (state->nursery_blocks != UINT32_MAX) {
+      state->nursery_blocks += 1;
+    }
+  }
+
+  state->nursery_current_block = block;
+  return block;
+}
+
+static inline void *scoop_gc_immix_nursery_alloc_locked(ScoopGcImmixState *state,
+                                                         size_t size,
+                                                         size_t alignment) {
+  if (state == 0 || size == 0) {
+    return 0;
+  }
+  if (state->nursery_max_blocks == 0) {
+    return 0;
+  }
+  if (alignment == 0) {
+    alignment = 1;
+  }
+
+  ScoopGcImmixBlock *block = state->nursery_current_block;
+  for (uint32_t tries = 0; tries < 128; tries++) {
+    if (block == 0) {
+      block = scoop_gc_immix_nursery_take_block_locked(state);
+    }
+    if (block == 0) {
+      return 0;
+    }
+
+    void *p = scoop_gc_immix_block_alloc_bump(block, size, alignment);
+    if (p != 0) {
+      return p;
+    }
+
+    // 当前 nursery block 放不下：切换到下一个 block（bump-only，不回退到 holes）。
+    state->nursery_current_block = 0;
+    block = 0;
+  }
+
+  return 0;
+}
+#endif
 
 // explicit root frame：每线程 frame chain 栈顶。
 SCOOP_THREAD_LOCAL ScoopRootFrameHeader *__scoop_explicit_root_frame_top = 0;
@@ -221,6 +406,432 @@ void scoop_thread_unregister(void) {
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
+}
+
+static int scoop_is_indent_ws(uint8_t c) {
+  // Kotlin 风格：缩进只考虑空格/Tab（raw string 的常见场景）。
+  return c == (uint8_t)' ' || c == (uint8_t)'\t';
+}
+
+static int scoop_is_blank_ws(uint8_t c) {
+  // “空白行”判断：把 CR 也视为可忽略空白，以兼容 CRLF 输入。
+  return c == (uint8_t)' ' || c == (uint8_t)'\t' || c == (uint8_t)'\r';
+}
+
+// `trimIndent()`：去掉所有行的公共缩进，并剥离首尾空白行（spec §8.4）。
+//
+// 约定（early stage）：
+// - 输入/输出字符串都以 `ScoopString { len, data }` 表示（UTF-8 bytes）；
+// - 输出的 `ScoopString` 对象通过 `scoop_alloc` 分配（GC-managed）；`data` buffer 仍由 `malloc` 分配；
+// - 当前实现仅识别 ASCII 空格/Tab 作为缩进；其它 Unicode 空白暂不处理。
+const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
+  if (value == 0) {
+    return 0;
+  }
+  if (value->len == 0 || value->data == 0) {
+    return value;
+  }
+
+  const uint8_t *data = value->data;
+  uint64_t len = value->len;
+
+  // 1) 先统计行数（按 '\n' 分割）。
+  uint64_t line_count = 1;
+  for (uint64_t i = 0; i < len; i++) {
+    if (data[i] == (uint8_t)'\n') {
+      line_count++;
+    }
+  }
+
+  // 2) 记录每一行的 [start, end)（end 不含 '\n'；若行尾是 '\r' 则剥离）。
+  uint64_t *starts = (uint64_t *)malloc(sizeof(uint64_t) * (size_t)line_count);
+  uint64_t *ends = (uint64_t *)malloc(sizeof(uint64_t) * (size_t)line_count);
+  if (starts == 0 || ends == 0) {
+    // OOM：保守回退为原串（避免崩溃）。
+    if (starts != 0) {
+      free(starts);
+    }
+    if (ends != 0) {
+      free(ends);
+    }
+    return value;
+  }
+
+  uint64_t line_idx = 0;
+  uint64_t cur_start = 0;
+  for (uint64_t i = 0; i <= len; i++) {
+    if (i == len || data[i] == (uint8_t)'\n') {
+      uint64_t end = i;
+      if (end > cur_start && data[end - 1] == (uint8_t)'\r') {
+        end--;
+      }
+      starts[line_idx] = cur_start;
+      ends[line_idx] = end;
+      line_idx++;
+      cur_start = i + 1;
+    }
+  }
+
+  // 健壮性：理论上 line_idx == line_count。
+  if (line_idx != line_count) {
+    free(starts);
+    free(ends);
+    return value;
+  }
+
+  // 3) 剥离首尾空白行。
+  uint64_t first = 0;
+  while (first < line_count) {
+    uint64_t s = starts[first];
+    uint64_t e = ends[first];
+    int blank = 1;
+    for (uint64_t i = s; i < e; i++) {
+      if (!scoop_is_blank_ws(data[i])) {
+        blank = 0;
+        break;
+      }
+    }
+    if (!blank) {
+      break;
+    }
+    first++;
+  }
+
+  if (first == line_count) {
+    // 全部是空白行：返回空串。
+    free(starts);
+    free(ends);
+    return scoop_string_empty();
+  }
+
+  uint64_t last = line_count - 1;
+  while (last > first) {
+    uint64_t s = starts[last];
+    uint64_t e = ends[last];
+    int blank = 1;
+    for (uint64_t i = s; i < e; i++) {
+      if (!scoop_is_blank_ws(data[i])) {
+        blank = 0;
+        break;
+      }
+    }
+    if (!blank) {
+      break;
+    }
+    last--;
+  }
+
+  // 4) 计算最小公共缩进（仅在非空白行上统计）。
+  uint64_t min_indent = UINT64_MAX;
+  for (uint64_t li = first; li <= last; li++) {
+    uint64_t s = starts[li];
+    uint64_t e = ends[li];
+
+    // 跳过空白行（不参与 indent 计算）。
+    int blank = 1;
+    for (uint64_t i = s; i < e; i++) {
+      if (!scoop_is_blank_ws(data[i])) {
+        blank = 0;
+        break;
+      }
+    }
+    if (blank) {
+      continue;
+    }
+
+    uint64_t indent = 0;
+    while (s + indent < e && scoop_is_indent_ws(data[s + indent])) {
+      indent++;
+    }
+
+    if (indent < min_indent) {
+      min_indent = indent;
+    }
+  }
+
+  if (min_indent == UINT64_MAX) {
+    min_indent = 0;
+  }
+
+  // 5) 分配输出（上界为输入长度；trimIndent 只会变短）。
+  uint8_t *out = (uint8_t *)malloc((size_t)len);
+  if (out == 0) {
+    free(starts);
+    free(ends);
+    return value;
+  }
+
+  uint64_t out_len = 0;
+  for (uint64_t li = first; li <= last; li++) {
+    uint64_t s = starts[li];
+    uint64_t e = ends[li];
+
+    // drop min_indent（不足则 drop 到行尾）。
+    uint64_t drop = 0;
+    while (drop < min_indent && s + drop < e && scoop_is_indent_ws(data[s + drop])) {
+      drop++;
+    }
+    uint64_t ts = s + drop;
+
+    // 若剩余全是空白，把该行规范化为真正的空行（不保留空格）。
+    int blank = 1;
+    for (uint64_t i = ts; i < e; i++) {
+      if (!scoop_is_blank_ws(data[i])) {
+        blank = 0;
+        break;
+      }
+    }
+    if (!blank) {
+      uint64_t n = e - ts;
+      for (uint64_t i = 0; i < n; i++) {
+        out[out_len + i] = data[ts + i];
+      }
+      out_len += n;
+    }
+
+    if (li != last) {
+      out[out_len] = (uint8_t)'\n';
+      out_len++;
+    }
+  }
+
+  // GC safety (T0106): pin `value` before scoop_alloc — GC could relocate/collect it,
+  // and the OOM path below returns `value` which must remain valid.
+  scoop_pin((void *)value);
+
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  if (out_str == 0) {
+    // OOM：尽力回收已分配的 buffer。
+    free(out);
+    free(starts);
+    free(ends);
+    scoop_unpin((void *)value);
+    return value;
+  }
+
+  out_str->len = out_len;
+  out_str->data = out;
+
+  scoop_unpin((void *)value);
+  free(starts);
+  free(ends);
+  return out_str;
+}
+
+// 运行时初始化（后续可由编译器生成的 main 调用）
+void scoop_runtime_init(void) {
+  (void)pthread_mutex_lock(&scoop_rt_init_lock);
+
+  // 说明：当前阶段允许被重复调用（避免在多入口/测试场景下因重复 init 直接崩溃）。
+  // 在引入线程注册后（TODO T0903/T0911），这里升级为“线程安全的幂等初始化”。
+  if (scoop_rt_initialized) {
+    scoop_rt_init_calls++;
+    SCOOP_RT_LOG("scoop_runtime_init: already initialized (calls=%" PRIu32 ")",
+                 scoop_rt_init_calls);
+    (void)pthread_mutex_unlock(&scoop_rt_init_lock);
+    return;
+  }
+
+  scoop_rt_initialized = 1;
+  scoop_rt_init_calls = 1;
+
+  // 解析一次 GC stress 开关（仅首次 init 生效）。
+  scoop_rt_gc_stress_interval = scoop_rt_parse_gc_stress_interval();
+
+  scoop_gc_heap_init(&scoop_gc_heap);
+
+  SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
+               sizeof(ScoopString),
+               offsetof(ScoopString, data));
+  if (scoop_rt_gc_stress_interval != 0) {
+    SCOOP_RT_LOG("scoop_runtime_init: GC stress enabled (interval=%" PRIu64 ")",
+                 scoop_rt_gc_stress_interval);
+  }
+
+  (void)pthread_mutex_unlock(&scoop_rt_init_lock);
+}
+
+// 最小占位分配 API（后续替换为真正 GC 分配）。
+//
+// 约定（TODO T0908）：
+// - `scoop_alloc(size)` 的 `size` 表示“对象总大小（字节）”，包含对象头（header）与 payload；
+// - 返回指针指向对象头起始地址（`ScoopGcObjectHeader*`）；
+// - v0：仍以 libc `malloc` 为底层分配器，但会登记到 heap 链表，供 `scoop_gc_collect()` sweep。
+void *scoop_alloc(uint64_t size) {
+  // 说明：保持与其它 runtime API 一致：允许在未显式 init 的情况下被调用。
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
+  // T1409a：为保证协作式 STW 的并发边界清晰，分配前确保当前线程已注册到 runtime/GC。
+  // （幂等：重复调用无副作用）
+  scoop_thread_register();
+
+  // safepoint（poll）：允许 GC stop-the-world 在分配前暂停当前线程（TODO T0911）。
+  //
+  // 说明：
+  // - moving GC 需要在 stop-the-world 时定位并更新该线程 stackmap spill slots；
+  // - 该 ctx 由 `scoop_gc_safepoint_poll` 在 park 前捕获（T1505b/T1506）。
+  void scoop_gc_safepoint_poll(void);
+  scoop_gc_safepoint_poll();
+
+  // GC stress：在分配前触发额外 GC（避免返回后对象尚未入 roots 时被误回收）。
+  if (scoop_rt_gc_stress_interval != 0) {
+    const uint64_t interval = scoop_rt_gc_stress_interval;
+    const uint64_t count = atomic_fetch_add(&scoop_rt_gc_stress_alloc_counter, 1u) + 1u;
+    if (interval == 1 || (count % interval) == 0) {
+      scoop_gc_collect();
+    }
+  }
+
+  // 说明（early stage）：
+  // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；
+  // - 会初始化对象头（type_desc/size/flags/mark 等），并登记到 heap 链表供 `scoop_gc_collect()` sweep；
+  // - 对象字段扫描依赖 type descriptor（`hdr->type_desc`），后续会由 typed alloc/codegen 写入（TODO T0907+）。
+  // - OOM 时返回 NULL，由上层决定如何处理（未来可映射到 Raise<RuntimeError>）。
+  uint64_t object_size = size;
+  if (object_size == 0) {
+    // `malloc(0)` 的返回值在不同实现上可能为 NULL 或唯一指针；为保持可预期，这里至少分配对象头大小。
+    object_size = (uint64_t)sizeof(ScoopGcObjectHeader);
+  }
+  if (object_size < (uint64_t)sizeof(ScoopGcObjectHeader)) {
+    // 保守策略：若调用方传入的 size 小于对象头，则强制提升到对象头大小，避免后续写 header 越界。
+    object_size = (uint64_t)sizeof(ScoopGcObjectHeader);
+  }
+  if (object_size > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+  // Immix v0：block/line allocator（协作式 STW，多线程可用）。
+  //
+  // 注意：
+  // - 为避免改变对外 ABI，这里通过 `scoop_gc_heap.free_list` 读取 Immix state；
+  // - large object（超过单个 block payload）当前回退到 `malloc`；小对象走 Immix blocks。
+  // - T1409a：引入 thread-local current block，使常见分配路径不再持有全局 GC 锁。
+  ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
+  if (state == 0 || !state->lock_inited) {
+    // 理论上 runtime_init 会先调用 heap_init 初始化 state；这里保守回退。
+    void *p = malloc((size_t)object_size);
+    if (p == 0) {
+      SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+      return 0;
+    }
+
+    ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+    hdr->next = 0;
+    hdr->type_desc = 0;
+    hdr->size_bytes = object_size;
+    hdr->flags = 0;
+    hdr->mark = 0;
+
+    void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+    scoop_gc_heap_register_object(hdr);
+    return p;
+  }
+
+  void *p = 0;
+
+  size_t cap = scoop_gc_immix_block_payload_capacity();
+  if ((size_t)object_size > cap) {
+    p = malloc((size_t)object_size);
+  } else {
+    // T1412b：nursery 优先（bump-only + 上限）。nursery 用尽后回退到 old allocator。
+    if (state->nursery_max_blocks != 0) {
+      (void)pthread_mutex_lock(&state->lock);
+      p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
+      (void)pthread_mutex_unlock(&state->lock);
+    }
+
+    // bump-in-hole（Immix v0 / T1409a）：
+    // - 线程优先在自己的 current block 内分配（无锁快路径）；
+    // - 当 block 放不下时，才进入全局锁从 block pool 取一个新 block（refill）。
+    ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
+
+    for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
+      if (block == 0) {
+        // 1) 无锁：先尝试从 TLS cache 取一个 block。
+        block = scoop_gc_immix_tls_cache_pop();
+
+        // 2) cache 空：持锁批量 refill，然后再 pop 一个。
+        if (block == 0) {
+          (void)pthread_mutex_lock(&state->lock);
+          scoop_gc_immix_tls_cache_refill_locked(state);
+          (void)pthread_mutex_unlock(&state->lock);
+          block = scoop_gc_immix_tls_cache_pop();
+        }
+
+        scoop_tls.gc_immix_current_block = (void *)block;
+      }
+
+      if (block == 0) {
+        break;
+      }
+
+      p = scoop_gc_immix_block_alloc(block, (size_t)object_size, (size_t)sizeof(void *));
+      if (p != 0) {
+        break;
+      }
+
+      // 当前 block 放不下：丢弃 thread-local 指针并尝试 refill 新 block。
+      block = 0;
+      scoop_tls.gc_immix_current_block = 0;
+    }
+  }
+
+  if (p == 0) {
+    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+    return 0;
+  }
+
+  // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+  hdr->next = 0;
+  hdr->type_desc = 0;
+  hdr->size_bytes = object_size;
+  hdr->flags = 0;
+  hdr->mark = 0;
+
+  // 登记到 heap 链表（用于 sweep；Immix backend 下为 lock-free push）。
+  void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+  scoop_gc_heap_register_object(hdr);
+  return p;
+#else
+  void *p = malloc((size_t)object_size);
+  if (p == 0) {
+    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+    return 0;
+  }
+
+  // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+  hdr->next = 0; // 先置 0，随后会被登记到 heap 链表。
+  hdr->type_desc = 0;
+  hdr->size_bytes = object_size;
+  hdr->flags = 0;
+  hdr->mark = 0;
+
+  // 登记到 heap 链表（用于 sweep）。多线程下由 GC 模块加锁保护（TODO T0911）。
+  void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+  scoop_gc_heap_register_object(hdr);
+
+  return p;
+#endif
+}
+
+// 手动触发一次 GC（带 statepoint/stackmap record 的 wrapper）。
+//
+// 说明：
+// - `scoop_gc_collect()` 本身返回 `void`；在 LLVM statepoint-example 策略下，某些情况下
+//   仅依赖返回 `void` 的调用点不会生成可用于 stackmap roots 的 statepoint record；
+// - 为了让 sysroot 测试辅助 `__scoop_gc_collect()` 也能稳定产出 record（并在 GC 期间枚举 roots），
+//   这里提供一个返回指针的 wrapper：后端可将其调用点作为 safepoint 重写为 statepoint。
+//
+// 返回值：
+// - 当前固定返回 NULL；仅用于让调用点在 IR 层面具备“返回 GC ref”的形状，从而生成 stackmaps。
+void *scoop_gc_collect_safepoint(void) {
+  scoop_gc_collect();
+  return 0;
 }
 
 // Typed alloc：在 `scoop_alloc` 的基础上写入对象头的 `type_desc`。
