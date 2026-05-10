@@ -1017,48 +1017,6 @@ uint64_t scoop_effect_perform_slot_read_u64_at(uint32_t index) {
   return __scoop_effect_perform_slot.payload_words[index];
 }
 
-// --- effect runtime：handler stack API（TODO T0913） ---
-//
-// 说明：
-// - `frame` 预期由编译器在栈上分配，并保证 push/pop 成对；
-// - 若 push/pop 不匹配，说明 lowering/codegen 出现 bug：按运行期错误处理（exit(3)）。
-void scoop_effect_handler_stack_push(ScoopEffectHandlerFrame *frame, uint32_t op_tag) {
-  if (frame == 0) {
-    return;
-  }
-
-  // 保持与 GC/effect 其它 API 一致：允许在未显式 init/register 的情况下被调用。
-  if (!scoop_tls.registered) {
-    scoop_thread_register();
-  }
-
-  frame->prev = __scoop_effect_handler_stack_top;
-  frame->op_tag = op_tag;
-  frame->active = 1;
-  __scoop_effect_handler_stack_top = frame;
-}
-
-void scoop_effect_handler_stack_pop(ScoopEffectHandlerFrame *frame) {
-  if (frame == 0) {
-    return;
-  }
-
-  if (__scoop_effect_handler_stack_top != frame) {
-    exit(3);
-  }
-
-  __scoop_effect_handler_stack_top = frame->prev;
-  frame->prev = 0;
-  frame->active = 0;
-}
-
-void scoop_effect_handler_stack_set_active(ScoopEffectHandlerFrame *frame, uint32_t active) {
-  if (frame == 0) {
-    return;
-  }
-  frame->active = active ? 1u : 0u;
-}
-
 ScoopEffectHandlerFrame *scoop_effect_handler_stack_top(void) {
   return __scoop_effect_handler_stack_top;
 }
@@ -1077,36 +1035,6 @@ ScoopEffectHandlerFrame *scoop_effect_handler_stack_swap_top(ScoopEffectHandlerF
   ScoopEffectHandlerFrame *old_top = __scoop_effect_handler_stack_top;
   __scoop_effect_handler_stack_top = new_top;
   return old_top;
-}
-
-ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag) {
-  ScoopEffectHandlerFrame *it = __scoop_effect_handler_stack_top;
-  while (it != 0) {
-    if (it->active && it->op_tag == op_tag) {
-      return it;
-    }
-    it = it->prev;
-  }
-  return 0;
-}
-
-// T1608: Pop non-matching intermediate handler frames until the matching op_tag
-// is on top (or the stack is empty).
-//
-// Used when an effect propagates through nested handlers of different effects:
-// the compile-time dispatch can skip non-matching handlers, but their runtime
-// frames need to be cleaned up before the matching handler's catch block runs.
-// The matching frame is NOT popped — the catch block will do that.
-void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
-  while (__scoop_effect_handler_stack_top != 0) {
-    ScoopEffectHandlerFrame *top = __scoop_effect_handler_stack_top;
-    if (top->op_tag == op_tag) {
-      break;
-    }
-    __scoop_effect_handler_stack_top = top->prev;
-    top->prev = 0;
-    top->active = 0;
-  }
 }
 
 // --- Continuation（spec §5.5 / TODO T0914） ---

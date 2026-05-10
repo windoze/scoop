@@ -36,9 +36,6 @@ pub enum EffectFactsError {
     Materialize(#[from] Box<crate::mir::MirMaterializeError>),
 
     #[error(transparent)]
-    CodegenRoute(#[from] crate::mir::MirCodegenRouteError),
-
-    #[error(transparent)]
     Session(#[from] crate::session::SessionError),
 
     #[error(transparent)]

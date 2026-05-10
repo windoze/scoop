@@ -3,16 +3,8 @@ use scoop_runtime as _;
 
 use core::ffi::c_void;
 use core::ptr;
-use core::sync::atomic::{AtomicPtr, AtomicU32, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Mutex, MutexGuard};
-
-// 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）。
-#[repr(C)]
-struct ScoopEffectHandlerFrame {
-    prev: *mut ScoopEffectHandlerFrame,
-    op_tag: u32,
-    active: u32,
-}
 
 // 对齐 `runtime/c/scoop_gc.h` 的对象头（用于在测试中读取 continuation 捕获字段）。
 #[repr(C)]
@@ -22,30 +14,6 @@ struct ScoopGcObjectHeader {
     size_bytes: u64,
     flags: u32,
     mark: u32,
-}
-
-// 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 布局。
-#[repr(C)]
-struct ScoopContinuation {
-    hdr: ScoopGcObjectHeader,
-    resumed: u32,
-    resume_state_tag: u32,
-    captured_handler_stack_top: *mut ScoopEffectHandlerFrame,
-    state_handle: u64,
-    step_fn: ScoopContinuationStepFn,
-    resume_word: u64,
-    resume_gc_ref: *mut c_void,
-    captured_callee_suspend_state_handle: u64,
-}
-
-// GC-managed wrapper：把 Rust 堆上的观测数据指针“装箱”到 runtime GC heap 中。
-//
-// 说明：`scoop_continuation_alloc` 的 `state` 参数在 LLVM 侧被当作 GC ref（addrspace(1)）；
-// 因此测试不能直接把 Rust `Box` 指针当作 state 传入。
-#[repr(C)]
-struct ContinuationStateWrapper {
-    hdr: ScoopGcObjectHeader,
-    observations: *mut c_void,
 }
 
 #[repr(C)]
@@ -89,12 +57,6 @@ const SCOOP_EFFECT_OUTCOME_PROPAGATE: u32 = 1;
 static OBSERVED_CALLEE_SUSPEND_STATE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 static CONTINUATION_TEST_LOCK: Mutex<()> = Mutex::new(());
 
-struct HandlerSnapshotObservations {
-    found_ptr: AtomicUsize,
-    found_op_tag: AtomicU32,
-    found_active: AtomicU32,
-}
-
 fn continuation_test_guard() -> MutexGuard<'static, ()> {
     CONTINUATION_TEST_LOCK
         .lock()
@@ -127,11 +89,6 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn scoop_continuation_resume_publish_pending_continuation(continuation: *mut c_void);
 
-    fn scoop_effect_handler_stack_push(frame: *mut ScoopEffectHandlerFrame, op_tag: u32);
-    fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
-    fn scoop_effect_handler_stack_find_nearest(op_tag: u32) -> *mut ScoopEffectHandlerFrame;
-    fn scoop_effect_handler_stack_top() -> *mut ScoopEffectHandlerFrame;
-
     fn scoop_continuation_alloc(
         state: *mut c_void,
         step_fn: ScoopContinuationStepFn,
@@ -140,7 +97,6 @@ unsafe extern "C" {
         continuation: *mut c_void,
         state: *mut c_void,
     );
-    fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
     fn scoop_continuation_resume(continuation: *mut c_void);
     fn scoop_continuation_resume_with(
         continuation: *mut c_void,
@@ -211,101 +167,6 @@ extern "C" fn publish_pending_continuation_with_active_effect_step(
         scoop_continuation_resume_publish_pending_continuation(state);
         scoop_effect_perform_slot_write_u64(17, 29, 77);
         scoop_effect_set_active();
-    }
-}
-
-extern "C" fn observe_handler_snapshot_step(
-    state: *mut c_void,
-    _resume_word: u64,
-    _resume_gc_ref: *mut c_void,
-) {
-    if state.is_null() {
-        return;
-    }
-
-    // state 是 GC-managed wrapper；解包得到真实的 Rust 观测对象指针。
-    let wrapper = unsafe { &*(state as *const ContinuationStateWrapper) };
-    if wrapper.observations.is_null() {
-        return;
-    }
-    let observations = unsafe { &*(wrapper.observations as *const HandlerSnapshotObservations) };
-
-    let found = unsafe { scoop_effect_handler_stack_find_nearest(42) };
-    observations
-        .found_ptr
-        .store(found as usize, Ordering::SeqCst);
-    if found.is_null() {
-        observations.found_op_tag.store(0, Ordering::SeqCst);
-        observations.found_active.store(0, Ordering::SeqCst);
-        return;
-    }
-
-    let found_ref = unsafe { &*found };
-    observations
-        .found_op_tag
-        .store(found_ref.op_tag, Ordering::SeqCst);
-    observations
-        .found_active
-        .store(found_ref.active, Ordering::SeqCst);
-}
-
-#[test]
-fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
-    let _guard = continuation_test_guard();
-    unsafe {
-        scoop_runtime_init();
-        scoop_thread_register();
-
-        assert_eq!(scoop_effect_handler_stack_top(), ptr::null_mut());
-
-        let mut frame = ScoopEffectHandlerFrame {
-            prev: ptr::null_mut(),
-            op_tag: 0,
-            active: 0,
-        };
-        scoop_effect_handler_stack_push(&mut frame, 42);
-        let top = scoop_effect_handler_stack_top();
-        assert_eq!(top, &mut frame as *mut _);
-
-        let k = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
-        assert!(
-            !k.is_null(),
-            "scoop_continuation_alloc must return non-null"
-        );
-
-        let prefix = &*(k as *const ScoopContinuation);
-        let captured = prefix.captured_handler_stack_top;
-        assert!(
-            !captured.is_null(),
-            "continuation must keep a non-null handler snapshot when a handler is active"
-        );
-        assert_eq!(
-            (*captured).op_tag,
-            42,
-            "captured handler snapshot must preserve the active op_tag"
-        );
-        assert_eq!(
-            (*captured).active,
-            1,
-            "captured handler snapshot must stay active for future redispatch"
-        );
-        assert_eq!(
-            (*captured).prev,
-            ptr::null_mut(),
-            "single-frame handler stack should clone to a single-frame snapshot"
-        );
-        assert_ne!(
-            captured, top,
-            "continuation must not keep borrowing the original stack-allocated handler frame"
-        );
-
-        // one-shot：第一次成功，第二次必须失败（spec §5.5：runtime error）。
-        assert_eq!(scoop_continuation_try_resume(k), 1);
-        assert_eq!(prefix.resumed, 1);
-        assert_eq!(scoop_continuation_try_resume(k), 0);
-
-        scoop_effect_handler_stack_pop(&mut frame);
-        scoop_thread_unregister();
     }
 }
 
@@ -560,86 +421,6 @@ fn continuation_resume_with_surfaces_pending_continuation_via_effect_outcome_res
         assert!(
             scoop_callee_suspend_state_get().is_null(),
             "resume_with outcome path must not package pending continuation into callee_suspend_state replay-state"
-        );
-
-        scoop_thread_unregister();
-    }
-}
-
-#[test]
-fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_frame_pops() {
-    let _guard = continuation_test_guard();
-    unsafe {
-        scoop_runtime_init();
-        scoop_thread_register();
-        assert_eq!(scoop_effect_handler_stack_top(), ptr::null_mut());
-
-        let mut frame = ScoopEffectHandlerFrame {
-            prev: ptr::null_mut(),
-            op_tag: 0,
-            active: 0,
-        };
-        scoop_effect_handler_stack_push(&mut frame, 42);
-
-        let observations = Box::new(HandlerSnapshotObservations {
-            found_ptr: AtomicUsize::new(0),
-            found_op_tag: AtomicU32::new(0),
-            found_active: AtomicU32::new(0),
-        });
-        let observations_ptr = Box::into_raw(observations) as *mut c_void;
-
-        // 通过 runtime 分配 GC-managed state wrapper（见上方注释）。
-        let state = scoop_alloc(core::mem::size_of::<ContinuationStateWrapper>() as u64);
-        assert!(
-            !state.is_null(),
-            "continuation state wrapper must be allocated"
-        );
-        {
-            let wrapper = &mut *(state as *mut ContinuationStateWrapper);
-            wrapper.observations = observations_ptr;
-        }
-
-        let k = scoop_continuation_alloc(state, Some(observe_handler_snapshot_step));
-        assert!(
-            !k.is_null(),
-            "scoop_continuation_alloc must return non-null"
-        );
-
-        scoop_effect_handler_stack_pop(&mut frame);
-        assert_eq!(
-            scoop_effect_handler_stack_top(),
-            ptr::null_mut(),
-            "popping the original handler must clear the caller TLS stack"
-        );
-
-        scoop_continuation_resume(k);
-
-        assert_eq!(
-            scoop_effect_handler_stack_top(),
-            ptr::null_mut(),
-            "resume must restore the caller TLS handler stack after step_fn returns"
-        );
-
-        let observations = Box::from_raw(observations_ptr as *mut HandlerSnapshotObservations);
-        assert_ne!(
-            observations.found_ptr.load(Ordering::SeqCst),
-            0,
-            "resumed continuation must still observe a matching handler frame"
-        );
-        assert_ne!(
-            observations.found_ptr.load(Ordering::SeqCst),
-            (&mut frame as *mut ScoopEffectHandlerFrame) as usize,
-            "matching handler must come from the continuation snapshot, not the popped original frame"
-        );
-        assert_eq!(
-            observations.found_op_tag.load(Ordering::SeqCst),
-            42,
-            "resumed continuation must redispatch through the captured handler op_tag"
-        );
-        assert_eq!(
-            observations.found_active.load(Ordering::SeqCst),
-            1,
-            "captured handler snapshot must remain active during resumed execution"
         );
 
         scoop_thread_unregister();

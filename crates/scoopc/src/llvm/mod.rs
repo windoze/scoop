@@ -40,22 +40,8 @@ pub(crate) use emit::emit_single_file_llvm_artifact_to_file_with_opt_level;
 pub use emit::{
     StageEmitInput, emit_main_asm_to_file_from_stage_output,
     emit_main_ir_to_file_from_stage_output, emit_main_obj_to_file_from_stage_output,
-    emit_minimal_main_asm_to_file, emit_minimal_main_asm_to_file_from_lowered_hir,
-    emit_minimal_main_asm_to_file_from_lowered_hir_with_entry,
-    emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level,
-    emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_asm_to_file_with_opt_level, emit_minimal_main_ir,
-    emit_minimal_main_ir_from_lowered_hir, emit_minimal_main_ir_from_materialized_lowered_hir,
-    emit_minimal_main_ir_to_file, emit_minimal_main_ir_to_file_from_lowered_hir,
-    emit_minimal_main_ir_to_file_from_lowered_hir_with_entry,
-    emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_obj_to_file, emit_minimal_main_obj_to_file_from_lowered_hir,
-    emit_minimal_main_obj_to_file_from_lowered_hir_with_entry,
-    emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level,
-    emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level,
-    emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level,
+    emit_minimal_main_asm_to_file, emit_minimal_main_asm_to_file_with_opt_level,
+    emit_minimal_main_ir, emit_minimal_main_ir_to_file, emit_minimal_main_obj_to_file,
     emit_minimal_main_obj_to_file_with_opt_level,
 };
 pub use target::{HostTargetInfo, LlvmTargetError};
@@ -63,8 +49,7 @@ pub use target::{HostTargetInfo, LlvmTargetError};
 #[cfg(test)]
 pub(crate) use emit::{
     build_main_module_from_stage_output, build_minimal_main_module,
-    build_minimal_main_module_with_opt_level, build_single_file_source_map,
-    emit_materialized_ir_for_root_callable,
+    build_minimal_main_module_with_opt_level,
 };
 #[cfg(test)]
 pub(crate) use pipeline::run_pass_pipeline;

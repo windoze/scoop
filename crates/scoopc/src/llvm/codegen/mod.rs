@@ -378,9 +378,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// reachability、callable body-presence、known fun suspendability 查询与显式
     /// pass-rewritten callable body lowering 会优先观察该 pass 产物层。
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    /// MIR-T12 发布的 codegen route facts。refactor LLVM path 必须先消费这份 handoff，
-    /// 再允许 callable 进入 raw MIR lowering。
-    codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     /// backend-agnostic 的共享程序事实。
     program_facts: Rc<ProgramFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -562,7 +559,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    pub(super) codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     pub(super) program_facts: Rc<ProgramFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -611,7 +607,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             extern_funs,
             fun_index,
             materialized_pass_view,
-            codegen_routing_facts,
             program_facts,
             effect_op_tags,
         } = inputs;
@@ -648,7 +643,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             builtins,
             fun_index,
             materialized_pass_view,
-            codegen_routing_facts,
             program_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -667,86 +661,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
         &self,
     ) -> Option<&crate::mir::MaterializedMirPassView<'a>> {
         self.materialized_pass_view.as_ref()
-    }
-
-    pub(super) fn codegen_routing_facts(&self) -> Option<&'a crate::mir::MirCodegenRoutingFacts> {
-        self.codegen_routing_facts
-    }
-
-    fn materialized_extern_global_root(&self, fqn: &str) -> Option<&crate::mir::ExternGlobalRoot> {
-        self.materialized_pass_view()?
-            .materialized()
-            .file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                crate::mir::Item::ExternGlobal(root) if root.fqn == fqn => Some(root),
-                _ => None,
-            })
-    }
-
-    fn has_extern_global_contract(&self, fqn: &str) -> bool {
-        self.materialized_extern_global_root(fqn).is_some() || self.extern_globals.contains_key(fqn)
-    }
-
-    pub(super) fn raw_non_generic_callable_candidate_body<'b>(
-        &self,
-        fun: &hir::FunDecl,
-        pass_view: &'b crate::mir::MaterializedMirPassView<'b>,
-    ) -> Option<&'b crate::mir::FunDecl> {
-        pass_view
-            .materialized()
-            .caller_side_pass_candidate_bodies()
-            .iter()
-            .find(|candidate| {
-                candidate.fqn == fun.fqn
-                    && candidate.body.is_some()
-                    && self.raw_non_generic_callable_body_matches_published_scope(candidate)
-            })
-    }
-
-    fn raw_non_generic_callable_body_matches_published_scope(
-        &self,
-        fun: &crate::mir::FunDecl,
-    ) -> bool {
-        let Some(body) = fun.body.as_ref() else {
-            return false;
-        };
-        body.blocks.iter().any(|block| {
-            block.stmts.iter().any(|stmt| {
-                let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind else {
-                    return false;
-                };
-                match value {
-                    crate::mir::Rvalue::PatternMatch { .. }
-                    | crate::mir::Rvalue::PatternExtract { .. } => true,
-                    crate::mir::Rvalue::MakeTuple { .. }
-                    | crate::mir::Rvalue::StructLit { .. }
-                    | crate::mir::Rvalue::TupleGet { .. }
-                    | crate::mir::Rvalue::MakeClosure { .. }
-                    | crate::mir::Rvalue::CaptureBoxNew { .. }
-                    | crate::mir::Rvalue::CaptureBoxGet { .. }
-                    | crate::mir::Rvalue::CaptureBoxSet { .. } => true,
-                    crate::mir::Rvalue::Call {
-                        kind: crate::mir::CallKind::Closure { .. },
-                        ..
-                    }
-                    | crate::mir::Rvalue::Call {
-                        kind: crate::mir::CallKind::FunValue { .. },
-                        ..
-                    } => true,
-                    crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
-                        self.object_inits.contains_key(fqn)
-                            || self.top_level_consts.contains_key(fqn)
-                            || self.top_level_immutable_values.contains_key(fqn)
-                            || self.top_level_vars.contains_key(fqn)
-                            || self.has_extern_global_contract(fqn)
-                    }
-                    crate::mir::Rvalue::SizeOf { .. } => true,
-                    _ => false,
-                }
-            })
-        })
     }
 }
 
@@ -4019,59 +3933,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(crate) fn codegen_main_exit_code(
-        &mut self,
-        fun: &hir::FunDecl,
-        entry_argv_array: Option<PointerValue<'ctx>>,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能"早退"。
-        self.function_cx.current_fun_return_ty = Some(CgTy::Int(IntTy {
-            bits: 32,
-            signed: true,
-        }));
-
-        self.function_cx.env.push_scope();
-
-        match (fun.params.as_slice(), entry_argv_array) {
-            ([], None) => {}
-            ([param], Some(argv_array)) => {
-                self.bind_entry_main_param_local(
-                    param,
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(argv_array.into()),
-                    },
-                )?;
-            }
-            ([], Some(_)) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "entry main unexpected argv binding",
-                    at: fun.span.into(),
-                });
-            }
-            ([param], None) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "entry main missing argv binding",
-                    at: param.span.into(),
-                });
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "entry main param arity",
-                    at: fun.span.into(),
-                });
-            }
-        }
-
-        let exit = match fun.body.as_ref() {
-            Some(body) => self.codegen_block_as_exit_code(body, fun.return_ty)?,
-            None => self.context.i32_type().const_int(0, false),
-        };
-
-        self.function_cx.env.pop_scope();
-        Ok(exit)
-    }
-
     // 表达式/语句/控制流 codegen 已拆分到子模块（T0102d）。
 
     fn codegen_call(
@@ -4547,33 +4408,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 missing_kind: "missing llvm param",
             })?;
         }
-        Ok(())
-    }
-
-    fn bind_entry_main_param_local(
-        &mut self,
-        param: &hir::Param,
-        init: CgValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let target_ty = self
-            .cg_ty_of(param.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "entry main param type",
-                at: param.span.into(),
-            })?;
-        let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
-        let _ = self.store_local_value(param.span, ptr, target_ty, init)?;
-        self.function_cx.env.insert(
-            param.id,
-            CgLocal {
-                hir_ty: Some(param.ty),
-                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
-                ty: target_ty,
-                ptr,
-                frame_backing_ptr: None,
-                mutable: false,
-            },
-        );
         Ok(())
     }
 
@@ -7898,57 +7732,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_float_trunc(value, self.context.f32_type(), "fptrunc")?)
             }
             _ => unreachable!("cast_float only accepts Float64/Float32"),
-        }
-    }
-
-    fn coerce_exit_code(
-        &mut self,
-        at: crate::span::Span,
-        value: CgValue<'ctx>,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let i32_ty = self.context.i32_type();
-
-        match value.ty {
-            CgTy::Unit | CgTy::Never => Ok(i32_ty.const_int(0, false)),
-            CgTy::Bool => {
-                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "exit bool",
-                    at: at.into(),
-                })?;
-                Ok(self.builder.build_int_z_extend(b, i32_ty, "exit_bool")?)
-            }
-            CgTy::Float64 | CgTy::Float32 => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "float exit code",
-                at: at.into(),
-            }),
-            CgTy::Int(int_ty) => {
-                let (v, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "exit int",
-                    at: at.into(),
-                })?;
-                let to = IntTy {
-                    bits: 32,
-                    signed: int_ty.signed,
-                };
-                let casted = self.cast_int(v, from, to)?;
-                Ok(casted)
-            }
-            CgTy::String => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "string exit code",
-                at: at.into(),
-            }),
-            CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "ref exit code",
-                at: at.into(),
-            }),
-            CgTy::Tuple(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple exit code",
-                at: at.into(),
-            }),
-            CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "composite exit code",
-                at: at.into(),
-            }),
         }
     }
 

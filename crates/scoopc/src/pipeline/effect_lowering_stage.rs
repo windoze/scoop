@@ -5,7 +5,6 @@ use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
     optimize_program, optimize_program_with_options,
 };
-use crate::mir::MirCodegenRoutingFacts;
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
 
@@ -64,10 +63,6 @@ impl EffectLoweredStageOutput {
 
     pub fn effect_facts(&self) -> &MaterializedEffectFacts {
         self.effect_facts_stage_output.effect_facts()
-    }
-
-    pub fn codegen_routing_facts(&self) -> &MirCodegenRoutingFacts {
-        self.effect_facts_stage_output.codegen_routing_facts()
     }
 
     pub fn program(&self) -> &LateLoweredProgram {
@@ -172,7 +167,6 @@ fn render_stage_output(output: &EffectLoweredStageOutput) -> String {
             writeln!(&mut rendered, "    - {fqn}").unwrap();
         }
     }
-    rendered.push_str(&output.codegen_routing_facts().stable_dump());
     writeln!(&mut rendered, "post_opt_program:").unwrap();
     rendered.push_str(&output.program().stable_dump());
     rendered
@@ -387,7 +381,6 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("EffectLoweredStageOutput"));
         assert!(dump.contains("opt_level: O2"));
         assert!(dump.contains("snapshot_binding:"));
-        assert!(dump.contains("codegen_routing_facts:"));
         assert!(dump.contains("post_opt_program:"));
         assert!(dump.contains("LateLoweredProgram"));
         assert!(dump.contains("step_types:"));

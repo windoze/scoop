@@ -1,14 +1,11 @@
 //! LLVM emit API 与 module build 入口。
 //!
 //! 这层负责：
-//! - 面向外部的 `emit_minimal_main_*` API；
-//! - 把 `hir::LoweredHir` 组装成单个 LLVM module；
+//! - 面向外部的 stage-only `emit_minimal_main_*` API；
+//! - 消费 LLVM stage handoff 组装单个 LLVM module；
 //! - 在进入 backend lowering 前完成 reachability 与 eager inclusion。
 //!
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
-//! P8-T03a 起，默认单文件 `emit_minimal_main_*` / `build_minimal_main_module*` 统一经 refactor
-//! LLVM stage handoff 构建；显式 `*_from_lowered_hir` / `*_from_materialized_lowered_hir` helper
-//! 仅保留给测试、对照和历史桥接调用方，不能再作为默认生产单文件入口。
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -33,7 +30,6 @@ use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    codegen_routing_facts: Option<&'a crate::mir::MirCodegenRoutingFacts>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
     abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
@@ -128,37 +124,6 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
 }
 
 impl<'a> LoweredCodegenEntry<'a> {
-    fn from_lowered_hir(lowered: &'a hir::LoweredHir) -> Self {
-        Self {
-            lowered,
-            materialized_pass_view: lowered.materialized_pass_view(),
-            codegen_routing_facts: None,
-            late_lowered_program: None,
-            late_lowered_types: None,
-            abi_program: None,
-            abi_types: None,
-            abi_materialized_pass_view: None,
-            abi_effect_facts: None,
-        }
-    }
-
-    fn from_materialized_lowered_hir(lowered: &'a hir::LoweredHir) -> Result<Self, LlvmEmitError> {
-        let materialized_pass_view = lowered
-            .materialized_pass_view()
-            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        Ok(Self {
-            lowered,
-            materialized_pass_view: Some(materialized_pass_view),
-            codegen_routing_facts: None,
-            late_lowered_program: None,
-            late_lowered_types: None,
-            abi_program: None,
-            abi_types: None,
-            abi_materialized_pass_view: None,
-            abi_effect_facts: None,
-        })
-    }
-
     fn from_stage_output(
         lowered: &'a hir::LoweredHir,
         effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
@@ -175,7 +140,6 @@ impl<'a> LoweredCodegenEntry<'a> {
         Self {
             lowered,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
-            codegen_routing_facts: Some(effect_lowered_stage_output.codegen_routing_facts()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
             abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
@@ -190,8 +154,7 @@ impl<'a> LoweredCodegenEntry<'a> {
 
 /// 为一个 Scoop 程序生成默认单文件 LLVM IR（`.ll` 文本）。
 ///
-/// 当前默认路径会先运行 refactor LLVM stage，再消费其 authoritative handoff 发射产物；
-/// 仅显式 `*_from_materialized_lowered_hir` helper 仍保留 raw materialized-MIR 对照语义。
+/// 当前默认路径会先运行 refactor LLVM stage，再消费其 authoritative handoff 发射产物。
 ///
 /// 输出形态：
 /// - 一个 LLVM module（module name 取决于输入文件名）；
@@ -203,50 +166,6 @@ pub fn emit_minimal_main_ir(
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
     let module = build_minimal_main_module_with_opt_level(session, source, &context, OptLevel::O0)?;
-    Ok(module.print_to_string().to_string())
-}
-
-/// 基于“已完成 resolver 的 AST lowering 结果”（`hir::LoweredHir`）生成 LLVM IR。
-///
-/// 用途（T1107）：
-/// - `scoop build` 在多包（cone 依赖）场景下，需要复用同一套“已注入 `.cone` 依赖”的编译单元，
-///   避免后端再次独立 parse/resolve 导致 import 失败或语义分叉。
-pub fn emit_minimal_main_ir_from_lowered_hir(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-) -> Result<String, LlvmEmitError> {
-    let context = Context::create();
-    let module = build_main_module_from_codegen_entry(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_lowered_hir(lowered),
-        None,
-    )?;
-    Ok(module.print_to_string().to_string())
-}
-
-/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR。
-///
-/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
-///
-/// 该入口要求 `lowered` 显式携带 `LoweredHir::materialized_pass_view()`；
-/// 若调用方只提供不带 canonical pass view 的测试 lowering，则返回结构化错误，而不是静默回退到只看 HIR
-/// 兼容 body。
-pub fn emit_minimal_main_ir_from_materialized_lowered_hir(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-) -> Result<String, LlvmEmitError> {
-    let context = Context::create();
-    let module = build_main_module_from_codegen_entry(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
-        None,
-    )?;
     Ok(module.print_to_string().to_string())
 }
 
@@ -263,110 +182,6 @@ pub fn emit_minimal_main_ir_to_file(
         source: e,
     })?;
 
-    Ok(())
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
-pub fn emit_minimal_main_ir_to_file_from_lowered_hir(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    let ir = emit_minimal_main_ir_from_lowered_hir(source_map, entry_source_id, lowered)?;
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
-    Ok(())
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-) -> Result<(), LlvmEmitError> {
-    let context = Context::create();
-    let module = build_main_module_from_lowered_hir(
-        source_map,
-        entry_source_id,
-        &context,
-        lowered,
-        entry_main_fqn,
-    )?;
-    let ir = module.print_to_string().to_string();
-
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
-    Ok(())
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-///
-/// 与 `emit_minimal_main_ir_to_file_from_lowered_hir_with_entry` 的区别：
-/// - 该版本会按 `opt_level` 运行 LLVM PassBuilder pipeline（包含 statepoint 重写），确保 `--emit-llvm`
-///   的输出能反映优化等级差异，便于 build fixtures 断言与回归。
-pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    let context = Context::create();
-    let module = build_main_module_from_lowered_hir(
-        source_map,
-        entry_source_id,
-        &context,
-        lowered,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-
-    let ir = module.print_to_string().to_string();
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
-    Ok(())
-}
-
-/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成 LLVM IR，并写入到指定路径。
-///
-/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
-pub fn emit_minimal_main_ir_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    let context = Context::create();
-    let module = build_main_module_from_codegen_entry(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-
-    let ir = module.print_to_string().to_string();
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
     Ok(())
 }
 
@@ -459,141 +274,6 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
     Ok(())
 }
 
-/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
-pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
-        source_map,
-        entry_source_id,
-        lowered,
-        output,
-        OptLevel::O0,
-    )
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
-pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module =
-        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Object, output)
-        .map_err(|e| LlvmEmitError::WriteObjFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-        source_map,
-        entry_source_id,
-        lowered,
-        output,
-        entry_main_fqn,
-        OptLevel::O0,
-    )
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_main_module_from_lowered_hir(
-        source_map,
-        entry_source_id,
-        &context,
-        lowered,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Object, output)
-        .map_err(|e| LlvmEmitError::WriteObjFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
-/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM object。
-///
-/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
-pub fn emit_minimal_main_obj_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_main_module_from_codegen_entry(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Object, output)
-        .map_err(|e| LlvmEmitError::WriteObjFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
 /// 基于 LLVM stage handoff 生成 LLVM object，并写入到指定路径。
 pub fn emit_main_obj_to_file_from_stage_output(
     source_map: &SourceMap,
@@ -668,141 +348,6 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
     Ok(())
 }
 
-/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
-pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
-        source_map,
-        entry_source_id,
-        lowered,
-        output,
-        OptLevel::O0,
-    )
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
-pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module =
-        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Assembly, output)
-        .map_err(|e| LlvmEmitError::WriteAsmFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-) -> Result<(), LlvmEmitError> {
-    emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
-        source_map,
-        entry_source_id,
-        lowered,
-        output,
-        entry_main_fqn,
-        OptLevel::O0,
-    )
-}
-
-/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
-pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_main_module_from_lowered_hir(
-        source_map,
-        entry_source_id,
-        &context,
-        lowered,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Assembly, output)
-        .map_err(|e| LlvmEmitError::WriteAsmFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
-/// 基于 production frontend 保留的 canonical materialized MIR/pass 视图生成最小 LLVM assembly。
-///
-/// 该入口仅保留给显式历史/对照测试；默认单文件 production 入口不再间接调用它。
-pub fn emit_minimal_main_asm_to_file_from_materialized_lowered_hir_with_entry_with_opt_level(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    output: &Path,
-    entry_main_fqn: Option<&str>,
-    opt_level: OptLevel,
-) -> Result<(), LlvmEmitError> {
-    if output.to_str().is_none() {
-        return Err(LlvmEmitError::InvalidOutputPath {
-            path: output.to_path_buf(),
-        });
-    }
-
-    let context = Context::create();
-    let module = build_main_module_from_codegen_entry(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
-        entry_main_fqn,
-    )?;
-
-    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_pass_pipeline(&module, &target_machine, opt_level)?;
-    target_machine
-        .write_to_file(&module, FileType::Assembly, output)
-        .map_err(|e| LlvmEmitError::WriteAsmFailed {
-            path: output.to_path_buf(),
-            message: e.to_string(),
-        })?;
-    Ok(())
-}
-
 /// 基于 LLVM stage handoff 生成 LLVM assembly，并写入到指定路径。
 pub fn emit_main_asm_to_file_from_stage_output(
     source_map: &SourceMap,
@@ -867,22 +412,6 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
     )
 }
 
-pub(crate) fn build_main_module_from_lowered_hir<'ctx>(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    context: &'ctx Context,
-    lowered: &hir::LoweredHir,
-    entry_main_fqn: Option<&str>,
-) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    build_module_from_codegen_entry_with_root_selector(
-        source_map,
-        entry_source_id,
-        context,
-        LoweredCodegenEntry::from_lowered_hir(lowered),
-        RootCallableSelector::EntryMain { entry_main_fqn },
-    )
-}
-
 fn build_main_module_from_codegen_entry<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -899,24 +428,6 @@ fn build_main_module_from_codegen_entry<'ctx>(
     )
 }
 
-#[cfg(test)]
-pub(crate) fn emit_materialized_ir_for_root_callable(
-    source_map: &SourceMap,
-    entry_source_id: SourceId,
-    lowered: &hir::LoweredHir,
-    callable_fqn: &str,
-) -> Result<String, LlvmEmitError> {
-    let context = Context::create();
-    let module = build_module_from_codegen_entry_with_root_selector(
-        source_map,
-        entry_source_id,
-        &context,
-        LoweredCodegenEntry::from_materialized_lowered_hir(lowered)?,
-        RootCallableSelector::Callable { callable_fqn },
-    )?;
-    Ok(module.print_to_string().to_string())
-}
-
 fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -929,7 +440,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let LoweredCodegenEntry {
         lowered,
         materialized_pass_view,
-        codegen_routing_facts,
         late_lowered_program,
         late_lowered_types,
         abi_program,
@@ -949,9 +459,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
     let selected_root = select_root_callable(lowered, root_selector)?;
     let root_fun = selected_root.fun;
-    if let Some(program) = late_lowered_program
-        && program.callable(&root_fun.fqn).is_none()
-    {
+    let late_lowered_program = late_lowered_program.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM module emission now requires stage-owned late-lowered handoff".to_string(),
+    })?;
+    if late_lowered_program.callable(&root_fun.fqn).is_none() {
         return Err(LlvmEmitError::Frontend {
             message: format!(
                 "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
@@ -1010,7 +521,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
             materialized_pass_view,
-            codegen_routing_facts,
             program_facts: Rc::clone(&program_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
@@ -1095,78 +605,53 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .filter(|fun| !fun_has_param_types(fun))
         .collect();
 
-    let abi_query = if let Some(program) = late_lowered_program {
-        let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
-        })?;
-        let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
-        })?;
-        let abi_types = abi_types.unwrap_or(late_lowered_types);
-        let abi_pass_view = abi_materialized_pass_view
-            .as_ref()
-            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        let abi_effect_facts = abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
-        })?;
-        let abi_query = declare.materialize_program_abi(
-            abi_program,
-            abi_types,
-            abi_pass_view,
-            abi_effect_facts,
-        )?;
-        let primary_pass_view = unit_codegen
-            .materialized_pass_view()
-            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        declare.codegen_program_bodies(
-            program,
-            abi_program,
-            late_lowered_types,
-            primary_pass_view,
-            abi_types,
-            abi_pass_view,
-            &abi_query,
-        )?;
-        Some(abi_query)
-    } else {
-        None
-    };
+    let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
+    })?;
+    let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
+    })?;
+    let abi_types = abi_types.unwrap_or(late_lowered_types);
+    let abi_pass_view = abi_materialized_pass_view
+        .as_ref()
+        .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+    let abi_effect_facts = abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
+    })?;
+    let abi_query =
+        declare.materialize_program_abi(abi_program, abi_types, abi_pass_view, abi_effect_facts)?;
+    let primary_pass_view = unit_codegen
+        .materialized_pass_view()
+        .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+    declare.codegen_program_bodies(
+        late_lowered_program,
+        abi_program,
+        late_lowered_types,
+        primary_pass_view,
+        abi_types,
+        abi_pass_view,
+        &abi_query,
+    )?;
 
     for fun in &reachable {
         let _ = declare.declare_top_level_fun(fun)?;
     }
 
     for fun in &reachable {
-        if let Some(program) = late_lowered_program
-            && let Some(callable) = program.callable(&fun.fqn)
+        if let Some(callable) = late_lowered_program.callable(&fun.fqn)
             && (callable.plain_abi().is_some() || callable.effect_step_abi().is_some())
         {
             continue;
         }
-        if !should_emit_reachable_fun_body(fun, &unit_codegen) {
+        if fun.body.is_none() {
             continue;
         }
-        let llvm_fun = module
-            .get_function(&fun.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "missing declared function",
-                at: fun.span.into(),
-            })?;
-        let mut body_codegen = unit_codegen.fresh_main_codegen();
-        if let Some(mir_fun) = canonical_materialized_callable_body(fun, &unit_codegen) {
-            let body_is_overridden = unit_codegen
-                .materialized_pass_view()
-                .is_some_and(|view| view.callable_body_is_overridden(&fun.fqn));
-            if !body_is_overridden
-                && body_codegen.raw_materialized_mir_body_requires_hir_compat_boundary(fun, mir_fun)
-            {
-                body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
-            } else {
-                body_codegen.codegen_top_level_mir_fun(fun, mir_fun, llvm_fun)?;
-            }
-        } else {
-            body_codegen.codegen_top_level_fun(fun, llvm_fun)?;
-        }
+        return Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM stage handoff 缺少 reachable callable `{}` 的 published late-lowered body",
+                fun.fqn
+            ),
+        });
     }
 
     if let Some(arg_shape) = selected_root.entry_main_arg_shape {
@@ -1232,17 +717,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             }
         };
 
-        let exit_code =
-            if let (Some(program), Some(abi_query)) = (late_lowered_program, abi_query.as_ref()) {
-                main_codegen.codegen_stage_main_exit_code(
-                    root_fun,
-                    entry_argv_array,
-                    program,
-                    abi_query,
-                )?
-            } else {
-                main_codegen.codegen_main_exit_code(root_fun, entry_argv_array)?
-            };
+        let exit_code = main_codegen.codegen_stage_main_exit_code(
+            root_fun,
+            entry_argv_array,
+            late_lowered_program,
+            &abi_query,
+        )?;
         builder.build_return(Some(&exit_code))?;
         main_codegen.finish_function_explicit_frame_layout(root_fun.span)?;
     }
@@ -1255,53 +735,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
     Ok(module)
 }
-
-fn should_emit_reachable_fun_body(
-    fun: &hir::FunDecl,
-    unit_codegen: &crate::llvm::codegen::CompilationUnitCodegenCx<'_, '_>,
-) -> bool {
-    if fun.body.is_none() {
-        return false;
-    }
-
-    if let Some(pass_view) = unit_codegen.materialized_pass_view() {
-        if pass_view.callable_body_is_overridden(&fun.fqn) {
-            return canonical_materialized_callable_body(fun, unit_codegen).is_some();
-        }
-        if pass_view.owner_of_callable(&fun.fqn).is_some()
-            || unit_codegen
-                .raw_non_generic_callable_candidate_body(fun, pass_view)
-                .is_some()
-        {
-            return canonical_materialized_callable_body(fun, unit_codegen).is_some();
-        }
-    }
-
-    true
-}
-
-fn canonical_materialized_callable_body<'a, 'ctx>(
-    fun: &hir::FunDecl,
-    unit_codegen: &'a crate::llvm::codegen::CompilationUnitCodegenCx<'a, 'ctx>,
-) -> Option<&'a crate::mir::FunDecl> {
-    let pass_view = unit_codegen.materialized_pass_view()?;
-    if pass_view.callable_body_is_overridden(&fun.fqn)
-        || pass_view.owner_of_callable(&fun.fqn).is_some()
-    {
-        return pass_view.callable(&fun.fqn);
-    }
-    unit_codegen.raw_non_generic_callable_candidate_body(fun, pass_view)
-}
-
-#[cfg(test)]
-pub(crate) fn build_single_file_source_map(
-    session: &Session,
-    source: &SourceFile,
-) -> (SourceMap, SourceId) {
-    let input_sources = vec![source.clone()];
-    frontend::build_source_map_with_extra_sources(session, &input_sources, 0)
-}
-
 fn entry_source(source_map: &SourceMap, entry_source_id: SourceId) -> &SourceFile {
     source_map
         .source(entry_source_id)
@@ -1328,13 +761,7 @@ struct SelectedRootCallable<'a> {
 
 #[derive(Clone, Copy)]
 enum RootCallableSelector<'a> {
-    EntryMain {
-        entry_main_fqn: Option<&'a str>,
-    },
-    #[cfg_attr(not(test), allow(dead_code))]
-    Callable {
-        callable_fqn: &'a str,
-    },
+    EntryMain { entry_main_fqn: Option<&'a str> },
 }
 
 fn classify_entry_main_arg_shape(
@@ -1415,23 +842,6 @@ fn select_root_callable<'a>(
                 entry_main_arg_shape: Some(selected_main.arg_shape),
             })
         }
-        RootCallableSelector::Callable { callable_fqn } => lowered
-            .file
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                hir::Item::Fun(fun) => Some(fun),
-                _ => None,
-            })
-            .chain(lowered.member_funs.iter())
-            .find(|fun| fun.fqn == callable_fqn && fun.body.is_some())
-            .map(|fun| SelectedRootCallable {
-                fun,
-                entry_main_arg_shape: None,
-            })
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!("显式历史 codegen helper 找不到 root callable `{callable_fqn}`"),
-            }),
     }
 }
 

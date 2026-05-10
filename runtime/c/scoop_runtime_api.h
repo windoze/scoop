@@ -58,12 +58,7 @@
   X(scoop_continuation_try_resume) \
   X(scoop_effect_clear) \
   X(scoop_effect_clear_active) \
-  X(scoop_effect_handler_stack_find_nearest) \
-  X(scoop_effect_handler_stack_pop) \
-  X(scoop_effect_handler_stack_push) \
-  X(scoop_effect_handler_stack_set_active) \
   X(scoop_effect_handler_stack_swap_top) \
-  X(scoop_effect_handler_stack_unwind_to_tag) \
   X(scoop_effect_handler_stack_top) \
   X(scoop_effect_is_active) \
   X(scoop_effect_outcome_consume_current) \

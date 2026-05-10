@@ -7087,7 +7087,6 @@ mod tests {
     use crate::effect_lowered::{
         LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
     };
-    use crate::llvm::build_single_file_source_map;
     use crate::llvm::codegen::effect_lowered::types::RefactorCallTargetQuery;
     use crate::llvm::codegen::{
         CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
@@ -7174,7 +7173,9 @@ mod tests {
             .expect("ABI visibility late-lowered program 应成功"),
             LateLoweredOptOptions::preserve_published_resume_shells(),
         );
-        let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+        let input_sources = vec![source.clone()];
+        let (source_map, entry_source_id) =
+            crate::llvm::frontend::build_source_map_with_extra_sources(&session, &input_sources, 0);
         FixtureAbiInputs {
             source_map,
             entry_source_id,
@@ -7250,7 +7251,6 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
-            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });
@@ -7328,7 +7328,6 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
-            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });
@@ -7405,7 +7404,6 @@ mod tests {
             materialized_pass_view: Some(
                 inputs.effect_lowered_stage_output.materialized_pass_view(),
             ),
-            codegen_routing_facts: Some(inputs.effect_lowered_stage_output.codegen_routing_facts()),
             program_facts,
             effect_op_tags,
         });

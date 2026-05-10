@@ -2712,7 +2712,10 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
+    let top_level_vars = lowered_hir.top_level_vars.clone();
+    let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
+    let object_inits = lowered_hir.object_inits.clone();
     let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
         &mut lowered_hir,
         typecheck_types,
@@ -2756,7 +2759,10 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 lowered_top_level_fun_call_bindings,
+                top_level_vars,
+                top_level_consts,
                 top_level_immutable_values,
+                object_inits,
                 member_value_tys,
                 request_sources,
                 request_root_mode,
@@ -2827,7 +2833,10 @@ struct MaterializerConstructionInputs<'a> {
     top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     lowered_top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    top_level_vars: crate::hir::TopLevelVarIndex,
+    top_level_consts: crate::hir::TopLevelConstIndex,
     top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
+    object_inits: crate::hir::ObjectInitIndex,
     member_value_tys: HashMap<String, MemberValueTypeInfo>,
     request_sources: HashSet<PathBuf>,
     request_root_mode: super::MaterializeRequestRootMode<'a>,
@@ -3535,137 +3544,6 @@ fn collect_hir_direct_call_instances_in_expr(
                     top_level_fun_call_bindings,
                     out,
                 );
-            }
-        }
-        crate::hir::ExprKind::Missing
-        | crate::hir::ExprKind::Literal(_)
-        | crate::hir::ExprKind::VarRef(_)
-        | crate::hir::ExprKind::UnresolvedIdent { .. }
-        | crate::hir::ExprKind::ClassLiteral(_)
-        | crate::hir::ExprKind::Todo(_) => {}
-    }
-}
-
-fn collect_top_level_value_refs_in_block(block: &crate::hir::Block, out: &mut Vec<String>) {
-    for stmt in &block.stmts {
-        collect_top_level_value_refs_in_stmt(stmt, out);
-    }
-}
-
-fn collect_top_level_value_refs_in_stmt(stmt: &crate::hir::Stmt, out: &mut Vec<String>) {
-    match &stmt.kind {
-        crate::hir::StmtKind::Expr(expr) => collect_top_level_value_refs_in_expr(expr, out),
-        crate::hir::StmtKind::Val(decl) => {
-            if let Some(init) = &decl.init {
-                collect_top_level_value_refs_in_expr(init, out);
-            }
-        }
-        crate::hir::StmtKind::Assign { lhs, rhs, .. } => {
-            collect_top_level_value_refs_in_expr(lhs, out);
-            collect_top_level_value_refs_in_expr(rhs, out);
-        }
-        crate::hir::StmtKind::While { cond, body } => {
-            collect_top_level_value_refs_in_expr(cond, out);
-            collect_top_level_value_refs_in_block(body, out);
-        }
-        crate::hir::StmtKind::Return { value } => {
-            if let Some(value) = value {
-                collect_top_level_value_refs_in_expr(value, out);
-            }
-        }
-        crate::hir::StmtKind::Empty
-        | crate::hir::StmtKind::Break { .. }
-        | crate::hir::StmtKind::Continue { .. }
-        | crate::hir::StmtKind::Todo(_) => {}
-    }
-}
-
-fn collect_top_level_value_refs_in_args(args: &[crate::hir::CallArg], out: &mut Vec<String>) {
-    for arg in args {
-        match arg {
-            crate::hir::CallArg::Positional(value) => {
-                collect_top_level_value_refs_in_expr(value, out);
-            }
-            crate::hir::CallArg::Named { value, .. } => {
-                collect_top_level_value_refs_in_expr(value, out);
-            }
-        }
-    }
-}
-
-fn collect_top_level_value_refs_in_expr(expr: &crate::hir::Expr, out: &mut Vec<String>) {
-    match &expr.kind {
-        crate::hir::ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) => {
-            out.push(fqn.clone());
-        }
-        crate::hir::ExprKind::Call { callee, args } => {
-            collect_top_level_value_refs_in_expr(callee, out);
-            collect_top_level_value_refs_in_args(args, out);
-        }
-        crate::hir::ExprKind::StructLit { fields, .. } => {
-            for field in fields {
-                collect_top_level_value_refs_in_expr(&field.value, out);
-            }
-        }
-        crate::hir::ExprKind::TupleLit { elements } => {
-            for element in elements {
-                collect_top_level_value_refs_in_expr(element, out);
-            }
-        }
-        crate::hir::ExprKind::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_top_level_value_refs_in_expr(expr, out);
-                }
-            }
-        }
-        crate::hir::ExprKind::Unary { expr, .. } => {
-            collect_top_level_value_refs_in_expr(expr, out);
-        }
-        crate::hir::ExprKind::Binary { lhs, rhs, .. } => {
-            collect_top_level_value_refs_in_expr(lhs, out);
-            collect_top_level_value_refs_in_expr(rhs, out);
-        }
-        crate::hir::ExprKind::TypeCheck { expr, .. } | crate::hir::ExprKind::Cast { expr, .. } => {
-            collect_top_level_value_refs_in_expr(expr, out);
-        }
-        crate::hir::ExprKind::Block(block) => collect_top_level_value_refs_in_block(block, out),
-        crate::hir::ExprKind::Closure(closure) => {
-            collect_top_level_value_refs_in_expr(&closure.body, out);
-        }
-        crate::hir::ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => {
-            collect_top_level_value_refs_in_expr(cond, out);
-            collect_top_level_value_refs_in_expr(then_branch, out);
-            if let Some(else_branch) = else_branch {
-                collect_top_level_value_refs_in_expr(else_branch, out);
-            }
-        }
-        crate::hir::ExprKind::When { subject, arms } => {
-            collect_top_level_value_refs_in_expr(subject, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_top_level_value_refs_in_expr(guard, out);
-                }
-                collect_top_level_value_refs_in_expr(&arm.body, out);
-            }
-        }
-        crate::hir::ExprKind::MemberAccess { receiver, .. } => {
-            collect_top_level_value_refs_in_expr(receiver, out);
-        }
-        crate::hir::ExprKind::Perform { args, .. } => {
-            collect_top_level_value_refs_in_args(args, out);
-        }
-        crate::hir::ExprKind::Handle(handle) => {
-            collect_top_level_value_refs_in_block(&handle.body, out);
-            for arm in &handle.arms {
-                collect_top_level_value_refs_in_expr(&arm.body, out);
-            }
-            if let Some(finally) = &handle.finally {
-                collect_top_level_value_refs_in_block(finally, out);
             }
         }
         crate::hir::ExprKind::Missing
@@ -4820,7 +4698,10 @@ struct MirInstanceMaterializer {
     template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    top_level_vars: crate::hir::TopLevelVarIndex,
+    top_level_consts: crate::hir::TopLevelConstIndex,
     top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
+    object_inits: crate::hir::ObjectInitIndex,
     member_value_tys: HashMap<String, MemberValueTypeInfo>,
     request_sources: HashSet<PathBuf>,
     filter_initial_requests_to_reachable_call_sites: bool,
@@ -4831,7 +4712,10 @@ struct MirInstanceMaterializer {
     value_ref_bindings: HashMap<SourceSiteKey, SiteInstanceBinding>,
     reachable_request_call_sites: HashSet<SourceSiteKey>,
     reachable_request_stmt_spans: Vec<(PathBuf, Span)>,
+    scanned_top_level_vars: HashSet<String>,
+    scanned_top_level_consts: HashSet<String>,
     scanned_top_level_immutable_values: HashSet<String>,
+    scanned_object_inits: HashSet<String>,
     scanned_non_generic_funs: HashSet<(PathBuf, Span)>,
     caller_side_pass_candidates: Vec<FunDecl>,
     pass_published_ordinary_callables: Vec<PassPublishedOrdinaryCallable>,
@@ -4921,7 +4805,10 @@ impl MirInstanceMaterializer {
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
+            top_level_vars,
+            top_level_consts,
             top_level_immutable_values,
+            object_inits,
             member_value_tys: hir_member_value_tys,
             request_sources,
             request_root_mode,
@@ -5171,7 +5058,10 @@ impl MirInstanceMaterializer {
             template_symbol_suffixes,
             roots_by_fqn,
             direct_call_bindings,
+            top_level_vars,
+            top_level_consts,
             top_level_immutable_values,
+            object_inits,
             member_value_tys,
             request_sources,
             filter_initial_requests_to_reachable_call_sites: matches!(
@@ -5185,7 +5075,10 @@ impl MirInstanceMaterializer {
             value_ref_bindings: HashMap::new(),
             reachable_request_call_sites: HashSet::new(),
             reachable_request_stmt_spans: Vec::new(),
+            scanned_top_level_vars: HashSet::new(),
+            scanned_top_level_consts: HashSet::new(),
             scanned_top_level_immutable_values: HashSet::new(),
+            scanned_object_inits: HashSet::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
             pass_published_ordinary_callables: Vec::new(),
@@ -5647,48 +5540,277 @@ impl MirInstanceMaterializer {
             Rvalue::TopLevelRef(TopLevelRef { fqn, .. }) => {
                 self.reachable_request_call_sites
                     .insert((scan.template_source_path.to_path_buf(), scan.span));
-                if let Some(binding) =
-                    self.site_instance_binding_for_callee(scan.template_source_path, scan.span, fqn)
-                    && let Some(instance_key) =
-                        self.instantiate_site_binding(&binding, scan.substitution)
-                {
-                    out.push(instance_key);
-                    return Ok(());
-                }
-                if let Some(reachable_fun) =
-                    self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, fqn)
-                {
-                    self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
-                }
-                self.scan_reachable_top_level_immutable_value(fqn);
+                self.scan_reachable_top_level_ref_fqn(
+                    scan.template_source_path,
+                    scan.span,
+                    fqn,
+                    out,
+                )?;
             }
             _ => {}
         }
         Ok(())
     }
 
-    fn scan_reachable_top_level_immutable_value(&mut self, fqn: &str) {
+    fn scan_reachable_top_level_immutable_value_inner(
+        &mut self,
+        fqn: &str,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
         if !self
             .scanned_top_level_immutable_values
             .insert(fqn.to_string())
         {
-            return;
+            return Ok(());
         }
         let Some(value) = self.top_level_immutable_values.get(fqn).cloned() else {
-            return;
+            return Ok(());
         };
         let Some(init) = value.init else {
-            return;
+            return Ok(());
         };
 
         self.reachable_request_stmt_spans
             .push((value.source_path.clone(), init.span));
+        self.scan_reachable_static_init_expr(value.source_path.as_path(), &init, out)
+    }
 
-        let mut refs = Vec::new();
-        collect_top_level_value_refs_in_expr(&init, &mut refs);
-        for dep_fqn in refs {
-            self.scan_reachable_top_level_immutable_value(&dep_fqn);
+    fn scan_reachable_top_level_var(
+        &mut self,
+        fqn: &str,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        if !self.scanned_top_level_vars.insert(fqn.to_string()) {
+            return Ok(());
         }
+        let Some(var) = self.top_level_vars.get(fqn).cloned() else {
+            return Ok(());
+        };
+        let Some(init) = var.init else {
+            return Ok(());
+        };
+        self.reachable_request_stmt_spans
+            .push((var.source_path.clone(), init.span));
+        self.scan_reachable_static_init_expr(var.source_path.as_path(), &init, out)
+    }
+
+    fn scan_reachable_top_level_const(
+        &mut self,
+        fqn: &str,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        if !self.scanned_top_level_consts.insert(fqn.to_string()) {
+            return Ok(());
+        }
+        let Some(konst) = self.top_level_consts.get(fqn).cloned() else {
+            return Ok(());
+        };
+        let Some(init) = konst.init else {
+            return Ok(());
+        };
+        self.reachable_request_stmt_spans
+            .push((konst.source_path.clone(), init.span));
+        self.scan_reachable_static_init_expr(konst.source_path.as_path(), &init, out)
+    }
+
+    fn scan_reachable_object_init(
+        &mut self,
+        fqn: &str,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        if !self.scanned_object_inits.insert(fqn.to_string()) {
+            return Ok(());
+        }
+        let Some(object) = self.object_inits.get(fqn).cloned() else {
+            return Ok(());
+        };
+        for step in &object.steps {
+            match step {
+                crate::hir::ObjectInitStep::PropertyInit { init, .. } => {
+                    self.reachable_request_stmt_spans
+                        .push((object.source_path.clone(), init.span));
+                    self.scan_reachable_static_init_expr(object.source_path.as_path(), init, out)?;
+                }
+                crate::hir::ObjectInitStep::InitBlock { block } => {
+                    self.reachable_request_stmt_spans
+                        .push((object.source_path.clone(), block.span));
+                    self.scan_reachable_static_init_block(
+                        object.source_path.as_path(),
+                        block,
+                        out,
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn scan_reachable_top_level_ref_fqn(
+        &mut self,
+        source_path: &Path,
+        span: Span,
+        fqn: &str,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        if let Some(binding) = self.site_instance_binding_for_callee(source_path, span, fqn)
+            && let Some(instance_key) =
+                self.instantiate_site_binding(&binding, &InstanceSubstitution::default())
+        {
+            out.push(instance_key);
+            return Ok(());
+        }
+        if let Some(reachable_fun) = self.resolve_non_generic_fun_body_by_fqn(source_path, fqn) {
+            self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
+        }
+        self.scan_reachable_top_level_const(fqn, out)?;
+        self.scan_reachable_top_level_var(fqn, out)?;
+        self.scan_reachable_top_level_immutable_value_inner(fqn, out)?;
+        self.scan_reachable_object_init(fqn, out)
+    }
+
+    fn scan_reachable_static_init_block(
+        &mut self,
+        source_path: &Path,
+        block: &crate::hir::Block,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                crate::hir::StmtKind::Expr(expr) => {
+                    self.scan_reachable_static_init_expr(source_path, expr, out)?;
+                }
+                crate::hir::StmtKind::Val(decl) => {
+                    if let Some(init) = &decl.init {
+                        self.scan_reachable_static_init_expr(source_path, init, out)?;
+                    }
+                }
+                crate::hir::StmtKind::Assign { lhs, rhs, .. } => {
+                    self.scan_reachable_static_init_expr(source_path, lhs, out)?;
+                    self.scan_reachable_static_init_expr(source_path, rhs, out)?;
+                }
+                crate::hir::StmtKind::While { cond, body } => {
+                    self.scan_reachable_static_init_expr(source_path, cond, out)?;
+                    self.scan_reachable_static_init_block(source_path, body, out)?;
+                }
+                crate::hir::StmtKind::Return { value } => {
+                    if let Some(value) = value {
+                        self.scan_reachable_static_init_expr(source_path, value, out)?;
+                    }
+                }
+                crate::hir::StmtKind::Empty
+                | crate::hir::StmtKind::Break { .. }
+                | crate::hir::StmtKind::Continue { .. }
+                | crate::hir::StmtKind::Todo(_) => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn scan_reachable_static_init_expr(
+        &mut self,
+        source_path: &Path,
+        expr: &crate::hir::Expr,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        match &expr.kind {
+            crate::hir::ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.scan_reachable_top_level_ref_fqn(source_path, expr.span, fqn, out)?;
+            }
+            crate::hir::ExprKind::Call { callee, args } => {
+                self.scan_reachable_static_init_expr(source_path, callee, out)?;
+                for arg in args {
+                    match arg {
+                        crate::hir::CallArg::Positional(value) => {
+                            self.scan_reachable_static_init_expr(source_path, value, out)?;
+                        }
+                        crate::hir::CallArg::Named { value, .. } => {
+                            self.scan_reachable_static_init_expr(source_path, value, out)?;
+                        }
+                    }
+                }
+            }
+            crate::hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.scan_reachable_static_init_expr(source_path, &field.value, out)?;
+                }
+            }
+            crate::hir::ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.scan_reachable_static_init_expr(source_path, element, out)?;
+                }
+            }
+            crate::hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.scan_reachable_static_init_expr(source_path, expr, out)?;
+                    }
+                }
+            }
+            crate::hir::ExprKind::Unary { expr, .. }
+            | crate::hir::ExprKind::TypeCheck { expr, .. }
+            | crate::hir::ExprKind::Cast { expr, .. }
+            | crate::hir::ExprKind::MemberAccess { receiver: expr, .. } => {
+                self.scan_reachable_static_init_expr(source_path, expr, out)?;
+            }
+            crate::hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.scan_reachable_static_init_expr(source_path, lhs, out)?;
+                self.scan_reachable_static_init_expr(source_path, rhs, out)?;
+            }
+            crate::hir::ExprKind::Block(block) => {
+                self.scan_reachable_static_init_block(source_path, block, out)?;
+            }
+            crate::hir::ExprKind::Closure(closure) => {
+                self.scan_reachable_static_init_expr(source_path, &closure.body, out)?;
+            }
+            crate::hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.scan_reachable_static_init_expr(source_path, cond, out)?;
+                self.scan_reachable_static_init_expr(source_path, then_branch, out)?;
+                if let Some(else_branch) = else_branch {
+                    self.scan_reachable_static_init_expr(source_path, else_branch, out)?;
+                }
+            }
+            crate::hir::ExprKind::When { subject, arms } => {
+                self.scan_reachable_static_init_expr(source_path, subject, out)?;
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.scan_reachable_static_init_expr(source_path, guard, out)?;
+                    }
+                    self.scan_reachable_static_init_expr(source_path, &arm.body, out)?;
+                }
+            }
+            crate::hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        crate::hir::CallArg::Positional(value) => {
+                            self.scan_reachable_static_init_expr(source_path, value, out)?;
+                        }
+                        crate::hir::CallArg::Named { value, .. } => {
+                            self.scan_reachable_static_init_expr(source_path, value, out)?;
+                        }
+                    }
+                }
+            }
+            crate::hir::ExprKind::Handle(handle) => {
+                self.scan_reachable_static_init_block(source_path, &handle.body, out)?;
+                for arm in &handle.arms {
+                    self.scan_reachable_static_init_expr(source_path, &arm.body, out)?;
+                }
+                if let Some(finally) = &handle.finally {
+                    self.scan_reachable_static_init_block(source_path, finally, out)?;
+                }
+            }
+            crate::hir::ExprKind::Missing
+            | crate::hir::ExprKind::Literal(_)
+            | crate::hir::ExprKind::VarRef(_)
+            | crate::hir::ExprKind::UnresolvedIdent { .. }
+            | crate::hir::ExprKind::ClassLiteral(_)
+            | crate::hir::ExprKind::Todo(_) => {}
+        }
+        Ok(())
     }
 
     fn scan_reachable_dispatch_candidates(
@@ -9564,7 +9686,10 @@ mod tests {
                 top_level_fun_value_refs: HashMap::new(),
                 top_level_fun_call_bindings: HashMap::new(),
                 lowered_top_level_fun_call_bindings: HashMap::new(),
+                top_level_vars: HashMap::new(),
+                top_level_consts: HashMap::new(),
                 top_level_immutable_values: HashMap::new(),
+                object_inits: HashMap::new(),
                 member_value_tys: HashMap::new(),
                 request_sources: HashSet::new(),
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -9745,7 +9870,10 @@ mod tests {
                 top_level_fun_value_refs: HashMap::new(),
                 top_level_fun_call_bindings: HashMap::new(),
                 lowered_top_level_fun_call_bindings: HashMap::new(),
+                top_level_vars: HashMap::new(),
+                top_level_consts: HashMap::new(),
                 top_level_immutable_values: HashMap::new(),
+                object_inits: HashMap::new(),
                 member_value_tys: HashMap::new(),
                 request_sources: HashSet::new(),
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -9832,7 +9960,10 @@ mod tests {
                     },
                 )]),
                 lowered_top_level_fun_call_bindings: HashMap::new(),
+                top_level_vars: HashMap::new(),
+                top_level_consts: HashMap::new(),
                 top_level_immutable_values: HashMap::new(),
+                object_inits: HashMap::new(),
                 member_value_tys: HashMap::new(),
                 request_sources: HashSet::new(),
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -10514,7 +10645,10 @@ fun main(): Int {
             &facts,
         );
         append_unreachable_id_call_to_main(&mut generic_file, builtins);
+        let top_level_vars = lowered_hir.top_level_vars.clone();
+        let top_level_consts = lowered_hir.top_level_consts.clone();
         let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
+        let object_inits = lowered_hir.object_inits.clone();
         let lowered_top_level_fun_call_bindings =
             collect_lowered_top_level_fun_call_bindings(&lowered_hir);
         let member_value_tys =
@@ -10538,7 +10672,10 @@ fun main(): Int {
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 lowered_top_level_fun_call_bindings,
+                top_level_vars,
+                top_level_consts,
                 top_level_immutable_values,
+                object_inits,
                 member_value_tys,
                 request_sources,
                 request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
@@ -11492,7 +11629,10 @@ fun main() {
             &lowered_hir.member_funs,
             &facts,
         );
+        let top_level_vars = lowered_hir.top_level_vars.clone();
+        let top_level_consts = lowered_hir.top_level_consts.clone();
         let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
+        let object_inits = lowered_hir.object_inits.clone();
         let lowered_top_level_fun_call_bindings =
             collect_lowered_top_level_fun_call_bindings(&lowered_hir);
         let member_value_tys =
@@ -11515,7 +11655,10 @@ fun main() {
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 lowered_top_level_fun_call_bindings,
+                top_level_vars,
+                top_level_consts,
                 top_level_immutable_values,
+                object_inits,
                 member_value_tys,
                 request_sources,
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,

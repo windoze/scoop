@@ -3766,7 +3766,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
-    use crate::hir::{CallArg, CallSite, ClassInitStep, ObjectInitStep, WhenPat};
+    use crate::hir::{CallArg, CallSite, ClassInitStep, WhenPat};
     use crate::resolve::Index;
     use crate::session::SessionOptions;
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};

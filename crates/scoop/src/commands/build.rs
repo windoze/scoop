@@ -1330,6 +1330,7 @@ fun main(): Int / Pure! {
     fn build_production_codegen_entry_consumes_materialized_pass_view() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
+        let out = dir.path().join("build.ll");
 
         std::fs::write(
             &input,
@@ -1362,12 +1363,22 @@ fun main(): Int {
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
-        let ir = scoopc::llvm::emit_minimal_main_ir_from_materialized_lowered_hir(
+
+        scoopc::pipeline::emit_production_llvm_artifact_to_file(
+            &session,
             &source_map,
             entry_source_id,
-            &lowered,
+            lowered,
+            None,
+            &out,
+            front.input().entry_main_fqn(),
+            OptLevel::O0,
+            LlvmArtifactKind::LlvmIr,
         )
-        .expect("build frontend 的 production codegen 入口应显式消费 materialized pass view");
+        .expect(
+            "build frontend 的 stage-only production codegen 应显式消费 materialized pass view",
+        );
+        let ir = std::fs::read_to_string(&out).unwrap();
 
         for fqn in [
             "fixtures.t5000h0c.id::<Int>",
