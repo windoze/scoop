@@ -218,7 +218,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §1：effectful callable 仍以“单 hidden incoming token”建模，尚未建立显式 `current_effect_ctx_ref` / `incoming_resume_token_ref` / `ScoopEffectOutcome *outcome` hidden ABI 的缺口。
 
-## G1-T02R：Review 显式 hidden ABI 骨架，确认不再回退单 token 语义
+## [DONE] G1-T02R：Review 显式 hidden ABI 骨架，确认不再回退单 token 语义
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G1
@@ -239,6 +239,19 @@
   - 可以明确写出当前 effectful callable ABI 的参数顺序和适用范围。
 - 依赖：G1-T02
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G1-T02R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务对 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/closure/mod.rs`、`crates/scoopc/src/llvm/codegen/call/abi.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/emit.rs` 做人工复核；无需额外源码修补。
+  - 核心决策：
+    - 当前 declaration/binding 层的显式 hidden ABI 顺序已经稳定为：`[sret?] current_effect_ctx_ref, incoming_resume_token_ref, ScoopEffectOutcome *outcome, ...`；其中 closure callable 在 hidden ABI 之后追加 `env`、可选 `receiver` 与普通参数。
+    - plain materialized MIR closure/body symbol 继续保持 plain ABI；其入口不混入 hidden effect 参数，并在 body 入口显式清空 `current_effect_ctx_ref` / `current_incoming_resume_token_ref` / `current_effect_outcome_ptr` 槽位，避免回退到“所有 callable 都带 hidden token”的旧语义。
+    - ABI 适用范围与 callee-resume shell 判定来自 published late-lowered callable contract（`effect_step_abi()` / `needs_reentry()`），而不是 `hir_ty_declared_effectful(...)`、`FunctionType.effects.is_pure()` 这类 HIR-level effectful boolean。
+    - declaration code path 中未发现 effect call wrapper、单 hidden token helper 或 deleted runtime bridge 作为 ABI 补丁。
+  - 验证结果：
+    - 精确搜索 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/closure/mod.rs`、`crates/scoopc/src/llvm/codegen/call/abi.rs`：未命中 `top_level_fun_uses_hidden_incoming_resume_token`、`mir_fun_uses_hidden_incoming_resume_token`、`function_type_uses_hidden_incoming_resume_token`、`effect_call_wrapper`、`declare_runtime_effect_is_active`、`declare_runtime_effect_set_active_with_trace`、`scoop_effect_*`、`scoop_continuation_*` 等 legacy 名字。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续集中在后续结构性 gap：`local_call_may_suspend_from_hir_ty` / `known_fun_body_may_outward_effect`（G4）、`alloc_effect_outcome_slot` / `effect_outcome_*` / `coerce_u64_word`（G2）、`codegen_perform_expr` / `codegen_handle_expr`（G7）、`codegen_call_impl` / `codegen_*call*_impl`（G6）等；未回退到本任务范围内的 hidden ABI skeleton 缺口。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §1：review 确认显式 `current_effect_ctx_ref` / `incoming_resume_token_ref` / `ScoopEffectOutcome *outcome` hidden ABI 仍然是 declaration 层唯一 authoritative surface，未回退到单 hidden token、wrapper 或 HIR-level 布尔推断语义。
 
 ## G2-T03：重建 backend-owned `EffectOutcome` / transport primitive
 
