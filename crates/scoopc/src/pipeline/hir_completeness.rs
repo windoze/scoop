@@ -50,7 +50,7 @@ impl<'a> HirCompletenessVerifier<'a> {
         for var in vars {
             let owner = format!("top-level var {}", var.fqn);
             if let Some(init) = &var.init {
-                self.verify_expr(&var.source_path, init, &owner)?;
+                self.verify_static_init_expr(&var.source_path, init, &owner)?;
             }
         }
 
@@ -63,7 +63,7 @@ impl<'a> HirCompletenessVerifier<'a> {
         for konst in consts {
             let owner = format!("top-level const {}", konst.fqn);
             if let Some(init) = &konst.init {
-                self.verify_expr(&konst.source_path, init, &owner)?;
+                self.verify_static_init_expr(&konst.source_path, init, &owner)?;
             }
         }
 
@@ -76,7 +76,7 @@ impl<'a> HirCompletenessVerifier<'a> {
         for value in values {
             let owner = format!("top-level val {}", value.fqn);
             if let Some(init) = &value.init {
-                self.verify_expr(&value.source_path, init, &owner)?;
+                self.verify_static_init_expr(&value.source_path, init, &owner)?;
             }
         }
 
@@ -150,10 +150,10 @@ impl<'a> HirCompletenessVerifier<'a> {
         for step in &object_init.steps {
             match step {
                 ObjectInitStep::PropertyInit { init, .. } => {
-                    self.verify_expr(&object_init.source_path, init, &owner)?;
+                    self.verify_static_init_expr(&object_init.source_path, init, &owner)?;
                 }
                 ObjectInitStep::InitBlock { block } => {
-                    self.verify_block(&object_init.source_path, block, &owner)?;
+                    self.verify_static_init_block(&object_init.source_path, block, &owner)?;
                 }
             }
         }
@@ -215,6 +215,18 @@ impl<'a> HirCompletenessVerifier<'a> {
         Ok(())
     }
 
+    fn verify_static_init_block(
+        &self,
+        source_path: &Path,
+        block: &Block,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        for stmt in &block.stmts {
+            self.verify_static_init_stmt(source_path, stmt, owner)?;
+        }
+        Ok(())
+    }
+
     fn verify_stmt(
         &self,
         source_path: &Path,
@@ -240,6 +252,42 @@ impl<'a> HirCompletenessVerifier<'a> {
             StmtKind::Return { value } => {
                 if let Some(value) = value {
                     self.verify_expr(source_path, value, owner)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn verify_static_init_stmt(
+        &self,
+        source_path: &Path,
+        stmt: &Stmt,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        match &stmt.kind {
+            StmtKind::Empty | StmtKind::Break { .. } | StmtKind::Continue { .. } => Ok(()),
+            StmtKind::Todo(kind) => {
+                self.placeholder(source_path, stmt.span, "StmtKind::Todo", kind, owner)
+            }
+            StmtKind::Expr(expr) => self.verify_static_init_expr(source_path, expr, owner),
+            StmtKind::Val(val) => {
+                if let Some(init) = &val.init {
+                    self.verify_static_init_expr(source_path, init, owner)?;
+                }
+                Ok(())
+            }
+            StmtKind::Assign { lhs, rhs, .. } => {
+                self.verify_assign_place_contract(source_path, stmt, owner)?;
+                self.verify_static_init_expr(source_path, lhs, owner)?;
+                self.verify_static_init_expr(source_path, rhs, owner)
+            }
+            StmtKind::While { cond, body } => {
+                self.verify_static_init_expr(source_path, cond, owner)?;
+                self.verify_static_init_block(source_path, body, owner)
+            }
+            StmtKind::Return { value } => {
+                if let Some(value) = value {
+                    self.verify_static_init_expr(source_path, value, owner)?;
                 }
                 Ok(())
             }
@@ -359,6 +407,104 @@ impl<'a> HirCompletenessVerifier<'a> {
         }
     }
 
+    fn verify_static_init_expr(
+        &self,
+        source_path: &Path,
+        expr: &Expr,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        match &expr.kind {
+            ExprKind::Perform { .. } => {
+                self.fail(source_path, expr.span, "static initializer Perform", owner)
+            }
+            ExprKind::Handle(_) => {
+                self.fail(source_path, expr.span, "static initializer Handle", owner)
+            }
+            ExprKind::Call { callee, args } => {
+                let call_site = CallSite::new(source_path.to_path_buf(), expr.span);
+                if self
+                    .lowered_hir
+                    .continuation_resume_call_sites
+                    .contains(&call_site)
+                {
+                    return self.fail(
+                        source_path,
+                        expr.span,
+                        "static initializer Continuation.resume",
+                        owner,
+                    );
+                }
+                self.verify_static_init_expr(source_path, callee, owner)?;
+                for arg in args {
+                    self.verify_static_init_call_arg(source_path, arg, owner)?;
+                }
+                Ok(())
+            }
+            ExprKind::Missing => self.fail(source_path, expr.span, "ExprKind::Missing", owner),
+            ExprKind::Todo(kind) => {
+                self.placeholder(source_path, expr.span, "ExprKind::Todo", kind, owner)
+            }
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::ClassLiteral(_) => Ok(()),
+            ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.verify_static_init_expr(source_path, &field.value, owner)?;
+                }
+                Ok(())
+            }
+            ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.verify_static_init_expr(source_path, element, owner)?;
+                }
+                Ok(())
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.verify_static_init_expr(source_path, expr, owner)?;
+                    }
+                }
+                Ok(())
+            }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. }
+            | ExprKind::MemberAccess { receiver: expr, .. } => {
+                self.verify_static_init_expr(source_path, expr, owner)
+            }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.verify_static_init_expr(source_path, lhs, owner)?;
+                self.verify_static_init_expr(source_path, rhs, owner)
+            }
+            ExprKind::Block(block) => self.verify_static_init_block(source_path, block, owner),
+            ExprKind::Closure(closure) => self.verify_expr(source_path, &closure.body, owner),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.verify_static_init_expr(source_path, cond, owner)?;
+                self.verify_static_init_expr(source_path, then_branch, owner)?;
+                if let Some(else_branch) = else_branch {
+                    self.verify_static_init_expr(source_path, else_branch, owner)?;
+                }
+                Ok(())
+            }
+            ExprKind::When { subject, arms } => {
+                self.verify_static_init_expr(source_path, subject, owner)?;
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.verify_static_init_expr(source_path, guard, owner)?;
+                    }
+                    self.verify_static_init_expr(source_path, &arm.body, owner)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn verify_call_arg(
         &self,
         source_path: &Path,
@@ -368,6 +514,18 @@ impl<'a> HirCompletenessVerifier<'a> {
         match arg {
             CallArg::Positional(expr) => self.verify_expr(source_path, expr, owner),
             CallArg::Named { value, .. } => self.verify_expr(source_path, value, owner),
+        }
+    }
+
+    fn verify_static_init_call_arg(
+        &self,
+        source_path: &Path,
+        arg: &CallArg,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        match arg {
+            CallArg::Positional(expr) => self.verify_static_init_expr(source_path, expr, owner),
+            CallArg::Named { value, .. } => self.verify_static_init_expr(source_path, value, owner),
         }
     }
 

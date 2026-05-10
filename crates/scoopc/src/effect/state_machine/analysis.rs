@@ -9465,51 +9465,6 @@ fun demo(): Int / (Boom) {
         assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
     }
 
-    #[test]
-    fn direct_step_rows_include_hidden_top_level_once_init_effects() {
-        let lowered = lower_typed_single_source(
-            r#"
-package a
-
-import scoop.core.*
-
-effect Ask {
-    fun current(): Int
-}
-
-effect Boom {
-    fun boom(code: Int): Int
-}
-
-val hidden: Int = Boom.boom(13)
-
-fun demo(): Int / (Boom) {
-    return handle {
-        val seed: Int = Ask.current()
-        seed + hidden
-    } with {
-        Ask.current(), k -> 7
-    }
-}
-"#,
-        );
-        let handle = first_handle_in_file(&lowered.file)
-            .map(|(_, handle)| handle)
-            .expect("expected a handle");
-        let continuation = only_escape_continuation_symbol(handle);
-
-        let rows = compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
-            &lowered.types,
-            handle,
-            Some(direct_step_program_info(&lowered)),
-        );
-        let row = rows
-            .get(&continuation)
-            .expect("expected a direct-step effect row for escape continuation binder");
-
-        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
-    }
-
     fn effect_row_terms(types: &TypeStore, row: &EffectRow) -> Vec<String> {
         row.terms
             .iter()

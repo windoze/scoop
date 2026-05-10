@@ -2719,6 +2719,13 @@ pub(super) fn infer_call_expr_type(
                     &mapping_pairs,
                     lower,
                 )?;
+                check_thread_spawn_entry_policy(
+                    &callee_fqn,
+                    &call_args,
+                    &checked_arg_tys,
+                    &mapping_pairs,
+                    lower,
+                )?;
 
                 // T0509/T0624：推断 `eff` row 参数：
                 // - T0509：从 lambda body 的 required effects 推断 `E`；
@@ -8871,6 +8878,38 @@ fn cross_thread_resume_intrinsic_base(callee_fqn: &str) -> &str {
     base.split_once("$overload")
         .map(|(base, _)| base)
         .unwrap_or(base)
+}
+
+fn check_thread_spawn_entry_policy(
+    callee_fqn: &str,
+    call_args: &[CallArgInfo<'_>],
+    checked_arg_tys: &[TypeId],
+    mapping_pairs: &[(usize, usize)],
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if cross_thread_resume_intrinsic_base(callee_fqn) != "scoop.thread.threadSpawn" {
+        return Ok(());
+    }
+    let Some(arg_idx) = mapping_pairs
+        .iter()
+        .find_map(|(param_idx, arg_idx)| (*param_idx == 0).then_some(*arg_idx))
+    else {
+        return Ok(());
+    };
+    let Some(found_ty) = checked_arg_tys.get(arg_idx).copied() else {
+        return Ok(());
+    };
+    let is_effectively_pure = matches!(
+        lower.type_kind(found_ty),
+        TypeKind::Ref(RefTypeKind::Function(fun)) if fun.effects.is_pure()
+    );
+    if is_effectively_pure {
+        return Ok(());
+    }
+    Err(ExprTypeError::ThreadSpawnEntryMustBePure {
+        found: lower.fmt_type(found_ty),
+        span: call_args[arg_idx].expr.span.into(),
+    })
 }
 
 fn continuation_effect_row(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {

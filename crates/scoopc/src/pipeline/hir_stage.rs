@@ -3781,6 +3781,41 @@ fun use(xs: MyIterable) {
     }
 
     #[test]
+    fn static_initializer_handle_is_stage_error() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/static_initializer_handle.scoop",
+            r#"package sample
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+val Broken: Int = handle {
+    Ask.ask()
+} with {
+    Ask.ask() -> 1
+}
+
+fun main(): Int {
+    return Broken
+}
+"#,
+        );
+
+        let err = run(&session, &source)
+            .expect_err("top-level static initializer should reject Handle/state-machine forms");
+        let HirLowerError::Stage(err) = err else {
+            panic!("expected HIR stage error, got {err:?}");
+        };
+        assert_eq!(err.reason(), "static initializer Handle");
+        assert_eq!(err.owner(), "top-level val sample.Broken");
+        assert_eq!(err.source_path(), source.path());
+    }
+
+    #[test]
     fn refactor_hir_top_level_init_publishes_storage_and_extern_roots() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(

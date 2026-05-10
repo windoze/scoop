@@ -2989,45 +2989,6 @@ fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + s
         (materialized, facts)
     }
 
-    #[test]
-    fn class_ctor_hidden_object_init_raise_publishes_class_ctor_site_case() {
-        let source = SourceFile::new_virtual(
-            "<mem>/class_ctor_hidden_object_init_raise.scoop",
-            r#"
-import scoop.core.*
-
-object BoomObject {
-    init {
-        Raise.raise(RuntimeError.NullAssertionFailed)
-    }
-    val x: Int = 1
-}
-
-class Box() {
-    val x: Int = BoomObject.x
-}
-
-fun helper(): Int {
-    val _box: Box = Box()
-    return 0
-}
-"#,
-        );
-        let (_materialized, facts) = build_facts_for_source(source);
-        let (helper_key, helper_facts) = callable_facts_for(&facts, "helper");
-        assert!(
-            matches!(helper_facts.impl_plan(), ImplPlan::SingleCase(_)),
-            "helper 应通过 class ctor hidden init raise 发布 single-case outward facts: {helper_facts:?}"
-        );
-        let helper_body = facts.body(helper_key).expect("helper body facts 应存在");
-        let class_ctor_site = helper_body.sites().values().find_map(|site| match site {
-            SiteEffectFacts::ClassCtor(facts) => Some(facts),
-            _ => None,
-        });
-        let class_ctor_site = class_ctor_site.expect("helper 应发布 ClassCtor site facts");
-        assert_eq!(class_ctor_site.emitted_cases().tags().len(), 1);
-    }
-
     fn call_and_resume_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/effect_facts_call_sites.scoop",

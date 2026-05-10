@@ -2428,27 +2428,21 @@ fun main(): Int {
 }
 
 #[test]
-fn production_codegen_lowers_raw_mir_top_level_immutable_init_access() {
+fn production_codegen_lowers_raw_mir_top_level_immutable_init_access_without_effect_boundary() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/t5000j3a_top_level_immutable_init.scoop",
         r#"
 package fixtures.t5000j3a_top
 
-import scoop.core.*
+val Broken: Int = 7
 
-val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
-
-fun helper(): Int / Raise<RuntimeError> {
+fun helper(): Int {
     return Broken
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
     );
@@ -2490,42 +2484,38 @@ fun main(): Int {
         "production MIR bridge 应继续通过 top-level init helper 触发初始化:\n{helper_ir}"
     );
     assert!(
-        helper_ir.contains("@scoop_effect_outcome_consume_current")
-            && helper_ir.contains("@scoop_effect_outcome_publish")
+        !helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && !helper_ir.contains("@scoop_effect_outcome_publish")
             && !helper_ir.contains("@scoop_effect_is_active"),
-        "top-level immutable init access 经 production MIR 主线后仍应保持显式 outcome boundary，而不是退回 TLS probing:\n{helper_ir}"
+        "top-level immutable init access 不应再安装 outcome/TLS bridge:\n{helper_ir}"
     );
 }
 
 #[test]
-fn production_codegen_lowers_raw_mir_object_value_init_access() {
+fn production_codegen_lowers_raw_mir_object_value_init_access_without_effect_boundary() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/t5000j3a_object_value_init.scoop",
         r#"
 package fixtures.t5000j3a_obj
 
-import scoop.core.*
-
 object BoomObject {
     init {
-        Raise.raise(RuntimeError.NullAssertionFailed)
+        ping()
     }
 
     val marker: Int = 1
 }
 
-fun helper(): Int / Raise<RuntimeError> {
+fun ping() {}
+
+fun helper(): Int {
     val _obj = BoomObject
     return 7
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
     );
@@ -2567,10 +2557,10 @@ fun main(): Int {
         "production MIR bridge 应继续通过 object init helper 触发初始化:\n{helper_ir}"
     );
     assert!(
-        helper_ir.contains("@scoop_effect_outcome_consume_current")
-            && helper_ir.contains("@scoop_effect_outcome_publish")
+        !helper_ir.contains("@scoop_effect_outcome_consume_current")
+            && !helper_ir.contains("@scoop_effect_outcome_publish")
             && !helper_ir.contains("@scoop_effect_is_active"),
-        "object value init access 经 production MIR 主线后仍应保持显式 outcome boundary，而不是退回 TLS probing:\n{helper_ir}"
+        "object value init access 不应再安装 outcome/TLS bridge:\n{helper_ir}"
     );
 }
 
@@ -4942,7 +4932,10 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+    let helper_ir = function_ir_named_any(
+        &ir,
+        &["__scoop_refactor_direct_invoke__a_helper", "a.helper"],
+    );
 
     assert!(
         helper_ir.contains("load_vtable_fn")
@@ -5000,7 +4993,10 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+    let helper_ir = function_ir_named_any(
+        &ir,
+        &["__scoop_refactor_direct_invoke__a_helper", "a.helper"],
+    );
 
     assert!(
         helper_ir.contains("itable_lookup")
@@ -5020,125 +5016,109 @@ fun main(): Int {
 }
 
 #[test]
-fn object_value_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+fn object_value_init_access_stays_plain_without_effect_boundary() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
 package a
 
-import scoop.core.*
-
 object BoomObject {
     init {
-        Raise.raise(RuntimeError.NullAssertionFailed)
+        ping()
     }
 
     val marker: Int = 1
 }
 
-fun helper(): Int / Raise<RuntimeError> {
+fun ping() {}
+
+fun helper(): Int {
     val _obj = BoomObject
     return 7
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
     );
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+    let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("switch i32 %refactor_step_tag")
+        helper_ir.contains("@__scoop_object_init__a.BoomObject")
             && !helper_ir.contains("@scoop_effect_is_active")
             && !helper_ir.contains("scoop_effect_outcome")
             && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "object value init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
+        "object value init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
     );
 }
 
 #[test]
-fn object_property_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+fn object_property_init_access_stays_plain_without_effect_boundary() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
 package a
 
-import scoop.core.*
-
 object Holder {
-    val broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+    val broken: Int = 7
 }
 
-fun helper(): Int / Raise<RuntimeError> {
+fun helper(): Int {
     return Holder.broken
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
     );
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+    let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("switch i32 %refactor_step_tag")
+        helper_ir.contains("@__scoop_object_init__a.Holder")
             && !helper_ir.contains("@scoop_effect_is_active")
             && !helper_ir.contains("scoop_effect_outcome")
             && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "object property init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
+        "object property init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
     );
 }
 
 #[test]
-fn top_level_immutable_init_with_real_outward_effect_uses_explicit_outcome_boundary() {
+fn top_level_immutable_init_access_stays_plain_without_effect_boundary() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
 package a
 
-import scoop.core.*
+val Broken: Int = 7
 
-val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
-
-fun helper(): Int / Raise<RuntimeError> {
+fun helper(): Int {
     return Broken
 }
 
 fun main(): Int {
-    return try {
-        helper()
-    } catch (e: RuntimeError) {
-        11
-    }
+    return helper()
 }
 "#,
     );
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_helper");
+    let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("switch i32 %refactor_step_tag")
+        helper_ir.contains("@__scoop_top_level_val_init__a.Broken")
             && !helper_ir.contains("@scoop_effect_is_active")
             && !helper_ir.contains("scoop_effect_outcome")
             && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "top-level immutable init access 应改走 refactor Step boundary，而不是旧 TLS/outcome probing:\n{helper_ir}"
+        "top-level immutable init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
     );
 }
 

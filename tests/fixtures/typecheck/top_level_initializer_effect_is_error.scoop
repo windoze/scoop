@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::static_initializer_must_be_pure
+// EXPECT-ERROR: 顶层绑定 `Broken` 初始化器必须为 `Pure!`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val Broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)

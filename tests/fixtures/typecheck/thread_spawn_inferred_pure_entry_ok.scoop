@@ -1,0 +1,14 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.thread.*
+
+fun work() {}
+
+fun main(): Int / Pure! {
+    val entry = { work() }
+    val t = threadSpawn(entry)
+    t.join()
+    return 0
+}

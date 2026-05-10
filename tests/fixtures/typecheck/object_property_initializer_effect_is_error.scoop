@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::static_initializer_must_be_pure
+// EXPECT-ERROR: object `fixtures.typecheck.Holder` 属性 `broken` 初始化器必须为 `Pure!`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+object Holder {
+    val broken: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+}

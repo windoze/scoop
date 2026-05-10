@@ -26,7 +26,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let block_v = match &block_expr.kind {
             hir::ExprKind::Closure(closure) => {
                 // 说明：
-                // - `thread.spawn` 的参数类型在 sysroot 中固定为 `() -> Unit`；
+                // - `thread.spawn` 的参数类型在 sysroot 中固定为 `() -> Unit / Pure!`；
                 // - 与 `sync.Once.run` 一致：为了在 early stage 稳定 codegen，这里从 `TypeStore` 中
                 //   查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。
                 let expected_fun_ty = self.lookup_pure_unit_closure_type().ok_or(

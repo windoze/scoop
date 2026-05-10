@@ -6225,7 +6225,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables() {
+    fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_class_init_side_tables() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<t3014b>",
@@ -6233,12 +6233,6 @@ fun main(): Int {
 package fixtures.t3014b
 
 import scoop.core.*
-
-object BoomObject {
-    init {
-        Raise.raise(RuntimeError.NullAssertionFailed)
-    }
-}
 
 class BoomClass() {
     val x: Int = Raise.raise(RuntimeError.NullAssertionFailed)
@@ -6249,33 +6243,6 @@ fun main(): Int { return 0 }
         );
 
         let lowered = lower_typed_single_source_file(&sess, &source);
-
-        let object_init = lowered
-            .object_inits
-            .get("fixtures.t3014b.BoomObject")
-            .expect("应收集到 BoomObject 的 object init");
-        let object_block = match object_init.steps.as_slice() {
-            [ObjectInitStep::InitBlock { block }] => block,
-            steps => panic!("BoomObject init steps 形态不符合预期: {:?}", steps),
-        };
-        let object_stmt = match object_block.stmts.as_slice() {
-            [stmt] => stmt,
-            stmts => panic!("BoomObject init block 语句数不符合预期: {:?}", stmts),
-        };
-        let object_effect_ty = match &object_stmt.kind {
-            StmtKind::Expr(Expr {
-                kind: ExprKind::Perform { effect_ty, op, .. },
-                ..
-            }) => {
-                assert_eq!(op.fqn, "scoop.core.Raise.raise");
-                *effect_ty
-            }
-            other => panic!(
-                "BoomObject init 应 lower 为 Perform 语句，实际为 {:?}",
-                other
-            ),
-        };
-        assert_raise_runtime_error_effect_ty(&lowered.types, object_effect_ty);
 
         let class_init = lowered
             .class_inits

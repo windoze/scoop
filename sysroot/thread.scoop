@@ -17,8 +17,10 @@ class Thread
 /// 说明（early stage 语义约定）：
 /// - 当前阶段只要求 "spawn + join" 的最小 happy path 可回归；
 /// - 不做取消、优先级、thread-local 初始化顺序保证等更复杂语义；
-/// - `block` 当前仅保证支持“非捕获 lambda”（与 closure v0 ABI 对齐）。
-fun threadSpawn(block: () -> Unit): Thread
+/// - `block` 作为 OS 线程入口，必须在静态上等价于 `Pure!`；
+/// - 因此未显式写函数类型的纯 closure / 纯函数值也允许传入；
+/// - 当前仅保证支持“非捕获 lambda”（与 closure v0 ABI 对齐）。
+fun threadSpawn(block: () -> Unit / Pure!): Thread
 
 /// 等待该线程执行完成（join）。
 fun Thread.join(): Unit

@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::thread_spawn_entry_must_be_pure
+// EXPECT-ERROR: `scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.thread.*
+
+effect Boom {
+    fun ping(): Unit
+}
+
+fun main(): Int / Pure! {
+    val entry: () -> Unit / (Boom) = {
+        Boom.ping()
+    }
+    val t = threadSpawn(entry)
+    t.join()
+    return 0
+}

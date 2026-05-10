@@ -873,10 +873,10 @@ fn check_object_decl_init_exprs(
                     check_class_member_fun_body_exprs(object_shared, fun, lower)?;
                 }
                 ast::TypeMember::Property(p) => {
-                    check_object_property_initializer_exprs(shared, p, lower)?;
+                    check_object_property_initializer_exprs(shared, &obj_fqn, p, lower)?;
                 }
                 ast::TypeMember::InitBlock(b) => {
-                    check_object_init_block_exprs(shared, b, lower)?;
+                    check_object_init_block_exprs(shared, &obj_fqn, b, lower)?;
                 }
                 ast::TypeMember::Type(nested) => {
                     check_class_member_fun_bodies_in_type_decl(shared, nested, &obj_fqn, lower)?;
@@ -1160,55 +1160,67 @@ fn check_class_property_initializer_exprs(
 
 fn check_object_property_initializer_exprs(
     shared: FileExprShared<'_>,
+    owner: &str,
     p: &ast::PropertyDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
+    lower.begin_effect_collection();
     let source = shared.source;
     let builtins = shared.builtins;
-    if p.delegate.is_some() {
+    let result = (|| {
+        if p.delegate.is_some() {
+            let empty_locals = HashMap::new();
+            return check_standard_delegated_property_inline_exprs(
+                shared.stmt_shared(),
+                source,
+                p,
+                &empty_locals,
+                lower,
+            );
+        }
+
+        let Some(init) = &p.init else {
+            return Ok(());
+        };
+        let Some(ty_ref) = &p.ty else {
+            return Ok(());
+        };
+
+        let expected = lower.lower_type_ref(ty_ref)?;
         let empty_locals = HashMap::new();
-        return check_standard_delegated_property_inline_exprs(
-            shared.stmt_shared(),
-            source,
-            p,
-            &empty_locals,
+        let found = expr_infer_inputs(shared.stmt_shared(), &empty_locals).infer_in_expected(
             lower,
-        );
-    }
+            init,
+            expected,
+            ExpectedTypeFrom::new(format!(
+                "object property `{}` 的类型注解",
+                source.slice(p.name.span)
+            )),
+        )?;
 
-    let Some(init) = &p.init else {
-        return Ok(());
-    };
-    let Some(ty_ref) = &p.ty else {
-        return Ok(());
-    };
+        if is_type_assignable(found, expected, lower, builtins) {
+            check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
+            return Ok(());
+        }
 
-    let expected = lower.lower_type_ref(ty_ref)?;
-    let empty_locals = HashMap::new();
-    let found = expr_infer_inputs(shared.stmt_shared(), &empty_locals).infer_in_expected(
+        if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
+            return Ok(());
+        }
+
+        Err(ExprTypeError::InitializerTypeMismatch {
+            expected: lower.fmt_type(expected),
+            found: lower.fmt_type(found),
+            span: init.span.into(),
+        })
+    })();
+    let performed_effects = lower.finish_effect_collection();
+    result?;
+    reject_static_initializer_effects(
+        format!("object `{owner}` 属性 `{}`", source.slice(p.name.span)),
+        &performed_effects,
         lower,
-        init,
-        expected,
-        ExpectedTypeFrom::new(format!(
-            "object property `{}` 的类型注解",
-            source.slice(p.name.span)
-        )),
     )?;
-
-    if is_type_assignable(found, expected, lower, builtins) {
-        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
-        return Ok(());
-    }
-
-    if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
-        return Ok(());
-    }
-
-    Err(ExprTypeError::InitializerTypeMismatch {
-        expected: lower.fmt_type(expected),
-        found: lower.fmt_type(found),
-        span: init.span.into(),
-    })
+    Ok(())
 }
 
 fn check_standard_delegated_property_inline_exprs(
@@ -1466,9 +1478,11 @@ fn check_class_init_block_exprs(
 
 fn check_object_init_block_exprs(
     shared: FileExprShared<'_>,
+    owner: &str,
     b: &ast::InitBlockDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
+    lower.begin_effect_collection();
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
@@ -1480,7 +1494,7 @@ fn check_object_init_block_exprs(
         mutable_bindings: &mut mutable_bindings,
         comptime_bindings: &mut comptime_bindings,
     };
-    check_block_exprs(
+    let result = check_block_exprs(
         shared.stmt_shared(),
         &b.body,
         lower,
@@ -1490,8 +1504,14 @@ fn check_object_init_block_exprs(
             expected_return_ty: None,
             lambda_this_decl_span: None,
         },
+    );
+    let performed_effects = lower.finish_effect_collection();
+    result?;
+    reject_static_initializer_effects(
+        format!("object `{owner}` init block"),
+        &performed_effects,
+        lower,
     )?;
-
     Ok(())
 }
 
@@ -1648,47 +1668,53 @@ fn check_top_level_val_initializer(
     let Some(init) = &v.init else {
         return Ok(());
     };
-    let empty_locals = HashMap::new();
-    let declared_ty = match &v.ty {
-        Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
-        None => None,
-    };
-    let expected_from = match &v.binding {
-        ast::ValBinding::Name(name) => {
-            ExpectedTypeFrom::new(format!("顶层绑定 `{}` 的类型注解", source.slice(name.span)))
-        }
-        ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("顶层解构绑定的类型注解"),
-    };
-    let found = match declared_ty {
-        Some(expected) => ExprInferInputs {
-            source,
-            builtins,
-            locals: &empty_locals,
-            lambda_this_decl_span: None,
-            comptime_bindings: None,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities: None,
-            struct_field_types,
-            loop_depth: 0,
-            expected_return_ty: None,
-        }
-        .infer_in_expected(lower, init, expected, expected_from)?,
-        None => ExprInferInputs {
-            source,
-            builtins,
-            locals: &empty_locals,
-            lambda_this_decl_span: None,
-            comptime_bindings: None,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities: None,
-            struct_field_types,
-            loop_depth: 0,
-            expected_return_ty: None,
-        }
-        .infer(lower, init)?,
-    };
+    lower.begin_effect_collection();
+    let found_result = (|| {
+        let empty_locals = HashMap::new();
+        let declared_ty = match &v.ty {
+            Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
+            None => None,
+        };
+        let expected_from = match &v.binding {
+            ast::ValBinding::Name(name) => {
+                ExpectedTypeFrom::new(format!("顶层绑定 `{}` 的类型注解", source.slice(name.span)))
+            }
+            ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("顶层解构绑定的类型注解"),
+        };
+        let found = match declared_ty {
+            Some(expected) => ExprInferInputs {
+                source,
+                builtins,
+                locals: &empty_locals,
+                lambda_this_decl_span: None,
+                comptime_bindings: None,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities: None,
+                struct_field_types,
+                loop_depth: 0,
+                expected_return_ty: None,
+            }
+            .infer_in_expected(lower, init, expected, expected_from),
+            None => ExprInferInputs {
+                source,
+                builtins,
+                locals: &empty_locals,
+                lambda_this_decl_span: None,
+                comptime_bindings: None,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities: None,
+                struct_field_types,
+                loop_depth: 0,
+                expected_return_ty: None,
+            }
+            .infer(lower, init),
+        }?;
+        Ok::<_, ExprTypeError>((declared_ty, found))
+    })();
+    let performed_effects = lower.finish_effect_collection();
+    let (declared_ty, found) = found_result?;
 
     if let Some(expected) = declared_ty
         && !is_type_assignable(found, expected, lower, builtins)
@@ -1715,7 +1741,30 @@ fn check_top_level_val_initializer(
         }
     }
 
+    let owner = match &v.binding {
+        ast::ValBinding::Name(name) => {
+            format!("顶层绑定 `{}`", source.slice(name.span))
+        }
+        ast::ValBinding::Pattern(_) => "顶层解构绑定".to_string(),
+    };
+    reject_static_initializer_effects(owner, &performed_effects, lower)?;
+
     Ok(())
+}
+
+fn reject_static_initializer_effects(
+    owner: String,
+    performed_effects: &[(TypeId, Span)],
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let Some((effect, span)) = performed_effects.first().copied() else {
+        return Ok(());
+    };
+    Err(ExprTypeError::StaticInitializerMustBePure {
+        owner,
+        required: lower.fmt_type(effect),
+        span: span.into(),
+    })
 }
 
 /// 从类型声明的 `where_clause` 和 `type_params` 构建 `WhereBoundEntry` 列表（T0130）。

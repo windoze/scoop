@@ -722,15 +722,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .iter_ids()
             .find(|id| matches!(self.types.kind(*id), TypeKind::Value(ValueTypeKind::Unit)))?;
 
-        self.types.iter_ids().find(|id| match self.types.kind(*id) {
-            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => {
-                fun_ty.receiver.is_none()
-                    && fun_ty.params.is_empty()
-                    && fun_ty.return_ty == unit
-                    && fun_ty.effects.is_pure()
+        let mut fallback = None;
+        for id in self.types.iter_ids() {
+            let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(id) else {
+                continue;
+            };
+            if fun_ty.receiver.is_some()
+                || !fun_ty.params.is_empty()
+                || fun_ty.return_ty != unit
+                || !fun_ty.effects.is_pure()
+            {
+                continue;
             }
-            _ => false,
-        })
+            if fun_ty.effects_closed {
+                return Some(id);
+            }
+            fallback.get_or_insert(id);
+        }
+        fallback
     }
 }
 

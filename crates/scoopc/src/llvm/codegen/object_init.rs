@@ -49,21 +49,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
-        let effect_boundary = self.begin_effect_boundary(at, "object_property_init")?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
             Ok(())
         })?;
-        let outcome_slot =
-            self.finish_effect_boundary(at, effect_boundary, "object_property_init")?;
-        self.maybe_record_active_suspend_site_effect_outcome(at, outcome_slot);
-        if self.ordinary_effect_propagation_enabled() {
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                at,
-                outcome_slot,
-                "object_property_init_effect",
-            )?;
-        }
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
@@ -73,73 +62,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::unit());
         };
         let llvm_ty = self.llvm_basic_type_of(at, prop_cg)?;
-        if !self.ordinary_effect_propagation_enabled() {
-            let insert_block =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-            let func = insert_block
-                .get_parent()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no parent function",
-                    at: at.into(),
-                })?;
-            let active_bb = self
-                .context
-                .append_basic_block(func, "object_property_init_active");
-            let inactive_bb = self
-                .context
-                .append_basic_block(func, "object_property_init_inactive");
-            let merge_bb = self
-                .context
-                .append_basic_block(func, "object_property_init_merge");
-            let is_active = self.effect_outcome_is_propagating(
-                at,
-                outcome_slot,
-                "object_property_init_effect",
-            )?;
-            self.builder
-                .build_conditional_branch(is_active, active_bb, inactive_bb)?;
-
-            self.builder.position_at_end(active_bb);
-            let active_default = self.default_value(at, prop_cg)?;
-            self.builder.build_unconditional_branch(merge_bb)?;
-            let active_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-
-            self.builder.position_at_end(inactive_bb);
-            let loaded =
-                self.builder
-                    .build_load(llvm_ty, global.as_pointer_value(), "load_obj_prop")?;
-            self.builder.build_unconditional_branch(merge_bb)?;
-            let inactive_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-
-            self.builder.position_at_end(merge_bb);
-            let phi = self.builder.build_phi(llvm_ty, "object_property_access")?;
-            let active_raw = active_default
-                .value
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "object property active default",
-                    at: at.into(),
-                })?;
-            phi.add_incoming(&[(&active_raw, active_end), (&loaded, inactive_end)]);
-            return self.cg_value_from_loaded(at, prop_cg, phi.as_basic_value());
-        }
-
         let loaded =
             self.builder
                 .build_load(llvm_ty, global.as_pointer_value(), "load_obj_prop")?;
@@ -230,22 +152,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.begin_function_explicit_frame_layout(llvm_fun)?;
 
         let init_fn = self.ensure_object_init_function_defined(&obj.fqn)?;
-        let effect_boundary =
-            self.begin_effect_boundary(err_span, "refactor_hidden_object_init_bridge")?;
         self.with_conservative_gc_local_root_spills(err_span, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "object_init")?;
             Ok(())
         })?;
-        let outcome_slot = self.finish_effect_boundary(
-            err_span,
-            effect_boundary,
-            "refactor_hidden_object_init_bridge",
-        )?;
-        let outcome = self.builder.build_load(
-            self.llvm_effect_outcome_struct_type(),
-            outcome_slot,
-            "refactor_hidden_init_bridge_result",
-        )?;
+        let outcome = self.llvm_effect_outcome_struct_type().const_zero();
         self.builder.build_return(Some(&outcome))?;
         self.finish_function_explicit_frame_layout(err_span)?;
         Ok(())
@@ -501,89 +412,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
-        let effect_boundary = self.begin_effect_boundary(at, "object_init")?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
             Ok(())
         })?;
-        let outcome_slot = self.finish_effect_boundary(at, effect_boundary, "object_init")?;
-        self.maybe_record_active_suspend_site_effect_outcome(at, outcome_slot);
-        if self.ordinary_effect_propagation_enabled() {
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                at,
-                outcome_slot,
-                "object_init_effect",
-            )?;
-        }
 
         let instance = self.declare_object_instance_global(object_fqn);
-        if !self.ordinary_effect_propagation_enabled() {
-            let insert_block =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-            let func = insert_block
-                .get_parent()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no parent function",
-                    at: at.into(),
-                })?;
-            let active_bb = self.context.append_basic_block(func, "object_init_active");
-            let inactive_bb = self
-                .context
-                .append_basic_block(func, "object_init_inactive");
-            let merge_bb = self.context.append_basic_block(func, "object_init_merge");
-            let is_active =
-                self.effect_outcome_is_propagating(at, outcome_slot, "object_init_effect")?;
-            self.builder
-                .build_conditional_branch(is_active, active_bb, inactive_bb)?;
-
-            self.builder.position_at_end(active_bb);
-            let active_default = self.default_value(at, CgTy::Ref)?;
-            self.builder.build_unconditional_branch(merge_bb)?;
-            let active_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-
-            self.builder.position_at_end(inactive_bb);
-            let loaded = self.builder.build_load(
-                self.llvm_gc_i8_ptr_type(),
-                instance.as_pointer_value(),
-                "load_object_instance",
-            )?;
-            self.builder.build_unconditional_branch(merge_bb)?;
-            let inactive_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: at.into(),
-                    })?;
-
-            self.builder.position_at_end(merge_bb);
-            let phi = self
-                .builder
-                .build_phi(self.llvm_gc_i8_ptr_type(), "object_value_access")?;
-            let active_raw = active_default
-                .value
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "object init active default",
-                    at: at.into(),
-                })?;
-            phi.add_incoming(&[(&active_raw, active_end), (&loaded, inactive_end)]);
-            return Ok(CgValue {
-                ty: CgTy::Ref,
-                value: Some(phi.as_basic_value()),
-            });
-        }
-
         let loaded = self.builder.build_load(
             self.llvm_gc_i8_ptr_type(),
             instance.as_pointer_value(),
