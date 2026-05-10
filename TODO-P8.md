@@ -2,7 +2,7 @@
 
 > 生成时间：2026-05-02  
 > 设计基线：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md)  
-> 计划基线：[`PLAN.md`](./PLAN.md)  
+> 计划基线：[`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md)  
 > 前置条件：`TODO-P7.md` 已完整完成；refactor 路径已经是默认主线；标准 full regression 与 GC env 全开验证已在默认主线下通过；legacy 路径只剩显式 compare/rollback 入口。  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
 > 本阶段目标：删掉旧的 legacy effect/continuation 主线，实现真正收口；保证仓库中不再存在“默认靠新主线，但旧主线还悄悄救场”的隐藏依赖；在“只剩新主线”的前提下再次跑完整回归与 GC env 验证，证明新路径单独存在时仍完整通过。
@@ -11,7 +11,7 @@
 ## 全局约束
 
 - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 是本阶段唯一设计基线；若实现过程中需要改变主张，必须先回写该文档，再继续实现。
-- [`PLAN.md`](./PLAN.md) 与 [`TODO-P0.md`](./TODO-P0.md)、[`TODO-P1.md`](./TODO-P1.md)、[`TODO-P2.md`](./TODO-P2.md)、[`TODO-P3.md`](./TODO-P3.md)、[`TODO-P4.md`](./TODO-P4.md)、[`TODO-P5.md`](./TODO-P5.md)、[`TODO-P6.md`](./TODO-P6.md)、[`TODO-P7.md`](./TODO-P7.md) 是本阶段执行前提；P8 不得重新开启 P0-P7 已收敛的 selector / typed HIR / direct-style MIR / effect facts / late lowering / LLVM backend / GC/runtime 语义讨论。
+- [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) 与 [`TODO-P0.md`](./TODO-P0.md)、[`TODO-P1.md`](./TODO-P1.md)、[`TODO-P2.md`](./TODO-P2.md)、[`TODO-P3.md`](./TODO-P3.md)、[`TODO-P4.md`](./TODO-P4.md)、[`TODO-P5.md`](./TODO-P5.md)、[`TODO-P6.md`](./TODO-P6.md)、[`TODO-P7.md`](./TODO-P7.md) 是本阶段执行前提；P8 不得重新开启 P0-P7 已收敛的 selector / typed HIR / direct-style MIR / effect facts / late lowering / LLVM backend / GC/runtime 语义讨论。
 - 本阶段只做三件事：
   1. 删除旧 selector 分支与旧 effect/continuation 主线；
   2. 删除只服务旧主线的桥接 helper、旧 dump/fixture、旧测试/文档引用、以及只为 legacy 形状存在的适配层；
@@ -69,7 +69,7 @@
 ## [DONE] P8-T01：删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.11, §8
   - 前置实现参考：[`TODO-P0.md`](./TODO-P0.md) P0-T01 / P0-T02、[`TODO-P7.md`](./TODO-P7.md) P7-T01 / P7-T02
 - 目标：
@@ -164,7 +164,7 @@
 ## [DONE] P8-T01R：Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §8
   - [`TODO-P0.md`](./TODO-P0.md) P0-T01 / P0-T02
 - 重点：
@@ -208,7 +208,7 @@
 ## [DONE] P8-T02：删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.4, §5.5, §8
   - 前置实现参考：[`TODO-P5.md`](./TODO-P5.md) P5-T01~T07、[`TODO-P6.md`](./TODO-P6.md) P6-T01~T05
 - 目标：
@@ -302,7 +302,7 @@
 ## [DONE] P8-T02R：Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.16, §5.5, §8
 - 重点：
   - 是否真的删除了 legacy effect/state-machine 主线与 legacy LLVM effect backend；
@@ -342,7 +342,7 @@
 ## [DONE] P8-T03：清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §8
   - 前置实现参考：[`TODO-P7.md`](./TODO-P7.md) P7-T02 / P7-T04
 - 目标：
@@ -431,7 +431,7 @@
 ## [DONE] P8-T03R：Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §8
 - 重点：
   - docs/README/help/fixtures/test helpers 中是否已不再暴露 legacy 主线；
@@ -471,7 +471,7 @@
 ## [DONE] P8-T03aa：修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
   - 前置实现参考：[`TODO-P6-part2.md`](./TODO-P6-part2.md) P6-T02o、[`TODO-P7.md`](./TODO-P7.md) P7-T02V / P7-T02W
 - 术语约定：本节后文所说 default single-file path/stage/entry，现均指“默认 project 设置下、只含一个用户源文件的 virtual cone 路径”；自 2026-05-10 起它已与显式 cone build 共用 `crate::frontend` 的 parse/resolve/typecheck/request-root/entry-main 主线，不再代表独立“单文件前端/入口”。
@@ -539,7 +539,7 @@
 ## [DONE] P8-T03a：迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
   - 前置实现参考：[`TODO-P6-part3.md`](./TODO-P6-part3.md) P6-T03f / P6-T03g / P6-T05、[`TODO-P8.md`](./TODO-P8.md) P8-T01 / P8-T02 / P8-T03R
 - 术语约定：本任务中的“单文件 LLVM artifact 入口”现统一指“单用户源文件经 virtual cone 包装后的默认 `<file>` / `scoopc` artifact 路径”；frontend 侧已与显式 cone build 合并，本任务剩余工作仅是 LLVM artifact handoff 与默认 helper 的收口，不再存在独立“单文件前端/入口”实现。
@@ -640,7 +640,7 @@
 ## [DONE] P8-T03ab：消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8，§4
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.10-§4.16、§5.4、§5.5、§8
   - 前置实现参考：[`TODO-P7.md`](./TODO-P7.md) P7-T02W、[`TODO-P8.md`](./TODO-P8.md) P8-T03a
 - 背景 / blocker：
@@ -701,7 +701,7 @@
 ## [DONE] P8-T04：在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8，§3，§4
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8，§3，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 全文，重点 §4.10-§4.16、§5.4、§5.5、§8
 - 目标：
   - 在 legacy selector、legacy 主线实现、legacy compare 资产都已清理后的状态下，重跑完整回归矩阵；
@@ -774,17 +774,17 @@
   - 2026-05-10：执行 residual 搜索 `rg "legacy|old effect mainline|parallel pipeline|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|--effect-pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'` 后，未发现可执行 legacy selector、旧 effect/continuation 主实现，或主文档/主 fixtures/主测试索引上的已删除 `async` / `await` / `Task` surface。剩余命中仅包括：历史 TODO/PLAN/PIPELINE 文档记录、删除/负向测试断言、以及命名中带 `legacy` 的测试/fixture 名称与静态 IR 产物（如 `crates/scoop/target/fixtures/effect_refactor_no_legacy_handler_stack_calls.ll`）；这些均不再构成可执行旧主线或当前语法入口。
   - 结论：在仓库只剩 refactor 新主线的前提下，完整回归矩阵与 GC env 全开验证均已通过；P8 阶段的“删除旧主线并再次 full regression”目标已闭合。
 
-## P8-T04R：Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束
+## [DONE] P8-T04R：Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §2/P8，§3，§4
+  - [`PLAN-effect-refactor.md`](./PLAN-effect-refactor.md) §2/P8，§3，§4
   - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 全文
 - 重点：
   - legacy selector、legacy 主线实现、legacy compare 资产是否都已被删除或改写；
   - 完整回归与 GC env 全开矩阵是否在“只有新主线存在”的条件下通过；
   - 已删除 `async` / `await` / `Task` surface 是否已从主文档、主 fixtures 路径与主测试索引中清理干净；
   - residual `legacy` 命中是否都已被解释为安全的历史文本或负向删除测试，而不是隐藏依赖；
-  - 是否已经满足 `PLAN.md` §4 的最终完成标准第 10 条。
+  - 是否已经满足 `PLAN-effect-refactor.md` §4 的最终完成标准第 10、11 条。
 
 - 验证：
   - 重新运行 P8-T01 ~ P8-T04 的全部测试与命令；
@@ -802,4 +802,10 @@
   - 本轮 effect-refactor 工作结束。
 - 依赖：P8-T04
 - 完成记录：
-  - （执行时填写）
+  - 2026-05-10：复核 `TODO-P8.md` 时发现本阶段长期引用的计划文件已漂移：P8 实际对应的是 `PLAN-effect-refactor.md`，而不是当前仓库根的 `PLAN.md`。已把本文件中的 P8 / §4 引用统一修正到 `PLAN-effect-refactor.md`，并按其 §4 第 10、11 条作为本任务的 authoritative 退出标准：`full regression + GC env` 全通过，且旧主线已删除。
+  - 2026-05-10：按 review 要求重新执行了 P8-T01 ~ P8-T04 的验证集合。共享/重复命令按一次复验计入，包括：`cargo fmt`、`cargo test -p scoop cli`、`cargo test -p scoopc session`、`cargo test -p scoopc driver_cli`、`cargo test -p scoop --test p7_default_pipeline`、`cargo check -p scoopc --features llvm`、`cargo check -p scoopc --quiet`、`cargo check -p scoop --quiet`、`cargo test -p scoopc legacy_effect_backend_removed`、`cargo test -p scoopc single_effect_lowering_path`、`cargo test -p scoop legacy_pipeline_docs_removed`、`cargo test -p scoopc legacy_compare_harness_removed`、`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop`、`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/p8_t04r_single_pipeline.ll`、`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`。
+  - 2026-05-10：P8-T03aa / P8-T03a / P8-T03ab 的定向回归已重跑并通过，包括 nominal upcast boundary、default virtual-cone、hidden-init 与 raw-materialized 对照测试：`refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources`、virtual/interface outward helper、`default_single_file_ir_helper_lowers_handle_main_without_hir_fallback`、`single_file_frontend_keeps_distinct_effect_row_generic_instances`、`build_frontend_*`、`build_context_keeps_bare_file_input_as_virtual_cone_inside_cone_root`、`no_hidden_legacy_fallback_for_default_refactor_build_output`、`effect_contract_struct_types_are_registered_for_effect_codegen`、`direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome`、object/top-level hidden-init exact tests等。`scoopc <file>` / `scoopc --obj <file>` smoke 为避免污染 fixture 目录，使用了等价的显式 `-o` 临时路径：`/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/p8_t04r_scoopc_emit_llvm_basic.ll` 与 `.o`。
+  - 2026-05-10：重新执行并通过最终完整矩阵：`cargo test --all`（`790 passed`）；`cargo run -p scoop -- test`（`fixtures: ok (1270)`）；`cargo run -p scoop_tools -- spec-fixtures check`（`spec fixtures: ok (1)`）；`cargo clippy --all-targets -- -D warnings`；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (391)`）；`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (25)`）。
+  - 2026-05-10：重新执行 `P8-T04R` 指定的最小 smoke 与负向检查：`cargo run -p scoop -- build --emit-llvm tests/fixtures/build/emit_llvm_basic.scoop -o /var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/p8_t04r_final.ll`、`cargo run -p scoop -- run tests/fixtures/run-pass/minimal_main.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/minimal_main.scoop`（`fixtures: ok (1)`），以及 `cargo run -p scoop -- --effect-pipeline legacy test --fixtures tests/fixtures/run-pass/minimal_main.scoop`，结果为 clap 稳定失败：`unexpected argument '--effect-pipeline' found`。
+  - 2026-05-10：residual 搜索结论与 P8 退出条件一致。广义搜索 `rg "legacy|old effect mainline|parallel pipeline|state_machine_bridge|state_machine_emitter|UnifiedHandleLoweringContract|production_lowered_hir|legacy_eager_hir|--effect-pipeline|async fun|Async\.await|Task<|std_task_|async_await_" . --glob '!docs/archive/**' --glob '!target/**'` 的剩余命中可归为四类：历史 `TODO*` / `PLAN*` 记录；历史/设计文档（如 `ASYNC_REFACTOR.md`、`CONTINUATION_RUNTIME_REFACTOR.md`、`ROOT_FRAME_REFACTOR.md`、`PIPELINE_GAPS.md`、`EFFECT_REFACTOR_BOUNDARY_INVENTORY.md`）；负向删除守护与诊断文本；以及说明“已移除 async/task surface”或“legacy shorthand 已移除”的现行规范/错误文本。进一步排除 `TODO*.md`、`PLAN*.md`、`memory/**` 的 live-path 搜索后，未发现可执行 legacy selector、旧 effect/continuation 主实现、主文档/主 fixtures 路径/主测试索引上的已删除 `async` / `await` / `Task` surface，或 default path 上的 hidden legacy fallback。
+  - 2026-05-10：review 结论：`PLAN-effect-refactor.md` §4 第 10 条（新默认主线下 full regression 与 GC env 全通过）与第 11 条（旧主线已删除且不再残留隐藏依赖）均已满足；P8 阶段目标闭合，仓库已真正收口到单一 refactor 新主线，本轮 effect-refactor 工作结束。
