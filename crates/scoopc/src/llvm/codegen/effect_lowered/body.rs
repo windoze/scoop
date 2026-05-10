@@ -9893,8 +9893,6 @@ mod tests {
         assert!(body.contains("RefactorContinuationSurfaceResumeLayout"));
         assert!(body.contains("RefactorDynamicInvokeLayout"));
         assert!(!body.contains(concat!("emit_extern_", "native_call")));
-        assert!(!body.contains(concat!("scoop_effect_", "handler_stack")));
-        assert!(!body.contains(concat!("scoop_effect_", "outcome")));
     }
 
     #[test]

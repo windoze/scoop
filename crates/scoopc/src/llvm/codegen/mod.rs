@@ -75,7 +75,6 @@ mod class_ctor;
 mod closure;
 mod composite_transport;
 mod control_flow;
-mod effect;
 mod effect_lowered;
 mod enum_lowering;
 mod expr;
@@ -489,7 +488,7 @@ pub(super) struct EffectOpTagState {
 impl EffectOpTagState {
     pub(super) fn new() -> Self {
         let mut map = HashMap::new();
-        // Raise.raise 固定为 1（与 runtime `scoop_continuation_resume_u64` 等约定兼容）。
+        // Raise.raise 固定为 1。
         map.insert("scoop.core.Raise.raise".to_string(), 1u32);
         Self { map, next: 2 }
     }

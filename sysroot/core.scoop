@@ -258,27 +258,6 @@ struct GcHandle(val raw: UIntPtr)
 // 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
 struct Pinned(val value: Any)
 
-// Effect runtime（测试辅助）。
-//
-// 说明：
-// - 该组 API 仅用于回归 effect lowering/codegen 与 runtime ABI（TODO T0613+）；
-// - 它们映射到 runtime 的 C 符号（`scoop_effect_*`），并不承诺稳定的用户态 API；
-// - `opTag/payload` 的语义将在后续 lowering 中固定；当前阶段只要求"可读写可观测"。
-fun __scoop_effect_is_active(): Int
-fun __scoop_effect_set_active(): Unit
-fun __scoop_effect_clear(): Unit
-
-// perform slot v0：单 word 载荷（兼容 T0613）。
-fun __scoop_effect_slot_write(opTag: Int, effectInstanceKey: Int, value: Int): Unit
-fun __scoop_effect_slot_read_op_tag(): Int
-fun __scoop_effect_slot_read_effect_instance_key(): Int
-fun __scoop_effect_slot_read_value(): Int
-
-// perform slot v1：多 word 载荷（TODO T0630）。
-fun __scoop_effect_slot_write2(opTag: Int, effectInstanceKey: Int, word0: Int, word1: Int): Unit
-fun __scoop_effect_slot_read_len_words(): Int
-fun __scoop_effect_slot_read_word(index: Int): Int
-
 // Compile-time metadata（spec §6.4 / §10.4）。
 //
 // 说明：

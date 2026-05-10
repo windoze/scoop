@@ -1,40 +1,51 @@
-# Claude Plan
+# 执行计划
 
-## Planning Note
+## 说明
+- 不记录逐字的内部推理；这里保留可审计的执行摘要、决策依据和步骤计划。
+- 本次目标是严格按 `TODO.md` 顺序完成第一个未标记为 `[DONE]` 的任务，然后停止。
 
-按你的要求，我先记录执行计划。出于安全与协作边界，我不会写出逐字的内部推理过程，但会持续维护一份完整、可检查的执行计划、关键判断、阻塞点和进度更新。
+## 初始计划
+1. 读取 `TODO.md`，定位第一个未完成任务，并确认其要求、依赖、验证方式、完成记录格式。
+2. 检查最近一次提交信息是否直接提到该任务相关的未完成事项；如果这是当前任务的直接组成部分或前置条件，则纳入本次处理范围。
+3. 阅读与该任务直接相关的代码、测试、文档，仅收集完成当前任务所需的最小上下文，避免无关排查。
+4. 判断当前任务是否可直接完整落地：
+   - 若可以，按最小正确改动实现。
+   - 若存在阻塞当前任务的真实缺口或规格不匹配，则先在 `TODO.md` 中加入最小必要前置任务并调整顺序，再停止。
+5. 实现改动后，运行该任务要求的验证与必要的相关测试；若失败，立即修复并重新验证。
+6. 更新文档：
+   - 在 `TODO.md` 中把已完成任务标题改为 `[DONE]` 前缀，并补充完成记录。
+   - 仅当阶段计划确实变化时才更新 `PLAN.md`。
+   - 在本文件补充关键进展、计划变更与验证结果。
+7. 按仓库约定创建一次 git 提交，提交信息包含任务编号。
+8. 停止，不继续下一个任务。
 
-## Initial Execution Plan
-
-1. 读取 `TODO.md`，确认第一个标题未标记 `[DONE]` 的任务。
-2. 检查最近提交信息，判断是否存在与该任务直接相关且明确未完成的问题；若存在，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
-3. 阅读当前任务引用的相关代码、测试、规范和文档，只聚焦完成该任务所需的范围，不做开放式历史问题清扫。
-4. 判断该任务是否可以按原样一次完成；只有在存在真实前置依赖缺失或阻塞问题时，才在 `TODO.md` 中最小化拆分或插入前置任务。
-5. 实现当前任务所需修改，保持改动最小且符合既有代码风格。
-6. 运行该任务要求的验证，以及受影响范围内必要的测试、格式化、lint 与构建检查；若失败则继续修复直到通过，或确认存在阻塞。
-7. 更新 `memory/claude_plan.md`，记录关键进展、计划变化、验证结果和任何阻塞结论。
-8. 若任务完成：
-   - 在 `TODO.md` 中将该任务标题前缀改为 `[DONE]`
-   - 更新该任务 completion record
-   - 仅在阶段计划确实变化时更新 `PLAN.md`
-9. 若任务无法按规范完成且存在真实阻塞：
-   - 保持当前任务未完成
-   - 在 `TODO.md` 中插入最小必要前置任务并明确依赖顺序
-   - 仅在阶段级依赖变化时更新 `PLAN.md`
-10. 按仓库提交风格创建一次 git commit，提交本次任务完成结果或阻塞调整结果，然后停止，不进入下一个任务。
-
-## Progress Log
-
-- 已创建本计划文件，下一步将读取 `TODO.md` 确认首个未完成任务。
-- 已读取 `TODO.md`，确认首个未完成任务为 `TODO-P8.md` 中的 `P8-T04R`（`Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束`）。
-- 已检查最新提交 `333e2a2 [P8-T04] Close final single-pipeline regression matrix`；提交信息未额外声明与 `P8-T04R` 直接相关的未完成 issue。
-- 当前执行策略更新：`P8-T04R` 属于 review 任务，将重点复核 `TODO-P8.md` 中 P8-T01 ~ P8-T04 的验证要求是否仍可在“只有新主线存在”的前提下通过，并补充最小 smoke / 负向检查与 residual 搜索摘要。
-- 下一步：读取 `TODO-P8.md` 中 P8-T01 ~ P8-T04 的验证条目，整理需要重跑的命令集合，然后开始执行验证。
-- 额外发现：`TODO-P8.md` 中对 `PLAN.md` 的 P8/§4 第 10 条引用已失真；仓库中实际承载 effect-refactor 阶段计划的是 `PLAN-effect-refactor.md`，且其 §4 第 10/11 条正对应本任务需要复核的 full regression 与“旧主线已删除”标准。若验证通过，收尾时需最小修正该文档引用，避免 final review 继续指向错误计划文件。
-- 已完成定向验证阶段：P8-T01/T01R、P8-T02/T02R、P8-T03/T03R、P8-T03aa、P8-T03a、P8-T03ab 所要求的核心测试、CLI negative check、selector/backend/docs residual 搜索、default virtual-cone 与 hidden-init LLVM 回归均已重新执行并通过。
-- 执行细节说明：为避免把 `scoopc <file>` / `scoopc --obj <file>` 的默认输出写回 fixture 目录，本次 review 以等价的显式 `-o` 临时路径重跑了这两条 smoke；验证的入口与 code path 不变，仍是默认 virtual-cone artifact 路径。
-- 下一步：执行 P8-T04 的完整 full regression 矩阵（含 GC env），再补跑 P8-T04R 指定的最小 smoke 和负向检查。
-- 已完成 P8-T04 完整矩阵复验：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo clippy --all-targets -- -D warnings`、GC stress `run-pass` 与 `runtime_gc` 均通过；结果分别为 `790 passed`、`fixtures: ok (1270)`、`spec fixtures: ok (1)`、`fixtures: ok (391)`、`fixtures: ok (25)`。
-- 已完成 P8-T04R 额外最小 smoke 与负向检查：默认 `build/run/test` smoke 通过；`--effect-pipeline legacy` 负向检查稳定失败，确认 selector 没有回流。
-- 已完成收尾文档更新：`TODO-P8.md` 已把失真的 `PLAN.md` 引用修正为 `PLAN-effect-refactor.md`，并把 `P8-T04R` 标记为完成；`TODO.md` 索引也已同步标记 `[DONE]`。
-- 当前结论：effect-refactor 主线任务链已全部完成；下一步仅剩按任务要求提交当前结果并创建 `v0.1.0` 标签。
+## 进度记录
+- 已创建本计划文件。
+- 已读取 `TODO.md`，确认首个未完成任务为 `G0-T01：硬删除后的物理残余清场，恢复“最小一致破坏状态”`。
+- 下一步：检查最近提交信息与当前工作区状态，确认是否存在与 `G0-T01` 直接相关的未完成续作或未提交恢复现场；随后仅阅读该任务直接涉及的代码与测试位置。
+- 已检查最近提交：`5701ba08 [REFACTOR] Keep LLVM emit on the stage-owned MIR path`，未显式声明与 `G0-T01` 直接绑定的 unfinished issue。
+- 已检查工作区：存在大量与 effect refactor 相关的未提交改动，视为当前现场的一部分，不回退；本次只在 `G0-T01` 直接涉及的位置上继续收口。
+- 已完成定点阅读：
+  - `runtime/c/scoop_runtime.c` 315-384 一带仍残留已删类型的 `_Static_assert`、handler-stack 注释与孤立类型定义；
+  - `scoop_alloc` 在 `scoop_runtime.c` 中被先用后定义，缺少中性前置声明；
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/{value,body}.rs` 仍有少量“旧名字”测试断言文本；
+  - `runtime/c/scoop_test.c`、`crates/scoopc/src/effect_facts/builder.rs`、`sysroot/core.scoop` 目标残余在当前工作区中已基本清理。
+- 计划中的最小改动：
+  1. 删除 `runtime/c/scoop_runtime.c` 的已删类型断言/注释/孤立 handler-stack 结构残余，并补回 `scoop_alloc` 前置声明；
+  2. 把活跃测试中的旧名字断言替换成不依赖 legacy 名称的目标 surface 验证；
+  3. 运行 grep、`cargo check -p scoop_runtime`、`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`；
+  4. 若验证通过，更新 `TODO.md` 完成记录并提交。
+- 已完成代码编辑：
+  - `runtime/c/scoop_runtime.c`：删除已删 `ScoopEffectPerformSlot` / `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectHandlerFrame` 残余断言与孤立 handler-stack 段落；补回 `scoop_alloc` 中性前置声明；
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`：把旧桥名字负向断言替换为对 `scoop_runtime_init` 的正向 IR 验证；
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/{value,body}.rs`：移除围绕旧桥名字的源码审计断言，保留其余 refactor 边界检查。
+- 下一步：执行 grep 与编译/静态检查，确认剩余失败是否已切换为 TODO 预期的 architecture gap。
+- 已补充清理：删除 `runtime/c/scoop_runtime.c` 中当前不再被任何路径引用的 GC stress / immix helper 尾巴，使 `scoop_runtime` 回到 warning-free 的最小一致状态。
+- 验证结果：
+  - 针对 `crates/scoopc/src`、`runtime/c`、`sysroot` 的旧 TLS/bridge 符号 grep：无命中；
+  - `cargo check -p scoop_runtime`：通过；
+  - `cargo clippy -p scoop_runtime --all-targets -- -D warnings`：通过；
+  - `cargo check -p scoopc`：仍失败，但错误集中在 G1/G2/G4/G5 对应的缺失 helper / ABI / lowering contract，不再由物理残余主导。
+- 已回写 `TODO.md`：`G0-T01` 标记为 `[DONE]`，并记录改动范围、核心决策、验证结果与消除的 gap。
+- 已检查当前 worktree：除本次补做的清场外，还保留一批与同轮 hard-delete/refactor 直接相关的未提交改动（legacy effect/call 模块删除、验证面迁移、任务文档落地等）。按用户给定的“若为失败恢复现场则提交所有当前未提交文件”规则，本次提交将整体纳入这些现有改动，避免把 `G0-T01` 留在半提交状态。
+- 下一步：按任务号创建一次覆盖当前未提交状态的提交，然后停止。

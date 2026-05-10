@@ -1,156 +1,667 @@
-# TODO 索引
+# TODO（Effect Refactor Target-Shape 重建）
 
-> 这是任务索引文件。仅列出任务 `id`、所在文件和任务标题。  
-> 具体任务描述、实现要求、约束、验证条件与完成条件，请查阅对应的 `TODO-Px.md` 文件。
-> 2026-05-09 更新：语言层 `async` / `await` / `Task` 等语法成分已移除。索引中已完成历史条目若仍出现这些名字，仅表示当时的 blocker / 实现背景，不代表当前主线仍保留对应 surface；剩余未完成任务已按该前提更新。
+> 生成时间：2026-05-11  
+> 设计基线：[`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md)  
+> 缺口基线：[`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md)  
+> continuation/runtime 补充：[`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md)  
+> 计划基线：[`PLAN.md`](./PLAN.md)  
+> 格式参考：[`TODO-P0.md`](./TODO-P0.md)  
+> 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
+> 当前状态：旧 continuation/effect TLS 语义已经被硬删除；本文件的任务不是“恢复旧桥”，而是按目标形态把单一 effect pipeline 重新接通。
 
-| ID | 文件 | 标题 |
-| --- | --- | --- |
-| `P0-T01` | `TODO-P0.md` | [DONE] 建立新旧主线共享的 CLI / Session pipeline selector |
-| `P0-T01R` | `TODO-P0.md` | [DONE] Review CLI / Session selector，确认新主线入口对两端一致且默认行为稳定 |
-| `P0-T02` | `TODO-P0.md` | [DONE] 建立并行 pipeline dispatcher 壳层，禁止新路径直接侵入旧业务模块 |
-| `P0-T02R` | `TODO-P0.md` | [DONE] Review 并行 dispatcher 壳层，确认没有把新旧业务逻辑混写在一起 |
-| `P0-T03` | `TODO-P0.md` | [DONE] 建立“共享模块 vs 复制实现”边界清单，并把它固化为仓库文档 |
-| `P0-T03R` | `TODO-P0.md` | [DONE] Review 边界清单，确认后续实现不会再靠临时判断混线 |
-| `P0-T04` | `TODO-P0.md` | [DONE] 建立 P0 baseline parity 验证矩阵，锁定“新路径壳层不改变旧语义” |
-| `P0-T04R` | `TODO-P0.md` | [DONE] Review baseline parity 与 P0 退出条件 |
-| `P1-T01` | `TODO-P1.md` | [DONE] 建立 refactor AST stage 专用入口与阶段输出类型 |
-| `P1-T01R` | `TODO-P1.md` | [DONE] Review AST stage 入口与 handoff 类型，确认 parser 仍是中立共享模块 |
-| `P1-T02` | `TODO-P1.md` | [DONE] 锁定 continuation/resume 与单一 `Unit` 参数调用的 AST 形状 |
-| `P1-T02R` | `TODO-P1.md` | [DONE] Review surface parse contract，确认 continuation / `Unit` sugar 仍是普通调用语法 |
-| `P1-T03` | `TODO-P1.md` | [DONE] 建立 AST -> HIR handoff contract，并锁定 refactor AST stage parity |
-| `P1-T03R` | `TODO-P1.md` | [DONE] Review P1 阶段退出条件，确认可以进入 HIR / typecheck 新路径 |
-| `P2-T01` | `TODO-P2.md` | [DONE] 建立 refactor typed HIR stage 入口，并让 `dump-hir` 新路径不再调用 legacy `lower_for_dump` |
-| `P2-T01R` | `TODO-P2.md` | [DONE] Review refactor typed HIR stage，确认新路径已从 legacy `lower_for_dump` 分离 |
-| `P2-T02` | `TODO-P2.md` | [DONE] 对齐 `Continuation` surface contract，并把单一 `Unit` 参数 sugar 落到 typed 阶段 |
-| `P2-T02R` | `TODO-P2.md` | [DONE] Review `Continuation` surface 与 typed sugar，确认零参 sugar 没有污染 AST 和 parser |
-| `P2-T03` | `TODO-P2.md` | [DONE] 落地 `Continuation` typed 语义、runtime error 的普通 effect 传播，以及 compiler-owned interface 约束 |
-| `P2-T03R` | `TODO-P2.md` | [DONE] Review continuation typed 语义，确认没有残留隐藏通道或 legacy 魔法 |
-| `P2-T04` | `TODO-P2.md` | [DONE] 输出 typed HIR effect/continuation side tables，并锁定 `dump-hir` / typecheck 验证矩阵 |
-| `P2-T04R` | `TODO-P2.md` | [DONE] Review P2 阶段退出条件，确认 P3 不再需要回 AST/typecheck 猜语义 |
-| `P3-T01` | `TODO-P3.md` | [DONE] 建立 refactor direct-style MIR stage 入口与显式 stage 输出，切断 `dump-mir` 对 legacy `mir::lower_for_dump` 的依赖 |
-| `P3-T01R` | `TODO-P3.md` | [DONE] Review refactor MIR stage 入口，确认新路径已与 legacy `mir::lower_for_dump` 分离 |
-| `P3-T02` | `TODO-P3.md` | [DONE] 把 P2 typed contract 下沉到 direct-style MIR，停止基于 span / 名字 / HIR fallback 猜测 `Call / Perform / Resume / Handle` 语义 |
-| `P3-T02R` | `TODO-P3.md` | [DONE] Review direct-style MIR contract，下沉信息是否已足够并且不再依赖 span / 名字猜测 |
-| `P3-T03` | `TODO-P3.md` | [DONE] 显式化 boundary 所在的 CFG / cleanup / evaluation context，并为 `SiteId` 与 refactor MIR 形状建立 verifier |
-| `P3-T03R` | `TODO-P3.md` | [DONE] Review CFG / cleanup / `SiteId` invariants，确认 refactor MIR 已经语义闭包 |
-| `P3-T04` | `TODO-P3.md` | [DONE] 建立 refactor 专属 `dump-mir` snapshot / golden 矩阵，并冻结 P3 -> P4 的 MIR handoff contract |
-| `P3-T04R` | `TODO-P3.md` | [DONE] Review P3 阶段退出条件，确认 P4 可以只消费 MIR 而不回 HIR |
-| `P4-T01` | `TODO-P4.md` | [DONE] 建立 refactor effect-facts stage 与独立 side-table 子系统边界 |
-| `P4-T01R` | `TODO-P4.md` | [DONE] Review facts stage 边界，确认没有把新 facts 混进 legacy `effect` / `summary` / `ProgramFacts` |
-| `P4-T02` | `TODO-P4.md` | [DONE] 落地 schema identity、canonical schema pool 与 callable-level facts 壳层 |
-| `P4-T02R` | `TODO-P4.md` | [DONE] Review schema pool 与 callable facts，确认 identity 和 case contract 已经固定 |
-| `P4-T02a` | `TODO-P4.md` | [DONE] 修复 canonical materialized MIR pass-view 对普通非泛型 callable body 的发布，确保 P4 能在稳定 `InstanceKey` 键空间上看到 request-root / caller body |
-| `P4-T02aR` | `TODO-P4.md` | [DONE] Review canonical pass-view 对 ordinary callable body 的发布结果，确认 P4 不再需要 raw/fallback 键空间 |
-| `P4-T03` | `TODO-P4.md` | [DONE] 构建 `BodyEffectFacts` / `SiteEffectFacts` 与 local-case 结构化分析 |
-| `P4-T03R` | `TODO-P4.md` | [DONE] Review body/site facts，确认 contract 已经闭包且不再依赖 HIR/span 推断 |
-| `P4-T04` | `TODO-P4.md` | [DONE] 实现 `resolved_outward_cases` SCC/dataflow 求解，并完成 `needs_reentry` / `impl_plan` / final block facts 回填 |
-| `P4-T04R` | `TODO-P4.md` | [DONE] Review solver / widening / `impl_plan`，确认求解结果完全由 facts 驱动 |
-| `P4-T05` | `TODO-P4.md` | [DONE] 新增 `dump-effect-facts` / snapshot 基线，并冻结 P4 -> P5 handoff contract |
-| `P4-T05R` | `TODO-P4.md` | [DONE] Review P4 阶段退出条件，确认 P5 可以只消费 MIR + facts 完成 lowering 决策 |
-| `P4-T05a` | `TODO-P4.md` | [DONE] 把 compiler-generated continuation 的 one-shot runtime error 纳入 canonical `StepSchema` / facts handoff |
-| `P4-T05b` | `TODO-P4.md` | [DONE] 修正 `ContinuationSchema.surface_ty` 与 `out_step_schema` 的 contract 边界，避免把 one-shot runtime-error 上界并入 `Continuation` effect 参数 |
-| `P4-T06` | `TODO-P4.md` | [DONE] 为 `NoOutward` 发布 plain callable ABI 合同，停止强制为 pure body 建 `StepSchema` |
-| `P5-T01` | `TODO-P5.md` | [DONE] 建立 refactor late-lowering stage 与独立 late-lowered representation 边界 |
-| `P5-T01R` | `TODO-P5.md` | [DONE] Review late-lowering stage 边界，确认新路径没有借壳 legacy `effect/state_machine` 或 LLVM backend |
-| `P5-T02` | `TODO-P5.md` | [DONE] 定义 late-lowered representation 的最终目标形状，包括 version key、state graph、frame schema、`Step` / continuation carrier 壳层 |
-| `P5-T02R` | `TODO-P5.md` | [DONE] Review late-lowered representation，确认 version key / `Step` / continuation carrier 已按最终形态固定 |
-| `P5-T03` | `TODO-P5.md` | [DONE] 依据 `MaterializedEffectFacts` 实现 boundary 选择与 whole-function segmentation，产出 owner-state / resume-state 骨架 |
-| `P5-T03R` | `TODO-P5.md` | [DONE] Review segmentation 骨架，确认 boundary 识别与 owner/resume 状态只由 facts 驱动 |
-| `P5-T04` | `TODO-P5.md` | [DONE] 实现 frame lifting，以及 `return` / `break` / `continue` / `finally` / cleanup / dropped continuation 的显式状态机合同 |
-| `P5-T04a` | `TODO-P5.md` | [DONE] 为 frame lifting 建立稳定的 MIR local 来源分类，避免把源码 `tmp*` local 误判为 compiler temporary |
-| `P5-T04R` | `TODO-P5.md` | [DONE] Review frame lifting 与控制流合同，确认没有残留 direct-style 隐式语义或错误的 dropped-continuation 行为 |
-| `P5-T04b` | `TODO-P5.md` | [DONE] 对齐 late lowering 对 `ContinuationSchema.surface_ty` / `out_step_schema` 的消费边界，避免在 continuation 物化时重新引入 surface-row 漂移 |
-| `P5-T05` | `TODO-P5.md` | [DONE] 物化 `Step_F` enum、canonical dynamic `invoke`、continuation object、internal resume interfaces，并按 `ImplPlan` 完成 boundary lowering |
-| `P5-T05R` | `TODO-P5.md` | [DONE] Review `Step` / continuation 物化结果，确认没有第二套 ABI、没有 TLS 依赖、没有删减接口方法 |
-| `P5-T06` | `TODO-P5.md` | [DONE] 在 late-lowered representation 上加入窄的 devirtualization / inlining / DCE 后处理 |
-| `P5-T06R` | `TODO-P5.md` | [DONE] Review late-lowered 后处理，确认它只做抽象层收缩，不重新回到高层 effect 分析 |
-| `P5-T07` | `TODO-P5.md` | [DONE] 新增 `dump-effect-lowered` / snapshot 基线，并冻结 P5 -> P6 handoff contract |
-| `P5-T07R` | `TODO-P5.md` | [DONE] Review P5 阶段退出条件，确认 P6 只需把 late-lowered representation 翻译到 LLVM |
-| `P5-T07a` | `TODO-P5.md` | [DONE] 修正 pure caller 经 call boundary 消费 compiler-generated runtime-error case 时的 late-lowering case 投影，保证 P5 -> P6 handoff 可用于 P6-T03 验证 |
-| `P5-T07b` | `TODO-P5.md` | [DONE] 清理 P5 late-lowered handoff 的 resume contract 主次关系，固定 per-op/per-schema authoritative 表达 |
-| `P5-T08` | `TODO-P5.md` | [DONE] 让 `NoOutward` 在 late-lowered handoff 中保持 plain callable，不物化 `Step` / continuation / state-machine 壳 |
-| `P6-T01` | `TODO-P6-part1.md` | [DONE] 建立 refactor LLVM codegen stage 入口，并让 `build` / `run` / `--emit-llvm` 新路径不再回落到 `production_lowered_hir` |
-| `P6-T01a` | `TODO-P6-part1.md` | [DONE] 为 refactor LLVM stage 建立 fail-fast 守卫，禁止 effectful lowering 静默回落到 legacy handler-stack / `EffectOutcome` backend |
-| `P6-T01R` | `TODO-P6-part1.md` | [DONE] Review LLVM stage 入口，确认 refactor 路径已与 legacy `production_lowered_hir` / old effect backend 分离 |
-| `P6-T01b` | `TODO-P6-part1.md` | [DONE] 扩展 refactor build/LLVM handoff 的 ABI 可见性，保证 P6-T02 build fixtures 能在不触发 legacy lowering 的前提下观察 effectful `Step` / continuation 形状 |
-| `P6-T02` | `TODO-P6-part1.md` | [DONE] 把 P5 的 `Step` / frame / continuation / resume-interface 合同下沉到 LLVM type/layout lowering |
-| `P6-T02a` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 严格消费 P5 发布的 resume-interface contract，禁止在 P6 现场补造 interface identity |
-| `P6-T02b` | `TODO-P6-part1.md` | [DONE] 让 refactor LLVM ABI materializer 对 authoritative resume-interface method completeness fail fast，禁止接受缺失 method 的 published shell |
-| `P6-T02R` | `TODO-P6-part1.md` | [DONE] Review LLVM type/layout 合同，确认 canonical `Step_F`、frame、continuation ABI 已固定且不再依赖 legacy signal/outcome 模型 |
-| `P6-T02c` | `TODO-P6-part1.md` | [DONE] 发布 continuation surface-resume ABI/query contract，禁止 P6-T03 在 backend 现场猜测 `resume(...)` 入口 |
-| `P6-T02d` | `TODO-P6-part1.md` | [DONE] 发布 canonical dynamic-invoke callable-object ABI/query contract，禁止 P6-T03 在 backend 现场猜测 indirect call 入口 |
-| `P6-T02e` | `TODO-P6-part1.md` | [DONE] 发布 pure caller call boundary 本地消费 compiler-generated runtime-error case 的 lowering contract，禁止 P6-T03 在 backend 现场发明传播路径 |
-| `P6-T02f` | `TODO-P6-part1.md` | [DONE] 发布 straight-line source-slice 非 boundary dynamic call 的 callable-object ABI/query contract，禁止 P6-T03 在 body emitter 现场回落旧 callable wrapper |
-| `P6-T02g` | `TODO-P6-part1.md` | [DONE] 发布 callable carrier -> canonical dynamic entry 的 refactor contract，确保 closure/vtable/itable 不再指向 legacy 调用 ABI |
-| `P6-T02h` | `TODO-P6-part1.md` | [DONE] 发布 `LocalRuntimeError` synthetic terminal state 的 authoritative lowering contract，禁止 P6-T03 在 backend 现场发明 pure caller runtime-error 的结束路径 |
-| `P6-T02i` | `TODO-P6-part1.md` | [DONE] 发布 synthetic invoke-carrier / source-type ABI value lowering contract，禁止 P6-T03 把 refactor handoff 类型回塞 legacy codegen `TypeStore` |
-| `P6-T02j` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` / completion-state lowering contract，禁止 P6-T03 在 backend 现场发明 handle body/arm/finally 的内部返回协议 |
-| `P6-T02k` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` arm payload binder / escape-continuation binder contract，禁止 P6-T03 在 body emitter 现场回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02kR` | `TODO-P6-part1.md` | [DONE] Review `HandleDispatch` arm binder / continuation binder contract，确认 P6-T03 不再需要回 canonical MIR handle arm 恢复绑定形状 |
-| `P6-T02l` | `TODO-P6-part1.md` | [DONE] 发布 `HandleDispatch` state-region / boundary-consumption contract，禁止 P6-T03 在 backend 现场重建 body/arm/finally 子图归属 |
-| `P6-T02ma` | `TODO-P6-part1.md` | [DONE] 发布 authoritative surface-resume dispatch-source inventory，覆盖 shared-schema surface case、handle continuation binder 与 resume-site-only schema |
-| `P6-T02m` | `TODO-P6-part2.md` | [DONE] 发布 continuation surface-resume -> owner dispatch contract，禁止 P6-T03 在 backend 现场扫描 continuation object 或猜 owner callable |
-| `P6-T02n` | `TODO-P6-part2.md` | [DONE] 清理 refactor LLVM ABI/query 的 resume 主键，降级 effect-level resume interface 为 packing 层 |
-| `P6-T02o` | `TODO-P6-part2.md` | [DONE] 发布 statement/terminator anchored boundary operand contract，禁止 P6-T03 在 body emitter 现场回 raw MIR statement/terminator 恢复 `Call / Perform / Resume` 输入 |
-| `P6-T02p` | `TODO-P6-part2.md` | [DONE] 发布 callable version 选择 contract，禁止 P6-T03 在 backend 现场按 `root_fqn` / 单壳层假定选择 late-lowered body |
-| `P6-T02qa` | `TODO-P6-part2.md` | [DONE] 发布 escaped continuation aggregate/member write-read provenance contract，禁止 P6-T02q 在 late-lowered/ABI materialization 现场从 unresolved assign-lhs TODO 或 source shape 猜 `cell.k` 回读 continuation 的底层 surface route |
-| `P6-T02q` | `TODO-P6-part2.md` | [DONE] 发布 resume-boundary wrapper -> underlying continuation surface route contract，禁止 P6-T03 在 backend 现场从 continuation local / source type 猜 `k.resume(...)` 实际调用的 schema |
-| `P6-T02qb` | `TODO-P6-part2.md` | [DONE] 发布 cleanup/finally pending payload carrier contract，禁止 P6-T03 在 backend 现场发明 `ResumePayloadCarrier` 的 boxing / projection 规则 |
-| `P6-T02qc` | `TODO-P6-part2.md` | [DONE] 发布 shared surface-resume wrapper 的 owner-step -> wrapper-step 投影 contract，禁止 P6-T03 在 shared surface body 现场反推 inverse dispatch |
-| `P6-T02qd` | `TODO-P6-part2.md` | [DONE] 发布 continuation resume payload -> resumed local/home 注入 contract，禁止 P6-T03 在 backend 现场回 canonical MIR 恢复 `PerformResult` / boundary-result 绑定 |
-| `P6-T02qe` | `TODO-P6-part2.md` | [DONE] 发布 refactor source-slice member read/write LLVM lowering contract，禁止 P6-T03 在 body emitter 现场回 HIR 或 legacy member lowering |
-| `P6-T02qf` | `TODO-P6-part2.md` | [DONE] 把 `scoop test` run-pass 子进程接到父级 effect-pipeline selector，确保 P6-T03 验证真实覆盖 refactor LLVM path |
-| `P6-T02qg` | `TODO-P6-part2.md` | [DONE] 发布 non-`Unit` completion payload source / return-value contract，禁止 P6-T03 在 backend 回 raw MIR/tail shape 恢复完成值 |
-| `P6-T02qga` | `TODO-P6-part3.md` | [DONE] 发布 call-boundary 本地消费 outward case 的 continuation composition contract，禁止 escaped continuation 绕过 callee resume body |
-| `P6-T02qh` | `TODO-P6-part3.md` | [DONE] 发布 surface-resume wrapper completion payload projection contract，禁止 P6-T03 在 owner-step `Complete` 投影时发明 wrapper answer 值 |
-| `P6-T03` | `TODO-P6-part2.md` | [DONE] [ABANDONED] 旧单体 LLVM body lowering 任务，已拆分为 clean backend 小任务链 |
-| `P6-T03a` | `TODO-P6-part3.md` | [DONE] 固化 clean refactor LLVM backend 边界，抽出 effect-neutral value/expression primitive |
-| `P6-T03b` | `TODO-P6-part3.md` | [DONE] 发布 source-slice statement classification contract，禁止 body emitter 静默 skip 或回 raw shape 猜语义 |
-| `P6-T03c` | `TODO-P6-part3.md` | [DONE] 实现 refactor pure statement lowering，停止调用 legacy statement-level lowering |
-| `P6-T03d` | `TODO-P6-part3.md` | [DONE] 闭合 refactor function ABI 与 entry shell lowering，包括 main wrapper |
-| `P6-T03e` | `TODO-P6-part3.md` | [DONE] 闭合 direct/dynamic/virtual/interface call lowering，不再回 legacy callable wrapper |
-| `P6-T03f` | `TODO-P6-part3.md` | [DONE] 闭合 boundary lowering，覆盖 Call / Perform / Resume / runtime-error / nested-handle outward |
-| `P6-T03g` | `TODO-P6-part3.md` | [DONE] 闭合 HandleDispatch protocol，覆盖 body / arm / finally / exit / pending completion transport |
-| `P6-T03h` | `TODO-P6-part3.md` | [DONE] 闭合 continuation protocol，覆盖 one-shot、double resume、wrapper projection、drop/unwind/abandon |
-| `P6-T03i` | `TODO-P6-part3.md` | [DONE] 闭合 runtime error、diagnostics 与 body verifier，冻结 clean body lowering 完成条件 |
-| `P6-T03R` | `TODO-P6-part3.md` | [DONE] Review clean LLVM body lowering，确认 backend 拥有 whole function protocol 且不再胶合 legacy codegen |
-| `P6-T04` | `TODO-P6-part3.md` | [DONE] 接通 GC roots / stackmaps / runtime 语义，并锁定 dropped continuation、runtime error 与 Managed ABI 边界 |
-| `P6-T04R` | `TODO-P6-part3.md` | [DONE] Review GC/runtime 集成，确认 clean refactor path 没有 legacy runtime 语义依赖 |
-| `P6-T05` | `TODO-P6-part3.md` | [DONE] 建立 refactor LLVM 定向 build/run-pass/runtime_gc 验证矩阵，并冻结 P6 -> P7 handoff contract |
-| `P6-T05a` | `TODO-P6-part3.md` | [DONE] 闭合 `NoOutward` plain callable 对本地 effect/control body 的 handoff，禁止 P6-T06 用 legacy fallback 或 complete-only `Step_F` 绕过 |
-| `P6-T06` | `TODO-P6-part3.md` | [DONE] 把 `NoOutward` LLVM lowering 改回 plain ABI，调用点使用普通 dcall/icall/vcall |
-| `P6-T06R` | `TODO-P6-part3.md` | [DONE] Review `NoOutward` plain ABI 修复，确认 P7 前不再存在 complete-only `Step_F` 回归 |
-| `P6-T05R` | `TODO-P6-part3.md` | [DONE] Review P6 阶段退出条件，确认 P7 只需切主线并执行 full regression |
-| `P7-T01` | `TODO-P7.md` | [DONE] 翻转顶层 selector 默认值为 refactor，同时保留显式 `legacy` 参数作为短期 compare/rollback 入口 |
-| `P7-T01R` | `TODO-P7.md` | [DONE] Review selector 默认值翻转，确认 omission=refactor 且 explicit legacy 仍是唯一短期回滚入口 |
-| `P7-T02` | `TODO-P7.md` | [DONE] 更新默认主线切换后的 driver/fixture/test/docs 假设，并锁定“无显式 selector 时不得悄悄回 legacy” |
-| `P7-T02R` | `TODO-P7.md` | [DONE] Review 默认主线假设与 hidden-fallback 守护，确认 omission/default 真正代表 refactor 主线 |
-| `P7-T02T` | `TODO-P7.md` | [DONE] 发布并消费 generic class instance layout handoff，解除 `Task<T>` constructor 在 refactor LLVM 默认路径上的阻塞 |
-| `P7-T02S` | `TODO-P7.md` | [DONE] 修复默认 build fixture 中暴露的 refactor LLVM/lowering 缺口，解除 P7-T03 full regression 阻塞 |
-| `P7-T02U` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor async/task resume payload ABI 阻塞 |
-| `P7-T02V` | `TODO-P7.md` | [DONE] 修复默认 run-pass 暴露的 refactor callable-value receiver / pattern binder / FunPtr 阻塞 |
-| `P7-T02W` | `TODO-P7.md` | [DONE] 闭合 refactor class ctor / object init hidden ordinary effect handoff，解除 P7-T03 run-pass 阻塞 |
-| `P7-T02X` | `TODO-P7.md` | [DONE] 闭合 cross-call escaped continuation member provenance 与 resume-boundary continuation composition，解除 P7-T03 continuation run-pass 阻塞 |
-| `P7-T02Y` | `TODO-P7.md` | [DONE] 修复 nested escaped-continuation replay 穿过 arm-local handle 后未继续执行 tail 的阻塞 |
-| `P7-T02Za` | `TODO-P7.md` | [DONE] 闭合 dynamic dispatch ABI schema identity drift，解除 hidden suspend virtual/interface helper 阻塞 |
-| `P7-T02Zb` | `TODO-P7.md` | [DONE] 闭合 higher-order returned function-value 的 handled effect 投影，解除 `choose(mode)()` 默认 run-pass 阻塞 |
-| `P7-T02Zc` | `TODO-P7.md` | [DONE] 发布 multi-owner owner-trampoline surface-resume dispatch / wrapper-projection contract，解除 multi-function continuation resume schema 共享阻塞 |
-| `P7-T02Zd` | `TODO-P7.md` | [DONE] 闭合 resumed-body raise 穿过 finally pending completion 的 composition/origin contract，解除 P7-T02Z run-pass 阻塞 |
-| `P7-T02Z` | `TODO-P7.md` | [DONE] 闭合 P7-T03 剩余默认 run-pass refactor 阻塞，避免 full regression 依赖 legacy 或 fixture 降级 |
-| `P7-T03` | `TODO-P7.md` | [DONE] 在 refactor 成为默认主线后运行标准 full regression 矩阵，并修复所有默认路径回归 |
-| `P7-T03R` | `TODO-P7.md` | [DONE] Review 标准 full regression，确认新默认主线已经覆盖常规回归而不是靠 legacy 兜底 |
-| `P7-T03S` | `TODO-P7.md` | [DONE] 修复 GC env 下 explicit-frame stale-root / `ptr poison` blocker，恢复 multi-escape mixed replay 的 verify-roots 正确性 |
-| `P7-T04` | `TODO-P7.md` | [DONE] 运行 GC env 全开验证，并冻结 P7 -> P8 handoff：legacy 仅剩显式 compare/rollback 入口 |
-| `P7-T04R` | `TODO-P7.md` | [DONE] Review P7 阶段退出条件，确认默认主线已切换且 P8 只需删除旧主线并再次 full regression |
-| `P8-T01` | `TODO-P8.md` | [DONE] 删除顶层 legacy selector 与并行 dispatcher 壳层，收口为单一 refactor 主线入口 |
-| `P8-T01R` | `TODO-P8.md` | [DONE] Review selector/dispatcher 删除结果，确认仓库已不存在 legacy 顶层入口或隐藏切换点 |
-| `P8-T02` | `TODO-P8.md` | [DONE] 删除 legacy effect/continuation lowering 主线、legacy LLVM effect backend，以及所有 code-shape-specific 旧入口 |
-| `P8-T02R` | `TODO-P8.md` | [DONE] Review legacy 主线删除结果，确认旧 backend 与 shape-specific 入口已经真正消失 |
-| `P8-T03` | `TODO-P8.md` | [DONE] 清理 tests / fixtures / docs 中的 legacy 主线与已删除 async/Task surface 残留，并把 compare 型资产改写为纯新主线回归 |
-| `P8-T03R` | `TODO-P8.md` | [DONE] Review 测试/文档残留清理，确认仓库公开叙述与主测试路径都只剩新主线，且不再暴露已删除 async/Task surface |
-| `P8-T03aa` | `TODO-P8.md` | [DONE] 修复 default single-file refactor stage 对 nominal upcast call boundary 的 operand contract，解除 virtual/interface outward 默认路径阻塞 |
-| `P8-T03a` | `TODO-P8.md` | [DONE] 迁移单文件 LLVM artifact 入口与默认测试 helper 到 refactor LLVM stage，移除 materialized-HIR entry-main 对 `Handle` fallback 的隐藏依赖 |
-| `P8-T03ab` | `TODO-P8.md` | [DONE] 消除 object/top-level hidden-init LLVM helper 对 legacy `effect_outcome` / handler-stack swap 的隐藏依赖 |
-| `P8-T04` | `TODO-P8.md` | [DONE] 在“只有新主线存在”的条件下重跑完整回归矩阵，并锁定最终收口状态 |
-| `P8-T04R` | `TODO-P8.md` | [DONE] Review P8 阶段退出条件，确认仓库已真正收口到单一新主线且本轮工作结束 |
+## 全局约束
+
+- [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 是唯一设计基线。若任务实现中发现它的设计仍缺关键约束，必须先更新该文档，再继续编码。
+- [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 是当前缺口基线；后续任务的完成记录必须能明确说明“消除了哪一类 gap”。
+- 严禁重新引入任何 continuation/effect TLS 语义 source of truth，包括但不限于：
+  - `__scoop_effect_handler_stack_top`
+  - `__scoop_effect_active`
+  - `__scoop_effect_perform_slot`
+  - `__scoop_callee_suspend_state`
+  - `__scoop_continuation_resume_scope`
+- 严禁恢复任何旧 runtime bridge API 作为过渡方案，包括但不限于：
+  - `scoop_continuation_alloc`
+  - `scoop_continuation_resume_with`
+  - `scoop_continuation_resume_into`
+  - `scoop_effect_outcome_consume_current`
+  - `scoop_effect_outcome_publish`
+- 严禁恢复 `crates/scoopc/src/llvm/codegen/effect/{mod,contract}.rs` 或 `call/{dispatch,resume}.rs` 这种 legacy 语义容器；如需新 helper，必须放到新的、语义中立的 target-shape 模块中。
+- effectful callable 的语义协议必须由显式 hidden ABI 承载：
+  - `current_effect_ctx_ref`
+  - `incoming_resume_token_ref`
+  - `ScoopEffectOutcome *outcome`
+  不能再退回单 hidden token 或 wrapper/TLS probing。
+- backend 的 lowering 决策只能依赖：
+  - 当前输入 MIR / late-lowered program
+  - `MaterializedEffectFacts` / schema / site facts
+  - target / opt level / feature flags
+  不允许回 HIR/AST 或 resurrect deleted caches 补语义。
+- `NoOutward` / plain body 不得为了“省事”被重新包成 complete-only `Step_F`；plain/effect ABI 分流必须由 facts 驱动。
+- runtime C 最终只允许保留 generic substrate，不允许重新承担 continuation object model 或 effect propagation policy。
+- 每个任务完成后，必须在该任务的“完成记录”处回写：
+  - 改动范围
+  - 核心决策
+  - 验证结果
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目。
+
+## [DONE] G0-T01：硬删除后的物理残余清场，恢复“最小一致破坏状态”
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G0
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §11、§12
+- 目标：
+  - 清掉 bulk deletion 后仅由“物理删文件”留下的机械残余；
+  - 让后续编译错误只反映 target-shape 缺口，而不是残余静态断言、测试字符串或前置声明缺失。
+- 必须实现的内容：
+  1. 清理 `runtime/c/scoop_runtime.c` 中所有已删类型/宏的残余静态断言与注释尾巴。
+     - 当前已知位置：`cargo check -p scoop_runtime` 首批报错对应 `runtime/c/scoop_runtime.c:315-384` 一带。
+     - 需要删除的残余包括：
+       - `ScoopEffectPerformSlot`
+       - `ScoopEffectCtx`
+       - `ScoopValueTransport`
+       - `ScoopEffectHandlerFrame`
+       - `SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS`
+       的 `offsetof` / `sizeof` 断言残留。
+  2. 修复 bulk deletion 误伤的中性前置声明。
+     - 当前已知例子：`runtime/c/scoop_runtime.c` 中 `scoop_alloc` 的前置声明被 continuation section 一起删掉，导致 `scoop_alloc_typed(...)` 与 string helper 提前报隐式声明错误。
+     - 只允许恢复“与 continuation/effect TLS 无关的中性前置声明”。
+  3. 清理 `runtime/c/scoop_test.c` 中旧 effect/TLS test-only export 声明。
+     - 当前文件顶部仍残留 `scoop_effect_*` test-only 前置声明；需要全部删除。
+  4. 清理活跃测试源码中仍直接提旧桥名字的断言块。
+     - 当前已知位置：`crates/scoopc/src/llvm/tests.rs` 中 `scoop_effect_*` / `scoop_continuation_resume_into` 相关断言；这些不是新设计的验证目标。
+     - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中仍有 `scoop_effect_set_active_with_trace` 字符串断言，也应清掉或改成新 surface 验证。
+  5. 清理活跃 surface / 识别表里已删除的旧 intrinsic 名字。
+     - `sysroot/core.scoop` 中旧 `__scoop_effect_*` / `__scoop_effect_slot_*` surface 已删；需确认没有残余。
+     - `crates/scoopc/src/effect_facts/builder.rs` 中 old effect intrinsic 名字表必须同步删净。
+     - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` 中 old effect intrinsic 识别表必须同步删净。
+- 必须遵从的约束：
+  - 本任务只做物理清场；禁止在此任务中恢复任何 deleted TLS contract helper。
+  - 若为让 unrelated 代码通过编译而需要恢复声明，只能恢复与 generic substrate 有关的中性声明，不能恢复 deleted continuation/effect API。
+- 验证：
+  1. 对以下目录执行代码 grep，不得命中旧 TLS/bridge 符号名：
+     - `crates/scoopc/src`
+     - `runtime/c`
+     - `sysroot`
+  2. 运行：`cargo check -p scoop_runtime`
+     - 输出中不再出现“unknown type name `ScoopEffectPerformSlot` / `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectHandlerFrame`”。
+  3. 运行：`cargo check -p scoopc`
+     - 输出中剩余错误必须主要是 architecture gap，而不是旧名字残余或删坏测试入口。
+- 完成条件：
+  - 代码树达到“最小一致破坏状态”：旧 TLS 语义仍不存在，且后续编译报错不再被物理残余噪音主导。
+- 依赖：无
+- 完成记录：
+  - 改动范围：
+    - `runtime/c/scoop_runtime.c`：删除已删 `ScoopEffectPerformSlot` / `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectHandlerFrame` 的残余 `_Static_assert`、孤立 handler-stack 段落与未再被使用的 GC stress / immix helper 尾巴；补回 `scoop_alloc` 的中性前置声明。
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`：把旧 bridge 名字负向断言切换为对 `scoop_runtime_init` 的正向 IR 验证。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/{value,body}.rs`：移除围绕旧 bridge 名字的源码审计断言，保留其余 clean-backend 边界检查。
+  - 核心决策：
+    - 只清理“物理残余/验证噪音”，不在本任务内重建任何 replacement architecture，也不恢复任何旧 TLS/bridge helper。
+    - 对测试面采取“改成目标 surface 的正向验证或直接移除旧名审计”的策略，避免继续把旧符号名当成 authoritative 验证目标。
+    - `cargo check -p scoopc` 中保留的 `declare_*resume_entry*_impl`、`alloc_effect_outcome_slot`、`local_call_may_suspend_from_hir_ty` 等缺失项视为后续 G1/G2/G4/G5 的结构性 gap，而不是本任务需要继续兜底恢复的旧桥残余。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` 执行针对旧 TLS/bridge 符号名的 grep：无命中。
+    - `cargo check -p scoop_runtime`：通过；不再出现 `ScoopEffectPerformSlot` / `ScoopEffectCtx` / `ScoopValueTransport` / `ScoopEffectHandlerFrame` / `SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS` 残余报错。
+    - `cargo clippy -p scoop_runtime --all-targets -- -D warnings`：通过。
+    - `cargo check -p scoopc`：失败，但首批错误已切换为 effectful ABI / `EffectOutcome` / callee suspend-reentry / call lowering 缺口，与 `G1-T02`、`G2-T03`、`G4-T05` 等后续任务一致，不再由物理残余噪音主导。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §11：`runtime/c/scoop_runtime.c` 删除后的残余结构引用与前置声明缺口。
+    - §12：活跃验证面中仍围绕旧桥名字的断言噪音。
+
+## G0-T01R：Review 物理清场结果，确认没有偷回任何 TLS 语义
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G0
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §11、§12
+- 重点：
+  - 活跃实现里是否仍存在任何 deleted TLS symbol / runtime bridge 名字；
+  - 为修编译而新增的声明是否都是中性 substrate，而不是偷偷恢复旧语义入口；
+  - 测试源码是否已经不再围绕旧 bridge 名字构建验证。
+- 必须检查的文件/位置：
+  - `runtime/c/scoop_runtime.c`
+  - `runtime/c/scoop_runtime_api.h`
+  - `runtime/c/scoop_test.c`
+  - `crates/scoopc/src/llvm/tests.rs`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - `sysroot/core.scoop`
+- 验证：
+  - 对 G0-T01 中的 grep 范围再做一次人工复核；
+  - 重新运行 `cargo check -p scoop_runtime` 和 `cargo check -p scoopc`，确认最前面的错误类别已经切到结构性 target-shape gap。
+- 完成条件：
+  - 可以明确写出：旧 TLS 语义仍然完全不存在，接下来可以开始补 replacement architecture。
+- 依赖：G0-T01
+- 完成记录：
+
+## G1-T02：重建 effectful callable 的显式 hidden ABI 骨架
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G1
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5、§4.10、§4.13
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §1
+- 目标：
+  - 把 effectful callable ABI 从“单 hidden `incoming_resume_token`”升级到最终显式 hidden ABI：
+    - `current_effect_ctx_ref`
+    - `incoming_resume_token_ref`
+    - `ScoopEffectOutcome *outcome`
+  - 让顶层函数、closure callable、resume entry、dynamic invoke surface 使用同一 ABI 规则。
+- 必须实现的内容：
+  1. 修改 `crates/scoopc/src/llvm/codegen/mod.rs` 中 callable 声明路径：
+     - `declare_top_level_fun_with_symbol(...)`
+     - `codegen_top_level_fun(...)`
+     - `declare_callee_resume_entry_function(...)`
+     - `declare_top_level_fun_callee_resume_entry(...)`
+     - `declare_top_level_fun_effect_call_wrapper(...)` 若仍保留，必须改写到新 ABI；若该 wrapper 本身是 legacy 设计，应在本任务内删除其概念并由新的 direct ABI 替代。
+  2. 替换当前基于 HIR 的 helper：
+     - `top_level_fun_uses_hidden_incoming_resume_token(...)`
+     - `mir_fun_uses_hidden_incoming_resume_token(...)`
+     - `function_type_uses_hidden_incoming_resume_token(...)`
+     为基于 effect facts / call ABI contract 的 helper。
+  3. 在 `FunctionBodyCodegenCx` 或等价位置，为当前函数体记录显式 hidden ABI 入口：
+     - 当前 `current_effect_ctx_ref` 参数/slot
+     - 当前 `incoming_resume_token_ref` 参数/slot
+     - 当前 `outcome` 指针参数/slot
+  4. 修改 closure callable 声明路径：
+     - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+     使 closure / function-value callable 的 effectful surface 也使用同一 hidden ABI。
+- 必须遵从的约束：
+  - 禁止以“先恢复 wrapper + 再传 hidden token”的方式过渡。
+  - ABI 是否 effectful必须由 facts/schema 驱动；不能再只看 `hir_ty_declared_effectful(...)` 这类 HIR-level boolean。
+  - plain callable 仍是 plain ABI；不得因为 effectful ABI 骨架重建而让所有 callable 都多出 hidden args。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现以下缺失项：
+     - `declare_callee_resume_entry_function_impl`
+     - `declare_top_level_fun_callee_resume_entry_impl`
+     - `declare_top_level_fun_effect_call_wrapper_impl`
+     - `ensure_top_level_fun_effect_call_wrapper_defined_impl`
+     - `codegen_top_level_fun_effect_call_wrapper_impl`
+  3. 输出中不再出现 `top_level_fun_uses_hidden_incoming_resume_token` 驱动的老 ABI 假设错误。
+- 完成条件：
+  - effectful callable 的 hidden ABI 骨架在声明层闭合，后续步骤可直接在其上实现 `EffectCtx` / `EffectOutcome` / `Step_F`。
+- 依赖：G0-T01R
+- 完成记录：
+
+## G1-T02R：Review 显式 hidden ABI 骨架，确认不再回退单 token 语义
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G1
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5、§4.10
+- 重点：
+  - effectful callable 是否都已经拥有同一 hidden ABI；
+  - plain callable 是否保持 plain ABI；
+  - ABI 判定是否来自 facts/schema，而不是 HIR-level effectful boolean；
+  - 是否还残留 effect call wrapper 这类 legacy 表面结构。
+- 必须检查的文件/位置：
+  - `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+  - 任何新增的 ABI contract helper 模块
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 对 effectful callable declaration code path 做代码搜索，确认没有再以 deleted runtime bridge 作为 ABI 补丁。
+- 完成条件：
+  - 可以明确写出当前 effectful callable ABI 的参数顺序和适用范围。
+- 依赖：G1-T02
+- 完成记录：
+
+## G2-T03：重建 backend-owned `EffectOutcome` / transport primitive
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G2
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3、§4.13
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §4
+- 目标：
+  - 在 LLVM backend 内重建 explicit `EffectOutcome` / `EffectSignal` / `ValueTransport` contract primitive；
+  - 所有 propagation / completion / runtime-error / task transport 都通过这组 primitive，而不是 runtime C helper。
+- 必须实现的内容：
+  1. 在新的 neutral module 中重建下列 helper；如新增模块，推荐放在 `crates/scoopc/src/llvm/codegen/` 目录下，禁止沿用已删 `effect/contract.rs` 的 legacy 语义容器：
+     - `alloc_effect_outcome_slot(...)`
+     - `build_value_transport(...)`
+     - `build_effect_signal(...)`
+     - `build_effect_outcome(...)`
+     - `effect_outcome_is_propagating(...)`
+     - `effect_outcome_payload_transport(...)`
+     - `effect_outcome_resume_token(...)`
+     - `decode_effect_transport_value(...)`
+     - `coerce_u64_word(...)`
+     - `split_task_transport_tuple_value(...)`
+  2. 这些 helper 必须只依赖：
+     - `runtime_abi.rs` 中仍保留的结构 type builder
+     - LLVM load/store/build primitive
+     - `TypeStore` / `CgTy`
+     不能声明新的 runtime C bridge 符号。
+  3. 重新接回当前 compile errors 集中命中的调用方：
+     - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+     - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+     - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+     - `crates/scoopc/src/llvm/codegen/class_ctor.rs`
+     - `crates/scoopc/src/llvm/codegen/enum_lowering.rs`
+     - `crates/scoopc/src/llvm/codegen/intrinsics/{containers,thread}.rs`
+- 必须遵从的约束：
+  - 禁止恢复 `scoop_effect_outcome_consume_current` / `publish`。
+  - 禁止恢复 `scoop_effect_set_active*` / `scoop_effect_clear` / `scoop_effect_slot_*` 作为中间协议。
+  - `EffectOutcome` 必须是唯一 propagation source of truth。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现下列缺失项：
+     - `alloc_effect_outcome_slot`
+     - `effect_outcome_is_propagating`
+     - `effect_outcome_payload_transport`
+     - `decode_effect_transport_value`
+     - `coerce_u64_word`
+     - `split_task_transport_tuple_value`
+     - `declare_runtime_effect_set_active_with_trace`
+- 完成条件：
+  - backend 内部拥有完整 explicit outcome / transport primitive，旧 runtime bridge API 不再参与任何传播语义。
+- 依赖：G1-T02R
+- 完成记录：
+
+## G2-T03R：Review explicit outcome/transport primitive，确认 contract 已 backend-owned
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G2
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3、§4.13
+- 重点：
+  - `EffectOutcome` / `ValueTransport` / `resume_token` 是否都已由 backend-owned primitive 表达；
+  - 是否还有任何 runtime C bridge 函数名参与 active implementation；
+  - `task transport` / `u64 word` coercion 是否统一走同一 primitive。
+- 必须检查的文件/位置：
+  - 新增 neutral module
+  - `runtime_abi.rs`
+  - `effect_lowered/body.rs`
+  - `effect_lowered/value.rs`
+  - `mir_body.rs`
+- 验证：
+  - 再跑一次 `cargo check -p scoopc`；
+  - grep active implementation，不得出现 `scoop_effect_outcome_*` / `scoop_effect_set_active*` / `scoop_effect_clear` 名字。
+- 完成条件：
+  - 可以明确写出 explicit outcome 的 authoritative query/write-back surface。
+- 依赖：G2-T03
+- 完成记录：
+
+## G3-T04：重建显式 `EffectCtx` / handler graph 模型
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G3
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5、§4.10、§4.13
+  - [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) §2.2、§2.3、§4.1-§4.3
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §7
+- 目标：
+  - 用显式 `EffectCtx` / handler node graph 替换已删除的 TLS handler stack 抽象；
+  - 让 `handle` / arm / outward dispatch / continuation capture 都能显式持有 handler context。
+- 必须实现的内容：
+  1. 定义 backend-owned `EffectCtx` object layout 与 type descriptor。
+  2. 定义 handler node layout：
+     - `prev_ref`
+     - `op_tag`
+     - flags / active semantics
+     - `owner_frame_ref`
+     - dispatch entry identity
+  3. 为 `handle` 入口重建显式 ctx 构造逻辑。
+     - body/arm/finally/nested effect-capable call 必须显式传递 `current_effect_ctx_ref`。
+  4. 为 arm self-inactive 重建 derived ctx / immutable handler node 语义。
+  5. 为 outward dispatch 重建显式 ctx-based dispatch helper；不能再依赖 ambient stack。
+- 必须遵从的约束：
+  - 禁止恢复 `handler stack snapshot clone` 或任何原生 snapshot 逻辑。
+  - 禁止以“临时 global 当前 ctx”模拟显式 `EffectCtx`。
+  - handler context 必须可被 continuation capture，不能是临时栈上独占结构。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现下列缺失项：
+     - `prepare_current_effect_call_contract`
+     - `load_effect_ctx_handler_top_from_slot`
+     - `swap_effect_handler_stack_top`
+     - `publish_incoming_resume_token`
+     - `clear_incoming_resume_token`
+  3. 相关新 helper 不得再包含 deleted TLS 名字。
+- 完成条件：
+  - handler context 重新存在为显式 data model，而不是 deleted TLS 语义的缺位。
+- 依赖：G2-T03R
+- 完成记录：
+
+## G3-T04R：Review `EffectCtx` / handler graph，确认不再退回 ambient context
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G3
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5
+- 重点：
+  - `EffectCtx` 是否已经成为 continuation / call / handle 的显式输入；
+  - outward dispatch 是否从 ctx 出发，而不是依赖 ambient stack；
+  - arm self-inactive 是否通过 derived ctx / node 语义表达。
+- 必须检查的文件/位置：
+  - 新增 `EffectCtx` / handler node 实现模块
+  - `expr.rs`
+  - `effect_lowered/body.rs`
+  - 任何新的 handle dispatch helper
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 人工检查代码，不得再出现任何“current handler stack top”式语义变量。
+- 完成条件：
+  - 可以明确说明 handler context 的 capture/dispatch 生命周期。
+- 依赖：G3-T04
+- 完成记录：
+
+## G4-T05：重建 ordinary callee suspend/reentry 分析与 lowering
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5、§4.4、§4.13
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §3
+- 目标：
+  - 让 ordinary callee suspend/reentry contract 重新闭合；
+  - 所有“是否可能 outward / 是否需要 reentry / suspend-state 怎么保存与恢复”重新由 facts + explicit token 驱动。
+- 必须实现的内容：
+  1. 处理当前孤立文件 `crates/scoopc/src/llvm/codegen/effect/ordinary_callee.rs`：
+     - 要么移动到新的 neutral module；
+     - 要么把其内容直接吸收进新的 non-legacy effect lowering 容器；
+     - 绝不能简单恢复 `mod effect;` 让整套旧目录复活。
+  2. 恢复下列 analysis/lowering 入口：
+     - `build_fun_callee_suspend_plan_impl`
+     - `build_ordinary_callee_suspend_plan`
+     - `local_call_may_suspend_from_hir_ty`
+     - `hir_ty_declared_effectful`
+     - `known_fun_body_may_outward_effect`
+     - `function_value_expr_body_may_outward_effect_when_called_for_local`
+     - `codegen_callee_resume_dispatch_impl`
+     - `codegen_callee_resume_entry_function_impl`
+  3. `incoming_resume_token_ref` 必须成为 resumed path 的唯一恢复输入；不得重新恢复 TLS `callee_suspend_state` scratch。
+  4. `needs_reentry` 判定必须只消费 facts，不得回 HIR/AST 猜测。
+- 必须遵从的约束：
+  - 若现有 facts 不足以支撑这些判断，必须先扩 facts/schema，而不是用 HIR fallback 顶上。
+  - ordinary callee suspend/reentry 不得重新依赖 runtime-owned replay state。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现本任务列出的 helper 缺失。
+  3. `effect_lowered/{body,layout,value}.rs` 中相关调用恢复到 facts-driven helper，而不是 ad-hoc backend magic。
+- 完成条件：
+  - ordinary callee suspend/reentry 再次成为后端显式协议的一部分。
+- 依赖：G3-T04R
+- 完成记录：
+
+## G4-T05R：Review ordinary callee suspend/reentry，确认 facts 驱动且无 TLS 旁路
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G4
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §3.5、§4.4
+- 重点：
+  - `needs_reentry` / outward-effect analysis 是否只依赖 facts；
+  - resumed path 是否只依赖显式 incoming token；
+  - orphan `ordinary_callee.rs` 是否已被 neutral 化，而不是恢复 legacy container。
+- 必须检查的文件/位置：
+  - 新 neutral ordinary-callee module
+  - `mod.rs`
+  - `closure/mod.rs`
+  - `control_flow.rs`
+  - `stmt.rs`
+  - `effect_lowered/{body,layout,value}.rs`
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 对实现源码做 grep，不得再出现 deleted callee TLS bridge 名字。
+- 完成条件：
+  - ordinary callee reentry contract 可被独立描述，不依赖已删除 bridge。
+- 依赖：G4-T05
+- 完成记录：
+
+## G5-T06：重建 codegen-owned continuation object model 与 generated resume driver
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G5
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5、§4.10
+  - [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) §2.1、§3.3、§5、§6
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §6
+- 目标：
+  - 把 runtime 已删除的 continuation policy 完整迁回 codegen。
+- 必须实现的内容：
+  1. 在 backend/type-layout 层定义新的 `ScoopContinuation` object layout：
+     - `captured_effect_ctx_ref`
+     - `state_ref`
+     - `step_fn`
+     - `resume_word`
+     - `resume_gc_ref`
+     - `captured_callee_suspend_state_ref`
+     - `resumed` one-shot flag
+     - `resume_state_tag`
+  2. 明确禁止：
+     - stable handle owner
+     - native handler snapshot
+     - `release_fn`
+     - runtime replay-state object
+  3. 生成 module-private `__scoop_continuation_resume_with(...)` helper：
+     - `cmpxchg` one-shot
+     - explicit payload store
+     - call step/dispatch with explicit `current_effect_ctx_ref` / `incoming_resume_token_ref` / `outcome`
+     - complete path answer slot write-back
+  4. 如果 thread resume 仍需 generic substrate 协助，只允许保留“generic thread spawn/join substrate”；不得恢复 runtime-owned continuation resume API。
+  5. 重接所有当前还引用 deleted runtime continuation API 的地方，尤其：
+     - `effect_lowered/value.rs`
+     - `intrinsics/thread.rs`
+     - 任何 continuation resume lowering path
+- 必须遵从的约束：
+  - continuation object model 必须是普通 traced managed object。
+  - generated resume driver 必须是 compiler-owned helper，不得把 owner 退回 runtime C。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现：
+     - `declare_runtime_continuation_resume_with`
+     - `declare_runtime_thread_spawn_join_resume_u64`
+     - `declare_runtime_thread_spawn_join_resume_transport`
+     - `declare_runtime_thread_spawn_join_compat_resume_u64`
+  3. 相关实现源码 grep，不得再出现 deleted runtime continuation symbol 名字。
+- 完成条件：
+  - continuation alloc / resume / answer / outward propagation 再次在实现上存在，但 owner 完全位于 codegen。
+- 依赖：G4-T05R
+- 完成记录：
+
+## G5-T06R：Review continuation object model / generated resume driver，确认 owner 已迁回 codegen
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G5
+  - [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) §5、§6
+- 重点：
+  - continuation 是否已不再依赖 stable handle/native snapshot/release_fn；
+  - resume driver 是否为 generated helper 而非 runtime C API；
+  - `current_effect_ctx_ref` / `captured_callee_suspend_state_ref` 是否都成为 continuation 的显式 traced field。
+- 必须检查的文件/位置：
+  - continuation layout/type descriptor 生成处
+  - generated resume helper 生成处
+  - thread resume integration 处
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 人工检查实现，不得重新引入 runtime-owned continuation policy。
+- 完成条件：
+  - 可以明确列出 continuation object 的 authoritative 字段集合与 resume 算法。
+- 依赖：G5-T06
+- 完成记录：
+
+## G6-T07：重建 direct/static/dynamic call lowering 与 plain/effect ABI 分流
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.6-§4.10
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §2、§9
+- 目标：
+  - direct/static/dynamic call 再次可 lowering，但直接面对 plain/effect ABI 最终形态；
+  - 不再恢复旧 wrapper/TLS call boundary。
+- 必须实现的内容：
+  1. 在新的 non-legacy call lowering 模块中重建：
+     - `codegen_call_impl`
+     - `codegen_top_level_fun_call_impl`
+     - `try_codegen_class_vtable_call_impl`
+     - `try_codegen_interface_itable_call_impl`
+     - `load_class_vtable_slot_fn_ptr_i8_impl`
+     - `load_interface_itable_slot_fn_ptr_i8_impl`
+     - `codegen_funptr_value_call_impl`
+     - `codegen_function_value_call_impl`
+     - `codegen_function_value_call_from_closure_obj_impl`
+     - `emit_enter_native_for_extern_call_impl`
+     - `emit_extern_native_call_impl`
+  2. Plain ABI callable：
+     - direct/static path 直接返回源码返回值；
+     - dynamic plain surface 不得被强行包成 `Step_F` body。
+  3. Effect ABI callable：
+     - direct/vtable/itable/funptr/closure path 直接传 `ctx + incoming token + outcome`；
+     - dynamic effect surface 以固定 `Step_F` / `invoke(args_tuple)` 组织。
+  4. plain body 若需对接 effect-typed dynamic surface，只能由 adapter/thunk 包 `Complete`。
+- 必须遵从的约束：
+  - 禁止恢复 effect call wrapper / TLS probing boundary。
+  - ABI 是否 plain/effect 必须由 callable facts / `resolved_outward_cases` / `needs_reentry` 决定。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现本任务列出的 call lowering impl 缺失。
+  3. `mod.rs` 不再保留指向已删除 legacy impl 的 wrapper 外壳。
+- 完成条件：
+  - call lowering 再次闭合，且 plain/effect ABI 分流不再依赖 deleted bridge。
+- 依赖：G5-T06R
+- 完成记录：
+
+## G6-T07R：Review direct/static/dynamic call lowering，确认 ABI 分流已 facts-driven
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G6
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.6-§4.10
+- 重点：
+  - direct/vtable/itable/funptr/closure 路径是否都已按 facts 驱动 plain/effect ABI 分流；
+  - dynamic effect surface 是否已经围绕固定 `Step_F`；
+  - plain body 是否仍然保持 plain callable body。
+- 必须检查的文件/位置：
+  - 新 call lowering 模块
+  - `closure/mod.rs`
+  - `class_ctor.rs`
+  - `intrinsics/thread.rs`
+  - `effect_lowered/value.rs`
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 人工检查调用路径，不得再出现 deleted runtime continuation/effect bridge 名字。
+- 完成条件：
+  - 可明确写出 plain/effect ABI 分流规则和 dynamic surface 组织方式。
+- 依赖：G6-T07
+- 完成记录：
+
+## G7-T08：重建 `perform` / `handle` / `resume` / `Step_F` lowering
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G7
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3、§4.5、§4.9-§4.10、§4.13
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §5、§8、§9
+- 目标：
+  - 把语言层 effect constructs 和 MIR effect constructs 接回新的 target-shape；
+  - `perform` / `handle` / `Continuation.resume` / `Step_F` 不再依赖任何 deleted TLS bridge surface。
+- 必须实现的内容：
+  1. 重新实现 HIR 表达式入口：
+     - `crates/scoopc/src/llvm/codegen/expr.rs`
+       - `codegen_perform_expr`
+       - `codegen_handle_expr`
+  2. 重新实现 MIR effectful lowering 核心：
+     - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+       - `codegen_mir_perform_terminator`
+       - `codegen_mir_direct_call_with_policy`
+       - `codegen_mir_funptr_value_call`
+       - `codegen_mir_fun_value_call`
+       - `codegen_mir_closure_call`
+       - `codegen_mir_function_value_call_from_closure_obj`
+       - `codegen_mir_class_ctor_call`
+  3. `Continuation.resume(...)` lowering 必须改成 generated continuation resume driver；不得再恢复 runtime helper。
+  4. `Step_F` case identity / payload tuple / resume tuple / answer contract 必须只由 schema/facts 驱动；不可回 HIR shape 或旧 runtime slot contract。
+  5. runtime error / non-resuming effect exit 必须回 explicit outcome 或 backend-owned terminal path；不得再恢复 active flag / slot write 逻辑。
+- 必须遵从的约束：
+  - 若某条 path 当前暂时无法实现，必须在 frontend/facts/stage boundary 上 fail fast，不允许恢复 deleted bridge 作为 fallback。
+  - `NoOutward` plain body 不得重新物化 complete-only `Step_F`。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. 输出中不再出现：
+     - `codegen_perform_expr`
+     - `codegen_handle_expr`
+     - `codegen_mir_perform_terminator`
+     - `emit_raise_runtime_error_variant`
+     - `emit_ordinary_non_resuming_effect_exit`
+  3. 相关实现源码 grep，不得再出现 deleted effect intrinsic / slot / bridge 名字。
+- 完成条件：
+  - HIR/MIR effect constructs 再次闭合到新的 target-shape protocol。
+- 依赖：G6-T07R
+- 完成记录：
+
+## G7-T08R：Review `perform` / `handle` / `resume` / `Step_F` lowering，确认 surface 已切到新协议
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G7
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.3、§4.9-§4.10、§4.13
+- 重点：
+  - `perform` / `handle` / `resume` 是否都只走 explicit `EffectOutcome` / `EffectCtx` / `Step_F`；
+  - `Step_F` case/payload/resume tuple 是否只由 schema/facts 决定；
+  - 是否还存在任何 plain/effect ABI 混淆或 deleted bridge fallback。
+- 必须检查的文件/位置：
+  - `expr.rs`
+  - `mir_body.rs`
+  - `effect_lowered/{body,layout,value}.rs`
+  - 任何新的 `Step_F` / continuation driver helper module
+- 验证：
+  - 重新运行 `cargo check -p scoopc`；
+  - 人工检查 code path，不得再存在 deleted TLS continuation/effect surface。
+- 完成条件：
+  - 可以明确给出当前 `perform` / `handle` / `resume` 的 lowering contract 描述。
+- 依赖：G7-T08
+- 完成记录：
+
+## G8-T09：runtime generic substrate 收尾、验证面迁移与 full regression 恢复
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.11-§4.15
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §10-§12
+- 目标：
+  - 在 target-shape 接通后，把 runtime C 收尾成真正的 generic substrate，并把测试/fixture/文档验证面迁移到新 surface。
+- 必须实现的内容：
+  1. 彻底清理 `runtime/c/scoop_runtime.c` 中 bulk deletion 后残余的 dead comments / dead assertions / dead forward declaration holes；保证 runtime C 文件重新自洽。
+  2. 清理 `runtime/c/scoop_runtime_api.h` / `runtime/c/scoop_test.c` 的历史 continuation/effect policy 残留。
+  3. 把活跃验证面从“旧名字是否存在/不存在”迁移到新 surface：
+     - `StepSchema`
+     - `resolved_outward_cases`
+     - explicit `EffectOutcome`
+     - explicit `current_effect_ctx_ref`
+     - explicit `incoming_resume_token_ref`
+     - plain/effect ABI 分流
+  4. 恢复并通过：
+     - `cargo check -p scoop_runtime`
+     - `cargo check -p scoopc`
+     - `cargo test -p scoop_runtime`
+     - `cargo test -p scoopc`
+     - `cargo test -p scoop`
+     - `cargo test --all`
+  5. 对照 `EFFECT_REFACTOR_GAPS.md`，把所有 gap 状态更新为已闭合或剩余明确 blocker。
+- 必须遵从的约束：
+  - 不得把 full regression 的通过建立在恢复任何 deleted TLS continuation/effect surface 之上。
+  - 若某些历史测试不再适配新设计，应重写验证入口，而不是重新恢复旧 symbol 让它们通过。
+- 验证：
+  - 上述完整矩阵全部通过；
+  - 活跃源码 grep 不再出现旧 TLS continuation/effect 名字；
+  - 新测试至少覆盖 explicit `EffectOutcome` / `EffectCtx` / `Step_F` 的存在性与 contract。
+- 完成条件：
+  - 仓库重新回到可编译、可测试状态；
+  - active implementation / active tests / active docs 都不再保留旧 TLS continuation/effect 语义。
+- 依赖：G7-T08R
+- 完成记录：
+
+## G8-T09R：Review 最终收口结果，确认仓库重新只剩 target-shape 单主线
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) 全文
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 全文
+- 重点：
+  - runtime 是否真正只剩 generic substrate；
+  - backend 是否重新拥有 whole-function effect/continuation protocol；
+  - 所有优化级别是否走同一条管线；
+  - 是否仍有任何 deleted TLS continuation/effect surface 作为隐藏 fallback。
+- 必须检查的目录：
+  - `crates/scoopc/src/llvm/codegen/`
+  - `crates/scoopc/src/effect_facts/`
+  - `crates/scoopc/src/pipeline/`
+  - `runtime/c/`
+  - `sysroot/`
+  - 活跃测试/fixture/文档
+- 验证：
+  - 复跑 G8-T09 的完整验证矩阵；
+  - grep 活跃代码目录，不得再出现旧 TLS continuation/effect 名字；
+  - 在完成记录中给出与 `EFFECT_REFACTOR_GAPS.md` 每条 gap 的最终对应关系。
+- 完成条件：
+  - 可以明确声明：当前仓库 effect/continuation 主线已重新按 `EFFECT_REFACTOR.md` 闭合，且不再存在旧 TLS continuation/effect 语义回退面。
+- 依赖：G8-T09
+- 完成记录：

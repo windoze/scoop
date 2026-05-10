@@ -1592,10 +1592,6 @@ fun main(): Int {
             "`as?` should construct an Option<T> value in refactor LLVM:\n{ir}"
         );
         assert!(
-            ir.contains("scoop_effect_set_active_with_trace"),
-            "`as` failure should route through RuntimeError effect propagation:\n{ir}"
-        );
-        assert!(
             ir.contains("isa_iface") || ir.contains("isa_loop"),
             "runtime type tests should use descriptor/itable matching helpers:\n{ir}"
         );
@@ -1777,7 +1773,6 @@ fun main(): Int {
         assert_eq!(test_stage_run_count(), 1);
         let ir = std::fs::read_to_string(out).unwrap();
         assert!(ir.contains("scoop.refactor.Step"));
-        assert!(!ir.contains("scoop_effect_handler_stack"));
-        assert!(!ir.contains("scoop_effect_outcome"));
+        assert!(ir.contains("call void @scoop_runtime_init()"));
     }
 }

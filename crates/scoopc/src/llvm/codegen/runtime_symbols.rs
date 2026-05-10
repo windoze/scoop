@@ -21,34 +21,9 @@ pub(super) const SCOOP_ARRAY_LEN: &str = "scoop_array_len";
 pub(super) const SCOOP_ARRAY_SET_COMPOSITE: &str = "scoop_array_set_composite";
 pub(super) const SCOOP_ARRAY_SET_REF: &str = "scoop_array_set_ref";
 pub(super) const SCOOP_ARRAY_SET_U64: &str = "scoop_array_set_u64";
-pub(super) const SCOOP_CALLEE_SUSPEND_STATE_PUBLISH: &str = "scoop_callee_suspend_state_publish";
 pub(super) const SCOOP_COMPOSITE_COPY: &str = "scoop_composite_copy";
 pub(super) const SCOOP_COMPOSITE_DROP: &str = "scoop_composite_drop";
 pub(super) const SCOOP_COMPOSITE_TRACE: &str = "scoop_composite_trace";
-pub(super) const SCOOP_CONTINUATION_RESUME_WITH: &str = "scoop_continuation_resume_with";
-pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_TOP: &str = "scoop_effect_handler_stack_top";
-pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
-pub(super) const SCOOP_EFFECT_OUTCOME_CONSUME_CURRENT: &str =
-    "scoop_effect_outcome_consume_current";
-pub(super) const SCOOP_EFFECT_OUTCOME_PUBLISH: &str = "scoop_effect_outcome_publish";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
-    "scoop_effect_perform_slot_read_len_words";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =
-    "scoop_effect_perform_slot_read_op_tag";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_EFFECT_INSTANCE_KEY: &str =
-    "scoop_effect_perform_slot_read_effect_instance_key";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64: &str = "scoop_effect_perform_slot_read_u64";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64_AT: &str =
-    "scoop_effect_perform_slot_read_u64_at";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_WITH_GC_REF: &str =
-    "scoop_effect_perform_slot_write_u64_with_gc_ref";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64: &str = "scoop_effect_perform_slot_write_u64";
-pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2: &str =
-    "scoop_effect_perform_slot_write_u64_2";
-pub(super) const SCOOP_EFFECT_SET_ACTIVE: &str = "scoop_effect_set_active";
-pub(super) const SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE: &str = "scoop_effect_set_active_with_trace";
 pub(super) const SCOOP_ENTER_NATIVE: &str = "scoop_enter_native";
 pub(super) const SCOOP_GC_COLLECT_SAFEPOINT: &str = "scoop_gc_collect_safepoint";
 pub(super) const SCOOP_GC_DEBUG_ALLOC_GARBAGE: &str = "scoop_gc_debug_alloc_garbage";
@@ -99,11 +74,6 @@ pub(super) const SCOOP_SYNC_ONCE_IS_DONE: &str = "scoop_sync_once_is_done";
 pub(super) const SCOOP_SYNC_ONCE_RUN: &str = "scoop_sync_once_run";
 pub(super) const SCOOP_THREAD_CURRENT_ID: &str = "scoop_thread_current_id";
 pub(super) const SCOOP_THREAD_JOIN: &str = "scoop_thread_join";
-pub(super) const SCOOP_THREAD_SPAWN_JOIN_COMPAT_RESUME_U64: &str =
-    "scoop_thread_spawn_join_compat_resume_u64";
-pub(super) const SCOOP_THREAD_SPAWN_JOIN_RESUME_TRANSPORT: &str =
-    "scoop_thread_spawn_join_resume_transport";
-pub(super) const SCOOP_THREAD_SPAWN_JOIN_RESUME_U64: &str = "scoop_thread_spawn_join_resume_u64";
 pub(super) const SCOOP_THREAD_SLEEP_MILLIS: &str = "scoop_thread_sleep_millis";
 pub(super) const SCOOP_THREAD_SPAWN: &str = "scoop_thread_spawn";
 pub(super) const SCOOP_THREAD_YIELD: &str = "scoop_thread_yield";

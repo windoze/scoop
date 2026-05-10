@@ -74,22 +74,6 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
         .unwrap_or(fqn)
 }
 
-fn is_refactor_effect_runtime_intrinsic(fqn: &str) -> bool {
-    matches!(
-        direct_call_dispatch_fqn(fqn),
-        "scoop.core.__scoop_effect_is_active"
-            | "scoop.core.__scoop_effect_set_active"
-            | "scoop.core.__scoop_effect_clear"
-            | "scoop.core.__scoop_effect_slot_write"
-            | "scoop.core.__scoop_effect_slot_write2"
-            | "scoop.core.__scoop_effect_slot_read_effect_instance_key"
-            | "scoop.core.__scoop_effect_slot_read_op_tag"
-            | "scoop.core.__scoop_effect_slot_read_len_words"
-            | "scoop.core.__scoop_effect_slot_read_value"
-            | "scoop.core.__scoop_effect_slot_read_word"
-    )
-}
-
 fn source_carrier_types(types: &TypeStore, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
@@ -1589,12 +1573,6 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if let Some(value) = self.lower_refactor_gc_debug_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
-        }
-        if is_refactor_effect_runtime_intrinsic(callee_fqn) {
-            let value = self
-                .codegen
-                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
-            return self.codegen.coerce_value(span, value, target_cg);
         }
         if let Some(value) = self.lower_refactor_array_intrinsic(
             span,
@@ -6826,8 +6804,6 @@ mod tests {
             concat!("codegen_mir_", "direct_call("),
             concat!("build_unified_", "lowering_contract"),
             concat!("effect_analysis_", "ctx"),
-            concat!("scoop_effect_", "handler_stack"),
-            concat!("scoop_effect_", "outcome"),
         ];
         for needle in forbidden {
             assert!(

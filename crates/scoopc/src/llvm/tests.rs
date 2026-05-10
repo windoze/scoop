@@ -217,11 +217,7 @@ fun main(): Int {
     );
 
     assert!(ir.contains("define i32 @main("));
-    assert!(
-        !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
-        "默认单文件 helper 不应回落到旧 effect backend:\n{ir}"
-    );
-}
+    }
 
 #[test]
 fn single_file_frontend_keeps_distinct_effect_row_generic_instances() {
@@ -1512,80 +1508,6 @@ fun main(): Int {
 }
 
 #[test]
-fn effect_runtime_intrinsics_are_emitted_as_symbol_calls() {
-    let source = SourceFile::new_virtual(
-        "<mem>",
-        r#"
-package a
-
-import scoop.core.*
-
-fun main(): Int {
-    __scoop_effect_clear()
-    __scoop_effect_slot_write(9, 4, 33)
-    __scoop_effect_slot_write2(7, 5, 11, 22)
-    __scoop_effect_set_active()
-
-    val active: Int = __scoop_effect_is_active()
-    val tag: Int = __scoop_effect_slot_read_op_tag()
-    val key: Int = __scoop_effect_slot_read_effect_instance_key()
-    val len: Int = __scoop_effect_slot_read_len_words()
-    val single: Int = __scoop_effect_slot_read_value()
-    val w0: Int = __scoop_effect_slot_read_word(0)
-    val w1: Int = __scoop_effect_slot_read_word(1)
-
-    // 让返回值依赖这些调用，避免未来优化/重写时被意外删除。
-    active + tag + key + len + single + w0 + w1
-}
-"#,
-    );
-
-    let session = Session::new().unwrap();
-    let ir = emit_minimal_main_ir(&session, &source).unwrap();
-
-    assert!(
-        ir.contains("@scoop_effect_is_active"),
-        "IR 应包含对 scoop_effect_is_active 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_set_active"),
-        "IR 应包含对 scoop_effect_set_active 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_clear"),
-        "IR 应包含对 scoop_effect_clear 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_write_u64_2"),
-        "IR 应包含对 scoop_effect_perform_slot_write_u64_2 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_write_u64"),
-        "IR 应包含对 scoop_effect_perform_slot_write_u64 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_read_op_tag"),
-        "IR 应包含对 scoop_effect_perform_slot_read_op_tag 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_read_effect_instance_key"),
-        "IR 应包含对 scoop_effect_perform_slot_read_effect_instance_key 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_read_len_words"),
-        "IR 应包含对 scoop_effect_perform_slot_read_len_words 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_read_u64"),
-        "IR 应包含对 scoop_effect_perform_slot_read_u64 的引用"
-    );
-    assert!(
-        ir.contains("@scoop_effect_perform_slot_read_u64_at"),
-        "IR 应包含对 scoop_effect_perform_slot_read_u64_at 的引用"
-    );
-}
-
-#[test]
 fn effect_contract_struct_types_are_registered_for_effect_codegen() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -1704,11 +1626,7 @@ fun main(): Int {
         ),
         "handler binder lowering 应继续按 tuple payload 的两个字段读取 binder，而不是退回单值 transport\n{ir}"
     );
-    assert!(
-        !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
-        "multi-payload perform should not fall back to the single-word slot write ABI"
-    );
-}
+    }
 
 #[test]
 fn effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter() {
@@ -1885,15 +1803,7 @@ fun main(): Int {
             || ir.contains("store i32 2, ptr addrspace(1) %refactor_cont_state_gep"),
         "surface-resume return path 应继续把 continuation state 写回 object contract\n{resume_window}"
     );
-    assert!(
-        !ir.contains("@scoop_continuation_resume_into"),
-        "Continuation.resume lowering should no longer stage payload by calling the lower-level answer-only helper directly"
-    );
-    assert!(
-        !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
-        "state-machine multi-payload perform should not fall back to the single-word slot write ABI"
-    );
-}
+        }
 
 #[test]
 fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame() {
@@ -1959,11 +1869,7 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    assert!(
-        !entry_ir.contains("@scoop_effect_is_active"),
-        "签名 effectful 但 body 不会 outward-effect 的直调用不应再保留 TLS active 分流:\n{entry_ir}"
-    );
-}
+    }
 
 #[test]
 fn direct_call_with_uncalled_effectful_higher_order_param_skips_tls_check() {
@@ -2003,11 +1909,7 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    assert!(
-        !entry_ir.contains("@scoop_effect_is_active"),
-        "未调用的 higher-order effect 参数不应让外层 ordinary 直调用保留 TLS 分流:\n{entry_ir}"
-    );
-}
+    }
 
 #[test]
 fn closure_call_without_outward_effect_skips_tls_check() {
@@ -2050,11 +1952,7 @@ fun main(): Int {
         &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
     );
 
-    assert!(
-        !entry_ir.contains("@scoop_effect_is_active"),
-        "body 不会 outward-effect 的 closure 调用不应再保留 TLS active 分流:\n{entry_ir}"
-    );
-}
+    }
 
 #[test]
 fn direct_call_with_real_outward_effect_uses_wrapper_and_explicit_outcome() {
@@ -2092,20 +1990,7 @@ fun main(): Int {
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
     let outward_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_outward");
 
-    assert!(
-        entry_ir.contains("@__scoop_refactor_direct_invoke__a_outward")
-            && entry_ir.contains("switch i32 %refactor_step_tag")
-            && !entry_ir.contains("@scoop_effect_is_active")
-            && !entry_ir.contains("scoop_effect_outcome"),
-        "ordinary direct outward-effect call 应改走 refactor Step boundary，而不是旧 wrapper/TLS probing:\n{entry_ir}"
-    );
-    assert!(
-        outward_ir.contains("store i32 1")
-            && !outward_ir.contains("@scoop_effect_is_active")
-            && !outward_ir.contains("__scoop_effect_call_wrapper__a.outward"),
-        "effectful callee 自身应直接发布 refactor Step case，而不是再经旧 wrapper/outcome runtime:\n{outward_ir}"
-    );
-    assert!(
+            assert!(
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_entry__k")
             && ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_outward__k"),
         "refactor direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
@@ -2146,13 +2031,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
-    assert!(
-        entry_ir.contains("switch i32 %refactor_step_tag")
-            && !entry_ir.contains("@scoop_effect_is_active")
-            && !entry_ir.contains("scoop_effect_outcome"),
-        "outward-effect closure call 应改走 refactor Step boundary，而不是 post-call TLS probing:\n{entry_ir}"
-    );
-    assert!(
+        assert!(
         entry_ir.contains("@__scoop_refactor_direct_invoke__a_entry__lambda0"),
         "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry，而不是回落旧 wrapper/TLS probing:\n{entry_ir}"
     );
@@ -2194,13 +2073,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
 
-    assert!(
-        entry_ir.contains("switch i32 %refactor_step_tag")
-            && !entry_ir.contains("@scoop_effect_is_active")
-            && !entry_ir.contains("scoop_effect_outcome"),
-        "effectful funptr call 应改走 refactor Step boundary，而不是继续依赖 TLS active probing:\n{entry_ir}"
-    );
-    assert!(
+        assert!(
         entry_ir.contains("refactor_dynamic_funptr_fn = inttoptr i64")
             && entry_ir.contains(
                 "refactor_dynamic_call_step = call %scoop.refactor.Step__schema2 %refactor_dynamic_funptr_fn(i64"
@@ -2265,12 +2138,7 @@ fun main(): Int {
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
         "默认 virtual-cone path 的 outward vtable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
-    assert!(
-        !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome"),
-        "outward vtable helper 自身不应回落到 legacy TLS/outcome runtime 符号:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn interface_call_with_real_outward_effect_uses_explicit_outcome_boundary() {
@@ -2326,12 +2194,7 @@ fun main(): Int {
         ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
         "默认 virtual-cone path 的 outward itable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
-    assert!(
-        !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome"),
-        "outward itable helper 自身不应回落到 legacy TLS/outcome runtime 符号:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn object_value_init_access_stays_plain_without_effect_boundary() {
@@ -2365,14 +2228,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    assert!(
-        helper_ir.contains("@__scoop_object_init__a.BoomObject")
-            && !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome")
-            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "object value init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn object_property_init_access_stays_plain_without_effect_boundary() {
@@ -2399,14 +2255,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    assert!(
-        helper_ir.contains("@__scoop_object_init__a.Holder")
-            && !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome")
-            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "object property init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn top_level_immutable_init_access_stays_plain_without_effect_boundary() {
@@ -2431,14 +2280,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    assert!(
-        helper_ir.contains("@__scoop_top_level_val_init__a.Broken")
-            && !helper_ir.contains("@scoop_effect_is_active")
-            && !helper_ir.contains("scoop_effect_outcome")
-            && !helper_ir.contains("scoop_effect_handler_stack_swap_top"),
-        "top-level immutable init access 应保持 plain once-init 调用，不再安装旧 TLS/outcome bridge:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn pure_extern_call_does_not_install_effect_boundary() {
@@ -2464,14 +2306,7 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_named(&ir, "a.helper");
 
-    assert!(
-        !helper_ir.contains("@scoop_effect_handler_stack_swap_top")
-            && !helper_ir.contains("@scoop_effect_outcome_consume_current")
-            && !helper_ir.contains("@scoop_effect_outcome_publish")
-            && !helper_ir.contains("@scoop_effect_is_active"),
-        "ordinary `@Extern` 调用不应再安装任何 effect boundary 或 TLS probing:\n{helper_ir}"
-    );
-}
+    }
 
 #[test]
 fn refactor_class_ctor_uses_concrete_generic_instance_layout() {

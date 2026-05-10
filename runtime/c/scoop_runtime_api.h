@@ -23,15 +23,9 @@
 #define SCOOP_RUNTIME_API_SYMBOLS(X) \
   X(__start_llvm_stackmaps) \
   X(__stop_llvm_stackmaps) \
-  X(__scoop_effect_active) \
-  X(__scoop_effect_handler_stack_top) \
-  X(__scoop_effect_perform_slot) \
   X(__scoop_explicit_root_frame_top) \
   X(scoop_alloc) \
   X(scoop_alloc_typed) \
-  X(scoop_callee_suspend_state_clear) \
-  X(scoop_callee_suspend_state_get) \
-  X(scoop_callee_suspend_state_publish) \
   X(scoop_array_builder_build_array) \
   X(scoop_array_builder_build_array_composite) \
   X(scoop_array_builder_build_mutable_array) \
@@ -47,36 +41,6 @@
   X(scoop_array_set_composite) \
   X(scoop_array_set_ref) \
   X(scoop_array_set_u64) \
-  X(scoop_continuation_alloc) \
-  X(scoop_continuation_discard) \
-  X(scoop_continuation_resume) \
-  X(scoop_continuation_resume_into) \
-  X(scoop_continuation_resume_publish_pending_continuation) \
-  X(scoop_continuation_set_captured_callee_suspend_state) \
-  X(scoop_continuation_resume_u64) \
-  X(scoop_continuation_resume_with) \
-  X(scoop_continuation_try_resume) \
-  X(scoop_effect_clear) \
-  X(scoop_effect_clear_active) \
-  X(scoop_effect_handler_stack_swap_top) \
-  X(scoop_effect_handler_stack_top) \
-  X(scoop_effect_is_active) \
-  X(scoop_effect_outcome_consume_current) \
-  X(scoop_effect_outcome_publish) \
-  X(scoop_effect_perform_slot_read_effect_instance_key) \
-  X(scoop_effect_perform_slot_read_len_words) \
-  X(scoop_effect_perform_slot_read_op_tag) \
-  X(scoop_effect_perform_slot_read_gc_ref) \
-  X(scoop_effect_perform_slot_read_u64) \
-  X(scoop_effect_perform_slot_read_u64_at) \
-  X(scoop_effect_perform_slot_write_u64_with_gc_ref) \
-  X(scoop_effect_perform_slot_write_u64) \
-  X(scoop_effect_perform_slot_write_u64_2) \
-  X(scoop_effect_set_active) \
-  X(scoop_effect_set_active_with_trace) \
-  X(scoop_effect_trace_src_col) \
-  X(scoop_effect_trace_src_line) \
-  X(scoop_effect_trace_unwind_len) \
   X(scoop_enter_native) \
   X(scoop_float32_to_int) \
   X(scoop_float32_to_string) \

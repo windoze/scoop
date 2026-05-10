@@ -17,10 +17,6 @@
 
 // 运行时 GC helper（由具体 backend 提供实现）。
 void scoop_gc_collect(void);
-void scoop_effect_perform_slot_write_u64(uint32_t op_tag,
-                                         uint32_t effect_instance_key,
-                                         uint64_t value);
-void scoop_effect_set_active(void);
 
 typedef struct ScoopTestUnwindDumpFramesState {
   uint32_t frame_index;
