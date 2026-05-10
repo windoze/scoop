@@ -85,6 +85,7 @@ mod intrinsics;
 mod layout;
 mod mir_body;
 mod object_init;
+mod ordinary_callee;
 mod runtime_abi;
 mod runtime_symbols;
 mod stmt;
@@ -3738,11 +3739,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
-        self.callable_needs_callee_resume_shell(&fun.fqn)
-            .then_some(CalleeSuspendPlan {
-                saved_locals: Vec::new(),
-                resume_sites: Vec::new(),
-            })
+        self.build_fun_callee_suspend_plan_impl(fun)
     }
 
     /// Create the shared function-level return context used by ordinary frames.
@@ -3844,17 +3841,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declared_return_cg: CgTy,
         incoming_resume_token: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let _ = (
+        self.codegen_callee_resume_dispatch_impl(
             at,
             llvm_fun,
             plan,
             base_env,
             declared_return_cg,
             incoming_resume_token,
-        );
-        Err(LlvmEmitError::Frontend {
-            message: "ordinary callee resume dispatch lowering 尚未重建；见 G4-T05".to_string(),
-        })
+        )
     }
 
     fn codegen_callee_resume_entry_function(
@@ -3864,32 +3858,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: &CalleeSuspendPlan,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
-        let uses_hidden_sret = self
-            .hidden_sret_result_ty(at, declared_return_cg)?
-            .is_some();
-        self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
-            Some(
-                resume_fun
-                    .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing callee resume sret param",
-                        at: at.into(),
-                    })?
-                    .into_pointer_value(),
-            )
-        } else {
-            None
-        };
-        self.bind_explicit_effect_hidden_abi_slots(
-            at,
-            resume_fun,
-            u32::from(uses_hidden_sret),
-            true,
-        )?;
-        let _ = plan;
-        Err(LlvmEmitError::Frontend {
-            message: "ordinary callee resume entry body lowering 尚未重建；见 G4-T05".to_string(),
-        })
+        self.codegen_callee_resume_entry_function_impl(at, resume_fun, plan, declared_return_cg)
     }
 
     pub(crate) fn codegen_top_level_fun(
@@ -4384,6 +4353,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn clear_explicit_effect_hidden_abi_slots(&mut self) {
         self.clear_explicit_effect_hidden_abi_slots_impl()
+    }
+
+    fn build_ordinary_callee_suspend_plan(
+        &self,
+        body: &hir::Block,
+        declared_return_ty: TypeId,
+    ) -> Option<CalleeSuspendPlan> {
+        self.build_ordinary_callee_suspend_plan_impl(body, declared_return_ty)
+    }
+
+    fn hir_ty_declared_effectful(&self, hir_ty: Option<TypeId>) -> bool {
+        self.hir_ty_declared_effectful_impl(hir_ty)
+    }
+
+    fn local_call_may_suspend_from_hir_ty(&self, hir_ty: Option<TypeId>) -> bool {
+        self.local_call_may_suspend_from_hir_ty_impl(hir_ty)
+    }
+
+    fn known_fun_body_may_outward_effect(&self, fqn: &str, declared_fun_ty: TypeId) -> bool {
+        self.known_fun_body_may_outward_effect_impl(fqn, declared_fun_ty)
+    }
+
+    fn function_value_expr_body_may_outward_effect_when_called_for_local(
+        &self,
+        expr: &hir::Expr,
+    ) -> bool {
+        self.function_value_expr_body_may_outward_effect_when_called_for_local_impl(expr)
     }
 
     fn type_contains_gc_refs(&self, ty: TypeId, visiting: &mut HashSet<TypeId>) -> bool {

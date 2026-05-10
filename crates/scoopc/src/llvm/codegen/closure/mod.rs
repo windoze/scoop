@@ -38,14 +38,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn build_closure_callee_suspend_plan(
         &self,
         closure: &hir::ClosureExpr,
-        _return_ty: TypeId,
+        return_ty: TypeId,
+        receiver_binding: Option<&(hir::SymbolId, String, TypeId)>,
+        param_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Option<CalleeSuspendPlan> {
-        let callable_fqn = format!("scoop.lambda${}", closure.id.as_u32());
-        self.callable_needs_callee_resume_shell(&callable_fqn)
-            .then_some(CalleeSuspendPlan {
-                saved_locals: Vec::new(),
-                resume_sites: Vec::new(),
-            })
+        self.build_closure_callee_suspend_plan_impl(
+            closure,
+            return_ty,
+            receiver_binding,
+            param_bindings,
+        )
     }
 
     pub(in crate::llvm::codegen) fn codegen_closure_expr(
@@ -97,8 +99,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         kind: "lambda return type",
                         at: span.into(),
                     })?;
-            let callee_suspend_plan =
-                self.build_closure_callee_suspend_plan(closure, fun_ty.return_ty);
+            let callee_suspend_plan = self.build_closure_callee_suspend_plan(
+                closure,
+                fun_ty.return_ty,
+                receiver_binding.as_ref(),
+                &param_bindings,
+            );
             let callee_resume_entry_fn = if callee_suspend_plan.is_some() {
                 Some(self.declare_closure_callee_resume_entry(span, closure, ret_cg)?)
             } else {
@@ -498,6 +504,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(spec.llvm_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(spec.llvm_fun)?;
+        self.function_cx.current_callable_fqn =
+            Some(format!("scoop.lambda${}", closure.id.as_u32()));
 
         self.function_cx.env.push_scope();
 

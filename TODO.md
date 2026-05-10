@@ -455,7 +455,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §7：review 确认显式 `EffectCtx` / managed handler node graph 已成为当前 handler context 的 authoritative replacement，outward dispatch 不再依赖 ambient TLS handler stack，arm self-inactive 也已稳定落在 derived ctx 语义上。
 
-## G4-T05：重建 ordinary callee suspend/reentry 分析与 lowering
+## [DONE] G4-T05：重建 ordinary callee suspend/reentry 分析与 lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G4
@@ -491,6 +491,24 @@
   - ordinary callee suspend/reentry 再次成为后端显式协议的一部分。
 - 依赖：G3-T04R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/ordinary_callee.rs`：新增 neutral ordinary-callee 模块，接回共享 suspendability analysis、facts-driven plan builder、显式 `incoming_resume_token_ref` 驱动的 resume-state 读取，以及 `codegen_callee_resume_dispatch_impl` / `codegen_callee_resume_entry_function_impl`。
+    - `crates/scoopc/src/llvm/codegen/mod.rs`：把 `build_fun_callee_suspend_plan`、`build_ordinary_callee_suspend_plan`、`hir_ty_declared_effectful`、`local_call_may_suspend_from_hir_ty`、`known_fun_body_may_outward_effect`、`function_value_expr_body_may_outward_effect_when_called_for_local`、resume dispatch / entry body 统一改为委托新模块实现。
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`：closure suspend-plan 改为通过新模块构造，并在 closure function body 入口显式写入 lambda callable FQN，避免分析上下文继续借用外层 callable 标识。
+    - `crates/scoopc/src/effect/state_machine/mod.rs`：补出 ordinary-callee 共享分析 helper 的 crate 内 re-export，供新 neutral module 直接消费。
+    - `crates/scoopc/src/llvm/codegen/effect/ordinary_callee.rs`：删除当前孤立的 legacy 路径残余，避免继续留下假的实现入口。
+  - 核心决策：
+    - 不恢复 `mod effect;` 或任何 legacy container，而是把 ordinary-callee 相关能力迁入新的 `llvm/codegen/ordinary_callee.rs` neutral module。
+    - ordinary callee shell / `needs_reentry` 判定继续只消费已发布 callable facts（`callable_needs_callee_resume_shell(...)`）；共享 suspendability/outward-effect helper 继续复用 pass summary + shared analysis context，而不是回退到 TLS scratch。
+    - resumed path 只从显式 `incoming_resume_token_ref` 读取 suspend-state，恢复 saved locals 与 resume slot 后再执行 `resume_tail`；没有重新引入 `__scoop_callee_suspend_state`、`scoop_callee_suspend_state_*`、`publish_incoming_resume_token` 或 `clear_incoming_resume_token`。
+    - closure ordinary-callee analysis 必须带着 lambda 自己的 callable FQN 和参数 metadata 运行，不能继续借外层 function 的 callable identity 猜测 continuation escape / outward-effect 事实。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `__scoop_callee_suspend_state|scoop_callee_suspend_state_|publish_incoming_resume_token|clear_incoming_resume_token`：无命中。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但不再出现 `local_call_may_suspend_from_hir_ty`、`hir_ty_declared_effectful`、`known_fun_body_may_outward_effect`、`function_value_expr_body_may_outward_effect_when_called_for_local`、`codegen_callee_resume_dispatch_impl`、`codegen_callee_resume_entry_function_impl` 等 G4 helper 缺失；前沿已切到 `emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `declare_runtime_effect_is_active`（既有 G2 回归）以及 `codegen_perform_expr` / `codegen_handle_expr` / `codegen_call_impl` / `codegen_mir_*call*`（后续 G6/G7 缺口）。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：仍失败，失败前沿与 `cargo check -p scoopc` 一致；未新增 G4 helper 缺口或 ordinary-callee TLS 回退。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §3：ordinary callee suspend/reentry 分析与 lowering 重新拥有 active replacement；共享 outward/suspendability helper、resume-entry body、resume dispatch 不再悬空在已删除的 legacy effect module 外。
 
 ## G4-T05R：Review ordinary callee suspend/reentry，确认 facts 驱动且无 TLS 旁路
 
