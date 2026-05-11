@@ -1308,9 +1308,11 @@
     - `run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`、`enum_function_payload*.scoop`、`enum_variant_non_scalar_payload_basic.scoop` 改写为 `when`-based 覆盖；
     - `hir/local_val_destructuring_lowering.{scoop,hir}` 已同步到 tuple/struct-only lowering。
   - 基于上述修复重新跑默认环境逐个 fixture 扫描：`1226 total / 1202 pass / 24 fail / 0 timeout`。默认环境剩余失败已进一步收敛到 `codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、continuation/finally/cross-thread `run-pass` 簇、若干 stdlib/adapter fixture，以及 `runtime_gc/effect_cross_thread_resume_payload_{refs,composite}.scoop`。
+  - `runtime/c/scoop_thread.c` 已补齐仅供 fixture/internal surface 使用的 `scoop_thread_spawn_join_resume_u64` / `scoop_thread_spawn_join_resume_transport` helper；它们只负责 spawn + join + thunk 调用，不承担 continuation 核心语义。定向回归 `effect_escape_continuation_resume_cross_thread.scoop`、`effect_escape_continuation_multi_perform_cross_thread.scoop`、`gc_continuation_cross_thread_resume_with_objects.scoop`、`object_once_init_cross_thread.scoop`、以及 `runtime_gc/effect_cross_thread_resume_payload_{refs,composite}.scoop` 已恢复通过。
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs` 已修正 handle boundary 的优先级：当前 callable 内部已静态确定的 `ConsumeToArm` / `PendingCompletion` 现在先于外层动态 `EffectCtx` 扫描生效，从而恢复 `finally` 在 arm/body raise 路径上的执行。定向回归 `effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_arm_raise.scoop`、`effect_resume_finally_body_raise_after_resume.scoop`、`effect_multi_nonresuming_finally_nested_handle.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop` 已恢复通过。
   - 下一步应优先处理两大剩余簇：
-    1. continuation / finally / cross-thread resume 相关真实实现缺口；
-    2. `codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、`unsafe_funptr_aggregate_return_tuple.scoop` 这类单点 codegen 缺口。
+    1. `class_init_order_primary_secondary_basic.scoop`、`unsafe_funptr_aggregate_return_tuple.scoop`、`handle_arm_explicit_type_args_basic.scoop` 这类单点 codegen/ABI 缺口；
+    2. `stdlib_hash_set_map_basic.scoop` / `stdlib_set_map_basic.scoop` / `stdlib_smoke_collections_and_iteration.scoop` 这类 reachable stdlib callable publication 缺口。
 - 完成记录：
 
 ## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合

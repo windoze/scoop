@@ -8923,6 +8923,29 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else {
                 None
             };
+        if let Some(action) = routed_action.as_ref()
+            && skip_finalized_site.is_none()
+        {
+            match action {
+                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                    return self.apply_handle_boundary_consume_to_arm(
+                        boundary,
+                        action,
+                        case_tag,
+                        payload,
+                        payload_ty,
+                        callee_continuation,
+                        composition,
+                    );
+                }
+                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                    return self.apply_handle_boundary_pending_completion(
+                        action, payload, payload_ty,
+                    );
+                }
+                RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
+            }
+        }
         let dispatch_candidates = self.handle_boundary_dispatch_candidates_excluding(
             boundary.boundary_id(),
             case_tag,
@@ -8942,12 +8965,38 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             // so the fallback outward path below now runs with the innermost matching local
             // handler (if any) already consumed via explicit `EffectCtx`.
         }
-        if has_dispatch_candidates && origin_bb.get_terminator().is_none() {
+        if has_dispatch_candidates
+            && self.codegen.builder.get_insert_block() == Some(origin_bb)
+        {
             return Err(frontend_error(format!(
                 "refactor boundary bd{} case c{} 已解析到显式 handle dispatch candidate，但 origin block 仍未切到 dispatch loop；不能继续生成 fallback outward path",
                 boundary.boundary_id().as_u32(),
                 case_tag.as_u32(),
             )));
+        }
+        if !self.current_block_is_terminated()
+            && let Some(action) = routed_action.as_ref()
+            && skip_finalized_site.is_some()
+        {
+            match action {
+                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                    return self.apply_handle_boundary_consume_to_arm(
+                        boundary,
+                        action,
+                        case_tag,
+                        payload,
+                        payload_ty,
+                        callee_continuation,
+                        composition,
+                    );
+                }
+                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                    return self.apply_handle_boundary_pending_completion(
+                        action, payload, payload_ty,
+                    );
+                }
+                RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
+            }
         }
         if matches!(self.return_mode, RefactorCallableReturnMode::Plain { .. }) {
             if !has_dispatch_candidates {

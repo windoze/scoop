@@ -4592,35 +4592,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         let uses_explicit_effect_hidden_abi = !require_plain_surface && uses_effect_step_surface;
-        let sig_fun = self
+        let materialized_sig = self
+            .materialized_mir_callable(fqn)
+            .map(|(mir_types, fun)| (fun.clone(), mir_types as *const TypeStore));
+        let hir_sig_fun = self
             .fun_index
             .get(fqn)
             .copied()
-            .or_else(|| self.hir_fun_for_callable_fqn(fqn))
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+            .or_else(|| self.hir_fun_for_callable_fqn(fqn));
+        if hir_sig_fun.is_none() && materialized_sig.is_none() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR direct callee type",
                 at: span.into(),
-            })?;
-        if args.len() != sig_fun.params.len() {
+            });
+        }
+        let param_len = if let Some((fun, _)) = materialized_sig.as_ref() {
+            fun.params.len()
+        } else {
+            hir_sig_fun.expect("validated above").params.len()
+        };
+        if args.len() != param_len {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR direct call arity mismatch",
                 at: span.into(),
             });
         }
 
-        let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR direct call return type",
-                    at: span.into(),
-                })?;
+        let ret_cg = if let Some((fun, mir_types)) = materialized_sig.as_ref() {
+            // SAFETY: `mir_types` points into the materialized pass view owned by the
+            // compilation-unit codegen context and outlives this call.
+            let mir_types = unsafe { &**mir_types };
+            self.cg_ty_of_mir_type(mir_types, fun.return_ty)
+        } else {
+            self.cg_ty_of(hir_sig_fun.expect("validated above").return_ty)
+        }
+        .ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "pass MIR direct call return type",
+            at: span.into(),
+        })?;
         let hidden_sret_result_ty = if is_extern {
             None
         } else {
             self.hidden_sret_result_ty(span, ret_cg)?
         };
-        let evaluated_args =
-            self.codegen_bound_mir_call_args(span, sig_fun, args, slots, is_extern)?;
+        let evaluated_args = if let Some((fun, mir_types)) = materialized_sig.as_ref() {
+            // SAFETY: `mir_types` points into the materialized pass view owned by the
+            // compilation-unit codegen context and outlives this call.
+            let mir_types = unsafe { &**mir_types };
+            self.codegen_bound_materialized_mir_call_args(
+                span, fun, mir_types, args, slots, is_extern,
+            )?
+        } else {
+            self.codegen_bound_mir_call_args(
+                span,
+                hir_sig_fun.expect("validated above"),
+                args,
+                slots,
+                is_extern,
+            )?
+        };
 
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
@@ -4653,7 +4683,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
-            None => self.declare_top_level_fun(sig_fun)?,
+            None => {
+                if let Some((fun, mir_types)) = materialized_sig.as_ref() {
+                    // SAFETY: `mir_types` points into the materialized pass view owned by the
+                    // compilation-unit codegen context and outlives this call.
+                    let mir_types = unsafe { &**mir_types };
+                    let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+                    self.declare_materialized_mir_plain_fun_with_symbol(
+                        llvm_name,
+                        fun,
+                        &param_tys,
+                        fun.return_ty,
+                        mir_types,
+                    )?
+                } else {
+                    self.declare_top_level_fun(hir_sig_fun.expect("validated above"))?
+                }
+            }
         };
         let call_site_result = if is_extern {
             self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)
@@ -5932,6 +5978,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     None
                 } else {
                     Some(self.ordinary_param_abi(span, param.ty)?)
+                };
+                if let Some(abi) = param_abi
+                    && abi.pointee_ty().is_some()
+                {
+                    let (slot_ptr, cleanup_spills) = self.deferred_gc_spill_slot_for_call_arg(
+                        arg_span,
+                        &format!("pass_mir_call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                    return Ok(EvaluatedCallArg {
+                        value: slot_ptr.into(),
+                        pointer_value: None,
+                        cleanup_spills,
+                    });
+                }
+
+                let (materialized, cleanup_spills) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        arg_span,
+                        &format!("pass_mir_call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
+                let pointer_value = match materialized.value {
+                    Some(inkwell::values::BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let param_cg = param_abi
+                    .map(OrdinaryParamAbi::cg_ty)
+                    .unwrap_or(materialized.ty);
+                let value = self.as_llvm_arg_value(arg_span, param_cg, materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
+                    cleanup_spills,
+                })
+            })
+            .collect()
+    }
+
+    fn codegen_bound_materialized_mir_call_args(
+        &mut self,
+        span: crate::span::Span,
+        mir_fun: &crate::mir::FunDecl,
+        mir_types: &TypeStore,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        is_extern: bool,
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let arg_to_param = map_mir_call_args_to_mir_params(&mir_fun.params, args).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR call arg binding",
+                at: span.into(),
+            },
+        )?;
+
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; mir_fun.params.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx];
+            let param = &mir_fun.params[param_idx];
+            let target_cg = self
+                .cg_ty_of_mir_type(mir_types, param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR call arg type",
+                    at: arg.span.into(),
+                })?;
+            let value =
+                self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
+            let coerced = self.coerce_value(arg.span, value, target_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg.span,
+                &format!("pass_mir_call_arg_{param_idx}"),
+                coerced,
+            )?;
+            evaluated[param_idx] = Some((arg.span, deferred));
+        }
+
+        evaluated
+            .into_iter()
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR call arg binding",
+                    at: span.into(),
+                })?;
+                let param = &mir_fun.params[param_idx];
+                let param_abi = if is_extern {
+                    None
+                } else {
+                    Some(self.ordinary_param_abi(param.span, param.ty)?)
                 };
                 if let Some(abi) = param_abi
                     && abi.pointee_ty().is_some()
@@ -7837,6 +7973,39 @@ fn int_predicate(ty: IntTy, kind: IntCompareKind) -> IntPredicate {
 
 fn map_mir_call_args_to_params(
     params: &[hir::Param],
+    args: &[crate::mir::CallArg],
+) -> Option<Vec<usize>> {
+    let mut used = vec![false; params.len()];
+    let mut next_pos = 0usize;
+    let mut out = Vec::with_capacity(args.len());
+
+    for arg in args {
+        let param_idx = match arg.name.as_deref() {
+            Some(name) => params
+                .iter()
+                .enumerate()
+                .find_map(|(idx, param)| (!used[idx] && param.name == name).then_some(idx))?,
+            None => {
+                while used.get(next_pos).copied().unwrap_or(false) {
+                    next_pos += 1;
+                }
+                let idx = next_pos;
+                if idx >= params.len() {
+                    return None;
+                }
+                next_pos += 1;
+                idx
+            }
+        };
+        used[param_idx] = true;
+        out.push(param_idx);
+    }
+
+    (out.len() == params.len()).then_some(out)
+}
+
+fn map_mir_call_args_to_mir_params(
+    params: &[crate::mir::Param],
     args: &[crate::mir::CallArg],
 ) -> Option<Vec<usize>> {
     let mut used = vec![false; params.len()];
