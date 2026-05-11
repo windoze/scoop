@@ -3097,6 +3097,19 @@ Where Kotlin’s semantics depend on JVM-specific runtime behavior, Scoop follow
   - and executing the constructor body (for secondary constructors),
   in Kotlin-like order.
 
+For **class instance initialization**, the effect/control-flow semantics are the same as for any other callable. An implementation should conceptually normalize the distributed initialization steps of a class instance into a single compiler-owned synthetic callable body / CFG that preserves the language-mandated initialization order, including at least:
+
+- constructor/delegation argument evaluation,
+- `super(...)` / `this(...)` delegation,
+- parameter-property writes,
+- property initializers,
+- `init { ... }` blocks,
+- and the secondary-constructor body.
+
+That synthetic callable must use the same effect/control protocol as ordinary callables: explicit effect-context input, explicit resume-token input, explicit propagation/completion outcome, and the same boundary / resumable / reentry rules. In particular, this means that if a class instance initialization path contains `perform`, `handle`, `Raise.raise(...)`, or equivalent effectful control flow, the implementation must lower it through the ordinary callable effect/control machinery rather than treating constructor initialization as a special TLS-only runtime path.
+
+This rule applies only to **class instance initialization**. It does **not** apply to top-level initializers, `object` initialization, or other static initialization surfaces. Those remain subject to the separate static-initializer rule that they must be effectively `Pure!`.
+
 (Exact ordering details are inherited from Kotlin; Scoop-specific restrictions may apply where value-type immutability or effect declarations would otherwise be violated.)
 
 #### B.2.3 Inheritance and overriding

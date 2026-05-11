@@ -639,7 +639,9 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     }
 
     for fun in &reachable {
-        if let Some(callable) = late_lowered_program.callable(&fun.fqn)
+        if let Some(callable) = late_lowered_program
+            .callable(&fun.fqn)
+            .or_else(|| abi_program.callable(&fun.fqn))
             && (callable.plain_abi().is_some() || callable.effect_step_abi().is_some())
         {
             continue;

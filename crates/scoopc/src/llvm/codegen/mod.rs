@@ -427,6 +427,7 @@ struct FunctionBodyCodegenCx<'ctx> {
     current_effect_ctx_ref: Option<PointerValue<'ctx>>,
     current_incoming_resume_token_ref: Option<PointerValue<'ctx>>,
     current_effect_outcome_ptr: Option<PointerValue<'ctx>>,
+    local_effect_escape_targets: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
     top_level_const_eval_stack: Vec<String>,
 }
 
@@ -1787,6 +1788,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
+    fn current_local_effect_escape_target(
+        &self,
+    ) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
+        self.function_cx.local_effect_escape_targets.last().copied()
+    }
+
+    fn with_local_effect_escape_target<T, F>(
+        &mut self,
+        target: inkwell::basic_block::BasicBlock<'ctx>,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        self.function_cx.local_effect_escape_targets.push(target);
+        let result = f(self);
+        let _ = self.function_cx.local_effect_escape_targets.pop();
+        result
+    }
+
     fn when_pat_binding_hir_ty(
         &self,
         span: crate::span::Span,
@@ -2182,11 +2203,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &format!("{label}_return"),
             &deferred_obj,
         )?;
-        Ok(self.builder.build_pointer_cast(
+        let gc_ref = self.builder.build_pointer_cast(
             obj_ptr,
             self.llvm_gc_i8_ptr_type(),
             &format!("{label}_gc_ref"),
-        )?)
+        )?;
+        self.clear_deferred_cg_value_root_homes(at, &format!("{label}_obj_root_drop"), &deferred_obj)?;
+        Ok(gc_ref)
     }
 
     fn emit_raise_runtime_error_variant(

@@ -3,7 +3,7 @@
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: define i64 @fixtures.build.helper()
 // BUILD-LLVM-CONTAINS: define i64 @fixtures.build.main()
-// BUILD-LLVM-CONTAINS: %pass_mir_call = call i64 @fixtures.build.helper()
+// BUILD-LLVM-CONTAINS: %pass_mir_direct_call = call i64 @fixtures.build.helper()
 // BUILD-LLVM-CONTAINS: %refactor_plain_main = call i64 @fixtures.build.main()
 // BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__complete
 // BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__case0

@@ -53,11 +53,3 @@ body_facts:
         emitted_case: case#0=sample.Ping.hit
         payload_tuple_ty: Unit
         captured_cont_schema: continuation_schema#0
-
-codegen_routing_facts:
-  - body: sample.leaf
-    route: EffectStepLowering
-    reason: callable publishes EffectStep ABI from non-empty outward cases
-    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c0] adapter_required=false step_schema_published=true
-    features: Perform, PerformResult
-    span: 53..95

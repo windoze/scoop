@@ -1,4 +1,4 @@
-RefactorEffectLoweredStageOutput
+EffectLoweredStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -8,31 +8,6 @@ snapshot_binding:
     - a.id
     - a.main
     - a.main.$lambda0
-codegen_routing_facts:
-  - body: a.apply
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 40..90
-  - body: a.id
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 11..38
-  - body: a.main
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 92..129
-  - body: a.main.$lambda0
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 121..123
 post_opt_program:
 LateLoweredProgram
   step_type_count: 0
@@ -53,7 +28,7 @@ LateLoweredProgram
       body_version_key: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t385 params=[t117, t5] return=t5
+      ordinary_signature: fn_ty=t384 params=[t90, t5] return=t5
       plain_source_slices:
         - bb0 stmts[0..1] + term
       plain_call_sites:
@@ -64,7 +39,7 @@ LateLoweredProgram
       body_version_key: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t117 params=[t5] return=t5
+      ordinary_signature: fn_ty=t90 params=[t5] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -75,7 +50,7 @@ LateLoweredProgram
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t125 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..5] + term
       plain_call_sites:

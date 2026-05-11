@@ -1,4 +1,4 @@
-RefactorEffectLoweredStageOutput
+EffectLoweredStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -7,25 +7,6 @@ snapshot_binding:
     - fixtures.mir_refactor.box_int
     - fixtures.mir_refactor.cleanup
     - fixtures.mir_refactor.main
-codegen_routing_facts:
-  - body: fixtures.mir_refactor.box_int
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 133..182
-  - body: fixtures.mir_refactor.cleanup
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 115..131
-  - body: fixtures.mir_refactor.main
-    route: PlainLocalControlHandoff
-    reason: plain ABI body contains local control or non-raw call-site features
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: Handle, ResumeUnwind, Perform, PerformResult
-    span: 184..815
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
@@ -37,15 +18,15 @@ LateLoweredProgram
     - step_schema: s2
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t391
+      continuation_obj_ty: t390
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Flag.read
-        - Case(c1) payload_tuple_ty=t5 continuation_schema=k1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
-        - Case(c2) payload_tuple_ty=t261 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t261>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t391 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Flag.read
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s2 concrete_op=fixtures.mir_refactor.Step.next
+        - Case(c2) payload_tuple_ty=t210 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s2 concrete_op=scoop.core.Raise.raise<t210>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t391
+      continuation_obj_ty: t390
       implemented_packings: [ri0, ri1, ri2]
       captures:
         - FrameSlot(slot0)
@@ -73,18 +54,27 @@ LateLoweredProgram
         - FrameSlot(slot22)
         - FrameSlot(slot23)
         - FrameSlot(slot24)
+        - FrameSlot(slot25)
+        - FrameSlot(slot26)
+        - FrameSlot(slot27)
+        - FrameSlot(slot28)
+        - FrameSlot(slot29)
+        - FrameSlot(slot30)
+        - FrameSlot(slot31)
+        - FrameSlot(slot32)
+        - FrameSlot(slot33)
         - State(st6)
         - State(st13)
         - State(st20)
         - State(st30)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
-        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t391 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
+        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
-        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
-        - case=c2 packed_by=ri2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 packed_by=ri0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t391 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read => Unreachable
+        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next => Unreachable
+        - case=c2 packed_by=ri2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t4 answer_ty=t5 out_step_schema=s2
       publications:
@@ -103,23 +93,23 @@ LateLoweredProgram
       packing_effect_family: fixtures.mir_refactor.Flag
       authoritative_step_schema: s2
       packed_methods:
-        - case: c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read
+        - case: c0 resume_tuple_ty=t4 answer_ty=t5 surface_ty=t391 out_step_schema=s2 continuation_schema=k0 concrete_op=fixtures.mir_refactor.Flag.read
     - resume_packing_interface: ri1
       packing_effect_family: fixtures.mir_refactor.Step
       authoritative_step_schema: s2
       packed_methods:
-        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s2 continuation_schema=k1 concrete_op=fixtures.mir_refactor.Step.next
     - resume_packing_interface: ri2
-      packing_effect_family: scoop.core.Raise<t261>
+      packing_effect_family: scoop.core.Raise<t210>
       authoritative_step_schema: s2
       packed_methods:
-        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t261>
+        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s2 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t210>
   callables:
     - root: fixtures.mir_refactor.box_int
       body_version_key: instance=fixtures.mir_refactor.box_int allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t117 params=[t5] return=t5
+      ordinary_signature: fn_ty=t90 params=[t5] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -130,7 +120,7 @@ LateLoweredProgram
       body_version_key: instance=fixtures.mir_refactor.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t120 params=[] return=t2
+      ordinary_signature: fn_ty=t139 params=[] return=t2
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -141,7 +131,7 @@ LateLoweredProgram
       body_version_key: instance=fixtures.mir_refactor.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t125 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..2] + term
@@ -535,11 +525,20 @@ LateLoweredProgram
           - slot17 ResumePayload(bd3, c0) ty=t4 writes=[st30] reads=[st30]
           - slot18 ResumePayload(bd3, c1) ty=t5 writes=[st30] reads=[st30]
           - slot19 ResumePayload(bd3, c2) ty=t3 writes=[st30] reads=[st30]
-          - slot20 StateTag ty=t5 writes=[] reads=[]
-          - slot21 ResumePayloadCarrier ty=t0 writes=[] reads=[]
-          - slot22 CleanupFlag ty=t4 writes=[] reads=[]
-          - slot23 OneShotFlag ty=t4 writes=[] reads=[]
-          - slot24 CompletionTag ty=t5 writes=[] reads=[]
+          - slot20 HandleSavedEffectCtx(site0) ty=t0 writes=[] reads=[]
+          - slot21 HandleSavedEffectCtx(site4) ty=t0 writes=[] reads=[]
+          - slot22 HandleSavedEffectCtx(site9) ty=t0 writes=[] reads=[]
+          - slot23 HandleSavedEffectCtx(site13) ty=t0 writes=[] reads=[]
+          - slot24 StateTag ty=t5 writes=[] reads=[]
+          - slot25 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot26 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot27 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot28 CompletionTag ty=t5 writes=[] reads=[]
+          - slot29 CurrentEffectCtx ty=t0 writes=[] reads=[]
+          - slot30 HandleArmEffectCtx(site0, arm#0) ty=t0 writes=[] reads=[]
+          - slot31 HandleArmEffectCtx(site4, arm#0) ty=t0 writes=[] reads=[]
+          - slot32 HandleArmEffectCtx(site9, arm#0) ty=t0 writes=[] reads=[]
+          - slot33 HandleArmEffectCtx(site13, arm#0) ty=t0 writes=[] reads=[]
         resume_payload_bindings:
           - bd0 resume=st6 local4 home=slot4
           - bd1 resume=st13 local15 home=slot5

@@ -268,6 +268,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             }
         }
+        let primary_roots = program
+            .callables()
+            .iter()
+            .map(|callable| callable.root_fqn())
+            .collect::<HashSet<_>>();
+        for callable in abi_program.callables() {
+            if primary_roots.contains(callable.root_fqn()) {
+                continue;
+            }
+            let mut child = self.fresh_child_codegen();
+            if callable.plain_abi().is_some() {
+                child.codegen_refactor_plain_callable_entry(
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
+                    abi,
+                    callable,
+                )?;
+            } else {
+                child.codegen_refactor_callable_entries(
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
+                    abi,
+                    callable,
+                )?;
+            }
+        }
         for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_callable_carrier_entry_shell(
@@ -7194,6 +7222,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 };
                 let payload = self
                     .lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
+                let cleared_outcome = self.codegen.build_zero_complete_effect_outcome()?;
+                self.codegen.builder.build_store(outcome_slot, cleared_outcome)?;
                 self.emit_or_consume_outward_case(
                     boundary,
                     emission.case_tag(),
@@ -7417,6 +7447,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(case_bb);
         let payload =
             self.lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
+        let cleared_outcome = self.codegen.build_zero_complete_effect_outcome()?;
+        self.codegen.builder.build_store(outcome_slot, cleared_outcome)?;
         self.emit_or_consume_outward_case(
             boundary,
             emission.case_tag(),
@@ -7565,8 +7597,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             outcome_slot,
             "class_ctor_hidden_effect_payload",
         )?;
-        let decoded = self.codegen.decode_effect_transport_value(
+        let decoded = self.codegen.decode_effect_transport_value_as(
             self.mir_fun.span,
+            Some(payload_ty),
             transport.word,
             transport.gc_ref,
             payload_cg,

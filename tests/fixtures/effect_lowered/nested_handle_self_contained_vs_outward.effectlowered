@@ -1,4 +1,4 @@
-RefactorEffectLoweredStageOutput
+EffectLoweredStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -6,19 +6,6 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.nested_may_suspend_outward
     - sample.nested_self_contained
-codegen_routing_facts:
-  - body: sample.nested_may_suspend_outward
-    route: EffectStepLowering
-    reason: callable publishes EffectStep ABI from non-empty outward cases
-    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c1] adapter_required=false step_schema_published=true
-    features: Handle, ResumeUnwind, Perform, PerformResult
-    span: 342..641
-  - body: sample.nested_self_contained
-    route: PlainLocalControlHandoff
-    reason: plain ABI body contains local control or non-raw call-site features
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: Handle, Perform, PerformResult
-    span: 92..340
 post_opt_program:
 LateLoweredProgram
   step_type_count: 2
@@ -30,23 +17,23 @@ LateLoweredProgram
     - step_schema: s0
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t389
+      continuation_obj_ty: t388
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s0 concrete_op=sample.Inner.go
-        - Case(c1) payload_tuple_ty=t2 continuation_schema=k1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 concrete_op=sample.Outer.again
-        - Case(c2) payload_tuple_ty=t261 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t261>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s0 concrete_op=sample.Inner.go
+        - Case(c1) payload_tuple_ty=t2 continuation_schema=k1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s0 concrete_op=sample.Outer.again
+        - Case(c2) payload_tuple_ty=t210 continuation_schema=k2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t210>
     - step_schema: s1
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t5)
-      continuation_obj_ty: t392
+      continuation_obj_ty: t391
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 concrete_op=sample.Inner.go
-        - Case(c1) payload_tuple_ty=t2 continuation_schema=k4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 concrete_op=sample.Outer.again
-        - Case(c2) payload_tuple_ty=t261 continuation_schema=k5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t261>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s1 concrete_op=sample.Inner.go
+        - Case(c1) payload_tuple_ty=t2 continuation_schema=k4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s1 concrete_op=sample.Outer.again
+        - Case(c2) payload_tuple_ty=t210 continuation_schema=k5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t210>
   continuation_objects:
     - continuation_object: ko0
       owner_version: instance=sample.nested_may_suspend_outward allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true
-      continuation_obj_ty: t389
+      continuation_obj_ty: t388
       implemented_packings: [ri1]
       captures:
         - FrameSlot(slot0)
@@ -62,19 +49,24 @@ LateLoweredProgram
         - FrameSlot(slot10)
         - FrameSlot(slot11)
         - FrameSlot(slot12)
+        - FrameSlot(slot13)
+        - FrameSlot(slot14)
+        - FrameSlot(slot15)
+        - FrameSlot(slot16)
+        - FrameSlot(slot17)
         - State(st5)
         - State(st9)
         - State(st11)
         - State(st12)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Inner.go => Unreachable
-        - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s0 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Inner.go => Unreachable
+        - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s0 continuation_schema=k2 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
       authoritative_internal_methods:
-        - case=c1 packed_by=ri1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 packed_by=ri1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again => ResumeCapturedState(one_shot=RuntimeErrorOutward)
     - continuation_object: ko1
       owner_version: instance=sample.nested_self_contained allowed_row=Pure impl_plan=NoOutward needs_reentry=false
-      continuation_obj_ty: t392
+      continuation_obj_ty: t391
       implemented_packings: [ri3, ri4, ri5]
       captures:
         - FrameSlot(slot0)
@@ -86,15 +78,20 @@ LateLoweredProgram
         - FrameSlot(slot6)
         - FrameSlot(slot7)
         - FrameSlot(slot8)
+        - FrameSlot(slot9)
+        - FrameSlot(slot10)
+        - FrameSlot(slot11)
+        - FrameSlot(slot12)
+        - FrameSlot(slot13)
         - State(st8)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
-        - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
+        - case=c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
-        - case=c1 packed_by=ri4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
-        - case=c2 packed_by=ri5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 packed_by=ri3 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go => Unreachable
+        - case=c1 packed_by=ri4 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again => Unreachable
+        - case=c2 packed_by=ri5 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=Unreachable resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s0
       publications:
@@ -123,22 +120,22 @@ LateLoweredProgram
       packing_effect_family: sample.Outer
       authoritative_step_schema: s0
       packed_methods:
-        - case: c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again
+        - case: c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s0 continuation_schema=k1 concrete_op=sample.Outer.again
     - resume_packing_interface: ri3
       packing_effect_family: sample.Inner
       authoritative_step_schema: s1
       packed_methods:
-        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go
+        - case: c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t389 out_step_schema=s1 continuation_schema=k3 concrete_op=sample.Inner.go
     - resume_packing_interface: ri4
       packing_effect_family: sample.Outer
       authoritative_step_schema: s1
       packed_methods:
-        - case: c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again
+        - case: c1 resume_tuple_ty=t2 answer_ty=t5 surface_ty=t390 out_step_schema=s1 continuation_schema=k4 concrete_op=sample.Outer.again
     - resume_packing_interface: ri5
-      packing_effect_family: scoop.core.Raise<t261>
+      packing_effect_family: scoop.core.Raise<t210>
       authoritative_step_schema: s1
       packed_methods:
-        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t261>
+        - case: c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k5 concrete_op=scoop.core.Raise.raise<t210>
   callables:
     - root: sample.nested_may_suspend_outward
       body_version_key: instance=sample.nested_may_suspend_outward allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true
@@ -337,11 +334,16 @@ LateLoweredProgram
           - slot5 ResumePayload(bd1, c1) ty=t2 writes=[st9] reads=[st9]
           - slot6 ResumePayload(bd2, c1) ty=t2 writes=[st11] reads=[st11]
           - slot7 ResumePayload(bd3, c1) ty=t2 writes=[st12] reads=[st12]
-          - slot8 StateTag ty=t5 writes=[] reads=[]
-          - slot9 ResumePayloadCarrier ty=t0 writes=[] reads=[]
-          - slot10 CleanupFlag ty=t4 writes=[] reads=[]
-          - slot11 OneShotFlag ty=t4 writes=[] reads=[]
-          - slot12 CompletionTag ty=t5 writes=[] reads=[]
+          - slot8 HandleSavedEffectCtx(site0) ty=t0 writes=[] reads=[]
+          - slot9 HandleSavedEffectCtx(site1) ty=t0 writes=[] reads=[]
+          - slot10 StateTag ty=t5 writes=[] reads=[]
+          - slot11 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot12 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot13 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot14 CompletionTag ty=t5 writes=[] reads=[]
+          - slot15 CurrentEffectCtx ty=t0 writes=[] reads=[]
+          - slot16 HandleArmEffectCtx(site0, arm#0) ty=t0 writes=[] reads=[]
+          - slot17 HandleArmEffectCtx(site1, arm#0) ty=t0 writes=[] reads=[]
         resume_payload_bindings:
           - bd1 resume=st9 local3 home=slot1
           - bd2 resume=st11 local7 home=slot2
@@ -387,7 +389,7 @@ LateLoweredProgram
       body_version_key: instance=sample.nested_self_contained allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t125 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..0] + term
         - bb1 stmts[0..0] + term
@@ -533,11 +535,16 @@ LateLoweredProgram
           - slot1 ResumePayload(bd0, c0) ty=t5 writes=[st8] reads=[st8]
           - slot2 ResumePayload(bd0, c1) ty=t2 writes=[st8] reads=[st8]
           - slot3 ResumePayload(bd0, c2) ty=t3 writes=[st8] reads=[st8]
-          - slot4 StateTag ty=t5 writes=[] reads=[]
-          - slot5 ResumePayloadCarrier ty=t0 writes=[] reads=[]
-          - slot6 CleanupFlag ty=t4 writes=[] reads=[]
-          - slot7 OneShotFlag ty=t4 writes=[] reads=[]
-          - slot8 CompletionTag ty=t5 writes=[] reads=[]
+          - slot4 HandleSavedEffectCtx(site0) ty=t0 writes=[] reads=[]
+          - slot5 HandleSavedEffectCtx(site1) ty=t0 writes=[] reads=[]
+          - slot6 StateTag ty=t5 writes=[] reads=[]
+          - slot7 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot8 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot9 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot10 CompletionTag ty=t5 writes=[] reads=[]
+          - slot11 CurrentEffectCtx ty=t0 writes=[] reads=[]
+          - slot12 HandleArmEffectCtx(site0, arm#0) ty=t0 writes=[] reads=[]
+          - slot13 HandleArmEffectCtx(site1, arm#0) ty=t0 writes=[] reads=[]
         resume_payload_bindings:
           - bd0 resume=st8 local3 home=slot0
         completion_payload_bindings:

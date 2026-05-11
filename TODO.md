@@ -1027,7 +1027,7 @@
     - Gap 11：`G0-T01` / `G0-T01R` / `G8-T09`，runtime C 删除残余、死注释与过时导出已清到 generic substrate 自洽状态。
     - Gap 12：`G0-T01` / `G0-T01R` / `G8-T09`，活跃验证面与活跃文档已统一迁到 `StepSchema` / `resolved_outward_cases` / explicit `EffectOutcome` / explicit ctx / plain/effect ABI surface。
 
-## G8-T10：完整扫描所有 fixture 并建立失败清单
+## [DONE] G8-T10：完整扫描所有 fixture 并建立失败清单
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -1035,11 +1035,14 @@
   - 当前 CI 失败样例：`gh run view 25669198499 --log-failed`
 - 目标：
   - 不再把局部 `cargo test` / `cargo test --all` 通过视为 fixture 全绿的替代；
-  - 以 `scoop` fixture harness 为 authoritative 验证面，完整扫描当前仓库所有 fixture，建立失败清单并按类别归档。
+  - 以 `scoop` fixture harness 为 authoritative 验证面，**逐个**扫描当前仓库所有 fixture，建立失败清单并按类别归档；
+  - 扫描时必须为每个 fixture 使用短 timeout，避免单个挂死 case 卡住整轮 sweep。
 - 必须实现的内容：
-  1. 在本地运行完整 fixture sweep：
-     - `cargo run -p scoop -- test`
-     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  1. 在本地按“逐个 fixture”方式运行完整 sweep，而不是一次性跑整个 harness。
+     - 必须遍历 `tests/fixtures/**` 下活跃 fixture 集合，逐个调用 `scoop` fixture harness 运行单个 fixture。
+     - 每个 fixture 的调用都必须带短 timeout，**不得超过 30 秒**。
+     - 默认环境与 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 全开环境都要各跑一轮逐个扫描。
+     - 允许通过 driver 层 wrapper、脚本或测试辅助实现逐个扫描，但不得退回“全量一次性跑到第一个失败就停”。
   2. 若本地结果与 GitHub CI 不一致，必须同时检查最近失败的 CI run：
      - `gh run list --branch <current-branch> --limit 10`
      - `gh run view <run-id>`
@@ -1061,11 +1064,12 @@
      - 失败文本：`LLVM stage handoff 缺少 reachable callable 'fixtures.build.Base.ping' 的 published late-lowered body`
 - 必须遵从的约束：
   - 本任务不是“顺手修一个失败”；它的目标是建立完整失败面。
-  - 不允许只看本地第一条失败就停止；必须把完整 sweep 跑到结束并整理所有失败。
+  - 不允许只看本地第一条失败就停止；必须把完整逐个扫描跑到结束并整理所有失败。
   - 不允许把历史 `TODO.md` 的 `[DONE]` 状态当作 fixture 全绿证据；必须以当前实际 sweep/CI 结果为准。
+  - 每个 fixture 的 timeout 必须是短 timeout，且**不得超过 30 秒**；如果某个 fixture 在该窗口内挂住，也必须被记录为失败项而不是继续无限等待。
 - 验证：
-  1. `cargo run -p scoop -- test`
-  2. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  1. 逐个 fixture 默认环境扫描（每个 fixture timeout <= 30s）
+  2. 逐个 fixture GC env 全开扫描（每个 fixture timeout <= 30s）
   3. 如 CI 上有失败 run，至少抓取一份最新失败日志并记录 run id / head sha / 失败 job / 失败 step。
 - 完成条件：
   - 有一份当前活跃 fixture failures 的完整清单；
@@ -1073,7 +1077,21 @@
 - 依赖：G8-T09R
 - 完成记录：
 
-## G8-T10R：Review fixture failure inventory，确认分类与 owner 正确
+  - 改动范围：
+    - `TODO.md`：把 G8 后续任务的 sweep/验证约束改成“逐个 fixture + timeout <= 30s + 默认 env/GC env 双轮”的 authoritative 口径。
+    - 使用 detached worktree `/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/fixture-scan-1b13113` 对齐 `1b13113e94632e2695a354b8326c0888f1056e65` 的 CI 失败快照，生成逐个 fixture 扫描结果文件：`/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/fixture-scan-default.json` 与 `/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/fixture-scan-gc.json`。
+  - 核心决策：
+    - `cargo run -p scoop -- test` 一次性跑整轮 harness 只能暴露“首个失败”，不足以作为 fixture 全绿证据；从本任务起，完整 fixture 用户面统一以“逐个 fixture + 短 timeout”定义。
+    - failure inventory 以最新 CI 失败 run 对齐的 head sha 为基线，避免本地主工作树继续演进后把 inventory 与 CI 失败面混在一起。
+  - 验证结果：
+    - `gh run list --branch eff --limit 10`、`gh run view 25669198499`、`gh run view 25669198499 --log-failed`：确认最新失败 run 为 `25669198499`，head sha 为 `1b13113e94632e2695a354b8326c0888f1056e65`，失败 step 为 `Fixture smoke`。
+    - 默认环境逐个扫描：`1228` units，`1167` ok，`56` fail，`5` timeout；失败分布为 `build=4`、`effect_facts=7`、`effect_lowered=10`、`run-pass=33`、`run_pass_cone=2`、`runtime_gc=3`、`typecheck=2`。
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 逐个扫描：`1228` units，`1026` ok，`58` fail，`144` timeout；失败分布为 `build=4`、`effect_facts=7`、`effect_lowered=10`、`run-pass=174`、`run_pass_cone=2`、`runtime_gc=3`、`typecheck=2`。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §10：fixture harness 的真实失败面已经被完整盘点，不再拿局部单测/工作区绿灯替代用户面 sweep。
+    - §12：inventory 同时记录了 snapshot drift、default-env failure、GC-only failure 与 CI 对齐信息，活跃验证面的“真实入口”已经重新外显。
+
+## [DONE] G8-T10R：Review fixture failure inventory，确认分类与 owner 正确
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -1082,10 +1100,11 @@
   - 是否已覆盖当前全部失败 fixture，而不是只覆盖首个失败；
   - 每个失败是否都标明了正确阶段 owner；
   - CI-only failure 是否与 local-only failure 做了区分；
-  - GC env 全开时才暴露的 verify-roots / move / stress 失败是否被单独标识。
+  - GC env 全开时才暴露的 verify-roots / move / stress 失败是否被单独标识；
+  - 每个 fixture 是否确实是“单独运行 + timeout <= 30s”，而不是假装逐个扫描、实际仍批量跑。
 - 必须检查的输入：
-  - `cargo run -p scoop -- test` 全量输出
-  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 全量输出
+  - 逐个 fixture 默认环境扫描记录
+  - 逐个 fixture GC env 全开扫描记录
   - `gh run view <latest-failed-run> --log-failed`
   - 新建的 failure inventory 文本/记录
 - 验证：
@@ -1099,7 +1118,21 @@
 - 依赖：G8-T10
 - 完成记录：
 
-## G8-T11：修复 metadata-only reachable plain target 未发布 late-lowered body 的缺口
+  - 改动范围：
+    - `TODO.md`：将 `G8-T10R` 标记为 `[DONE]` 并记录 inventory review 结论；无需新增实现代码。
+  - 核心决策：
+    - 将 `effect_facts` / `effect_lowered` 的整簇失败先归类为 snapshot drift，而不是与 runtime/codegen blocker 混为一组；后续先用重生 golden 收口这类噪音，再处理真实实现失败。
+    - 将 `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop` 归为首个共享 build root cause，其直接 owner 定位到 `crates/scoopc/src/llvm/emit.rs` 与 `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs` 的 publication/handoff contract。
+    - 将 `class_init_raise_cleanup_*` 两条 `run-pass` 失败归为 class ctor/init path 仍直降 HIR `perform` 的真实实现缺口，其直接 owner 定位到 `crates/scoopc/src/llvm/codegen/class_ctor.rs` 与 `crates/scoopc/src/llvm/codegen/expr.rs`。
+  - 验证结果：
+    - build 类抽查：CI 首个失败 `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop` 的报错文本与 owner 已定位到 late-lowered body publication contract。
+    - snapshot/golden 类抽查：默认环境下 `effect_facts=7`、`effect_lowered=10` 与当前 authoritative dump surface 一致，后续确认均为 golden drift。
+    - run-pass 类抽查：`tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 与 `tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop` 的首个报错都命中 `LLVM HIR perform 入口已停用`，owner 一致指向 ctor/init path direct HIR lowering。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §10：review 确认 inventory 覆盖了 build/run-pass/snapshot/GC-only 多类失败，后续修复可以按 owner 直接收敛。
+    - §12：review 明确区分了“snapshot drift”与“真实实现失败”，避免活跃验证面再被历史 golden 噪音误导。
+
+## [DONE] G8-T11：修复 metadata-only reachable plain target 未发布 late-lowered body 的缺口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -1153,7 +1186,28 @@
 - 依赖：G8-T10R
 - 完成记录：
 
-## G8-T11R：Review metadata-only plain target publication 修复，确认不是 reachability/workaround 假绿
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：`codegen_program_bodies(...)` 现在会为 `abi_program` 中存在、但主 `program` 未显式带 body 的 reachable plain target 补发 published body。
+    - `crates/scoopc/src/llvm/emit.rs`：最终 handoff 校验接受 `late_lowered_program.callable(fqn).or_else(|| abi_program.callable(fqn))`，与 publication contract 对齐。
+    - `crates/scoop/src/commands/build.rs`：新增 `build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable` 回归测试。
+    - `tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`、`tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`：同步更新 IR 期望文本到 `%pass_mir_direct_call`。
+  - 核心决策：
+    - `Base.ping` / `Derived.ping` 这类 metadata-only reachable plain carrier target 既然已被 reachability 纳入 body-required 集，就必须得到 published late-lowered plain body；不能只发 layout/shell 而不发 body。
+    - `NoOutward` plain carrier target 仍必须保持 plain ABI；修复 publication contract 时不能借机把它们伪装成 effect-step dynamic entry 或 `Step_F` shell。
+  - 验证结果：
+    - `cargo test -p scoop commands::build::tests::build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable -- --exact`
+    - `cargo test -p scoopc llvm::codegen::effect_lowered::layout::tests::refactor_llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets -- --exact`
+    - `cargo test -p scoopc llvm::codegen::effect_lowered::layout::tests::refactor_llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallback -- --exact`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/member_call_devirt_final_receiver_direct_call.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §2：reachable callable body publication contract 已重新闭合，不再要求旧 fallback body。
+    - §8：plain callable layout/publication 现在与 authoritative facts 对齐，不再在 emitter handoff 末端漂移。
+    - §9：plain-vs-effect ABI 分流保持稳定，metadata-only plain target 不会被错误升级成 `Step_F` surface。
+
+## [DONE] G8-T11R：Review metadata-only plain target publication 修复，确认不是 reachability/workaround 假绿
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -1179,6 +1233,19 @@
 - 依赖：G8-T11
 - 完成记录：
 
+  - 改动范围：
+    - `TODO.md`：将 `G8-T11R` 标记为 `[DONE]` 并补充 review 结论；本任务无需额外实现修补。
+  - 核心决策：
+    - review 结论是：修复真正闭合了 reachable plain target 的 publication contract，而不是单纯放宽 `emit.rs` 检查或回退到 raw MIR/HIR fallback。
+    - plain carrier metadata target 的最终契约为：可以从 `abi_program` 获得 published plain body，但仍不得发布 effect-step dynamic entry、itable/vtable dynamic entry 或 `%scoop.refactor.Step__*` shell。
+  - 验证结果：
+    - 重跑 G8-T11 的全部定向验证：通过。
+    - 人工核对相关 build fixture IR 期望：`Base.ping` / `Derived.ping` 路径继续表现为 `%pass_mir_direct_call`，没有重新回流到 dynamic-entry / `Step_F` surface。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §2：review 确认 publication contract 已在 body 层闭合，而不是靠最终 handoff 宽松化假绿。
+    - §8：review 确认 plain target 的 authoritative owner 仍是 published facts/ABI program，而不是 emitter 现场猜测。
+    - §9：review 确认 plain/effect ABI 分流未被这次修复污染。
+
 ## G8-T12：迭代修复完整 fixture sweep 中的所有剩余失败
 
 - 参考：
@@ -1186,10 +1253,11 @@
   - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 全文
   - G8-T10 产出的 failure inventory
 - 目标：
-  - 以 fixture harness 为最终用户面，逐条消灭所有剩余 fixture failure，直到 `cargo run -p scoop -- test` 全绿。
+  - 以 fixture harness 为最终用户面，逐条消灭所有剩余 fixture failure，直到“逐个扫描 default env + GC env 全开”都全绿。
 - 必须实现的内容：
-  1. 按 G8-T10 的 failure inventory 顺序处理所有失败；每修完一类，必须重新跑完整 sweep，而不是只跑局部直到本地不再看到当前首个失败。
+  1. 按 G8-T10 的 failure inventory 顺序处理所有失败；每修完一类，必须重新跑完整“逐个 fixture 扫描”，而不是只跑局部直到本地不再看到当前首个失败。
      - 普通 env 和 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 全开 env 都必须重新跑。
+     - 每个 fixture 运行都必须保留 timeout <= 30s。
   2. 对每个失败，必须在修复前补充：
      - 最小复现命令（优先 `cargo run -p scoop -- test --fixtures <fixture>`）
      - 失败阶段 owner
@@ -1206,9 +1274,10 @@
   - 禁止只修 CI 首个失败而不继续全量扫；本任务的目标是**所有**剩余 fixture failure。
   - 每次全量 sweep 后都要更新 failure inventory，直到为空。
   - 不能只验证默认 env；必须同时保证 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下的 full fixture sweep 也通过。
+  - 不能为了让全量扫描跑完而放宽 timeout；每个 fixture 的 timeout 上限仍然是 30 秒。
 - 验证：
-  1. 循环执行：`cargo run -p scoop -- test`
-  2. 循环执行：`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  1. 循环执行：逐个 fixture 默认环境扫描（每个 fixture timeout <= 30s）
+  2. 循环执行：逐个 fixture GC env 全开扫描（每个 fixture timeout <= 30s）
   3. 如有 CI 差异，循环对照最近失败 run：
      - `gh run list --branch <current-branch> --limit 10`
      - `gh run view <run-id> --log-failed`
@@ -1218,11 +1287,17 @@
      - `cargo test -p scoop`
       - `cargo test --all`
 - 完成条件：
-  - `cargo run -p scoop -- test` 全绿；
-  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 全绿；
+  - 逐个 fixture 默认环境扫描全绿；
+  - 逐个 fixture `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 全绿；
   - 本地完整验证矩阵恢复通过；
   - failure inventory 为空。
 - 依赖：G8-T11R
+- 当前进展（2026-05-12）：
+  - `crates/scoopc/src/llvm/codegen/{expr.rs,class_ctor.rs,effect_outcome.rs,call/lowering.rs,effect_lowered/body.rs,mod.rs}` 已把 class ctor/init path 中的 direct HIR `perform` 接回 explicit `EffectOutcome` + local effect escape path，并补齐 composite payload transport encode/decode 与 transport box root 清理。
+  - `SCOOP_FULL_SPEC.md` 已明确写入：class instance init 必须先规范化为 compiler-owned synthetic callable body / CFG，再按普通 callable 的 effect/control 协议 lowering；该规则不适用于 `object` / top-level / static init，它们仍必须 effectively `Pure!`。
+  - `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 与 `tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop` 已在默认 env、`SCOOP_GC_MOVE=1`、`SCOOP_GC_VERIFY_ROOTS=1` 下恢复到期望输出 `0`，对应 harness `cargo run -p scoop -- test --fixtures ...` 也已通过。
+  - `tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop` 已删除；该 fixture 现在与 `object` init / static init 必须 `Pure!` 的规则冲突，已有 `tests/fixtures/typecheck/object_init_block_effect_is_error.scoop` 与 `tests/fixtures/typecheck/object_property_initializer_effect_is_error.scoop` 覆盖该用户面。
+  - 当前剩余 blocker 已收敛为更广义的 stress-GC + Raise 路径：`SCOOP_GC_STRESS=1` 下，baseline `tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop` 以及上述两个 class-init cleanup fixtures 都会在 `30s` 内 timeout；这已不再是 class ctor/init 专属漏洞。
 - 完成记录：
 
 ## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合
@@ -1235,15 +1310,15 @@
   - 全量 fixture 通过后，是否仍有未记录的 design debt / temporary workaround；
   - 修复过程中是否重新引入任何 deleted TLS continuation/effect 语义。
 - 必须检查的输入：
-  - 最终 `cargo run -p scoop -- test` 输出
-  - 最终 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 输出
+  - 最终逐个 fixture 默认环境扫描输出
+  - 最终逐个 fixture `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 扫描输出
   - 最终 failure inventory（应为空）
   - 最终 `cargo test --all` 输出
   - 修复过程中更新过的 `EFFECT_REFACTOR_GAPS.md`
 - 验证：
   - 复跑：
-    - `cargo run -p scoop -- test`
-    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+    - 逐个 fixture 默认环境扫描（每个 fixture timeout <= 30s）
+    - 逐个 fixture `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 扫描（每个 fixture timeout <= 30s）
     - `cargo test --all`
   - grep 活跃实现源码，不得重新出现 deleted TLS continuation/effect surface。
 - 完成条件：

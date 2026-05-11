@@ -339,7 +339,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.current_fun_return_ty.is_some()
     }
 
-    fn current_codegen_function(
+    pub(in crate::llvm::codegen) fn current_codegen_function(
         &self,
         at: crate::span::Span,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
@@ -350,6 +350,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "builder has no current function",
                 at: at.into(),
             })
+    }
+
+    fn emit_local_effect_escape_check(
+        &mut self,
+        at: crate::span::Span,
+        outcome_slot: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(target_bb) = self.current_local_effect_escape_target() else {
+            return Ok(());
+        };
+        let current_fn = self.current_codegen_function(at)?;
+        let continue_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_continue"));
+        let is_propagating = self.effect_outcome_is_propagating(at, outcome_slot, label)?;
+        self.builder
+            .build_conditional_branch(is_propagating, target_bb, continue_bb)?;
+        self.builder.position_at_end(continue_bb);
+        Ok(())
+    }
+
+    pub(in crate::llvm::codegen) fn emit_current_local_effect_escape_check(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(outcome_slot) = self.function_cx.current_effect_outcome_ptr else {
+            return Ok(());
+        };
+        self.emit_local_effect_escape_check(at, outcome_slot, label)
     }
 
     pub(in crate::llvm::codegen) fn current_effect_ctx_arg(&self) -> PointerValue<'ctx> {
@@ -419,6 +450,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         label: &str,
     ) -> Result<(), LlvmEmitError> {
         if !self.ordinary_effect_propagation_enabled() {
+            if let Some(target_bb) = self.current_local_effect_escape_target() {
+                let current_fn = self.current_codegen_function(at)?;
+                let dead_bb = self
+                    .context
+                    .append_basic_block(current_fn, &format!("{label}_dead"));
+                self.builder.build_unconditional_branch(target_bb)?;
+                self.builder.position_at_end(dead_bb);
+            }
             return Ok(());
         }
 
@@ -443,13 +482,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         label: &str,
     ) -> Result<(), LlvmEmitError> {
-        if !self.ordinary_effect_propagation_enabled() {
-            return Ok(());
-        }
-
         let Some(outcome_ptr) = self.function_cx.current_effect_outcome_ptr else {
             return Ok(());
         };
+        if !self.ordinary_effect_propagation_enabled() {
+            return self.emit_local_effect_escape_check(at, outcome_ptr, label);
+        }
         let current_fn = self.current_codegen_function(at)?;
         let return_bb = self
             .context
@@ -476,6 +514,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         label: &str,
     ) -> Result<(), LlvmEmitError> {
         if !self.ordinary_effect_propagation_enabled() {
+            if self.function_cx.current_effect_outcome_ptr.is_some() {
+                self.copy_effect_outcome_into_current_function_slot(at, outcome_slot, label)?;
+                return self.emit_local_effect_escape_check(at, outcome_slot, label);
+            }
             return Ok(());
         }
 

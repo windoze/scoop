@@ -561,6 +561,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             stack,
         )?;
 
+        self.emit_current_local_effect_escape_check(callee_span, "class_ctor_super_effect")?;
+
         Ok(())
     }
 
@@ -715,165 +717,195 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_source_id =
             self.source_id_for_path(class.source_path.as_path(), callee_span)?;
         let result = (|| {
-            self.function_cx.env.push_scope();
-
-            // this local（注意：每一层都有独立的 this SymbolId）。
-            let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
-            let _ = self.store_local_value_exact(
-                span,
-                this_ptr,
-                CgTy::Ref,
-                CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(obj_ptr.into()),
-                },
-            )?;
-            self.function_cx.env.insert(
-                class.this_id,
-                CgLocal {
-                    hir_ty: None,
-                    call_may_suspend: false,
-                    ty: CgTy::Ref,
-                    ptr: this_ptr,
-                    frame_backing_ptr: None,
-                    mutable: false,
-                },
-            );
-
-            // ctor params locals（先写 locals；参数属性赋值延后到 super ctor call 之后）。
-            if args.len() != ctor_params.len() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call arg/param len mismatch",
-                    at: callee_span.into(),
-                });
+            if self.function_cx.current_effect_outcome_ptr.is_none() {
+                let outcome_slot =
+                    self.alloc_effect_outcome_slot(callee_span, "class_ctor_effect")?;
+                self.function_cx.current_effect_outcome_ptr = Some(outcome_slot);
             }
-
-            for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
-                let param_cg =
-                    self.cg_ty_of(param.ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor param type",
-                            at: callee_span.into(),
-                        })?;
-                let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
-                let _ =
-                    self.store_local_value_exact(param.decl_span, param_ptr, param_cg, *arg_v)?;
-                self.function_cx.env.insert(
-                    param.id,
+            let current_fn = self.current_codegen_function(callee_span)?;
+            let effect_exit_bb = self
+                .context
+                .append_basic_block(current_fn, "class_ctor_effect_exit");
+            let merge_bb = self
+                .context
+                .append_basic_block(current_fn, "class_ctor_effect_merge");
+            self.function_cx.env.push_scope();
+            let inner_result = self.with_local_effect_escape_target(effect_exit_bb, |cg| {
+                // this local（注意：每一层都有独立的 this SymbolId）。
+                let this_ptr = cg.create_entry_alloca(span, "this", CgTy::Ref)?;
+                let _ = cg.store_local_value_exact(
+                    span,
+                    this_ptr,
+                    CgTy::Ref,
+                    CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(obj_ptr.into()),
+                    },
+                )?;
+                cg.function_cx.env.insert(
+                    class.this_id,
                     CgLocal {
-                        hir_ty: Some(param.ty),
-                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
-                        ty: param_cg,
-                        ptr: param_ptr,
+                        hir_ty: None,
+                        call_may_suspend: false,
+                        ty: CgTy::Ref,
+                        ptr: this_ptr,
                         frame_backing_ptr: None,
                         mutable: false,
                     },
                 );
-            }
 
-            // secondary ctor delegation（T1327c）
-            if ctor_kind == hir::ClassCtorKind::Secondary
-                && let Some(deleg) = delegation
-            {
-                match deleg.kind {
-                    ast::CtorDelegationKind::This => {
-                        let target = self.pick_class_ctor_by_target(
-                            callee_span,
-                            class,
-                            deleg.call.as_ref().and_then(|call| call.ctor_span),
-                            deleg.args.len(),
-                            Some(ctor_span),
-                            "class this delegation overload mismatch/ambiguous",
-                        )?;
+                // ctor params locals（先写 locals；参数属性赋值延后到 super ctor call 之后）。
+                if args.len() != ctor_params.len() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor call arg/param len mismatch",
+                        at: callee_span.into(),
+                    });
+                }
 
-                        let target_params: &[hir::ClassCtorParam] = match target {
-                            Some(c) => c.params.as_slice(),
-                            None => &[][..],
-                        };
-                        let target_values = self.codegen_class_ctor_eval_args(
-                            callee_span,
-                            callee_span,
-                            deleg.args.as_slice(),
-                            deleg.call.as_ref(),
-                            target_params,
-                            "class this delegation arg eval",
-                        )?;
-                        let current_obj = self.current_class_ctor_this_ptr(callee_span, class)?;
+                for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
+                    let param_cg =
+                        cg.cg_ty_of(param.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class ctor param type",
+                                at: callee_span.into(),
+                            })?;
+                    let param_ptr =
+                        cg.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+                    let _ =
+                        cg.store_local_value_exact(param.decl_span, param_ptr, param_cg, *arg_v)?;
+                    cg.function_cx.env.insert(
+                        param.id,
+                        CgLocal {
+                            hir_ty: Some(param.ty),
+                            call_may_suspend: cg.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                            ty: param_cg,
+                            ptr: param_ptr,
+                            frame_backing_ptr: None,
+                            mutable: false,
+                        },
+                    );
+                }
 
-                        self.codegen_class_ctor_invoke_inner(
-                            span,
-                            callee_span,
-                            class,
-                            target,
-                            target_values.as_slice(),
-                            current_obj,
-                            stack,
-                        )?;
+                // secondary ctor delegation（T1327c）
+                if ctor_kind == hir::ClassCtorKind::Secondary
+                    && let Some(deleg) = delegation
+                {
+                    match deleg.kind {
+                        ast::CtorDelegationKind::This => {
+                            let target = cg.pick_class_ctor_by_target(
+                                callee_span,
+                                class,
+                                deleg.call.as_ref().and_then(|call| call.ctor_span),
+                                deleg.args.len(),
+                                Some(ctor_span),
+                                "class this delegation overload mismatch/ambiguous",
+                            )?;
 
-                        if let Some(body) = ctor_body {
-                            let _ = self.codegen_block_value(body)?;
+                            let target_params: &[hir::ClassCtorParam] = match target {
+                                Some(c) => c.params.as_slice(),
+                                None => &[][..],
+                            };
+                            let target_values = cg.codegen_class_ctor_eval_args(
+                                callee_span,
+                                callee_span,
+                                deleg.args.as_slice(),
+                                deleg.call.as_ref(),
+                                target_params,
+                                "class this delegation arg eval",
+                            )?;
+                            let current_obj = cg.current_class_ctor_this_ptr(callee_span, class)?;
+
+                            cg.codegen_class_ctor_invoke_inner(
+                                span,
+                                callee_span,
+                                class,
+                                target,
+                                target_values.as_slice(),
+                                current_obj,
+                                stack,
+                            )?;
+                            cg.emit_current_local_effect_escape_check(
+                                callee_span,
+                                "class_ctor_this_delegation_effect",
+                            )?;
+
+                            if let Some(body) = ctor_body {
+                                let _ = cg.codegen_block_value(body)?;
+                            }
+
+                            cg.clear_gc_locals_in_current_scope(
+                                callee_span,
+                                "class_ctor_invoke_scope_drop",
+                            )?;
+                            cg.builder.build_unconditional_branch(merge_bb)?;
+                            return Ok(());
                         }
+                        ast::CtorDelegationKind::Super => {
+                            cg.codegen_class_ctor_call_super(
+                                span,
+                                callee_span,
+                                class,
+                                deleg.args.as_slice(),
+                                deleg.call.as_ref(),
+                                stack,
+                                "class super delegation overload mismatch/ambiguous",
+                            )?;
 
-                        self.clear_gc_locals_in_current_scope(
-                            callee_span,
-                            "class_ctor_invoke_scope_drop",
-                        )?;
-                        self.function_cx.env.pop_scope();
-                        return Ok(());
-                    }
-                    ast::CtorDelegationKind::Super => {
-                        self.codegen_class_ctor_call_super(
-                            span,
-                            callee_span,
-                            class,
-                            deleg.args.as_slice(),
-                            deleg.call.as_ref(),
-                            stack,
-                            "class super delegation overload mismatch/ambiguous",
-                        )?;
+                            cg.codegen_class_ctor_run_init_steps(
+                                span,
+                                callee_span,
+                                class,
+                                ctor_params,
+                            )?;
 
-                        self.codegen_class_ctor_run_init_steps(
-                            span,
-                            callee_span,
-                            class,
-                            ctor_params,
-                        )?;
+                            if let Some(body) = ctor_body {
+                                let _ = cg.codegen_block_value(body)?;
+                            }
 
-                        if let Some(body) = ctor_body {
-                            let _ = self.codegen_block_value(body)?;
+                            cg.clear_gc_locals_in_current_scope(
+                                callee_span,
+                                "class_ctor_invoke_scope_drop",
+                            )?;
+                            cg.builder.build_unconditional_branch(merge_bb)?;
+                            return Ok(());
                         }
-
-                        self.clear_gc_locals_in_current_scope(
-                            callee_span,
-                            "class_ctor_invoke_scope_drop",
-                        )?;
-                        self.function_cx.env.pop_scope();
-                        return Ok(());
                     }
                 }
+
+                // primary ctor / secondary ctor（无 delegation）路径：使用 class header 的 super ctor args。
+                cg.codegen_class_ctor_call_super(
+                    span,
+                    callee_span,
+                    class,
+                    class.super_ctor_args.as_slice(),
+                    class.super_ctor_call.as_ref(),
+                    stack,
+                    "class super ctor call overload mismatch/ambiguous",
+                )?;
+
+                cg.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params)?;
+
+                if ctor_kind == hir::ClassCtorKind::Secondary
+                    && let Some(body) = ctor_body
+                {
+                    let _ = cg.codegen_block_value(body)?;
+                }
+
+                cg.clear_gc_locals_in_current_scope(callee_span, "class_ctor_invoke_scope_drop")?;
+                cg.builder.build_unconditional_branch(merge_bb)?;
+                Ok(())
+            });
+
+            if let Err(err) = inner_result {
+                self.function_cx.env.pop_scope();
+                return Err(err);
             }
 
-            // primary ctor / secondary ctor（无 delegation）路径：使用 class header 的 super ctor args。
-            self.codegen_class_ctor_call_super(
-                span,
-                callee_span,
-                class,
-                class.super_ctor_args.as_slice(),
-                class.super_ctor_call.as_ref(),
-                stack,
-                "class super ctor call overload mismatch/ambiguous",
-            )?;
-
-            self.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params)?;
-
-            if ctor_kind == hir::ClassCtorKind::Secondary
-                && let Some(body) = ctor_body
-            {
-                let _ = self.codegen_block_value(body)?;
-            }
-
+            self.builder.position_at_end(effect_exit_bb);
             self.clear_gc_locals_in_current_scope(callee_span, "class_ctor_invoke_scope_drop")?;
+            self.builder.build_unconditional_branch(merge_bb)?;
             self.function_cx.env.pop_scope();
+            self.builder.position_at_end(merge_bb);
             Ok(())
         })();
 

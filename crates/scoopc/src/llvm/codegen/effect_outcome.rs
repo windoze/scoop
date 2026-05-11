@@ -9,7 +9,7 @@
 //! - task transport tuple 的最小识别与拆分。
 
 use inkwell::IntPredicate;
-use inkwell::values::{IntValue, PointerValue, StructValue};
+use inkwell::values::{BasicValueEnum, IntValue, PointerValue, StructValue};
 
 use super::super::LlvmEmitError;
 use super::{CgTy, CgValue, IntTy, MainCodegen};
@@ -40,7 +40,7 @@ impl EffectOutcomeTag {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn zero_value_transport_parts(&self) -> ValueTransportParts<'ctx> {
+    pub(in crate::llvm::codegen) fn zero_value_transport_parts(&self) -> ValueTransportParts<'ctx> {
         ValueTransportParts {
             word: self.context.i64_type().const_zero(),
             gc_ref: self.llvm_gc_i8_ptr_type().const_null(),
@@ -439,9 +439,92 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen) fn decode_effect_transport_value(
+    pub(in crate::llvm::codegen) fn encode_effect_transport_value(
         &mut self,
         at: crate::span::Span,
+        source_ty: Option<TypeId>,
+        value: CgValue<'ctx>,
+        name: &str,
+    ) -> Result<ValueTransportParts<'ctx>, LlvmEmitError> {
+        match value.ty {
+            CgTy::Unit | CgTy::Never => Ok(self.zero_value_transport_parts()),
+            CgTy::Bool | CgTy::Float32 | CgTy::Float64 | CgTy::Int(_) => {
+                let word = self.coerce_u64_word(at, value)?;
+                Ok(ValueTransportParts {
+                    word,
+                    gc_ref: self.llvm_gc_i8_ptr_type().const_null(),
+                })
+            }
+            CgTy::Ref => Ok(ValueTransportParts {
+                word: self.context.i64_type().const_zero(),
+                gc_ref: value
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect transport ref value",
+                        at: at.into(),
+                    })?
+                    .into_pointer_value(),
+            }),
+            CgTy::String => Ok(ValueTransportParts {
+                word: self.context.i64_type().const_zero(),
+                gc_ref: self.builder.build_pointer_cast(
+                    value
+                        .value
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "effect transport string value",
+                            at: at.into(),
+                        })?
+                        .into_pointer_value(),
+                    self.llvm_gc_i8_ptr_type(),
+                    &format!("{name}_string_ref"),
+                )?,
+            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Ok(ValueTransportParts {
+                word: self.context.i64_type().const_zero(),
+                gc_ref: self.box_composite_effect_transport_value(
+                    at,
+                    source_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect transport composite source type",
+                        at: at.into(),
+                    })?,
+                    value,
+                    name,
+                )?,
+            }),
+        }
+    }
+
+    fn load_composite_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: TypeId,
+        target: CgTy,
+        gc_ref: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let box_ty = self.mir_value_box_object_type(at, source_ty, target)?;
+        let box_ptr = self.builder.build_pointer_cast(
+            gc_ref,
+            self.llvm_ptr_type(self.gc_address_space()),
+            &format!("{name}_box_ptr"),
+        )?;
+        let payload_ptr = self.builder.build_struct_gep(
+            box_ty,
+            box_ptr,
+            1,
+            &format!("{name}_payload_gep"),
+        )?;
+        Ok(self.builder.build_load(
+            self.llvm_basic_type_of(at, target)?,
+            payload_ptr,
+            &format!("{name}_payload"),
+        )?)
+    }
+
+    pub(in crate::llvm::codegen) fn decode_effect_transport_value_as(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: Option<TypeId>,
         word: IntValue<'ctx>,
         gc_ref: PointerValue<'ctx>,
         target: CgTy,
@@ -548,12 +631,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(tuple.into()),
                 })
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "decode effect transport to composite value",
-                    at: at.into(),
-                })
-            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Ok(CgValue {
+                ty: target,
+                value: Some(self.load_composite_effect_transport_value(
+                    at,
+                    source_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "decode effect transport composite source type",
+                        at: at.into(),
+                    })?,
+                    target,
+                    gc_ref,
+                    "effect_transport_composite",
+                )?),
+            }),
         }
+    }
+
+    pub(in crate::llvm::codegen) fn decode_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        word: IntValue<'ctx>,
+        gc_ref: PointerValue<'ctx>,
+        target: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.decode_effect_transport_value_as(at, None, word, gc_ref, target)
     }
 }

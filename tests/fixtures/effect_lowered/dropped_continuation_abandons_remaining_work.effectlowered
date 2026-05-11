@@ -1,4 +1,4 @@
-RefactorEffectLoweredStageOutput
+EffectLoweredStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -7,25 +7,6 @@ snapshot_binding:
     - sample.cleanup
     - sample.helper
     - sample.main
-codegen_routing_facts:
-  - body: sample.cleanup
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 100..116
-  - body: sample.helper
-    route: EffectStepLowering
-    reason: callable publishes EffectStep ABI from non-empty outward cases
-    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c1] adapter_required=false step_schema_published=true
-    features: Handle, ResumeUnwind, Perform, PerformResult
-    span: 118..288
-  - body: sample.main
-    route: PlainRawMir
-    reason: plain ABI body is raw-MIR safe
-    abi: Plain impl_plan=NoOutward resolved_outward_cases=[] adapter_required=false step_schema_published=false
-    features: <none>
-    span: 290..322
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
@@ -37,15 +18,15 @@ LateLoweredProgram
     - step_schema: s1
       invoke_args_tuple_ty: t5
       complete_variant: Complete(t5)
-      continuation_obj_ty: t391
+      continuation_obj_ty: t390
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Other.ping
-        - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 concrete_op=sample.Step.next
-        - Case(c2) payload_tuple_ty=t261 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t261>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 concrete_op=sample.Other.ping
+        - Case(c1) payload_tuple_ty=t5 continuation_schema=k0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 concrete_op=sample.Step.next
+        - Case(c2) payload_tuple_ty=t210 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 concrete_op=scoop.core.Raise.raise<t210>
   continuation_objects:
     - continuation_object: ko0
-      owner_version: instance=sample.helper allowed_row=(t385) impl_plan=SingleCase(c1) needs_reentry=true
-      continuation_obj_ty: t391
+      owner_version: instance=sample.helper allowed_row=(t384) impl_plan=SingleCase(c1) needs_reentry=true
+      continuation_obj_ty: t390
       implemented_packings: [ri1]
       captures:
         - FrameSlot(slot0)
@@ -55,13 +36,16 @@ LateLoweredProgram
         - FrameSlot(slot4)
         - FrameSlot(slot5)
         - FrameSlot(slot6)
+        - FrameSlot(slot7)
+        - FrameSlot(slot8)
+        - FrameSlot(slot9)
         - State(st6)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
-        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t394 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Other.ping => Unreachable
+        - case=c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c2 resume_tuple_ty=t3 answer_ty=t5 surface_ty=t393 out_step_schema=s1 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
       authoritative_internal_methods:
-        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 packed_by=ri1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t5 answer_ty=t5 out_step_schema=s1
       publications:
@@ -76,13 +60,13 @@ LateLoweredProgram
       packing_effect_family: sample.Step
       authoritative_step_schema: s1
       packed_methods:
-        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t392 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
+        - case: c1 resume_tuple_ty=t5 answer_ty=t5 surface_ty=t391 out_step_schema=s1 continuation_schema=k0 concrete_op=sample.Step.next
   callables:
     - root: sample.cleanup
       body_version_key: instance=sample.cleanup allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t120 params=[] return=t2
+      ordinary_signature: fn_ty=t139 params=[] return=t2
       plain_source_slices:
         - bb0 stmts[0..0] + term
       plain_call_sites:
@@ -90,7 +74,7 @@ LateLoweredProgram
       plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: sample.helper
-      body_version_key: instance=sample.helper allowed_row=(t385) impl_plan=SingleCase(c1) needs_reentry=true
+      body_version_key: instance=sample.helper allowed_row=(t384) impl_plan=SingleCase(c1) needs_reentry=true
       resolved_outward_cases: [c1]
       abi: EffectStep
       authoritative_step_schema: s1
@@ -192,11 +176,14 @@ LateLoweredProgram
         slots:
           - slot0 BoundaryResult(bd0, local2) ty=t5 writes=[st6] reads=[]
           - slot1 ResumePayload(bd0, c1) ty=t5 writes=[st6] reads=[st6]
-          - slot2 StateTag ty=t5 writes=[] reads=[]
-          - slot3 ResumePayloadCarrier ty=t0 writes=[] reads=[]
-          - slot4 CleanupFlag ty=t4 writes=[] reads=[]
-          - slot5 OneShotFlag ty=t4 writes=[] reads=[]
-          - slot6 CompletionTag ty=t5 writes=[] reads=[]
+          - slot2 HandleSavedEffectCtx(site0) ty=t0 writes=[] reads=[]
+          - slot3 StateTag ty=t5 writes=[] reads=[]
+          - slot4 ResumePayloadCarrier ty=t0 writes=[] reads=[]
+          - slot5 CleanupFlag ty=t4 writes=[] reads=[]
+          - slot6 OneShotFlag ty=t4 writes=[] reads=[]
+          - slot7 CompletionTag ty=t5 writes=[] reads=[]
+          - slot8 CurrentEffectCtx ty=t0 writes=[] reads=[]
+          - slot9 HandleArmEffectCtx(site0, arm#0) ty=t0 writes=[] reads=[]
         resume_payload_bindings:
           - bd0 resume=st6 local2 home=slot0
         completion_payload_bindings:
@@ -217,7 +204,7 @@ LateLoweredProgram
       body_version_key: instance=sample.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t125 params=[] return=t5
+      ordinary_signature: fn_ty=t140 params=[] return=t5
       plain_source_slices:
         - bb0 stmts[0..1] + term
       plain_call_sites:

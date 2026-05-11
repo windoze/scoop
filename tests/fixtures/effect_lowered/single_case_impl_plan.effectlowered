@@ -1,17 +1,10 @@
-RefactorEffectLoweredStageOutput
+EffectLoweredStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
   instance_count: 1
   canonical_body_fqns:
     - sample.leaf
-codegen_routing_facts:
-  - body: sample.leaf
-    route: EffectStepLowering
-    reason: callable publishes EffectStep ABI from non-empty outward cases
-    abi: EffectStep impl_plan=SingleCase resolved_outward_cases=[c0] adapter_required=false step_schema_published=true
-    features: Perform, PerformResult
-    span: 53..95
 post_opt_program:
 LateLoweredProgram
   step_type_count: 1
@@ -23,14 +16,14 @@ LateLoweredProgram
     - step_schema: s0
       invoke_args_tuple_ty: t2
       complete_variant: Complete(t2)
-      continuation_obj_ty: t388
+      continuation_obj_ty: t387
       case_variants:
-        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 concrete_op=sample.Ping.hit
-        - Case(c1) payload_tuple_ty=t261 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t390 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t261>
+        - Case(c0) payload_tuple_ty=t2 continuation_schema=k0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t388 out_step_schema=s0 concrete_op=sample.Ping.hit
+        - Case(c1) payload_tuple_ty=t210 continuation_schema=k1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t389 out_step_schema=s0 concrete_op=scoop.core.Raise.raise<t210>
   continuation_objects:
     - continuation_object: ko0
-      owner_version: instance=sample.leaf allowed_row=(t385) impl_plan=SingleCase(c0) needs_reentry=true
-      continuation_obj_ty: t388
+      owner_version: instance=sample.leaf allowed_row=(t384) impl_plan=SingleCase(c0) needs_reentry=true
+      continuation_obj_ty: t387
       implemented_packings: [ri0]
       captures:
         - FrameSlot(slot0)
@@ -40,12 +33,13 @@ LateLoweredProgram
         - FrameSlot(slot4)
         - FrameSlot(slot5)
         - FrameSlot(slot6)
+        - FrameSlot(slot7)
         - State(st2)
       authoritative_surface_resumes:
-        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
-        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t390 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t261> => Unreachable
+        - case=c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t388 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c1 resume_tuple_ty=t3 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k1 concrete_op=scoop.core.Raise.raise<t210> => Unreachable
       authoritative_internal_methods:
-        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
+        - case=c0 packed_by=ri0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t388 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit => ResumeCapturedState(one_shot=RuntimeErrorOutward)
   authoritative_surface_resume_dispatch_inventory:
     - continuation_schema: k0 source=ContinuationObjectMethod resume_tuple_ty=t2 answer_ty=t2 out_step_schema=s0
       publications:
@@ -59,10 +53,10 @@ LateLoweredProgram
       packing_effect_family: sample.Ping
       authoritative_step_schema: s0
       packed_methods:
-        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t389 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
+        - case: c0 resume_tuple_ty=t2 answer_ty=t2 surface_ty=t388 out_step_schema=s0 continuation_schema=k0 concrete_op=sample.Ping.hit
   callables:
     - root: sample.leaf
-      body_version_key: instance=sample.leaf allowed_row=(t385) impl_plan=SingleCase(c0) needs_reentry=true
+      body_version_key: instance=sample.leaf allowed_row=(t384) impl_plan=SingleCase(c0) needs_reentry=true
       resolved_outward_cases: [c0]
       abi: EffectStep
       authoritative_step_schema: s0
@@ -98,6 +92,7 @@ LateLoweredProgram
           - slot4 CleanupFlag ty=t4 writes=[] reads=[]
           - slot5 OneShotFlag ty=t4 writes=[] reads=[]
           - slot6 CompletionTag ty=t5 writes=[] reads=[]
+          - slot7 CurrentEffectCtx ty=t0 writes=[] reads=[]
         resume_payload_bindings:
           - bd0 resume=st2 local0 home=slot0
         completion_payload_bindings:

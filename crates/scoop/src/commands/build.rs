@@ -940,6 +940,43 @@ public fun main() / Pure! {
 
     #[cfg(feature = "llvm")]
     #[test]
+    fn build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable() {
+        let dir = tempdir().unwrap();
+        let out = dir.path().join("dynamic_entry_publication.ll");
+
+        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+            "../../tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+        );
+
+        super::run(
+            input,
+            Some(out.clone()),
+            super::BuildOptions {
+                emit: super::BuildEmit::LlvmIr,
+                opt_level: Some(OptLevel::O0),
+                ..super::BuildOptions::default()
+            },
+        )
+        .unwrap();
+
+        let ll = std::fs::read_to_string(&out).unwrap();
+        assert!(
+            ll.contains("define i64 @fixtures.build.Base.ping(")
+                && ll.contains("define i64 @fixtures.build.Derived.ping(")
+                && ll.contains("define i64 @\"fixtures.build.makeClosure.$lambda0\"("),
+            "metadata-only plain carrier targets 也必须有已发布的 plain callable body:\n{ll}"
+        );
+        assert!(
+            !ll.contains("__scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping")
+                && !ll.contains("__scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping")
+                && !ll.contains("__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0")
+                && !ll.contains("%scoop.refactor.Step__"),
+            "NoOutward carrier target 不应重新发布 effect-step dynamic entry 或 Step shell:\n{ll}"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
     fn build_frontend_single_file_request_roots_exclude_stdlib_support_sources() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
