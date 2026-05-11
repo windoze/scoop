@@ -242,6 +242,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.extract_value_transport_parts(payload, &format!("{name}_payload"))
     }
 
+    pub(in crate::llvm::codegen) fn effect_outcome_complete_transport(
+        &mut self,
+        _at: crate::span::Span,
+        outcome_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<ValueTransportParts<'ctx>, LlvmEmitError> {
+        let outcome = self.load_effect_outcome_struct(outcome_ptr, name)?;
+        let complete = self
+            .builder
+            .build_extract_value(outcome, 2, &format!("{name}_complete"))?
+            .into_struct_value();
+        self.extract_value_transport_parts(complete, &format!("{name}_complete"))
+    }
+
+    pub(in crate::llvm::codegen) fn effect_outcome_signal_op_tag(
+        &mut self,
+        _at: crate::span::Span,
+        outcome_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let signal = self.effect_outcome_signal_struct(outcome_ptr, name)?;
+        Ok(self
+            .builder
+            .build_extract_value(signal, 0, &format!("{name}_op_tag"))?
+            .into_int_value())
+    }
+
+    pub(in crate::llvm::codegen) fn effect_outcome_signal_effect_instance_key(
+        &mut self,
+        _at: crate::span::Span,
+        outcome_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let signal = self.effect_outcome_signal_struct(outcome_ptr, name)?;
+        Ok(self
+            .builder
+            .build_extract_value(signal, 1, &format!("{name}_effect_instance_key"))?
+            .into_int_value())
+    }
+
     #[allow(dead_code)]
     pub(in crate::llvm::codegen) fn effect_outcome_resume_token(
         &mut self,

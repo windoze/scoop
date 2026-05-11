@@ -549,6 +549,55 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §3：review 确认 ordinary callee suspend/reentry contract 继续由 published callable facts + explicit incoming token 驱动，active implementation 未回退到 deleted callee TLS bridge 或 legacy effect container。
 
+## [DONE] G5-T05a：为 continuation resume driver 补齐 outcome-return continuation step core
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G5
+  - [`EFFECT_REFACTOR.md`](./EFFECT_REFACTOR.md) §4.5、§4.10、§5.3.3-§5.3.4
+  - [`CONTINUATION_RUNTIME_REFACTOR.md`](./CONTINUATION_RUNTIME_REFACTOR.md) §2.1、§3.3、§6、§7、§8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §6
+- 目标：
+  - 在 LLVM backend 内补出 continuation-owned step core，使 generated continuation resume driver 可以直接通过显式 hidden ABI + `EffectOutcome` 推进 suspended computation；
+  - 为 `G5-T06` 中的 `step_fn` / one-shot / answer write-back 提供可调用的 backend-owned resume 内核，而不是继续绕回 surface-resume `Step_F` wrapper 或任何 runtime continuation bridge。
+- 必须实现的内容：
+  1. 为 effect-lowered callable 增加 continuation step core emission mode（例如 `Outcome` return mode 或等价机制），其入口至少能够直接消费：
+     - `state_ref`
+     - `current_effect_ctx_ref`
+     - `incoming_resume_token_ref`
+     - `ScoopEffectOutcome *outcome`
+  2. continuation step core 的 complete / propagate / runtime-error 路径必须直接构造或写回 backend-owned explicit `EffectOutcome`，不能把 `Step_F` 当作 generated resume driver 的内部传播媒介。
+  3. 对 call-boundary continuation composition，step core 必须通过显式 incoming resume token surface 消费“underlying callee continuation / ordinary suspend-state token”，不能继续依赖专用 continuation runtime 字段或 bridge API。
+  4. 若当前 `effect_lowered/body.rs` / `effect_outcome.rs` 缺少把 outward case / runtime-error boundary 直接映射到 `EffectOutcome` 的 query/builder helper，需在本任务内补齐到 neutral target-shape 模块中。
+- 必须遵从的约束：
+  - 禁止通过“generated helper 内部再调用 shared surface-resume symbol 并回收 `Step_F`”的方式冒充 continuation driver；那仍然是在 wrapper 边界上做 workaround，而不是补回 continuation-owned resume core。
+  - 禁止恢复任何 runtime continuation/effect bridge、TLS active flag / perform-slot / replay-state 作为中转。
+  - 若构造 `EffectOutcome.signal` 还缺 authoritative op-tag / payload transport / resume-token query，必须在本任务内补齐真实 contract，而不是用常量、site 名字或 ad-hoc tag 猜测顶上。
+- 验证：
+  1. `cargo check -p scoopc`
+  2. continuation step core / generated resume helper 相关实现源码中不再通过 shared surface-resume `Step_F` wrapper 充当 resume 内核。
+  3. 针对 continuation resume / call-boundary composition 的 LLVM 测试应能断言：generated resume core 直接写 `EffectOutcome`，而不是依赖 runtime continuation bridge 或 shared `Step_F` wrapper。
+- 完成条件：
+  - backend 已具备 continuation-owned resume 内核：`step_fn` 可直接在显式 `EffectOutcome` 协议上推进 resumed computation，后续 `G5-T06` 可在其上只做 object layout / generated helper / thread integration 收口。
+- 依赖：G4-T05R
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_outcome.rs`：补出 `effect_outcome_complete_transport(...)`、`effect_outcome_signal_op_tag(...)`、`effect_outcome_signal_effect_instance_key(...)`，让 continuation-owned resume core 能直接 query explicit outcome，而不是先回 `Step_F`。
+    - `crates/scoopc/src/llvm/codegen/mod.rs`：新增 `effect_instance_key_for_family(...)`，把 `EffectOutcome.signal` -> published case 的 effect-instance 对齐规则收口到 backend。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：新增 internal `__scoop_refactor_surface_resume_outcome__k*`、owner `__outcome` wrapper、owner `__core` function shell；在 `RefactorCallableEmitter` 中加入 `RefactorCallableReturnMode::EffectOutcome`、`StateTag` 读写、composite transport boxing/unboxing、`EffectOutcome -> Step` 最小重建，以及显式 `EffectOutcome` complete/propagate/double-resume return path。
+    - `crates/scoopc/src/llvm/tests.rs`：新增 IR 断言，锁定 internal outcome surface / owner core 的发布，以及 composed continuation resume 先走 outcome surface、再由 caller 侧重建 `Step` 的路径。
+  - 核心决策：
+    - 不提前重写公开 `Continuation.resume(...) -> Step_F` surface；本任务新增的是 internal outcome-resume surface / owner core，让 `G5-T06` 的 generated resume driver 后续可以直接挂到 `state_ref + current_effect_ctx_ref + incoming_resume_token_ref + outcome` 协议上，而不是继续把 shared `surface-resume -> Step_F` 当作内核。
+    - call-boundary continuation composition 不再在 resumed path 里直接调用 shared `surface_resume(symbol) -> Step_F`；改为走 internal outcome surface，显式把底层 callee continuation 作为 `incoming_resume_token_ref` 传进 owner core，再由 caller 侧用 published schema 把 outcome 重建成 `Step` 并继续复用既有 boundary dispatch。
+    - 为了不把 composite answer/payload 重新塞回 runtime bridge，本任务在 backend 里补了最小的 composite transport boxing/unboxing；`EffectOutcome` 的 payload/complete transport 现在可以在 LLVM side 直接 box 到 GC-visible object，而不是依赖 runtime continuation/effect policy。
+  - 验证结果：
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但前沿继续停在后续 `G6/G7` 缺口：`emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `declare_runtime_effect_is_active`、`codegen_call_impl` / `codegen_top_level_fun_call_impl` / `codegen_mir_*call*`、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator` 等；本任务新增的 outcome/core 代码不再产生新的前沿编译错误。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：仍失败，失败前沿与 `cargo check -p scoopc` 一致，依旧停在后续 `G6/G7` 缺口；未新增本任务范围内的 lint/compile 前沿问题。
+    - 源码复核：`resume_composed_call_boundary_case(...)` 已改为调用 `refactor_surface_resume_outcome_function(surface)` + `alloc_effect_outcome_slot(...)` + `build_step_from_effect_outcome(...)`，不再直接把 shared `surface-resume -> Step_F` 当作 composed resume 的内部内核。
+    - `crates/scoopc/src/llvm/tests.rs` 已补两条 IR 断言覆盖 internal outcome surface / owner core 与 composed resume outcome-first path；由于 `G6/G7` 仍未完成，当前无法单独跑通 `cargo test -p scoopc`，但测试源码已与本任务的新 surface 同步。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §6：continuation resume driver 不再只剩 shared surface-resume `Step_F` wrapper；backend 已重新拥有 explicit `EffectOutcome` 驱动的 internal resume core/outcome wrapper，可直接承载后续 generated resume driver 的 `step_fn` 内核。
+
 ## G5-T06：重建 codegen-owned continuation object model 与 generated resume driver
 
 - 参考：
@@ -596,7 +645,7 @@
   3. 相关实现源码 grep，不得再出现 deleted runtime continuation symbol 名字。
 - 完成条件：
   - continuation alloc / resume / answer / outward propagation 再次在实现上存在，但 owner 完全位于 codegen。
-- 依赖：G4-T05R
+- 依赖：G5-T05a
 - 完成记录：
 
 ## G5-T06R：Review continuation object model / generated resume driver，确认 owner 已迁回 codegen

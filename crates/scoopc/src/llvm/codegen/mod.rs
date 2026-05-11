@@ -2094,6 +2094,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .and_then(|index| u32::try_from(index).ok())
     }
 
+    pub(super) fn effect_instance_key_for_family(
+        &self,
+        family: &crate::effect_facts::EffectFamilyKey,
+    ) -> Option<u32> {
+        if family.effect_fqn() == "scoop.core.Raise"
+            && family.type_args().len() == 1
+            && self.is_runtime_error_type(family.type_args()[0])
+        {
+            return Some(EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR);
+        }
+
+        self.known_effect_instance_types_for_fqn(family.effect_fqn())
+            .iter()
+            .position(|candidate| {
+                self.effect_nominal(*candidate)
+                    .is_some_and(|nominal| nominal.args.as_slice() == family.type_args())
+            })
+            .and_then(|index| u32::try_from(index).ok())
+    }
+
     pub(crate) fn declare_top_level_fun(
         &mut self,
         fun: &hir::FunDecl,

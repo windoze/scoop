@@ -1811,6 +1811,62 @@ fun main(): Int {
 }
 
 #[test]
+fn composed_continuation_resume_publishes_internal_outcome_surface_and_owner_core() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(
+            "../../../../tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop"
+        ),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@__scoop_refactor_surface_resume_outcome__k")
+            && ir.contains("__scoop_refactor_surface_resume_owner_dispatch__a_main__k")
+            && ir.contains("__outcome")
+            && ir.contains("__core"),
+        "composed continuation resume 应发布 internal outcome surface / owner outcome wrapper / owner core，而不是只剩 shared Step_F surface:\n{ir}"
+    );
+
+    let outcome_idx = ir
+        .find("@__scoop_refactor_surface_resume_outcome__k")
+        .expect("expected internal outcome surface in emitted IR");
+    let outcome_window_end = std::cmp::min(outcome_idx + 2400, ir.len());
+    let outcome_window = &ir[outcome_idx..outcome_window_end];
+    assert!(
+        outcome_window.contains("ScoopEffectOutcome")
+            && outcome_window.contains("store")
+            && !outcome_window.contains("call %scoop.refactor.Step"),
+        "internal outcome surface 应直接写 explicit EffectOutcome，而不是继续把 Step_F 当 resume 内核\n{outcome_window}"
+    );
+}
+
+#[test]
+fn composed_continuation_resume_reconstructs_step_from_internal_outcome_path() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(
+            "../../../../tests/fixtures/run-pass/effect_multi_escape_indirect_direct_while.scoop"
+        ),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("refactor_composed_callee_resume_outcome")
+            && ir.contains("refactor_composed_resume_outcome_phi"),
+        "composed call-boundary resume 应先调用 internal outcome surface，再由 caller 侧重建 Step dispatch\n{ir}"
+    );
+    assert!(
+        !ir.contains("refactor_composed_callee_resume = call %scoop.refactor.Step"),
+        "composed call-boundary resume 不应再直接调用 shared Step_F surface 充当 resume 内核\n{ir}"
+    );
+}
+
+#[test]
 fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explicit_frame() {
     let source = SourceFile::new_virtual(
         "<mem>",

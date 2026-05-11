@@ -12,6 +12,7 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, FunctionValue, GlobalValue, IntValue, PointerValue,
+    StructValue,
 };
 
 use crate::effect_facts::{CaseTag, StepSchemaId};
@@ -36,6 +37,7 @@ use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
+use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{CallableCarrierKind, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
@@ -65,7 +67,25 @@ enum RefactorHandleCompletionMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RefactorCallableReturnMode {
     Step,
+    EffectOutcome,
     Plain { declared_return_cg: CgTy },
+}
+
+fn refactor_surface_resume_outcome_symbol_name(
+    continuation_schema: crate::effect_facts::ContinuationSchemaId,
+) -> String {
+    format!(
+        "__scoop_refactor_surface_resume_outcome__k{}",
+        continuation_schema.as_u32()
+    )
+}
+
+fn refactor_surface_resume_owner_outcome_symbol_name(owner_symbol_name: &str) -> String {
+    format!("{owner_symbol_name}__outcome")
+}
+
+fn refactor_surface_resume_owner_core_symbol_name(owner_symbol_name: &str) -> String {
+    format!("{owner_symbol_name}__core")
 }
 
 impl RefactorHandleCompletionMode {
@@ -300,7 +320,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ))
                 })?;
             let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_surface_resume_outcome(abi, surface)?;
             for target in dispatch.target().owner_trampolines() {
+                let mut child = self.fresh_child_codegen();
+                child.codegen_refactor_surface_resume_owner_outcome(
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
+                    abi,
+                    surface,
+                    target,
+                )?;
                 let mut child = self.fresh_child_codegen();
                 child.codegen_refactor_surface_resume_owner_trampoline(
                     abi_program,
@@ -1719,6 +1750,140 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn codegen_refactor_surface_resume_outcome(
+        &mut self,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.refactor_surface_resume_outcome_function(surface);
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let dispatch = abi.surface_resume_dispatch_layout(surface.continuation_schema())?;
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        let targets = dispatch.target().owner_trampolines();
+        if targets.is_empty() {
+            self.builder.build_unreachable()?;
+            return Ok(());
+        }
+        let cont = function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome surface resume `{}` 缺少 continuation 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let mut args = vec![cont.into_pointer_value().into()];
+        if !surface.resume_payload_abi().is_elided() {
+            let payload = function.get_nth_param(1).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor outcome surface resume `{}` 缺少 resume payload 参数",
+                    function.get_name().to_str().unwrap_or("<invalid>")
+                ))
+            })?;
+            args.push(payload.into());
+        }
+        let outcome_index = if surface.resume_payload_abi().is_elided() {
+            1
+        } else {
+            2
+        };
+        let outcome_ptr = function.get_nth_param(outcome_index).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome surface resume `{}` 缺少 explicit outcome 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        args.push(outcome_ptr.into());
+        if targets.len() == 1 {
+            let callee = self.refactor_surface_resume_owner_outcome_function(surface, &targets[0]);
+            self.build_call_preserving_gc_local_roots(
+                crate::span::Span::new(0, 0),
+                callee,
+                &args,
+                "refactor_surface_resume_outcome_call",
+            )?;
+            self.builder.build_return(None)?;
+            return Ok(());
+        }
+
+        let cont_ptr = cont.into_pointer_value();
+        let current_desc =
+            self.load_gc_object_type_desc(cont_ptr, "surface_resume_outcome_desc")?;
+        let word_ty = self.context.i64_type();
+        let current_desc_int = self.builder.build_ptr_to_int(
+            current_desc,
+            word_ty,
+            "surface_resume_outcome_desc_int",
+        )?;
+        let first_check = self
+            .context
+            .append_basic_block(function, "surface_resume_outcome_check0");
+        self.builder.build_unconditional_branch(first_check)?;
+        let mut check_bb = first_check;
+        for (index, target) in targets.iter().enumerate() {
+            let next_bb = self.context.append_basic_block(
+                function,
+                &format!("surface_resume_outcome_check{}", index + 1),
+            );
+            let hit_bb = self.context.append_basic_block(
+                function,
+                &format!(
+                    "surface_resume_outcome_hit_ko{}",
+                    target.owner_continuation_object().as_u32()
+                ),
+            );
+            self.builder.position_at_end(check_bb);
+            let continuation_layout = abi
+                .continuation_layout(target.owner_continuation_object())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor outcome surface resume `{}` 缺少 owner continuation object ko{} layout",
+                        function.get_name().to_str().unwrap_or("<invalid>"),
+                        target.owner_continuation_object().as_u32(),
+                    ))
+                })?;
+            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+                crate::span::Span::new(0, 0),
+                continuation_layout.llvm_ty(),
+                continuation_layout.layout_anchor_name(),
+            )?;
+            let type_desc_i8 = self.builder.build_pointer_cast(
+                type_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "surface_resume_outcome_target_desc",
+            )?;
+            let target_desc_int = self.builder.build_ptr_to_int(
+                type_desc_i8,
+                word_ty,
+                "surface_resume_outcome_target_desc_int",
+            )?;
+            let is_match = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_desc_int,
+                target_desc_int,
+                "surface_resume_outcome_desc_match",
+            )?;
+            self.builder
+                .build_conditional_branch(is_match, hit_bb, next_bb)?;
+
+            self.builder.position_at_end(hit_bb);
+            let callee = self.refactor_surface_resume_owner_outcome_function(surface, target);
+            self.build_call_preserving_gc_local_roots(
+                crate::span::Span::new(0, 0),
+                callee,
+                &args,
+                "refactor_surface_resume_owner_outcome_call",
+            )?;
+            self.builder.build_return(None)?;
+            check_bb = next_bb;
+        }
+
+        self.builder.position_at_end(check_bb);
+        self.builder.build_unreachable()?;
+        Ok(())
+    }
+
     fn codegen_refactor_dynamic_surface_resume_adapter(
         &mut self,
         program: &'a LateLoweredProgram,
@@ -1897,6 +2062,165 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn collect_surface_resume_handle_sites(
+        &self,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> Option<BTreeSet<SiteId>> {
+        let mut surface_handle_sites = target
+            .handle_binder_routes()
+            .iter()
+            .map(|route| route.site_id())
+            .collect::<BTreeSet<_>>();
+        if let Some(projection) = target.wrapper_projection()
+            && let LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                site_id,
+                ..
+            } = projection.underlying_route().publication()
+        {
+            surface_handle_sites.insert(*site_id);
+        }
+        (!surface_handle_sites.is_empty()).then_some(surface_handle_sites)
+    }
+
+    fn codegen_refactor_surface_resume_owner_core(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let core_fun = self.refactor_surface_resume_owner_core_function(surface, target);
+        if core_fun.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let callable = program
+            .callable_by_version_key(target.owner_version_key())
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.body_version_key().surface_instance()
+                        == target.owner_version_key().surface_instance()
+                })
+            })
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.root_fqn()
+                        == target.owner_version_key().surface_instance().template.fqn
+                })
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor outcome owner core k{} 缺少 owner callable {:?}",
+                    surface.continuation_schema().as_u32(),
+                    target.owner_version_key()
+                ))
+            })?;
+        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome owner core `{}` owner `{}` 缺少 canonical MIR body",
+                core_fun.get_name().to_str().unwrap_or("<invalid>"),
+                callable.root_fqn()
+            ))
+        })?;
+        let entry = self.context.append_basic_block(core_fun, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(core_fun)?;
+        RefactorCallableEmitter::new(
+            self,
+            program,
+            source_types,
+            pass_view,
+            abi,
+            callable,
+            mir_fun,
+            body,
+            core_fun,
+            None,
+            None,
+            self.collect_surface_resume_handle_sites(target),
+            RefactorHandleCompletionMode::ReturnFromFunction,
+        )?
+        .emit_resume_outcome_core(surface.resume_tuple_ty())?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        Ok(())
+    }
+
+    fn codegen_refactor_surface_resume_owner_outcome(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let outcome_fun = self.refactor_surface_resume_owner_outcome_function(surface, target);
+        if outcome_fun.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let core_fun = self.refactor_surface_resume_owner_core_function(surface, target);
+        self.codegen_refactor_surface_resume_owner_core(
+            program,
+            source_types,
+            pass_view,
+            abi,
+            surface,
+            target,
+        )?;
+        let callable = program
+            .callable_by_version_key(target.owner_version_key())
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.body_version_key().surface_instance()
+                        == target.owner_version_key().surface_instance()
+                })
+            })
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.root_fqn()
+                        == target.owner_version_key().surface_instance().template.fqn
+                })
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor outcome owner wrapper k{} 缺少 owner callable {:?}",
+                    surface.continuation_schema().as_u32(),
+                    target.owner_version_key()
+                ))
+            })?;
+        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome owner wrapper `{}` owner `{}` 缺少 canonical MIR body",
+                outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
+                callable.root_fqn()
+            ))
+        })?;
+        let entry = self.context.append_basic_block(outcome_fun, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(outcome_fun)?;
+        RefactorCallableEmitter::new(
+            self,
+            program,
+            source_types,
+            pass_view,
+            abi,
+            callable,
+            mir_fun,
+            body,
+            outcome_fun,
+            None,
+            None,
+            self.collect_surface_resume_handle_sites(target),
+            RefactorHandleCompletionMode::ReturnFromFunction,
+        )?
+        .emit_resume_outcome_wrapper(core_fun, surface.resume_tuple_ty())?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        Ok(())
+    }
+
     fn load_gc_object_type_desc(
         &mut self,
         obj: PointerValue<'ctx>,
@@ -2041,6 +2365,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "refactor body lowering 缺少已发布 function shell `{symbol_name}`"
             ))
         })
+    }
+
+    fn refactor_surface_resume_outcome_llvm_ty(
+        &self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> inkwell::types::FunctionType<'ctx> {
+        let mut params = vec![self.llvm_gc_i8_ptr_type().into()];
+        if !surface.resume_payload_abi().is_elided() {
+            params.push(surface.resume_payload_abi().llvm_ty().into());
+        }
+        params.push(self.context.ptr_type(AddressSpace::default()).into());
+        self.context.void_type().fn_type(&params, false)
+    }
+
+    fn refactor_surface_resume_owner_outcome_llvm_ty(
+        &self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> inkwell::types::FunctionType<'ctx> {
+        self.refactor_surface_resume_outcome_llvm_ty(surface)
+    }
+
+    fn refactor_surface_resume_owner_core_llvm_ty(
+        &self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> inkwell::types::FunctionType<'ctx> {
+        let mut params = vec![self.llvm_gc_i8_ptr_type().into()];
+        if !surface.resume_payload_abi().is_elided() {
+            params.push(surface.resume_payload_abi().llvm_ty().into());
+        }
+        params.push(self.llvm_gc_i8_ptr_type().into());
+        params.push(self.llvm_gc_i8_ptr_type().into());
+        params.push(self.context.ptr_type(AddressSpace::default()).into());
+        self.context.void_type().fn_type(&params, false)
+    }
+
+    fn refactor_surface_resume_outcome_function(
+        &mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name =
+            refactor_surface_resume_outcome_symbol_name(surface.continuation_schema());
+        let llvm_ty = self.refactor_surface_resume_outcome_llvm_ty(surface);
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+    }
+
+    fn refactor_surface_resume_owner_outcome_function(
+        &mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target.symbol_name());
+        let llvm_ty = self.refactor_surface_resume_owner_outcome_llvm_ty(surface);
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+    }
+
+    fn refactor_surface_resume_owner_core_function(
+        &mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name = refactor_surface_resume_owner_core_symbol_name(target.symbol_name());
+        let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
     }
 }
 
@@ -3813,6 +4206,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.frame_field_ptr(field_index, name)
     }
 
+    fn current_state_tag_slot_ptr(
+        &mut self,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let field_index = self
+            .frame_layout
+            .field_index_for_system(SystemSlotKind::StateTag)
+            .ok_or_else(|| {
+                frontend_error("refactor frame layout 缺少 StateTag system field".to_string())
+            })?;
+        self.frame_field_ptr(field_index, name)
+    }
+
     fn load_current_effect_ctx(&mut self, name: &str) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let field_ptr = self.current_effect_ctx_slot_ptr(name)?;
         Ok(self
@@ -3833,6 +4239,37 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             field_ptr,
             effect_ctx,
         )
+    }
+
+    fn load_current_state_tag(&mut self, name: &str) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let field_ptr = self.current_state_tag_slot_ptr(name)?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(self.codegen.context.i32_type(), field_ptr, name)?
+            .into_int_value())
+    }
+
+    fn store_current_state_tag(
+        &mut self,
+        state_tag: IntValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let field_ptr = self.current_state_tag_slot_ptr(name)?;
+        self.codegen.builder.build_store(field_ptr, state_tag)?;
+        Ok(())
+    }
+
+    fn current_effect_outcome_ptr(&self) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.codegen
+            .function_cx
+            .current_effect_outcome_ptr
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor callable `{}` 缺少当前 explicit effect outcome 指针",
+                    self.callable.root_fqn()
+                ))
+            })
     }
 
     fn handle_saved_effect_ctx_slot_id(
@@ -4210,6 +4647,71 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.emit_resume_entry(resume_tuple_ty)
     }
 
+    fn emit_resume_state_dispatch(
+        &mut self,
+        resume_state_tag: IntValue<'ctx>,
+        resume_tuple_ty: TypeId,
+        payload: Option<BasicValueEnum<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        let invalid_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_invalid_state");
+        let mut bindings_by_state = BTreeMap::<StateId, LateLoweredResumePayloadBinding>::new();
+        for binding in self.callable.frame_schema().resume_payload_bindings() {
+            if !self.resume_payload_binding_accepts_tuple(binding, resume_tuple_ty)? {
+                continue;
+            }
+            if let Some(existing) = bindings_by_state.get(&binding.resume_state()) {
+                if existing.consumer_local() != binding.consumer_local()
+                    || existing.consumer_frame_slot() != binding.consumer_frame_slot()
+                {
+                    return Err(frontend_error(format!(
+                        "refactor resume entry st{} 的 resumed local/home contract 冲突：bd{} 与 bd{}",
+                        binding.resume_state().as_u32(),
+                        existing.boundary_id().as_u32(),
+                        binding.boundary_id().as_u32()
+                    )));
+                }
+                continue;
+            }
+            let _ = self
+                .abi
+                .resume_payload_binding_for_state(self.abi_step_schema, binding.resume_state())?;
+            bindings_by_state.insert(binding.resume_state(), *binding);
+        }
+        let mut cases = Vec::new();
+        for binding in bindings_by_state.values().copied() {
+            let bb = self.codegen.context.append_basic_block(
+                self.function,
+                &format!("resume_payload_st{}", binding.resume_state().as_u32()),
+            );
+            cases.push((
+                self.codegen
+                    .context
+                    .i32_type()
+                    .const_int(binding.resume_state().as_u32() as u64, false),
+                bb,
+                binding,
+            ));
+        }
+        let switch_cases = cases
+            .iter()
+            .map(|(tag, bb, _)| (*tag, *bb))
+            .collect::<Vec<_>>();
+        self.codegen
+            .builder
+            .build_switch(resume_state_tag, invalid_bb, &switch_cases)?;
+        for (_, bb, binding) in cases {
+            self.codegen.builder.position_at_end(bb);
+            self.inject_resume_payload(binding, resume_tuple_ty, payload)?;
+            self.branch_to_state(binding.resume_state())?;
+        }
+        self.codegen.builder.position_at_end(invalid_bb);
+        self.codegen.builder.build_unreachable()?;
+        self.emit_states()
+    }
+
     fn emit_resume_entry(mut self, resume_tuple_ty: TypeId) -> Result<(), LlvmEmitError> {
         let cont = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
@@ -4270,71 +4772,186 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
 
         self.codegen.builder.position_at_end(composed_resume_bb);
-        self.dispatch_composed_call_boundary_resume(
+        let handled = self.dispatch_composed_call_boundary_resume(
             resume_state_tag,
             composed_callee,
             resume_tuple_ty,
             payload,
         )?;
+        if !handled {
+            self.codegen.builder.build_unreachable()?;
+        }
 
         self.codegen.builder.position_at_end(ordinary_resume_bb);
-        let invalid_bb = self
+        self.emit_resume_state_dispatch(resume_state_tag, resume_tuple_ty, payload)
+    }
+
+    fn emit_double_resume_runtime_error_to_ptr(
+        &mut self,
+        outcome_ptr: PointerValue<'ctx>,
+        resume_state_tag: IntValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let (case_tag, payload_tuple_ty) = self.double_resume_runtime_error_case()?;
+        let payload = self.lower_runtime_error_boundary_payload(payload_tuple_ty)?;
+        let continuation =
+            self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
+        let outcome = self.build_propagating_effect_outcome_for_case(
+            case_tag,
+            payload,
+            payload_tuple_ty,
+            continuation,
+        )?;
+        self.emit_effect_outcome_return_to_ptr(outcome_ptr, outcome)
+    }
+
+    fn emit_resume_outcome_wrapper(
+        mut self,
+        core_fun: FunctionValue<'ctx>,
+        _resume_tuple_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        let cont = self.function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome resume wrapper `{}` 缺少 continuation 参数",
+                self.function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
+        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_outcome_resume_cont_root")?;
+        let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
+        self.store_frame_root(captured_frame)?;
+        let payload = if self.function.count_params() > 2 {
+            Some(self.function.get_nth_param(1).ok_or_else(|| {
+                frontend_error("refactor outcome resume wrapper 缺少 payload 参数".to_string())
+            })?)
+        } else {
+            None
+        };
+        let outcome_ptr = self
+            .function
+            .get_nth_param(self.function.count_params().saturating_sub(1))
+            .ok_or_else(|| {
+                frontend_error("refactor outcome resume wrapper 缺少 outcome 参数".to_string())
+            })?
+            .into_pointer_value();
+        let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
+        let already = self.load_continuation_one_shot(cont_ptr)?;
+        let first_resume_bb = self
             .codegen
             .context
-            .append_basic_block(self.function, "resume_invalid_state");
-        let mut bindings_by_state = BTreeMap::<StateId, LateLoweredResumePayloadBinding>::new();
-        for binding in self.callable.frame_schema().resume_payload_bindings() {
-            if !self.resume_payload_binding_accepts_tuple(binding, resume_tuple_ty)? {
-                continue;
-            }
-            if let Some(existing) = bindings_by_state.get(&binding.resume_state()) {
-                if existing.consumer_local() != binding.consumer_local()
-                    || existing.consumer_frame_slot() != binding.consumer_frame_slot()
-                {
-                    return Err(frontend_error(format!(
-                        "refactor resume entry st{} 的 resumed local/home contract 冲突：bd{} 与 bd{}",
-                        binding.resume_state().as_u32(),
-                        existing.boundary_id().as_u32(),
-                        binding.boundary_id().as_u32()
-                    )));
-                }
-                continue;
-            }
-            let _ = self
-                .abi
-                .resume_payload_binding_for_state(self.abi_step_schema, binding.resume_state())?;
-            bindings_by_state.insert(binding.resume_state(), *binding);
+            .append_basic_block(self.function, "resume_first");
+        let double_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_double");
+        self.codegen.builder.build_conditional_branch(
+            already,
+            double_resume_bb,
+            first_resume_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(double_resume_bb);
+        self.emit_double_resume_runtime_error_to_ptr(outcome_ptr, resume_state_tag)?;
+
+        self.codegen.builder.position_at_end(first_resume_bb);
+        self.store_continuation_one_shot(cont_ptr, true)?;
+        self.store_current_state_tag(resume_state_tag, "refactor_outcome_resume_state")?;
+        let current_effect_ctx = self.load_current_effect_ctx("refactor_outcome_resume_ctx")?;
+        let incoming_resume_token = self.load_composed_callee_continuation(cont_ptr)?;
+        let state_ref = self.current_frame_gc_ref("refactor_outcome_resume_state_ref")?;
+        let mut args = vec![state_ref.into()];
+        if let Some(payload) = payload {
+            args.push(payload.into());
         }
-        let mut cases = Vec::new();
-        for binding in bindings_by_state.values().copied() {
-            let bb = self.codegen.context.append_basic_block(
-                self.function,
-                &format!("resume_payload_st{}", binding.resume_state().as_u32()),
-            );
-            cases.push((
-                self.codegen
-                    .context
-                    .i32_type()
-                    .const_int(binding.resume_state().as_u32() as u64, false),
-                bb,
-                binding,
-            ));
+        args.push(current_effect_ctx.into());
+        args.push(incoming_resume_token.into());
+        args.push(outcome_ptr.into());
+        self.codegen.build_call_preserving_gc_local_roots(
+            self.mir_fun.span,
+            core_fun,
+            &args,
+            "refactor_outcome_resume_core",
+        )?;
+        self.codegen.builder.build_return(None)?;
+        Ok(())
+    }
+
+    fn emit_resume_outcome_core(mut self, resume_tuple_ty: TypeId) -> Result<(), LlvmEmitError> {
+        self.return_mode = RefactorCallableReturnMode::EffectOutcome;
+        let payload_param_index = (self.function.count_params() > 4).then_some(1u32);
+        self.codegen.bind_explicit_effect_hidden_abi_slots(
+            self.mir_fun.span,
+            self.function,
+            if payload_param_index.is_some() { 2 } else { 1 },
+            true,
+        )?;
+        let state_ref = self.function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor outcome core `{}` 缺少 state_ref 参数",
+                self.function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let state_ref = self.codegen.refactor_cast_ptr(
+            state_ref.into_pointer_value(),
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            "refactor_outcome_core_state_ref",
+        )?;
+        self.store_frame_root(state_ref)?;
+        self.restore_frame_slots_to_locals()?;
+        let current_effect_ctx =
+            self.codegen
+                .function_cx
+                .current_effect_ctx_ref
+                .ok_or_else(|| {
+                    frontend_error("refactor outcome core 缺少 current_effect_ctx_ref".to_string())
+                })?;
+        self.store_current_effect_ctx(current_effect_ctx, "refactor_outcome_core_effect_ctx")?;
+        let resume_state_tag = self.load_current_state_tag("refactor_outcome_core_state_tag")?;
+        let incoming_resume_token = self
+            .codegen
+            .function_cx
+            .current_incoming_resume_token_ref
+            .ok_or_else(|| {
+                frontend_error("refactor outcome core 缺少 incoming_resume_token_ref".to_string())
+            })?;
+        let payload = payload_param_index
+            .map(|index| {
+                self.function.get_nth_param(index).ok_or_else(|| {
+                    frontend_error("refactor outcome core 缺少 payload 参数".to_string())
+                })
+            })
+            .transpose()?;
+        let ordinary_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_core_plain_dispatch");
+        let composed_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_core_composed_dispatch");
+        let incoming_is_null = self.codegen.builder.build_is_null(
+            incoming_resume_token,
+            "refactor_outcome_core_incoming_is_null",
+        )?;
+        self.codegen.builder.build_conditional_branch(
+            incoming_is_null,
+            ordinary_resume_bb,
+            composed_resume_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(composed_resume_bb);
+        if !self.dispatch_composed_call_boundary_resume(
+            resume_state_tag,
+            incoming_resume_token,
+            resume_tuple_ty,
+            payload,
+        )? {
+            self.codegen
+                .builder
+                .build_unconditional_branch(ordinary_resume_bb)?;
         }
-        let switch_cases = cases
-            .iter()
-            .map(|(tag, bb, _)| (*tag, *bb))
-            .collect::<Vec<_>>();
-        self.codegen
-            .builder
-            .build_switch(resume_state_tag, invalid_bb, &switch_cases)?;
-        for (_, bb, binding) in cases {
-            self.codegen.builder.position_at_end(bb);
-            self.inject_resume_payload(binding, resume_tuple_ty, payload)?;
-            self.branch_to_state(binding.resume_state())?;
-        }
-        self.codegen.builder.position_at_end(invalid_bb);
-        self.codegen.builder.build_unreachable()?;
-        self.emit_states()
+
+        self.codegen.builder.position_at_end(ordinary_resume_bb);
+        self.emit_resume_state_dispatch(resume_state_tag, resume_tuple_ty, payload)
     }
 
     fn emit_double_resume_runtime_error(
@@ -4345,21 +4962,34 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let payload = self.lower_runtime_error_boundary_payload(payload_tuple_ty)?;
         let continuation =
             self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
-        let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
-                self.callable.root_fqn(),
-                self.abi_step_schema.as_u32(),
-                case_tag.as_u32(),
-            ))
-        })?;
-        let step = self.codegen.refactor_build_step_case(
-            self.step_layout,
-            out_layout,
-            payload,
-            continuation,
-        )?;
-        self.return_step(step)
+        match self.return_mode {
+            RefactorCallableReturnMode::EffectOutcome => {
+                let outcome = self.build_propagating_effect_outcome_for_case(
+                    case_tag,
+                    payload,
+                    payload_tuple_ty,
+                    continuation,
+                )?;
+                self.emit_effect_outcome_return(outcome)
+            }
+            _ => {
+                let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
+                        self.callable.root_fqn(),
+                        self.abi_step_schema.as_u32(),
+                        case_tag.as_u32(),
+                    ))
+                })?;
+                let step = self.codegen.refactor_build_step_case(
+                    self.step_layout,
+                    out_layout,
+                    payload,
+                    continuation,
+                )?;
+                self.return_step(step)
+            }
+        }
     }
 
     fn double_resume_runtime_error_case(&self) -> Result<(CaseTag, TypeId), LlvmEmitError> {
@@ -4422,7 +5052,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: PointerValue<'ctx>,
         resume_tuple_ty: TypeId,
         payload: Option<BasicValueEnum<'ctx>>,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<bool, LlvmEmitError> {
         let mut composition_entries = Vec::new();
         for boundary in self.callable.boundary_map().entries() {
             match boundary.lowering() {
@@ -4468,8 +5098,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
         }
         if composition_entries.is_empty() {
-            self.codegen.builder.build_unreachable()?;
-            return Ok(());
+            return Ok(false);
         }
         let invalid_bb = self
             .codegen
@@ -4545,7 +5174,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         self.codegen.builder.position_at_end(invalid_bb);
         self.codegen.builder.build_unreachable()?;
-        Ok(())
+        Ok(true)
     }
 
     fn resume_composed_call_boundary_case(
@@ -4620,7 +5249,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         {
             self.replay_call_boundary_prefix(boundary, call_lowering)?;
         }
-        let callee = self.codegen.refactor_function(surface.symbol_name())?;
+        let callee = self
+            .codegen
+            .refactor_surface_resume_outcome_function(surface);
         let callee_continuation = self.codegen.reload_deferred_gc_ref_without_clearing(
             self.mir_fun.span,
             "refactor_composed_resume_callee_continuation_reload",
@@ -4649,11 +5280,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .into(),
             );
         }
-        let call = self.codegen.build_call_preserving_gc_local_roots(
+        let outcome_slot = self
+            .codegen
+            .alloc_effect_outcome_slot(self.mir_fun.span, "refactor_composed_resume")?;
+        args.push(outcome_slot.into());
+        self.codegen.build_call_preserving_gc_local_roots(
             self.mir_fun.span,
             callee,
             &args,
-            "refactor_composed_callee_resume",
+            "refactor_composed_callee_resume_outcome",
         )?;
         self.codegen.clear_deferred_cg_value_root_homes(
             self.mir_fun.span,
@@ -4667,11 +5302,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 deferred_payload,
             )?;
         }
-        let step = call.try_as_basic_value().basic().ok_or_else(|| {
-            frontend_error(
-                "refactor composed call boundary callee resume 未返回 Step_F".to_string(),
-            )
-        })?;
+        let step_layout = self
+            .abi
+            .step_layout(surface.return_step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor composed call boundary bd{} 缺少 callee step schema s{} layout",
+                    boundary.boundary_id().as_u32(),
+                    surface.return_step_schema().as_u32(),
+                ))
+            })?;
+        let step = self.build_step_from_effect_outcome(
+            step_layout,
+            outcome_slot,
+            "refactor_composed_resume_outcome",
+        )?;
         self.dispatch_boundary_step(
             boundary,
             surface.return_step_schema(),
@@ -5294,6 +5939,32 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         self.return_step(step).map_err(|err| {
                             frontend_error(format!(
                                 "refactor return state st{} return Step failed: {err}",
+                                state.state_id().as_u32(),
+                            ))
+                        })
+                    }
+                    RefactorCallableReturnMode::EffectOutcome => {
+                        let payload =
+                            self.complete_payload_or_default(self.step_layout, payload)?;
+                        let complete_transport = self.encode_effect_transport_parts(
+                            self.step_layout.complete_variant().payload_source_ty(),
+                            payload,
+                            "refactor_return_effect_outcome",
+                        )?;
+                        let zero_signal = self.codegen.build_effect_signal(
+                            self.codegen.context.i32_type().const_zero(),
+                            self.codegen.context.i32_type().const_zero(),
+                            self.zero_transport_parts(),
+                            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+                        )?;
+                        let outcome = self.codegen.build_effect_outcome(
+                            EffectOutcomeTag::Complete,
+                            complete_transport,
+                            zero_signal,
+                        )?;
+                        self.emit_effect_outcome_return(outcome).map_err(|err| {
+                            frontend_error(format!(
+                                "refactor return state st{} return EffectOutcome failed: {err}",
                                 state.state_id().as_u32(),
                             ))
                         })
@@ -7317,14 +7988,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             callee_continuation,
             composition,
         )?;
-        let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor callable `{}` step schema s{} 缺少 outward case c{}",
-                self.callable.root_fqn(),
-                self.abi_step_schema.as_u32(),
-                case_tag.as_u32()
-            ))
-        })?;
         let payload = if let Some(deferred_payload) = deferred_payload {
             self.codegen
                 .materialize_deferred_cg_value(
@@ -7336,13 +7999,34 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         } else {
             payload
         };
-        let step = self.codegen.refactor_build_step_case(
-            self.step_layout,
-            out_layout,
-            payload,
-            continuation,
-        )?;
-        self.return_step(step)
+        match self.return_mode {
+            RefactorCallableReturnMode::EffectOutcome => {
+                let outcome = self.build_propagating_effect_outcome_for_case(
+                    case_tag,
+                    payload,
+                    payload_ty,
+                    continuation,
+                )?;
+                self.emit_effect_outcome_return(outcome)
+            }
+            _ => {
+                let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor callable `{}` step schema s{} 缺少 outward case c{}",
+                        self.callable.root_fqn(),
+                        self.abi_step_schema.as_u32(),
+                        case_tag.as_u32()
+                    ))
+                })?;
+                let step = self.codegen.refactor_build_step_case(
+                    self.step_layout,
+                    out_layout,
+                    payload,
+                    continuation,
+                )?;
+                self.return_step(step)
+            }
+        }
     }
 
     fn composed_resume_already_ran_handle_finally(
@@ -7379,12 +8063,298 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(false)
     }
 
+    fn zero_transport_parts(&self) -> ValueTransportParts<'ctx> {
+        ValueTransportParts {
+            word: self.codegen.context.i64_type().const_zero(),
+            gc_ref: self.codegen.llvm_gc_i8_ptr_type().const_null(),
+        }
+    }
+
+    fn effect_signal_constants_for_case(
+        &mut self,
+        case_layout: &RefactorStepCaseLayout<'ctx>,
+    ) -> Result<(IntValue<'ctx>, IntValue<'ctx>), LlvmEmitError> {
+        let op_tag = self.codegen.context.i32_type().const_int(
+            u64::from(
+                self.codegen
+                    .effect_op_tag(case_layout.concrete_op_key().effect_family().effect_fqn()),
+            ),
+            false,
+        );
+        let effect_instance_key = self
+            .codegen
+            .effect_instance_key_for_family(case_layout.concrete_op_key().effect_family())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor step schema s{} case c{} 缺少可发布的 effect_instance_key",
+                    self.abi_step_schema.as_u32(),
+                    case_layout.case_tag().as_u32()
+                ))
+            })?;
+        Ok((
+            op_tag,
+            self.codegen
+                .context
+                .i32_type()
+                .const_int(u64::from(effect_instance_key), false),
+        ))
+    }
+
+    fn emit_effect_outcome_return_to_ptr(
+        &mut self,
+        outcome_ptr: PointerValue<'ctx>,
+        outcome: StructValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen.builder.build_store(outcome_ptr, outcome)?;
+        self.codegen.builder.build_return(None)?;
+        Ok(())
+    }
+
+    fn emit_effect_outcome_return(
+        &mut self,
+        outcome: StructValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        self.sync_frame_slots_from_locals()?;
+        let outcome_ptr = self.current_effect_outcome_ptr()?;
+        self.emit_effect_outcome_return_to_ptr(outcome_ptr, outcome)
+    }
+
+    fn build_complete_effect_outcome_from_payload_source(
+        &mut self,
+        payload_source: &LateLoweredCompletionPayloadSource,
+    ) -> Result<StructValue<'ctx>, LlvmEmitError> {
+        let payload_ty = self.step_layout.complete_variant().payload_source_ty();
+        let payload = self.lower_completion_payload_as(payload_source, payload_ty)?;
+        let payload = self.complete_payload_or_default(self.step_layout, payload)?;
+        let complete =
+            self.encode_effect_transport_parts(payload_ty, payload, "effect_outcome_complete")?;
+        let zero_signal = self.codegen.build_effect_signal(
+            self.codegen.context.i32_type().const_zero(),
+            self.codegen.context.i32_type().const_zero(),
+            self.zero_transport_parts(),
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+        )?;
+        self.codegen
+            .build_effect_outcome(EffectOutcomeTag::Complete, complete, zero_signal)
+    }
+
+    fn build_propagating_effect_outcome_for_case(
+        &mut self,
+        case_tag: CaseTag,
+        payload: Option<BasicValueEnum<'ctx>>,
+        payload_ty: TypeId,
+        resume_token: PointerValue<'ctx>,
+    ) -> Result<StructValue<'ctx>, LlvmEmitError> {
+        let case_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor callable `{}` step schema s{} 缺少 outward case c{}",
+                self.callable.root_fqn(),
+                self.abi_step_schema.as_u32(),
+                case_tag.as_u32()
+            ))
+        })?;
+        let (op_tag, effect_instance_key) = self.effect_signal_constants_for_case(case_layout)?;
+        let payload_transport =
+            self.encode_effect_transport_parts(payload_ty, payload, "effect_outcome_payload")?;
+        let signal = self.codegen.build_effect_signal(
+            op_tag,
+            effect_instance_key,
+            payload_transport,
+            resume_token,
+        )?;
+        self.codegen.build_effect_outcome(
+            EffectOutcomeTag::Propagate,
+            self.zero_transport_parts(),
+            signal,
+        )
+    }
+
+    fn build_step_from_effect_outcome(
+        &mut self,
+        step_layout: &RefactorStepLayout<'ctx>,
+        outcome_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let function = self.function;
+        let complete_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_complete"));
+        let dispatch_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_dispatch"));
+        let done_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_done"));
+        let unmatched_bb = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_unmatched"));
+        let is_propagating = self.codegen.effect_outcome_is_propagating(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_outcome"),
+        )?;
+        self.codegen
+            .builder
+            .build_conditional_branch(is_propagating, dispatch_bb, complete_bb)?;
+        let mut incoming_steps = Vec::<(BasicValueEnum<'ctx>, BasicBlock<'ctx>)>::new();
+
+        self.codegen.builder.position_at_end(complete_bb);
+        let complete_transport = self.codegen.effect_outcome_complete_transport(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_complete_transport"),
+        )?;
+        let complete_payload = self.decode_effect_transport_parts(
+            step_layout.complete_variant().payload_source_ty(),
+            complete_transport,
+            &format!("{name}_complete_payload"),
+        )?;
+        let complete_step = self
+            .codegen
+            .refactor_build_step_complete(step_layout, complete_payload)?;
+        self.codegen.builder.build_unconditional_branch(done_bb)?;
+        let complete_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
+            frontend_error(format!("refactor `{name}` complete path 缺少 insert block"))
+        })?;
+        incoming_steps.push((complete_step, complete_end));
+
+        self.codegen.builder.position_at_end(dispatch_bb);
+        let signal_op_tag = self.codegen.effect_outcome_signal_op_tag(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_signal"),
+        )?;
+        let signal_effect_instance_key = self.codegen.effect_outcome_signal_effect_instance_key(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_signal"),
+        )?;
+        let signal_payload = self.codegen.effect_outcome_payload_transport(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_signal_payload"),
+        )?;
+        let signal_resume_token = self.codegen.effect_outcome_resume_token(
+            self.mir_fun.span,
+            outcome_ptr,
+            &format!("{name}_signal_resume_token"),
+        )?;
+        let first_check = self
+            .codegen
+            .context
+            .append_basic_block(function, &format!("{name}_check0"));
+        self.codegen
+            .builder
+            .build_unconditional_branch(first_check)?;
+        let mut check_bb = first_check;
+        let mut case_blocks = Vec::new();
+        for (index, case_layout) in step_layout.cases().values().enumerate() {
+            let next_bb = self
+                .codegen
+                .context
+                .append_basic_block(function, &format!("{name}_check{}", index + 1));
+            let hit_bb = self.codegen.context.append_basic_block(
+                function,
+                &format!("{name}_case{}", case_layout.case_tag().as_u32()),
+            );
+            self.codegen.builder.position_at_end(check_bb);
+            let (expected_op_tag, expected_effect_instance_key) =
+                self.effect_signal_constants_for_case(case_layout)?;
+            let op_match = self.codegen.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                signal_op_tag,
+                expected_op_tag,
+                &format!("{name}_op_match"),
+            )?;
+            let effect_instance_match = self.codegen.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                signal_effect_instance_key,
+                expected_effect_instance_key,
+                &format!("{name}_effect_instance_match"),
+            )?;
+            let both_match = self.codegen.builder.build_and(
+                op_match,
+                effect_instance_match,
+                &format!("{name}_case_match"),
+            )?;
+            self.codegen
+                .builder
+                .build_conditional_branch(both_match, hit_bb, next_bb)?;
+            case_blocks.push((
+                case_layout.case_tag(),
+                case_layout.payload_tuple_ty(),
+                hit_bb,
+            ));
+            check_bb = next_bb;
+        }
+
+        for (case_tag, payload_ty, hit_bb) in case_blocks {
+            self.codegen.builder.position_at_end(hit_bb);
+            let case_layout = step_layout.case_layout(case_tag).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor step schema 缺少 case c{}",
+                    case_tag.as_u32()
+                ))
+            })?;
+            let payload = self.decode_effect_transport_parts(
+                payload_ty,
+                signal_payload,
+                &format!("{name}_case{}_payload", case_tag.as_u32()),
+            )?;
+            let step = self.codegen.refactor_build_step_case(
+                step_layout,
+                case_layout,
+                payload,
+                signal_resume_token,
+            )?;
+            self.codegen.builder.build_unconditional_branch(done_bb)?;
+            let end_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor `{name}` case c{} path 缺少 insert block",
+                    case_tag.as_u32()
+                ))
+            })?;
+            incoming_steps.push((step, end_bb));
+        }
+
+        self.codegen.builder.position_at_end(check_bb);
+        self.codegen
+            .builder
+            .build_unconditional_branch(unmatched_bb)?;
+
+        self.codegen.builder.position_at_end(unmatched_bb);
+        self.codegen.builder.build_unreachable()?;
+
+        self.codegen.builder.position_at_end(done_bb);
+        let step_phi = self
+            .codegen
+            .builder
+            .build_phi(step_layout.llvm_ty(), &format!("{name}_phi"))?;
+        for (step, block) in incoming_steps {
+            step_phi.add_incoming(&[(&step, block)]);
+        }
+        Ok(step_phi.as_basic_value())
+    }
+
     fn return_step(&mut self, step: BasicValueEnum<'ctx>) -> Result<(), LlvmEmitError> {
-        if let RefactorCallableReturnMode::Plain { .. } = self.return_mode {
-            return Err(frontend_error(format!(
-                "refactor plain callable `{}` 的本地 effect/control path 尝试向外返回 Step_F；P5 handoff 应保证 NoOutward body 的 case 被本地 handle/catch 消费",
-                self.callable.root_fqn()
-            )));
+        match self.return_mode {
+            RefactorCallableReturnMode::Plain { .. } => {
+                return Err(frontend_error(format!(
+                    "refactor plain callable `{}` 的本地 effect/control path 尝试向外返回 Step_F；P5 handoff 应保证 NoOutward body 的 case 被本地 handle/catch 消费",
+                    self.callable.root_fqn()
+                )));
+            }
+            RefactorCallableReturnMode::EffectOutcome => {
+                return Err(frontend_error(format!(
+                    "refactor outcome core `{}` 不应再直接返回 Step_F",
+                    self.callable.root_fqn()
+                )));
+            }
+            RefactorCallableReturnMode::Step => {}
         }
         self.sync_frame_slots_from_locals()?;
         if let Some(projection) = self.return_projection {
@@ -7765,15 +8735,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.sync_frame_slots_from_locals()?;
             self.codegen.builder.build_return(Some(&projected))?;
         } else {
-            let payload = self.lower_completion_payload_as(
-                &owner_payload_source,
-                self.step_layout.complete_variant().payload_source_ty(),
-            )?;
-            let payload = self.complete_payload_or_default(self.step_layout, payload)?;
-            let step = self
-                .codegen
-                .refactor_build_step_complete(self.step_layout, payload)?;
-            self.return_step(step)?;
+            match self.return_mode {
+                RefactorCallableReturnMode::EffectOutcome => {
+                    let outcome = self
+                        .build_complete_effect_outcome_from_payload_source(&owner_payload_source)?;
+                    self.emit_effect_outcome_return(outcome)?;
+                }
+                _ => {
+                    let payload = self.lower_completion_payload_as(
+                        &owner_payload_source,
+                        self.step_layout.complete_variant().payload_source_ty(),
+                    )?;
+                    let payload = self.complete_payload_or_default(self.step_layout, payload)?;
+                    let step = self
+                        .codegen
+                        .refactor_build_step_complete(self.step_layout, payload)?;
+                    self.return_step(step)?;
+                }
+            }
         }
         Ok(true)
     }
@@ -8403,10 +9382,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     frontend_error(format!(
                         "refactor HandleDispatch site{} ReturnFromFunction 缺少 finally completion payload source",
                         finally.site_id.as_u32(),
-                    ))
+                        ))
                 })?;
-                let step = self.build_complete_step_from_payload_source(payload_source)?;
-                self.return_step(step)?;
+                match self.return_mode {
+                    RefactorCallableReturnMode::EffectOutcome => {
+                        let outcome =
+                            self.build_complete_effect_outcome_from_payload_source(payload_source)?;
+                        self.emit_effect_outcome_return(outcome)?;
+                    }
+                    _ => {
+                        let step = self.build_complete_step_from_payload_source(payload_source)?;
+                        self.return_step(step)?;
+                    }
+                }
             }
         }
 
@@ -8824,6 +9812,217 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.store_local_to_frame_slot(binding.consumer_local(), frame_slot)?;
         }
         Ok(())
+    }
+
+    fn effect_transport_box_layout(
+        &mut self,
+        source_ty: TypeId,
+        cg_ty: CgTy,
+    ) -> Result<(StructType<'ctx>, String), LlvmEmitError> {
+        let payload_ty = self.codegen.llvm_basic_type_of(self.mir_fun.span, cg_ty)?;
+        let source_name = sanitize_llvm_ident(&self.source_types.display(source_ty).to_string());
+        let stem = format!("t{}__{source_name}", source_ty.as_u32());
+        let type_name = format!("scoop.refactor.EffectTransportBox__{stem}");
+        let layout_anchor_name = format!("__scoop_refactor_effect_transport_box__{stem}");
+        let struct_ty = self
+            .codegen
+            .context
+            .get_struct_type(&type_name)
+            .unwrap_or_else(|| self.codegen.context.opaque_struct_type(&type_name));
+        if struct_ty.is_opaque() {
+            struct_ty.set_body(
+                &[
+                    self.codegen.llvm_gc_object_header_type().into(),
+                    payload_ty.into(),
+                ],
+                false,
+            );
+        }
+        Ok((struct_ty, layout_anchor_name))
+    }
+
+    fn box_effect_transport_composite_value(
+        &mut self,
+        source_ty: TypeId,
+        value: CgValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if value.value.is_none() {
+            return Err(frontend_error(format!(
+                "refactor effect transport composite t{} 缺少 runtime value",
+                source_ty.as_u32()
+            )));
+        }
+        let (box_ty, layout_anchor_name) = self.effect_transport_box_layout(source_ty, value.ty)?;
+        let deferred = self
+            .codegen
+            .defer_gc_sensitive_cg_value(self.mir_fun.span, name, value)?;
+        let box_ptr = self.codegen.refactor_alloc_gc_struct(
+            self.mir_fun.span,
+            box_ty,
+            &layout_anchor_name,
+            name,
+        )?;
+        let payload_ptr = self.codegen.builder.build_struct_gep(
+            box_ty,
+            box_ptr,
+            1,
+            &format!("{name}_payload_gep"),
+        )?;
+        let materialized = self
+            .codegen
+            .materialize_deferred_cg_value(self.mir_fun.span, &format!("{name}_reload"), deferred)?
+            .value
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect transport composite `{name}` reload 缺少 runtime value"
+                ))
+            })?;
+        self.codegen.refactor_store_gc_aware_value(
+            self.mir_fun.span,
+            payload_ptr,
+            materialized,
+            &format!("{name}_payload"),
+        )?;
+        self.codegen.refactor_cast_ptr(
+            box_ptr,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_gc_ref"),
+        )
+    }
+
+    fn load_effect_transport_composite_value(
+        &mut self,
+        source_ty: TypeId,
+        target_cg: CgTy,
+        gc_ref: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
+        let (box_ty, _) = self.effect_transport_box_layout(source_ty, target_cg)?;
+        let box_ptr = self.codegen.refactor_cast_ptr(
+            gc_ref,
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            &format!("{name}_box_ptr"),
+        )?;
+        let payload_ptr = self.codegen.builder.build_struct_gep(
+            box_ty,
+            box_ptr,
+            1,
+            &format!("{name}_payload_gep"),
+        )?;
+        Ok(self.codegen.builder.build_load(
+            self.codegen
+                .llvm_basic_type_of(self.mir_fun.span, target_cg)?,
+            payload_ptr,
+            &format!("{name}_payload"),
+        )?)
+    }
+
+    fn encode_effect_transport_parts(
+        &mut self,
+        source_ty: TypeId,
+        payload: Option<BasicValueEnum<'ctx>>,
+        name: &str,
+    ) -> Result<ValueTransportParts<'ctx>, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(source_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(ValueTransportParts {
+                word: self.codegen.context.i64_type().const_zero(),
+                gc_ref: self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            });
+        }
+        let Some(raw) = payload else {
+            return Err(frontend_error(format!(
+                "refactor effect transport t{} 需要 non-elided payload",
+                source_ty.as_u32()
+            )));
+        };
+        let target_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, source_ty)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect transport t{} 缺少 codegen type",
+                    source_ty.as_u32()
+                ))
+            })?;
+        let value = self
+            .codegen
+            .cg_value_from_loaded(self.mir_fun.span, target_cg, raw)?;
+        match target_cg {
+            CgTy::Unit | CgTy::Never => Ok(ValueTransportParts {
+                word: self.codegen.context.i64_type().const_zero(),
+                gc_ref: self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            }),
+            CgTy::Bool | CgTy::Float32 | CgTy::Float64 | CgTy::Int(_) => {
+                let word = self.codegen.coerce_u64_word(self.mir_fun.span, value)?;
+                Ok(ValueTransportParts {
+                    word,
+                    gc_ref: self.codegen.llvm_gc_i8_ptr_type().const_null(),
+                })
+            }
+            CgTy::Ref => Ok(ValueTransportParts {
+                word: self.codegen.context.i64_type().const_zero(),
+                gc_ref: value
+                    .value
+                    .ok_or_else(|| {
+                        frontend_error("refactor effect transport ref 缺少值".to_string())
+                    })?
+                    .into_pointer_value(),
+            }),
+            CgTy::String => Ok(ValueTransportParts {
+                word: self.codegen.context.i64_type().const_zero(),
+                gc_ref: self.codegen.builder.build_pointer_cast(
+                    value
+                        .value
+                        .ok_or_else(|| {
+                            frontend_error("refactor effect transport string 缺少值".to_string())
+                        })?
+                        .into_pointer_value(),
+                    self.codegen.llvm_gc_i8_ptr_type(),
+                    &format!("{name}_string_ref"),
+                )?,
+            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Ok(ValueTransportParts {
+                word: self.codegen.context.i64_type().const_zero(),
+                gc_ref: self.box_effect_transport_composite_value(source_ty, value, name)?,
+            }),
+        }
+    }
+
+    fn decode_effect_transport_parts(
+        &mut self,
+        source_ty: TypeId,
+        transport: ValueTransportParts<'ctx>,
+        name: &str,
+    ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
+        let layout = self.abi.source_value_layout(source_ty)?;
+        if layout.abi().is_elided() {
+            return Ok(None);
+        }
+        let target_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, source_ty)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect transport t{} 缺少 codegen type",
+                    source_ty.as_u32()
+                ))
+            })?;
+        match target_cg {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => self
+                .load_effect_transport_composite_value(source_ty, target_cg, transport.gc_ref, name)
+                .map(Some),
+            _ => Ok(self
+                .codegen
+                .decode_effect_transport_value(
+                    self.mir_fun.span,
+                    transport.word,
+                    transport.gc_ref,
+                    target_cg,
+                )?
+                .value),
+        }
     }
 
     fn lower_completion_payload(
