@@ -359,6 +359,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     extern_globals: &'a hir::ExternGlobalIndex,
     extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
@@ -555,6 +556,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+    pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     pub(super) extern_globals: &'a hir::ExternGlobalIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
@@ -605,6 +607,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            top_level_fun_call_sites,
             extern_globals,
             object_inits,
             class_inits,
@@ -642,6 +645,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            top_level_fun_call_sites,
             extern_globals,
             extern_funs,
             object_inits,
@@ -1836,6 +1840,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(hir::CallSite::new(source.path().to_path_buf(), span))
     }
 
+    fn current_top_level_fun_call_binding(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Option<&ast::TopLevelFunCallBinding>, LlvmEmitError> {
+        let call_site = self.current_call_site(span)?;
+        Ok(self.top_level_fun_call_sites.get(&call_site))
+    }
+
+    fn concrete_top_level_fun_call_fqn(
+        &self,
+        span: crate::span::Span,
+        fallback_fqn: &str,
+    ) -> Result<String, LlvmEmitError> {
+        let Some(binding) = self.current_top_level_fun_call_binding(span)? else {
+            return Ok(fallback_fqn.to_string());
+        };
+        if binding.type_args.is_empty() {
+            return Ok(binding.fqn.clone());
+        }
+        let args = binding
+            .type_args
+            .iter()
+            .map(|ty| self.types.display(*ty).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        Ok(format!("{}::<{}>", binding.fqn, args))
+    }
+
     fn source_id_for_path(
         &self,
         path: &Path,
@@ -2390,6 +2422,100 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
+        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+        }
+        if is_gc_leaf {
+            self.mark_gc_leaf_function(llvm_fun);
+        }
+        Ok(llvm_fun)
+    }
+
+    pub(crate) fn declare_materialized_top_level_fun_with_symbol(
+        &mut self,
+        fun: &crate::mir::FunDecl,
+        llvm_name: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
+
+        let Some(return_cg) = self.cg_ty_of(fun.return_ty) else {
+            tracing::warn!(
+                "declare_materialized_top_level_fun: unsupported return type for {} -> {}",
+                fun.fqn,
+                self.types.display(fun.return_ty)
+            );
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            });
+        };
+
+        let hidden_sret_result_ty = if is_extern {
+            None
+        } else {
+            self.hidden_sret_result_ty(fun.span, return_cg)?
+        };
+        let uses_explicit_effect_hidden_abi =
+            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let is_gc_leaf = is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            if is_gc_leaf {
+                self.mark_gc_leaf_function(existing);
+            }
+            return Ok(existing);
+        }
+
+        let mut llvm_params = Vec::with_capacity(
+            fun.params.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
+                    as usize,
+        );
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if uses_explicit_effect_hidden_abi {
+            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
+        }
+        for param in &fun.params {
+            let llvm_param_ty = if is_extern {
+                self.llvm_param_ty(param.span, param.ty)
+            } else {
+                self.ordinary_param_abi(param.span, param.ty)
+                    .map(OrdinaryParamAbi::llvm_param_ty)
+            };
+            match llvm_param_ty {
+                Ok(ty) => llvm_params.push(ty),
+                Err(err) => {
+                    tracing::warn!(
+                        "declare_materialized_top_level_fun: unsupported param type for {} param {} -> {}",
+                        fun.fqn,
+                        param.name,
+                        self.types.display(param.ty)
+                    );
+                    return Err(err);
+                }
+            }
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, return_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_params, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(fun.span, other)?
+                .fn_type(&llvm_params, false),
+        };
+
+        let linkage = if is_extern {
+            Some(Linkage::External)
+        } else {
+            None
+        };
+        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);

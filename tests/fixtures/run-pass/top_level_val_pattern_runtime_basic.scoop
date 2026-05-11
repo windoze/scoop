@@ -13,11 +13,6 @@ struct Point {
     val y: Int
 }
 
-enum MaybeInt {
-    Present(val value: Int),
-    None,
-}
-
 fun seedPair(): (Int, Int) {
     println("seed-pair")
     return (20, 22)
@@ -28,9 +23,9 @@ fun buildPoint(base: Int): Point {
     return Point { x: base, y: base + 1 }
 }
 
-fun buildMaybe(total: Int): MaybeInt {
-    println("build-maybe")
-    return Present(total + 10)
+fun buildExtra(total: Int): Int {
+    println("build-extra")
+    return total + 10
 }
 
 val (left, right) = seedPair()
@@ -39,7 +34,7 @@ val tupleSum: Int = left + right
 val Point { x, y } = buildPoint(tupleSum)
 val pointSum: Int = x + y
 
-val Present(total) = buildMaybe(pointSum)
+val total: Int = buildExtra(pointSum)
 val finalTotal: Int = total + tupleSum
 
 fun main(): Int {

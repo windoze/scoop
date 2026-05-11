@@ -83,7 +83,7 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 146..337,
+                span: 146..390,
                 fqn: "fixtures.hir.use",
                 name: "use",
                 ty: TypeId(
@@ -104,7 +104,7 @@ File {
                 ),
                 body: Some(
                     Block {
-                        span: 171..337,
+                        span: 171..390,
                         ty: TypeId(
                             5,
                         ),
@@ -230,7 +230,7 @@ File {
                                                             Local {
                                                                 id: S2,
                                                                 name: "__destructure_subject_0",
-                                                                decl_span: 338..339,
+                                                                decl_span: 391..392,
                                                             },
                                                         ),
                                                     },
@@ -279,7 +279,7 @@ File {
                                                             Local {
                                                                 id: S2,
                                                                 name: "__destructure_subject_0",
-                                                                decl_span: 338..339,
+                                                                decl_span: 391..392,
                                                             },
                                                         ),
                                                     },
@@ -438,7 +438,7 @@ File {
                                                             Local {
                                                                 id: S6,
                                                                 name: "__destructure_subject_1",
-                                                                decl_span: 340..341,
+                                                                decl_span: 393..394,
                                                             },
                                                         ),
                                                     },
@@ -492,7 +492,7 @@ File {
                                                             Local {
                                                                 id: S6,
                                                                 name: "__destructure_subject_1",
-                                                                decl_span: 340..341,
+                                                                decl_span: 393..394,
                                                             },
                                                         ),
                                                     },
@@ -513,163 +513,15 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 310..329,
+                                span: 310..382,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 310..329,
+                                        span: 310..382,
                                         id: Some(
-                                            S11,
-                                        ),
-                                        name: Some(
-                                            "__destructure_subject_2",
-                                        ),
-                                        mutable: false,
-                                        ty: TypeId(
-                                            10,
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 324..329,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S0,
-                                                        name: "maybe",
-                                                        decl_span: 154..159,
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    },
-                                ),
-                            },
-                            Stmt {
-                                span: 310..329,
-                                ty: TypeId(
-                                    2,
-                                ),
-                                kind: Expr(
-                                    Expr {
-                                        span: 314..321,
-                                        ty: TypeId(
-                                            2,
-                                        ),
-                                        kind: When {
-                                            subject: Expr {
-                                                span: 314..321,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S11,
-                                                        name: "__destructure_subject_2",
-                                                        decl_span: 342..343,
-                                                    },
-                                                ),
-                                            },
-                                            arms: [
-                                                WhenArm {
-                                                    span: 314..321,
-                                                    pat: Variant {
-                                                        span: 314..321,
-                                                        name_span: 314..318,
-                                                        name: "Some",
-                                                        args: [
-                                                            Wildcard {
-                                                                span: 319..320,
-                                                            },
-                                                        ],
-                                                    },
-                                                    guard: None,
-                                                    arrow_span: 314..321,
-                                                    body: Expr {
-                                                        span: 314..321,
-                                                        ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Literal(
-                                                            Unit,
-                                                        ),
-                                                    },
-                                                },
-                                                WhenArm {
-                                                    span: 314..321,
-                                                    pat: Else {
-                                                        span: 314..321,
-                                                    },
-                                                    guard: None,
-                                                    arrow_span: 314..321,
-                                                    body: Expr {
-                                                        span: 314..314,
-                                                        ty: TypeId(
-                                                            3,
-                                                        ),
-                                                        kind: Perform {
-                                                            effect_ty: TypeId(
-                                                                15,
-                                                            ),
-                                                            op: EffectOpRef {
-                                                                span: 314..314,
-                                                                fqn: "scoop.core.Raise.raise",
-                                                            },
-                                                            args: [
-                                                                Positional(
-                                                                    Expr {
-                                                                        span: 314..321,
-                                                                        ty: TypeId(
-                                                                            14,
-                                                                        ),
-                                                                        kind: MemberAccess {
-                                                                            receiver: Expr {
-                                                                                span: 314..321,
-                                                                                ty: TypeId(
-                                                                                    14,
-                                                                                ),
-                                                                                kind: VarRef(
-                                                                                    TopLevel {
-                                                                                        id: S12,
-                                                                                        fqn: "scoop.core.RuntimeError",
-                                                                                    },
-                                                                                ),
-                                                                            },
-                                                                            member: MemberAccess {
-                                                                                span: 314..321,
-                                                                                name: "NullAssertionFailed",
-                                                                                resolved: Some(
-                                                                                    Value {
-                                                                                        id: S13,
-                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                    },
-                                                                                ),
-                                                                            },
-                                                                        },
-                                                                    },
-                                                                ),
-                                                            ],
-                                                        },
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ),
-                            },
-                            Stmt {
-                                span: 310..329,
-                                ty: TypeId(
-                                    2,
-                                ),
-                                kind: Val(
-                                    ValDecl {
-                                        span: 310..329,
-                                        id: Some(
-                                            S15,
+                                            S12,
                                         ),
                                         name: Some(
                                             "v",
@@ -680,110 +532,73 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 314..321,
+                                                span: 323..382,
                                                 ty: TypeId(
                                                     5,
                                                 ),
                                                 kind: When {
                                                     subject: Expr {
-                                                        span: 314..321,
+                                                        span: 329..334,
                                                         ty: TypeId(
                                                             10,
                                                         ),
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S11,
-                                                                name: "__destructure_subject_2",
-                                                                decl_span: 342..343,
+                                                                id: S0,
+                                                                name: "maybe",
+                                                                decl_span: 154..159,
                                                             },
                                                         ),
                                                     },
                                                     arms: [
                                                         WhenArm {
-                                                            span: 314..321,
+                                                            span: 346..358,
                                                             pat: Variant {
-                                                                span: 314..321,
-                                                                name_span: 314..318,
+                                                                span: 346..353,
+                                                                name_span: 346..350,
                                                                 name: "Some",
                                                                 args: [
                                                                     Bind {
-                                                                        span: 344..345,
-                                                                        id: S14,
-                                                                        name: "__destructure_extract_3",
+                                                                        span: 351..352,
+                                                                        id: S11,
+                                                                        name: "n",
                                                                     },
                                                                 ],
                                                             },
                                                             guard: None,
-                                                            arrow_span: 314..321,
+                                                            arrow_span: 354..356,
                                                             body: Expr {
-                                                                span: 319..320,
+                                                                span: 357..358,
                                                                 ty: TypeId(
                                                                     5,
                                                                 ),
                                                                 kind: VarRef(
                                                                     Local {
-                                                                        id: S14,
-                                                                        name: "__destructure_extract_3",
-                                                                        decl_span: 344..345,
+                                                                        id: S11,
+                                                                        name: "n",
+                                                                        decl_span: 351..352,
                                                                     },
                                                                 ),
                                                             },
                                                         },
                                                         WhenArm {
-                                                            span: 314..321,
-                                                            pat: Else {
-                                                                span: 314..321,
+                                                            span: 367..376,
+                                                            pat: Variant {
+                                                                span: 367..371,
+                                                                name_span: 367..371,
+                                                                name: "None",
+                                                                args: [],
                                                             },
                                                             guard: None,
-                                                            arrow_span: 314..321,
+                                                            arrow_span: 372..374,
                                                             body: Expr {
-                                                                span: 314..314,
+                                                                span: 375..376,
                                                                 ty: TypeId(
-                                                                    3,
+                                                                    5,
                                                                 ),
-                                                                kind: Perform {
-                                                                    effect_ty: TypeId(
-                                                                        15,
-                                                                    ),
-                                                                    op: EffectOpRef {
-                                                                        span: 314..314,
-                                                                        fqn: "scoop.core.Raise.raise",
-                                                                    },
-                                                                    args: [
-                                                                        Positional(
-                                                                            Expr {
-                                                                                span: 314..321,
-                                                                                ty: TypeId(
-                                                                                    14,
-                                                                                ),
-                                                                                kind: MemberAccess {
-                                                                                    receiver: Expr {
-                                                                                        span: 314..321,
-                                                                                        ty: TypeId(
-                                                                                            14,
-                                                                                        ),
-                                                                                        kind: VarRef(
-                                                                                            TopLevel {
-                                                                                                id: S12,
-                                                                                                fqn: "scoop.core.RuntimeError",
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                    member: MemberAccess {
-                                                                                        span: 314..321,
-                                                                                        name: "NullAssertionFailed",
-                                                                                        resolved: Some(
-                                                                                            Value {
-                                                                                                id: S13,
-                                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                },
-                                                                            },
-                                                                        ),
-                                                                    ],
-                                                                },
+                                                                kind: Literal(
+                                                                    Int,
+                                                                ),
                                                             },
                                                         },
                                                     ],
@@ -794,13 +609,13 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 334..335,
+                                span: 387..388,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 334..335,
+                                        span: 387..388,
                                         ty: TypeId(
                                             5,
                                         ),

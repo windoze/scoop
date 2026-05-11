@@ -1300,7 +1300,17 @@
   - `SCOOP_GC_STRESS=1` 下这簇 Raise/class-init timeout 已进一步收口：真实症状不是“挂住 GC”，而是命中 caller handle dispatch 的 outward/unreachable trap。根因是 `effect_lowered/body.rs` 在构造 handler graph 时把 `current_frame_gc_ref` / previous handler-top 这类 GC refs 带着跨 `scoop_alloc_typed` 继续使用；在 immix full GC 会改写对象地址的情况下，这些 pre-GC raw pointers 会变 stale，导致后续 handler node 链接丢失并最终 miss 本地 arm。
   - 现已在 `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs` 把 handle setup 改成：`body_ctx` / `derived_ctx` 先落到 authoritative roots，再在每次 handler node 分配后从 root slot / frame home 重新 reload `prev_ref`、`owner_frame_ref`、ctx 指针后继续写链；定向回归 `effect_raise_cleanup_gc_basic.scoop`、`try_catch_raise_runtime_error_basic.scoop`、`class_init_raise_cleanup_init_block_gc_basic.scoop`、`class_init_raise_cleanup_property_init_gc_basic.scoop` 现已在 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下恢复通过。
   - 已使用 `tools/run_fixture_scan.sh --no-build --timeout-secs 30` 基于当前主工作树重新跑完整双轮 inventory：默认环境 `1227 total / 1196 pass / 31 fail / 0 timeout`；full GC env `1227 total / 1189 pass / 38 fail / 0 timeout`。和先前 inventory 相比，这一簇 timeout 已清零，剩余失败面也明显缩小。
-  - 下一步应按新的 inventory 顺序继续处理剩余失败，当前首批仍未清空的类别包括：`build/effect_refactor_dynamic_invoke_unit_payload.scoop`、`codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、若干 continuation/finally/cross-thread `run-pass` fixture，以及 `typecheck/not_null_assert_ok.scoop` / `cast_as_and_asq_ok.scoop`。
+  - `crates/scoopc/src/llvm/codegen/{mod.rs,call/lowering.rs}` 已把 top-level `const val` / runtime immutable `val` initializer 中对 imported direct-call target 的 authoritative callable 查询接回现有 codegen 主线；`tests/fixtures/run-pass/top_level_const_val_general_expr_basic.scoop`、`tests/fixtures/run-pass/top_level_val_runtime_read_basic.scoop`、`tests/fixtures/run_pass_cone/top_level_const_val_multi_file_basic` 已恢复通过。
+  - `SCOOP_FULL_SPEC.md` 与 `crates/scoopc/src/typecheck/val_pat.rs` 现已明确/执行：`val` 解构绑定只允许不可失败 pattern；tuple / struct 可用，enum variant pattern（如 `val Some(x) = ...`）一律禁止并要求改用 `when`。相关 stale fixture 已迁移：
+    - `typecheck/destructuring_val_variant_*` 改为静态报错覆盖；
+    - `typecheck/top_level_val_pattern_*` / `typecheck_multi/top_level_val_pattern_*` 改为 tuple/struct-only 正向覆盖；
+    - `run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop` 与 `run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 已删除；
+    - `run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`、`enum_function_payload*.scoop`、`enum_variant_non_scalar_payload_basic.scoop` 改写为 `when`-based 覆盖；
+    - `hir/local_val_destructuring_lowering.{scoop,hir}` 已同步到 tuple/struct-only lowering。
+  - 基于上述修复重新跑默认环境逐个 fixture 扫描：`1226 total / 1202 pass / 24 fail / 0 timeout`。默认环境剩余失败已进一步收敛到 `codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、continuation/finally/cross-thread `run-pass` 簇、若干 stdlib/adapter fixture，以及 `runtime_gc/effect_cross_thread_resume_payload_{refs,composite}.scoop`。
+  - 下一步应优先处理两大剩余簇：
+    1. continuation / finally / cross-thread resume 相关真实实现缺口；
+    2. `codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、`unsafe_funptr_aggregate_return_tuple.scoop` 这类单点 codegen 缺口。
 - 完成记录：
 
 ## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合

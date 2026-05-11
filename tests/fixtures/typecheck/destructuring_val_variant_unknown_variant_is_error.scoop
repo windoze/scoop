@@ -1,8 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_unknown_variant
-// EXPECT-ERROR-AT: 16:16
-// EXPECT-ERROR: 未找到匹配的 variant
-// 目标：T0460：对不存在的 variant 名应给出稳定诊断（unknown variant）。
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_refutable_not_allowed
+// EXPECT-ERROR-AT: 16:9
+// EXPECT-ERROR: `val` 解构绑定只允许不可失败 pattern
+// 目标：variant pattern 在 `val` 解构绑定中一律禁止，不再暴露更细的 variant 名诊断。
 
 package fixtures.typecheck
 

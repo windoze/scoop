@@ -3,7 +3,7 @@
 //
 // T4010a2a：inline 非标量 enum payload 需要进入统一可执行主线。
 // - 单字段 struct payload 不再卡在 `enum payload (non-scalar)`；
-// - 单字段 tuple payload 也可被 `when` 与局部 variant binder 正常提取。
+// - 单字段 tuple payload 也可被 `when` 正常提取。
 
 import scoop.core.*
 
@@ -27,13 +27,21 @@ fun main(): Int {
     val ok: Result = Ok(Point { x: 7, y: 8 })
     val msg: Result = Msg(("hello", 30))
 
-    val Result.Ok(boundPoint) = ok
-    val Result.Msg(boundPayload) = msg
+    val boundPointX: Int = when (ok) {
+        Result.Ok(point) -> point.x
+        Result.Msg(_) -> 0
+        Result.Err(_) -> 0
+    }
+    val boundPayload: (String, Int) = when (msg) {
+        Result.Msg(payload) -> payload
+        Result.Ok(_) -> ("", 0)
+        Result.Err(_) -> ("", 0)
+    }
 
     val labelScore: Int = if (boundPayload._0 == "hello") {
         1
     } else {
         0
     }
-    return read(ok) + read(msg) + boundPoint.x + boundPayload._1 + labelScore
+    return read(ok) + read(msg) + boundPointX + boundPayload._1 + labelScore
 }

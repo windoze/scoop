@@ -543,6 +543,14 @@ val (a, b) = get_pair()
 val Point { x, y } = make_point()
 ```
 
+Only **irrefutable** patterns are allowed in `val` destructuring declarations. In particular:
+
+- tuple patterns are allowed when the initializer has tuple type,
+- struct patterns are allowed when the initializer has the matching struct type,
+- enum/variant patterns such as `val Some(x) = value` are **not** allowed in `val` declarations, because they are refutable and would introduce hidden match-failure control flow.
+
+Use `when` for refutable matching/destructuring.
+
 Note: `var` does not support destructuring patterns (only simple bindings).
 
 ### 4.3 Type Check (`is`) and Smart Cast
@@ -3274,7 +3282,7 @@ Scoop adopts Kotlin-style destructuring declarations for tuples and for types th
 val (a, b) = (1, 2)
 ```
 
-- For non-tuple types, destructuring is supported where Scoop already specifies destructuring patterns (e.g., enum variants and struct patterns in `when`).
+- `val` destructuring declarations are restricted to **irrefutable** patterns. Tuple destructuring and struct destructuring are allowed; refutable enum/variant patterns are reserved for `when` and are not allowed in declarations.
 
 ### B.12 Ranges and Progressions (Expanded)
 

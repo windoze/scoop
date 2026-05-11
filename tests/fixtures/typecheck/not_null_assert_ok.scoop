@@ -5,6 +5,7 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-val x: Int?
-val y: Int = x!!
-
+fun unwrap(x: Int?): Int / Raise<RuntimeError> {
+    val y: Int = x!!
+    return y
+}

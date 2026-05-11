@@ -19,6 +19,9 @@ fun use(maybe: MaybeInt) {
     val point: Point = Point { x: a, y: b }
     val Point { x, y } = point
 
-    val Some(v) = maybe
+    val v: Int = when (maybe) {
+        Some(n) -> n
+        None -> 0
+    }
     a
 }

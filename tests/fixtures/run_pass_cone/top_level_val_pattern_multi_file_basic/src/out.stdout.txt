@@ -2,7 +2,7 @@ seed-tuple
 3
 seed-point
 36
-seed-maybe
+seed-total
 41
 119
 1

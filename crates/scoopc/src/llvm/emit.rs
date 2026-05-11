@@ -504,6 +504,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             top_level_vars: &lowered.top_level_vars,
             top_level_consts: &lowered.top_level_consts,
             top_level_immutable_values: &lowered.top_level_immutable_values,
+            top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
             extern_globals: &lowered.extern_globals,
             object_inits: &lowered.object_inits,
             class_inits: &lowered.class_inits,

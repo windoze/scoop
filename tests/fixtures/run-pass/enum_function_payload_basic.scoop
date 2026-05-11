@@ -5,7 +5,7 @@
 //
 // 覆盖：
 // - `enum Step { Ready(val f: () -> Int) }` 可直接构造；
-// - `when` binder 与显式 `Step.Ready(...)` 模式 binder 都能恢复函数值；
+// - `when` binder 能恢复函数值；
 // - binder 产出的函数值继续走统一 callable-value 调用主线。
 
 enum Step {
@@ -18,9 +18,11 @@ fun drive(step: Step): Int {
         Ready(f) -> f()
         Stop -> 0
     }
-
-    val Step.Ready(bound) = step
-    return viaWhen + bound()
+    val viaWhenAgain: Int = when (step) {
+        Ready(f) -> f()
+        Stop -> 0
+    }
+    return viaWhen + viaWhenAgain
 }
 
 fun main(): Int {

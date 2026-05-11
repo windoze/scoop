@@ -2,14 +2,9 @@ package fixtures.run_pass_cone.top_level_val_pattern_multi_file_basic
 
 import scoop.core.*
 
-enum MaybeInt {
-    Present(val value: Int),
-    None,
+fun seedTotal(total: Int): Int {
+    println("seed-total")
+    return total + 5
 }
 
-fun seedMaybe(total: Int): MaybeInt {
-    println("seed-maybe")
-    return Present(total + 5)
-}
-
-val Present(total) = seedMaybe(pointTotal)
+val total: Int = seedTotal(pointTotal)

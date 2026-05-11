@@ -1,6 +1,6 @@
 // EXPECT: pass
 // 目标：T4004a2 顶层 `val` pattern binding 在无整体类型注解路径下：
-// - tuple / struct / enum variant binder 会从 initializer 推断整体类型；
+// - tuple / struct binder 会从 initializer 推断整体类型；
 // - 同文件后续顶层 initializer 与函数体都能静态读取这些 binder。
 
 package fixtures.typecheck
@@ -10,18 +10,13 @@ struct Point {
     val y: Int
 }
 
-enum MaybeInt {
-    Present(val value: Int),
-    None,
-}
-
 val (a, b) = (1, 2)
 val tupleSum: Int = a + b
 
 val Point { x, y } = Point { x: tupleSum, y: b + 10 }
 val pointSum: Int = x + y
 
-val Present(total) = Present(pointSum)
+val total: Int = pointSum
 val finalTotal: Int = total + tupleSum
 
 fun use(): Int {

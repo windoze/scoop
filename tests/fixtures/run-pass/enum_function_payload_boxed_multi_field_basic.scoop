@@ -6,7 +6,7 @@
 // 覆盖：
 // - `enum Step { Loaded(val f: () -> Int, val n: Int) }` 的 boxed payload 构造；
 // - `when (step) { Loaded(f, n) -> ... }` 解构后直接调用 `f()`；
-// - `val Step.Loaded(f, n) = step` 解构后直接调用 `f()`；
+// - 第二条 `when` binder 也能恢复并调用 `f()`；
 // - direct ctor call 作为实参传递到以上两条路径。
 
 enum Step {
@@ -21,11 +21,13 @@ fun viaWhen(step: Step): Int {
     }
 }
 
-fun viaVal(step: Step): Int {
-    val Step.Loaded(f, n) = step
-    return f() + n
+fun viaWhenAgain(step: Step): Int {
+    return when (step) {
+        Loaded(f, n) -> f() + n
+        Stop -> 0
+    }
 }
 
 fun main(): Int {
-    return viaWhen(Loaded({ 3 }, 5)) + viaVal(Loaded({ 7 }, 11))
+    return viaWhen(Loaded({ 3 }, 5)) + viaWhenAgain(Loaded({ 7 }, 11))
 }

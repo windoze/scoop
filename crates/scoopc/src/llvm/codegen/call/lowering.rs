@@ -705,7 +705,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            let dispatch_fqn = direct_call_dispatch_fqn(fqn);
+            let concrete_fqn = self.concrete_top_level_fun_call_fqn(callee.span, fqn)?;
+            let dispatch_fqn = direct_call_dispatch_fqn(&concrete_fqn);
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
                 return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
@@ -744,6 +745,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             if dispatch_fqn == "scoop.core.print" || dispatch_fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, dispatch_fqn, args);
+            }
+            if dispatch_fqn == "scoop.core.concat" {
+                let Some(hir::CallArg::Positional(receiver)) = args.first() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "core concat receiver arg",
+                        at: callee.span.into(),
+                    });
+                };
+                return self.codegen_string_method(span, receiver, "concat", &args[1..]);
             }
             if dispatch_fqn == "scoop.core.__scoop_print_string"
                 || dispatch_fqn == "scoop.core.__scoop_println_string"
@@ -944,7 +954,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
+            return self.codegen_top_level_fun_call(span, callee.span, &concrete_fqn, args);
         }
 
         if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
@@ -1098,6 +1108,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        enum CallableSig<'b> {
+            Hir(&'b hir::FunDecl),
+            Mir(&'b crate::mir::FunDecl),
+        }
+
         let is_extern = self.extern_funs.contains_key(fqn);
         let dispatch_fqn = direct_call_dispatch_fqn(fqn);
         let uses_explicit_effect_hidden_abi = !is_extern
@@ -1107,26 +1122,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.fun_index
                 .get(fqn)
                 .copied()
+                .map(CallableSig::Hir)
+                .or_else(|| {
+                    self.materialized_pass_view()
+                        .and_then(|view| view.callable(fqn).map(CallableSig::Mir))
+                })
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "call callee type",
                     at: callee_span.into(),
                 })?;
 
-        if args.len() != sig_fun.params.len() {
+        let (param_names, param_tys, return_ty) = match sig_fun {
+            CallableSig::Hir(fun) => (
+                fun.params.iter().map(|param| param.name.clone()).collect::<Vec<_>>(),
+                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>(),
+                fun.return_ty,
+            ),
+            CallableSig::Mir(fun) => (
+                fun.params.iter().map(|param| param.name.clone()).collect::<Vec<_>>(),
+                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>(),
+                fun.return_ty,
+            ),
+        };
+
+        if args.len() != param_tys.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "call arity mismatch",
                 at: span.into(),
             });
         }
-
-        let param_names: Vec<String> = sig_fun
-            .params
-            .iter()
-            .map(|param| param.name.clone())
-            .collect();
-        let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
         let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
+            self.cg_ty_of(return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "call return type",
                     at: span.into(),
@@ -1183,7 +1209,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
-            None => self.declare_top_level_fun(sig_fun)?,
+            None => match sig_fun {
+                CallableSig::Hir(fun) => self.declare_top_level_fun(fun)?,
+                CallableSig::Mir(fun) => {
+                    self.declare_materialized_top_level_fun_with_symbol(fun, llvm_name)?
+                }
+            },
         };
 
         let call_site_result = if is_extern {

@@ -3,18 +3,13 @@
 // EXPECT-EXIT: 0
 //
 // T4003T：局部 `val` pattern binding 需要在 HIR / LLVM 主线上可执行，
-// 覆盖 tuple / struct / enum variant 三类 binder 的读取。
+// 覆盖 tuple / struct 两类不可失败 binder 的读取。
 
 import scoop.core.*
 
 struct Point {
     val x: Int
     val y: Int
-}
-
-enum MaybeInt {
-    Some(val value: Int),
-    None,
 }
 
 fun main(): Int {
@@ -26,8 +21,7 @@ fun main(): Int {
     println(point.y)
     val Point { x, y } = point
 
-    val maybe: MaybeInt = Some(x + y)
-    val Some(total) = maybe
+    val total: Int = x + y
 
     println(a)
     println(b)

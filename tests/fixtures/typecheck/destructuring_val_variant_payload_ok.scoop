@@ -1,7 +1,6 @@
-// EXPECT: pass
-// 目标：T0460：`val` 解构绑定支持 enum variant payload destructuring：
-// - `Some(x)`（builtin `Option<T>`）
-// - `Result.Ok(v)`（显式 enum 前缀消歧）
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_refutable_not_allowed
+// 目标：`val` 解构绑定只允许不可失败 pattern；variant pattern 必须改用 `when`。
 
 package fixtures.typecheck
 
@@ -20,4 +19,3 @@ fun use(opt: Option<Int>) {
     val Result.Ok(v) = r
     val iv: Int = v
 }
-
