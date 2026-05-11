@@ -1026,3 +1026,227 @@
     - Gap 10：`G8-T09`，单一 target-shape 管线已恢复到可编译、可测试、跨验证矩阵可运行状态。
     - Gap 11：`G0-T01` / `G0-T01R` / `G8-T09`，runtime C 删除残余、死注释与过时导出已清到 generic substrate 自洽状态。
     - Gap 12：`G0-T01` / `G0-T01R` / `G8-T09`，活跃验证面与活跃文档已统一迁到 `StepSchema` / `resolved_outward_cases` / explicit `EffectOutcome` / explicit ctx / plain/effect ABI surface。
+
+## G8-T10：完整扫描所有 fixture 并建立失败清单
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §10、§12
+  - 当前 CI 失败样例：`gh run view 25669198499 --log-failed`
+- 目标：
+  - 不再把局部 `cargo test` / `cargo test --all` 通过视为 fixture 全绿的替代；
+  - 以 `scoop` fixture harness 为 authoritative 验证面，完整扫描当前仓库所有 fixture，建立失败清单并按类别归档。
+- 必须实现的内容：
+  1. 在本地运行完整 fixture sweep：
+     - `cargo run -p scoop -- test`
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  2. 若本地结果与 GitHub CI 不一致，必须同时检查最近失败的 CI run：
+     - `gh run list --branch <current-branch> --limit 10`
+     - `gh run view <run-id>`
+      - `gh run view <run-id> --log-failed`
+  3. 建立当前失败清单，至少按以下维度分类：
+     - `build` fixture
+     - `run-pass` fixture
+     - `mir` / `effect_facts` / `effect_lowered` snapshot fixture
+     - runtime/GC env only fixture
+     - only-fails-under-`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1`
+     - CI-only / local-only difference
+  4. 对每个失败项记录：
+     - fixture 路径
+     - 失败阶段（frontend prepare / MIR stage / P4 facts / P5 lowering / P6 LLVM / runtime / stdout/stderr golden）
+     - 首个报错文本
+     - 直接相关的代码入口文件/函数
+  5. 把已知当前首个 CI fixture 失败加入清单：
+     - `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+     - 失败文本：`LLVM stage handoff 缺少 reachable callable 'fixtures.build.Base.ping' 的 published late-lowered body`
+- 必须遵从的约束：
+  - 本任务不是“顺手修一个失败”；它的目标是建立完整失败面。
+  - 不允许只看本地第一条失败就停止；必须把完整 sweep 跑到结束并整理所有失败。
+  - 不允许把历史 `TODO.md` 的 `[DONE]` 状态当作 fixture 全绿证据；必须以当前实际 sweep/CI 结果为准。
+- 验证：
+  1. `cargo run -p scoop -- test`
+  2. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  3. 如 CI 上有失败 run，至少抓取一份最新失败日志并记录 run id / head sha / 失败 job / 失败 step。
+- 完成条件：
+  - 有一份当前活跃 fixture failures 的完整清单；
+  - 后续任务可以逐条消解，而不需要重新做大范围探索。
+- 依赖：G8-T09R
+- 完成记录：
+
+## G8-T10R：Review fixture failure inventory，确认分类与 owner 正确
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §10、§12
+- 重点：
+  - 是否已覆盖当前全部失败 fixture，而不是只覆盖首个失败；
+  - 每个失败是否都标明了正确阶段 owner；
+  - CI-only failure 是否与 local-only failure 做了区分；
+  - GC env 全开时才暴露的 verify-roots / move / stress 失败是否被单独标识。
+- 必须检查的输入：
+  - `cargo run -p scoop -- test` 全量输出
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 全量输出
+  - `gh run view <latest-failed-run> --log-failed`
+  - 新建的 failure inventory 文本/记录
+- 验证：
+  - 至少抽查三类失败：
+    - build fixture
+    - run-pass fixture
+    - snapshot/golden fixture
+  - 确认每类都能从 inventory 直接跳到实现 owner 文件。
+- 完成条件：
+  - failure inventory 可作为后续修复任务的唯一入口，不需要再做额外全局搜索。
+- 依赖：G8-T10
+- 完成记录：
+
+## G8-T11：修复 metadata-only reachable plain target 未发布 late-lowered body 的缺口
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §2、§8、§9
+  - 当前已知失败 fixture：`tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+- 背景与当前证据：
+  - GitHub CI 最新失败 run（示例：`25669198499`）在 `Fixture smoke` 步骤失败。
+  - 失败文本：
+    - `LLVM stage handoff 缺少 reachable callable 'fixtures.build.Base.ping' 的 published late-lowered body`
+  - 相关实现位置：
+    - `crates/scoopc/src/llvm/emit.rs:641-655`
+      - 对所有 `reachable` callable 做最终 handoff 校验；若有 body 且 `late_lowered_program.callable(fqn)` 中没有 plain/effect ABI body，直接报错。
+    - `crates/scoopc/src/llvm/reachability.rs:225-244`
+      - `enqueue_vtable_impls(...)` / `enqueue_itable_impls(...)` 会把 class vtable / interface itable target 直接放入 `reachable`。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+      - `10124-10150`：NoOutward candidate-set target（含 `fixtures.build.Base.ping`）必须存在 plain callable layout。
+      - `10356-10424`：`Base.ping` / `Derived.ping` 作为 NoOutward dynamic carrier target，不应发布 effect-step dynamic entry，但必须允许 plain callable fallback。
+      - `12504-12535`：`plain_callable_layout_by_root_fqn("fixtures.build.Base.ping")` 应成功。
+- 根因假设：
+  - reachability 层因为 vtable/itable / candidate-set metadata 把 `Base.ping` 判成 reachable；
+  - ABI visibility / layout 层已经为 `Base.ping` 发布了 plain callable layout；
+  - 但 late-lowered body publication 层没有把这种“metadata-only reachable、NoOutward、plain ABI target”发布进 `late_lowered_program`，导致 `emit.rs` 的 final handoff 校验失败。
+- 目标：
+  - 让所有因 vtable/itable/candidate-set/plain-carrier metadata 被视为 reachable 的 NoOutward plain target，也能获得与其 reachability 一致的 published late-lowered body（或让最终 handoff 明确把它们排除在 body-required 集之外，但必须与 `EFFECT_REFACTOR.md` 的 clean backend/facts 闭包原则一致）。
+- 必须实现的内容：
+  1. 调查 `late_lowered_program` / ABI visibility publication / reachable set 之间的 contract 边界，确认当前是：
+     - reachability 过宽；还是
+     - publication 过窄；还是
+     - `emit.rs` 的 body-required policy 过强。
+  2. 在不恢复任何 legacy fallback 的前提下，修正其中一层 contract：
+     - 若 `reachable` 本来就应包含这些 plain target，则必须发布它们的 late-lowered plain body；
+     - 若 plain layout 已足够且 body 本不应要求，则必须修改 `emit.rs` 的“需要 published body”的判定条件，并保证与 facts/schema 契约一致。
+  3. 必须覆盖至少以下 target：
+     - `fixtures.build.Base.ping`
+     - `fixtures.build.Derived.ping`
+     - fixture 中 closure callable root（`makeClosure.$lambda0`）
+  4. 修改后补最小定向测试，锁定：
+     - metadata-only reachable plain target 不再触发 `published late-lowered body` 缺失；
+     - 同时仍不发布 effect-step dynamic entry / `Step_F` shell。
+- 必须遵从的约束：
+  - 禁止通过“回退到 raw MIR / HIR fallback body”让 fixture 通过。
+  - 禁止把 NoOutward target 伪装成 effect-step callable 只为满足 body publication。
+  - 必须保持 `EFFECT_REFACTOR.md` 的 plain/effect ABI 分流原则：NoOutward 仍是 plain callable。
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+  2. `cargo test -p scoopc llvm::codegen::effect_lowered::layout::tests::refactor_llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets -- --exact --nocapture`
+  3. `cargo test -p scoopc llvm::codegen::effect_lowered::layout::tests::refactor_llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallback -- --exact --nocapture`
+- 完成条件：
+  - 当前已知 CI 首个失败 fixture 通过；
+  - 对应 plain carrier/publication contract 被明确锁定。
+- 依赖：G8-T10R
+- 完成记录：
+
+## G8-T11R：Review metadata-only plain target publication 修复，确认不是 reachability/workaround 假绿
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) §2、§8、§9
+- 重点：
+  - 修复后 `Base.ping` / `Derived.ping` / lambda root 的处理，是否与 plain ABI 原则一致；
+  - 是否只是调低了检查标准，而没有真正修正 publication/reachability contract；
+  - 是否意外重新引入了 effect-step shell 或 legacy fallback。
+- 必须检查的文件/位置：
+  - `crates/scoopc/src/llvm/emit.rs`
+  - `crates/scoopc/src/llvm/reachability.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+  - 任何修改到 late-lowered body publication 的 helper/module
+- 验证：
+  - 重跑 G8-T11 的全部定向验证；
+  - 人工检查 IR，不得出现：
+    - `__scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping`
+    - `__scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping`
+    - `__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0`
+    - `%scoop.refactor.Step__`
+- 完成条件：
+  - 可以明确写出 plain carrier metadata target 与 late-lowered body publication 的最终契约。
+- 依赖：G8-T11
+- 完成记录：
+
+## G8-T12：迭代修复完整 fixture sweep 中的所有剩余失败
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 全文
+  - G8-T10 产出的 failure inventory
+- 目标：
+  - 以 fixture harness 为最终用户面，逐条消灭所有剩余 fixture failure，直到 `cargo run -p scoop -- test` 全绿。
+- 必须实现的内容：
+  1. 按 G8-T10 的 failure inventory 顺序处理所有失败；每修完一类，必须重新跑完整 sweep，而不是只跑局部直到本地不再看到当前首个失败。
+     - 普通 env 和 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 全开 env 都必须重新跑。
+  2. 对每个失败，必须在修复前补充：
+     - 最小复现命令（优先 `cargo run -p scoop -- test --fixtures <fixture>`）
+     - 失败阶段 owner
+      - 相关代码位置
+  3. 对每个修复，必须补上最小定向验证：
+     - 单 fixture 命令
+     - 必要的 `cargo test -p scoopc <targeted-test>` / `cargo test -p scoop <targeted-test>` / `cargo test -p scoop_runtime <targeted-test>`
+  4. 若 sweep 中暴露新的 contract 漏洞，必须同步更新：
+     - `EFFECT_REFACTOR_GAPS.md`
+     - `PLAN.md`
+     - 当前 `TODO.md` 对应任务的完成记录
+- 必须遵从的约束：
+  - 禁止用“跳过 fixture / 放宽 golden / 回退 legacy path / 恢复 deleted TLS bridge”让 sweep 通过。
+  - 禁止只修 CI 首个失败而不继续全量扫；本任务的目标是**所有**剩余 fixture failure。
+  - 每次全量 sweep 后都要更新 failure inventory，直到为空。
+  - 不能只验证默认 env；必须同时保证 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 下的 full fixture sweep 也通过。
+- 验证：
+  1. 循环执行：`cargo run -p scoop -- test`
+  2. 循环执行：`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+  3. 如有 CI 差异，循环对照最近失败 run：
+     - `gh run list --branch <current-branch> --limit 10`
+     - `gh run view <run-id> --log-failed`
+  4. 当本地全绿后，再执行：
+     - `cargo test -p scoop_runtime`
+     - `cargo test -p scoopc`
+     - `cargo test -p scoop`
+      - `cargo test --all`
+- 完成条件：
+  - `cargo run -p scoop -- test` 全绿；
+  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 全绿；
+  - 本地完整验证矩阵恢复通过；
+  - failure inventory 为空。
+- 依赖：G8-T11R
+- 完成记录：
+
+## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 全文
+- 重点：
+  - 是否真的以 fixture harness 为 authoritative 用户面通过，而不是仅靠局部单测通过；
+  - 全量 fixture 通过后，是否仍有未记录的 design debt / temporary workaround；
+  - 修复过程中是否重新引入任何 deleted TLS continuation/effect 语义。
+- 必须检查的输入：
+  - 最终 `cargo run -p scoop -- test` 输出
+  - 最终 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test` 输出
+  - 最终 failure inventory（应为空）
+  - 最终 `cargo test --all` 输出
+  - 修复过程中更新过的 `EFFECT_REFACTOR_GAPS.md`
+- 验证：
+  - 复跑：
+    - `cargo run -p scoop -- test`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test`
+    - `cargo test --all`
+  - grep 活跃实现源码，不得重新出现 deleted TLS continuation/effect surface。
+- 完成条件：
+  - 可以明确声明：当前活跃实现、活跃测试、活跃 fixture 用户面都已重新闭合到 target-shape 单主线。
+- 依赖：G8-T12
+- 完成记录：
