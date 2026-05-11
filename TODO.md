@@ -967,7 +967,7 @@
     - §11：runtime C / runtime API / TLS internal header 的删除残余、死注释与过时导出已清到 generic substrate 自洽状态。
     - §12：活跃测试与活跃文档已迁到 explicit `EffectOutcome` / `EffectCtx` / surface-resume / plain-vs-effect ABI contract，不再依赖旧 TLS continuation/effect surface。
 
-## G8-T09R：Review 最终收口结果，确认仓库重新只剩 target-shape 单主线
+## [DONE] G8-T09R：Review 最终收口结果，确认仓库重新只剩 target-shape 单主线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -993,3 +993,36 @@
   - 可以明确声明：当前仓库 effect/continuation 主线已重新按 `EFFECT_REFACTOR.md` 闭合，且不再存在旧 TLS continuation/effect 语义回退面。
 - 依赖：G8-T09
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：修正一处未按 `rustfmt` 折行的 `matches!` 条件，恢复完整验证矩阵中的 `cargo fmt --check` 通过状态。
+    - `TODO.md`：将 `G8-T09R` 标记为 `[DONE]` 并补充最终 review 结论。
+    - 本任务对 `runtime/c/scoop_tls_internal.h`、`runtime/c/scoop_runtime_api.h`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/pipeline/{mod,llvm_codegen_stage}.rs`、`crates/scoopc/src/session/mod.rs`、`crates/scoop/tests/p7_default_pipeline.rs`、`SCOOP_RUNTIME.md`、`docs/spec/language_spec-part4.md` 做人工复核；无需额外语义修补。
+  - 核心决策：
+    - `G8-T09R` 复核期间把“验证矩阵必须全部通过”视为最终收口声明的一部分；因此 `cargo fmt --check` 暴露的格式回归直接在本 review 任务内修复，而不是仅记录问题。
+    - 最终是否闭合，按三类证据共同判定：完整验证矩阵、旧 TLS/bridge 名字 grep、关键实现/文档的人工抽查。三者必须同时满足，才认定仓库只剩 target-shape 单主线。
+    - 人工复核确认：runtime TLS/internal/export 面只保留 GC / 线程注册 / explicit root frame substrate；whole-function effect/continuation protocol 留在 backend-owned `EffectCtx` / `EffectOutcome` / continuation driver；所有优化级别继续共用同一条 stage-owned pipeline。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot`、活跃测试/fixture/文档 grep `scoop_effect_handler_stack_top|scoop_effect_active|scoop_effect_perform_slot|scoop_callee_suspend_state|scoop_continuation_resume_scope|scoop_continuation_alloc|scoop_continuation_resume_with|scoop_continuation_resume_into|scoop_effect_outcome_consume_current|scoop_effect_outcome_publish|__scoop_effect_|publish_incoming_resume_token|clear_incoming_resume_token|effect_call_wrapper`：无命中。
+    - `cargo fmt --check`：通过。
+    - `cargo check -p scoop_runtime`：通过。
+    - `cargo check -p scoopc`：通过。
+    - `cargo test -p scoop_runtime`：通过。
+    - `cargo test -p scoopc`：通过（742 passed）。
+    - `cargo test -p scoop`：通过。
+    - `cargo test --all`：通过。
+    - `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+    - 定向回归：`cargo test -p scoopc llvm::tests::effectful_funptr_call_uses_explicit_outcome_boundary -- --exact --nocapture` 与 `cargo test -p scoop --test p7_default_pipeline`：通过。
+    - 人工复核：`runtime/c/scoop_tls_internal.h` 只保留 `registered`、Immix allocator/cache 与 native-roots TLS 槽位；`runtime/c/scoop_runtime_api.h` 导出面不再包含 continuation/effect policy API；`crates/scoopc/src/llvm/codegen/mod.rs` 仍以 `current_effect_ctx_ref`、`current_incoming_resume_token_ref`、`current_effect_outcome_ptr` 作为 effectful callable 的显式 hidden ABI 入口；`crates/scoopc/src/pipeline/mod.rs`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`、`crates/scoopc/src/session/mod.rs` 与 `crates/scoop/tests/p7_default_pipeline.rs` 继续锁定“单一 pipeline + target-shape 合同”行为；`SCOOP_RUNTIME.md` 与 `docs/spec/language_spec-part4.md` 也已改为只描述 explicit `EffectCtx` / `EffectOutcome` / generated continuation driver 的现状。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 每条 gap 的最终对应关系：
+    - Gap 1：`G1-T02` / `G1-T02R`，effectful callable 显式 hidden ABI 已统一到顶层函数、closure、resume entry 与 dynamic callable surface。
+    - Gap 2：`G6-T07` / `G6-T07R`，clean backend 的 direct/static/dynamic call lowering 已完全迁到 non-legacy call lowering。
+    - Gap 3：`G4-T05` / `G4-T05R`，ordinary callee suspend/reentry 已改由 published facts 与显式 incoming token 驱动。
+    - Gap 4：`G2-T03` / `G2-T03R`，explicit `EffectOutcome` / transport primitive 已完全 backend-owned。
+    - Gap 5：`G7-T08` / `G7-T08R`，`perform` / `handle` / `resume` / dynamic call lowering 已重新闭合到 target-shape protocol。
+    - Gap 6：`G5-T05a` / `G5-T06` / `G5-T06R`，continuation object model 与 generated resume driver 的 owner 已迁回 codegen。
+    - Gap 7：`G3-T04` / `G3-T04R`，`EffectCtx` / handler graph 已成为显式 data model，不再依赖 ambient TLS。
+    - Gap 8：`G7-T08` / `G7-T08R`，function/block/site 级 published schema/facts 已成为 lowering 的 authoritative 输入。
+    - Gap 9：`G6-T07` / `G7-T08` / `G7-T08R`，`Step_F` / dynamic callable surface / plain-vs-effect ABI 分流已按 target-shape 接通。
+    - Gap 10：`G8-T09`，单一 target-shape 管线已恢复到可编译、可测试、跨验证矩阵可运行状态。
+    - Gap 11：`G0-T01` / `G0-T01R` / `G8-T09`，runtime C 删除残余、死注释与过时导出已清到 generic substrate 自洽状态。
+    - Gap 12：`G0-T01` / `G0-T01R` / `G8-T09`，活跃验证面与活跃文档已统一迁到 `StepSchema` / `resolved_outward_cases` / explicit `EffectOutcome` / explicit ctx / plain/effect ABI surface。

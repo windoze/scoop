@@ -8262,7 +8262,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             // Resume complete tails may still consult frame-owned locals / handle ctx even when
             // the reachable suffix has no further suspend or handle terminator, so keep the
             // frame root alive conservatively on this path.
-            if !matches!(boundary.lowering(), Some(LateLoweredBoundaryLowering::Resume(_))) {
+            if !matches!(
+                boundary.lowering(),
+                Some(LateLoweredBoundaryLowering::Resume(_))
+            ) {
                 self.release_frame_root_for_frame_free_tail(boundary.resume_state())?;
             }
             self.branch_to_state(boundary.resume_state())?;
