@@ -759,7 +759,7 @@
     - §2：`MainCodegen` 的 call lowering 不再是“外壳在、语义主体没了”，新的 non-legacy `call/lowering.rs` 已把 direct/static/indirect call 主体接回。
     - §9：plain/effect ABI 分流在 direct/vtable/itable/funptr/closure surface 上重新闭合，普通 callable 不再被强制包回旧 bridge 或 complete-only wrapper。
 
-## G6-T07R：Review direct/static/dynamic call lowering，确认 ABI 分流已 facts-driven
+## [DONE] G6-T07R：Review direct/static/dynamic call lowering，确认 ABI 分流已 facts-driven
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G6
@@ -781,6 +781,24 @@
   - 可明确写出 plain/effect ABI 分流规则和 dynamic surface 组织方式。
 - 依赖：G6-T07
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G6-T07R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务人工复核 `crates/scoopc/src/llvm/codegen/{call/{abi,lowering}.rs,closure/mod.rs,class_ctor.rs,intrinsics/thread.rs,effect_lowered/value.rs}` 与 `crates/scoopc/src/llvm/tests.rs` 中 G6 相关回归断言；无需额外源码修补。
+  - 核心决策：
+    - direct/static/vtable/itable 与 closure body declaration 的 plain/effect ABI 分流继续由 published callable contract 驱动：`callable_uses_explicit_effect_hidden_abi(...)` 只读取 late-lowered callable 的 `effect_step_abi()`，未回退到 HIR effectful boolean、wrapper 或 deleted bridge。
+    - higher-order callable value / closure carrier surface 复核后仍维持 target-shape 双轨：plain body 保持 plain direct call；需要 effect-typed callable surface 时，由 `effect_lowered/value.rs` 依据 published `dynamic_invoke_layouts()`、`callable_layout_by_root_fqn(...)` 与 `maybe_plain_callable_layout_by_root_fqn(...)` 选择 authoritative adapter 或 direct layout，而不是把 plain body 重新包成 complete-only `Step_F` body。
+    - `class_ctor.rs` 的 propagation 判断只观察 explicit `EffectOutcome`；`intrinsics/thread.rs` 仅保留 generic thread spawn/join substrate 调用，未恢复 runtime-owned continuation/effect policy。
+  - 验证结果：
+    - 人工复核 `call/lowering.rs`：`codegen_top_level_fun_call_impl`、`try_codegen_class_vtable_call_impl`、`try_codegen_interface_itable_call_impl` 都通过 `callable_uses_explicit_effect_hidden_abi(...)` 选择显式 hidden ABI；`codegen_funptr_value_call_impl` / `codegen_function_value_call_from_closure_obj_impl` 仅在 callable value surface 需要时附带 `current_effect_ctx_ref + incoming_resume_token_ref + outcome`，未回退到 wrapper/TLS probing。
+    - 人工复核 `closure/mod.rs`：closure declaration/body 继续通过 `callable_uses_explicit_effect_hidden_abi(...)` 绑定显式 hidden ABI；plain closure body 本身不被重新物化为 `Step_F` body。
+    - 人工复核 `effect_lowered/value.rs`：effect-typed closure adapter 只消费 published dynamic-invoke layout；plain dynamic call 继续走 `codegen_mir_refactor_plain_dynamic_call(...)`，effectful dynamic surface 仍围绕 published `Step_F` schema 组织。
+    - 人工复核 `crates/scoopc/src/llvm/tests.rs`：`direct_effectful_signature_without_outward_effect_stays_on_direct_call_surface`、`closure_call_without_outward_effect_stays_on_direct_call_surface`、`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`effectful_funptr_call_uses_explicit_outcome_boundary`、virtual/itable outward-call 断言仍覆盖 plain direct surface 与 outward Step boundary 两侧。
+    - `rg -n "scoop_effect_|scoop_continuation_|__scoop_effect_|__scoop_callee_suspend_state|effect_call_wrapper|declare_runtime_effect_is_active|publish_incoming_resume_token|clear_incoming_resume_token" crates/scoopc/src/llvm/codegen/call crates/scoopc/src/llvm/codegen/closure crates/scoopc/src/llvm/codegen/class_ctor.rs crates/scoopc/src/llvm/codegen/intrinsics/thread.rs crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`：无命中。
+    - `cargo fmt --check`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续停在后续 `G7-T08` 缺口：`codegen_perform_expr`、`codegen_handle_expr`、`codegen_mir_perform_terminator`、`emit_raise_runtime_error_variant`、`codegen_mir_direct_call_with_policy`、`codegen_mir_funptr_value_call`、`codegen_mir_fun_value_call`、`codegen_mir_closure_call`、`codegen_mir_function_value_call_from_closure_obj`、`codegen_mir_class_ctor_call`；未出现 `G6-T07` 列出的 call lowering impl 缺失或 deleted runtime continuation/effect bridge 回退。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §2：review 确认 non-legacy `call/lowering.rs` 仍是 direct/static/dynamic call lowering 的唯一 active 主体，未回退到 deleted wrapper/legacy 外壳。
+    - §9：review 确认 plain/effect ABI 分流仍依赖 published callable contract / published dynamic surface，而不是 deleted TLS continuation/effect bridge；plain body 继续保持 plain callable body。
 
 ## G7-T08：重建 `perform` / `handle` / `resume` / `Step_F` lowering
 
