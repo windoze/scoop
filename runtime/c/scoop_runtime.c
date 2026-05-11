@@ -1,8 +1,8 @@
-// Scoop C runtime (early stage).
+// Scoop C runtime generic substrate.
 //
-// 这是早期 bootstrap 版本：
-// - 先提供最小的“可链接”符号集合
-// - 后续会逐步加入：GC、线程注册、effect TLS、pin/unpin 等
+// 当前文件只保留 target-shape 主线仍需要的通用 substrate：
+// - GC / 线程注册 / 显式 root frame / 分配与字符串 helper
+// - 不再承载 continuation / effect policy source of truth
 
 #include <stdint.h>
 #include <stddef.h>
@@ -81,11 +81,11 @@ static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, u
 // 通用分配入口由 runtime substrate 提供；这里保留中性前置声明，供 typed/string helpers 复用。
 void *scoop_alloc(uint64_t size);
 
-// 运行时全局状态（early stage）。
+// 运行时全局状态。
 //
 // 说明：
-// - 当前阶段只需要“可被初始化且可观察”，不引入 GC/TLS/线程；
-// - 未来会扩展为：线程注册、TLS、effect slots、GC heap 等（TODO T0903/T0904/...）。
+// - 这里维护 runtime 初始化的最小可观察状态；
+// - 具体 GC/TLS/线程 substrate 由本文件其余段落与相关 C 单元实现。
 static uint32_t scoop_rt_initialized = 0;
 static uint32_t scoop_rt_init_calls = 0;
 static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -403,9 +403,6 @@ void scoop_thread_unregister(void) {
   scoop_tls.gc_native_roots = 0;
   scoop_tls.gc_native_roots_len = 0;
   scoop_tls._reserved_u32_2 = 0;
-  scoop_tls._reserved0 = 0;
-  scoop_tls._reserved1 = 0;
-  scoop_tls._reserved2 = 0;
 }
 
 static int scoop_is_indent_ws(uint8_t c) {

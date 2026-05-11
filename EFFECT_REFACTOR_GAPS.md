@@ -1,29 +1,37 @@
 # Effect Refactor Gaps
 
-> 状态：基于当前工作树的缺口清单。
+> 状态：初始缺口基线 + 最终闭合状态。
 > 范围：只统计活跃实现与活跃测试/校验面；不把 `docs/archive/**` 里的历史文字当作实现状态。
 
-## 当前状态
+## 最终状态
 
-这轮删除已经把旧的 continuation/effect TLS 语义源头从活跃实现里物理拔掉：
+当前工作树中的 target-shape 单主线已经重新闭合：
 
-- `runtime/c/scoop_runtime.c` 中旧的
-  - `__scoop_effect_handler_stack_top`
-  - `__scoop_effect_active`
-  - `__scoop_effect_perform_slot`
-  - `__scoop_callee_suspend_state`
-  - `__scoop_continuation_resume_scope`
-  相关实现段已删除。
-- `crates/scoopc/src/llvm/codegen/effect/{mod,contract}.rs`
-- `crates/scoopc/src/llvm/codegen/call/{dispatch,resume}.rs`
-- 旧 runtime ABI/symbol 暴露面
-- `sysroot/core.scoop` 中旧 `__scoop_effect_*` / slot surface
+- effectful callable 统一使用显式 hidden ABI：`current_effect_ctx_ref`、`incoming_resume_token_ref`、`ScoopEffectOutcome *outcome`。
+- continuation / outward propagation / handle dispatch 都已切到 backend-owned `EffectCtx`、`EffectOutcome`、generated continuation resume driver 与 published `StepSchema` / facts / layouts。
+- runtime C 只剩 generic substrate；活跃实现、活跃测试与用户可读运行时说明不再把 deleted TLS continuation/effect surface 作为现状或 fallback。
+- 完整验证矩阵已在 `G8-T09` 中恢复：`cargo check -p scoop_runtime`、`cargo check -p scoopc`、`cargo test -p scoop_runtime`、`cargo test -p scoopc`、`cargo test -p scoop`、`cargo test --all`。
 
-因此，**当前主要缺口不再是“旧 TLS 路径仍与新设计并存”**，而是：
+## Gap 状态总览
 
-- 旧 TLS 路径已经被硬删除；
-- 但 `EFFECT_REFACTOR.md` 要求的显式 `EffectCtx` / `EffectOutcome` / `Step_F` / clean backend replacement 还没有补回；
-- 当前仓库处于“legacy 已拆、target architecture 未接通”的中间态。
+| Gap | 状态 | 闭合任务 | 最终说明 |
+|---|---|---|---|
+| 1 | 已闭合 | `G1-T02` / `G1-T02R` | effectful callable 的显式 hidden ABI 已统一到顶层函数、closure、resume entry 与 dynamic callable surface。 |
+| 2 | 已闭合 | `G6-T07` / `G6-T07R` | clean backend 的 direct/static/dynamic call lowering 已迁到 non-legacy call lowering 模块。 |
+| 3 | 已闭合 | `G4-T05` / `G4-T05R` | ordinary callee suspend/reentry 已只由 published facts + explicit incoming token 驱动。 |
+| 4 | 已闭合 | `G2-T03` / `G2-T03R` | explicit `EffectOutcome` / transport primitive 已完全 backend-owned。 |
+| 5 | 已闭合 | `G7-T08` / `G7-T08R` | `perform` / `handle` / `resume` / MIR effect lowering 已重新闭合到 target-shape protocol。 |
+| 6 | 已闭合 | `G5-T05a` / `G5-T06` / `G5-T06R` | continuation object model 与 generated resume driver 的 owner 已迁回 codegen。 |
+| 7 | 已闭合 | `G3-T04` / `G3-T04R` | `EffectCtx` / handler graph 已成为显式 data model，不再依赖 ambient TLS。 |
+| 8 | 已闭合 | `G7-T08` / `G7-T08R` | function/block/site 级 published schema/facts 已成为 lowering 的 authoritative 输入。 |
+| 9 | 已闭合 | `G6-T07` / `G7-T08` / `G7-T08R` | `Step_F` / dynamic callable surface / plain-vs-effect ABI 分流已按 target-shape 接通。 |
+| 10 | 已闭合 | `G8-T09` | 单一 target-shape 管线已恢复到可编译、可测试、跨验证矩阵可运行状态。 |
+| 11 | 已闭合 | `G0-T01` / `G0-T01R` / `G8-T09` | runtime C 删除残余、死注释与过时导出残留已清到 generic substrate 自洽状态。 |
+| 12 | 已闭合 | `G0-T01` / `G0-T01R` / `G8-T09` | 活跃验证面已迁到 `StepSchema` / `resolved_outward_cases` / explicit `EffectOutcome` / explicit ctx / plain/effect ABI surface。 |
+
+## 初始缺口基线（保留原文）
+
+以下“缺口清单”保留本轮开工时的初始基线描述，便于回溯每个 gap 最初为何成立。当前是否闭合以上面的“Gap 状态总览”为准。
 
 ## 评判原则
 

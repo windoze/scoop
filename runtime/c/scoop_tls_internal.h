@@ -20,7 +20,7 @@
 // runtime/c 共享的 TLS 存储类宏。
 //
 // 说明：
-// - 运行时的 GC / effect / explicit frame 状态都需要 thread-local storage；
+// - 运行时的 GC / 线程注册 / explicit frame 状态都需要 thread-local storage；
 // - 放在 internal header 中，避免每个 C 编译单元各自复制一份条件编译分支。
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define SCOOP_THREAD_LOCAL _Thread_local
@@ -32,7 +32,7 @@
 #define SCOOP_THREAD_LOCAL
 #endif
 
-// 每线程 TLS 状态（early stage：占位 + 渐进扩展）。
+// 每线程 TLS 状态。
 //
 // 注意：
 // - 该结构体不是稳定 ABI；它是 runtime/c 的内部实现细节；
@@ -76,11 +76,6 @@ typedef struct ScoopThreadTls {
   void *gc_native_roots;
   uint32_t gc_native_roots_len;
   uint32_t _reserved_u32_2;
-
-  // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
-  void *_reserved0;
-  void *_reserved1;
-  void *_reserved2;
 } ScoopThreadTls;
 
 static inline void **scoop_tls_gc_immix_current_block_slot(ScoopThreadTls *tls) {

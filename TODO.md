@@ -864,7 +864,7 @@
     - §8：function/block/site 级 published schema/facts 重新成为 lowering 的 authoritative 输入；`Step_F`、handle dispatch、runtime-error transport 不再依赖 ad-hoc deleted bridge 语义。
     - §9：`Step_F` / surface-resume / dynamic callable surface / plain-vs-effect ABI 分流已经在 active LLVM lowering 中重新接通，`Continuation.resume` 也已切到 generated driver。
 
-## G7-T08R：Review `perform` / `handle` / `resume` / `Step_F` lowering，确认 surface 已切到新协议
+## [DONE] G7-T08R：Review `perform` / `handle` / `resume` / `Step_F` lowering，确认 surface 已切到新协议
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G7
@@ -885,8 +885,24 @@
   - 可以明确给出当前 `perform` / `handle` / `resume` 的 lowering contract 描述。
 - 依赖：G7-T08
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G7-T08R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务对 `crates/scoopc/src/llvm/codegen/expr.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/{body,layout,value}.rs` 做人工复核；未发现需要额外修补的源码缺口。
+  - 核心决策：
+    - direct HIR `perform` / `handle` 与 direct MIR `Perform` terminator 继续只保留 fail-fast 边界；authoritative lowering 仍然只能来自 published late-lowered / local-effect-control pipeline，而不是偷偷恢复旧 HIR/MIR fallback。
+    - 当前 `Continuation.resume(...)` contract 已稳定分成两层：用户/动态 surface 统一走 `__scoop_refactor_surface_resume__k* -> Step_F`，而 owner core / generated continuation driver 在内部通过显式 hidden ABI 绑定 `current_effect_ctx_ref`、`incoming_resume_token_ref`、`ScoopEffectOutcome *outcome` 后再重建 `Step_F` / outcome 返回路径；未回退到 runtime helper、TLS slot 或单 token 协议。
+    - `Step_F` case 集、payload tuple、resume tuple 与 surface-resume dispatch 都由 published `StepSchema` / `ContinuationSchema` / `ResumeSiteEffectFacts` / layout query 闭合校验；plain callable 若无本地 handle candidate 仍会显式拒绝 outward path，没有 plain/effect ABI 混淆回退面。
+  - 验证结果：
+    - 对 `crates/scoopc/src` grep `scoop_effect_handler_stack_top|scoop_effect_active|scoop_effect_perform_slot|scoop_callee_suspend_state|scoop_continuation_resume_scope|scoop_continuation_alloc|scoop_continuation_resume_with|scoop_continuation_resume_into|scoop_effect_outcome_consume_current|scoop_effect_outcome_publish|__scoop_effect_|publish_incoming_resume_token|clear_incoming_resume_token|effect_call_wrapper`：无命中。
+    - `cargo check -p scoopc`：通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+    - `cargo test -p scoopc`：通过（742 passed）。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §5：review 确认 `perform` / `handle` / `resume` / `Step_F` lowering 继续只走新的 target-shape protocol，没有回退到 deleted TLS/bridge surface。
+    - §8：review 确认 step/case/payload/resume lowering 决策继续来自 published schema/facts/layout query，而不是 HIR-level fallback 或 ad-hoc bridge 语义。
+    - §9：review 确认 surface-resume、generated continuation driver、plain/effect ABI 分流仍保持在 generated contract 上，没有重新混入旧 continuation runtime 协议。
 
-## G8-T09：runtime generic substrate 收尾、验证面迁移与 full regression 恢复
+## [DONE] G8-T09：runtime generic substrate 收尾、验证面迁移与 full regression 恢复
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -924,6 +940,32 @@
   - active implementation / active tests / active docs 都不再保留旧 TLS continuation/effect 语义。
 - 依赖：G7-T08R
 - 完成记录：
+  - 改动范围：
+    - `runtime/c/scoop_runtime.c`、`runtime/c/scoop_runtime_api.h`、`runtime/c/scoop_tls_internal.h`：把 runtime C 注释/导出面收口为 generic substrate，删掉旧 continuation/effect policy 描述、预留 TLS 字段与过时 test-only allowlist 项。
+    - `crates/scoop/tests/p7_default_pipeline.rs`：把仍围绕旧 trace/TLS 语义的默认管线 CLI 回归改成 target-shape 正向验证，锁定 `ScoopEffectCtx`、`ScoopEffectOutcome`、surface-resume / `cmpxchg` / `Step_F` contract。
+    - `crates/scoopc/src/effect_lowered/ir.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/{body,layout,types}.rs`：补齐 full regression 期间暴露的两个真实 blocker：effectful funptr `k4` surface-resume inventory 缺口，以及 payloaded `Continuation.resume(...)` plain tail 误清 frame root 导致的提前终止；同时保留 multi-owner/shared wrapper dispatch query 的最终 target-shape 组织。
+    - `EFFECT_REFACTOR_GAPS.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`docs/spec/language_spec-part4.md`：把活跃 gap 状态与用户可读文档改成只描述 explicit `EffectCtx` / `EffectOutcome` / generated continuation driver / generic substrate。
+    - `tests/fixtures/run-pass/effect_raise_trace_hook_basic.{scoop,stdout}`：删除依赖旧 trace/TLS surface 的历史 run-pass fixture，不再把它当成 active validation 入口。
+  - 核心决策：
+    - runtime 收尾不再试图保留任何 continuation/effect policy 预留位或测试旁路；TLS internal header 只保留 GC / 线程注册 / explicit root frame substrate 所需字段。
+    - 活跃验证面从“旧名字是否出现”迁移为对 target-shape contract 的正向检查：published `StepSchema`/surface-resume、explicit `EffectOutcome`、explicit `current_effect_ctx_ref` / `incoming_resume_token_ref`、plain/effect ABI 分流，以及默认管线 CLI 发射出来的 IR surface。
+    - 对 full regression 暴露的 funptr wrapper 缺口，不恢复旧 bridge，而是让 `register_call_boundary_callee_wrapper_projection(...)` 在 wrapper schema 与 caller schema 不同但 owner step 相同的情况下，仍发布 authoritative owner route。
+    - 对 payloaded `Continuation.resume(...)` 提前退出回归，不把它硬塞进更复杂的 tail-free 证明；直接收紧优化边界，禁止在 plain `Resume` boundary complete path 上提前释放 frame root，确保后续 resume tail 仍可安全读取 frame-owned locals / handle ctx。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` grep `scoop_effect_handler_stack_top|scoop_effect_active|scoop_effect_perform_slot|scoop_callee_suspend_state|scoop_continuation_resume_scope|scoop_continuation_alloc|scoop_continuation_resume_with|scoop_continuation_resume_into|scoop_effect_outcome_consume_current|scoop_effect_outcome_publish|__scoop_effect_|publish_incoming_resume_token|clear_incoming_resume_token|effect_call_wrapper`：无命中。
+    - `cargo fmt --check`：通过。
+    - `cargo check -p scoop_runtime`：通过。
+    - `cargo check -p scoopc`：通过。
+    - `cargo test -p scoop_runtime`：通过。
+    - `cargo test -p scoopc`：通过（742 passed）。
+    - `cargo test -p scoop`：通过。
+    - `cargo test --all`：通过。
+    - `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+    - 定向 blocker 回归：`cargo test -p scoopc llvm::tests::effectful_funptr_call_uses_explicit_outcome_boundary -- --exact --nocapture` 与 `cargo test -p scoop --test p7_default_pipeline` 均通过。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §10：full regression / 单主线 target-shape 验证矩阵已恢复，仓库重新回到可编译、可测试状态。
+    - §11：runtime C / runtime API / TLS internal header 的删除残余、死注释与过时导出已清到 generic substrate 自洽状态。
+    - §12：活跃测试与活跃文档已迁到 explicit `EffectOutcome` / `EffectCtx` / surface-resume / plain-vs-effect ABI contract，不再依赖旧 TLS continuation/effect surface。
 
 ## G8-T09R：Review 最终收口结果，确认仓库重新只剩 target-shape 单主线
 

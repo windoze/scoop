@@ -174,6 +174,11 @@ enum RefactorHandleBoundaryRuntimeAction {
 
 #[derive(Clone)]
 enum RefactorHandleGotoRuntimeAction {
+    RestoreSavedCtxAndGoto {
+        clear_slots: bool,
+        site_id: SiteId,
+        target: StateId,
+    },
     BeginCompletion(RefactorHandlePendingCompletionRuntime),
     FinishFinally(RefactorHandleFinallyRuntime),
 }
@@ -336,18 +341,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_surface_resume(program, abi, surface)?;
         }
-        for entry in abi_program.surface_resume_dispatch_inventory() {
+        for surface in abi.surface_resume_layouts() {
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_surface_resume_outcome(abi, surface)?;
+        }
+        for dispatch in abi.surface_resume_dispatch_layouts() {
             let surface = abi
-                .surface_resume_layout(entry.continuation_schema())
+                .surface_resume_layout(dispatch.continuation_schema())
                 .ok_or_else(|| {
                     frontend_error(format!(
                         "refactor body lowering 缺少 ABI continuation schema k{} 的 surface-resume layout",
-                        entry.continuation_schema().as_u32()
+                        dispatch.continuation_schema().as_u32()
                     ))
                 })?;
-            let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
-            let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_surface_resume_outcome(abi, surface)?;
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_continuation_drive_outcome(abi, surface)?;
             for target in dispatch.target().owner_trampolines() {
@@ -4695,6 +4701,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )
     }
 
+    fn clear_handle_saved_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_ref_to_frame_slot_id(
+            self.handle_saved_effect_ctx_slot_id(site_id)?,
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            name,
+        )
+    }
+
     fn load_handle_arm_effect_ctx(
         &mut self,
         site_id: SiteId,
@@ -4719,6 +4737,62 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             value,
             name,
         )
+    }
+
+    fn clear_handle_arm_effect_ctx(
+        &mut self,
+        site_id: SiteId,
+        arm_ordinal: u32,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.store_gc_ref_to_frame_slot_id(
+            self.handle_arm_effect_ctx_slot_id(site_id, arm_ordinal)?,
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            name,
+        )
+    }
+
+    fn handle_arm_ordinals_for_site(&self, site_id: SiteId) -> Result<Vec<u32>, LlvmEmitError> {
+        let mut ordinals = BTreeSet::new();
+        for state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id: dispatch_site,
+                contract,
+                ..
+            } = state.terminator()
+            else {
+                continue;
+            };
+            if *dispatch_site != site_id {
+                continue;
+            }
+            for arm in contract.handled_arms() {
+                ordinals.insert(arm.arm_ordinal());
+            }
+        }
+        if ordinals.is_empty() {
+            return Err(frontend_error(format!(
+                "refactor HandleDispatch site{} 缺少 handled arm metadata",
+                site_id.as_u32(),
+            )));
+        }
+        Ok(ordinals.into_iter().collect())
+    }
+
+    fn clear_handle_effect_ctx_slots(
+        &mut self,
+        site_id: SiteId,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.clear_handle_saved_effect_ctx(site_id, &format!("{name}_saved"))?;
+        for arm_ordinal in self.handle_arm_ordinals_for_site(site_id)? {
+            self.clear_handle_arm_effect_ctx(
+                site_id,
+                arm_ordinal,
+                &format!("{name}_arm{arm_ordinal}"),
+            )?;
+        }
+        Ok(())
     }
 
     fn cast_gc_ref_to_effect_ctx_ptr(
@@ -4865,8 +4939,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let outer_handler_top = self
             .codegen
             .load_effect_ctx_handler_top(outer_ctx_ptr, "refactor_handle_outer_top")?;
-        let outer_handler_top =
-            self.root_gc_pointer(outer_handler_top, "refactor_handle_outer_top_root")?;
+        let outer_handler_top_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_handle_outer_top_root")?;
+        let outer_handler_top = self.root_gc_pointer_in_slot(
+            outer_handler_top_root_slot,
+            outer_handler_top,
+            "refactor_handle_outer_top_root",
+        )?;
+        let active_top_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_handle_active_top_root")?;
         let active_flag = self.codegen.effect_handler_active_flag();
 
         let mut arm_metas = Vec::with_capacity(contract.handled_arms().len());
@@ -4893,7 +4976,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     arm_ordinal
                 ),
             )?;
-            active_top = self.root_gc_pointer(
+            active_top = self.root_gc_pointer_in_slot(
+                active_top_root_slot,
                 active_top,
                 &format!(
                     "refactor_handle{}_active_arm{}_node_root",
@@ -4908,8 +4992,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &format!("refactor_handle{}_body_ctx", site_id.as_u32()),
         )?;
         self.store_current_effect_ctx(body_ctx, "refactor_handle_body_ctx")?;
+        self.clear_root_gc_slot(
+            active_top_root_slot,
+            "refactor_handle_active_top_root_clear",
+        )?;
 
         for (target_arm_ordinal, _) in &arm_metas {
+            let derived_top_root_slot = self.codegen.create_refactor_gc_root_slot(
+                self.mir_fun.span,
+                &format!(
+                    "refactor_handle{}_derived_arm{}_root",
+                    site_id.as_u32(),
+                    target_arm_ordinal
+                ),
+            )?;
             let mut derived_top = outer_handler_top;
             for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
                 let flags = if arm_ordinal == *target_arm_ordinal {
@@ -4932,7 +5028,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         arm_ordinal
                     ),
                 )?;
-                derived_top = self.root_gc_pointer(
+                derived_top = self.root_gc_pointer_in_slot(
+                    derived_top_root_slot,
                     derived_top,
                     &format!(
                         "refactor_handle{}_derived_arm{}_clone{}_root",
@@ -4956,7 +5053,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 derived_ctx,
                 "refactor_handle_arm_effect_ctx",
             )?;
+            self.clear_root_gc_slot(
+                derived_top_root_slot,
+                &format!(
+                    "refactor_handle{}_derived_arm{}_root_clear",
+                    site_id.as_u32(),
+                    target_arm_ordinal
+                ),
+            )?;
         }
+        self.clear_root_gc_slot(
+            outer_handler_top_root_slot,
+            "refactor_handle_outer_top_root_clear",
+        )?;
         Ok(())
     }
 
@@ -4988,6 +5097,36 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .store_refactor_gc_root_slot(self.mir_fun.span, slot, value, name)?;
         self.codegen
             .load_refactor_gc_root_slot(self.mir_fun.span, slot, name)
+    }
+
+    fn root_gc_pointer_in_slot(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let value = self.codegen.refactor_cast_ptr(
+            value,
+            self.codegen.llvm_gc_i8_ptr_type(),
+            &format!("{name}_value"),
+        )?;
+        self.codegen
+            .store_refactor_gc_root_slot(self.mir_fun.span, slot, value, name)?;
+        self.codegen
+            .load_refactor_gc_root_slot(self.mir_fun.span, slot, name)
+    }
+
+    fn clear_root_gc_slot(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen.store_refactor_gc_root_slot(
+            self.mir_fun.span,
+            slot,
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+            name,
+        )
     }
 
     fn emit_direct(
@@ -8120,7 +8259,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.restore_frame_slots_to_locals()?;
         }
         if !self.try_route_boundary_complete_to_handle_completion(boundary)? {
-            self.release_frame_root_for_frame_free_tail(boundary.resume_state())?;
+            // Resume complete tails may still consult frame-owned locals / handle ctx even when
+            // the reachable suffix has no further suspend or handle terminator, so keep the
+            // frame root alive conservatively on this path.
+            if !matches!(boundary.lowering(), Some(LateLoweredBoundaryLowering::Resume(_))) {
+                self.release_frame_root_for_frame_free_tail(boundary.resume_state())?;
+            }
             self.branch_to_state(boundary.resume_state())?;
         }
 
@@ -9592,6 +9736,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return Ok(false);
         };
         match action {
+            RefactorHandleGotoRuntimeAction::RestoreSavedCtxAndGoto {
+                clear_slots,
+                site_id,
+                target,
+            } => {
+                self.restore_handle_saved_effect_ctx(site_id, "refactor_handle_direct_exit_ctx")?;
+                if clear_slots {
+                    self.clear_handle_effect_ctx_slots(
+                        site_id,
+                        "refactor_handle_direct_exit_ctx_clear",
+                    )?;
+                }
+                self.branch_to_state(target)?;
+            }
             RefactorHandleGotoRuntimeAction::BeginCompletion(action) => {
                 self.begin_handle_pending_completion(action, None)?;
             }
@@ -9618,16 +9776,48 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let layout =
                 self.abi
                     .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
+            let has_continuation_binder = contract
+                .handled_arms()
+                .iter()
+                .any(|arm| arm.continuation_binder().is_some());
             let action = match contract.state_region(state_id) {
                 LateLoweredHandleStateRegion::Body if target == contract.body_complete_target() => {
-                    self.handle_begin_completion_action(layout, *site_id)?
-                        .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                    if contract.needs_completion_state() {
+                        self.handle_begin_completion_action(layout, *site_id)?
+                            .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                    } else if has_continuation_binder {
+                        Some(RefactorHandleGotoRuntimeAction::RestoreSavedCtxAndGoto {
+                            clear_slots: false,
+                            site_id: *site_id,
+                            target,
+                        })
+                    } else {
+                        Some(RefactorHandleGotoRuntimeAction::RestoreSavedCtxAndGoto {
+                            clear_slots: true,
+                            site_id: *site_id,
+                            target,
+                        })
+                    }
                 }
                 LateLoweredHandleStateRegion::Arm { .. }
                     if target == contract.arm_complete_target() =>
                 {
-                    self.handle_begin_completion_action(layout, *site_id)?
-                        .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                    if contract.needs_completion_state() {
+                        self.handle_begin_completion_action(layout, *site_id)?
+                            .map(RefactorHandleGotoRuntimeAction::BeginCompletion)
+                    } else if has_continuation_binder {
+                        Some(RefactorHandleGotoRuntimeAction::RestoreSavedCtxAndGoto {
+                            clear_slots: false,
+                            site_id: *site_id,
+                            target,
+                        })
+                    } else {
+                        Some(RefactorHandleGotoRuntimeAction::RestoreSavedCtxAndGoto {
+                            clear_slots: true,
+                            site_id: *site_id,
+                            target,
+                        })
+                    }
                 }
                 LateLoweredHandleStateRegion::Finally
                     if Some(target) == contract.finally_complete_target() =>

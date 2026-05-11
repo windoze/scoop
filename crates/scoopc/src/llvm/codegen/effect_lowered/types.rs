@@ -2405,6 +2405,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         self.surface_resume_layouts.get(&continuation_schema)
     }
 
+    pub(super) fn surface_resume_layouts(
+        &self,
+    ) -> impl Iterator<Item = &RefactorContinuationSurfaceResumeLayout<'ctx>> {
+        self.surface_resume_layouts.values()
+    }
+
     pub(super) fn unique_surface_resume_layout_for_signature(
         &self,
         resume_tuple_ty: TypeId,

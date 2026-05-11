@@ -300,7 +300,7 @@ Continuation 捕获 suspend 点的动态 effect context。调用 `k.resume(...)`
 - 即使从另一 OS 线程 resume，也不使用该线程当时的 ambient handler 栈。
 - 当恢复进入同一 handler 的 arm body 时，该 handler 对自己的 arm body 仍按 “inactive” 规则处理。
 
-实现可用 handler-stack snapshot、显式 context 对象、TLS bridge 或其它私有机制；这些不改变语言语义。
+实现可用显式 context 对象、continuation-owned state machine 或其它私有机制；这些不改变语言语义。
 
 ## 8. Handler 的 finally
 

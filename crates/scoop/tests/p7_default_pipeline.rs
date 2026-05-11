@@ -197,20 +197,36 @@ fn single_pipeline_runs_raise_cleanup_gc_cli() {
 }
 
 #[test]
-fn single_pipeline_preserves_raise_trace_hook_cli() {
-    let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop");
+fn single_pipeline_build_emit_llvm_cli_preserves_target_shape_effect_contract() {
+    let fixture =
+        workspace_path("tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop");
+    let dir = tempdir().unwrap();
+    let output_ll = dir.path().join("effect_contract.ll");
 
     let output = run_scoop([
-        OsStr::new("run"),
+        OsStr::new("build"),
+        OsStr::new("--emit-llvm"),
         OsStr::new("--no-incremental"),
         fixture.as_os_str(),
+        OsStr::new("-o"),
+        output_ll.as_os_str(),
     ]);
 
     assert!(
         output.status.success(),
-        "single pipeline raise trace hook fixture should run: {output:?}"
+        "single pipeline effect-contract fixture should build IR: {output:?}"
     );
-    assert_eq!(String::from_utf8_lossy(&output.stdout), "16\n5\n");
+    let ir = std::fs::read_to_string(&output_ll).unwrap();
+    assert!(
+        ir.contains("ScoopEffectCtx") && ir.contains("ScoopEffectOutcome"),
+        "single pipeline CLI IR should keep explicit EffectCtx / EffectOutcome surface: {ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_refactor_surface_resume_outcome__k")
+            && ir.contains("cmpxchg")
+            && ir.contains("refactor_step_is_complete"),
+        "single pipeline CLI IR should keep target-shape Step_F / surface-resume contract: {ir}"
+    );
 }
 
 #[test]

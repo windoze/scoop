@@ -1465,17 +1465,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
         };
 
-        let first_candidate = candidates.iter().next().copied().ok_or_else(|| {
+        candidates.iter().next().copied().ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ContinuationObjectMethod，但缺少 reachable internal method target",
                 entry.continuation_schema().as_u32(),
             ))
         })?;
-        let expected_object = first_candidate.0;
-        if candidates
+        let distinct_objects = candidates
             .iter()
-            .any(|(object_id, _, _)| *object_id != expected_object)
-        {
+            .map(|(object_id, _, _)| *object_id)
+            .collect::<BTreeSet<_>>();
+        if entry.wrapper_projections().is_empty() && distinct_objects.len() > 1 {
             return Err(frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 歧义：多个 continuation object 共享同一 schema [{}]",
                 entry.continuation_schema().as_u32(),
@@ -1483,15 +1483,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
 
-        let continuation_layout = continuation_layouts.get(&expected_object).ok_or_else(|| {
-            frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 continuation schema k{} 需要的 continuation object ko{} layout，无法发布 surface-resume owner dispatch contract",
-                entry.continuation_schema().as_u32(),
-                expected_object.as_u32(),
-            ))
-        })?;
         let mut method_targets = Vec::with_capacity(candidates.len());
         for (object_id, interface_id, case_tag) in candidates {
+            let continuation_layout = continuation_layouts.get(&object_id).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation schema k{} 需要的 continuation object ko{} layout，无法发布 surface-resume owner dispatch contract",
+                    entry.continuation_schema().as_u32(),
+                    object_id.as_u32(),
+                ))
+            })?;
             let (binding_schema, expected_return_step_schema) =
                 match entry.wrapper_projections().iter().find_map(|projection| {
                     let route = projection.underlying_route();
@@ -1533,7 +1533,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     frontend_error(format!(
                         "refactor LLVM ABI materialization 发现 continuation schema k{} 的 continuation object ko{} 缺少 object-side surface-resume binding k{}",
                         entry.continuation_schema().as_u32(),
-                        expected_object.as_u32(),
+                        object_id.as_u32(),
                         binding_schema.as_u32(),
                     ))
                 })?;
@@ -1629,31 +1629,69 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let projection_owners = entry
             .wrapper_projections()
             .iter()
-            .filter_map(|projection| {
-                surface_resume_publication_owner_identity(
-                    projection.underlying_route().publication(),
-                )
-                .map(|(owner, object)| (owner.clone(), object))
-            })
+            .filter_map(
+                |projection| match projection.underlying_route().publication() {
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                        owner_version_key,
+                        owner_continuation_object,
+                        ..
+                    }
+                    | LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                        owner_version_key,
+                        owner_continuation_object,
+                        ..
+                    } => Some((owner_version_key.clone(), *owner_continuation_object)),
+                    LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                        object_id,
+                        ..
+                    } => self
+                        .program
+                        .continuation_object(*object_id)
+                        .map(|object| (object.owner_version_key().clone(), object.object_id())),
+                    LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. } => None,
+                },
+            )
             .collect::<Vec<_>>();
 
         for projection in entry.wrapper_projections() {
             let Some((owner_version_key, owner_continuation_object)) =
-                surface_resume_publication_owner_identity(
-                    projection.underlying_route().publication(),
-                )
+                (match projection.underlying_route().publication() {
+                    LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+                        owner_version_key,
+                        owner_continuation_object,
+                        ..
+                    }
+                    | LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
+                        owner_version_key,
+                        owner_continuation_object,
+                        ..
+                    } => Some((owner_version_key.clone(), *owner_continuation_object)),
+                    LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
+                        object_id,
+                        ..
+                    } => self
+                        .program
+                        .continuation_object(*object_id)
+                        .map(|object| (object.owner_version_key().clone(), object.object_id())),
+                    LateLoweredSurfaceResumeDispatchPublication::SurfaceCase { .. } => None,
+                })
             else {
                 continue;
             };
             let candidate = surface_resume_owner_candidate_mut(
                 &mut candidates,
-                owner_version_key,
+                &owner_version_key,
                 owner_continuation_object,
             );
-            candidate.add_publication(
-                entry.continuation_schema(),
+            if !matches!(
                 projection.underlying_route().publication(),
-            )?;
+                LateLoweredSurfaceResumeDispatchPublication::InternalMethod { .. }
+            ) {
+                candidate.add_publication(
+                    entry.continuation_schema(),
+                    projection.underlying_route().publication(),
+                )?;
+            }
             candidate.set_wrapper_projection(entry.continuation_schema(), projection.clone())?;
         }
 

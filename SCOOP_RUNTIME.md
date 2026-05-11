@@ -393,11 +393,13 @@ This section records the continuation/effect contract after the `T4016` alignmen
   - The continuation captures both the suspended computation's local continuation state and the dynamic effect context active at the suspension point.
   - Resuming from another OS thread runs under that captured effect context rather than the resuming thread's ambient effect state.
   - If the resumed computation suspends again, that suspension exposes a fresh continuation; `k.resume(...)` itself still exposes only the eventual delimiter answer or a raised error.
-- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement, and `scoop_continuation_resume_with(...)` now packages “write payload + drive resume + read delimiter answer” through the generic continuation ABI. `scoop_continuation_resume_into(...)` remains the lower-level entry for cases where payload has already been staged on the continuation object. Expression-position `k.resume(...)` and `Task.step()` now both consume that same shared payload+answer path rather than relying on a second task-specific resume contract.
-- Transitional implementation note:
-  - The runtime still contains handler-stack snapshots, perform-slot TLS, `callee_suspend_state`, pending-continuation replay state, and related scratch state while the staged `T4017b -> T4017f` migration lands.
-  - Those TLS cells are now treated as bridge machinery for the current implementation, not as the authoritative semantic model.
-  - The remaining `T4017` work migrates fast-path analysis, ordinary call ABI, replay state, and residual boundaries so that compiler/runtime source-of-truth becomes explicit `ctx + outcome`.
+- Resume payload transport still uses the erased `(resume_word, resume_gc_ref)` carrier, but the owner of the resume algorithm is now compiler-generated code rather than runtime C helpers.
+- `Continuation.resume(...)` lowers to a generated continuation driver that:
+  - writes the payload into the codegen-owned continuation object;
+  - restores the captured `EffectCtx` / resume-token inputs;
+  - calls the owner step/core through the explicit hidden ABI `current_effect_ctx_ref + incoming_resume_token_ref + ScoopEffectOutcome *outcome`;
+  - rebuilds the published `Step_F` / delimiter-answer result from explicit `EffectOutcome`.
+- The runtime no longer carries handler-stack snapshots, perform-slot TLS, `callee_suspend_state`, pending-continuation replay state, or other continuation/effect policy scratch state. Those semantics now live in the backend-owned continuation object model plus explicit `EffectCtx` / `EffectOutcome` contract.
 
 ## 11. Task Stepping Layer Contract
 
@@ -423,9 +425,9 @@ driver:
 - generic sync / atomic primitives used to implement exclusive drive ownership
   and state publication;
 - generic thread primitives (`yield`) used by the internal join helper;
-- the shared continuation ABI (`scoop_continuation_resume_with(...)` and the
-  standardized state-machine frame transport) used when a waiting task resumes a
-  captured continuation.
+- the compiler-generated continuation resume driver plus the standardized
+  state-machine frame transport (`resume_state_tag`, `resume_word`,
+  `resume_gc_ref`) used when a waiting task resumes a captured continuation.
 
 Stable synchronization contract:
 
@@ -465,9 +467,9 @@ Implementation note:
   continuation whose delimiter answer is `__TaskStepResult<T>`; the compiler may
   erase the continuation payload type internally, but it does not erase the
   answer carrier.
-- When a waiting task resumes that captured continuation, it still goes through
-  the shared `scoop_continuation_resume_with(...)` helper and the standardized
-  frame transport (`state_tag`, `resume_word`, `resume_gc_ref`).
+- When a waiting task resumes that captured continuation, it goes through the
+  generated continuation resume driver and the standardized frame transport
+  (`resume_state_tag`, `resume_word`, `resume_gc_ref`).
 - There is no separate task-only C ABI for `Task.step()`, `__task_create(...)`,
   `__task_step_ready(...)`, `__task_step_pending(...)`, `__task_from_result(...)`,
   or `__task_join(...)`.

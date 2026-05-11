@@ -1,4 +1,4 @@
-// Scoop runtime ABI allowlist (early stage).
+// Scoop runtime ABI allowlist.
 //
 // 说明：
 // - 该文件用于“集中声明 & 审计”runtime/c 对外导出的 C 符号（ABI 边界）。
@@ -124,10 +124,8 @@
   X(scoop_sync_once_is_done) \
   X(scoop_sync_once_run) \
   X(scoop_test_add_int) \
-  X(scoop_test_callee_suspend_state_set) \
   X(scoop_test_extern_global_counter) \
   X(scoop_test_explicit_root_frame_enter_native_smoke) \
-  X(scoop_test_continuation_resume_replay_state_create) \
   X(scoop_test_explicit_root_frame_root_map_smoke) \
   X(scoop_test_explicit_root_frame_top) \
   X(scoop_test_gc_collect_in_native) \

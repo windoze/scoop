@@ -1602,8 +1602,10 @@ fn register_call_boundary_callee_wrapper_projection(
                 continue;
             }
             if carrier_target_step_schemas.is_empty() {
-                if method.out_step_schema()
-                    == composition.caller_continuation_contract().out_step_schema()
+                let caller_contract = composition.caller_continuation_contract();
+                if method.out_step_schema() == caller_contract.out_step_schema()
+                    && wrapper_contract.continuation_schema()
+                        == caller_contract.continuation_schema()
                 {
                     continue;
                 }
@@ -1630,24 +1632,23 @@ fn register_call_boundary_callee_wrapper_projection(
             ));
         }
     }
-    if candidates.len() != 1 {
+    if candidates.is_empty() {
         return;
     }
-    let (publication, projection) = candidates
-        .pop()
-        .expect("candidate length was checked before pop");
-    inventory
-        .entry(wrapper_contract.continuation_schema())
-        .or_default()
-        .register(
-            Some(surface_resume_contract_from_continuation(wrapper_contract)),
-            publication,
+    for (publication, projection) in candidates {
+        inventory
+            .entry(wrapper_contract.continuation_schema())
+            .or_default()
+            .register(
+                Some(surface_resume_contract_from_continuation(wrapper_contract)),
+                publication,
+            );
+        register_surface_resume_wrapper_projection(
+            wrapper_projections,
+            wrapper_contract.continuation_schema(),
+            projection,
         );
-    register_surface_resume_wrapper_projection(
-        wrapper_projections,
-        wrapper_contract.continuation_schema(),
-        projection,
-    );
+    }
 }
 
 fn build_call_boundary_callee_wrapper_projection(
