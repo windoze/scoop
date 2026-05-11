@@ -1570,8 +1570,8 @@ fun main(): Int {
         .get_struct_type("scoop.refactor.Continuation__a_go")
         .expect("默认单文件 refactor path 应为 handled perform 注册 continuation object");
     assert!(
-        continuation.count_fields() >= 6,
-        "continuation object 至少应包含 header/frame/state/one-shot/composed-callee/vtable 字段"
+        continuation.count_fields() >= 10,
+        "continuation object 至少应包含 header/resumed/state/effect_ctx/state_ref/step_fn/resume transport/captured suspend-state/vtable 字段"
     );
 
     let ir = module.print_to_string().to_string();
@@ -1800,8 +1800,10 @@ fun main(): Int {
         "surface-resume call return path 应继续按 Step tag dispatch，而不是回答案专用 helper\n{resume_window}"
     );
     assert!(
-        ir.contains("refactor_resume_state") && ir.contains("refactor_store_one_shot_gep"),
-        "surface-resume path 应继续显式消费 continuation state/one-shot contract\n{resume_window}"
+        ir.contains("refactor_resume_state")
+            && ir.contains("refactor_surface_resume_resumed_gep")
+            && ir.contains("cmpxchg"),
+        "surface-resume path 应继续显式消费 continuation state/cmpxchg one-shot contract\n{resume_window}"
     );
     assert!(
         ir.contains("store i32 %refactor_resume_state")

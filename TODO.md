@@ -598,7 +598,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §6：continuation resume driver 不再只剩 shared surface-resume `Step_F` wrapper；backend 已重新拥有 explicit `EffectOutcome` 驱动的 internal resume core/outcome wrapper，可直接承载后续 generated resume driver 的 `step_fn` 内核。
 
-## G5-T06：重建 codegen-owned continuation object model 与 generated resume driver
+## [DONE] G5-T06：重建 codegen-owned continuation object model 与 generated resume driver
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G5
@@ -647,8 +647,24 @@
   - continuation alloc / resume / answer / outward propagation 再次在实现上存在，但 owner 完全位于 codegen。
 - 依赖：G5-T05a
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/{layout,types}.rs`：把 continuation object 的 authoritative LLVM layout/field kind 改成 codegen-owned 目标字段集合：`resumed`、`resume_state_tag`、`captured_effect_ctx_ref`、`state_ref`、`step_fn`、`resume_word`、`resume_gc_ref`、`captured_callee_suspend_state_ref`，并保留 published resume-packing vtable fields；不再把 continuation 建模成旧的 frame/one-shot/composed-callee 壳层。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：补出 generated continuation step / owner outcome driver / generic outcome dispatcher；continuation 分配改为直接写新字段；resume 路径使用 LLVM `cmpxchg` one-shot、显式 payload store、显式 `captured_effect_ctx_ref` / `captured_callee_suspend_state_ref` / `step_fn` 读取，以及 answer slot write-back；同时更新源码自检并清掉本任务引出的 pointer-type warning。
+    - `crates/scoopc/src/llvm/tests.rs`：把 continuation 布局与 one-shot 断言切到新 object model 与 `cmpxchg` 协议。
+  - 核心决策：
+    - continuation object 的 authoritative 字段顺序收口为：`header`、`resumed`、`resume_state_tag`、`captured_effect_ctx_ref`、`state_ref`、`step_fn`、`resume_word`、`resume_gc_ref`、`captured_callee_suspend_state_ref`，其后才是 effect-family resume packing 的 vtable 字段；不再保留 stable handle owner、native handler snapshot、`release_fn` 或 runtime replay-state 语义槽位。
+    - compiler-owned resume driver 采用“generic outcome dispatcher + owner-specific outcome wrapper + owner step core”的 generated helper 组合来实现 `__scoop_continuation_resume_with(...)` 的目标算法：先 `cmpxchg` 置位 one-shot，再写入 resume payload，随后用显式 `current_effect_ctx_ref` / `incoming_resume_token_ref` / `ScoopEffectOutcome *outcome` 调用 owner step core，并在 complete path 上直接回写 answer slot。
+    - cross-thread resume 继续只依赖 generic thread spawn/join substrate；复核 `effect_lowered/value.rs` 与 `intrinsics/thread.rs` 后，活跃实现中未重新引入任何 deleted runtime continuation API。公开 `Continuation.resume(...) -> Step_F` surface 的全面切换仍属于后续 `G7-T08`，但其底层 owner 已经迁回 codegen。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` grep `scoop_continuation_|scoop_callee_suspend_state_|scoop_effect_handler_stack_|scoop_effect_outcome_|captured_handler_stack_top|pending_continuation`：无命中。
+    - `cargo fmt`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误只剩后续 `G6/G7` 缺口：`emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `declare_runtime_effect_is_active`（ordinary effect propagation）、`codegen_call_impl` / `codegen_top_level_fun_call_impl` / `codegen_mir_*call*`（G6）、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator`（G7）等；不再出现 `declare_runtime_continuation_resume_with`、`declare_runtime_thread_spawn_join_resume_u64`、`declare_runtime_thread_spawn_join_resume_transport`、`declare_runtime_thread_spawn_join_compat_resume_u64` 或本任务引入的 warning/frontier 噪音。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：仍失败，失败前沿与 `cargo check -p scoopc` 一致；当前未新增 `G5-T06` 自身的 lint/warning。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/{body,layout}.rs` 的源码自检/布局测试已同步切到新的 continuation 字段集合与 `cmpxchg` 协议；由于 `G6/G7` 尚未闭合，当前无法独立跑通 `cargo test -p scoopc`。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §6：runtime 已删除的 continuation object model / resume driver 已由 codegen-owned continuation layout、generated step core 与 generated outcome-resume driver 补回，owner 不再停留在 runtime C。
 
-## G5-T06R：Review continuation object model / generated resume driver，确认 owner 已迁回 codegen
+## [DONE] G5-T06R：Review continuation object model / generated resume driver，确认 owner 已迁回 codegen
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G5
@@ -668,6 +684,22 @@
   - 可以明确列出 continuation object 的 authoritative 字段集合与 resume 算法。
 - 依赖：G5-T06
 - 完成记录：
+  - 改动范围：
+    - `TODO.md`：将 `G5-T06R` 标记为 `[DONE]` 并补充 review 结论。
+    - 本任务人工复核 `crates/scoopc/src/llvm/codegen/effect_lowered/{layout,types,body,value}.rs`、`crates/scoopc/src/llvm/codegen/{intrinsics/thread.rs,runtime_abi.rs,runtime_symbols.rs}`、`crates/scoopc/src/llvm/tests.rs`；无需额外语义修补。
+  - 核心决策：
+    - continuation object 的 authoritative 字段集合已经稳定为：`header`、`resumed`、`resume_state_tag`、`captured_effect_ctx_ref`、`state_ref`、`step_fn`、`resume_word`、`resume_gc_ref`、`captured_callee_suspend_state_ref`，其后才是 published resume packing vtable 字段；不再依赖 stable handle、native handler snapshot、`release_fn` 或 runtime-owned replay-state。
+    - generated resume driver 已明确迁回 codegen：`emit_generated_continuation_resume_driver(...)` 以 LLVM `cmpxchg` 完成 one-shot，显式写入 `resume_word` / `resume_gc_ref`，从 continuation 直接读取 `state_ref` / `captured_effect_ctx_ref` / `captured_callee_suspend_state_ref` / `resume_state_tag` / `step_fn`，再以显式 hidden ABI + `ScoopEffectOutcome *outcome` 调用 owner `step_fn`，complete path 直接把 answer transport 写回调用方 answer slot。
+    - active cross-thread resume integration 仍只依赖 generic thread spawn/join substrate：refactor path 由 `effect_lowered/value.rs` 生成 thunk 并调用 `scoop_thread_spawn_join_resume_u64` / `scoop_thread_spawn_join_resume_transport`；未发现 deleted runtime continuation API 回流到活跃实现。`intrinsics/thread.rs` 中旧兼容 helper 入口当前仅见定义面，未见 active refactor code path 调用点，因此不构成 runtime-owned continuation policy 的回退 source of truth。
+  - 验证结果：
+    - 对 `crates/scoopc/src`、`runtime/c`、`sysroot` grep `scoop_continuation_|scoop_callee_suspend_state_|captured_handler_stack_top|pending_continuation|scoop_effect_handler_stack_|scoop_effect_outcome_`：无命中。
+    - 对 `crates/scoopc/src/llvm/codegen` grep `codegen_sysroot_thread_intrinsics\(`：仅命中 `intrinsics/thread.rs` 中的定义，未发现 active refactor path 调用点；`__scoop_thread_spawn_join_resume_u64` 的 refactor lowering 仍集中在 `effect_lowered/value.rs`。
+    - 人工复核 `effect_lowered/layout.rs`、`effect_lowered/types.rs`、`effect_lowered/body.rs`：continuation layout、`refactor_continuation_step_llvm_ty()`、`create_continuation_object_with_state_tag(...)`、`try_mark_continuation_resumed(...)`、`store_continuation_resume_payload(...)`、`emit_generated_continuation_resume_driver(...)` 与 `emit_generated_continuation_step(...)` 一致对齐 `CONTINUATION_RUNTIME_REFACTOR.md` 中的 codegen-owned object model / resume algorithm。
+    - `cargo fmt --check`：通过。
+    - `cargo check -p scoopc`：仍失败，但首批错误继续停在后续结构性 gap：`emit_ordinary_call_effect_propagation_check` / `ordinary_effect_propagation_enabled` / `declare_runtime_effect_is_active`（ordinary effect propagation），以及 `codegen_call_impl` / `codegen_top_level_fun_call_impl` / `codegen_mir_*call*`（G6）、`codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_perform_terminator` / `emit_raise_runtime_error_variant` / `emit_ordinary_non_resuming_effect_exit`（G7）；未出现 `G5` continuation object model / generated resume driver 回退问题。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：仍失败，失败前沿与 `cargo check -p scoopc` 一致；未新增 `G5-T06R` 范围内的 lint/warning 问题。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §6：review 确认 continuation object model / generated resume driver 的 owner 已迁回 codegen；continuation 字段集合、one-shot/resume 算法、captured effect ctx 与 captured callee suspend-state 都已收口到 compiler-owned helper 与 traced object 字段，不再依赖 runtime-owned continuation policy。
 
 ## G6-T07：重建 direct/static/dynamic call lowering 与 plain/effect ABI 分流
 

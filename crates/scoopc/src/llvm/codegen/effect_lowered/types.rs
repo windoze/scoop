@@ -1916,10 +1916,14 @@ impl RefactorContinuationSurfaceResumeBinding {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RefactorContinuationFieldKind {
     Header,
-    CapturedFrame,
+    ResumedFlag,
     ResumeStateTag,
-    OneShotFlag,
-    ComposedCalleeContinuation,
+    CapturedEffectCtxRef,
+    StateRef,
+    StepFn,
+    ResumeWord,
+    ResumeGcRef,
+    CapturedCalleeSuspendStateRef,
     PackingVtable(ResumeInterfaceId),
 }
 

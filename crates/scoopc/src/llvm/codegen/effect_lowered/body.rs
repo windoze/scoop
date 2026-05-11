@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use inkwell::AddressSpace;
+use inkwell::AtomicOrdering;
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 use inkwell::values::{
@@ -53,10 +54,14 @@ use super::value::RefactorValuePrimitives;
 
 const STEP_TAG_COMPLETE: u64 = 0;
 const REFACTOR_MAIN_UNHANDLED_EXIT_CODE: u64 = 3;
-const CONT_FIELD_CAPTURED_FRAME: u32 = 1;
+const CONT_FIELD_RESUMED: u32 = 1;
 const CONT_FIELD_RESUME_STATE: u32 = 2;
-const CONT_FIELD_ONE_SHOT: u32 = 3;
-const CONT_FIELD_COMPOSED_CALLEE: u32 = 4;
+const CONT_FIELD_CAPTURED_EFFECT_CTX: u32 = 3;
+const CONT_FIELD_STATE_REF: u32 = 4;
+const CONT_FIELD_STEP_FN: u32 = 5;
+const CONT_FIELD_RESUME_WORD: u32 = 6;
+const CONT_FIELD_RESUME_GC_REF: u32 = 7;
+const CONT_FIELD_CAPTURED_CALLEE_SUSPEND_STATE: u32 = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RefactorHandleCompletionMode {
@@ -86,6 +91,27 @@ fn refactor_surface_resume_owner_outcome_symbol_name(owner_symbol_name: &str) ->
 
 fn refactor_surface_resume_owner_core_symbol_name(owner_symbol_name: &str) -> String {
     format!("{owner_symbol_name}__core")
+}
+
+fn refactor_continuation_drive_outcome_symbol_name(
+    continuation_schema: crate::effect_facts::ContinuationSchemaId,
+) -> String {
+    format!(
+        "__scoop_refactor_continuation_drive_outcome__k{}",
+        continuation_schema.as_u32()
+    )
+}
+
+fn refactor_any_continuation_drive_outcome_symbol_name() -> &'static str {
+    "__scoop_refactor_continuation_drive_outcome"
+}
+
+fn refactor_continuation_drive_owner_outcome_symbol_name(owner_symbol_name: &str) -> String {
+    format!("{owner_symbol_name}__cont_outcome")
+}
+
+fn refactor_continuation_step_symbol_name(owner_symbol_name: &str) -> String {
+    format!("{owner_symbol_name}__cont_step")
 }
 
 impl RefactorHandleCompletionMode {
@@ -322,9 +348,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let dispatch = abi.surface_resume_dispatch_layout(entry.continuation_schema())?;
             let mut child = self.fresh_child_codegen();
             child.codegen_refactor_surface_resume_outcome(abi, surface)?;
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_continuation_drive_outcome(abi, surface)?;
             for target in dispatch.target().owner_trampolines() {
                 let mut child = self.fresh_child_codegen();
                 child.codegen_refactor_surface_resume_owner_outcome(
+                    abi_program,
+                    abi_source_types,
+                    abi_pass_view,
+                    abi,
+                    surface,
+                    target,
+                )?;
+                let mut child = self.fresh_child_codegen();
+                child.codegen_refactor_continuation_drive_owner_outcome(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -1884,6 +1921,150 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn codegen_refactor_continuation_drive_outcome(
+        &mut self,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.refactor_continuation_drive_outcome_function(surface);
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let dispatch = abi.surface_resume_dispatch_layout(surface.continuation_schema())?;
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        let targets = dispatch.target().owner_trampolines();
+        if targets.is_empty() {
+            self.builder.build_unreachable()?;
+            return Ok(());
+        }
+        let cont = function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive outcome `{}` 缺少 continuation 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let resume_word = function.get_nth_param(1).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive outcome `{}` 缺少 resume_word 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let resume_gc_ref = function.get_nth_param(2).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive outcome `{}` 缺少 resume_gc_ref 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let answer_slot = function.get_nth_param(3).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive outcome `{}` 缺少 answer slot 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let outcome_ptr = function.get_nth_param(4).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive outcome `{}` 缺少 outcome 参数",
+                function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let args = vec![
+            cont.into_pointer_value().into(),
+            resume_word.into_int_value().into(),
+            resume_gc_ref.into_pointer_value().into(),
+            answer_slot.into_pointer_value().into(),
+            outcome_ptr.into_pointer_value().into(),
+        ];
+        if targets.len() == 1 {
+            let callee =
+                self.refactor_continuation_drive_owner_outcome_function(surface, &targets[0]);
+            self.build_call_preserving_gc_local_roots(
+                crate::span::Span::new(0, 0),
+                callee,
+                &args,
+                "refactor_continuation_drive_outcome_call",
+            )?;
+            self.builder.build_return(None)?;
+            return Ok(());
+        }
+
+        let cont_ptr = cont.into_pointer_value();
+        let current_desc =
+            self.load_gc_object_type_desc(cont_ptr, "continuation_drive_outcome_desc")?;
+        let word_ty = self.context.i64_type();
+        let current_desc_int = self.builder.build_ptr_to_int(
+            current_desc,
+            word_ty,
+            "continuation_drive_outcome_desc_int",
+        )?;
+        let first_check = self
+            .context
+            .append_basic_block(function, "continuation_drive_outcome_check0");
+        self.builder.build_unconditional_branch(first_check)?;
+        let mut check_bb = first_check;
+        for (index, target) in targets.iter().enumerate() {
+            let next_bb = self.context.append_basic_block(
+                function,
+                &format!("continuation_drive_outcome_check{}", index + 1),
+            );
+            let hit_bb = self.context.append_basic_block(
+                function,
+                &format!(
+                    "continuation_drive_outcome_hit_ko{}",
+                    target.owner_continuation_object().as_u32()
+                ),
+            );
+            self.builder.position_at_end(check_bb);
+            let continuation_layout = abi
+                .continuation_layout(target.owner_continuation_object())
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor continuation drive outcome `{}` 缺少 owner continuation object ko{} layout",
+                        function.get_name().to_str().unwrap_or("<invalid>"),
+                        target.owner_continuation_object().as_u32(),
+                    ))
+                })?;
+            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+                crate::span::Span::new(0, 0),
+                continuation_layout.llvm_ty(),
+                continuation_layout.layout_anchor_name(),
+            )?;
+            let type_desc_i8 = self.builder.build_pointer_cast(
+                type_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "continuation_drive_outcome_target_desc",
+            )?;
+            let target_desc_int = self.builder.build_ptr_to_int(
+                type_desc_i8,
+                word_ty,
+                "continuation_drive_outcome_target_desc_int",
+            )?;
+            let is_match = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_desc_int,
+                target_desc_int,
+                "continuation_drive_outcome_desc_match",
+            )?;
+            self.builder
+                .build_conditional_branch(is_match, hit_bb, next_bb)?;
+
+            self.builder.position_at_end(hit_bb);
+            let callee = self.refactor_continuation_drive_owner_outcome_function(surface, target);
+            self.build_call_preserving_gc_local_roots(
+                crate::span::Span::new(0, 0),
+                callee,
+                &args,
+                "refactor_continuation_drive_owner_outcome_call",
+            )?;
+            self.builder.build_return(None)?;
+            check_bb = next_bb;
+        }
+
+        self.builder.position_at_end(check_bb);
+        self.builder.build_unreachable()?;
+        Ok(())
+    }
+
     fn codegen_refactor_dynamic_surface_resume_adapter(
         &mut self,
         program: &'a LateLoweredProgram,
@@ -2221,6 +2402,144 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn codegen_refactor_continuation_step(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let function = self.refactor_continuation_step_function(target);
+        if function.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        let callable = program
+            .callable_by_version_key(target.owner_version_key())
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.body_version_key().surface_instance()
+                        == target.owner_version_key().surface_instance()
+                })
+            })
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.root_fqn()
+                        == target.owner_version_key().surface_instance().template.fqn
+                })
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor continuation step k{} 缺少 owner callable {:?}",
+                    surface.continuation_schema().as_u32(),
+                    target.owner_version_key()
+                ))
+            })?;
+        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation step `{}` owner `{}` 缺少 canonical MIR body",
+                function.get_name().to_str().unwrap_or("<invalid>"),
+                callable.root_fqn()
+            ))
+        })?;
+        let entry = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(function)?;
+        RefactorCallableEmitter::new(
+            self,
+            program,
+            source_types,
+            pass_view,
+            abi,
+            callable,
+            mir_fun,
+            body,
+            function,
+            None,
+            None,
+            self.collect_surface_resume_handle_sites(target),
+            RefactorHandleCompletionMode::ReturnFromFunction,
+        )?
+        .emit_generated_continuation_step(surface.resume_tuple_ty())?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        Ok(())
+    }
+
+    fn codegen_refactor_continuation_drive_owner_outcome(
+        &mut self,
+        program: &'a LateLoweredProgram,
+        source_types: &'a TypeStore,
+        pass_view: &'a mir::MaterializedMirPassView<'a>,
+        abi: &ProgramAbiQuery<'ctx>,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let outcome_fun = self.refactor_continuation_drive_owner_outcome_function(surface, target);
+        if outcome_fun.count_basic_blocks() > 0 {
+            return Ok(());
+        }
+        self.codegen_refactor_continuation_step(
+            program,
+            source_types,
+            pass_view,
+            abi,
+            surface,
+            target,
+        )?;
+        let callable = program
+            .callable_by_version_key(target.owner_version_key())
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.body_version_key().surface_instance()
+                        == target.owner_version_key().surface_instance()
+                })
+            })
+            .or_else(|| {
+                program.callables().iter().find(|candidate| {
+                    candidate.root_fqn()
+                        == target.owner_version_key().surface_instance().template.fqn
+                })
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor continuation drive owner outcome k{} 缺少 owner callable {:?}",
+                    surface.continuation_schema().as_u32(),
+                    target.owner_version_key()
+                ))
+            })?;
+        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let body = mir_fun.body.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive owner outcome `{}` owner `{}` 缺少 canonical MIR body",
+                outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
+                callable.root_fqn()
+            ))
+        })?;
+        let entry = self.context.append_basic_block(outcome_fun, "entry");
+        self.builder.position_at_end(entry);
+        self.begin_function_explicit_frame_layout(outcome_fun)?;
+        RefactorCallableEmitter::new(
+            self,
+            program,
+            source_types,
+            pass_view,
+            abi,
+            callable,
+            mir_fun,
+            body,
+            outcome_fun,
+            None,
+            None,
+            self.collect_surface_resume_handle_sites(target),
+            RefactorHandleCompletionMode::ReturnFromFunction,
+        )?
+        .emit_generated_continuation_resume_driver(surface)?;
+        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        Ok(())
+    }
+
     fn load_gc_object_type_desc(
         &mut self,
         obj: PointerValue<'ctx>,
@@ -2431,6 +2750,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_surface_resume_owner_core_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+    }
+
+    fn refactor_continuation_drive_outcome_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
+        let params = [
+            self.llvm_gc_i8_ptr_type().into(),
+            self.context.i64_type().into(),
+            self.llvm_gc_i8_ptr_type().into(),
+            self.llvm_i8_ptr_type().into(),
+            self.context.ptr_type(AddressSpace::default()).into(),
+        ];
+        self.context.void_type().fn_type(&params, false)
+    }
+
+    fn refactor_continuation_step_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
+        let params = [
+            self.llvm_gc_i8_ptr_type().into(),
+            self.context.i64_type().into(),
+            self.llvm_gc_i8_ptr_type().into(),
+            self.llvm_gc_i8_ptr_type().into(),
+            self.llvm_gc_i8_ptr_type().into(),
+            self.context.ptr_type(AddressSpace::default()).into(),
+        ];
+        self.context.void_type().fn_type(&params, false)
+    }
+
+    pub(in crate::llvm::codegen) fn refactor_continuation_drive_outcome_function(
+        &mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name =
+            refactor_continuation_drive_outcome_symbol_name(surface.continuation_schema());
+        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+    }
+
+    pub(in crate::llvm::codegen) fn refactor_any_continuation_drive_outcome_function(
+        &mut self,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name = refactor_any_continuation_drive_outcome_symbol_name();
+        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
+        self.module
+            .get_function(symbol_name)
+            .unwrap_or_else(|| self.module.add_function(symbol_name, llvm_ty, None))
+    }
+
+    fn refactor_continuation_drive_owner_outcome_function(
+        &mut self,
+        _surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name =
+            refactor_continuation_drive_owner_outcome_symbol_name(target.symbol_name());
+        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
+        self.module
+            .get_function(&symbol_name)
+            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+    }
+
+    fn refactor_continuation_step_function(
+        &mut self,
+        target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        let symbol_name = refactor_continuation_step_symbol_name(target.symbol_name());
+        let llvm_ty = self.refactor_continuation_step_llvm_ty();
         self.module
             .get_function(&symbol_name)
             .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
@@ -4732,7 +5120,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None
         };
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
-        let already = self.load_continuation_one_shot(cont_ptr)?;
         let first_resume_bb = self
             .codegen
             .context
@@ -4741,18 +5128,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_double");
+        let first_resume =
+            self.try_mark_continuation_resumed(cont_ptr, "refactor_surface_resume")?;
         self.codegen.builder.build_conditional_branch(
-            already,
-            double_resume_bb,
+            first_resume,
             first_resume_bb,
+            double_resume_bb,
         )?;
 
         self.codegen.builder.position_at_end(double_resume_bb);
         self.emit_double_resume_runtime_error(resume_state_tag)?;
 
         self.codegen.builder.position_at_end(first_resume_bb);
-        self.store_continuation_one_shot(cont_ptr, true)?;
-        let composed_callee = self.load_composed_callee_continuation(cont_ptr)?;
+        let composed_callee = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
         let composed_is_null = self
             .codegen
             .builder
@@ -4793,8 +5181,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let (case_tag, payload_tuple_ty) = self.double_resume_runtime_error_case()?;
         let payload = self.lower_runtime_error_boundary_payload(payload_tuple_ty)?;
-        let continuation =
-            self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
+        let continuation = self.create_continuation_object_with_state_tag(
+            None,
+            resume_state_tag,
+            case_tag,
+            None,
+            None,
+        )?;
         let outcome = self.build_propagating_effect_outcome_for_case(
             case_tag,
             payload,
@@ -4834,7 +5227,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })?
             .into_pointer_value();
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
-        let already = self.load_continuation_one_shot(cont_ptr)?;
         let first_resume_bb = self
             .codegen
             .context
@@ -4843,20 +5235,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_double");
+        let first_resume =
+            self.try_mark_continuation_resumed(cont_ptr, "refactor_surface_resume_outcome")?;
         self.codegen.builder.build_conditional_branch(
-            already,
-            double_resume_bb,
+            first_resume,
             first_resume_bb,
+            double_resume_bb,
         )?;
 
         self.codegen.builder.position_at_end(double_resume_bb);
         self.emit_double_resume_runtime_error_to_ptr(outcome_ptr, resume_state_tag)?;
 
         self.codegen.builder.position_at_end(first_resume_bb);
-        self.store_continuation_one_shot(cont_ptr, true)?;
         self.store_current_state_tag(resume_state_tag, "refactor_outcome_resume_state")?;
-        let current_effect_ctx = self.load_current_effect_ctx("refactor_outcome_resume_ctx")?;
-        let incoming_resume_token = self.load_composed_callee_continuation(cont_ptr)?;
+        let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
+        let incoming_resume_token = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
         let state_ref = self.current_frame_gc_ref("refactor_outcome_resume_state_ref")?;
         let mut args = vec![state_ref.into()];
         if let Some(payload) = payload {
@@ -4954,14 +5347,308 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.emit_resume_state_dispatch(resume_state_tag, resume_tuple_ty, payload)
     }
 
+    fn emit_generated_continuation_step(
+        mut self,
+        resume_tuple_ty: TypeId,
+    ) -> Result<(), LlvmEmitError> {
+        self.return_mode = RefactorCallableReturnMode::EffectOutcome;
+        self.codegen.bind_explicit_effect_hidden_abi_slots(
+            self.mir_fun.span,
+            self.function,
+            3,
+            true,
+        )?;
+        let state_ref = self.function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation step `{}` 缺少 state_ref 参数",
+                self.function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let state_ref = self.codegen.refactor_cast_ptr(
+            state_ref.into_pointer_value(),
+            self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
+            "refactor_cont_step_state_ref",
+        )?;
+        let resume_word = self
+            .function
+            .get_nth_param(1)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation step 缺少 resume_word 参数".to_string())
+            })?
+            .into_int_value();
+        let resume_gc_ref = self
+            .function
+            .get_nth_param(2)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation step 缺少 resume_gc_ref 参数".to_string())
+            })?
+            .into_pointer_value();
+        self.store_frame_root(state_ref)?;
+        self.restore_frame_slots_to_locals()?;
+        let current_effect_ctx =
+            self.codegen
+                .function_cx
+                .current_effect_ctx_ref
+                .ok_or_else(|| {
+                    frontend_error(
+                        "refactor continuation step 缺少 current_effect_ctx_ref".to_string(),
+                    )
+                })?;
+        self.store_current_effect_ctx(current_effect_ctx, "refactor_cont_step_effect_ctx")?;
+        let resume_state_tag = self.load_current_state_tag("refactor_cont_step_state_tag")?;
+        let incoming_resume_token = self
+            .codegen
+            .function_cx
+            .current_incoming_resume_token_ref
+            .ok_or_else(|| {
+                frontend_error(
+                    "refactor continuation step 缺少 incoming_resume_token_ref".to_string(),
+                )
+            })?;
+        let payload = self.decode_effect_transport_parts(
+            resume_tuple_ty,
+            ValueTransportParts {
+                word: resume_word,
+                gc_ref: resume_gc_ref,
+            },
+            "refactor_cont_step_payload",
+        )?;
+        let ordinary_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "cont_step_plain_dispatch");
+        let composed_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "cont_step_composed_dispatch");
+        let incoming_is_null = self
+            .codegen
+            .builder
+            .build_is_null(incoming_resume_token, "refactor_cont_step_incoming_is_null")?;
+        self.codegen.builder.build_conditional_branch(
+            incoming_is_null,
+            ordinary_resume_bb,
+            composed_resume_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(composed_resume_bb);
+        if !self.dispatch_composed_call_boundary_resume(
+            resume_state_tag,
+            incoming_resume_token,
+            resume_tuple_ty,
+            payload,
+        )? {
+            self.codegen
+                .builder
+                .build_unconditional_branch(ordinary_resume_bb)?;
+        }
+
+        self.codegen.builder.position_at_end(ordinary_resume_bb);
+        self.emit_resume_state_dispatch(resume_state_tag, resume_tuple_ty, payload)
+    }
+
+    fn write_generated_continuation_answer_slot(
+        &mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        answer_slot: PointerValue<'ctx>,
+        outcome_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(answer_cg) = self.codegen.cg_ty_of(surface.answer_ty()) else {
+            return Err(frontend_error(format!(
+                "refactor continuation drive k{} answer t{} 缺少 codegen type",
+                surface.continuation_schema().as_u32(),
+                surface.answer_ty().as_u32()
+            )));
+        };
+        if matches!(answer_cg, CgTy::Unit | CgTy::Never) {
+            return Ok(());
+        }
+        let complete_transport = self.codegen.effect_outcome_complete_transport(
+            self.mir_fun.span,
+            outcome_ptr,
+            "refactor_continuation_answer_transport",
+        )?;
+        let Some(answer) = self.decode_effect_transport_parts(
+            surface.answer_ty(),
+            complete_transport,
+            "refactor_continuation_answer",
+        )?
+        else {
+            return Ok(());
+        };
+        let slot_ptr = self.codegen.builder.build_pointer_cast(
+            answer_slot,
+            self.codegen.context.ptr_type(AddressSpace::default()),
+            "refactor_continuation_answer_slot",
+        )?;
+        self.codegen.builder.build_store(slot_ptr, answer)?;
+        Ok(())
+    }
+
+    fn emit_generated_continuation_resume_driver(
+        mut self,
+        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let cont = self.function.get_nth_param(0).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor continuation drive `{}` 缺少 continuation 参数",
+                self.function.get_name().to_str().unwrap_or("<invalid>")
+            ))
+        })?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
+        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_continuation_drive_root")?;
+        let state_ref = self.load_frame_from_continuation(cont_ptr)?;
+        self.store_frame_root(state_ref)?;
+        let resume_word = self
+            .function
+            .get_nth_param(1)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation drive 缺少 resume_word 参数".to_string())
+            })?
+            .into_int_value();
+        let resume_gc_ref = self
+            .function
+            .get_nth_param(2)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation drive 缺少 resume_gc_ref 参数".to_string())
+            })?
+            .into_pointer_value();
+        let answer_slot = self
+            .function
+            .get_nth_param(3)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation drive 缺少 answer_slot 参数".to_string())
+            })?
+            .into_pointer_value();
+        let outcome_ptr = self
+            .function
+            .get_nth_param(4)
+            .ok_or_else(|| {
+                frontend_error("refactor continuation drive 缺少 outcome 参数".to_string())
+            })?
+            .into_pointer_value();
+        let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
+        let first_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_first");
+        let double_resume_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_double");
+        let finalize_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_finalize");
+        let write_answer_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_write_answer");
+        let return_bb = self
+            .codegen
+            .context
+            .append_basic_block(self.function, "resume_return");
+        let first_resume =
+            self.try_mark_continuation_resumed(cont_ptr, "refactor_continuation_drive")?;
+        self.codegen.builder.build_conditional_branch(
+            first_resume,
+            first_resume_bb,
+            double_resume_bb,
+        )?;
+
+        self.codegen.builder.position_at_end(double_resume_bb);
+        self.emit_double_resume_runtime_error_to_ptr(outcome_ptr, resume_state_tag)?;
+
+        self.codegen.builder.position_at_end(first_resume_bb);
+        self.store_continuation_resume_payload(
+            cont_ptr,
+            ValueTransportParts {
+                word: resume_word,
+                gc_ref: resume_gc_ref,
+            },
+            "refactor_continuation_drive",
+        )?;
+        self.store_current_state_tag(resume_state_tag, "refactor_continuation_drive_state")?;
+        let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
+        let incoming_resume_token = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
+        let step_fn = self.load_continuation_step_fn(cont_ptr)?;
+        let step_args = [
+            state_ref.into(),
+            resume_word.into(),
+            resume_gc_ref.into(),
+            current_effect_ctx.into(),
+            incoming_resume_token.into(),
+            outcome_ptr.into(),
+        ];
+        self.codegen
+            .with_conservative_gc_local_root_spills(self.mir_fun.span, |codegen| {
+                let typed_step = codegen.builder.build_pointer_cast(
+                    step_fn,
+                    codegen.context.ptr_type(AddressSpace::default()),
+                    "refactor_continuation_step_fn_typed",
+                )?;
+                codegen.builder.build_indirect_call(
+                    codegen.refactor_continuation_step_llvm_ty(),
+                    typed_step,
+                    &step_args,
+                    "refactor_continuation_step_call",
+                )?;
+                Ok(())
+            })?;
+        self.codegen
+            .builder
+            .build_unconditional_branch(finalize_bb)?;
+
+        self.codegen.builder.position_at_end(finalize_bb);
+        let answer_has_runtime_value = self
+            .codegen
+            .cg_ty_of(surface.answer_ty())
+            .is_some_and(|cg| !matches!(cg, CgTy::Unit | CgTy::Never));
+        if !answer_has_runtime_value {
+            self.codegen.builder.build_unconditional_branch(return_bb)?;
+        } else {
+            let answer_slot_is_null = self
+                .codegen
+                .builder
+                .build_is_null(answer_slot, "refactor_continuation_answer_slot_is_null")?;
+            let is_propagating = self.codegen.effect_outcome_is_propagating(
+                self.mir_fun.span,
+                outcome_ptr,
+                "refactor_continuation_drive_outcome",
+            )?;
+            let should_skip = self.codegen.builder.build_or(
+                answer_slot_is_null,
+                is_propagating,
+                "refactor_continuation_skip_answer",
+            )?;
+            self.codegen.builder.build_conditional_branch(
+                should_skip,
+                return_bb,
+                write_answer_bb,
+            )?;
+            self.codegen.builder.position_at_end(write_answer_bb);
+            self.write_generated_continuation_answer_slot(surface, answer_slot, outcome_ptr)?;
+            self.codegen.builder.build_unconditional_branch(return_bb)?;
+        }
+
+        self.codegen.builder.position_at_end(return_bb);
+        self.codegen.builder.build_return(None)?;
+        Ok(())
+    }
+
     fn emit_double_resume_runtime_error(
         &mut self,
         resume_state_tag: IntValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let (case_tag, payload_tuple_ty) = self.double_resume_runtime_error_case()?;
         let payload = self.lower_runtime_error_boundary_payload(payload_tuple_ty)?;
-        let continuation =
-            self.create_continuation_object_with_state_tag(None, resume_state_tag, None, None)?;
+        let continuation = self.create_continuation_object_with_state_tag(
+            None,
+            resume_state_tag,
+            case_tag,
+            None,
+            None,
+        )?;
         match self.return_mode {
             RefactorCallableReturnMode::EffectOutcome => {
                 let outcome = self.build_propagating_effect_outcome_for_case(
@@ -7569,6 +8256,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         boundary: &LateLoweredBoundary,
         action: &RefactorHandleConsumeArmRuntime,
+        case_tag: CaseTag,
         payload: Option<BasicValueEnum<'ctx>>,
         payload_ty: TypeId,
         callee_continuation: Option<PointerValue<'ctx>>,
@@ -7640,13 +8328,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let continuation = if composition.is_some() {
                 self.create_continuation_object(
                     boundary.resume_state(),
+                    case_tag,
                     callee_continuation,
                     composition,
                 )?
             } else if let Some(callee_continuation) = callee_continuation {
                 callee_continuation
             } else {
-                self.create_continuation_object(boundary.resume_state(), None, None)?
+                self.create_continuation_object(boundary.resume_state(), case_tag, None, None)?
             };
             self.store_gc_ref_to_binder(binder, continuation)?;
         }
@@ -7861,6 +8550,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.apply_handle_boundary_consume_to_arm(
                         boundary,
                         action,
+                        case_tag,
                         payload,
                         payload_ty,
                         callee_continuation,
@@ -7985,6 +8675,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         };
         let continuation = self.create_continuation_object(
             boundary.resume_state(),
+            case_tag,
             callee_continuation,
             composition,
         )?;
@@ -9425,7 +10116,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     outward.boundary_id.as_u32(),
                 )));
             };
-            let continuation = self.create_continuation_object(outward.resume_state, None, None)?;
+            let continuation = self.create_continuation_object(
+                outward.resume_state,
+                outward.case_tag,
+                None,
+                None,
+            )?;
             self.emit_or_consume_outward_case(
                 boundary,
                 outward.case_tag,
@@ -10437,6 +11133,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     fn create_continuation_object(
         &mut self,
         resume_state: StateId,
+        case_tag: CaseTag,
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
@@ -10448,6 +11145,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.create_continuation_object_with_state_tag(
             Some(resume_state),
             resume_state_tag,
+            case_tag,
             callee_continuation,
             composition,
         )
@@ -10457,6 +11155,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         resume_state: Option<StateId>,
         resume_state_tag: IntValue<'ctx>,
+        case_tag: CaseTag,
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
@@ -10490,6 +11189,59 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             None => None,
         };
+        let owner_step = self
+            .program
+            .step_type(self.abi_step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor callable `{}` 缺少 owner step schema s{}",
+                    self.callable.root_fqn(),
+                    self.abi_step_schema.as_u32()
+                ))
+            })?;
+        let continuation_case = owner_step
+            .cases()
+            .iter()
+            .find(|case| case.case_tag() == case_tag)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor callable `{}` step schema s{} 缺少 continuation case c{}",
+                    self.callable.root_fqn(),
+                    self.abi_step_schema.as_u32(),
+                    case_tag.as_u32()
+                ))
+            })?;
+        let continuation_schema = continuation_case
+            .continuation_contract()
+            .continuation_schema();
+        let _surface = self.abi.surface_resume_layout(continuation_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor callable `{}` case c{} 缺少 continuation schema k{} 的 surface resume ABI",
+                self.callable.root_fqn(),
+                case_tag.as_u32(),
+                continuation_schema.as_u32(),
+            ))
+        })?;
+        let dispatch = self
+            .abi
+            .surface_resume_dispatch_layout(continuation_schema)?;
+        let target = dispatch
+            .target()
+            .owner_trampolines()
+            .iter()
+            .find(|candidate| {
+                candidate.owner_continuation_object() == self.callable.continuation_object()
+                    || candidate.owner_version_key() == self.callable.body_version_key()
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor callable `{}` case c{} continuation schema k{} 缺少 owner continuation drive target",
+                    self.callable.root_fqn(),
+                    case_tag.as_u32(),
+                    continuation_schema.as_u32(),
+                ))
+            })?;
+        let step_fun = self.codegen.refactor_continuation_step_function(target);
         let cont_layout = self
             .abi
             .continuation_layout(self.callable.continuation_object())
@@ -10507,23 +11259,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_cont",
         )?;
         let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_cont_root")?;
-        let current_frame = self.current_frame_ptr()?;
-        let frame_gc = self.codegen.refactor_cast_ptr(
-            current_frame,
-            self.codegen.llvm_gc_i8_ptr_type(),
-            "refactor_frame_gc",
-        )?;
-        let frame_gep = self.codegen.builder.build_struct_gep(
+        let current_frame = self.current_frame_gc_ref("refactor_cont_state_ref")?;
+        let current_effect_ctx = self.load_current_effect_ctx("refactor_cont_effect_ctx")?;
+        let resumed_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_CAPTURED_FRAME,
-            "refactor_cont_frame_gep",
+            CONT_FIELD_RESUMED,
+            "refactor_cont_resumed_gep",
         )?;
-        self.codegen.store_gc_pointer_slot_with_write_barrier(
-            self.mir_fun.span,
-            frame_gep,
-            frame_gc,
-        )?;
+        self.codegen
+            .builder
+            .build_store(resumed_gep, self.codegen.context.i32_type().const_zero())?;
         let state_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -10533,22 +11279,68 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen
             .builder
             .build_store(state_gep, resume_state_tag)?;
-        let one_shot_gep = self.codegen.builder.build_struct_gep(
+        let effect_ctx_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_ONE_SHOT,
-            "refactor_cont_one_shot_gep",
+            CONT_FIELD_CAPTURED_EFFECT_CTX,
+            "refactor_cont_effect_ctx_gep",
         )?;
-        self.codegen
-            .builder
-            .build_store(one_shot_gep, self.codegen.context.bool_type().const_zero())?;
-        let composed_gep = self.codegen.builder.build_struct_gep(
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            effect_ctx_gep,
+            current_effect_ctx,
+        )?;
+        let state_ref_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_COMPOSED_CALLEE,
-            "refactor_cont_composed_callee_gep",
+            CONT_FIELD_STATE_REF,
+            "refactor_cont_state_ref_gep",
         )?;
-        let composed_callee = match callee_continuation_root {
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            state_ref_gep,
+            current_frame,
+        )?;
+        let step_fn_gep = self.codegen.builder.build_struct_gep(
+            cont_layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_STEP_FN,
+            "refactor_cont_step_fn_gep",
+        )?;
+        let step_fn_ptr = self.codegen.builder.build_pointer_cast(
+            step_fun.as_global_value().as_pointer_value(),
+            self.codegen.llvm_i8_ptr_type(),
+            "refactor_cont_step_fn",
+        )?;
+        self.codegen.builder.build_store(step_fn_gep, step_fn_ptr)?;
+        let resume_word_gep = self.codegen.builder.build_struct_gep(
+            cont_layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_RESUME_WORD,
+            "refactor_cont_resume_word_gep",
+        )?;
+        self.codegen.builder.build_store(
+            resume_word_gep,
+            self.codegen.context.i64_type().const_zero(),
+        )?;
+        let resume_gc_ref_gep = self.codegen.builder.build_struct_gep(
+            cont_layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_RESUME_GC_REF,
+            "refactor_cont_resume_gc_ref_gep",
+        )?;
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            resume_gc_ref_gep,
+            self.codegen.llvm_gc_i8_ptr_type().const_null(),
+        )?;
+        let captured_token_gep = self.codegen.builder.build_struct_gep(
+            cont_layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_CAPTURED_CALLEE_SUSPEND_STATE,
+            "refactor_cont_captured_token_gep",
+        )?;
+        let captured_token = match callee_continuation_root {
             Some(slot) => self.codegen.load_refactor_gc_root_slot(
                 self.mir_fun.span,
                 slot,
@@ -10558,8 +11350,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         };
         self.codegen.store_gc_pointer_slot_with_write_barrier(
             self.mir_fun.span,
-            composed_gep,
-            composed_callee,
+            captured_token_gep,
+            captured_token,
         )?;
         self.codegen.refactor_cast_ptr(
             cont_ptr,
@@ -10590,7 +11382,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let gep = self.codegen.builder.build_struct_gep(
             layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_CAPTURED_FRAME,
+            CONT_FIELD_STATE_REF,
             "refactor_load_frame_gep",
         )?;
         let raw = self
@@ -10634,28 +11426,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .into_int_value())
     }
 
-    fn load_continuation_one_shot(
-        &mut self,
-        cont_ptr: PointerValue<'ctx>,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let layout = self
-            .abi
-            .continuation_layout(self.callable.continuation_object())
-            .unwrap();
-        let gep = self.codegen.builder.build_struct_gep(
-            layout.llvm_ty(),
-            cont_ptr,
-            CONT_FIELD_ONE_SHOT,
-            "refactor_one_shot_gep",
-        )?;
-        Ok(self
-            .codegen
-            .builder
-            .build_load(self.codegen.context.bool_type(), gep, "refactor_one_shot")?
-            .into_int_value())
-    }
-
-    fn load_composed_callee_continuation(
+    fn load_captured_effect_ctx_from_continuation(
         &mut self,
         cont_ptr: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
@@ -10666,8 +11437,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let gep = self.codegen.builder.build_struct_gep(
             layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_COMPOSED_CALLEE,
-            "refactor_composed_callee_gep",
+            CONT_FIELD_CAPTURED_EFFECT_CTX,
+            "refactor_load_captured_effect_ctx_gep",
         )?;
         Ok(self
             .codegen
@@ -10675,16 +11446,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .build_load(
                 self.codegen.llvm_gc_i8_ptr_type(),
                 gep,
-                "refactor_composed_callee",
+                "refactor_captured_effect_ctx",
             )?
             .into_pointer_value())
     }
 
-    fn store_continuation_one_shot(
+    fn load_captured_callee_suspend_state_ref(
         &mut self,
         cont_ptr: PointerValue<'ctx>,
-        value: bool,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let layout = self
             .abi
             .continuation_layout(self.callable.continuation_object())
@@ -10692,17 +11462,102 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let gep = self.codegen.builder.build_struct_gep(
             layout.llvm_ty(),
             cont_ptr,
-            CONT_FIELD_ONE_SHOT,
-            "refactor_store_one_shot_gep",
+            CONT_FIELD_CAPTURED_CALLEE_SUSPEND_STATE,
+            "refactor_captured_callee_suspend_state_gep",
         )?;
-        self.codegen.builder.build_store(
+        Ok(self
+            .codegen
+            .builder
+            .build_load(
+                self.codegen.llvm_gc_i8_ptr_type(),
+                gep,
+                "refactor_captured_callee_suspend_state",
+            )?
+            .into_pointer_value())
+    }
+
+    fn load_continuation_step_fn(
+        &mut self,
+        cont_ptr: PointerValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let layout = self
+            .abi
+            .continuation_layout(self.callable.continuation_object())
+            .unwrap();
+        let gep = self.codegen.builder.build_struct_gep(
+            layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_STEP_FN,
+            "refactor_cont_step_fn_gep",
+        )?;
+        Ok(self
+            .codegen
+            .builder
+            .build_load(
+                self.codegen.llvm_i8_ptr_type(),
+                gep,
+                "refactor_cont_step_fn",
+            )?
+            .into_pointer_value())
+    }
+
+    fn try_mark_continuation_resumed(
+        &mut self,
+        cont_ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let layout = self
+            .abi
+            .continuation_layout(self.callable.continuation_object())
+            .unwrap();
+        let gep = self.codegen.builder.build_struct_gep(
+            layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_RESUMED,
+            &format!("{name}_resumed_gep"),
+        )?;
+        let cx = self.codegen.builder.build_cmpxchg(
             gep,
-            self.codegen
-                .context
-                .bool_type()
-                .const_int(value as u64, false),
+            self.codegen.context.i32_type().const_zero(),
+            self.codegen.context.i32_type().const_int(1, false),
+            AtomicOrdering::SequentiallyConsistent,
+            AtomicOrdering::SequentiallyConsistent,
         )?;
-        Ok(())
+        Ok(self
+            .codegen
+            .builder
+            .build_extract_value(cx, 1, &format!("{name}_resumed_ok"))?
+            .into_int_value())
+    }
+
+    fn store_continuation_resume_payload(
+        &mut self,
+        cont_ptr: PointerValue<'ctx>,
+        transport: ValueTransportParts<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let layout = self
+            .abi
+            .continuation_layout(self.callable.continuation_object())
+            .unwrap();
+        let word_gep = self.codegen.builder.build_struct_gep(
+            layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_RESUME_WORD,
+            &format!("{name}_resume_word_gep"),
+        )?;
+        self.codegen.builder.build_store(word_gep, transport.word)?;
+        let gc_ref_gep = self.codegen.builder.build_struct_gep(
+            layout.llvm_ty(),
+            cont_ptr,
+            CONT_FIELD_RESUME_GC_REF,
+            &format!("{name}_resume_gc_ref_gep"),
+        )?;
+        self.codegen.store_gc_pointer_slot_with_write_barrier(
+            self.mir_fun.span,
+            gc_ref_gep,
+            transport.gc_ref,
+        )
     }
 
     fn sync_frame_slots_from_locals(&mut self) -> Result<(), LlvmEmitError> {
@@ -11718,10 +12573,18 @@ mod tests {
         assert!(body.contains("load_frame_from_continuation"));
         assert!(body.contains("restore_frame_slots_to_locals"));
         assert!(body.contains("load_continuation_resume_state"));
-        assert!(body.contains("store_continuation_one_shot"));
+        assert!(body.contains("try_mark_continuation_resumed"));
+        assert!(body.contains("store_continuation_resume_payload"));
+        assert!(body.contains("load_captured_effect_ctx_from_continuation"));
+        assert!(body.contains("load_captured_callee_suspend_state_ref"));
+        assert!(body.contains("load_continuation_step_fn"));
+        assert!(body.contains("emit_generated_continuation_resume_driver"));
         assert!(body.contains("project_owner_step_to_wrapper"));
         assert!(body.contains("lower_abandon_terminator"));
         assert!(body.contains("lower_resume_unwind_terminator"));
+        assert!(!body.contains("store_continuation_one_shot"));
+        assert!(!body.contains("load_continuation_one_shot"));
+        assert!(!body.contains("load_composed_callee_continuation"));
     }
 
     #[test]

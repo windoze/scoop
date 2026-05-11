@@ -911,10 +911,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let cont_type_name = format!("scoop.refactor.Continuation__{stem}");
         let cont_anchor_name = format!("__scoop_refactor_continuation_layout__{stem}");
         let header_ty = self.codegen.llvm_gc_object_header_type();
-        let frame_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let gc_ref_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let resumed_ty = self.codegen.context.i32_type();
         let resume_state_ty = self.codegen.context.i32_type();
-        let one_shot_ty = self.codegen.context.bool_type();
-        let composed_callee_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let step_fn_ty = self.codegen.llvm_i8_ptr_type();
+        let resume_word_ty = self.codegen.context.i64_type();
         let vtable_ptr_ty = self.codegen.llvm_i8_ptr_type();
         self.validate_published_resume_packing_ids(
             &format!("continuation object {}", object.object_id().as_u32()),
@@ -939,10 +940,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![
             header_ty.into(),
-            frame_ptr_ty.into(),
+            resumed_ty.into(),
             resume_state_ty.into(),
-            one_shot_ty.into(),
-            composed_callee_ty.into(),
+            gc_ref_ty.into(),
+            gc_ref_ty.into(),
+            step_fn_ty.into(),
+            resume_word_ty.into(),
+            gc_ref_ty.into(),
+            gc_ref_ty.into(),
         ];
         let mut fields = vec![
             RefactorContinuationFieldLayout::new(
@@ -952,8 +957,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ),
             RefactorContinuationFieldLayout::new(
                 1,
-                RefactorContinuationFieldKind::CapturedFrame,
-                frame_ptr_ty.into(),
+                RefactorContinuationFieldKind::ResumedFlag,
+                resumed_ty.into(),
             ),
             RefactorContinuationFieldLayout::new(
                 2,
@@ -962,13 +967,33 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ),
             RefactorContinuationFieldLayout::new(
                 3,
-                RefactorContinuationFieldKind::OneShotFlag,
-                one_shot_ty.into(),
+                RefactorContinuationFieldKind::CapturedEffectCtxRef,
+                gc_ref_ty.into(),
             ),
             RefactorContinuationFieldLayout::new(
                 4,
-                RefactorContinuationFieldKind::ComposedCalleeContinuation,
-                composed_callee_ty.into(),
+                RefactorContinuationFieldKind::StateRef,
+                gc_ref_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                5,
+                RefactorContinuationFieldKind::StepFn,
+                step_fn_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                6,
+                RefactorContinuationFieldKind::ResumeWord,
+                resume_word_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                7,
+                RefactorContinuationFieldKind::ResumeGcRef,
+                gc_ref_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                8,
+                RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef,
+                gc_ref_ty.into(),
             ),
         ];
         let mut packing_field_indices = BTreeMap::new();
@@ -8531,6 +8556,44 @@ mod tests {
     }
 
     #[test]
+    fn refactor_llvm_continuation_layout_uses_codegen_owned_fields() {
+        with_fixture_query(
+            "effect_refactor_step_enum_single_case.scoop",
+            |inputs, query, _module| {
+                let callable = inputs
+                    .effect_lowered_stage_output
+                    .program()
+                    .callable("fixtures.build.singleCaseWorker")
+                    .expect("callable 应存在");
+                let continuation_layout = query
+                    .continuation_layout(callable.continuation_object())
+                    .expect("continuation layout 应可查询");
+                let field_kinds = continuation_layout
+                    .fields()
+                    .iter()
+                    .take(9)
+                    .map(|field| field.kind())
+                    .collect::<Vec<_>>();
+
+                assert_eq!(
+                    field_kinds,
+                    vec![
+                        RefactorContinuationFieldKind::Header,
+                        RefactorContinuationFieldKind::ResumedFlag,
+                        RefactorContinuationFieldKind::ResumeStateTag,
+                        RefactorContinuationFieldKind::CapturedEffectCtxRef,
+                        RefactorContinuationFieldKind::StateRef,
+                        RefactorContinuationFieldKind::StepFn,
+                        RefactorContinuationFieldKind::ResumeWord,
+                        RefactorContinuationFieldKind::ResumeGcRef,
+                        RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef,
+                    ]
+                );
+            },
+        );
+    }
+
+    #[test]
     fn refactor_llvm_continuation_layout_preserves_published_packing_order() {
         with_fixture_query_result(
             "effect_refactor_step_enum_single_case.scoop",
@@ -10162,7 +10225,7 @@ mod tests {
                     .continuation_layout(main.continuation_object())
                     .expect("main continuation object layout 应存在");
                 assert!(continuation_layout.fields().iter().any(|field| {
-                    field.kind() == RefactorContinuationFieldKind::ComposedCalleeContinuation
+                    field.kind() == RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef
                 }));
                 let callee_surface = query
                     .surface_resume_layout(composition.callee_continuation_schema())
