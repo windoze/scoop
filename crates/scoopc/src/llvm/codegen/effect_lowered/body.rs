@@ -4877,10 +4877,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     fn alloc_effect_handler_node(
         &mut self,
-        prev_ref: PointerValue<'ctx>,
+        prev_ref_root_slot: PointerValue<'ctx>,
         op_tag: u32,
         flags: u32,
-        owner_frame_ref: PointerValue<'ctx>,
         site_id: SiteId,
         arm_ordinal: u32,
         name: &str,
@@ -4890,6 +4889,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.llvm_effect_handler_node_object_type(),
             self.codegen.effect_handler_node_layout_anchor_name(),
             name,
+        )?;
+        let prev_ref = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            prev_ref_root_slot,
+            &format!("{name}_prev_ref_reload"),
         )?;
         self.codegen
             .store_effect_handler_prev_ref(self.mir_fun.span, node_ptr, prev_ref, name)?;
@@ -4909,6 +4913,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .const_int(u64::from(flags), false),
             name,
         )?;
+        let owner_frame_ref = self.current_frame_gc_ref(&format!("{name}_owner_frame_reload"))?;
         self.codegen.store_effect_handler_owner_frame_ref(
             self.mir_fun.span,
             node_ptr,
@@ -4970,7 +4975,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let outer_handler_top_root_slot = self
             .codegen
             .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_handle_outer_top_root")?;
-        let outer_handler_top = self.root_gc_pointer_in_slot(
+        let _ = self.root_gc_pointer_in_slot(
             outer_handler_top_root_slot,
             outer_handler_top,
             "refactor_handle_outer_top_root",
@@ -4978,6 +4983,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let active_top_root_slot = self
             .codegen
             .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_handle_active_top_root")?;
+        let body_ctx_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_handle_body_ctx_root")?;
         let active_flag = self.codegen.effect_handler_active_flag();
 
         let mut arm_metas = Vec::with_capacity(contract.handled_arms().len());
@@ -4988,14 +4996,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ));
         }
 
-        let mut active_top = outer_handler_top;
+        let body_ctx = self.alloc_empty_effect_ctx(&format!("refactor_handle{}_body_ctx", site_id.as_u32()))?;
+        let body_ctx = self.root_gc_pointer_in_slot(
+            body_ctx_root_slot,
+            body_ctx,
+            &format!("refactor_handle{}_body_ctx_root", site_id.as_u32()),
+        )?;
+        self.store_current_effect_ctx(body_ctx, "refactor_handle_body_ctx")?;
+
+        let mut active_prev_root_slot = outer_handler_top_root_slot;
         for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
-            let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
-            active_top = self.alloc_effect_handler_node(
-                active_top,
+            let active_top = self.alloc_effect_handler_node(
+                active_prev_root_slot,
                 op_tag,
                 active_flag,
-                owner_frame_ref,
                 site_id,
                 arm_ordinal,
                 &format!(
@@ -5004,7 +5018,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     arm_ordinal
                 ),
             )?;
-            active_top = self.root_gc_pointer_in_slot(
+            let active_top = self.root_gc_pointer_in_slot(
                 active_top_root_slot,
                 active_top,
                 &format!(
@@ -5013,64 +5027,46 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     arm_ordinal
                 ),
             )?;
+            active_prev_root_slot = active_top_root_slot;
+            let body_ctx = self.load_current_effect_ctx(&format!(
+                "refactor_handle{}_body_ctx_reload",
+                site_id.as_u32()
+            ))?;
+            let body_ctx_ptr = self.cast_gc_ref_to_effect_ctx_ptr(
+                body_ctx,
+                &format!("refactor_handle{}_body_ctx_ptr", site_id.as_u32()),
+            )?;
+            self.codegen.store_effect_ctx_handler_top(
+                self.mir_fun.span,
+                body_ctx_ptr,
+                active_top,
+                &format!("refactor_handle{}_body_ctx_top", site_id.as_u32()),
+            )?;
         }
-
-        let body_ctx = self.alloc_effect_ctx_with_handler_top(
-            active_top,
-            &format!("refactor_handle{}_body_ctx", site_id.as_u32()),
-        )?;
-        self.store_current_effect_ctx(body_ctx, "refactor_handle_body_ctx")?;
         self.clear_root_gc_slot(
             active_top_root_slot,
             "refactor_handle_active_top_root_clear",
         )?;
 
         for (target_arm_ordinal, _) in &arm_metas {
-            let derived_top_root_slot = self.codegen.create_refactor_gc_root_slot(
+            let derived_ctx_root_slot = self.codegen.create_refactor_gc_root_slot(
                 self.mir_fun.span,
                 &format!(
-                    "refactor_handle{}_derived_arm{}_root",
+                    "refactor_handle{}_derived_arm{}_ctx_root",
                     site_id.as_u32(),
                     target_arm_ordinal
                 ),
             )?;
-            let mut derived_top = outer_handler_top;
-            for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
-                let flags = if arm_ordinal == *target_arm_ordinal {
-                    0
-                } else {
-                    active_flag
-                };
-                let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
-                derived_top = self.alloc_effect_handler_node(
-                    derived_top,
-                    op_tag,
-                    flags,
-                    owner_frame_ref,
-                    site_id,
-                    arm_ordinal,
-                    &format!(
-                        "refactor_handle{}_derived_arm{}_clone{}",
-                        site_id.as_u32(),
-                        target_arm_ordinal,
-                        arm_ordinal
-                    ),
-                )?;
-                derived_top = self.root_gc_pointer_in_slot(
-                    derived_top_root_slot,
-                    derived_top,
-                    &format!(
-                        "refactor_handle{}_derived_arm{}_clone{}_root",
-                        site_id.as_u32(),
-                        target_arm_ordinal,
-                        arm_ordinal
-                    ),
-                )?;
-            }
-            let derived_ctx = self.alloc_effect_ctx_with_handler_top(
-                derived_top,
+            let derived_ctx = self.alloc_empty_effect_ctx(&format!(
+                "refactor_handle{}_derived_arm{}_ctx",
+                site_id.as_u32(),
+                target_arm_ordinal
+            ))?;
+            let derived_ctx = self.root_gc_pointer_in_slot(
+                derived_ctx_root_slot,
+                derived_ctx,
                 &format!(
-                    "refactor_handle{}_derived_arm{}_ctx",
+                    "refactor_handle{}_derived_arm{}_ctx_root",
                     site_id.as_u32(),
                     target_arm_ordinal
                 ),
@@ -5081,6 +5077,73 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 derived_ctx,
                 "refactor_handle_arm_effect_ctx",
             )?;
+            let derived_top_root_slot = self.codegen.create_refactor_gc_root_slot(
+                self.mir_fun.span,
+                &format!(
+                    "refactor_handle{}_derived_arm{}_root",
+                    site_id.as_u32(),
+                    target_arm_ordinal
+                ),
+            )?;
+            let mut derived_prev_root_slot = outer_handler_top_root_slot;
+            for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
+                let flags = if arm_ordinal == *target_arm_ordinal {
+                    0
+                } else {
+                    active_flag
+                };
+                let derived_top = self.alloc_effect_handler_node(
+                    derived_prev_root_slot,
+                    op_tag,
+                    flags,
+                    site_id,
+                    arm_ordinal,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_clone{}",
+                        site_id.as_u32(),
+                        target_arm_ordinal,
+                        arm_ordinal
+                    ),
+                )?;
+                derived_prev_root_slot = derived_top_root_slot;
+                let derived_top = self.root_gc_pointer_in_slot(
+                    derived_top_root_slot,
+                    derived_top,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_clone{}_root",
+                        site_id.as_u32(),
+                        target_arm_ordinal,
+                        arm_ordinal
+                    ),
+                )?;
+                let derived_ctx = self.load_handle_arm_effect_ctx(
+                    site_id,
+                    *target_arm_ordinal,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_ctx_reload",
+                        site_id.as_u32(),
+                        target_arm_ordinal
+                    ),
+                )?;
+                let derived_ctx_ptr = self.cast_gc_ref_to_effect_ctx_ptr(
+                    derived_ctx,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_ctx_ptr",
+                        site_id.as_u32(),
+                        target_arm_ordinal
+                    ),
+                )?;
+                self.codegen.store_effect_ctx_handler_top(
+                    self.mir_fun.span,
+                    derived_ctx_ptr,
+                    derived_top,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_ctx_top",
+                        site_id.as_u32(),
+                        target_arm_ordinal
+                    ),
+                )?;
+            }
             self.clear_root_gc_slot(
                 derived_top_root_slot,
                 &format!(
@@ -5089,7 +5152,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     target_arm_ordinal
                 ),
             )?;
+            self.clear_root_gc_slot(
+                derived_ctx_root_slot,
+                &format!(
+                    "refactor_handle{}_derived_arm{}_ctx_root_clear",
+                    site_id.as_u32(),
+                    target_arm_ordinal
+                ),
+            )?;
         }
+        self.clear_root_gc_slot(body_ctx_root_slot, "refactor_handle_body_ctx_root_clear")?;
         self.clear_root_gc_slot(
             outer_handler_top_root_slot,
             "refactor_handle_outer_top_root_clear",
