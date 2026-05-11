@@ -162,7 +162,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.emit_ordinary_call_effect_propagation_check(span, "class_ctor_call_effect")?;
 
-        if !self.ordinary_effect_propagation_enabled() {
+        if !self.ordinary_effect_propagation_enabled()
+            && let Some(outcome_ptr) = self.function_cx.current_effect_outcome_ptr
+        {
             let current_fn = self
                 .builder
                 .get_insert_block()
@@ -180,26 +182,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let merge_bb = self
                 .context
                 .append_basic_block(current_fn, "class_ctor_call_merge");
-            let active_raw = self
-                .build_call_preserving_gc_local_roots(
-                    span,
-                    self.declare_runtime_effect_is_active(),
-                    &[],
-                    "class_ctor_call_effect_is_active",
-                )?
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call effect active return",
-                    at: span.into(),
-                })?
-                .into_int_value();
-            let is_propagating = self.builder.build_int_compare(
-                IntPredicate::NE,
-                active_raw,
-                self.context.i32_type().const_zero(),
-                "class_ctor_call_effect_is_propagating",
-            )?;
+            let is_propagating =
+                self.effect_outcome_is_propagating(span, outcome_ptr, "class_ctor_call_effect")?;
             self.builder
                 .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
 

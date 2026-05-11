@@ -6975,7 +6975,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     )?;
                 let outcome_slot = self
                     .codegen
-                    .take_suspend_site_explicit_effect_outcome(site_id.as_u32());
+                    .take_suspend_site_explicit_effect_outcome(site_id.as_u32())
+                    .or(self.codegen.function_cx.current_effect_outcome_ptr);
                 let Some(outcome_slot) = outcome_slot else {
                     let _ = self.store_local_value(*span, lowering.result_local(), result)?;
                     return self.branch_to_state(boundary.resume_state());

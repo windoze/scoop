@@ -701,7 +701,7 @@
   - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
     - §6：review 确认 continuation object model / generated resume driver 的 owner 已迁回 codegen；continuation 字段集合、one-shot/resume 算法、captured effect ctx 与 captured callee suspend-state 都已收口到 compiler-owned helper 与 traced object 字段，不再依赖 runtime-owned continuation policy。
 
-## G6-T07：重建 direct/static/dynamic call lowering 与 plain/effect ABI 分流
+## [DONE] G6-T07：重建 direct/static/dynamic call lowering 与 plain/effect ABI 分流
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G6
@@ -741,6 +741,23 @@
   - call lowering 再次闭合，且 plain/effect ABI 分流不再依赖 deleted bridge。
 - 依赖：G5-T06R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/call/{mod.rs,lowering.rs}`：新增 non-legacy call lowering 模块，实现 `codegen_call_impl`、`codegen_top_level_fun_call_impl`、`try_codegen_class_vtable_call_impl`、`try_codegen_interface_itable_call_impl`、`load_class_vtable_slot_fn_ptr_i8_impl`、`load_interface_itable_slot_fn_ptr_i8_impl`、`codegen_funptr_value_call_impl`、`codegen_function_value_call_impl`、`codegen_function_value_call_from_closure_obj_impl`、`emit_enter_native_for_extern_call_impl`、`emit_extern_native_call_impl`；并补回 `llvm_scoop_itable_{entry_,}type_impl`、`build_tuple_cg_value_from_values(...)` 与 ordinary call outcome propagation helper。
+    - `crates/scoopc/src/llvm/codegen/class_ctor.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs`：把 suppressed class-ctor path 从旧 `declare_runtime_effect_is_active()` probe 改为显式 `EffectOutcome` 判定。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`：class-ctor boundary 在没有 suspend-site 显式 capture 时，回退观察当前函数 `current_effect_outcome_ptr`。
+  - 核心决策：
+    - 顶层 direct call、vtable/itable dispatch 的 plain/effect ABI 分流不再看旧 hidden-token / TLS 语义，也不回 HIR effectful boolean；统一由已发布 callable contract（`callable_uses_explicit_effect_hidden_abi(...)`）决定是否附带显式 hidden ABI。
+    - effectful call path 统一为当前 call site 分配显式 `EffectOutcome` slot，并直接传 `current_effect_ctx_ref + null incoming_resume_token_ref + outcome`；不恢复 wrapper、active flag、handler-stack swap 或任何 runtime bridge。
+    - HIR closure alias（`scoop.lambda$*`）继续保留 direct-call fallback，因此 function-value/closure call 不会被强行改写成 `invoke(args_tuple) -> Step_F`；而已发布的 dynamic callable carrier contract 仍服务于后续 `G7`/late-lowered dynamic surface。
+    - suppressed class-ctor call path 不再 probe runtime active flag，而是让 explicit outcome/capture 成为唯一 authoritative propagation source；其中 nested call capture 继续优先走 suspend-site explicit outcome，direct class-ctor body propagation 则可回退观察当前函数 `current_effect_outcome_ptr`。
+    - `Continuation.resume` 与 `perform` / `handle` / MIR effect call helper 仍保持在后续 `G7-T08` 范围；本任务只在 HIR call lowering 中保留显式 fail-fast，不跨任务补它们的 lowering。
+  - 验证结果：
+    - `cargo fmt`：通过。
+    - 对 `crates/scoopc/src/llvm/codegen` grep `declare_runtime_effect_is_active|effect_call_wrapper|scoop_effect_|scoop_continuation_`：无命中。
+    - `cargo check -p scoopc`：仍失败，但不再出现 `codegen_call_impl`、`codegen_top_level_fun_call_impl`、`try_codegen_class_vtable_call_impl`、`try_codegen_interface_itable_call_impl`、`load_class_vtable_slot_fn_ptr_i8_impl`、`load_interface_itable_slot_fn_ptr_i8_impl`、`codegen_funptr_value_call_impl`、`codegen_function_value_call_impl`、`codegen_function_value_call_from_closure_obj_impl`、`emit_enter_native_for_extern_call_impl`、`emit_extern_native_call_impl` 缺失；首批错误已切到 `codegen_perform_expr` / `codegen_handle_expr` / `codegen_mir_*effect*call*`（`G7-T08`）与独立的 `emit_raise_runtime_error_variant` helper 缺口。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §2：`MainCodegen` 的 call lowering 不再是“外壳在、语义主体没了”，新的 non-legacy `call/lowering.rs` 已把 direct/static/indirect call 主体接回。
+    - §9：plain/effect ABI 分流在 direct/vtable/itable/funptr/closure surface 上重新闭合，普通 callable 不再被强制包回旧 bridge 或 complete-only wrapper。
 
 ## G6-T07R：Review direct/static/dynamic call lowering，确认 ABI 分流已 facts-driven
 
