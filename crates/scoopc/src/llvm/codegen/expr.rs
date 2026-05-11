@@ -160,4 +160,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
     }
+
+    fn codegen_perform_expr(
+        &mut self,
+        _span: crate::span::Span,
+        effect_ty: TypeId,
+        op: &hir::EffectOpRef,
+        _args: &[hir::CallArg],
+        _expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let callable = self
+            .function_cx
+            .current_callable_fqn
+            .as_deref()
+            .unwrap_or("<unknown>");
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM HIR perform 入口已停用；callable `{callable}` 命中了 direct HIR perform `{}`（effect `{}`），应先经 published late-lowered/local-effect-control handoff",
+                op.fqn,
+                self.types.display(effect_ty),
+            ),
+        })
+    }
+
+    fn codegen_handle_expr(
+        &mut self,
+        _span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        _expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let callable = self
+            .function_cx
+            .current_callable_fqn
+            .as_deref()
+            .unwrap_or("<unknown>");
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM HIR handle 入口已停用；callable `{callable}` 仍命中 direct HIR handle（arms={}, finally={}），应先经 published late-lowered/local-effect-control handoff",
+                handle.arms.len(),
+                handle.finally.is_some(),
+            ),
+        })
+    }
 }

@@ -5842,7 +5842,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         ty: TypeId,
     ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
         let llvm_ty = self.llvm_abi_type_of_types(types, ty)?;
-        let elided = self.codegen.target_data.get_store_size(&llvm_ty) == 0;
+        let elided = matches!(types.kind(ty), TypeKind::Value(ValueTypeKind::Nothing))
+            || self.codegen.target_data.get_store_size(&llvm_ty) == 0;
         Ok(RefactorAbiValue::new(llvm_ty, elided))
     }
 

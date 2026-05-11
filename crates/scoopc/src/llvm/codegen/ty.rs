@@ -80,8 +80,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 返回名义类型在 struct_layouts/enum_layouts 中的查找 key（T0124）。
     ///
     /// 对于无 type args 的类型返回 base FQN；对于参数化类型返回 mangled FQN。
+    pub(super) fn nominal_layout_key_from_types(
+        &self,
+        nominal: &NominalType,
+        types: &TypeStore,
+    ) -> String {
+        crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types)
+    }
+
     pub(super) fn nominal_layout_key(&self, nominal: &NominalType) -> String {
-        crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types)
+        self.nominal_layout_key_from_types(nominal, self.types)
     }
 
     fn enum_layout_key(
@@ -90,14 +98,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         unsupported_kind: &'static str,
     ) -> Result<String, LlvmEmitError> {
-        match self.types.kind(enum_ty) {
+        let types = self.codegen_type_store_for_type_id(enum_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: unsupported_kind,
+                at: at.into(),
+            },
+        )?;
+        match types.kind(enum_ty) {
             TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(crate::hir::mangle_nominal_fqn(
                 "scoop.core.Option",
                 &[*inner],
-                self.types,
+                types,
             )),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                Ok(self.nominal_layout_key(nominal))
+                Ok(self.nominal_layout_key_from_types(nominal, types))
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: unsupported_kind,
@@ -107,7 +121,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
-        match self.types.kind(ty) {
+        let types = self.codegen_type_store_for_type_id(ty)?;
+        match types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
             TypeKind::Ref(_) => Some(CgTy::Ref),
             TypeKind::StarProjection(star) => self.cg_ty_of(star.read_ty),
@@ -168,7 +183,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }));
                 }
                 // T0124：使用 mangled FQN 查找（支持泛型 struct/enum 的具体实例化）。
-                let key = self.nominal_layout_key(nominal);
+                let key = self.nominal_layout_key_from_types(nominal, types);
                 if self.struct_layouts.contains_key(&key) {
                     return Some(CgTy::Struct(ty));
                 }
@@ -207,10 +222,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Check if a struct type contains no GC references (String/Ref) in any of its fields.
     fn struct_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
             return false;
         };
-        let key = self.nominal_layout_key(nominal);
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+            return false;
+        };
+        let key = self.nominal_layout_key_from_types(nominal, types);
         let Some(layout) = self.struct_layouts.get(&key) else {
             return false;
         };
@@ -223,7 +241,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Check if a tuple type contains no GC references in any of its elements.
     fn tuple_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let TypeKind::Value(ValueTypeKind::Tuple(elems)) = self.types.kind(ty) else {
+        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+            return false;
+        };
+        let TypeKind::Value(ValueTypeKind::Tuple(elems)) = types.kind(ty) else {
             return false;
         };
         elems.iter().all(|elem_ty| {
@@ -234,10 +255,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Check if an enum type contains no GC references in any variant's fields.
     fn enum_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
             return false;
         };
-        let key = self.nominal_layout_key(nominal);
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+            return false;
+        };
+        let key = self.nominal_layout_key_from_types(nominal, types);
         let Some(layout) = self.enum_layouts.get(&key) else {
             return false;
         };
@@ -458,7 +482,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+        let types =
+            self.codegen_type_store_for_type_id(ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct type id",
+                    at: at.into(),
+                })?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "struct type id",
                 at: at.into(),
@@ -466,7 +496,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
-        let key = self.nominal_layout_key(nominal);
+        let key = self.nominal_layout_key_from_types(nominal, types);
         let layout = self
             .struct_layouts
             .get(&key)
@@ -669,7 +699,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match repr {
             CgEnumRepr::TaggedUnion => {
-                let fqn = match self.types.kind(ty) {
+                let types = self.codegen_type_store_for_type_id(ty).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum type id",
+                        at: at.into(),
+                    },
+                )?;
+                let fqn = match types.kind(ty) {
                     TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
                     TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
                     _ => {

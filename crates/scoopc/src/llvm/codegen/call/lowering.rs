@@ -5,8 +5,7 @@ use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 use inkwell::types::{BasicMetadataTypeEnum, StructType};
 use inkwell::values::{
-    AggregateValueEnum, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue,
-    IntValue, PointerValue,
+    BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FunctionValue, IntValue, PointerValue,
 };
 
 use crate::hir;
@@ -353,7 +352,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    fn current_effect_ctx_arg(&self) -> PointerValue<'ctx> {
+    pub(in crate::llvm::codegen) fn current_effect_ctx_arg(&self) -> PointerValue<'ctx> {
         self.function_cx
             .current_effect_ctx_ref
             .unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null())
@@ -470,7 +469,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn emit_ordinary_call_effect_propagation_check_from_outcome(
+    pub(in crate::llvm::codegen) fn emit_ordinary_call_effect_propagation_check_from_outcome(
         &mut self,
         at: crate::span::Span,
         outcome_slot: PointerValue<'ctx>,
@@ -498,56 +497,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(continue_bb);
         Ok(())
-    }
-
-    pub(in crate::llvm::codegen) fn build_tuple_cg_value_from_values(
-        &mut self,
-        at: crate::span::Span,
-        tuple_ty: TypeId,
-        elements: &[CgValue<'ctx>],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple value type",
-                at: at.into(),
-            });
-        };
-        if element_tys.len() != elements.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple value arity mismatch",
-                at: at.into(),
-            });
-        }
-
-        let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
-        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
-        for (idx, (elem_ty, value)) in element_tys.iter().zip(elements.iter()).enumerate() {
-            let elem_cg = self
-                .cg_ty_of(*elem_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element type",
-                    at: at.into(),
-                })?;
-            let coerced = self.coerce_value(at, *value, elem_cg)?;
-            let raw: BasicValueEnum<'ctx> = match elem_cg {
-                CgTy::Unit => self.context.i8_type().const_zero().into(),
-                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element value",
-                    at: at.into(),
-                })?,
-            };
-            agg = self.builder.build_insert_value(
-                agg,
-                raw,
-                idx as u32,
-                &format!("tuple_value_{idx}"),
-            )?;
-        }
-
-        Ok(CgValue {
-            ty: CgTy::Tuple(tuple_ty),
-            value: Some(agg.into_struct_value().into()),
-        })
     }
 
     pub(in crate::llvm::codegen) fn codegen_call_impl(

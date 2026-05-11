@@ -10,7 +10,7 @@ use crate::mir::{
 use crate::ty::TypeStore;
 
 use super::EffectLoweringError;
-use super::frame::{FrameBuildInputs, build_callable_frame};
+use super::frame::{FrameBuildInputs, augment_frame_for_handle_dispatch, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
     LateLoweredFrameSchema, LateLoweredPlainBodySlice, LateLoweredPlainCallSite,
@@ -164,7 +164,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 .unwrap_or_default();
             let continuation_object_id =
                 ContinuationObjectId::new(continuation_objects.len() as u32);
-            let (state_graph, frame_schema, continuation_captures, boundary_map, resume_state_map) =
+            let (state_graph, frame_schema, _continuation_captures, boundary_map, resume_state_map) =
                 match family.root_body().and_then(|fun| fun.body.as_ref()) {
                     Some(body) => {
                         let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
@@ -240,6 +240,20 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             };
             let state_graph = boundary_map.state_graph;
             let boundary_map = boundary_map.boundary_map;
+            let builtins =
+                types
+                    .builtins()
+                    .ok_or_else(|| EffectLoweringError::MissingBuiltinTypes {
+                        root_fqn: root_fqn.clone(),
+                    })?;
+            let frame = augment_frame_for_handle_dispatch(
+                &frame_schema,
+                &boundary_map,
+                &state_graph,
+                builtins.any,
+            );
+            let frame_schema = frame.frame_schema;
+            let continuation_captures = frame.continuation_captures;
             let resume_payload_bindings =
                 materialize_resume_payload_bindings(&root_fqn, &frame_schema, &boundary_map)?;
             let completion_payload_bindings = materialize_completion_payload_bindings(
@@ -586,17 +600,29 @@ fn build_plain_local_effect_control(
     })?;
     let state_graph = boundary_map.state_graph;
     let boundary_map = boundary_map.boundary_map;
+    let builtins = types
+        .builtins()
+        .ok_or_else(|| EffectLoweringError::MissingBuiltinTypes {
+            root_fqn: root_fqn.to_string(),
+        })?;
+    let frame = augment_frame_for_handle_dispatch(
+        &frame.frame_schema,
+        &boundary_map,
+        &state_graph,
+        builtins.any,
+    );
+    let frame_schema = frame.frame_schema;
+    let continuation_captures = frame.continuation_captures;
     let resume_payload_bindings =
-        materialize_resume_payload_bindings(root_fqn, &frame.frame_schema, &boundary_map)?;
+        materialize_resume_payload_bindings(root_fqn, &frame_schema, &boundary_map)?;
     let completion_payload_bindings = materialize_completion_payload_bindings(
         root_fqn,
         step_type,
         &state_graph,
-        &frame.frame_schema,
+        &frame_schema,
         types,
     )?;
-    let frame_schema = frame
-        .frame_schema
+    let frame_schema = frame_schema
         .with_resume_payload_bindings(resume_payload_bindings)
         .with_completion_payload_bindings(completion_payload_bindings);
     let source_statement_classifications = materialize_source_statement_classifications(
@@ -618,7 +644,7 @@ fn build_plain_local_effect_control(
             step_schema,
             implemented_packings: &resume_packings,
             resume_packing_ids_by_group,
-            captures: frame.continuation_captures,
+            captures: continuation_captures,
             effect_facts,
         })?;
     Ok(PlainLocalEffectControlBuildOutput {

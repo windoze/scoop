@@ -242,6 +242,47 @@ pub(crate) fn build_callable_frame(
     })
 }
 
+pub(crate) fn augment_frame_for_handle_dispatch(
+    frame_schema: &LateLoweredFrameSchema,
+    boundary_map: &LateLoweredBoundaryMap,
+    state_graph: &LateLoweredStateGraph,
+    any_ty: crate::ty::TypeId,
+) -> FrameLiftingResult {
+    let mut slots = frame_schema.slots().to_vec();
+    let mut seen_kinds = slots
+        .iter()
+        .map(|slot| slot.kind())
+        .collect::<BTreeSet<_>>();
+    let mut next_slot_raw = slots
+        .iter()
+        .map(|slot| slot.slot_id().as_u32())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(u32::from(!slots.is_empty()));
+
+    for (kind, ty) in collect_handle_effect_ctx_slots(state_graph, any_ty) {
+        if !seen_kinds.insert(kind) {
+            continue;
+        }
+        slots.push(LateLoweredFrameSlot::new(
+            super::ir::FrameSlotId::new(next_slot_raw),
+            kind,
+            ty,
+            Vec::new(),
+            Vec::new(),
+        ));
+        next_slot_raw = next_slot_raw.saturating_add(1);
+    }
+
+    let frame_schema = LateLoweredFrameSchema::new(slots);
+    let continuation_captures = build_continuation_captures(&frame_schema, boundary_map);
+    FrameLiftingResult {
+        state_graph: state_graph.clone(),
+        frame_schema,
+        continuation_captures,
+    }
+}
+
 fn state_graph_contains_handle_dispatch(state_graph: &LateLoweredStateGraph) -> bool {
     state_graph.states().iter().any(|state| {
         matches!(
@@ -1183,7 +1224,12 @@ fun box_int(value: Int): Int {
 }
 
 fun helper(seed: Int): Int / Step {
-    val via_arg: Int = box_int((seed + 1) + Step.next(seed))
+    val handled: Int = handle {
+        Step.next(seed)
+    } with {
+        Step.next(value), k -> k.resume(value + 1)
+    }
+    val via_arg: Int = box_int((seed + 1) + Step.next(handled))
     return via_arg + seed
 }
 

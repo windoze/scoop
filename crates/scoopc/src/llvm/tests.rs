@@ -218,9 +218,10 @@ fun main(): Int {
 
     assert!(ir.contains("define i32 @main("));
     assert!(
-        ir.contains("@__scoop_refactor_direct_invoke__a_main")
-            && ir.contains("switch i32 %refactor_step_tag"),
-        "默认单文件 helper 应继续产出 refactor direct-invoke + Step dispatch surface，而不是只剩空壳 C main:\n{ir}"
+        ir.contains("@__scoop_refactor_resume__a_main__case0")
+            && ir.contains("handle_ctx_dispatch_loop_bd0_c0")
+            && ir.contains("%scoop.runtime.ScoopEffectCtx"),
+        "默认单文件 helper 应继续产出 refactor handle/state-machine lowering，而不是回退到已删除的 HIR handle lowering 或只剩空壳 C main:\n{ir}"
     );
 }
 
@@ -1826,7 +1827,7 @@ fn composed_continuation_resume_publishes_internal_outcome_surface_and_owner_cor
 
     assert!(
         ir.contains("@__scoop_refactor_surface_resume_outcome__k")
-            && ir.contains("__scoop_refactor_surface_resume_owner_dispatch__a_main__k")
+            && ir.contains("__scoop_refactor_surface_resume_owner_dispatch__main__k")
             && ir.contains("__outcome")
             && ir.contains("__core"),
         "composed continuation resume 应发布 internal outcome surface / owner outcome wrapper / owner core，而不是只剩 shared Step_F surface:\n{ir}"
@@ -1858,7 +1859,7 @@ fn composed_continuation_resume_reconstructs_step_from_internal_outcome_path() {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("refactor_composed_callee_resume_outcome")
+        ir.contains("call void @__scoop_refactor_surface_resume_outcome__k")
             && ir.contains("refactor_composed_resume_outcome_phi"),
         "composed call-boundary resume 应先调用 internal outcome surface，再由 caller 侧重建 Step dispatch\n{ir}"
     );

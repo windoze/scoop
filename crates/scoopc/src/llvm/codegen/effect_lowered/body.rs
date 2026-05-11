@@ -41,14 +41,18 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{CallableCarrierKind, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
+use super::super::{
+    CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, TypeDescriptorSpec,
+    sanitize_llvm_ident,
+};
 use super::types::{
     ProgramAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorContinuationSurfaceResumeLayout, RefactorDynamicInvokeCarrierLayout,
-    RefactorDynamicInvokeLayout, RefactorFrameLayout, RefactorHandleContinuationBinderLayout,
-    RefactorHandlePayloadBinderLayout, RefactorLocalRuntimeErrorTerminalAction,
-    RefactorPlainCallableLayout, RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind,
-    RefactorStepCaseLayout, RefactorStepLayout, RefactorStepVariantLayout,
+    RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
+    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
+    RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
+    RefactorLocalRuntimeErrorTerminalAction, RefactorPlainCallableLayout, RefactorSourceAbiLayout,
+    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
+    RefactorStepVariantLayout,
 };
 use super::value::RefactorValuePrimitives;
 
@@ -100,10 +104,6 @@ fn refactor_continuation_drive_outcome_symbol_name(
         "__scoop_refactor_continuation_drive_outcome__k{}",
         continuation_schema.as_u32()
     )
-}
-
-fn refactor_any_continuation_drive_outcome_symbol_name() -> &'static str {
-    "__scoop_refactor_continuation_drive_outcome"
 }
 
 fn refactor_continuation_drive_owner_outcome_symbol_name(owner_symbol_name: &str) -> String {
@@ -2342,14 +2342,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
         let core_fun = self.refactor_surface_resume_owner_core_function(surface, target);
-        self.codegen_refactor_surface_resume_owner_core(
-            program,
-            source_types,
-            pass_view,
-            abi,
-            surface,
-            target,
-        )?;
+        {
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_surface_resume_owner_core(
+                program,
+                source_types,
+                pass_view,
+                abi,
+                surface,
+                target,
+            )?;
+        }
         let callable = program
             .callable_by_version_key(target.owner_version_key())
             .or_else(|| {
@@ -2480,14 +2483,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if outcome_fun.count_basic_blocks() > 0 {
             return Ok(());
         }
-        self.codegen_refactor_continuation_step(
-            program,
-            source_types,
-            pass_view,
-            abi,
-            surface,
-            target,
-        )?;
+        {
+            let mut child = self.fresh_child_codegen();
+            child.codegen_refactor_continuation_step(
+                program,
+                source_types,
+                pass_view,
+                abi,
+                surface,
+                target,
+            )?;
+        }
         let callable = program
             .callable_by_version_key(target.owner_version_key())
             .or_else(|| {
@@ -2778,7 +2784,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.void_type().fn_type(&params, false)
     }
 
-    pub(in crate::llvm::codegen) fn refactor_continuation_drive_outcome_function(
+    fn refactor_continuation_drive_outcome_function(
         &mut self,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
@@ -2788,16 +2794,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module
             .get_function(&symbol_name)
             .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
-    }
-
-    pub(in crate::llvm::codegen) fn refactor_any_continuation_drive_outcome_function(
-        &mut self,
-    ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_any_continuation_drive_outcome_symbol_name();
-        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
-        self.module
-            .get_function(symbol_name)
-            .unwrap_or_else(|| self.module.add_function(symbol_name, llvm_ty, None))
     }
 
     fn refactor_continuation_drive_owner_outcome_function(
@@ -4776,6 +4772,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn alloc_effect_handler_node(
         &mut self,
         prev_ref: PointerValue<'ctx>,
@@ -4868,7 +4865,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let outer_handler_top = self
             .codegen
             .load_effect_ctx_handler_top(outer_ctx_ptr, "refactor_handle_outer_top")?;
-        let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
+        let outer_handler_top =
+            self.root_gc_pointer(outer_handler_top, "refactor_handle_outer_top_root")?;
         let active_flag = self.codegen.effect_handler_active_flag();
 
         let mut arm_metas = Vec::with_capacity(contract.handled_arms().len());
@@ -4881,6 +4879,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         let mut active_top = outer_handler_top;
         for (arm_ordinal, op_tag) in arm_metas.iter().rev().copied() {
+            let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
             active_top = self.alloc_effect_handler_node(
                 active_top,
                 op_tag,
@@ -4890,6 +4889,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 arm_ordinal,
                 &format!(
                     "refactor_handle{}_active_arm{}_node",
+                    site_id.as_u32(),
+                    arm_ordinal
+                ),
+            )?;
+            active_top = self.root_gc_pointer(
+                active_top,
+                &format!(
+                    "refactor_handle{}_active_arm{}_node_root",
                     site_id.as_u32(),
                     arm_ordinal
                 ),
@@ -4910,6 +4917,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 } else {
                     active_flag
                 };
+                let owner_frame_ref = self.current_frame_gc_ref("refactor_handle_owner_frame")?;
                 derived_top = self.alloc_effect_handler_node(
                     derived_top,
                     op_tag,
@@ -4919,6 +4927,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     arm_ordinal,
                     &format!(
                         "refactor_handle{}_derived_arm{}_clone{}",
+                        site_id.as_u32(),
+                        target_arm_ordinal,
+                        arm_ordinal
+                    ),
+                )?;
+                derived_top = self.root_gc_pointer(
+                    derived_top,
+                    &format!(
+                        "refactor_handle{}_derived_arm{}_clone{}_root",
                         site_id.as_u32(),
                         target_arm_ordinal,
                         arm_ordinal
@@ -5112,6 +5129,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
         self.store_frame_root(captured_frame)?;
         self.restore_frame_slots_to_locals()?;
+        let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
+        self.store_current_effect_ctx(current_effect_ctx, "refactor_resume_effect_ctx")?;
         let payload = if self.function.count_params() > 1 {
             Some(self.function.get_nth_param(1).ok_or_else(|| {
                 frontend_error("refactor resume method 缺少 payload 参数".to_string())
@@ -5265,6 +5284,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_outcome_resume_core",
         )?;
         self.codegen.builder.build_return(None)?;
+        self.seal_unterminated_state_blocks_as_unreachable()?;
         Ok(())
     }
 
@@ -5540,10 +5560,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_finalize");
-        let write_answer_bb = self
-            .codegen
-            .context
-            .append_basic_block(self.function, "resume_write_answer");
         let return_bb = self
             .codegen
             .context
@@ -5607,6 +5623,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         if !answer_has_runtime_value {
             self.codegen.builder.build_unconditional_branch(return_bb)?;
         } else {
+            let write_answer_bb = self
+                .codegen
+                .context
+                .append_basic_block(self.function, "resume_write_answer");
             let answer_slot_is_null = self
                 .codegen
                 .builder
@@ -5633,6 +5653,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         self.codegen.builder.position_at_end(return_bb);
         self.codegen.builder.build_return(None)?;
+        self.seal_unterminated_state_blocks_as_unreachable()?;
         Ok(())
     }
 
@@ -5945,7 +5966,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &deferred_callee_continuation,
         )?;
         let mut args = vec![callee_continuation.into()];
-        if surface.param_count() > 1 {
+        if !surface.resume_payload_abi().is_elided() {
             args.push(
                 deferred_payload
                     .as_ref()
@@ -5960,8 +5981,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .and_then(|value| value.value)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor composed call boundary bd{} callee resume 需要 non-elided payload",
+                            "refactor composed call boundary bd{} callee resume 需要 non-elided payload（function=`{}`, surface=`{}`, resume_tuple_ty=t{} `{}`, payload_present={}）",
                             boundary.boundary_id().as_u32(),
+                            self.function.get_name().to_str().unwrap_or("<invalid>"),
+                            surface.symbol_name(),
+                            resume_tuple_ty.as_u32(),
+                            self.source_types.display(resume_tuple_ty),
+                            payload.is_some(),
                         ))
                     })?
                     .into(),
@@ -6045,14 +6071,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .filter(|routing| routing.resume_state() == boundary.owner_state())
                 .flat_map(|routing| routing.case_routings())
                 .filter(|case| output_cases.contains(&case.case_tag()))
-                .filter(|case| {
-                    matches!(
-                        case.action(),
-                        LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm { .. }
-                    ) && contract
-                        .handled_arm(case.case_tag())
+                .filter(|case| match case.action() {
+                    LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                        arm_ordinal,
+                        ..
+                    } => contract
+                        .handled_arm_by_ordinal(arm_ordinal)
                         .and_then(|arm| arm.continuation_binder())
-                        .is_some()
+                        .is_some(),
+                    LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { .. }
+                    | LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => false,
                 })
                 .map(|case| case.case_tag())
                 .collect::<BTreeSet<_>>();
@@ -6248,6 +6276,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     state.state_id().as_u32()
                 ))
             })?;
+            if bb.get_terminator().is_none() {
+                return Err(frontend_error(format!(
+                    "refactor callable `{}` state st{} lowering 完成后仍未生成 terminator；不能把该 state 留给后续 LLVM verifier 兜底",
+                    self.callable.root_fqn(),
+                    state.state_id().as_u32(),
+                )));
+            }
         }
         Ok(())
     }
@@ -8253,6 +8288,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_handle_boundary_consume_to_arm(
         &mut self,
         boundary: &LateLoweredBoundary,
@@ -8263,6 +8299,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
+        let continuation_effect_ctx =
+            self.load_current_effect_ctx("refactor_handle_resume_effect_ctx")?;
         let arm_ctx = self.load_handle_arm_effect_ctx(
             action.site_id,
             action.arm_ordinal,
@@ -8327,6 +8365,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 callee_continuation
             };
             let continuation = if composition.is_some() {
+                self.store_current_effect_ctx(
+                    continuation_effect_ctx,
+                    "refactor_handle_continuation_effect_ctx_store",
+                )?;
                 self.create_continuation_object(
                     boundary.resume_state(),
                     case_tag,
@@ -8336,8 +8378,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else if let Some(callee_continuation) = callee_continuation {
                 callee_continuation
             } else {
+                self.store_current_effect_ctx(
+                    continuation_effect_ctx,
+                    "refactor_handle_continuation_effect_ctx_store",
+                )?;
                 self.create_continuation_object(boundary.resume_state(), case_tag, None, None)?
             };
+            self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_restore")?;
             self.store_gc_ref_to_binder(binder, continuation)?;
         }
 
@@ -8365,6 +8412,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.begin_handle_pending_completion(action.clone(), Some((payload, payload_ty)))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn dispatch_handle_boundary_from_ctx(
         &mut self,
         case_tag: CaseTag,
@@ -8426,8 +8474,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let handler_top = self
             .codegen
             .load_effect_ctx_handler_top(current_ctx_ptr, "refactor_handle_dispatch_top")?;
-        self.codegen.builder.build_unconditional_branch(loop_bb)?;
-
         let current_frame_gc = self.current_frame_gc_ref("refactor_handle_dispatch_owner_frame")?;
         let word_ty = self.codegen.llvm_ptr_sized_int_type(None);
         let current_frame_int = self.codegen.builder.build_ptr_to_int(
@@ -8445,6 +8491,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .context
             .i32_type()
             .const_int(u64::from(self.handle_case_op_tag(case_tag)?), false);
+
+        self.codegen.builder.build_unconditional_branch(loop_bb)?;
 
         self.codegen.builder.position_at_end(loop_bb);
         let node_phi = self.codegen.builder.build_phi(
@@ -8589,6 +8637,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
+        let origin_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor boundary bd{} case c{} lowering 缺少 active insert block",
+                boundary.boundary_id().as_u32(),
+                case_tag.as_u32(),
+            ))
+        })?;
         if composition.is_some() && callee_continuation.is_none() {
             return Err(frontend_error(format!(
                 "refactor boundary bd{} case c{} 的 callee continuation 与 composition contract 不一致",
@@ -8621,6 +8676,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             case_tag,
             skip_finalized_site,
         )?;
+        let has_dispatch_candidates = !dispatch_candidates.is_empty();
         if self.dispatch_handle_boundary_from_ctx(
             case_tag,
             boundary,
@@ -8633,6 +8689,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             // The helper leaves the builder positioned at the explicit "no local match" block,
             // so the fallback outward path below now runs with the innermost matching local
             // handler (if any) already consumed via explicit `EffectCtx`.
+        }
+        if has_dispatch_candidates && origin_bb.get_terminator().is_none() {
+            return Err(frontend_error(format!(
+                "refactor boundary bd{} case c{} 已解析到显式 handle dispatch candidate，但 origin block 仍未切到 dispatch loop；不能继续生成 fallback outward path",
+                boundary.boundary_id().as_u32(),
+                case_tag.as_u32(),
+            )));
+        }
+        if matches!(self.return_mode, RefactorCallableReturnMode::Plain { .. }) {
+            if !has_dispatch_candidates {
+                return Err(frontend_error(format!(
+                    "refactor plain callable `{}` 的 boundary bd{} case c{} 没有任何本地 handle/catch dispatch candidate；NoOutward plain body 不应回退到 outward Step_F path",
+                    self.callable.root_fqn(),
+                    boundary.boundary_id().as_u32(),
+                    case_tag.as_u32(),
+                )));
+            }
+            self.codegen.builder.build_unreachable()?;
+            return Ok(());
         }
         let deferred_payload = payload
             .map(|raw| {
@@ -8766,23 +8841,60 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         case_layout: &RefactorStepCaseLayout<'ctx>,
     ) -> Result<(IntValue<'ctx>, IntValue<'ctx>), LlvmEmitError> {
+        let effect_family = case_layout.concrete_op_key().effect_family();
         let op_tag = self.codegen.context.i32_type().const_int(
-            u64::from(
-                self.codegen
-                    .effect_op_tag(case_layout.concrete_op_key().effect_family().effect_fqn()),
-            ),
+            u64::from(self.codegen.effect_op_tag(effect_family.effect_fqn())),
             false,
         );
-        let effect_instance_key = self
-            .codegen
-            .effect_instance_key_for_family(case_layout.concrete_op_key().effect_family())
-            .ok_or_else(|| {
+        let effect_instance_key = if effect_family.effect_fqn() == "scoop.core.Raise"
+            && effect_family.type_args().len() == 1
+            && self.source_ty_is_runtime_error(effect_family.type_args()[0])
+        {
+            EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR
+        } else {
+            let mapped_effect_args = effect_family
+                .type_args()
+                .iter()
+                .map(|ty| {
+                    self.codegen
+                        .equivalent_codegen_type_id(self.source_types, *ty)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "refactor step schema s{} case c{} effect family type arg t{} 缺少 codegen 等价类型",
+                                self.abi_step_schema.as_u32(),
+                                case_layout.case_tag().as_u32(),
+                                ty.as_u32(),
+                            ))
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let effect_ty = self.codegen
+                .types
+                .iter_ids()
+                .find(|type_id| {
+                    matches!(
+                        self.codegen.types.kind(*type_id),
+                        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                            if nominal.fqn == effect_family.effect_fqn()
+                                && nominal.args.as_slice() == mapped_effect_args.as_slice()
+                    )
+                })
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor step schema s{} case c{} 缺少 effect family `{}` 的 codegen nominal type",
+                        self.abi_step_schema.as_u32(),
+                        case_layout.case_tag().as_u32(),
+                        effect_family.effect_fqn(),
+                    ))
+                })?;
+            self.codegen.effect_instance_key(effect_ty).ok_or_else(|| {
                 frontend_error(format!(
                     "refactor step schema s{} case c{} 缺少可发布的 effect_instance_key",
                     self.abi_step_schema.as_u32(),
                     case_layout.case_tag().as_u32()
                 ))
-            })?;
+            })?
+        };
         Ok((
             op_tag,
             self.codegen
@@ -9749,94 +9861,52 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let layout =
                 self.abi
                     .handle_dispatch_layout(self.abi_step_schema, *site_id, contract)?;
-            let handled_arm = layout.handled_arm(case_tag).ok_or_else(|| {
+            let LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
+                arm_state,
+                arm_ordinal,
+                ..
+            } = case.action()
+            else {
+                continue;
+            };
+            let handled_arm = layout.handled_arm_by_ordinal(arm_ordinal).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 handled arm layout",
+                    "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 arm ordinal #{} 的 handled arm layout",
                     site_id.as_u32(),
                     boundary_id.as_u32(),
                     case_tag.as_u32(),
+                    arm_ordinal,
                 ))
             })?;
-            let action = match case.action() {
-                LateLoweredHandleBoundaryCaseRoutingAction::ConsumeToArm {
-                    arm_state,
+            if handled_arm.arm_ordinal() != arm_ordinal {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch site{} boundary bd{} case c{} arm ordinal 漂移：routing=#{} layout=#{}",
+                    site_id.as_u32(),
+                    boundary_id.as_u32(),
+                    case_tag.as_u32(),
                     arm_ordinal,
-                    ..
-                } => {
-                    if handled_arm.arm_ordinal() != arm_ordinal {
-                        return Err(frontend_error(format!(
-                            "refactor HandleDispatch site{} boundary bd{} case c{} arm ordinal 漂移：routing=#{} layout=#{}",
-                            site_id.as_u32(),
-                            boundary_id.as_u32(),
-                            case_tag.as_u32(),
-                            arm_ordinal,
-                            handled_arm.arm_ordinal(),
-                        )));
-                    }
-                    if handled_arm.arm_state() != arm_state {
-                        return Err(frontend_error(format!(
-                            "refactor HandleDispatch site{} boundary bd{} case c{} arm state 漂移：routing=st{} layout=st{}",
-                            site_id.as_u32(),
-                            boundary_id.as_u32(),
-                            case_tag.as_u32(),
-                            arm_state.as_u32(),
-                            handled_arm.arm_state().as_u32(),
-                        )));
-                    }
-                    RefactorHandleBoundaryRuntimeAction::ConsumeToArm(
-                        RefactorHandleConsumeArmRuntime {
-                            site_id: *site_id,
-                            arm_ordinal,
-                            arm_state,
-                            payload_binders: handled_arm.payload_binders().to_vec(),
-                            continuation_binder: handled_arm.continuation_binder(),
-                        },
-                    )
-                }
-                LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
-                    let origin = LateLoweredHandlePendingCompletionOrigin::new(
-                        completion,
-                        routing.boundary_id(),
-                        routing.owner_state(),
-                        routing.resume_state(),
-                    );
-                    let completion_tag_value = layout.pending_completion_origin_tag_value(origin).ok_or_else(|| {
-                        frontend_error(format!(
-                            "refactor HandleDispatch site{} boundary bd{} case c{} 缺少 pending completion origin tag {:?}",
-                            site_id.as_u32(),
-                            boundary_id.as_u32(),
-                            case_tag.as_u32(),
-                            origin
-                        ))
-                    })?;
-                    let finally_state = handle_finally_state(contract).ok_or_else(|| {
-                        frontend_error(format!(
-                            "refactor HandleDispatch site{} boundary bd{} pending completion 缺少 finally region",
-                            site_id.as_u32(),
-                            boundary_id.as_u32()
-                        ))
-                    })?;
-                    RefactorHandleBoundaryRuntimeAction::PendingCompletion(
-                        RefactorHandlePendingCompletionRuntime {
-                            site_id: *site_id,
-                            completion,
-                            completion_tag_value,
-                            completion_tag_field_index: layout.completion_tag_field_index(),
-                            finally_state,
-                            payload_transport: layout
-                                .pending_payload_transport_layout(completion)
-                                .map(|transport| RefactorHandlePendingPayloadRuntime {
-                                    completion: transport.completion(),
-                                    payload_tuple_ty: transport.payload_tuple_ty(),
-                                    frame_field_index: transport.frame_field_index(),
-                                }),
-                        },
-                    )
-                }
-                LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => {
-                    RefactorHandleBoundaryRuntimeAction::EmitOutward
-                }
-            };
+                    handled_arm.arm_ordinal(),
+                )));
+            }
+            if handled_arm.arm_state() != arm_state {
+                return Err(frontend_error(format!(
+                    "refactor HandleDispatch site{} boundary bd{} case c{} arm state 漂移：routing=st{} layout=st{}",
+                    site_id.as_u32(),
+                    boundary_id.as_u32(),
+                    case_tag.as_u32(),
+                    arm_state.as_u32(),
+                    handled_arm.arm_state().as_u32(),
+                )));
+            }
+            let action = RefactorHandleBoundaryRuntimeAction::ConsumeToArm(
+                RefactorHandleConsumeArmRuntime {
+                    site_id: *site_id,
+                    arm_ordinal,
+                    arm_state,
+                    payload_binders: handled_arm.payload_binders().to_vec(),
+                    continuation_binder: handled_arm.continuation_binder(),
+                },
+            );
             let action = if self.surface_resume_handle_sites.is_some()
                 && !self.surface_resume_allows_handle_dispatch(*site_id, state.state_id())
                 && !matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward)
@@ -9845,10 +9915,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else {
                 action
             };
+            if matches!(action, RefactorHandleBoundaryRuntimeAction::EmitOutward) {
+                continue;
+            }
             candidates.push(RefactorHandleBoundaryDispatchCandidate {
                 dispatch_identity: self
                     .codegen
-                    .effect_handler_dispatch_identity(*site_id, handled_arm.arm_ordinal()),
+                    .effect_handler_dispatch_identity(*site_id, arm_ordinal),
                 action,
             });
         }
@@ -10528,10 +10601,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .unwrap_or_else(|| self.codegen.context.opaque_struct_type(&type_name));
         if struct_ty.is_opaque() {
             struct_ty.set_body(
-                &[
-                    self.codegen.llvm_gc_object_header_type().into(),
-                    payload_ty.into(),
-                ],
+                &[self.codegen.llvm_gc_object_header_type().into(), payload_ty],
                 false,
             );
         }
@@ -10639,8 +10709,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, source_ty)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect transport t{} 缺少 codegen type",
-                    source_ty.as_u32()
+                    "refactor effect transport t{} (`{}`) 缺少 codegen type",
+                    source_ty.as_u32(),
+                    self.source_types.display(source_ty)
                 ))
             })?;
         let value = self
@@ -10702,8 +10773,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, source_ty)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect transport t{} 缺少 codegen type",
-                    source_ty.as_u32()
+                    "refactor effect transport t{} (`{}`) 缺少 codegen type",
+                    source_ty.as_u32(),
+                    self.source_types.display(source_ty)
                 ))
             })?;
         match target_cg {
@@ -11226,22 +11298,33 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let dispatch = self
             .abi
             .surface_resume_dispatch_layout(continuation_schema)?;
-        let target = dispatch
+        let target = match dispatch
             .target()
             .owner_trampolines()
             .iter()
             .find(|candidate| {
                 candidate.owner_continuation_object() == self.callable.continuation_object()
                     || candidate.owner_version_key() == self.callable.body_version_key()
-            })
-            .ok_or_else(|| {
-                frontend_error(format!(
+            }) {
+            Some(target) => target,
+            None if matches!(
+                dispatch.target(),
+                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable
+            ) =>
+            {
+                // Non-resuming exits like local `Raise<RuntimeError>` may still travel through
+                // Step/EffectOutcome payloads, but they intentionally publish no resume target.
+                return Ok(self.codegen.llvm_gc_i8_ptr_type().const_null());
+            }
+            None => {
+                return Err(frontend_error(format!(
                     "refactor callable `{}` case c{} continuation schema k{} 缺少 owner continuation drive target",
                     self.callable.root_fqn(),
                     case_tag.as_u32(),
                     continuation_schema.as_u32(),
-                ))
-            })?;
+                )));
+            }
+        };
         let step_fun = self.codegen.refactor_continuation_step_function(target);
         let cont_layout = self
             .abi
@@ -11684,6 +11767,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .get_insert_block()
             .is_some_and(|bb| bb.get_terminator().is_some())
+    }
+
+    fn seal_unterminated_state_blocks_as_unreachable(&mut self) -> Result<(), LlvmEmitError> {
+        for bb in self.state_blocks.values().copied() {
+            if bb.get_terminator().is_some() {
+                continue;
+            }
+            self.codegen.builder.position_at_end(bb);
+            self.codegen.builder.build_unreachable()?;
+        }
+        Ok(())
     }
 }
 
@@ -12583,9 +12677,9 @@ mod tests {
         assert!(body.contains("project_owner_step_to_wrapper"));
         assert!(body.contains("lower_abandon_terminator"));
         assert!(body.contains("lower_resume_unwind_terminator"));
-        assert!(!body.contains("store_continuation_one_shot"));
-        assert!(!body.contains("load_continuation_one_shot"));
-        assert!(!body.contains("load_composed_callee_continuation"));
+        assert!(!body.contains(concat!("store_continuation_", "one_shot")));
+        assert!(!body.contains(concat!("load_continuation_", "one_shot")));
+        assert!(!body.contains(concat!("load_composed_", "callee_continuation")));
     }
 
     #[test]

@@ -1430,6 +1430,15 @@ impl RefactorHandleDispatchLayout {
             .find(|arm| arm.handled_case() == handled_case)
     }
 
+    pub(super) fn handled_arm_by_ordinal(
+        &self,
+        arm_ordinal: u32,
+    ) -> Option<&RefactorHandleArmLayout> {
+        self.handled_arms
+            .iter()
+            .find(|arm| arm.arm_ordinal() == arm_ordinal)
+    }
+
     pub(super) fn state_regions(&self) -> &[LateLoweredHandleStateRegionEntry] {
         self.lowered_contract.state_regions()
     }

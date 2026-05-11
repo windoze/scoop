@@ -346,6 +346,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(in crate::llvm::codegen) fn build_fun_callee_suspend_plan_impl(
         &self,
         fun: &hir::FunDecl,
@@ -394,6 +395,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(dead_code)]
     pub(in crate::llvm::codegen) fn build_ordinary_callee_suspend_plan_impl(
         &self,
         body: &hir::Block,

@@ -800,7 +800,7 @@
     - §2：review 确认 non-legacy `call/lowering.rs` 仍是 direct/static/dynamic call lowering 的唯一 active 主体，未回退到 deleted wrapper/legacy 外壳。
     - §9：review 确认 plain/effect ABI 分流仍依赖 published callable contract / published dynamic surface，而不是 deleted TLS continuation/effect bridge；plain body 继续保持 plain callable body。
 
-## G7-T08：重建 `perform` / `handle` / `resume` / `Step_F` lowering
+## [DONE] G7-T08：重建 `perform` / `handle` / `resume` / `Step_F` lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G7
@@ -842,6 +842,27 @@
   - HIR/MIR effect constructs 再次闭合到新的 target-shape protocol。
 - 依赖：G6-T07R
 - 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/expr.rs`：把 direct HIR `perform` / `handle` 入口固定为 refactor-stage fail-fast，明确要求走 published late-lowered/local-effect-control handoff，不再存在旧 HIR fallback。
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/call/lowering.rs`：重建 MIR `perform` / direct-call / funptr / function-value / closure / class-ctor lowering 到显式 hidden ABI + `EffectOutcome` propagation surface，并补上 foreign `TypeStore` 到 codegen 类型层的等价映射回退。
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/{body,layout,types}.rs` 与 `crates/scoopc/src/llvm/codegen/{layout,ty,mod.rs}`：补齐 generated continuation resume driver / owner outcome wrapper / `Step_F` dispatch / handle ctx dispatch / RuntimeError transport boxing，并把 enum/struct/layout key 计算扩展到 materialized/late-lowered type id。
+    - `crates/scoopc/src/effect_lowered/{builder,frame,ir}.rs`、`crates/scoopc/src/llvm/tests.rs`：收紧 frame lifting / state-machine 验证，并把默认单文件 helper 与 continuation/runtime-error 路径断言切到新的 refactor surface。
+    - `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`、`crates/scoopc/src/llvm/codegen/ordinary_callee.rs`：删除或标注当前阶段不再使用的 dead helper，确保 lint 面干净。
+  - 核心决策：
+    - `perform` / `handle` 的 authoritative lowering 只允许来自 published late-lowered/MIR effect pipeline；HIR 表达式入口保留为 fail-fast 边界，而不是偷偷恢复旧 HIR lowering。
+    - `Continuation.resume(...)` 统一走 generated surface-resume outcome wrapper / owner core / continuation drive driver；double-resume runtime error 通过显式 `EffectOutcome` / ordinary runtime-error case 表达，不恢复 runtime helper、one-shot slot helper 或 TLS/slot 写回协议。
+    - `Step_F` / dynamic surface / handle dispatch / payload transport 的类型决策改为同时接受 codegen 主 `TypeStore` 与 materialized/late-lowered foreign type id；对 `Raise<RuntimeError>` 继续使用显式 runtime-error effect-instance 常量，不回退旧 bridge。
+    - `NoOutward` plain body 继续保持 plain ABI：默认单文件 `main` 若只在函数体内部 `handle` 掉 effect，则验证面改为检查 refactor state-machine / handle ctx dispatch，而不是强行要求 direct-invoke `Step_F` 外壳。
+  - 验证结果：
+    - `cargo check -p scoopc`：通过；不再出现 `codegen_perform_expr`、`codegen_handle_expr`、`codegen_mir_perform_terminator`、`emit_raise_runtime_error_variant`、`emit_ordinary_non_resuming_effect_exit` 或相关 MIR call helper 缺失。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+    - `cargo test -p scoopc`：通过（742 passed）。
+    - `cargo run -p scoop -- build tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop -o /var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/g7_t08_direct_handle_resume.ll --emit-llvm --opt-level 0`：通过；产物继续包含 `__scoop_refactor_resume__fixtures_build_main__case0`、`__scoop_refactor_surface_resume__*`、`scoop_alloc_typed`，且 grep 未命中 `scoop_effect_handler_stack` / `scoop_effect_outcome`。
+    - 对 `crates/scoopc/src/llvm/codegen` 与 `crates/scoopc/src/effect_lowered` grep `scoop_effect_|__scoop_effect_|scoop_continuation_resume_with|scoop_continuation_resume_into|scoop_effect_outcome_|publish_incoming_resume_token|clear_incoming_resume_token|effect_call_wrapper`：无命中。
+  - 与 `EFFECT_REFACTOR_GAPS.md` 对应消除的 gap 条目：
+    - §5：`perform` / `handle` / MIR direct-dynamic-resume lowering 入口重新闭合到 clean backend target-shape surface，不再靠缺失 helper 或旧 HIR/TLS fallback 撑着。
+    - §8：function/block/site 级 published schema/facts 重新成为 lowering 的 authoritative 输入；`Step_F`、handle dispatch、runtime-error transport 不再依赖 ad-hoc deleted bridge 语义。
+    - §9：`Step_F` / surface-resume / dynamic callable surface / plain-vs-effect ABI 分流已经在 active LLVM lowering 中重新接通，`Continuation.resume` 也已切到 generated driver。
 
 ## G7-T08R：Review `perform` / `handle` / `resume` / `Step_F` lowering，确认 surface 已切到新协议
 

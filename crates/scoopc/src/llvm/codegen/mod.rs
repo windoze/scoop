@@ -368,6 +368,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
+    #[allow(dead_code)]
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
@@ -434,6 +435,7 @@ struct FunctionBodyCodegenCx<'ctx> {
 /// 这组状态只在“普通函数体需要把 perform 外传到外层 state-machine，再由 resume thunk
 /// 回放原 call-site”这一 effect lowering 路径中有意义；它不属于 generic lowering
 /// 或普通函数 / body 生命周期上下文。
+#[allow(dead_code)]
 #[derive(Default)]
 struct CalleeSuspendLoweringCodegenCx<'ctx> {
     current_suspend_plan: Option<CalleeSuspendPlan>,
@@ -1718,14 +1720,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx = function_cx;
     }
 
-    fn current_callee_suspend_plan(&self) -> Option<&CalleeSuspendPlan> {
-        self.effect_cx.callee_suspend.current_suspend_plan.as_ref()
-    }
-
-    fn current_callee_resume_entry_fn(&self) -> Option<FunctionValue<'ctx>> {
-        self.effect_cx.callee_suspend.current_resume_entry_fn
-    }
-
     fn take_suspend_site_explicit_effect_outcome(
         &mut self,
         site_id: u32,
@@ -2094,6 +2088,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .and_then(|index| u32::try_from(index).ok())
     }
 
+    #[allow(dead_code)]
     pub(super) fn effect_instance_key_for_family(
         &self,
         family: &crate::effect_facts::EffectFamilyKey,
@@ -2112,6 +2107,156 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .is_some_and(|nominal| nominal.args.as_slice() == family.type_args())
             })
             .and_then(|index| u32::try_from(index).ok())
+    }
+
+    fn raise_runtime_error_effect_ty(&self) -> Option<TypeId> {
+        self.known_effect_instance_types_for_fqn("scoop.core.Raise")
+            .into_iter()
+            .find(|type_id| self.is_raise_runtime_error_effect(*type_id))
+    }
+
+    fn box_composite_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        source_ty: TypeId,
+        source: CgValue<'ctx>,
+        label: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let deferred_source =
+            self.defer_gc_sensitive_cg_value(at, &format!("{label}_source"), source)?;
+        let box_obj_ty = self.mir_value_box_object_type(at, source_ty, source.ty)?;
+        let obj_size_bytes = self.target_data.get_store_size(&box_obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let box_desc =
+            self.get_or_create_mir_value_box_type_desc_global(at, source_ty, box_obj_ty)?;
+        let box_desc_i8 = self.builder.build_pointer_cast(
+            box_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            &format!("{label}_desc_i8"),
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
+            rt_alloc,
+            &[box_desc_i8.into(), size_v.into()],
+            &format!("rt_alloc_{label}"),
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect transport value box return value",
+                at: at.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_i8) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect transport value box return type",
+                at: at.into(),
+            });
+        };
+
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let obj_ptr =
+            self.builder
+                .build_pointer_cast(obj_i8, obj_ptr_ty, &format!("{label}_obj_ptr"))?;
+        let deferred_obj = self.defer_gc_ref_pointer(at, &format!("{label}_obj_root"), obj_ptr)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            at,
+            &format!("{label}_obj_reload"),
+            &deferred_obj,
+        )?;
+        let payload_gep = self.builder.build_struct_gep(
+            box_obj_ty,
+            obj_ptr,
+            1,
+            &format!("{label}_payload_gep"),
+        )?;
+        let payload = self.materialize_deferred_cg_value(
+            at,
+            &format!("{label}_source_reload"),
+            deferred_source,
+        )?;
+        let _ = self.store_local_value(at, payload_gep, source.ty, payload)?;
+        let obj_ptr = self.reload_deferred_gc_ref_without_clearing(
+            at,
+            &format!("{label}_return"),
+            &deferred_obj,
+        )?;
+        Ok(self.builder.build_pointer_cast(
+            obj_ptr,
+            self.llvm_gc_i8_ptr_type(),
+            &format!("{label}_gc_ref"),
+        )?)
+    }
+
+    fn emit_raise_runtime_error_variant(
+        &mut self,
+        span: crate::span::Span,
+        variant_name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let outcome_ptr = self.function_cx.current_effect_outcome_ptr.ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "direct runtime-error raise `{variant_name}` 缺少当前 explicit EffectOutcome 槽位；该路径应由 published late-lowered/local-effect-control handoff 接管"
+                ),
+            }
+        })?;
+        let raise_runtime_error_effect = self.raise_runtime_error_effect_ty().ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: "缺少 Raise<RuntimeError> effect type；HIR/MIR runtime-error lowering contract 未闭合"
+                    .to_string(),
+            }
+        })?;
+        let effect_instance_key = self
+            .effect_instance_key(raise_runtime_error_effect)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: "Raise<RuntimeError> effect instance key 未发布到 active codegen contract"
+                    .to_string(),
+            })?;
+        let variant_fqn = format!("scoop.core.RuntimeError.{variant_name}");
+        let payload_value = self
+            .try_codegen_qualified_enum_unit_variant_value(span, &variant_fqn)?
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "RuntimeError unit variant value",
+                at: span.into(),
+            })?;
+        let CgTy::Enum(payload_ty) = payload_value.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "RuntimeError payload cg type",
+                at: span.into(),
+            });
+        };
+        let payload_gc_ref = self.box_composite_effect_transport_value(
+            span,
+            payload_ty,
+            payload_value,
+            "raise_runtime_error_payload",
+        )?;
+        let zero_transport = effect_outcome::ValueTransportParts {
+            word: self.context.i64_type().const_zero(),
+            gc_ref: self.llvm_gc_i8_ptr_type().const_null(),
+        };
+        let raise_op_tag = self.effect_op_tag("scoop.core.Raise.raise");
+        let signal = self.build_effect_signal(
+            self.context
+                .i32_type()
+                .const_int(u64::from(raise_op_tag), false),
+            self.context
+                .i32_type()
+                .const_int(u64::from(effect_instance_key), false),
+            effect_outcome::ValueTransportParts {
+                word: self.context.i64_type().const_zero(),
+                gc_ref: payload_gc_ref,
+            },
+            self.llvm_gc_i8_ptr_type().const_null(),
+        )?;
+        let outcome = self.build_effect_outcome(
+            effect_outcome::EffectOutcomeTag::Propagate,
+            zero_transport,
+            signal,
+        )?;
+        self.builder.build_store(outcome_ptr, outcome)?;
+        Ok(())
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -2268,6 +2413,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    #[allow(dead_code)]
     fn declare_top_level_fun_callee_resume_entry(
         &mut self,
         fun: &hir::FunDecl,
@@ -3758,6 +3904,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
         self.build_fun_callee_suspend_plan_impl(fun)
     }
@@ -3881,6 +4028,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_callee_resume_entry_function_impl(at, resume_fun, plan, declared_return_cg)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn codegen_top_level_fun(
         mut self,
         fun: &hir::FunDecl,
@@ -4375,6 +4523,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.clear_explicit_effect_hidden_abi_slots_impl()
     }
 
+    #[allow(dead_code)]
     fn build_ordinary_callee_suspend_plan(
         &self,
         body: &hir::Block,
@@ -4503,6 +4652,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.as_llvm_arg_value_impl(span, param_ty, value)
     }
 
+    #[allow(dead_code)]
     fn codegen_fun_params(
         &mut self,
         fun: &hir::FunDecl,
@@ -7994,6 +8144,7 @@ fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 fn top_level_callee_resume_entry_fn_name(fun_fqn: &str) -> String {
     format!("__scoop_callee_resume__{fun_fqn}")
 }

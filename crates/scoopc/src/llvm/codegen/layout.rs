@@ -193,7 +193,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         field_fqn: &str,
         at: crate::span::Span,
     ) -> Result<(u32, CgTy), LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+        let types = self.codegen_type_store_for_type_id(struct_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "struct type id",
+                at: at.into(),
+            },
+        )?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(struct_ty) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "struct type id",
                 at: at.into(),
@@ -201,7 +207,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
-        let key = self.nominal_layout_key(nominal);
+        let key = self.nominal_layout_key_from_types(nominal, types);
         let layout = self
             .struct_layouts
             .get(&key)
@@ -235,11 +241,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn struct_clayout(&self, struct_ty: TypeId) -> Option<hir::StructCLayout> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+        let types = self.codegen_type_store_for_type_id(struct_ty)?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(struct_ty) else {
             return None;
         };
         // T0124：使用 mangled FQN 查找。
-        let key = self.nominal_layout_key(nominal);
+        let key = self.nominal_layout_key_from_types(nominal, types);
         self.struct_layouts
             .get(&key)
             .and_then(|layout| layout.c_layout)
@@ -288,7 +295,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         elem_idx: u32,
         at: crate::span::Span,
     ) -> Result<CgTy, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+        let types = self.codegen_type_store_for_type_id(tuple_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple type id",
+                at: at.into(),
+            },
+        )?;
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = types.kind(tuple_ty) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "tuple type id",
                 at: at.into(),
@@ -328,8 +341,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let target = self.target_layout();
+        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+            return TypeLayout::new(target.pointer_size, target.pointer_align);
+        };
+        let kind = types.kind(ty).clone();
 
-        let layout = match self.types.kind(ty) {
+        let layout = match kind {
             TypeKind::Ref(_) => TypeLayout::new(target.pointer_size, target.pointer_align)
                 .with_niche(NicheDomain {
                     storage: NicheStorage::Pointer,
@@ -352,14 +369,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     TypeLayout::new(target.pointer_size, target.pointer_align)
                 }
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
-                    let size = u64::from(*bits).div_ceil(8);
+                    let size = u64::from(bits).div_ceil(8);
                     let align = size.clamp(1, target.pointer_align.max(1));
                     TypeLayout::new(size, align)
                 }
                 ValueTypeKind::Tuple(elements) => {
-                    self.aggregate_fields_layout_for_type_ids(elements)
+                    self.aggregate_fields_layout_for_type_ids(&elements)
                 }
-                ValueTypeKind::Option(inner) => self.option_type_layout(ty, *inner),
+                ValueTypeKind::Option(inner) => self.option_type_layout(ty, inner),
                 ValueTypeKind::Nominal(_) => {
                     // 当前 codegen 只在 niche/boxing 决策里需要 layout 信息；nominal struct/enum 的精确布局
                     // 将在对应任务里补齐。这里按“opaque word-sized”兜底，避免过度耦合。
@@ -494,7 +511,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         enum_ty: TypeId,
     ) -> Result<CgEnumLayout, LlvmEmitError> {
-        match self.types.kind(enum_ty) {
+        let types = self.codegen_type_store_for_type_id(enum_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "enum type id",
+                at: at.into(),
+            },
+        )?;
+        let kind = types.kind(enum_ty).clone();
+        match kind {
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
                 // 确保 option niche 缓存已被填充（用于 nested niche）。
                 let _ = self.type_layout(enum_ty);
@@ -514,7 +538,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 let inner_cg = self
-                    .cg_ty_of(*inner)
+                    .cg_ty_of(inner)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "Option<T> inner type",
                         at: at.into(),
@@ -540,7 +564,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                let enum_key = self.nominal_layout_key(nominal);
+                let enum_key = self.nominal_layout_key_from_types(&nominal, types);
                 let hir_layout =
                     self.enum_layouts
                         .get(&enum_key)
@@ -675,12 +699,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // inline nested enum 目前只继续保留 niche path；
             // 其余 nested enum（含 nominal/value-only/tagged-union，以及 tagged-union `Option<T>`）
             // 一律进入 boxed payload 主线，避免落到 `{payload_word, payload_ptr}` 的错误旁路。
-            CgTy::Enum(enum_ty) => match self.types.kind(enum_ty) {
-                TypeKind::Value(ValueTypeKind::Option(_)) => Ok(!matches!(
+            CgTy::Enum(enum_ty) => match self
+                .codegen_type_store_for_type_id(enum_ty)
+                .map(|types| types.kind(enum_ty))
+            {
+                Some(TypeKind::Value(ValueTypeKind::Option(_))) => Ok(!matches!(
                     self.cg_enum_layout(at, enum_ty)?.repr,
                     CgEnumRepr::Niche { .. }
                 )),
-                _ => Ok(true),
+                Some(_) => Ok(true),
+                None => Ok(true),
             },
             _ => Ok(false),
         }

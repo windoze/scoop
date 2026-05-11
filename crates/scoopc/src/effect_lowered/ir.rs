@@ -3330,6 +3330,15 @@ impl LateLoweredHandleDispatchContract {
             .find(|arm| arm.handled_case() == handled_case)
     }
 
+    pub fn handled_arm_by_ordinal(
+        &self,
+        arm_ordinal: u32,
+    ) -> Option<&LateLoweredHandleArmDispatch> {
+        self.handled_arms
+            .iter()
+            .find(|arm| arm.arm_ordinal() == arm_ordinal)
+    }
+
     pub fn body_outward_cases(&self) -> &[CaseTag] {
         &self.body_outward_cases
     }
