@@ -195,3 +195,47 @@ pub fn parse_annotation_classes_file(bytes: &[u8]) -> Result<ConeAnnotationClass
 
     Ok(file)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_json_surface_stays_semantic_and_path_free(json: &str) {
+        for forbidden in [
+            "TypeId(",
+            "ClosureId(",
+            "SourceId(",
+            "ConeId(",
+            "SymbolId(",
+            "BasicBlockId(",
+            "LocalId(",
+            "SiteId(",
+            "StepSchemaId(",
+            "ContinuationSchemaId(",
+            "CaseTag(",
+            "source_path",
+            "decl_span",
+            "/Users/",
+            env!("CARGO_MANIFEST_DIR"),
+        ] {
+            assert!(
+                !json.contains(forbidden),
+                "healthy ANNOTATION_CLASSES schema surface 不应泄漏 dense id/path 文本: {forbidden}\n{json}"
+            );
+        }
+    }
+
+    #[test]
+    fn annotation_classes_json_baseline_stays_semantic_and_path_free() {
+        let file = ConeAnnotationClassesFile::new_v0(vec![ConeAnnotationClassEntry {
+            fqn: "a.Trace".to_string(),
+            targets: Some(vec!["class".to_string(), "fun".to_string()]),
+            retention: "cone".to_string(),
+        }]);
+
+        let json = serde_json::to_string_pretty(&file).unwrap();
+        assert!(json.contains("\"fqn\": \"a.Trace\""));
+        assert!(json.contains("\"retention\": \"cone\""));
+        assert_json_surface_stays_semantic_and_path_free(&json);
+    }
+}

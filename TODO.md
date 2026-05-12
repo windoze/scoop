@@ -122,7 +122,7 @@
     - 对应 `PLAN.md` P0 的 object-level 验证基线与 grep 审计入口要求，后续阶段已可复用统一 external symbol/object/grep 审计入口。
     - 对应 `STABLE_ID.md` §10/§11：已把 dense-id/path/span 泄漏的主要 grep 入口固定下来，并把 external symbol 分类与允许变化/禁止漂移边界落到常驻测试中。
 
-### [TODO] P0-T02：固化现有测试基线，移除对旧命名字符串的强绑定
+### [DONE] P0-T02：固化现有测试基线，移除对旧命名字符串的强绑定
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2、§4 / P0
@@ -157,7 +157,27 @@
   - 测试面不再强绑定旧命名形状，后续可以安全推进 symbol / linkage 迁移。
 - 依赖：P0-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/cone/scoopir/schema.rs`
+    - `crates/scoopc/src/cone/pre_specialize.rs`
+    - `crates/scoopc/src/cone/visibility.rs`
+    - `crates/scoopc/src/cone/annotations.rs`
+  - 核心决策：
+    - 在 `llvm/tests.rs` 新增 `stable_id` 语义 helper（含 `function_ir_matching`、hidden-init call 检查、hash-suffix 检查），把一组已知旧命名强绑定从“锁死旧字符串”迁移成“锁定 tuple payload 结构、surface-resume 路径、private helper 家族与 namespace 语义”的断言。
+    - 对 `Step__schema*`、`surface_resume__k*`、`scoop.lambda$0`、`__scoop_object_init__...` 等已知旧名字入口做了定向迁移，并补了 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests`，防止行为测试回流到旧拼写金标准。
+    - 对 `api.scoopir`、`PRE_SPECIALIZE.json`、`SYMBOL_VISIBILITY.json`、`ANNOTATION_CLASSES.json` 各自新增示例序列化基线测试，只验证“仍未泄漏 dense id / path / span 文本”，不重写 schema 结构。
+    - 为 future stable-id 命名预留测试语义：external symbol 分类 helper 现在显式接受 `__scoop_abi0_*` 作为 user ABI、`__scoop_priv0_*` 作为 compiler-private helper，避免后续迁移时仍被旧分类假设卡住。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 的“允许变化 textual surface / 禁止漂移行为语义”边界收口：现有 `llvm` 行为测试不再把若干旧 dense-id/private helper 拼写当作正确性标准。
+    - 对应 `PLAN.md` P0 与 `STABLE_ID.md` §3.1 / §10：四个健康 `.cone` / JSON schema 已有常驻基线测试，后续阶段可在不引入无谓 schema churn 的前提下继续推进 stable-id 迁移。
+    - 对应 `STABLE_ID.md` §3.4：已把 `Step__schema*`、`surface resume kN`、`lambda$0`、`object_init` 等当前最容易把旧 identity 形状锁进测试的入口改成语义断言，后续 P1-P4 可安全调整 symbol/linkage。
 
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 

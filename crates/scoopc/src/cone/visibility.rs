@@ -236,3 +236,54 @@ pub fn parse_symbol_visibility_file(bytes: &[u8]) -> Result<ConeSymbolVisibility
 
     Ok(file)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_json_surface_stays_semantic_and_path_free(json: &str) {
+        for forbidden in [
+            "TypeId(",
+            "ClosureId(",
+            "SourceId(",
+            "ConeId(",
+            "SymbolId(",
+            "BasicBlockId(",
+            "LocalId(",
+            "SiteId(",
+            "StepSchemaId(",
+            "ContinuationSchemaId(",
+            "CaseTag(",
+            "source_path",
+            "decl_span",
+            "/Users/",
+            env!("CARGO_MANIFEST_DIR"),
+        ] {
+            assert!(
+                !json.contains(forbidden),
+                "healthy SYMBOL_VISIBILITY schema surface 不应泄漏 dense id/path 文本: {forbidden}\n{json}"
+            );
+        }
+    }
+
+    #[test]
+    fn symbol_visibility_json_baseline_stays_semantic_and_path_free() {
+        let file = ConeSymbolVisibilityFile::new_v0(vec![
+            ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Fun,
+                fqn: "a.helper".to_string(),
+                visibility: ConeSymbolVisibility::Internal,
+            },
+            ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Type,
+                fqn: "a.Token".to_string(),
+                visibility: ConeSymbolVisibility::Private,
+            },
+        ]);
+
+        let json = serde_json::to_string_pretty(&file).unwrap();
+        assert!(json.contains("\"fqn\": \"a.helper\""));
+        assert!(json.contains("\"visibility\": \"internal\""));
+        assert_json_surface_stays_semantic_and_path_free(&json);
+    }
+}

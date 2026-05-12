@@ -153,3 +153,73 @@ pub struct IrFunDecl {
     pub return_ty: IrType,
     pub effects: IrEffectRow,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_json_surface_stays_semantic_and_path_free(json: &str) {
+        for forbidden in [
+            "TypeId(",
+            "ClosureId(",
+            "SourceId(",
+            "ConeId(",
+            "SymbolId(",
+            "BasicBlockId(",
+            "LocalId(",
+            "SiteId(",
+            "StepSchemaId(",
+            "ContinuationSchemaId(",
+            "CaseTag(",
+            "source_path",
+            "decl_span",
+            "/Users/",
+            env!("CARGO_MANIFEST_DIR"),
+        ] {
+            assert!(
+                !json.contains(forbidden),
+                "healthy ScoopIR schema surface 不应泄漏 dense id/path 文本: {forbidden}\n{json}"
+            );
+        }
+    }
+
+    #[test]
+    fn scoopir_json_baseline_stays_semantic_and_path_free() {
+        let file = ScoopIrFile::new_v0(
+            vec![IrTypeDecl {
+                fqn: "a.Token".to_string(),
+                kind: IrTypeDeclKind::Struct,
+                type_params: vec![IrTypeParam {
+                    name: "T".to_string(),
+                    variance: Some(IrVariance::Out),
+                }],
+                alias_of: None,
+            }],
+            vec![IrFunDecl {
+                fqn: "a.make".to_string(),
+                kind: IrFunDeclKind::Regular,
+                type_params: vec!["T".to_string()],
+                receiver: None,
+                params: vec![IrFunParam {
+                    name: "value".to_string(),
+                    ty: IrType::Param {
+                        name: "T".to_string(),
+                    },
+                }],
+                return_ty: IrType::Named {
+                    fqn: "a.Token".to_string(),
+                    args: vec![IrType::Param {
+                        name: "T".to_string(),
+                    }],
+                    eff: None,
+                },
+                effects: IrEffectRow::default(),
+            }],
+        );
+
+        let json = serde_json::to_string_pretty(&file).unwrap();
+        assert!(json.contains("\"fqn\": \"a.Token\""));
+        assert!(json.contains("\"fqn\": \"a.make\""));
+        assert_json_surface_stays_semantic_and_path_free(&json);
+    }
+}

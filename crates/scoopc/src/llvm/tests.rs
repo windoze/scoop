@@ -422,6 +422,8 @@ fn stable_id_classify_external_symbol(
         StableIdExternalSymbolRole::RuntimeOrNativeImport
     } else if name == "main" {
         StableIdExternalSymbolRole::FixedExternalException
+    } else if name.starts_with("__scoop_abi0_") {
+        StableIdExternalSymbolRole::UserAbi
     } else if stable_id_symbol_looks_like_compiler_private_helper(name) {
         StableIdExternalSymbolRole::CompilerPrivateHelper
     } else {
@@ -461,6 +463,24 @@ fn stable_id_symbol_mentions_fqn(name: &str, fqn: &str) -> bool {
     name.contains(fqn) || name.contains(&fqn.replace('.', "_"))
 }
 
+fn stable_id_symbol_has_hash128_suffix(name: &str) -> bool {
+    let Some((_, hash)) = name.rsplit_once("__h") else {
+        return false;
+    };
+    hash.len() == 32 && hash.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+fn stable_id_ir_contains_hidden_init_call(ir: &str) -> bool {
+    ir.lines().any(|line| {
+        line.contains(" call ")
+            && (line.contains("__scoop_object_init__")
+                || line.contains("__scoop_refactor_hidden_object_init_bridge__")
+                || line.contains("__scoop_top_level_val_init__")
+                || line.contains("__scoop_refactor_hidden_top_level_init_bridge__")
+                || line.contains("__scoop_priv0__"))
+    })
+}
+
 fn stable_id_emit_object_audit(prefix: &str, source: &SourceFile) -> StableIdObjectAudit {
     let dir = make_temp_dir(prefix);
     let output = dir.join("main.o");
@@ -473,6 +493,29 @@ fn stable_id_emit_object_audit(prefix: &str, source: &SourceFile) -> StableIdObj
 
     std::fs::remove_dir_all(&dir).unwrap();
     audit
+}
+
+fn maybe_function_ir_matching<F>(ir: &str, predicate: F) -> Option<&str>
+where
+    F: Fn(&str, &str) -> bool,
+{
+    for chunk in ir.split("\ndefine ").skip(1) {
+        let end = chunk.find("\n}").expect("expected end of function body") + 2;
+        let function = &chunk[..end];
+        let header = function.lines().next().expect("expected function header");
+        if predicate(header, function) {
+            return Some(function);
+        }
+    }
+    None
+}
+
+fn function_ir_matching<'ir, F>(ir: &'ir str, description: &str, predicate: F) -> &'ir str
+where
+    F: Fn(&str, &str) -> bool,
+{
+    maybe_function_ir_matching(ir, predicate)
+        .unwrap_or_else(|| panic!("expected function matching {description}"))
 }
 
 fn stable_id_repo_root() -> PathBuf {
@@ -612,13 +655,23 @@ fn stable_id_audit_external_symbol_classifier_distinguishes_roles() {
         stable_id_classify_external_symbol("a.helper", false),
         StableIdExternalSymbolRole::UserAbi
     );
+    let stable_user_abi = "__scoop_abi0_fun__a_helper__h0123456789abcdef0123456789abcdef";
+    assert!(stable_id_symbol_has_hash128_suffix(stable_user_abi));
+    assert_eq!(
+        stable_id_classify_external_symbol(stable_user_abi, false),
+        StableIdExternalSymbolRole::UserAbi
+    );
     for helper in [
         "__scoop_refactor_hidden_object_init_bridge__a.Boot",
         "__scoop_top_level_val_init__a.Seed",
         "scoop.lambda$0",
         "scoop.lambda_resume$0",
         "scoop.lambda_env$0",
+        "__scoop_priv0__closure_body__h0123456789abcdef0123456789abcdef",
     ] {
+        if helper.starts_with("__scoop_priv0__") {
+            assert!(stable_id_symbol_has_hash128_suffix(helper));
+        }
         assert_eq!(
             stable_id_classify_external_symbol(helper, false),
             StableIdExternalSymbolRole::CompilerPrivateHelper,
@@ -2059,7 +2112,15 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let object_init_ir = function_ir_named(&ir, "__scoop_object_init__a.BoomObject");
+    let object_init_ir = function_ir_matching(
+        &ir,
+        "compiler-private object init helper for BoomObject",
+        |header, function| {
+            !header.contains("@a.helper(")
+                && !header.contains("@main(")
+                && function.contains("@a.helper(")
+        },
+    );
 
     assert!(
         object_init_ir.contains("a.helper"),
@@ -2205,9 +2266,10 @@ fun main(): Int {
 
     let ir = module.print_to_string().to_string();
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_go__k0")
-            && ir.contains("@__scoop_refactor_continuation_layout__a_go__type_desc"),
-        "默认单文件 refactor path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor:\n{ir}"
+        ir.contains("surface_resume_owner_dispatch")
+            && ir.contains("continuation_layout")
+            && ir.contains("type_desc"),
+        "默认单文件 refactor path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor 家族，而不是把旧 kN/type-desc 拼写写死在测试里:\n{ir}"
     );
 }
 
@@ -2246,10 +2308,10 @@ fun main(): Int {
         "ordinary callee perform 应通过 refactor Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
     );
     assert!(
-        ir.contains("%scoop.refactor.StepCase__a_go__case0 = type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
-            && ir.contains(
-                "insertvalue %scoop.refactor.StepCase__a_go__case0 undef, { ptr addrspace(1), i64 }"
-            ),
+        ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
+            && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
+            && ir
+                .contains("insertvalue { ptr addrspace(1), i64 } %refactor_perform_payload_field0"),
         "multi-payload perform 应以内联 tuple payload 发布 refactor Step case，而不是丢参或回旧 boxing ABI\n{ir}"
     );
     assert!(
@@ -2404,7 +2466,10 @@ fun main(): Int {
         "state-machine perform 应通过 refactor Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
     );
     assert!(
-        ir.contains("StepCase__a_main__case0"),
+        ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
+            && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
+            && ir
+                .contains("insertvalue { ptr addrspace(1), i64 } %refactor_perform_payload_field0"),
         "state-machine multi-payload perform 应以内联 tuple payload 穿过 handle arm，而不是退回旧 boxing ABI\n{ir}"
     );
     assert!(
@@ -2412,19 +2477,19 @@ fun main(): Int {
         "state-machine handler binder lowering 应继续按 tuple payload 的两个字段读取 binder\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_main__k")
-            && ir.contains("@__scoop_refactor_surface_resume__k3"),
-        "Continuation.resume lowering 应改走 published surface-resume owner dispatch，而不是旧 runtime helper 入口\n{ir}"
+        ir.contains("refactor_resume_step = call %scoop.refactor.Step")
+            && ir.contains("surface_resume_owner_dispatch"),
+        "Continuation.resume lowering 应改走 published surface-resume path，而不是旧 runtime helper 入口\n{ir}"
     );
     let resume_idx = ir
-        .find("@__scoop_refactor_surface_resume__k3")
+        .find("refactor_resume_step = call %scoop.refactor.Step")
         .expect("expected published surface-resume call in emitted IR");
     let resume_window_start = resume_idx.saturating_sub(500);
     let resume_window_end = std::cmp::min(resume_idx + 2200, ir.len());
     let resume_window = &ir[resume_window_start..resume_window_end];
     assert!(
-        resume_window
-            .contains("extractvalue %scoop.refactor.Step__schema3 %refactor_resume_step, 0")
+        resume_window.contains("extractvalue %scoop.refactor.Step")
+            && resume_window.contains("%refactor_resume_step, 0")
             && resume_window.contains("br i1 %refactor_step_is_complete"),
         "surface-resume call return path 应继续按 Step tag dispatch，而不是回答案专用 helper\n{resume_window}"
     );
@@ -2525,15 +2590,15 @@ fn composed_continuation_resume_publishes_internal_outcome_surface_and_owner_cor
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_outcome__k")
-            && ir.contains("__scoop_refactor_surface_resume_owner_dispatch__main__k")
+        ir.contains("surface_resume_outcome")
+            && ir.contains("surface_resume_owner_dispatch")
             && ir.contains("__outcome")
             && ir.contains("__core"),
         "composed continuation resume 应发布 internal outcome surface / owner outcome wrapper / owner core，而不是只剩 shared Step_F surface:\n{ir}"
     );
 
     let outcome_idx = ir
-        .find("@__scoop_refactor_surface_resume_outcome__k")
+        .find("surface_resume_outcome")
         .expect("expected internal outcome surface in emitted IR");
     let outcome_window_end = std::cmp::min(outcome_idx + 2400, ir.len());
     let outcome_window = &ir[outcome_idx..outcome_window_end];
@@ -2558,7 +2623,7 @@ fn composed_continuation_resume_reconstructs_step_from_internal_outcome_path() {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("call void @__scoop_refactor_surface_resume_outcome__k")
+        ir.contains("surface_resume_outcome")
             && ir.contains("refactor_composed_resume_outcome_phi"),
         "composed call-boundary resume 应先调用 internal outcome surface，再由 caller 侧重建 Step dispatch\n{ir}"
     );
@@ -2871,9 +2936,8 @@ fun main(): Int {
     );
     assert!(
         entry_ir.contains("refactor_dynamic_funptr_fn = inttoptr i64")
-            && entry_ir.contains(
-                "refactor_dynamic_call_step = call %scoop.refactor.Step__schema2 %refactor_dynamic_funptr_fn(i64"
-            ),
+            && entry_ir.contains("refactor_dynamic_call_step = call %scoop.refactor.Step")
+            && entry_ir.contains("%refactor_dynamic_funptr_fn(i64"),
         "effectful FunPtr 调用应直接把 machine-word funptr 还原成 dynamic entry 并返回 Step，而不是回旧 call_funptr helper:\n{entry_ir}"
     );
 }
@@ -2926,12 +2990,12 @@ fun main(): Int {
 
     assert!(
         helper_ir.contains("load_vtable_fn")
-            && helper_ir.contains("call %scoop.refactor.Step__schema")
+            && helper_ir.contains("call %scoop.refactor.Step")
             && helper_ir.contains("switch i32 %refactor_step_tag"),
         "默认 virtual-cone path 的 outward vtable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
+        ir.contains("surface_resume_owner_dispatch"),
         "默认 virtual-cone path 的 outward vtable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
 }
@@ -2983,11 +3047,11 @@ fun main(): Int {
     assert!(
         helper_ir.contains("itable_lookup")
             && helper_ir.contains("load_itable_fn")
-            && helper_ir.contains("call %scoop.refactor.Step__schema"),
+            && helper_ir.contains("call %scoop.refactor.Step"),
         "默认 virtual-cone path 的 outward itable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_helper__k"),
+        ir.contains("surface_resume_owner_dispatch"),
         "默认 virtual-cone path 的 outward itable helper 应继续发布 authoritative surface-resume owner dispatch:\n{ir}"
     );
 }
@@ -3025,7 +3089,7 @@ fun main(): Int {
     let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("@__scoop_object_init__a.BoomObject")
+        stable_id_ir_contains_hidden_init_call(helper_ir)
             && !helper_ir.contains("switch i32 %refactor_step_tag"),
         "object value init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
@@ -3057,7 +3121,7 @@ fun main(): Int {
     let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("@__scoop_object_init__a.Holder")
+        stable_id_ir_contains_hidden_init_call(helper_ir)
             && !helper_ir.contains("switch i32 %refactor_step_tag"),
         "object property init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
@@ -3087,7 +3151,7 @@ fun main(): Int {
     let helper_ir = function_ir_named(&ir, "a.helper");
 
     assert!(
-        helper_ir.contains("@__scoop_top_level_val_init__a.Broken")
+        stable_id_ir_contains_hidden_init_call(helper_ir)
             && !helper_ir.contains("switch i32 %refactor_step_tag"),
         "top-level immutable init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
@@ -4026,7 +4090,15 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let lambda_ir = function_ir_named_any(&ir, &["@\"scoop.lambda$0\"(", "@\"a.main.$lambda0\"("]);
+    let lambda_ir = function_ir_matching(
+        &ir,
+        "closure body using concat in mapper",
+        |header, function| {
+            !header.contains("@main(")
+                && function.contains("@scoop_string_concat")
+                && function.contains("explicit_root_frame_slot_0")
+        },
+    );
     let alloc_idx = lambda_ir
         .find("@__scoop_type_desc_runtime__ScoopString")
         .expect("expected concat arg string allocation in closure IR");
@@ -4282,10 +4354,11 @@ fun main(): Int {
 
     assert!(
         go_ir.contains("refactor_outward_payload_reload_rebuild = alloca %a.Named")
-            && go_ir.contains("refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef")
             && go_ir.contains(
-                "refactor_step_payload_insert = insertvalue %scoop.refactor.StepCase__a_go__case0 undef, %a.Named %refactor_outward_payload_reload, 0"
-            ),
+                "refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef"
+            )
+            && go_ir.contains("refactor_step_payload_insert = insertvalue")
+            && go_ir.contains("%a.Named %refactor_outward_payload_reload, 0"),
         "refactor outward payload should rebuild a fresh aggregate before publishing Step payload\n{go_ir}"
     );
     assert!(
@@ -4581,8 +4654,9 @@ fun main(): Int {
         "effectful callable entry 应发布 direct-invoke descriptor global\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_desc____scoop_refactor_resume__a_go__case0")
-            && ir.contains("@__scoop_explicit_root_desc____scoop_refactor_surface_resume_owner_dispatch__a_go__k0"),
+        ir.contains("@__scoop_explicit_root_desc__")
+            && ir.contains("surface_resume_owner_dispatch")
+            && ir.contains("resume"),
         "effectful callable 的 resume/owner-dispatch 入口也应发布 explicit-root descriptors\n{ir}"
     );
 }
@@ -4929,6 +5003,41 @@ fn mir_fun_contains_fun_value_call(fun: &crate::mir::FunDecl) -> bool {
             )
         })
     })
+}
+
+#[test]
+fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests() {
+    let source = include_str!("tests.rs");
+
+    for needle in [
+        [
+            "helper_ir.contains(\"@__scoop_object_init__",
+            "a.BoomObject\")",
+        ]
+        .concat(),
+        ["helper_ir.contains(\"@__scoop_object_init__", "a.Holder\")"].concat(),
+        [
+            "helper_ir.contains(\"@__scoop_top_level_val_init__",
+            "a.Broken\")",
+        ]
+        .concat(),
+        ["find(\"@__scoop_refactor_surface_resume__", "k3\")"].concat(),
+        [
+            "contains(\"extractvalue %scoop.refactor.Step__",
+            "schema3 %refactor_resume_step, 0\")",
+        ]
+        .concat(),
+        [
+            "function_ir_named_any(&ir, &[\"@\\\"scoop.lambda$0\\\"(\", ",
+            "\"@\\\"a.main.$lambda0\\\"(\"])",
+        ]
+        .concat(),
+    ] {
+        assert!(
+            !source.contains(&needle),
+            "stable-id 行为测试不应继续锁死已知旧命名拼写: {needle}"
+        );
+    }
 }
 
 #[test]

@@ -792,10 +792,61 @@ fn intern_type_path(
 mod tests {
     use super::*;
 
+    fn assert_json_surface_stays_semantic_and_path_free(json: &str) {
+        for forbidden in [
+            "TypeId(",
+            "ClosureId(",
+            "SourceId(",
+            "ConeId(",
+            "SymbolId(",
+            "BasicBlockId(",
+            "LocalId(",
+            "SiteId(",
+            "StepSchemaId(",
+            "ContinuationSchemaId(",
+            "CaseTag(",
+            "source_path",
+            "decl_span",
+            "/Users/",
+            env!("CARGO_MANIFEST_DIR"),
+        ] {
+            assert!(
+                !json.contains(forbidden),
+                "healthy PRE_SPECIALIZE schema surface 不应泄漏 dense id/path 文本: {forbidden}\n{json}"
+            );
+        }
+    }
+
     #[test]
     fn parse_fun_instance_spec_supports_nested_generics() {
         let (fqn, args) = parse_fun_instance_spec("a.b.f<Map<String, Int>>").unwrap();
         assert_eq!(fqn, "a.b.f");
         assert_eq!(args, vec!["Map<String, Int>"]);
+    }
+
+    #[test]
+    fn pre_specialize_json_baseline_stays_semantic_and_path_free() {
+        let file = ConePreSpecializeFile::new_v0(
+            vec![PreSpecializedFunInstance {
+                key: PreSpecializedFunKey {
+                    fqn: "a.id".to_string(),
+                    type_args: vec!["a.Token".to_string()],
+                },
+                instance_fqn: "a.id::<a.Token>".to_string(),
+                mir_debug: "FunDecl(name = a.id::<a.Token>)".to_string(),
+            }],
+            vec![PreSpecializedTypeInstance {
+                key: PreSpecializedTypeKey {
+                    fqn: "a.Box".to_string(),
+                    type_args: vec!["a.Token".to_string()],
+                },
+                instance_fqn: "a.Box::<a.Token>".to_string(),
+            }],
+        );
+
+        let json = serde_json::to_string_pretty(&file).unwrap();
+        assert!(json.contains("\"fqn\": \"a.id\""));
+        assert!(json.contains("\"instance_fqn\": \"a.Box::<a.Token>\""));
+        assert_json_surface_stays_semantic_and_path_free(&json);
     }
 }
