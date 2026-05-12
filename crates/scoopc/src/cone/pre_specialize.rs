@@ -23,6 +23,7 @@ use crate::mir;
 use crate::resolve::{ConeId, Index, IndexedFile};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::stable_id::StableConeKey;
 use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
 };
@@ -339,8 +340,12 @@ pub fn build_pre_specialize_file_for_cone_sources(
         }
 
         let compilation_unit = [(source, file)];
+        let stable_cone_key = StableConeKey::from_manifest(manifest);
         let generic_template_symbol_suffixes =
-            hir::generic_template_symbol_suffixes_for_compilation_unit(&compilation_unit);
+            hir::generic_template_symbol_suffixes_for_compilation_unit(
+                &stable_cone_key,
+                &compilation_unit,
+            );
         let empty_known_receiver_subclasses =
             crate::devirtualize::KnownReceiverSubclassIndex::new();
         let empty_class_vtables = crate::vtable::ClassVtableIndex::new();

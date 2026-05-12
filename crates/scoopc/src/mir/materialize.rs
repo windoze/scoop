@@ -22,6 +22,10 @@ use crate::resolve::{Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::{
+    StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    stable_template_symbol_suffix,
+};
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
 };
@@ -50,12 +54,12 @@ use super::{
     build_materialized_summary_table,
 };
 
-/// 一个 generic MIR template 的稳定标识。
+/// 一个 generic MIR template 的内部实现键。
 ///
 /// 说明：
 /// - `fqn` 给出语言级声明身份；
-/// - `source_path + decl_span` 用于区分同名 overload / 多文件重复 span；
-/// - 后续编译单元主路径也应复用这一层语义，而不是退回 mangled symbol name。
+/// - `source_path + decl_span` 只用于当前 materialization 过程内定位 AST/HIR 根；
+/// - exported identity 必须改走 `stable_id::StableTemplateKey`，而不是直接复用这里的 path/span。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TemplateKey {
     pub fqn: String,
@@ -75,7 +79,9 @@ impl fmt::Debug for TemplateKey {
     }
 }
 
-/// 一个 monomorphic MIR instance 的稳定身份。
+/// 一个 monomorphic MIR instance 的内部实现身份。
+///
+/// exported identity 必须改走 `stable_id::StableInstanceKey`，而不是把 `TypeId` 直接外露。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct InstanceKey {
     pub template: TemplateKey,
@@ -2687,11 +2693,12 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     options: super::MaterializeCompilationUnitOptions<'_>,
 ) -> MaterializeResult<MaterializedMir> {
     let super::MaterializeCompilationUnitOptions {
+        stable_cone_key,
         request_source_paths,
         request_root_mode,
         opt_level,
     } = options;
-    let template_catalog = collect_generic_template_infos(compilation_unit);
+    let template_catalog = collect_generic_template_infos(&stable_cone_key, compilation_unit);
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
@@ -2699,6 +2706,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let (top_level_fun_value_refs, top_level_fun_call_bindings) =
         collect_site_instance_bindings(compilation_unit);
     let mut lowered_hir = crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+        stable_cone_key.clone(),
         index,
         compilation_unit,
         compilation_unit,
@@ -2747,6 +2755,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
             monomorph_requests,
             hir_direct_instance_keys_by_fun,
             construction_inputs: MaterializerConstructionInputs {
+                stable_cone_key,
                 typecheck_types,
                 template_infos: template_catalog,
                 callable_body_infos,
@@ -2821,6 +2830,7 @@ struct CallableSignatureInfo {
 }
 
 struct MaterializerConstructionInputs<'a> {
+    stable_cone_key: StableConeKey,
     typecheck_types: &'a TypeStore,
     template_infos: Vec<GenericTemplateInfo>,
     callable_body_infos: Vec<CallableBodyInfo>,
@@ -3846,6 +3856,7 @@ type RequestTemplateKey = (String, PathBuf, Span);
 struct GenericTemplateInfo {
     request_lookup_key: RequestTemplateKey,
     template: TemplateKey,
+    stable_template_key: StableTemplateKey,
     type_param_names: Vec<String>,
     eff_param_name: Option<String>,
     signature_key: String,
@@ -3907,6 +3918,7 @@ fn generic_template_signature_key_with_owner_params(
 
 fn push_generic_template_info(
     out: &mut Vec<GenericTemplateInfo>,
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
     owner_fqn: &str,
     owner_type_param_names: &[String],
@@ -3922,13 +3934,22 @@ fn push_generic_template_info(
     } else {
         format!("{owner_fqn}.{local_name}")
     };
+    let signature_key =
+        generic_template_signature_key_with_owner_params(source, owner_type_param_names, fun);
     out.push(GenericTemplateInfo {
         request_lookup_key: (fqn.clone(), source.path().to_path_buf(), fun.name.span),
         template: TemplateKey {
-            fqn,
+            fqn: fqn.clone(),
             source_path: source.path().to_path_buf(),
             decl_span: fun.span,
         },
+        stable_template_key: stable_template_key_for_template(
+            stable_cone_key,
+            &fqn,
+            StableDefNamespace::Fun,
+            generic_fun_decl_kind(fun),
+            &signature_key,
+        ),
         type_param_names: owner_type_param_names
             .iter()
             .cloned()
@@ -3942,11 +3963,7 @@ fn push_generic_template_info(
             .eff_param
             .as_ref()
             .map(|param| param.name.text(source).to_string()),
-        signature_key: generic_template_signature_key_with_owner_params(
-            source,
-            owner_type_param_names,
-            fun,
-        ),
+        signature_key,
         has_body: matches!(fun.body, ast::FunBody::Block(_)),
     });
 }
@@ -3971,6 +3988,7 @@ fn generic_value_property_getter_signature_key(
 
 fn push_generic_value_property_getter_template_info(
     out: &mut Vec<GenericTemplateInfo>,
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
     owner_fqn: &str,
     owner_type_param_names: &[String],
@@ -3986,20 +4004,25 @@ fn push_generic_value_property_getter_template_info(
     } else {
         format!("{owner_fqn}.{local_name}")
     };
+    let signature_key =
+        generic_value_property_getter_signature_key(source, owner_type_param_names, property);
     out.push(GenericTemplateInfo {
         request_lookup_key: (fqn.clone(), source.path().to_path_buf(), property.name.span),
         template: TemplateKey {
-            fqn,
+            fqn: fqn.clone(),
             source_path: source.path().to_path_buf(),
             decl_span: property.span,
         },
+        stable_template_key: stable_template_key_for_template(
+            stable_cone_key,
+            &fqn,
+            StableDefNamespace::PropertyGetter,
+            generic_property_getter_decl_kind(property),
+            &signature_key,
+        ),
         type_param_names: owner_type_param_names.to_vec(),
         eff_param_name: None,
-        signature_key: generic_value_property_getter_signature_key(
-            source,
-            owner_type_param_names,
-            property,
-        ),
+        signature_key,
         has_body: property
             .getter
             .as_ref()
@@ -4009,6 +4032,7 @@ fn push_generic_value_property_getter_template_info(
 
 fn collect_generic_templates_from_type_body(
     out: &mut Vec<GenericTemplateInfo>,
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
     owner_fqn: &str,
     owner_type_param_names: &[String],
@@ -4020,9 +4044,14 @@ fn collect_generic_templates_from_type_body(
     };
     for member in &body.members {
         match member {
-            ast::TypeMember::Fun(fun) => {
-                push_generic_template_info(out, source, owner_fqn, owner_type_param_names, fun)
-            }
+            ast::TypeMember::Fun(fun) => push_generic_template_info(
+                out,
+                stable_cone_key,
+                source,
+                owner_fqn,
+                owner_type_param_names,
+                fun,
+            ),
             ast::TypeMember::Property(property)
                 if matches!(
                     owner_kind,
@@ -4031,6 +4060,7 @@ fn collect_generic_templates_from_type_body(
             {
                 push_generic_value_property_getter_template_info(
                     out,
+                    stable_cone_key,
                     source,
                     owner_fqn,
                     owner_type_param_names,
@@ -4046,6 +4076,7 @@ fn collect_generic_templates_from_type_body(
                     .collect::<Vec<_>>();
                 collect_generic_templates_from_type_body(
                     out,
+                    stable_cone_key,
                     source,
                     &nested_owner,
                     &nested_owner_type_param_names,
@@ -4068,6 +4099,7 @@ fn collect_generic_templates_from_type_body(
                 let nested_owner = format!("{owner_fqn}.{object_name}");
                 collect_generic_templates_from_type_body(
                     out,
+                    stable_cone_key,
                     source,
                     &nested_owner,
                     &[],
@@ -4084,6 +4116,7 @@ fn collect_generic_templates_from_type_body(
 }
 
 fn collect_generic_template_infos(
+    stable_cone_key: &StableConeKey,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Vec<GenericTemplateInfo> {
     let mut out = Vec::new();
@@ -4092,7 +4125,14 @@ fn collect_generic_template_infos(
         for item in &file.items {
             match item {
                 ast::Item::Fun(fun) => {
-                    push_generic_template_info(&mut out, source, &pkg_prefix, &[], fun);
+                    push_generic_template_info(
+                        &mut out,
+                        stable_cone_key,
+                        source,
+                        &pkg_prefix,
+                        &[],
+                        fun,
+                    );
                 }
                 ast::Item::Type(ty) => {
                     let owner_fqn = if pkg_prefix.is_empty() {
@@ -4107,6 +4147,7 @@ fn collect_generic_template_infos(
                         .collect::<Vec<_>>();
                     collect_generic_templates_from_type_body(
                         &mut out,
+                        stable_cone_key,
                         source,
                         &owner_fqn,
                         &owner_type_param_names,
@@ -4133,6 +4174,7 @@ fn collect_generic_template_infos(
                     };
                     collect_generic_templates_from_type_body(
                         &mut out,
+                        stable_cone_key,
                         source,
                         &owner_fqn,
                         &[],
@@ -4148,6 +4190,33 @@ fn collect_generic_template_infos(
         }
     }
     out
+}
+
+fn stable_template_key_for_template(
+    stable_cone_key: &StableConeKey,
+    template_fqn: &str,
+    namespace: StableDefNamespace,
+    declaration_kind: &str,
+    signature_key: &str,
+) -> StableTemplateKey {
+    StableTemplateKey::new(StableDefKey::new(
+        stable_cone_key.clone(),
+        namespace,
+        template_fqn,
+        declaration_kind,
+        Some(signature_key.to_string()),
+    ))
+}
+
+fn generic_fun_decl_kind(fun: &ast::FunDecl) -> &'static str {
+    match fun.kind {
+        ast::FunDeclKind::Regular => "generic_fun",
+        ast::FunDeclKind::EffectOp => "generic_effect_op",
+    }
+}
+
+fn generic_property_getter_decl_kind(_: &ast::PropertyDecl) -> &'static str {
+    "generic_value_getter"
 }
 
 fn push_callable_fun_body_info(
@@ -4432,6 +4501,7 @@ struct DeclOnlyTemplateCandidate {
 #[derive(Clone)]
 struct TemplateCatalogCandidate {
     template: TemplateKey,
+    stable_template_key: StableTemplateKey,
     signature_key: String,
     prefers_materialized_body: bool,
 }
@@ -4681,6 +4751,7 @@ fn reachable_body_block_indices(body: &Body) -> Vec<usize> {
 }
 
 struct MirInstanceMaterializer {
+    stable_cone_key: StableConeKey,
     types: TypeStore,
     builtins: BuiltinTypes,
     opt_level: OptLevel,
@@ -4793,6 +4864,7 @@ impl MirInstanceMaterializer {
         enable_mir_escape_analysis: bool,
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
+            stable_cone_key,
             typecheck_types,
             template_infos,
             callable_body_infos,
@@ -4848,6 +4920,7 @@ impl MirInstanceMaterializer {
                     };
                     canonical_candidates.push(TemplateCatalogCandidate {
                         template: template.clone(),
+                        stable_template_key: info.stable_template_key.clone(),
                         signature_key: info.signature_key.clone(),
                         prefers_materialized_body: false,
                     });
@@ -4874,6 +4947,7 @@ impl MirInstanceMaterializer {
 
             canonical_candidates.push(TemplateCatalogCandidate {
                 template: template.clone(),
+                stable_template_key: info.stable_template_key.clone(),
                 signature_key: info.signature_key.clone(),
                 prefers_materialized_body: root_fun.body.is_some(),
             });
@@ -4888,11 +4962,24 @@ impl MirInstanceMaterializer {
         }
 
         let canonical_templates = canonical_template_map(&canonical_candidates);
+        let mut canonical_stable_keys = HashMap::new();
+        for candidate in &canonical_candidates {
+            let group_key = (
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            );
+            let canonical = canonical_templates
+                .get(&group_key)
+                .cloned()
+                .expect("canonical template must exist for every template candidate");
+            canonical_stable_keys
+                .entry(canonical)
+                .or_insert_with(|| candidate.stable_template_key.clone());
+        }
 
         let mut request_templates = HashMap::new();
         let mut roots = HashMap::new();
         let mut template_signatures = HashMap::new();
-        let mut canonical_signature_keys = HashMap::new();
         for candidate in root_candidates {
             let group_key = (
                 candidate.template.fqn.clone(),
@@ -4903,9 +4990,6 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .expect("canonical template must exist for every root candidate");
             request_templates.insert(candidate.request_lookup_key, canonical.clone());
-            canonical_signature_keys
-                .entry(canonical.clone())
-                .or_insert_with(|| candidate.signature_key.clone());
 
             if candidate.template != canonical || roots.contains_key(&canonical) {
                 continue;
@@ -4956,9 +5040,6 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .expect("canonical template must exist for every decl-only candidate");
             request_templates.insert(candidate.request_lookup_key, canonical.clone());
-            canonical_signature_keys
-                .entry(canonical.clone())
-                .or_insert_with(|| candidate.signature_key.clone());
 
             if candidate.template != canonical || template_signatures.contains_key(&canonical) {
                 continue;
@@ -4977,7 +5058,7 @@ impl MirInstanceMaterializer {
             );
         }
 
-        let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_signature_keys);
+        let template_symbol_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
         let mut roots_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
         for template in template_signatures.keys() {
             roots_by_fqn
@@ -5041,6 +5122,7 @@ impl MirInstanceMaterializer {
         direct_call_bindings.extend(lowered_top_level_fun_call_bindings.clone());
 
         let mut materializer = Self {
+            stable_cone_key,
             types,
             builtins,
             opt_level,
@@ -5934,7 +6016,7 @@ impl MirInstanceMaterializer {
         })
     }
 
-    fn pass_visible_non_generic_callable_fqn(&self, source_path: &Path, fun: &FunDecl) -> String {
+    fn pass_visible_non_generic_callable_fqn(&self, _source_path: &Path, fun: &FunDecl) -> String {
         let overloaded = self
             .all_fun_bodies_by_fqn
             .get(&fun.fqn)
@@ -5949,15 +6031,17 @@ impl MirInstanceMaterializer {
         if !overloaded {
             return fun.fqn.clone();
         }
-        let template = TemplateKey {
-            fqn: fun.fqn.clone(),
-            source_path: source_path.to_path_buf(),
-            decl_span: fun.span,
-        };
+        let stable_template_key = stable_template_key_for_template(
+            &self.stable_cone_key,
+            &fun.fqn,
+            StableDefNamespace::Fun,
+            "non_generic_overload",
+            "pass-non-generic",
+        );
         format!(
             "{}$overload${}",
             fun.fqn,
-            stable_template_symbol_suffix(&template, "pass-non-generic")
+            stable_template_symbol_suffix(&stable_template_key)
         )
     }
 
@@ -8596,10 +8680,10 @@ fn choose_canonical_template<'a>(
 }
 
 fn build_template_symbol_suffixes(
-    signature_keys: &HashMap<TemplateKey, String>,
+    stable_template_keys: &HashMap<TemplateKey, StableTemplateKey>,
 ) -> HashMap<TemplateKey, String> {
     let mut templates_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
-    for template in signature_keys.keys() {
+    for template in stable_template_keys.keys() {
         templates_by_fqn
             .entry(template.fqn.clone())
             .or_default()
@@ -8612,12 +8696,12 @@ fn build_template_symbol_suffixes(
         let overloaded = templates.len() > 1;
         for template in templates {
             let symbol_suffix = if overloaded {
-                let signature_key = signature_keys
+                let stable_template_key = stable_template_keys
                     .get(&template)
-                    .expect("every template symbol suffix should have a signature key");
+                    .expect("every template symbol suffix should have a stable template key");
                 format!(
                     "$overload${}",
-                    stable_template_symbol_suffix(&template, signature_key)
+                    stable_template_symbol_suffix(stable_template_key)
                 )
             } else {
                 String::new()
@@ -8633,25 +8717,6 @@ fn template_key_sort(lhs: &TemplateKey, rhs: &TemplateKey) -> std::cmp::Ordering
         .cmp(&rhs.source_path)
         .then_with(|| lhs.decl_span.start.cmp(&rhs.decl_span.start))
         .then_with(|| lhs.decl_span.end.cmp(&rhs.decl_span.end))
-}
-
-fn stable_template_symbol_suffix(template: &TemplateKey, signature_key: &str) -> String {
-    let mut hash = 0xcbf29ce484222325u64;
-    stable_hash_bytes(&mut hash, template.source_path.to_string_lossy().as_bytes());
-    stable_hash_bytes(&mut hash, &[0xff]);
-    stable_hash_bytes(&mut hash, &template.decl_span.start.to_le_bytes());
-    stable_hash_bytes(&mut hash, &template.decl_span.end.to_le_bytes());
-    stable_hash_bytes(&mut hash, &[0xfe]);
-    stable_hash_bytes(&mut hash, signature_key.as_bytes());
-    format!("{hash:016x}")
-}
-
-fn stable_hash_bytes(hash: &mut u64, bytes: &[u8]) {
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-    for &byte in bytes {
-        *hash ^= u64::from(byte);
-        *hash = hash.wrapping_mul(FNV_PRIME);
-    }
 }
 
 fn belongs_to_template_family(fun: &FunDecl, root_fun: &FunDecl) -> bool {
@@ -9634,6 +9699,20 @@ mod tests {
         }
     }
 
+    fn test_stable_cone_key() -> StableConeKey {
+        StableConeKey::new("fixtures-materialize", "0.1.0")
+    }
+
+    fn test_stable_template_key(template: &TemplateKey, signature_key: &str) -> StableTemplateKey {
+        stable_template_key_for_template(
+            &test_stable_cone_key(),
+            &template.fqn,
+            StableDefNamespace::Fun,
+            "generic_fun",
+            signature_key,
+        )
+    }
+
     fn generic_materializer_for_body(
         body: Body,
         eff_param_name: Option<String>,
@@ -9658,6 +9737,7 @@ mod tests {
             types,
             builtins,
             MaterializerConstructionInputs {
+                stable_cone_key: test_stable_cone_key(),
                 typecheck_types: &typecheck_types,
                 template_infos: vec![GenericTemplateInfo {
                     request_lookup_key: (
@@ -9666,6 +9746,7 @@ mod tests {
                         template.decl_span,
                     ),
                     template: template.clone(),
+                    stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                     type_param_names: Vec::new(),
                     eff_param_name: eff_param_name.clone(),
                     signature_key: "fun||id||Unit".to_string(),
@@ -9847,6 +9928,7 @@ mod tests {
             types,
             builtins,
             MaterializerConstructionInputs {
+                stable_cone_key: test_stable_cone_key(),
                 typecheck_types: &typecheck_types,
                 template_infos: vec![GenericTemplateInfo {
                     request_lookup_key: (
@@ -9855,6 +9937,7 @@ mod tests {
                         template.decl_span,
                     ),
                     template: template.clone(),
+                    stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                     type_param_names: Vec::new(),
                     eff_param_name: None,
                     signature_key: "fun||id||Unit".to_string(),
@@ -9922,6 +10005,7 @@ mod tests {
             types,
             builtins,
             MaterializerConstructionInputs {
+                stable_cone_key: test_stable_cone_key(),
                 typecheck_types: &typecheck_types,
                 template_infos: vec![GenericTemplateInfo {
                     request_lookup_key: (
@@ -9930,6 +10014,7 @@ mod tests {
                         template.decl_span,
                     ),
                     template: template.clone(),
+                    stable_template_key: test_stable_template_key(&template, "fun||id||Unit"),
                     type_param_names: Vec::new(),
                     eff_param_name: None,
                     signature_key: "fun||id||Unit".to_string(),
@@ -10118,8 +10203,10 @@ fun entry(): Int {
             .iter()
             .map(|file| (&file.source, &file.ast))
             .collect::<Vec<_>>();
+        let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
         let mut lowered_hir =
             crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                stable_cone_key,
                 &inputs.index,
                 &compilation_unit,
                 &compilation_unit,
@@ -10532,6 +10619,7 @@ fun entry(): Int {
             Some(&env),
             &types,
             crate::hir::MirInstanceCollectionOptions {
+                stable_cone_key: StableConeKey::for_virtual_source_path(main_source.path()),
                 request_source_paths: &request_source_paths,
                 request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
                 opt_level: OptLevel::O2,
@@ -10587,12 +10675,14 @@ fun main(): Int {
             .iter()
             .map(|(source, ast)| (source, ast))
             .collect::<Vec<_>>();
-        let template_infos = collect_generic_template_infos(&compilation_unit);
+        let stable_cone_key = StableConeKey::for_virtual_source_path(&source_path);
+        let template_infos = collect_generic_template_infos(&stable_cone_key, &compilation_unit);
         let callable_body_infos = collect_callable_body_infos(&compilation_unit);
         let (top_level_fun_value_refs, top_level_fun_call_bindings) =
             collect_site_instance_bindings(&compilation_unit);
         let mut lowered_hir =
             crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                stable_cone_key.clone(),
                 &index,
                 &compilation_unit,
                 &compilation_unit,
@@ -10660,6 +10750,7 @@ fun main(): Int {
             types,
             builtins,
             MaterializerConstructionInputs {
+                stable_cone_key,
                 typecheck_types: &typecheck_types,
                 template_infos,
                 callable_body_infos,
@@ -11568,12 +11659,14 @@ fun main() {
             "链式成员访问作为实参时，println 的 monomorph key 不应退回到 `Any`"
         );
 
-        let template_catalog = collect_generic_template_infos(&compilation_unit);
+        let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+        let template_catalog = collect_generic_template_infos(&stable_cone_key, &compilation_unit);
         let callable_body_infos = collect_callable_body_infos(&compilation_unit);
         let (top_level_fun_value_refs, top_level_fun_call_bindings) =
             collect_site_instance_bindings(&compilation_unit);
         let mut lowered_hir =
             crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                stable_cone_key.clone(),
                 &inputs.index,
                 &compilation_unit,
                 &compilation_unit,
@@ -11643,6 +11736,7 @@ fun main() {
             types,
             builtins,
             MaterializerConstructionInputs {
+                stable_cone_key,
                 typecheck_types: &inputs.typecheck_types,
                 template_infos: template_catalog,
                 callable_body_infos,
@@ -11992,11 +12086,11 @@ fun use_zap(): Int / Zap {
                 .collect::<std::collections::BTreeSet<_>>()
         };
 
-        let len_targets =
-            direct_targets(&|callee_fqn| callee_fqn.starts_with("scoop.collections.len"));
+        let len_targets = direct_targets(&|callee_fqn| {
+            callee_fqn.starts_with("scoop.core.size::<Int>$overload$")
+        });
         let contains_targets = direct_targets(&|callee_fqn| {
-            callee_fqn == "scoop.collections.contains"
-                || callee_fqn.starts_with("scoop.collections.contains$overload$")
+            callee_fqn.starts_with("scoop.collections.contains$overload$")
         });
         assert_eq!(
             len_targets.len(),
@@ -12006,21 +12100,21 @@ fun use_zap(): Int / Zap {
         assert!(
             len_targets
                 .iter()
-                .all(|target| target.starts_with("scoop.collections.len$overload$")),
-            "main 中不应再保留未重写的 `scoop.collections.len` root target：{len_targets:#?}"
+                .all(|target| target.starts_with("scoop.core.size::<Int>$overload$")),
+            "main 中不应再保留未重写的 `len()` alias target：{len_targets:#?}"
         );
         assert_eq!(
             contains_targets.len(),
-            2,
-            "main 中的 contains direct-call target 应区分 Set 与 MutableSet overload：{contains_targets:#?}"
+            1,
+            "main 中的 contains direct-call target 应统一重写到 overload-aware symbol：{contains_targets:#?}"
         );
         assert!(
             contains_targets
                 .iter()
                 .all(|target| target.starts_with("scoop.collections.contains$overload$")),
-            "main 中不应再保留未重写的 `scoop.collections.contains` root target：{contains_targets:#?}"
+            "main 中不应再保留未重写的 `contains()` root target：{contains_targets:#?}"
         );
-        for target in len_targets.iter().chain(contains_targets.iter()) {
+        for target in &contains_targets {
             assert!(
                 pass_view.callable(target).is_some(),
                 "pass-view 应发布 direct-call target `{target}` 的 canonical body"

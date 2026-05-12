@@ -6,11 +6,10 @@
 
 use std::collections::HashMap;
 
-use sha2::{Digest, Sha256};
-
 use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::{StableHashScope, stable_hash64};
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
@@ -775,11 +774,7 @@ impl<'a> HirLowering<'a> {
 
     fn synthetic_top_level_pattern_base_name(&self, span: Span) -> String {
         let source_key = self.source.path().display().to_string();
-        let digest = Sha256::digest(source_key.as_bytes());
-        let bytes: [u8; 8] = digest[0..8]
-            .try_into()
-            .expect("sha256 output should contain 8 bytes");
-        let source_hash = u64::from_le_bytes(bytes);
+        let source_hash = stable_hash64(StableHashScope::PrivateV0, &source_key);
         format!(
             "__top_level_pattern_{source_hash:016x}_{}_{}",
             span.start, span.end

@@ -12,6 +12,10 @@ use crate::mir::{InstanceKey, TemplateKey};
 use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::{
+    StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    stable_template_symbol_suffix,
+};
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -3645,6 +3649,7 @@ struct TemplateSymbolCandidate {
     template: TemplateKey,
     signature_key: String,
     prefers_materialized_body: bool,
+    stable_template_key: StableTemplateKey,
 }
 
 fn normalize_sig_piece(s: &str) -> String {
@@ -3719,10 +3724,10 @@ fn generic_value_property_getter_signature_key(
 }
 
 fn build_template_symbol_suffixes(
-    signature_keys: &HashMap<TemplateKey, String>,
+    stable_template_keys: &HashMap<TemplateKey, StableTemplateKey>,
 ) -> GenericTemplateSymbolSuffixIndex {
     let mut templates_by_fqn: HashMap<String, Vec<TemplateKey>> = HashMap::new();
-    for template in signature_keys.keys() {
+    for template in stable_template_keys.keys() {
         templates_by_fqn
             .entry(template.fqn.clone())
             .or_default()
@@ -3735,12 +3740,12 @@ fn build_template_symbol_suffixes(
         let overloaded = templates.len() > 1;
         for template in templates {
             let symbol_suffix = if overloaded {
-                let signature_key = signature_keys
+                let stable_template_key = stable_template_keys
                     .get(&template)
-                    .expect("every overloaded generic template should have a signature key");
+                    .expect("every overloaded generic template should have a stable template key");
                 format!(
                     "$overload${}",
-                    stable_template_symbol_suffix(&template, signature_key)
+                    stable_template_symbol_suffix(stable_template_key)
                 )
             } else {
                 String::new()
@@ -3758,25 +3763,6 @@ fn template_key_sort(lhs: &TemplateKey, rhs: &TemplateKey) -> std::cmp::Ordering
         .then_with(|| lhs.decl_span.end.cmp(&rhs.decl_span.end))
 }
 
-fn stable_template_symbol_suffix(template: &TemplateKey, signature_key: &str) -> String {
-    let mut hash = 0xcbf29ce484222325u64;
-    stable_hash_bytes(&mut hash, template.source_path.to_string_lossy().as_bytes());
-    stable_hash_bytes(&mut hash, &[0xff]);
-    stable_hash_bytes(&mut hash, &template.decl_span.start.to_le_bytes());
-    stable_hash_bytes(&mut hash, &template.decl_span.end.to_le_bytes());
-    stable_hash_bytes(&mut hash, &[0xfe]);
-    stable_hash_bytes(&mut hash, signature_key.as_bytes());
-    format!("{hash:016x}")
-}
-
-fn stable_hash_bytes(hash: &mut u64, bytes: &[u8]) {
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-    for &byte in bytes {
-        *hash ^= u64::from(byte);
-        *hash = hash.wrapping_mul(FNV_PRIME);
-    }
-}
-
 pub(super) struct ExplicitGenericMemberInstantiationInputs<'a> {
     pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub instance_keys: &'a [InstanceKey],
@@ -3786,6 +3772,7 @@ pub(super) struct ExplicitGenericMemberInstantiationInputs<'a> {
     pub typecheck_types: Option<&'a TypeStore>,
     pub types: &'a mut TypeStore,
     pub builtins: BuiltinTypes,
+    pub stable_cone_key: &'a StableConeKey,
 }
 
 pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
@@ -3800,6 +3787,7 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
         typecheck_types,
         types,
         builtins,
+        stable_cone_key,
     } = inputs;
 
     if instance_keys.is_empty() {
@@ -3811,7 +3799,10 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(compilation_unit);
+        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            stable_cone_key,
+            compilation_unit,
+        );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
     let known_receiver_subclasses =
         crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
@@ -5049,6 +5040,7 @@ pub(super) struct GenericFunInstantiationInputs<'a> {
     pub typecheck_types: &'a TypeStore,
     pub initial_items: &'a [super::super::Item],
     pub initial_member_funs: &'a [super::super::FunDecl],
+    pub stable_cone_key: &'a StableConeKey,
 }
 
 pub(super) fn collect_generic_fun_instantiations(
@@ -5064,6 +5056,7 @@ pub(super) fn collect_generic_fun_instantiations(
         typecheck_types,
         initial_items,
         initial_member_funs,
+        stable_cone_key,
     } = inputs;
 
     if monomorph_keys.is_empty() && initial_items.is_empty() && initial_member_funs.is_empty() {
@@ -5104,7 +5097,10 @@ pub(super) fn collect_generic_fun_instantiations(
         return Vec::new();
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(compilation_unit);
+        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            stable_cone_key,
+            compilation_unit,
+        );
     let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
     let empty_interfaces = crate::itable::InterfaceIndex::new();
@@ -5315,6 +5311,7 @@ pub(super) struct ExplicitGenericFunInstantiationInputs<'a> {
     pub types: &'a mut TypeStore,
     pub builtins: BuiltinTypes,
     pub typecheck_types: &'a TypeStore,
+    pub stable_cone_key: &'a StableConeKey,
 }
 
 pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
@@ -5329,6 +5326,7 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
         types,
         builtins,
         typecheck_types,
+        stable_cone_key,
     } = inputs;
 
     if instance_keys.is_empty() {
@@ -5340,7 +5338,10 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(compilation_unit);
+        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            stable_cone_key,
+            compilation_unit,
+        );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
     let known_receiver_subclasses =
         crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
@@ -5475,10 +5476,28 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
 pub(super) fn collect_generic_template_symbol_suffixes(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
+    let stable_cone_key = virtual_stable_cone_key_for_compilation_unit(compilation_unit);
+    collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        &stable_cone_key,
+        compilation_unit,
+    )
+}
+
+pub(super) fn collect_generic_template_symbol_suffixes_with_stable_cone_key(
+    stable_cone_key: &StableConeKey,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> GenericTemplateSymbolSuffixIndex {
     let mut candidates = Vec::new();
 
     for (template, info) in collect_explicit_top_level_generic_fun_templates(compilation_unit) {
         candidates.push(TemplateSymbolCandidate {
+            stable_template_key: stable_template_key_for_template(
+                stable_cone_key,
+                &template,
+                StableDefNamespace::Fun,
+                generic_fun_decl_kind(info.fun),
+                &info.signature_key,
+            ),
             template,
             signature_key: info.signature_key,
             prefers_materialized_body: info.has_body,
@@ -5486,19 +5505,40 @@ pub(super) fn collect_generic_template_symbol_suffixes(
     }
 
     for (template, info) in collect_explicit_member_templates(compilation_unit) {
-        let (signature_key, prefers_materialized_body) = match info {
+        let (signature_key, prefers_materialized_body, stable_template_key) = match info {
             ExplicitMemberTemplate::Fun {
+                fun,
                 signature_key,
                 has_body,
                 ..
+            } => {
+                let stable_template_key = stable_template_key_for_template(
+                    stable_cone_key,
+                    &template,
+                    StableDefNamespace::Fun,
+                    generic_fun_decl_kind(fun),
+                    &signature_key,
+                );
+                (signature_key, has_body, stable_template_key)
             }
-            | ExplicitMemberTemplate::Getter {
+            ExplicitMemberTemplate::Getter {
+                property,
                 signature_key,
                 has_body,
                 ..
-            } => (signature_key, has_body),
+            } => {
+                let stable_template_key = stable_template_key_for_template(
+                    stable_cone_key,
+                    &template,
+                    StableDefNamespace::PropertyGetter,
+                    generic_property_getter_decl_kind(property),
+                    &signature_key,
+                );
+                (signature_key, has_body, stable_template_key)
+            }
         };
         candidates.push(TemplateSymbolCandidate {
+            stable_template_key,
             template,
             signature_key,
             prefers_materialized_body,
@@ -5506,7 +5546,7 @@ pub(super) fn collect_generic_template_symbol_suffixes(
     }
 
     let canonical_templates = canonical_template_map(&candidates);
-    let mut canonical_signature_keys = HashMap::new();
+    let mut canonical_stable_keys = HashMap::new();
     let mut aliases = HashMap::new();
     for candidate in candidates {
         let group_key = (
@@ -5517,13 +5557,13 @@ pub(super) fn collect_generic_template_symbol_suffixes(
             .get(&group_key)
             .cloned()
             .expect("every generic template candidate should resolve to a canonical template");
-        canonical_signature_keys
+        canonical_stable_keys
             .entry(canonical.clone())
-            .or_insert_with(|| candidate.signature_key.clone());
+            .or_insert_with(|| candidate.stable_template_key.clone());
         aliases.insert(candidate.template, canonical);
     }
 
-    let canonical_suffixes = build_template_symbol_suffixes(&canonical_signature_keys);
+    let canonical_suffixes = build_template_symbol_suffixes(&canonical_stable_keys);
     let mut out = HashMap::new();
     for (template, canonical) in aliases {
         out.insert(
@@ -5535,6 +5575,50 @@ pub(super) fn collect_generic_template_symbol_suffixes(
         );
     }
     out
+}
+
+fn virtual_stable_cone_key_for_compilation_unit(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> StableConeKey {
+    compilation_unit
+        .iter()
+        .find_map(|(source, _)| {
+            (!source.path().to_string_lossy().starts_with('<')).then_some(source)
+        })
+        .map(|source| StableConeKey::for_virtual_source_path(source.path()))
+        .or_else(|| {
+            compilation_unit
+                .first()
+                .map(|(source, _)| StableConeKey::for_virtual_source_path(source.path()))
+        })
+        .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"))
+}
+
+fn stable_template_key_for_template(
+    stable_cone_key: &StableConeKey,
+    template: &TemplateKey,
+    namespace: StableDefNamespace,
+    declaration_kind: &str,
+    signature_key: &str,
+) -> StableTemplateKey {
+    StableTemplateKey::new(StableDefKey::new(
+        stable_cone_key.clone(),
+        namespace,
+        &template.fqn,
+        declaration_kind,
+        Some(signature_key.to_string()),
+    ))
+}
+
+fn generic_fun_decl_kind(fun: &ast::FunDecl) -> &'static str {
+    match fun.kind {
+        ast::FunDeclKind::Regular => "generic_fun",
+        ast::FunDeclKind::EffectOp => "generic_effect_op",
+    }
+}
+
+fn generic_property_getter_decl_kind(_: &ast::PropertyDecl) -> &'static str {
+    "generic_value_getter"
 }
 
 fn canonical_template_map(

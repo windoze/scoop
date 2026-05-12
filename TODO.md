@@ -540,7 +540,7 @@
     - 对应 `PLAN.md` P1 / `STABLE_ID.md` §8.1、§9 Phase 1：仓库内已存在统一 `stable_id` 基础设施入口，后续 P2-P6 可以直接复用 canonical encoder、shared hash helper 与 dump label 基础 API。
     - 对应 `STABLE_ID.md` §7.1 / §7.2：canonical type/effect text 已覆盖 nominal、builtin ref/value、type param、function、tuple、union、effect row，并固定采用版本化 `SHA-256` 规则；未再让 pretty/path/span 文本承担 canonical 输入责任。
 
-### [TODO] P1-T02：落地 stable key / mangler / label API，并收口仓库内分叉 hash 实现
+### [DONE] P1-T02：落地 stable key / mangler / label API，并收口仓库内分叉 hash 实现
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P1
@@ -591,7 +591,47 @@
   - 后续命名 / linkage / RTTI / dump 任务不再需要自行定义 key / hash / mangling 规则。
 - 依赖：P1-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/frontend.rs`
+    - `crates/scoopc/src/hir/mod.rs`
+    - `crates/scoopc/src/hir/lower/mod.rs`
+    - `crates/scoopc/src/hir/lower/util.rs`
+    - `crates/scoopc/src/hir/lower/patterns.rs`
+    - `crates/scoopc/src/mir/mod.rs`
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/rtti/mod.rs`
+    - `crates/scoopc/src/rtti/type_desc.rs`
+    - `crates/scoopc/src/itable.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+    - `crates/scoopc/src/cone/pre_specialize.rs`
+    - `crates/scoopc/src/cone/scoopir/export.rs`
+    - `crates/scoopc/src/cone/scoopir/tests.rs`
+    - `crates/scoopc/src/cone/archive.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 在 `stable_id.rs` 中补齐统一 authoritative API：`StableCanonicalKey` / `StableSymbolKey` trait、`StableConeKey`、`StableDefKey`、`StableTemplateKey`、`StableInstanceKey`、`StableClosureKey`、`StableCallSiteKey`、`StableEffectSchemaKey`、`StableContinuationSchemaKey`、`StableBoundaryKey`、`StableStateKey`、`StableFrameSlotKey`、`AbiMangler`、`PrivateSymbolMangler`、`stable_local_label`，并新增 shared `stable_template_symbol_suffix` helper。
+    - `StableConeKey` 现在显式来源于 `Cone.toml` 的 `name/version`；build/frontend、`.cone` export、pre-specialize 等 manifest-aware 路径会传递真实 cone key，单文件 dump / 测试 helper 则使用“文件 stem + 0.0.0”的虚拟 cone key，避免再回退到 `ConeId` 或 checkout path。
+    - `StableTemplateKey` / `StableInstanceKey` 明确脱离 `TemplateKey { fqn, source_path, decl_span }` 与 `TypeId`：overload suffix 改为哈希 shared stable template key，实例 stable key 则基于 canonical type/effect text 构造；`TemplateKey` / `InstanceKey` 注释也改成“仅内部实现键”。
+    - RTTI / itable / LLVM codegen 里的分叉 `stable_hash64` 已全部删除，统一改走 `stable_hash64(StableHashScope::RttiV0, ...)`；`hir/lower/patterns.rs` 的 top-level pattern synthetic name 也改走 shared private hash helper，避免 `crates/scoopc/src` 内继续残留 ad hoc `Sha256::digest` 稳定性逻辑。
+    - HIR generic template suffix 与 MIR materialization 的 overload-aware suffix 现已统一复用 shared `stable_template_symbol_suffix`；与此对应的 manifest-aware call chain 也已打通到 `frontend`、`mir::materialize`、`cone::pre_specialize`、`cone::scoopir::export`。
+    - `.cone` 的 `SOURCES_SHA256` 继续保持原有内容哈希语义，但内部改为流式 hasher，避免与 stable-id 审计 grep 混淆。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc canonical_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 精确搜索摘要（`crates/scoopc/src`）：
+      - `fn stable_hash64`：仅剩 `crates/scoopc/src/stable_id.rs`
+      - `Sha256::digest`：0 命中
+      - `stable_template_symbol_suffix`：仅剩 shared helper、本轮两个调用点（`hir/lower/util.rs`、`mir/materialize.rs`）以及 stable-id 审计测试引用
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P1：仓库内已经存在后续 P2-P6 可复用的唯一 stable key / hash / mangler / local-label API，后续命名与 linkage 任务不必再自带一套规则。
+    - 对应 `STABLE_ID.md` §6 / §7.3 / §8.1：`StableConeKey` 已脱离 `ConeId`，`StableTemplateKey` / `StableInstanceKey` 已脱离 path/span 与 `TypeId` exported identity，ABI/private symbol 模式固定为 `__scoop_abi0_*__h<hash128>` / `__scoop_priv0__<role>__h<hash128>`，且 shared hash helper 已覆盖此前分叉实现与 overload suffix 来源。
 
 ### [TODO] P1-T02R：Review `stable_id` 基础设施，确认后续阶段已有唯一 authoritative API
 

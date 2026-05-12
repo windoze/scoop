@@ -36,6 +36,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::span::Span;
+use crate::stable_id::StableConeKey;
 use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
@@ -83,6 +84,7 @@ pub enum MaterializeRequestRootMode<'a> {
 }
 
 pub(crate) struct MaterializeCompilationUnitOptions<'a> {
+    pub stable_cone_key: StableConeKey,
     pub request_source_paths: &'a [std::path::PathBuf],
     pub request_root_mode: MaterializeRequestRootMode<'a>,
     pub opt_level: crate::opt::OptLevel,
@@ -98,6 +100,15 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     typecheck_types: &crate::ty::TypeStore,
     monomorph_requests: &[crate::monomorph::MonomorphRequest],
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
+    let stable_cone_key = request_source_paths
+        .first()
+        .map(|path| StableConeKey::for_virtual_source_path(path))
+        .or_else(|| {
+            compilation_unit
+                .first()
+                .map(|(source, _)| StableConeKey::for_virtual_source_path(source.path()))
+        })
+        .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"));
     materialize_compilation_unit_from_typechecked_inputs_with_options(
         compilation_unit,
         index,
@@ -105,6 +116,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         typecheck_types,
         monomorph_requests,
         MaterializeCompilationUnitOptions {
+            stable_cone_key,
             request_source_paths,
             request_root_mode: MaterializeRequestRootMode::RequestSources,
             opt_level: crate::opt::OptLevel::O0,
@@ -121,6 +133,15 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
     monomorph_requests: &[crate::monomorph::MonomorphRequest],
     opt_level: crate::opt::OptLevel,
 ) -> Result<MaterializedMir, Box<MirMaterializeError>> {
+    let stable_cone_key = request_source_paths
+        .first()
+        .map(|path| StableConeKey::for_virtual_source_path(path))
+        .or_else(|| {
+            compilation_unit
+                .first()
+                .map(|(source, _)| StableConeKey::for_virtual_source_path(source.path()))
+        })
+        .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"));
     materialize_compilation_unit_from_typechecked_inputs_with_options(
         compilation_unit,
         index,
@@ -128,6 +149,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
         typecheck_types,
         monomorph_requests,
         MaterializeCompilationUnitOptions {
+            stable_cone_key,
             request_source_paths,
             request_root_mode: MaterializeRequestRootMode::RequestSources,
             opt_level,

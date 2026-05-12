@@ -10,11 +10,13 @@ use std::collections::HashSet;
 use miette::Diagnostic;
 use thiserror::Error;
 
+use crate::cone::ConeManifest;
 use crate::hir::{Item as HirItem, LoweredHir};
 use crate::resolve::{Index, Visibility};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::StableConeKey;
 use crate::ty::{
     BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind,
     TypeParamType, TypeStore, UnionType, ValueTypeKind,
@@ -110,6 +112,7 @@ pub fn export_public_api_for_source(
 pub fn export_public_api_for_cone_sources(
     session: &Session,
     sources: &[SourceFile],
+    manifest: &ConeManifest,
 ) -> miette::Result<ScoopIrFile> {
     if sources.is_empty() {
         return Err(miette::miette!("导出 ScoopIR 失败：sources 为空"));
@@ -194,9 +197,16 @@ pub fn export_public_api_for_cone_sources(
 
     let mut all_types = Vec::new();
     let mut all_funs = Vec::new();
+    let stable_cone_key = StableConeKey::from_manifest(manifest);
     for (source, ast) in sources.iter().zip(asts.iter()) {
-        let hir = crate::hir::lower_for_compilation_unit(source, ast, &index, &pairs)
-            .map_err(miette::Report::from)?;
+        let hir = crate::hir::lower_for_compilation_unit_with_stable_cone_key(
+            stable_cone_key.clone(),
+            source,
+            ast,
+            &index,
+            &pairs,
+        )
+        .map_err(miette::Report::from)?;
         let ir = export_public_api_for_source(source, &index, &env, &hir)
             .map_err(|err| miette::Report::from(*err))?;
 

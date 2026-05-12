@@ -50,7 +50,6 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
-use sha2::{Digest as _, Sha256};
 
 use crate::ast;
 use crate::effect::state_machine::CalleeSuspendPlan;
@@ -59,6 +58,7 @@ use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::stable_id::{StableHashScope, stable_hash64};
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
@@ -6923,7 +6923,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
                 // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
                 if self.interfaces.contains_key(&nominal.fqn) {
-                    let target_type_id = stable_hash64(&self.types.display(target_ty).to_string());
+                    let target_type_id = stable_hash64(
+                        StableHashScope::RttiV0,
+                        &self.types.display(target_ty).to_string(),
+                    );
                     return self.codegen_itable_contains_runtime_type_id(at, obj, target_type_id);
                 }
 
@@ -8500,12 +8503,6 @@ fn top_level_var_global_name(var_fqn: &str) -> String {
 
 fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
     ptr.as_value_ref() as usize
-}
-
-fn stable_hash64(text: &str) -> u64 {
-    let digest = Sha256::digest(text.as_bytes());
-    let bytes: [u8; 8] = digest[0..8].try_into().expect("sha256 output is 32 bytes");
-    u64::from_le_bytes(bytes)
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

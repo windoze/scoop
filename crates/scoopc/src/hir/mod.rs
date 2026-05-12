@@ -30,7 +30,8 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_via_mir_instance_collection,
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level,
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources,
-    lower_for_compilation_unit_multi_files_with_type_env, lower_for_dump, lower_typed_for_dump,
+    lower_for_compilation_unit_multi_files_with_type_env,
+    lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
 };
 pub(crate) use lower::{LoweringInputs, generic_template_symbol_suffixes_for_compilation_unit};
 

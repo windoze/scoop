@@ -13,7 +13,6 @@ use std::collections::{HashMap, HashSet};
 
 use miette::Diagnostic;
 use serde::Serialize;
-use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::ast;
@@ -22,6 +21,7 @@ use crate::parser::ParseError;
 use crate::resolve::{Index, ModifierSet, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::stable_id::{StableHashScope, stable_hash64};
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -325,7 +325,10 @@ pub fn dump_file_type_desc(
         out.push(TypeDesc {
             name: format!("scoop.lambda_env${}", c.id.as_u32()),
             kind: TypeDescKind::ClosureEnv,
-            type_id: stable_hash64(&format!("scoop.lambda_env${}", c.id.as_u32())),
+            type_id: stable_hash64(
+                StableHashScope::RttiV0,
+                &format!("scoop.lambda_env${}", c.id.as_u32()),
+            ),
             parent: None,
             parent_chain: Vec::new(),
             trace_start_offset_bytes: trace_start,
@@ -809,7 +812,10 @@ fn build_class_itables(
                     (iface.interface_id, iface.method_slots.clone())
                 } else {
                     // best-effort：interface decl 不在本次 scan 中时，仍保留 id 与空 slots，便于 debug。
-                    (stable_hash64(&iface_name), Vec::new())
+                    (
+                        stable_hash64(StableHashScope::RttiV0, &iface_name),
+                        Vec::new(),
+                    )
                 };
 
             let mut mapped: Vec<ItableMethodSlot> = Vec::new();
@@ -841,9 +847,9 @@ fn build_class_itables(
             entries.push(ItableEntry {
                 interface_id,
                 interface_name: iface_name.clone(),
-                interface_type_id: stable_hash64(&iface_name),
+                interface_type_id: stable_hash64(StableHashScope::RttiV0, &iface_name),
                 interface_type_name: iface_name.clone(),
-                runtime_match_type_ids: vec![stable_hash64(&iface_name)],
+                runtime_match_type_ids: vec![stable_hash64(StableHashScope::RttiV0, &iface_name)],
                 runtime_match_type_names: vec![iface_name],
                 method_slots: mapped,
             });
@@ -994,7 +1000,7 @@ fn collect_interfaces_in_type_decl(
 
         out.push(InterfaceDesc {
             name: type_fqn.clone(),
-            interface_id: stable_hash64(&type_fqn),
+            interface_id: stable_hash64(StableHashScope::RttiV0, &type_fqn),
             super_interfaces,
             method_slots,
         });
@@ -1106,7 +1112,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.core.String".to_string(),
         kind: TypeDescKind::Builtin,
-        type_id: stable_hash64("scoop.core.String"),
+        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.core.String"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: header_size,
@@ -1120,7 +1126,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.runtime.BoxedUnit".to_string(),
         kind: TypeDescKind::Builtin,
-        type_id: stable_hash64("scoop.runtime.BoxedUnit"),
+        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.runtime.BoxedUnit"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: 0,
@@ -1137,7 +1143,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         out.push(TypeDesc {
             name: name.clone(),
             kind: TypeDescKind::Builtin,
-            type_id: stable_hash64(&name),
+            type_id: stable_hash64(StableHashScope::RttiV0, &name),
             parent: None,
             parent_chain: Vec::new(),
             trace_start_offset_bytes: header_size,
@@ -1155,7 +1161,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.runtime.ScoopClosure".to_string(),
         kind: TypeDescKind::ClosureObject,
-        type_id: stable_hash64("scoop.runtime.ScoopClosure"),
+        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.runtime.ScoopClosure"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: header_size,
@@ -1238,7 +1244,7 @@ fn class_type_desc(
     Ok(Some(TypeDesc {
         name: base.fqn.clone(),
         kind: TypeDescKind::Class,
-        type_id: stable_hash64(&base.fqn),
+        type_id: stable_hash64(StableHashScope::RttiV0, &base.fqn),
         parent,
         parent_chain: chain,
         trace_start_offset_bytes: trace_start,
@@ -1739,12 +1745,6 @@ impl WithoutNiche for TypeLayout {
     }
 }
 
-fn stable_hash64(text: &str) -> u64 {
-    let digest = Sha256::digest(text.as_bytes());
-    let bytes: [u8; 8] = digest[0..8].try_into().expect("sha256 output is 32 bytes");
-    u64::from_le_bytes(bytes)
-}
-
 fn align_to(value: u64, align: u64) -> u64 {
     if align <= 1 {
         return value;
@@ -1895,7 +1895,10 @@ class BarImpl : IBar {
             .iter()
             .find(|e| e.interface_name == "rtti.IFoo")
             .expect("Derived should implement IFoo via Base");
-        assert_eq!(foo_entry.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(
+            foo_entry.interface_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
+        );
         assert_eq!(foo_entry.method_slots.len(), 1);
         assert_eq!(foo_entry.method_slots[0].slot, 0);
         assert_eq!(foo_entry.method_slots[0].name, "ping");
@@ -1918,7 +1921,10 @@ class BarImpl : IBar {
             .iter()
             .find(|e| e.interface_name == "rtti.IFoo")
             .expect("BarImpl should implement IFoo via IBar");
-        assert_eq!(foo_entry.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(
+            foo_entry.interface_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
+        );
         assert_eq!(foo_entry.method_slots.len(), 1);
         assert_eq!(foo_entry.method_slots[0].impl_in, "rtti.BarImpl");
         assert_eq!(foo_entry.method_slots[0].impl_member, "rtti.BarImpl.ping");
@@ -1928,7 +1934,10 @@ class BarImpl : IBar {
             .iter()
             .find(|e| e.interface_name == "rtti.IBar")
             .expect("BarImpl should implement IBar directly");
-        assert_eq!(bar_entry.interface_id, stable_hash64("rtti.IBar"));
+        assert_eq!(
+            bar_entry.interface_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.IBar")
+        );
         assert_eq!(bar_entry.method_slots.len(), 1);
         assert_eq!(bar_entry.method_slots[0].slot, 0);
         assert_eq!(bar_entry.method_slots[0].name, "pong");
@@ -1994,7 +2003,7 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
         assert_eq!(readable_entry.interface_type_name, "rtti.Readable<String>");
         assert_eq!(
             readable_entry.interface_type_id,
-            stable_hash64("rtti.Readable<String>")
+            stable_hash64(StableHashScope::RttiV0, "rtti.Readable<String>")
         );
         assert!(
             readable_entry
@@ -2016,7 +2025,7 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             readable_entry
                 .runtime_match_type_names
                 .iter()
-                .map(|name| stable_hash64(name))
+                .map(|name| stable_hash64(StableHashScope::RttiV0, name))
                 .collect::<Vec<_>>()
         );
 
@@ -2122,7 +2131,10 @@ interface IBar : IFoo {
             .iter()
             .find(|i| i.name == "rtti.IFoo")
             .expect("should contain rtti.IFoo");
-        assert_eq!(foo.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(
+            foo.interface_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
+        );
         assert_eq!(foo.super_interfaces, Vec::<String>::new());
         assert_eq!(foo.method_slots.len(), 2);
         assert_eq!(foo.method_slots[0].slot, 0);
@@ -2137,7 +2149,10 @@ interface IBar : IFoo {
             .iter()
             .find(|i| i.name == "rtti.IBar")
             .expect("should contain rtti.IBar");
-        assert_eq!(bar.interface_id, stable_hash64("rtti.IBar"));
+        assert_eq!(
+            bar.interface_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.IBar")
+        );
         assert_eq!(bar.super_interfaces, vec!["rtti.IFoo".to_string()]);
         assert_eq!(bar.method_slots.len(), 1);
         assert_eq!(bar.method_slots[0].slot, 0);

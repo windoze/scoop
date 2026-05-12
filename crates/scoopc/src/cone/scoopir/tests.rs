@@ -1,11 +1,27 @@
 use std::path::PathBuf;
 
+use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
 use crate::hir::lower_for_dump;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::typecheck::TypeEnv;
 
 use super::{export_public_api_for_cone_sources, export_public_api_for_source};
+
+fn test_manifest(name: &str) -> ConeManifest {
+    ConeManifest {
+        cone: ConeSection {
+            name: name.to_string(),
+            version: "0.1.0".to_string(),
+        },
+        dependencies: Default::default(),
+        pre_specialize_functions: Vec::new(),
+        pre_specialize_types: Vec::new(),
+        export_entry_points: Vec::new(),
+        selectors: Vec::new(),
+        native_build: ConeNativeBuildConfig::default(),
+    }
+}
 
 #[test]
 fn scoopir_fixture_public_api_filter_golden() {
@@ -74,7 +90,8 @@ fn export_public_api_for_cone_sources_trims_package_level_comptime_if_across_fil
         "package fixtures.scoopir.multi\nimport scoop.core.*\ncomptime if (truthy<Int>(1)) {\n    public fun selected(): Int { return 7 }\n}\n",
     );
 
-    let ir = export_public_api_for_cone_sources(&sess, &[defs, main]).unwrap();
+    let manifest = test_manifest("fixtures-scoopir-multi");
+    let ir = export_public_api_for_cone_sources(&sess, &[defs, main], &manifest).unwrap();
     assert!(
         ir.funs
             .iter()

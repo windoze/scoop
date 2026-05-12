@@ -6,10 +6,13 @@
 //! `Debug` output, or path/span text as the authoritative identity input.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+use crate::cone::ConeManifest;
+use crate::span::Span;
 use crate::ty::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, UnionType,
     ValueTypeKind,
@@ -35,6 +38,599 @@ impl StableHashScope {
             Self::RttiV0 => "rtti0:",
             Self::DumpV0 => "dump0:",
         }
+    }
+}
+
+/// Common trait implemented by every stable identity key.
+pub trait StableCanonicalKey {
+    fn canonical_text(&self) -> String;
+}
+
+/// Stable keys that can also contribute a human-readable symbol prefix.
+pub trait StableSymbolKey: StableCanonicalKey {
+    fn readable_path(&self) -> &str;
+}
+
+/// Semantic cone identity derived from `Cone.toml` instead of `ConeId`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableConeKey {
+    name: String,
+    version: String,
+}
+
+impl StableConeKey {
+    pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+        }
+    }
+
+    pub fn from_manifest(manifest: &ConeManifest) -> Self {
+        Self::new(&manifest.cone.name, &manifest.cone.version)
+    }
+
+    pub fn for_virtual_source_path(path: &Path) -> Self {
+        let name = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .filter(|stem| !stem.is_empty())
+            .unwrap_or("virtual-cone");
+        Self::new(name, "0.0.0")
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+}
+
+impl StableCanonicalKey for StableConeKey {
+    fn canonical_text(&self) -> String {
+        canonical_record("cone", [self.name.clone(), self.version.clone()])
+    }
+}
+
+/// Export-visible declaration namespaces kept distinct by stable-id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StableDefNamespace {
+    Type,
+    Value,
+    Fun,
+    PropertyGetter,
+    PropertySetter,
+    ObjectInit,
+    TopLevelInit,
+    ExternGlobal,
+    Interface,
+}
+
+impl StableDefNamespace {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Value => "value",
+            Self::Fun => "fun",
+            Self::PropertyGetter => "property_getter",
+            Self::PropertySetter => "property_setter",
+            Self::ObjectInit => "object_init",
+            Self::TopLevelInit => "top_level_init",
+            Self::ExternGlobal => "extern_global",
+            Self::Interface => "interface",
+        }
+    }
+}
+
+/// Semantic declaration identity used by exported symbols and stable templates.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableDefKey {
+    cone: StableConeKey,
+    namespace: StableDefNamespace,
+    owner_path: String,
+    declaration_kind: String,
+    overload_signature_key: Option<String>,
+}
+
+impl StableDefKey {
+    pub fn new(
+        cone: StableConeKey,
+        namespace: StableDefNamespace,
+        owner_path: impl Into<String>,
+        declaration_kind: impl Into<String>,
+        overload_signature_key: Option<String>,
+    ) -> Self {
+        Self {
+            cone,
+            namespace,
+            owner_path: owner_path.into(),
+            declaration_kind: declaration_kind.into(),
+            overload_signature_key,
+        }
+    }
+
+    pub fn cone(&self) -> &StableConeKey {
+        &self.cone
+    }
+
+    pub fn namespace(&self) -> StableDefNamespace {
+        self.namespace
+    }
+
+    pub fn owner_path(&self) -> &str {
+        &self.owner_path
+    }
+
+    pub fn declaration_kind(&self) -> &str {
+        &self.declaration_kind
+    }
+
+    pub fn overload_signature_key(&self) -> Option<&str> {
+        self.overload_signature_key.as_deref()
+    }
+}
+
+impl StableCanonicalKey for StableDefKey {
+    fn canonical_text(&self) -> String {
+        let mut parts = vec![
+            self.cone.canonical_text(),
+            self.namespace.as_str().to_string(),
+            self.owner_path.clone(),
+            self.declaration_kind.clone(),
+        ];
+        if let Some(signature) = &self.overload_signature_key {
+            parts.push(signature.clone());
+        }
+        canonical_record("def", parts)
+    }
+}
+
+impl StableSymbolKey for StableDefKey {
+    fn readable_path(&self) -> &str {
+        &self.owner_path
+    }
+}
+
+/// Semantic template identity that replaces exported uses of `TemplateKey`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableTemplateKey {
+    def: StableDefKey,
+}
+
+impl StableTemplateKey {
+    pub fn new(def: StableDefKey) -> Self {
+        Self { def }
+    }
+
+    pub fn def(&self) -> &StableDefKey {
+        &self.def
+    }
+}
+
+impl StableCanonicalKey for StableTemplateKey {
+    fn canonical_text(&self) -> String {
+        canonical_record("template", [self.def.canonical_text()])
+    }
+}
+
+impl StableSymbolKey for StableTemplateKey {
+    fn readable_path(&self) -> &str {
+        self.def.owner_path()
+    }
+}
+
+/// Semantic monomorphic instance identity derived from canonical type/effect text.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableInstanceKey {
+    template: StableTemplateKey,
+    canonical_type_args: Vec<String>,
+    canonical_effect_args: Vec<String>,
+}
+
+impl StableInstanceKey {
+    pub fn from_canonical_args(
+        template: StableTemplateKey,
+        canonical_type_args: Vec<String>,
+        canonical_effect_args: Vec<String>,
+    ) -> Self {
+        Self {
+            template,
+            canonical_type_args,
+            canonical_effect_args,
+        }
+    }
+
+    pub fn from_type_arguments<R>(
+        template: StableTemplateKey,
+        types: &TypeStore,
+        type_args: &[TypeId],
+        effect_args: &[EffectRow],
+        type_params: &R,
+    ) -> Result<Self, CanonicalEncodingError>
+    where
+        R: StableTypeParamResolver + ?Sized,
+    {
+        let canonical_type_args = type_args
+            .iter()
+            .copied()
+            .map(|ty| canonical_type_text(types, ty, type_params))
+            .collect::<Result<Vec<_>, _>>()?;
+        let canonical_effect_args = effect_args
+            .iter()
+            .map(|row| canonical_effect_row_text(types, row, type_params))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self::from_canonical_args(
+            template,
+            canonical_type_args,
+            canonical_effect_args,
+        ))
+    }
+
+    pub fn template(&self) -> &StableTemplateKey {
+        &self.template
+    }
+
+    pub fn canonical_type_args(&self) -> &[String] {
+        &self.canonical_type_args
+    }
+
+    pub fn canonical_effect_args(&self) -> &[String] {
+        &self.canonical_effect_args
+    }
+}
+
+impl StableCanonicalKey for StableInstanceKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "instance",
+            [
+                self.template.canonical_text(),
+                canonical_list(&self.canonical_type_args),
+                canonical_list(&self.canonical_effect_args),
+            ],
+        )
+    }
+}
+
+impl StableSymbolKey for StableInstanceKey {
+    fn readable_path(&self) -> &str {
+        self.template.readable_path()
+    }
+}
+
+/// Closure identity anchored by owner semantic key and lexical path.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableClosureKey {
+    owner_canonical_text: String,
+    readable_path: String,
+    lexical_path: String,
+}
+
+impl StableClosureKey {
+    pub fn new(owner: &impl StableSymbolKey, lexical_path: impl Into<String>) -> Self {
+        let lexical_path = lexical_path.into();
+        let readable_path = if owner.readable_path().is_empty() {
+            lexical_path.clone()
+        } else if lexical_path.is_empty() {
+            owner.readable_path().to_string()
+        } else {
+            format!("{}.{}", owner.readable_path(), lexical_path)
+        };
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            readable_path,
+            lexical_path,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableClosureKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "closure",
+            [self.owner_canonical_text.clone(), self.lexical_path.clone()],
+        )
+    }
+}
+
+impl StableSymbolKey for StableClosureKey {
+    fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
+/// Stable local call-site identity for dump labels and private helpers.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableCallSiteKey {
+    owner_canonical_text: String,
+    source_path: String,
+    span: Span,
+    site_kind: String,
+}
+
+impl StableCallSiteKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        source_path: impl Into<String>,
+        span: Span,
+        site_kind: impl Into<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            source_path: source_path.into(),
+            span,
+            site_kind: site_kind.into(),
+        }
+    }
+}
+
+impl StableCanonicalKey for StableCallSiteKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "call_site",
+            [
+                self.owner_canonical_text.clone(),
+                self.source_path.clone(),
+                self.span.start.to_string(),
+                self.span.end.to_string(),
+                self.site_kind.clone(),
+            ],
+        )
+    }
+}
+
+/// Stable effect step schema identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableEffectSchemaKey {
+    owner_canonical_text: String,
+    schema_role: String,
+    semantic_fragments: Vec<String>,
+}
+
+impl StableEffectSchemaKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        schema_role: impl Into<String>,
+        semantic_fragments: Vec<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            schema_role: schema_role.into(),
+            semantic_fragments,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableEffectSchemaKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "effect_schema",
+            [
+                self.owner_canonical_text.clone(),
+                self.schema_role.clone(),
+                canonical_list(&self.semantic_fragments),
+            ],
+        )
+    }
+}
+
+/// Stable continuation schema identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableContinuationSchemaKey {
+    owner_canonical_text: String,
+    schema_role: String,
+    semantic_fragments: Vec<String>,
+}
+
+impl StableContinuationSchemaKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        schema_role: impl Into<String>,
+        semantic_fragments: Vec<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            schema_role: schema_role.into(),
+            semantic_fragments,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableContinuationSchemaKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "continuation_schema",
+            [
+                self.owner_canonical_text.clone(),
+                self.schema_role.clone(),
+                canonical_list(&self.semantic_fragments),
+            ],
+        )
+    }
+}
+
+/// Stable private boundary identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableBoundaryKey {
+    owner_canonical_text: String,
+    structural_role: String,
+    source_anchor: Option<String>,
+}
+
+impl StableBoundaryKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        structural_role: impl Into<String>,
+        source_anchor: Option<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            structural_role: structural_role.into(),
+            source_anchor,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableBoundaryKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "boundary",
+            [
+                self.owner_canonical_text.clone(),
+                self.structural_role.clone(),
+                self.source_anchor.clone().unwrap_or_default(),
+            ],
+        )
+    }
+}
+
+/// Stable state identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableStateKey {
+    owner_canonical_text: String,
+    structural_role: String,
+    source_anchor: Option<String>,
+}
+
+impl StableStateKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        structural_role: impl Into<String>,
+        source_anchor: Option<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            structural_role: structural_role.into(),
+            source_anchor,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableStateKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "state",
+            [
+                self.owner_canonical_text.clone(),
+                self.structural_role.clone(),
+                self.source_anchor.clone().unwrap_or_default(),
+            ],
+        )
+    }
+}
+
+/// Stable frame-slot identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StableFrameSlotKey {
+    owner_canonical_text: String,
+    structural_role: String,
+    source_anchor: Option<String>,
+}
+
+impl StableFrameSlotKey {
+    pub fn new(
+        owner: &impl StableCanonicalKey,
+        structural_role: impl Into<String>,
+        source_anchor: Option<String>,
+    ) -> Self {
+        Self {
+            owner_canonical_text: owner.canonical_text(),
+            structural_role: structural_role.into(),
+            source_anchor,
+        }
+    }
+}
+
+impl StableCanonicalKey for StableFrameSlotKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "frame_slot",
+            [
+                self.owner_canonical_text.clone(),
+                self.structural_role.clone(),
+                self.source_anchor.clone().unwrap_or_default(),
+            ],
+        )
+    }
+}
+
+/// ABI-visible symbol namespaces defined by the shared mangler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AbiSymbolKind {
+    Fun,
+    Global,
+    Type,
+}
+
+impl AbiSymbolKind {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fun => "fun",
+            Self::Global => "global",
+            Self::Type => "type",
+        }
+    }
+}
+
+/// Shared exported-symbol mangler.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AbiMangler;
+
+impl AbiMangler {
+    pub fn mangle<K>(self, kind: AbiSymbolKind, key: &K) -> String
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        let canonical = key.canonical_text();
+        let readable = sanitize_symbol_component(key.readable_path());
+        format!(
+            "__scoop_abi0_{}__{}__h{}",
+            kind.as_str(),
+            readable,
+            stable_hash128_hex(StableHashScope::AbiV0, &canonical)
+        )
+    }
+
+    pub fn fun_symbol<K>(self, key: &K) -> String
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        self.mangle(AbiSymbolKind::Fun, key)
+    }
+
+    pub fn global_symbol<K>(self, key: &K) -> String
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        self.mangle(AbiSymbolKind::Global, key)
+    }
+
+    pub fn type_symbol<K>(self, key: &K) -> String
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        self.mangle(AbiSymbolKind::Type, key)
+    }
+}
+
+/// Shared compiler-private symbol mangler.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PrivateSymbolMangler;
+
+impl PrivateSymbolMangler {
+    pub fn mangle<K>(self, role: &str, key: &K) -> String
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        let role = sanitize_symbol_component(role);
+        let canonical = canonical_record("private", [role.clone(), key.canonical_text()]);
+        format!(
+            "__scoop_priv0__{}__h{}",
+            role,
+            stable_hash128_hex(StableHashScope::PrivateV0, &canonical)
+        )
     }
 }
 
@@ -154,12 +750,28 @@ pub fn stable_hash64(scope: StableHashScope, canonical_text: &str) -> u64 {
     u64::from_le_bytes(bytes)
 }
 
+/// Overload suffixes stay short, but now hash the shared stable template key.
+pub fn stable_template_symbol_suffix(template: &StableTemplateKey) -> String {
+    format!(
+        "{:016x}",
+        stable_hash64(StableHashScope::AbiV0, &template.canonical_text())
+    )
+}
+
 /// Builds a short dump label from a semantic role plus canonical text.
 pub fn stable_dump_label(role: &str, canonical_text: &str) -> String {
     format!(
         "{role}#h{}",
         stable_hash128_hex(StableHashScope::DumpV0, canonical_text)
     )
+}
+
+/// Builds a short stable local label directly from a stable key.
+pub fn stable_local_label<K>(role: &str, key: &K) -> String
+where
+    K: StableCanonicalKey + ?Sized,
+{
+    stable_dump_label(role, &key.canonical_text())
 }
 
 struct CanonicalEncoder<'a, R: ?Sized> {
@@ -326,12 +938,69 @@ fn hex_lower(bytes: &[u8]) -> String {
     out
 }
 
+fn canonical_record<I>(tag: &str, parts: I) -> String
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut out = String::new();
+    out.push_str(tag);
+    out.push('(');
+    let mut first = true;
+    for part in parts {
+        if !first {
+            out.push(';');
+        }
+        first = false;
+        out.push_str(&part.len().to_string());
+        out.push(':');
+        out.push_str(&part);
+    }
+    out.push(')');
+    out
+}
+
+fn canonical_list(parts: &[String]) -> String {
+    canonical_record("list", parts.iter().cloned())
+}
+
+fn sanitize_symbol_component(text: &str) -> String {
+    let mut out = String::with_capacity(text.len().max(4));
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        out.push_str("anon");
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::path::PathBuf;
 
     use super::*;
+    use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
     use crate::span::Span;
+
+    fn test_manifest(name: &str, version: &str) -> ConeManifest {
+        ConeManifest {
+            cone: ConeSection {
+                name: name.to_string(),
+                version: version.to_string(),
+            },
+            dependencies: Default::default(),
+            pre_specialize_functions: Vec::new(),
+            pre_specialize_types: Vec::new(),
+            export_entry_points: Vec::new(),
+            selectors: Vec::new(),
+            native_build: ConeNativeBuildConfig::default(),
+        }
+    }
 
     #[test]
     fn canonical_type_text_encodes_required_shapes() {
@@ -494,6 +1163,131 @@ mod tests {
             Err(CanonicalEncodingError::MissingTypeParamKey {
                 param_name: "T".to_string(),
             })
+        );
+    }
+
+    #[test]
+    fn stable_cone_key_reads_manifest_and_virtual_source_path() {
+        let manifest = test_manifest("demo-cone", "1.2.3");
+        let explicit = StableConeKey::from_manifest(&manifest);
+        let virtual_key = StableConeKey::for_virtual_source_path(Path::new("/tmp/example.scoop"));
+
+        assert_eq!(explicit.name(), "demo-cone");
+        assert_eq!(explicit.version(), "1.2.3");
+        assert_eq!(virtual_key.name(), "example");
+        assert_eq!(virtual_key.version(), "0.0.0");
+    }
+
+    #[test]
+    fn stable_template_and_instance_keys_use_semantic_fields_instead_of_internal_ids() {
+        let cone = StableConeKey::new("demo", "0.1.0");
+        let template = StableTemplateKey::new(StableDefKey::new(
+            cone,
+            StableDefNamespace::Fun,
+            "pkg.main.id",
+            "generic_fun",
+            Some("fun|T|Int|Unit".to_string()),
+        ));
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let instance = StableInstanceKey::from_type_arguments(
+            template.clone(),
+            &types,
+            &[builtins.int],
+            &[EffectRow::new(Vec::new())],
+            &NoTypeParamResolver,
+        )
+        .unwrap();
+        let template_text = template.canonical_text();
+        let instance_text = instance.canonical_text();
+
+        assert!(template_text.contains("pkg.main.id"));
+        assert!(instance_text.contains("V(Int)"));
+        assert!(instance_text.contains("E()"));
+        assert!(!instance_text.contains("TypeId"));
+        assert!(!instance_text.contains("decl_span"));
+    }
+
+    #[test]
+    fn abi_and_private_manglers_emit_expected_namespaces() {
+        let def = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.main",
+            "top_level_fun",
+            None,
+        );
+        let closure = StableClosureKey::new(&def, "$lambda0");
+
+        let abi_fun = AbiMangler.fun_symbol(&def);
+        let abi_global = AbiMangler.global_symbol(&def);
+        let abi_type = AbiMangler.type_symbol(&def);
+        let private = PrivateSymbolMangler.mangle("closure_step_adapter", &closure);
+
+        assert!(abi_fun.starts_with("__scoop_abi0_fun__pkg_main__h"));
+        assert!(abi_global.starts_with("__scoop_abi0_global__pkg_main__h"));
+        assert!(abi_type.starts_with("__scoop_abi0_type__pkg_main__h"));
+        assert!(private.starts_with("__scoop_priv0__closure_step_adapter__h"));
+        assert_ne!(abi_fun, abi_global);
+        assert_ne!(abi_fun, abi_type);
+    }
+
+    #[test]
+    fn stable_template_symbol_suffix_depends_on_stable_template_key() {
+        let base = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.id",
+            "generic_fun",
+            Some("sig-a".to_string()),
+        );
+        let same = StableTemplateKey::new(base.clone());
+        let different_signature = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.id",
+            "generic_fun",
+            Some("sig-b".to_string()),
+        ));
+        let different_cone = StableTemplateKey::new(StableDefKey::new(
+            StableConeKey::new("demo-next", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.id",
+            "generic_fun",
+            Some("sig-a".to_string()),
+        ));
+
+        assert_eq!(
+            stable_template_symbol_suffix(&same),
+            stable_template_symbol_suffix(&StableTemplateKey::new(base))
+        );
+        assert_ne!(
+            stable_template_symbol_suffix(&same),
+            stable_template_symbol_suffix(&different_signature)
+        );
+        assert_ne!(
+            stable_template_symbol_suffix(&same),
+            stable_template_symbol_suffix(&different_cone)
+        );
+    }
+
+    #[test]
+    fn stable_local_label_uses_dump_scope_over_key_canonical_text() {
+        let owner = StableDefKey::new(
+            StableConeKey::new("demo", "0.1.0"),
+            StableDefNamespace::Fun,
+            "pkg.main",
+            "top_level_fun",
+            None,
+        );
+        let site = StableCallSiteKey::new(&owner, "src/main.scoop", Span::new(3, 9), "call");
+
+        assert_eq!(
+            stable_local_label("site", &site),
+            format!(
+                "site#h{}",
+                stable_hash128_hex(StableHashScope::DumpV0, &site.canonical_text())
+            )
         );
     }
 }

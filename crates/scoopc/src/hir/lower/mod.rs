@@ -29,6 +29,7 @@ use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::StableConeKey;
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
@@ -2265,7 +2266,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
-    let generic_template_symbol_suffixes = util::collect_generic_template_symbol_suffixes(&pairs);
+    let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+    let generic_template_symbol_suffixes =
+        util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            &stable_cone_key,
+            &pairs,
+        );
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
@@ -2556,15 +2562,21 @@ pub fn lower_typed_for_dump(
         &[],
         Some(&env),
         &typecheck_types,
-        CompilationUnitLoweringOptions::generic_template_only()
-            .with_runtime_comptime_plans(&runtime_comptime_plans),
+        CompilationUnitLoweringOptions::generic_template_only(
+            StableConeKey::for_virtual_source_path(source.path()),
+        )
+        .with_runtime_comptime_plans(&runtime_comptime_plans),
     )
 }
 
 pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
+    stable_cone_key: &StableConeKey,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> util::GenericTemplateSymbolSuffixIndex {
-    util::collect_generic_template_symbol_suffixes(compilation_unit)
+    util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        stable_cone_key,
+        compilation_unit,
+    )
 }
 
 /// 在“给定编译单元（多个源文件）”的上下文中，为其中一个文件生成 HIR。
@@ -2578,6 +2590,22 @@ pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
 ///   以保证标识符绑定信息已写回 AST；
 /// - `compilation_unit` 应包含 sysroot + 当前 cone 的全部源文件（稳定排序可保证输出更可回归）。
 pub fn lower_for_compilation_unit(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> Result<LoweredHir, HirLowerError> {
+    lower_for_compilation_unit_with_stable_cone_key(
+        StableConeKey::for_virtual_source_path(source.path()),
+        source,
+        file,
+        index,
+        compilation_unit,
+    )
+}
+
+pub fn lower_for_compilation_unit_with_stable_cone_key(
+    stable_cone_key: StableConeKey,
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
@@ -2612,7 +2640,10 @@ pub fn lower_for_compilation_unit(
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let generic_template_symbol_suffixes =
-        util::collect_generic_template_symbol_suffixes(compilation_unit);
+        util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            &stable_cone_key,
+            compilation_unit,
+        );
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -2790,13 +2821,14 @@ pub fn lower_for_compilation_unit(
 /// - T0150c：HIR 继续保留本地 span，但不再在 lowering 时 eager parse Int/String 字面量；
 ///   后续阶段通过“声明所属源文件 + 本地 span”回查原文。
 pub fn lower_for_compilation_unit_multi_files(
-    _entry_source: &SourceFile,
+    entry_source: &SourceFile,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
+    let stable_cone_key = virtual_stable_cone_key_for_sources(Some(entry_source), compilation_unit);
     lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
@@ -2804,7 +2836,7 @@ pub fn lower_for_compilation_unit_multi_files(
         monomorph_keys,
         None,
         typecheck_types,
-        CompilationUnitLoweringOptions::direct_lowered_hir(),
+        CompilationUnitLoweringOptions::direct_lowered_hir(stable_cone_key),
     )
 }
 
@@ -2816,6 +2848,10 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
+    let stable_cone_key = virtual_stable_cone_key_for_sources(
+        files_to_lower.first().map(|(source, _)| *source),
+        compilation_unit,
+    );
     lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
@@ -2823,7 +2859,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         monomorph_keys,
         type_env,
         typecheck_types,
-        CompilationUnitLoweringOptions::direct_lowered_hir(),
+        CompilationUnitLoweringOptions::direct_lowered_hir(stable_cone_key),
     )
 }
 
@@ -2873,6 +2909,10 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
         type_env,
         typecheck_types,
         MirInstanceCollectionOptions {
+            stable_cone_key: virtual_stable_cone_key_for_sources(
+                files_to_lower.first().map(|(source, _)| *source),
+                compilation_unit,
+            ),
             request_source_paths: &request_source_paths,
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
             opt_level,
@@ -2881,6 +2921,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
 }
 
 pub struct MirInstanceCollectionOptions<'a> {
+    pub stable_cone_key: StableConeKey,
     pub request_source_paths: &'a [std::path::PathBuf],
     pub request_root_mode: crate::mir::MaterializeRequestRootMode<'a>,
     pub opt_level: crate::opt::OptLevel,
@@ -2910,6 +2951,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
     options: MirInstanceCollectionOptions<'_>,
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
     let MirInstanceCollectionOptions {
+        stable_cone_key,
         request_source_paths,
         request_root_mode,
         opt_level,
@@ -2922,6 +2964,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             typecheck_types,
             monomorph_requests,
             crate::mir::MaterializeCompilationUnitOptions {
+                stable_cone_key: stable_cone_key.clone(),
                 request_source_paths,
                 request_root_mode,
                 opt_level,
@@ -2935,6 +2978,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
         type_env,
         typecheck_types,
         CompilationUnitLoweringOptions::explicit_mir_instances(
+            stable_cone_key,
             &materialized.instance_keys,
             &materialized.types,
             true,
@@ -2952,6 +2996,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
 /// 该入口会复用 resolver/typecheck 事实，但显式关闭 HIR lowering 中遗留的 generic
 /// `::<...>` 实例物化路径，使实例身份只在后续 MIR 层建立。
 pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
+    stable_cone_key: StableConeKey,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
@@ -2965,7 +3010,7 @@ pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
         &[],
         type_env,
         typecheck_types,
-        CompilationUnitLoweringOptions::generic_template_only(),
+        CompilationUnitLoweringOptions::generic_template_only(stable_cone_key),
     )
 }
 
@@ -2979,14 +3024,16 @@ enum CompilationUnitInstanceMode<'a> {
 }
 
 struct CompilationUnitLoweringOptions<'a> {
+    stable_cone_key: StableConeKey,
     instance_mode: CompilationUnitInstanceMode<'a>,
     devirtualize_dispatch_calls: bool,
     runtime_comptime_plans: &'a HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
-    fn direct_lowered_hir() -> Self {
+    fn direct_lowered_hir(stable_cone_key: StableConeKey) -> Self {
         Self {
+            stable_cone_key,
             instance_mode: CompilationUnitInstanceMode::DirectLoweredHir,
             devirtualize_dispatch_calls: false,
             runtime_comptime_plans: empty_runtime_comptime_plans(),
@@ -2994,11 +3041,13 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
     }
 
     fn explicit_mir_instances(
+        stable_cone_key: StableConeKey,
         instance_keys: &'a [crate::mir::InstanceKey],
         instance_types: &'a TypeStore,
         devirtualize_dispatch_calls: bool,
     ) -> Self {
         Self {
+            stable_cone_key,
             instance_mode: CompilationUnitInstanceMode::ExplicitMirInstances {
                 instance_keys,
                 instance_types,
@@ -3008,8 +3057,9 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
         }
     }
 
-    fn generic_template_only() -> Self {
+    fn generic_template_only(stable_cone_key: StableConeKey) -> Self {
         Self {
+            stable_cone_key,
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
             devirtualize_dispatch_calls: false,
             runtime_comptime_plans: empty_runtime_comptime_plans(),
@@ -3043,6 +3093,20 @@ fn empty_runtime_comptime_plans()
     EMPTY.get_or_init(HashMap::new)
 }
 
+fn virtual_stable_cone_key_for_sources(
+    primary_source: Option<&SourceFile>,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> StableConeKey {
+    primary_source
+        .map(|source| StableConeKey::for_virtual_source_path(source.path()))
+        .or_else(|| {
+            compilation_unit
+                .first()
+                .map(|(source, _)| StableConeKey::for_virtual_source_path(source.path()))
+        })
+        .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"))
+}
+
 fn lower_for_compilation_unit_multi_files_internal<'a>(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -3054,6 +3118,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
 ) -> Result<LoweredHir, HirLowerError> {
     let materialize_direct_call_targets = options.materialize_direct_call_targets();
     let CompilationUnitLoweringOptions {
+        stable_cone_key,
         instance_mode,
         devirtualize_dispatch_calls,
         runtime_comptime_plans,
@@ -3087,7 +3152,10 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let generic_template_symbol_suffixes =
-        util::collect_generic_template_symbol_suffixes(compilation_unit);
+        util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
+            &stable_cone_key,
+            compilation_unit,
+        );
 
     let mut decls: Vec<Decl> = Vec::new();
     let mut items: Vec<Item> = Vec::new();
@@ -3286,6 +3354,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     typecheck_types,
                     initial_items: &items,
                     initial_member_funs: &member_funs,
+                    stable_cone_key: &stable_cone_key,
                 });
             items.extend(monomorphized_funs.into_iter().map(Item::Fun));
 
@@ -3336,6 +3405,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     types: &mut types,
                     builtins,
                     typecheck_types,
+                    stable_cone_key: &stable_cone_key,
                 },
             )?;
             items.extend(monomorphic_funs.into_iter().map(Item::Fun));
@@ -3357,6 +3427,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                         types: &mut types,
                         builtins,
                         typecheck_types: Some(typecheck_types),
+                        stable_cone_key: &stable_cone_key,
                     },
                 )?,
             );

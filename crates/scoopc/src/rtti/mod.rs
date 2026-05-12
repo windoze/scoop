@@ -18,7 +18,6 @@ use std::path::PathBuf;
 
 use miette::Diagnostic;
 use serde::Serialize;
-use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::ast;
@@ -26,6 +25,7 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{ImportTable, Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::stable_id::{StableHashScope, stable_hash64};
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
@@ -312,7 +312,7 @@ impl RttiContext {
 
     fn type_rtti(&mut self, ty: TypeId) -> Result<TypeRtti, RttiError> {
         let name = self.types.display(ty).to_string();
-        let type_id = stable_hash64(&name);
+        let type_id = stable_hash64(StableHashScope::RttiV0, &name);
         let layout = self.type_layout(ty)?;
 
         let kind_snapshot = self.types.kind(ty).clone();
@@ -816,12 +816,6 @@ fn parse_type_query(name: &str) -> Result<(SourceFile, ast::TypeRef), ParseError
     Ok((source, alias.ty.clone()))
 }
 
-fn stable_hash64(text: &str) -> u64 {
-    let digest = Sha256::digest(text.as_bytes());
-    let bytes: [u8; 8] = digest[0..8].try_into().expect("sha256 output is 32 bytes");
-    u64::from_le_bytes(bytes)
-}
-
 fn align_to(value: u64, align: u64) -> u64 {
     if align <= 1 {
         return value;
@@ -892,7 +886,10 @@ struct Pair<T>(val first: T, val second: T)
         let rtti = dump_type_rtti(&sess, &src, "Pair<Int>").unwrap();
         assert_eq!(rtti.kind, RttiKind::Struct);
         assert_eq!(rtti.name, "rtti.Pair<Int>");
-        assert_eq!(rtti.type_id, stable_hash64("rtti.Pair<Int>"));
+        assert_eq!(
+            rtti.type_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.Pair<Int>")
+        );
 
         let ptr = std::mem::size_of::<usize>() as u64;
         assert_eq!(rtti.align, ptr);
@@ -941,7 +938,10 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         let readable = dump_type_rtti(&sess, &src, "Readable<String>").unwrap();
         assert_eq!(readable.kind, RttiKind::Ref);
         assert_eq!(readable.name, "rtti.Readable<String>");
-        assert_eq!(readable.type_id, stable_hash64("rtti.Readable<String>"));
+        assert_eq!(
+            readable.type_id,
+            stable_hash64(StableHashScope::RttiV0, "rtti.Readable<String>")
+        );
 
         let disposable_raise =
             dump_type_rtti(&sess, &src, "Disposable<eff Raise<RuntimeError>>").unwrap();
@@ -951,7 +951,7 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         assert!(disposable_raise.name.contains("RuntimeError"));
         assert_eq!(
             disposable_raise.type_id,
-            stable_hash64(&disposable_raise.name)
+            stable_hash64(StableHashScope::RttiV0, &disposable_raise.name)
         );
 
         let dump = type_desc::dump_file_type_desc(&sess, &src).unwrap();

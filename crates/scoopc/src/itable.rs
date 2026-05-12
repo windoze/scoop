@@ -12,12 +12,12 @@
 use std::collections::{HashMap, HashSet};
 
 use miette::Diagnostic;
-use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
+use crate::stable_id::{StableHashScope, stable_hash64};
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 use crate::typecheck::is_type_assignable;
 use crate::typecheck::{TypeEnv, TypeEnvError, TypeLowerError, TypeLowering, TypeSymbolKind};
@@ -335,7 +335,10 @@ fn build_base_class_itables(
         for iface_fqn in ifaces {
             let (interface_id, method_slots) = match interfaces.get(&iface_fqn) {
                 Some(info) => (info.interface_id, info.method_slots.clone()),
-                None => (stable_hash64(&iface_fqn), Vec::new()),
+                None => (
+                    stable_hash64(StableHashScope::RttiV0, &iface_fqn),
+                    Vec::new(),
+                ),
             };
 
             // slot -> impl_member_fqn：保持与 slot index 对齐。
@@ -385,7 +388,7 @@ fn build_base_class_itables(
             }
 
             let interface_type_name = iface_fqn.clone();
-            let interface_type_id = stable_hash64(&interface_type_name);
+            let interface_type_id = stable_hash64(StableHashScope::RttiV0, &interface_type_name);
             entries.push(ClassItableEntry {
                 interface_fqn: iface_fqn,
                 interface_id,
@@ -557,7 +560,10 @@ fn build_precise_class_itable_entries(
         };
         let (interface_id, method_slots) = match interfaces.get(&nominal.fqn) {
             Some(info) => (info.interface_id, info.method_slots.clone()),
-            None => (stable_hash64(&nominal.fqn), Vec::new()),
+            None => (
+                stable_hash64(StableHashScope::RttiV0, &nominal.fqn),
+                Vec::new(),
+            ),
         };
 
         let mut impls: Vec<String> = vec![String::new(); method_slots.len()];
@@ -599,7 +605,7 @@ fn build_precise_class_itable_entries(
         }
 
         let interface_type_name = lower.fmt_type(iface_ty);
-        let interface_type_id = stable_hash64(&interface_type_name);
+        let interface_type_id = stable_hash64(StableHashScope::RttiV0, &interface_type_name);
 
         let mut runtime_match_type_names: Vec<String> = concrete_interface_targets
             .iter()
@@ -614,7 +620,7 @@ fn build_precise_class_itable_entries(
         runtime_match_type_names.dedup();
         let runtime_match_type_ids = runtime_match_type_names
             .iter()
-            .map(|name| stable_hash64(name))
+            .map(|name| stable_hash64(StableHashScope::RttiV0, name))
             .collect();
 
         entries.push(ClassItableEntry {
@@ -774,7 +780,7 @@ fn collect_interfaces_in_type_decl(
             type_fqn.clone(),
             InterfaceInfo {
                 fqn: type_fqn.clone(),
-                interface_id: stable_hash64(&type_fqn),
+                interface_id: stable_hash64(StableHashScope::RttiV0, &type_fqn),
                 super_interfaces,
                 method_slots,
             },
@@ -965,10 +971,4 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
-}
-
-fn stable_hash64(text: &str) -> u64 {
-    let digest = Sha256::digest(text.as_bytes());
-    let bytes: [u8; 8] = digest[0..8].try_into().expect("sha256 output is 32 bytes");
-    u64::from_le_bytes(bytes)
 }

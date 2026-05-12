@@ -43,7 +43,7 @@ pub fn write_cone_archive_v0(
 
     let sources = load_pkg_sources(pkg)?;
 
-    let api = super::scoopir::export_public_api_for_cone_sources(session, &sources)
+    let api = super::scoopir::export_public_api_for_cone_sources(session, &sources, &pkg.manifest)
         .wrap_err("导出 api.scoopir 失败")?;
     let api_json = serde_json::to_vec_pretty(&api)
         .into_diagnostic()
@@ -201,7 +201,9 @@ fn build_sources_sha256_text(pkg: &ConeSourcePackage) -> Result<String> {
         let bytes = std::fs::read(path)
             .into_diagnostic()
             .wrap_err_with(|| format!("读取源文件失败：{}", path.display()))?;
-        let digest = Sha256::digest(&bytes);
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let digest = hasher.finalize();
         entries.push((rel, hex_lower(&digest)));
     }
 

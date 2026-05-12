@@ -7767,7 +7767,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 let interface_type_name = iface.fqn.clone();
-                let interface_type_id = stable_hash64(&interface_type_name);
+                let interface_type_id =
+                    stable_hash64(StableHashScope::RttiV0, &interface_type_name);
                 Ok(crate::itable::ClassItableEntry {
                     interface_fqn: iface.fqn.clone(),
                     interface_id: iface.interface_id,

@@ -535,6 +535,8 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
     let request_source_paths = front.input.mir_request_source_paths();
+    let stable_cone_key =
+        crate::stable_id::StableConeKey::from_manifest(front.input.cone_manifest());
     let entry_main_fqn = front.input.entry_main_fqn.clone().unwrap_or_else(|| {
         let source = front.input.main_source();
         let ast = &front.asts[front.input.main_index];
@@ -557,6 +559,7 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
         Some(&front.type_env),
         &front.typecheck_types,
         hir::MirInstanceCollectionOptions {
+            stable_cone_key,
             request_source_paths: &request_source_paths,
             request_root_mode,
             opt_level,
