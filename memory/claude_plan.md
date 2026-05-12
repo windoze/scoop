@@ -27,4 +27,5 @@
 - 已完成 `crates/scoopc/src/llvm/tests.rs` 的迁移：用 IR 语义 helper 替代多处旧 private helper 全字符串断言，并扩充 source inventory 以防止这些旧绑定回流。
 - 已完成验证：`cargo fmt`、若干 stable-id/LLVM 定向测试、`cargo test -p scoopc`、`cargo clippy -p scoopc --all-targets -- -D warnings` 全部通过。
 - 已将 `P0-T02A` 在 `TODO.md` 中标记为 `[DONE]`，并补全 completion record；`PLAN.md` 无需更新，因为阶段依赖与验收边界未变化。
-- 下一步：检查最终 diff，创建 `[P0-T02A] ...` 提交，然后停止。
+- 已创建提交 `b703c6a8 [P0-T02A] Unbind LLVM tests from legacy helper spellings`。
+- 当前工作区已清理完毕；本次调用到此停止。
