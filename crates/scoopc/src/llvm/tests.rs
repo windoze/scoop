@@ -449,6 +449,18 @@ fn stable_id_symbol_looks_like_closure_family(name: &str) -> bool {
     name.contains("lambda") || name.contains("closure")
 }
 
+fn stable_id_symbol_looks_like_plain_adapter_family(name: &str) -> bool {
+    name.contains("plain_adapter")
+}
+
+fn stable_id_symbol_looks_like_closure_step_adapter_family(name: &str) -> bool {
+    name.contains("closure_step_adapter")
+}
+
+fn stable_id_symbol_looks_like_closure_dynamic_entry_family(name: &str) -> bool {
+    name.contains("closure_dynamic_entry")
+}
+
 fn stable_id_symbol_looks_like_effect_helper_family(name: &str) -> bool {
     name.contains("refactor_") || name.contains("__outcome") || name.contains("__k")
 }
@@ -522,6 +534,12 @@ where
             .collect::<Vec<_>>()
             .join("\n");
         panic!("expected function matching {description}; available function headers:\n{headers}")
+    })
+}
+
+fn maybe_function_ir_for_symbol<'ir>(ir: &'ir str, symbol_name: &str) -> Option<&'ir str> {
+    maybe_function_ir_matching(ir, |_, function| {
+        llvm_function_symbol_name(function) == symbol_name
     })
 }
 
@@ -2407,13 +2425,26 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
+    let stored_step_adapters = llvm_ir_stored_symbols_matching(&ir, |symbol| {
+        stable_id_symbol_looks_like_compiler_private_helper(symbol)
+            && stable_id_symbol_looks_like_closure_step_adapter_family(symbol)
+    });
+    assert_eq!(
+        stored_step_adapters.len(),
+        1,
+        "effectful closure carrier 应只写入一个 schema-aware step adapter，而不是锁死某个当前拼写: {:?}\n{ir}",
+        stored_step_adapters
+    );
+    let step_adapter_ir = maybe_function_ir_for_symbol(&ir, stored_step_adapters[0])
+        .expect("stored schema-aware closure adapter should be defined in the same module");
     assert!(
-        ir.contains("store ptr @__scoop_refactor_closure_step_adapter__a_main__lambda0__")
-            && ir.contains("refactor_carrier_to_effectful"),
-        "effectful closure carrier 应写入 schema-aware adapter，而不是直接写 owner dynamic entry:\n{ir}"
+        step_adapter_ir.contains("refactor_carrier_to_effectful"),
+        "effectful closure carrier 应写入真正执行 carrier->effectful 转换的 adapter，而不是任意 private helper:\n{step_adapter_ir}"
     );
     assert!(
-        !ir.contains("store ptr @__scoop_refactor_closure_dynamic_entry__a_main__lambda0"),
+        !ir.lines()
+            .filter_map(llvm_store_source_symbol)
+            .any(stable_id_symbol_looks_like_closure_dynamic_entry_family),
         "closure surface step schema 与 owner step schema 不一致时，不应把 raw owner dynamic entry 直接写进 closure object:\n{ir}"
     );
 }
@@ -2466,13 +2497,42 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
+    let plain_adapters = llvm_ir_stored_symbols_matching(&ir, |symbol| {
+        stable_id_symbol_looks_like_compiler_private_helper(symbol)
+            && stable_id_symbol_looks_like_plain_adapter_family(symbol)
+    });
+    let step_adapters = llvm_ir_stored_symbols_matching(&ir, |symbol| {
+        stable_id_symbol_looks_like_compiler_private_helper(symbol)
+            && stable_id_symbol_looks_like_closure_step_adapter_family(symbol)
+    });
+    assert_eq!(
+        plain_adapters.len(),
+        1,
+        "higher-order pure branch 应发布一个 plain adapter，而不是锁死当前符号拼写: {:?}\n{ir}",
+        plain_adapters
+    );
+    assert_eq!(
+        step_adapters.len(),
+        1,
+        "higher-order effectful branch 应发布一个 schema-aware carrier adapter，而不是锁死当前符号拼写: {:?}\n{ir}",
+        step_adapters
+    );
+    let plain_adapter_ir = maybe_function_ir_for_symbol(&ir, plain_adapters[0])
+        .expect("stored plain adapter should be defined in the same module");
     assert!(
-        ir.contains("store ptr @__scoop_refactor_plain_adapter__a_choose__lambda0__")
-            && ir.contains("store ptr @__scoop_refactor_closure_step_adapter__a_choose__lambda1__"),
-        "higher-order callable coercion 应同时保留 pure-branch plain adapter 与 effectful-branch schema-aware carrier adapter:\n{ir}"
+        plain_adapter_ir.contains("refactor_carrier_to_plain"),
+        "pure branch adapter 应执行 carrier->plain 转换，而不是依赖某个固定 helper 名字:\n{plain_adapter_ir}"
+    );
+    let step_adapter_ir = maybe_function_ir_for_symbol(&ir, step_adapters[0])
+        .expect("stored effectful adapter should be defined in the same module");
+    assert!(
+        step_adapter_ir.contains("refactor_carrier_to_effectful"),
+        "effectful branch adapter 应执行 carrier->effectful 转换，而不是依赖某个固定 helper 名字:\n{step_adapter_ir}"
     );
     assert!(
-        !ir.contains("store ptr @__scoop_refactor_closure_dynamic_entry__a_choose__lambda1"),
+        !ir.lines()
+            .filter_map(llvm_store_source_symbol)
+            .any(stable_id_symbol_looks_like_closure_dynamic_entry_family),
         "effectful higher-order branch 不应把 raw owner dynamic entry 直接写进 closure object:\n{ir}"
     );
 }
@@ -3403,12 +3463,19 @@ fun main(): Int {
         "Box<String>.value should lower as the concrete String GC pointer field, not generic T"
     );
     assert!(
-        ir.contains("@__scoop_type_desc_class__a_Box_String_"),
-        "constructor allocation should use the concrete Box<String> type descriptor\n{ir}"
+        ir.contains("@scoop_alloc_typed")
+            && ir.contains("%refactor_class_payload_gep = getelementptr inbounds nuw %scoop.runtime.ClassObject__a_Box_String_")
+            && ir.contains("%class_field_gep = getelementptr inbounds nuw %scoop.runtime.ClassPayload__a_Box_String_"),
+        "constructor allocation 应通过 typed descriptor 局部值发布 concrete Box<String> 分配路径，而不是锁死 descriptor symbol 文本\n{ir}"
     );
     assert!(
-        !ir.contains("@__scoop_type_desc_class__a_Box ="),
-        "generic constructor must not allocate with the raw Box<T> descriptor\n{ir}"
+        context
+            .get_struct_type("scoop.runtime.ClassPayload__a_Box")
+            .is_none()
+            && context
+                .get_struct_type("scoop.runtime.ClassObject__a_Box")
+                .is_none(),
+        "generic constructor 不应物化 raw Box<T> 布局类型；应只发布具体实例布局\n{ir}"
     );
 }
 
@@ -3615,9 +3682,20 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
+    let (_receiver_local, singleton_slot_symbol) = ir
+        .lines()
+        .filter_map(llvm_load_gc_ref_from_global)
+        .find(|(_, symbol)| {
+            llvm_ir_global_definition(&ir, symbol)
+                .is_some_and(|line| line.contains("internal global ptr addrspace(1) null"))
+        })
+        .expect(
+            "object member call should reload the singleton receiver from a GC-managed slot global",
+        );
     assert!(
-        ir.contains("@__scoop_object_instance__a.Helper = internal global ptr addrspace(1) null"),
-        "object 单例槽应保存 GC-managed receiver 指针"
+        llvm_ir_global_definition(&ir, singleton_slot_symbol)
+            .is_some_and(|line| line.contains("internal global ptr addrspace(1) null")),
+        "object 单例槽应保存 GC-managed receiver 指针，而不是把某个固定全局名当金标准\n{ir}"
     );
     assert!(
         ir.contains("@scoop_alloc_typed"),
@@ -3642,7 +3720,8 @@ fun main(): Int {
         !ir.lines().any(|line| {
             line.contains(" call i64 ")
                 && llvm_line_mentions_symbol(line, run_symbol)
-                && line.contains("ptr @__scoop_object_instance__a.Helper")
+                && (line.contains(&format!("ptr @{singleton_slot_symbol}"))
+                    || line.contains(&format!("ptr @\"{singleton_slot_symbol}\"")))
         }),
         "member call 不应再把默认地址空间全局地址直接当 receiver 传递"
     );
@@ -3825,12 +3904,9 @@ fun main(): Int {
         "single-field tuple payload 应生成 boxed payload object type"
     );
     assert!(
-        ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Ok"),
-        "boxed struct payload 应生成对应的类型描述符"
-    );
-    assert!(
-        ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Msg"),
-        "boxed tuple payload 应生成对应的类型描述符"
+        ir.matches("rt_alloc_enum_boxed_payload").count() >= 2
+            && ir.matches("enum_boxed_payload_gep").count() >= 2,
+        "boxed non-scalar enum variant 应通过 descriptor-backed typed alloc/materialize path，而不是锁死具体 type-desc symbol 名字\n{ir}"
     );
 }
 
@@ -5359,8 +5435,49 @@ fn llvm_sanitize_ident_for_test(text: &str) -> String {
     if out.is_empty() { "_".to_string() } else { out }
 }
 
+fn llvm_symbol_after_marker<'a>(text: &'a str, marker: &str) -> Option<&'a str> {
+    let symbol = text.split_once(marker)?.1;
+    if let Some(symbol) = symbol.strip_prefix('"') {
+        Some(
+            symbol
+                .split_once('"')
+                .map(|(name, _)| name)
+                .expect("expected closing quote in symbol reference"),
+        )
+    } else {
+        let end = symbol.find([',', ' ', ')']).unwrap_or(symbol.len());
+        Some(&symbol[..end])
+    }
+}
+
 fn llvm_line_mentions_symbol(line: &str, symbol_name: &str) -> bool {
     line.contains(&format!("@{symbol_name}")) || line.contains(&format!("@\"{symbol_name}\""))
+}
+
+fn llvm_store_source_symbol(line: &str) -> Option<&str> {
+    llvm_symbol_after_marker(line, "store ptr @")
+}
+
+fn llvm_ir_stored_symbols_matching<F>(ir: &str, mut predicate: F) -> Vec<&str>
+where
+    F: FnMut(&str) -> bool,
+{
+    let mut symbols = Vec::new();
+    for line in ir.lines() {
+        let Some(symbol) = llvm_store_source_symbol(line) else {
+            continue;
+        };
+        if predicate(symbol) && !symbols.contains(&symbol) {
+            symbols.push(symbol);
+        }
+    }
+    symbols
+}
+
+fn llvm_load_gc_ref_from_global(line: &str) -> Option<(&str, &str)> {
+    let (local, _) = line.split_once(" = load ptr addrspace(1), ptr @")?;
+    let symbol = llvm_symbol_after_marker(line, " = load ptr addrspace(1), ptr @")?;
+    Some((local.trim(), symbol))
 }
 
 fn llvm_call_target_symbol(line: &str) -> Option<&str> {
@@ -5676,6 +5793,51 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
             "useIt\")",
         ]
         .concat(),
+        [
+            "contains(\"store ptr @__scoop_refactor_closure_step_adapter__",
+            "a_main__lambda0__\")",
+        ]
+        .concat(),
+        [
+            "contains(\"store ptr @__scoop_refactor_closure_dynamic_entry__",
+            "a_main__lambda0\")",
+        ]
+        .concat(),
+        [
+            "contains(\"store ptr @__scoop_refactor_plain_adapter__",
+            "a_choose__lambda0__\")",
+        ]
+        .concat(),
+        [
+            "contains(\"store ptr @__scoop_refactor_closure_step_adapter__",
+            "a_choose__lambda1__\")",
+        ]
+        .concat(),
+        [
+            "contains(\"store ptr @__scoop_refactor_closure_dynamic_entry__",
+            "a_choose__lambda1\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_type_desc_class__",
+            "a_Box_String_\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_object_instance__",
+            "a.Helper = internal global ptr addrspace(1) null\")",
+        ]
+        .concat(),
+        [
+            "contains(\"__scoop_type_desc_runtime__enum_boxed_payload__",
+            "a_Result__Ok\")",
+        ]
+        .concat(),
+        [
+            "contains(\"__scoop_type_desc_runtime__enum_boxed_payload__",
+            "a_Result__Msg\")",
+        ]
+        .concat(),
     ] {
         assert!(
             !llvm_source.contains(&needle),
@@ -5700,6 +5862,58 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
             "effectEntry\\\"\")",
         ]
         .concat(),
+        [
+            "contains(\"@__scoop_composite_transport_desc__inline__",
+            "sample_Named\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_composite_transport_desc__erased__",
+            "sample_Named\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_type_desc_mir_value_box__",
+            "sample_Named\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_composite_transport_desc__inline__",
+            "sample_Outer\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_type_desc_runtime__enum_boxed_payload__",
+            "sample_Outer__UnitPair\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_type_desc_runtime__enum_boxed_payload__",
+            "sample_Outer__Nested\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_composite_transport_desc__erased__",
+            "sample_Outer\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_type_desc_mir_value_box__",
+            "sample_Outer\")",
+        ]
+        .concat(),
+        [
+            "contains(\"__scoop_type_desc_mir_capture_box__",
+            "sample_Point\")",
+        ]
+        .concat(),
+        [
+            "contains(\"__scoop_refactor_thread_resume_transport__",
+            "\")",
+        ]
+        .concat(),
+        ["contains(\"@sample.ma", "in\")"].concat(),
+        ["contains(\"@sample.classify", "Value\")"].concat(),
     ] {
         assert!(
             !pipeline_source.contains(&needle),

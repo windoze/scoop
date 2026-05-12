@@ -1363,6 +1363,19 @@ fun main(): Int {
             .collect()
     }
 
+    fn ir_line_mentions_symbol(line: &str, symbol_name: &str) -> bool {
+        line.contains(&format!("@{symbol_name}")) || line.contains(&format!("@\"{symbol_name}\""))
+    }
+
+    fn ir_global_definition_matching<'a, F>(ir: &'a str, description: &str, predicate: F) -> &'a str
+    where
+        F: Fn(&str) -> bool,
+    {
+        ir.lines()
+            .find(|line| line.starts_with('@') && line.contains(" = ") && predicate(line))
+            .unwrap_or_else(|| panic!("IR should contain global matching `{description}`:\n{ir}"))
+    }
+
     fn emit_args_for_source(
         source: SourceFile,
     ) -> (
@@ -1427,19 +1440,26 @@ fun main(): Int {
             ir.contains("scoop.runtime.ScoopCompositeTransportDescriptor"),
             "composite transport contract should define the shared runtime descriptor type\n{ir}"
         );
-        assert!(
-            ir.contains("@__scoop_composite_transport_desc__inline__sample_Named"),
-            "struct composite transport should publish a normalized layout descriptor\n{ir}"
+        let descriptor = ir_global_definition_matching(
+            &ir,
+            "traceable composite transport descriptor global",
+            |line| {
+                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("__gc_slots")
+                    && line.contains("@scoop_composite_trace")
+                    && line.contains("@scoop_composite_copy")
+                    && line.contains("@scoop_composite_drop")
+            },
         );
         assert!(
-            ir.contains("__gc_slots"),
-            "traceable composite transport should publish an explicit GC slot map\n{ir}"
+            descriptor.contains("__gc_slots"),
+            "traceable composite transport should publish an explicit GC slot map\n{descriptor}"
         );
         assert!(
-            ir.contains("@scoop_composite_trace")
-                && ir.contains("@scoop_composite_copy")
-                && ir.contains("@scoop_composite_drop"),
-            "descriptor should register trace/copy/drop runtime hook surface\n{ir}"
+            descriptor.contains("@scoop_composite_trace")
+                && descriptor.contains("@scoop_composite_copy")
+                && descriptor.contains("@scoop_composite_drop"),
+            "descriptor should register trace/copy/drop runtime hook surface\n{descriptor}"
         );
     }
 
@@ -1450,13 +1470,24 @@ fun main(): Int {
             "value_boxing_transport.ll",
         );
 
-        assert!(
-            ir.contains("@__scoop_composite_transport_desc__erased__sample_Named"),
-            "struct -> Any boxing should consume the erased composite transport descriptor\n{ir}"
+        let composite_descriptor = ir_global_definition_matching(
+            &ir,
+            "descriptor-backed composite transport global used during value boxing",
+            |line| {
+                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("@scoop_composite_copy")
+                    && line.contains("@scoop_composite_drop")
+            },
         );
         assert!(
-            ir.contains("@__scoop_type_desc_mir_value_box__sample_Named"),
-            "boxed struct carrier should publish a runtime type descriptor\n{ir}"
+            composite_descriptor.contains("@scoop_composite_copy")
+                && composite_descriptor.contains("@scoop_composite_drop"),
+            "struct -> Any boxing should consume a descriptor-backed composite transport contract\n{composite_descriptor}"
+        );
+        assert!(
+            ir.contains("scoop.mir.value_box$sample_Named")
+                && ir.contains("rt_alloc_mir_value_box"),
+            "boxed struct carrier should materialize a concrete value-box object type and allocate it through typed alloc\n{ir}"
         );
         assert!(
             ir.contains("rt_alloc_mir_value_box"),
@@ -1475,29 +1506,30 @@ fun main(): Int {
             "enum_payload_transport.ll",
         );
 
+        let payload_descriptor =
+            ir_global_definition_matching(&ir, "enum payload layout descriptor global", |line| {
+                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("__gc_slots")
+                    && line.contains("@scoop_composite_trace")
+            });
         assert!(
-            ir.contains("@__scoop_composite_transport_desc__inline__sample_Outer"),
-            "enum constructors should publish an explicit enum payload layout descriptor\n{ir}"
-        );
-        assert!(
-            ir.contains("@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__UnitPair"),
-            "boxed Unit+struct enum payload should publish a runtime type descriptor\n{ir}"
-        );
-        assert!(
-            ir.contains("@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__Nested"),
-            "boxed nested enum/tuple payload should publish a runtime type descriptor\n{ir}"
+            payload_descriptor.contains("__gc_slots"),
+            "enum constructors should publish an explicit payload layout descriptor with GC slot metadata\n{payload_descriptor}"
         );
         assert!(
             ir.contains("rt_alloc_enum_boxed_payload"),
             "payload-bearing enum constructors should allocate GC-managed boxed payload objects\n{ir}"
         );
         assert!(
-            ir.contains("@__scoop_composite_transport_desc__erased__sample_Outer"),
-            "enum -> Any erasure should consume the erased composite transport descriptor\n{ir}"
+            ir.matches("rt_alloc_enum_boxed_payload").count() >= 2
+                && ir.matches("enum_boxed_payload_gep").count() >= 2,
+            "boxed Unit+struct / nested tuple payload 都应通过 descriptor-backed typed alloc 发布 boxed variant path\n{ir}"
         );
         assert!(
-            ir.contains("@__scoop_type_desc_mir_value_box__sample_Outer"),
-            "enum -> Any erasure should use the CG-T04b value box carrier\n{ir}"
+            ir.contains("scoop.mir.value_box$sample_Outer")
+                && ir.contains("rt_alloc_mir_value_box")
+                && ir.contains("mir_value_box_payload_gep"),
+            "enum -> Any 擦除应继续走 descriptor-backed value box carrier，而不是锁死当前 value-box symbol\n{ir}"
         );
         assert!(
             ir.contains("when_payload_field"),
@@ -1536,26 +1568,31 @@ fun main(): Int {
         let ir =
             emit_refactor_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
 
-        assert!(
-            ir.contains("__scoop_composite_transport_desc__boxed") && ir.contains("ClosureEnv"),
-            "closure env lowering should consume the boxed composite transport descriptor\n{ir}"
+        let closure_env_descriptor = ir_global_definition_matching(
+            &ir,
+            "closure env composite transport descriptor global",
+            |line| {
+                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("__gc_slots")
+                    && line.contains("@scoop_composite_trace")
+            },
         );
         assert!(
-            ir.contains("__scoop_type_desc_mir_closure_env__"),
-            "closure env heap object should publish a runtime type descriptor\n{ir}"
+            closure_env_descriptor.contains("__gc_slots"),
+            "closure env lowering should consume a boxed composite transport descriptor with GC slot metadata\n{closure_env_descriptor}"
         );
         assert!(
-            ir.contains("__scoop_type_desc_mir_capture_box__sample_Point"),
-            "mutable struct capture should allocate a typed capture box descriptor\n{ir}"
+            ir.contains("rt_alloc_pass_mir_closure_env"),
+            "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
+        );
+        assert!(
+            ir.contains("rt_alloc_pass_mir_capture_box"),
+            "mutable struct capture should allocate a typed capture box descriptor-backed object\n{ir}"
         );
         assert!(
             ir.contains("pass_mir_closure_env_field_gep")
                 && ir.contains("pass_mir_capture_box_set_field_gep"),
             "closure allocation/invoke should store env fields and mutate through capture boxes\n{ir}"
-        );
-        assert!(
-            ir.contains("__gc_slots"),
-            "traceable closure captures should publish GC slot maps\n{ir}"
         );
     }
 
@@ -1570,14 +1607,35 @@ fun main(): Int {
             ir.contains("@scoop_thread_spawn_join_resume_transport"),
             "cross-thread resume should call the typed transport runtime helper\n{ir}"
         );
+        let transport_thunk = ir_function_matching(
+            &ir,
+            "typed thread resume transport thunk",
+            |header, function| {
+                !header.contains("@main(")
+                    && function.contains("refactor_thread_surface_resume_transport")
+                    && function.contains("refactor_thread_resume_payload")
+            },
+        );
+        let transport_symbol = ir_function_symbol_name(transport_thunk);
         assert!(
-            ir.contains("__scoop_refactor_thread_resume_transport__"),
-            "cross-thread resume should generate a typed surface-resume thunk\n{ir}"
+            ir.lines().any(|line| {
+                line.contains("@scoop_thread_spawn_join_resume_transport")
+                    && ir_line_mentions_symbol(line, transport_symbol)
+            }),
+            "cross-thread resume should generate a typed surface-resume thunk and pass it to the runtime helper\n{transport_thunk}"
+        );
+        let payload_descriptor = ir_global_definition_matching(
+            &ir,
+            "boxed composite transport descriptor for resume payload",
+            |line| {
+                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("__gc_slots")
+                    && line.contains("@scoop_composite_trace")
+            },
         );
         assert!(
-            ir.contains("__scoop_composite_transport_desc__boxed__sample_Point")
-                && ir.contains("__gc_slots"),
-            "composite resume payload should pass a descriptor with GC slot metadata\n{ir}"
+            payload_descriptor.contains("__gc_slots"),
+            "composite resume payload should pass a descriptor with GC slot metadata\n{payload_descriptor}"
         );
         assert!(
             ir.contains("%refactor_thread_resume_payload")
@@ -1671,9 +1729,28 @@ fun main(): Int {
         )
         .expect("refactor argv ABI should lower through the plain entry ABI");
         let main = ir_function_body(&ir, "define i32 @main(");
+        let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
+        assert_eq!(
+            main_defined_calls.len(),
+            1,
+            "main wrapper should forward to exactly one defined plain entry shell: {:?}\n{main}",
+            main_defined_calls
+        );
+        let plain_entry_symbol = main_defined_calls[0].clone();
+        let plain_entry = ir_function_matching(
+            &ir,
+            "plain argv entry shell called by C main wrapper",
+            |header, function| {
+                !header.contains("@main(")
+                    && ir_function_symbol_name(function) == plain_entry_symbol.as_str()
+                    && header.contains("ptr addrspace(1)")
+                    && !function.contains("switch i32 %refactor_step_tag")
+            },
+        );
 
         assert!(
-            main.contains("@scoop_entry_argv_array") && main.contains("@sample.main"),
+            main.contains("@scoop_entry_argv_array")
+                && ir_function_symbol_name(plain_entry) == plain_entry_symbol,
             "main wrapper should build argv array and pass it to the refactor plain entry:\n{main}"
         );
     }
@@ -1697,9 +1774,24 @@ fun main(): Int {
             ir.contains("isa_iface") || ir.contains("isa_loop"),
             "runtime type tests should use descriptor/itable matching helpers:\n{ir}"
         );
+        let classify_ir = ir_function_matching(
+            &ir,
+            "type-pattern helper with statically folded branch condition",
+            |header, function| {
+                !header.contains("@main(")
+                    && header.contains("(i64")
+                    && function.contains("br i1 true")
+                    && function.contains("phi i64 [ 7,")
+                    && function.contains("[ 9,")
+            },
+        );
         assert!(
-            ir.contains("@sample.classifyValue"),
-            "pattern `is Type` should codegen through MIR pattern metadata, including static folds:\n{ir}"
+            classify_ir.contains("br i1 true")
+                && classify_ir.contains("phi i64 [ 7,")
+                && classify_ir.contains("[ 9,")
+                && !classify_ir.contains("isa_iface")
+                && !classify_ir.contains("isa_loop"),
+            "pattern `is Type` should codegen through MIR pattern metadata, including static folds，而不是依赖当前 callable symbol 文本:\n{classify_ir}"
         );
     }
 

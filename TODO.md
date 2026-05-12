@@ -312,7 +312,7 @@
     - 对应 `PLAN.md` P0 的“测试面先解除对现有命名形状的强绑定”要求：LLVM 与 pipeline 行为测试现在主要锁定语义、调用关系、namespace 角色与 IR 结构，不再把当前 callable symbol 文本当成正确性标准。
     - 对应 `STABLE_ID.md` §3.4 / §7.3 / §7.4 / §10：top-level callable、direct-entry shell、derived explicit-root descriptor / frame type 等 identity surface 已从当前 spelling 断言中解耦；后续 user ABI / private symbol / linkage 迁移时，这些测试将继续验证行为语义而非旧名字。
 
-### [TODO] P0-T02C：清理 review 发现的剩余 stable-id 敏感 LLVM / pipeline 测试字符串绑定
+### [DONE] P0-T02C：清理 review 发现的剩余 stable-id 敏感 LLVM / pipeline 测试字符串绑定
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P0
@@ -385,7 +385,32 @@
   - `llvm/tests.rs` 与 `pipeline/llvm_codegen_stage.rs` 中 review 已确认的剩余 stable-id 敏感行为测试，不再直接把当前 private / descriptor / callable symbol 文本当作正确性标准。
 - 依赖：P0-T02B
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - 核心决策：
+    - 在 `llvm/tests.rs` 补充了少量 IR 解析 helper（store/global symbol 抽取、按 symbol 回查函数体、GC slot load 识别），把 `effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter`、`higher_order_effectful_function_value_uses_schema_aware_carrier_adapter`、`refactor_class_ctor_uses_concrete_generic_instance_layout`、`object_member_call_uses_gc_managed_singleton_receiver`、`enum_single_field_non_scalar_payload_uses_boxed_variant_path` 从“锁死当前 symbol spelling”迁移到“检查 helper family、typed alloc、concrete object/payload type、singleton slot 角色与 payload GEP/materialize 结构”的断言模型。
+    - 在 `pipeline/llvm_codegen_stage.rs` 增加 global-definition / symbol-mention helper，并把 `refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`、`refactor_llvm_value_boxing_transport`、`refactor_llvm_enum_payload_transport`、`refactor_llvm_closure_env_transport`、`refactor_llvm_cross_thread_resume_payload_transport`、`refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry`、`refactor_llvm_runtime_type_primitives` 迁移为依赖 descriptor/global 角色、direct-entry / wrapper / thunk 调用关系、typed alloc marker、payload/layout/GC slot 元数据与分支/phi 结构的断言，而不再直接绑定当前 private / descriptor / callable symbol 文本。
+    - 扩充 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests`，把本轮清理掉的 closure adapter、class/object/type-desc、transport thunk、`@sample.main`、`@sample.classifyValue` 等剩余硬编码 spelling 固化为防回流清单。
+    - 针对验证暴露出的不稳定局部名差异（如 `*_desc_i8`、`enum_boxed_payload_obj_ptr`、object receiver SSA 名），统一收敛到在定向/全量路径下都稳定的结构信号，避免继续把临时 IR 命名细节当作正确性标准。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_step_adapter -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_class_ctor_uses_concrete_generic_instance_layout -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc enum_single_field_non_scalar_payload_uses_boxed_variant_path -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composite_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_env_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc cross_thread_resume_payload_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_enum_payload_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 的“测试基线先解除对剩余当前命名形状的强绑定”要求：review 已确认的剩余 LLVM / pipeline stable-id 敏感行为测试，已不再直接把当前 private / descriptor / callable symbol 文本当作正确性标准。
+    - 对应 `STABLE_ID.md` §3.4 / §8.5 / §10：closure adapter、class/object/type descriptor、composite transport、value box、thread resume transport、main wrapper entry、runtime type primitive helper 等 identity surface 已迁移为角色/结构语义断言，并有 source inventory 防止旧 spelling 回流。
 
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 
