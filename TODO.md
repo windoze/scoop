@@ -810,7 +810,7 @@
     - 对应 `PLAN.md` P2 的 linkage 卫生目标：compiler-private helper 已不再以 external linkage 污染 object / linker namespace，后续 P3 只需继续迁移 private naming source，而不再冒 linker 冲突风险。
     - 对应 `STABLE_ID.md` §7.4 / §8.5 / §8.6：closure/effect helper、object/top-level init bridge、thread/task resume thunk、模块内 source/materialized callable 实现体现在都显式使用 `InternalLinkage`，`main`/runtime/native import 例外保持 external，且 helper 声明不再绕开统一 declaration/linkage 分类入口。
 
-### [TODO] P2-T02R：Review linkage 收口，确认 namespace 风险已经先于命名迁移被压住
+### [DONE] P2-T02R：Review linkage 收口，确认 namespace 风险已经先于命名迁移被压住
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P2
@@ -826,7 +826,38 @@
   - 可以明确写出：后续即使名字继续演进，也不会再因为 private helper external 化导致主要 linker 风险。
 - 依赖：P2-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+    - 复核并验证（无代码改动）：
+      - `crates/scoopc/src/llvm/codegen/mod.rs`
+      - `crates/scoopc/src/llvm/codegen/object_init.rs`
+      - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+      - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+      - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+      - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+      - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+      - `crates/scoopc/src/llvm/tests.rs`
+  - 核心决策：
+    - 本任务按 review 范围复核 `P2-T01` / `P2-T02` 的 declaration/linkage 收口结果，不新增实现性改动；只有在发现会阻塞后续 P3 private naming 迁移的真实 namespace/ABI 问题时才插入前置任务。本轮未发现此类 blocker，因此直接闭合 `P2-T02R`。
+    - 复核结论确认：compiler-private helper 已经退出 object external symbol 集，`external_symbol_audit_*` 继续能在 object 层直接看见 `main` / runtime-native import / user ABI surface，同时确认 closure/effect/hidden-init helper 与仅模块内使用的 source-level/materialized callable 实现体保持 `internal/private` linkage。
+    - 明确仍允许 external 的固定例外清单：
+      - 宿主固定入口 `main`
+      - runtime/native import（含 `scoop_runtime_init`、`scoop_entry_argv_array`、LLVM intrinsic、`malloc` / `free` / `exit` 等）
+      - `@Extern` 指定的 native function/global symbol（含 thread-local extern global）
+    - 除上述固定例外外，真正用户可见的 exported ABI callable 仍归入 `ExportedAbi`/user-ABI surface；未发现 compiler-private helper 伪装成 external user ABI 的残留路径。
+    - 额外静态复核结果：production 代码中未发现新的 `CompilerPrivateHelper + Linkage::External` 组合；`module.add_function(..., None)` 在 `crates/scoopc/src/llvm` 中未回流到实现代码，当前命中仅剩测试断言文本。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc function_declaration_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_extern_global -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 静态审计摘要：
+      - `CompilerPrivateHelper + Linkage::External`：0 个 production 命中
+      - `module\.add_function\(.*None\)`：`crates/scoopc/src/llvm` 中仅剩 `tests.rs` 的断言文本命中
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P2 review 验收：已确认 namespace 风险先于 P3/P4 命名迁移被压住，后续即使 private/user ABI symbol 文本继续演进，也不会再因 compiler-private helper external 化而把主要 linker 风险重新带回 object/linker surface。
+    - 对应 `STABLE_ID.md` §7.4 / §8.6：LLVM function declaration 现已稳定区分 exported ABI、runtime/native import、compiler-private helper 三类 surface；`main` / `@Extern` / runtime 固定入口保持显式 external 例外，而 closure/effect/init helper 继续停留在 internal/private linkage 路径。
 
 ## P3：迁移 private LLVM naming source
 

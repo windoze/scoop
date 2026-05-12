@@ -1,25 +1,32 @@
 ## 本次执行计划
 
-1. 先读取 `TODO.md`，确认第一个未完成任务（仅标题前缀带 `[DONE]` 的任务视为完成）。
-2. 检查最近一次提交是否直接提到与该任务相关的未完成问题；如果是，则将其视为当前任务的一部分，或在 `TODO.md` 中登记为前置任务。
-3. 阅读当前任务涉及的代码、测试、规格和依赖，确认实现边界与验证要求。
-4. 直接完成当前任务；如果存在阻塞当前任务且无法绕过的真实缺陷或缺失能力，则先以最小必要粒度在 `TODO.md` 中加入前置任务并停止。
-5. 运行与当前任务相关的验证；至少覆盖任务要求的测试，并补充必要回归验证。若任务落地，则尽量执行 `cargo fmt`、相关测试，以及 `cargo clippy --all-targets -- -D warnings`（如果范围或耗时异常，再根据实际情况说明）。
-6. 更新 `memory/claude_plan.md` 记录关键进展；如任务完成，更新 `TODO.md`，将对应任务标题标记为 `[DONE]` 并填写完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
-7. 按仓库约定创建一次 git 提交，提交信息包含当前任务号，然后停止，不继续处理下一个任务。
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断第一个未完成任务。
+2. 检查最近一次提交信息，确认是否有与该任务直接相关且尚未完成的问题需要并入当前任务或作为前置任务写回 `TODO.md`。
+3. 阅读当前任务涉及的代码、测试、文档与依赖约束，只做与该任务直接相关的分析，不做开放式问题扫荡。
+4. 实现当前任务；若遇到阻塞当前任务的真实缺口或缺陷，则先修复该阻塞，或按要求在 `TODO.md` 中插入最小必要前置任务并停止。
+5. 运行任务要求的验证，以及必要的相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
+6. 更新文档与任务记录：将完成的任务在 `TODO.md` 标记为 `[DONE]` 并填写完成记录；仅在阶段计划实际变化时更新 `PLAN.md`。
+7. 检查工作区变更，按任务要求提交一次 git commit，然后停止，不继续下一个任务。
 
-## 说明
+## 进度日志
 
-- 这里记录的是可公开的执行计划与进度摘要，不包含内部推理细节。
-- 若执行过程中发现阻塞项，会及时在本文件和 `TODO.md` 中补充说明。
-
-## 进展更新
-
-- 已读取 `TODO.md` 并确认当前首个未完成任务为 `P2-T02`：把 compiler-private helper 从 external namespace 收回 `internal/private`。
-- 最近一次提交为 `[P2-T01] Classify LLVM declaration surfaces`，它对应当前任务的前置项，提交信息未额外暴露需先插入的新 blocker。
-- 下一步：检查 `llvm` declaration/linkage helper、`object_init` / `mod.rs` / `closure` / `effect_lowered` 中仍保留 external 的 compiler-private helper，以及现有 object/symbol 审计测试，确认最小正确改动面。
-- 已完成代码面收口：`object_init`、top-level immutable init、callee resume entry、materialized MIR closure/plain helper、closure body、effect helper/trampoline/thread-resume thunk 等 compiler-private helper 统一改为显式 `Linkage::Internal`；`effect_lowered` 中残留的裸 `add_function(..., None)` helper 声明路径也已改走统一 declaration helper。
-- 已同步调整 `llvm/tests.rs`：helper smoke 测试改为检查 closure/effect/hidden-init helper 不再出现在 object external symbol 集，并额外用 IR 断言这些 helper 仍存在且使用 `internal/private` linkage。
-- 已完成验证：`cargo fmt`、`cargo test -p scoopc function_declaration_ -- --nocapture`、`cargo test -p scoopc external_symbol -- --nocapture`、`cargo test -p scoopc`、`cargo clippy -p scoopc --all-targets -- -D warnings` 全部通过；额外 `rg -n "add_function\(" crates/scoopc/src/llvm/codegen` 只剩统一 declaration helper 内部的 `Some(linkage)` 调用。
-- 已更新 `TODO.md`：将 `P2-T02` 标记为 `[DONE]` 并补全改动范围、核心决策、验证结果与闭合说明。
-- 下一步：检查工作树差异，按任务号创建 git 提交，然后停止。
+- 已创建本计划文件。下一步：读取 `TODO.md` 并识别第一个未完成任务。
+- 已读取 `TODO.md` 与最近一次提交；当前第一个未完成任务是 `P2-T02R`（review 任务），最近提交为 `[P2-T02] Internalize compiler-private helper linkage`，未见提交主题中显式声明的额外未完成前置问题。
+- 当前 review 重点：
+  1. external symbol 集中是否仍残留 compiler-private helper；
+  2. `main`、runtime/native import、`@Extern` 是否仍保持 external 例外；
+  3. linkage 收口后是否未引入 ABI/语义漂移。
+- 下一步：阅读 `P2-T01` / `P2-T02` 相关代码与测试入口，然后运行对象符号审计、全量测试与 `clippy` 验证；若发现真实 blocker，则按要求先更新 `TODO.md`。
+- 已复核的代码/测试入口：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 中 `LlvmFunctionDeclarationSurface` 与统一 declaration helper；
+  - `crates/scoopc/src/llvm/tests.rs` 中 external symbol 分类、object audit、raw `add_function(..., None)` inventory、`@Extern` 回归测试。
+- 已完成验证：
+  - 静态 grep 未发现 production 代码中残留的 `CompilerPrivateHelper + Linkage::External` 组合；
+  - `cargo test -p scoopc function_declaration_ -- --nocapture` 通过；
+  - `cargo test -p scoopc external_symbol -- --nocapture` 通过；
+  - `cargo test -p scoopc refactor_llvm_extern_global -- --nocapture` 通过；
+  - `cargo test -p scoopc` 通过（767 passed）；
+  - `cargo clippy -p scoopc --all-targets -- -D warnings` 通过。
+- 结论：当前未发现阻塞 `P2-T02R` 的新前置问题。下一步：更新 `TODO.md`，将 `P2-T02R` 标记为 `[DONE]` 并补全完成记录，然后提交本次 review 结果。
+- 已完成 `TODO.md` 回写：`P2-T02R` 已标记为 `[DONE]`，并补充了 review 决策、固定 external 例外清单、静态审计摘要与测试/`clippy` 验证结果。
+- 剩余步骤：检查变更、提交 git commit，然后停止，不进入 `P3-T01`。
