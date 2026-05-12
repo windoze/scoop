@@ -312,6 +312,81 @@
     - 对应 `PLAN.md` P0 的“测试面先解除对现有命名形状的强绑定”要求：LLVM 与 pipeline 行为测试现在主要锁定语义、调用关系、namespace 角色与 IR 结构，不再把当前 callable symbol 文本当成正确性标准。
     - 对应 `STABLE_ID.md` §3.4 / §7.3 / §7.4 / §10：top-level callable、direct-entry shell、derived explicit-root descriptor / frame type 等 identity surface 已从当前 spelling 断言中解耦；后续 user ABI / private symbol / linkage 迁移时，这些测试将继续验证行为语义而非旧名字。
 
+### [TODO] P0-T02C：清理 review 发现的剩余 stable-id 敏感 LLVM / pipeline 测试字符串绑定
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4 / P0
+  - [`STABLE_ID.md`](./STABLE_ID.md) §3.4、§8.5、§10
+- 背景：
+  - `P0-T02R` 预检查发现，`crates/scoopc/src/llvm/tests.rs` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 里仍有一批 stable-id 敏感行为测试直接绑定当前 private / descriptor / callable symbol 文本；这些断言没有再使用旧 dense-id 样式，但仍会在后续 P3/P4 迁移 private naming source 与 exported/user ABI mangling 时把无关语义测试一起打断。
+  - 当前已确认的直接字符串绑定至少包括：
+    - `crates/scoopc/src/llvm/tests.rs`
+      - `__scoop_refactor_closure_step_adapter__a_main__lambda0__`
+      - `__scoop_refactor_closure_dynamic_entry__a_main__lambda0`
+      - `__scoop_refactor_plain_adapter__a_choose__lambda0__`
+      - `__scoop_refactor_closure_step_adapter__a_choose__lambda1__`
+      - `__scoop_refactor_closure_dynamic_entry__a_choose__lambda1`
+      - `__scoop_type_desc_class__a_Box_String_`
+      - `__scoop_object_instance__a.Helper`
+      - `__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Ok`
+      - `__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Msg`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+      - `@__scoop_composite_transport_desc__inline__sample_Named`
+      - `@__scoop_composite_transport_desc__erased__sample_Named`
+      - `@__scoop_type_desc_mir_value_box__sample_Named`
+      - `@__scoop_composite_transport_desc__inline__sample_Outer`
+      - `@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__UnitPair`
+      - `@__scoop_type_desc_runtime__enum_boxed_payload__sample_Outer__Nested`
+      - `@__scoop_composite_transport_desc__erased__sample_Outer`
+      - `@__scoop_type_desc_mir_value_box__sample_Outer`
+      - `__scoop_type_desc_mir_capture_box__sample_Point`
+      - `__scoop_refactor_thread_resume_transport__`
+      - `@sample.main`
+      - `@sample.classifyValue`
+- 目标：
+  - 在完成 `P0-T02R` 之前，把 review 已确认的剩余 stable-id 敏感行为测试从“依赖当前 private / descriptor / callable symbol 拼写”迁移到“依赖语义、family、角色、调用关系、布局与 IR 结构”的断言模型。
+- 必须实现的内容：
+  1. 复核并迁移 `crates/scoopc/src/llvm/tests.rs` 中剩余的 stable-id 敏感行为测试，至少覆盖：
+     - `effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter`
+     - `higher_order_effectful_function_value_uses_schema_aware_carrier_adapter`
+     - `refactor_class_ctor_uses_concrete_generic_instance_layout`
+     - `object_member_call_uses_gc_managed_singleton_receiver`
+     - `enum_single_field_non_scalar_payload_uses_boxed_variant_path`
+  2. 复核并迁移 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中剩余的 stable-id 敏感行为测试，至少覆盖：
+     - `refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`
+     - `refactor_llvm_value_boxing_transport`
+     - `refactor_llvm_enum_payload_transport`
+     - `refactor_llvm_closure_env_transport`
+     - `refactor_llvm_cross_thread_resume_payload_transport`
+     - `refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+     - `refactor_llvm_runtime_type_primitives`
+  3. 为上述测试补齐稳定 IR 查询 helper、global/descriptor 角色识别或等价语义断言，使它们可以依赖以下信息定位目标，而不是依赖当前 symbol spelling：
+     - source role / published surface（user callable、compiler-private helper、descriptor、singleton slot）
+     - 调用关系、函数体结构、payload/layout/GC slot 元数据
+     - direct-entry / wrapper / transport thunk 的角色关系
+  4. 扩充 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests` 或等价 source inventory，覆盖本轮清理掉的剩余字符串绑定，至少包括上述 closure adapter / descriptor / transport / callable spellings。
+- 必须遵从的约束：
+  - 不得把断言弱化成“出现某个通用子串即可”；迁移后仍必须验证 helper / descriptor 的 family、角色与结构语义。
+  - 不得把 `main`、runtime / native import、`@Extern` 指定的 native symbol 这类显式例外误纳入需要清理的 callable symbol 绑定。
+  - 要按同根问题成组处理，不能只修 review 提到的一两个样例而留下 sibling case。
+- 验证：
+  1. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  2. `cargo test -p scoopc closure_step_adapter -- --nocapture`
+  3. `cargo test -p scoopc refactor_class_ctor_uses_concrete_generic_instance_layout -- --nocapture`
+  4. `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+  5. `cargo test -p scoopc enum_single_field_non_scalar_payload_uses_boxed_variant_path -- --nocapture`
+  6. `cargo test -p scoopc composite_transport -- --nocapture`
+  7. `cargo test -p scoopc closure_env_transport -- --nocapture`
+  8. `cargo test -p scoopc cross_thread_resume_payload_transport -- --nocapture`
+  9. `cargo test -p scoopc runtime_type_primitives -- --nocapture`
+  10. `cargo test -p scoopc refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry -- --nocapture`
+  11. `cargo test -p scoopc`
+- 完成条件：
+  - `llvm/tests.rs` 与 `pipeline/llvm_codegen_stage.rs` 中 review 已确认的剩余 stable-id 敏感行为测试，不再直接把当前 private / descriptor / callable symbol 文本当作正确性标准。
+- 依赖：P0-T02B
+- 完成记录：
+  - 待填。
+
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 
 - 参考：
@@ -334,7 +409,7 @@
   - 在完成记录中明确说明：后续任务将基于哪些测试入口验证 symbol、linkage、path-stability 和 dense-id 泄漏。
 - 完成条件：
   - 可以明确写出：P1-P7 已有稳定审计基线，不会被旧名字断言或 schema churn 噪音主导。
-- 依赖：P0-T02B
+- 依赖：P0-T02C
 - 完成记录：
   - 待填。
 

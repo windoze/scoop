@@ -1,50 +1,54 @@
-# 执行计划
+# Claude Plan
 
-说明：不记录逐字内部推理；这里保留可审计的高层计划、关键判断依据与执行进度。
+## 初始执行计划
 
-## 初始计划
+1. 读取 `TODO.md`，定位首个标题未标记 `[DONE]` 的任务。
+2. 检查最近一次提交信息，确认是否存在与该任务直接相关且未完成的问题需要一并处理或在 `TODO.md` 中登记为前置任务。
+3. 阅读该任务涉及的代码、测试、约束和依赖，确认是否可以按当前任务边界直接完成。
+4. 若存在阻塞当前任务的真实前置问题，先最小化更新 `TODO.md` / `PLAN.md`（仅在阶段计划变化时）并记录阻塞，再提交并停止。
+5. 若无阻塞，直接实现当前任务，保持改动最小且满足规范，不采用变通方案。
+6. 运行该任务要求的验证，以及必要的 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`。
+7. 更新 `memory/claude_plan.md` 记录关键进展；完成后把任务在 `TODO.md` 中标记为 `[DONE]`，补全完成记录。
+8. 如阶段计划未变化则不改 `PLAN.md`；最后按仓库提交风格创建一次提交，然后停止，不继续下一个任务。
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 识别首个未完成任务。
-2. 查看最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的事项；若有，将其视为当前任务的一部分或在 `TODO.md` 中补充为前置依赖。
-3. 阅读当前任务在 `TODO.md` 中的完整要求、依赖、验证要求与完成记录；必要时再查看 `PLAN.md` 仅确认阶段级依赖是否需要调整。
-4. 检查相关代码与测试位置，确认最小正确修改范围，避免引入规避性实现。
-5. 实现当前任务；若发现阻塞当前任务且必须先修复的问题，则在 `TODO.md` 中添加最小必要前置任务，更新依赖顺序，并停止继续后续任务。
-6. 运行任务要求的验证，以及必要的构建、测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；若失败则立即修复。
-7. 更新 `memory/claude_plan.md` 记录进度与关键决策。
-8. 将当前任务在 `TODO.md` 中标记为 `[DONE]` 并补全完成记录；仅当阶段计划确实变化时更新 `PLAN.md`。
-9. 按仓库约定创建一次 git 提交，提交信息包含任务编号；然后停止。
+## 说明
 
-## 进度记录
+- 这里记录的是可审计的执行计划与决策，不包含内部推理细节。
 
-- 已创建计划文件，下一步：读取 `TODO.md` 并识别首个未完成任务。
-- 已读取 `TODO.md` 与最新提交信息，识别首个未完成任务为 `P0-T02B：清理剩余 stable-id 敏感 LLVM / pipeline 测试中的当前 callable symbol 字符串绑定`。
-- 最新提交主题为 `[P0-T02R] Add prerequisite for callable symbol bindings`，说明当前任务已被明确前置化；暂无额外历史任务需要插入到它之前。
-- 下一步：定位 `P0-T02B` 指向的测试与 helper，审查是否仍通过当前 callable symbol 文本定位函数/调用点，并据此设计最小且完整的迁移方案。
-- 已审查到两类主要绑定：
-  1. `llvm/tests.rs` 中通过 `function_ir_named("@a.*(")`、`ir.contains("define ... @a.*(")`、`find("@a.take(")` 等直接用当前 callable symbol 文本定位函数或调用点。
-  2. `pipeline/llvm_codegen_stage.rs` 中 `refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry` 直接锁定 `sample.effectEntry` 与 `__scoop_refactor_direct_invoke__/dynamic_invoke` 的当前 spelling。
-- 具体实现策略：
-  1. 在测试侧补少量 IR helper，用函数头/函数体结构匹配目标函数，并可从匹配结果提取当前实际 symbol 供“调用关系”断言使用，但不再把某个固定字符串当作金标准。
-  2. 把 `llvm/tests.rs` 中所有同类顶层 callable 绑定一起迁移，覆盖任务列出的入口及相邻同类测试，避免留下同根问题。
-  3. 为 `pipeline` 测试增加本地 IR matching helper，改为验证“dynamic shell 与 main wrapper 都只转发到语义上识别出的 direct-entry shell”。
-  4. 扩大 source inventory，使其同时覆盖 `llvm/tests.rs` 与 `pipeline/llvm_codegen_stage.rs` 中本轮移除的硬编码 callable symbol 断言。
-- 已完成代码改动：
-  - `crates/scoopc/src/llvm/tests.rs`：
-    - 把 `float_builtin_types_lower_to_llvm_scalars`、`direct_*`、`closure_call_without_outward_effect_*`、`direct_hir_reachability_*`、object/top-level init、managed explicit-frame、ctor factory、deferred/aggregate rebuild、hidden-sret、explicit-frame layout 等当前 callable symbol 绑定迁移为结构/调用关系断言。
-    - 新增/扩展 IR helper：call target 解析、defined global 查询、descriptor -> offsets 解析、实际 symbol 提取、user-callable 角色判定、测试侧 LLVM ident sanitize。
-    - 扩大 stable-id source inventory，现同时防回归 `llvm/tests.rs` 与 `pipeline/llvm_codegen_stage.rs` 的 callable symbol 硬编码断言。
-  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`：
-    - 新增本地 IR matching / symbol / call-target helper。
-    - `refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry` 改为通过 defined-function call graph 识别 direct-entry shell 与 dynamic shell，不再锁定 `sample.effectEntry` / `__scoop_refactor_*` 当前 spelling。
-- 调试记录：
-  - 第一轮定向测试发现 2 个 matcher 过窄（latent wrapper 与 closure direct-call）。已改为基于参数形状、closure helper family、closure env / dynamic-entry family 等结构特征匹配。
-  - 第一轮全量测试又暴露 5 个“误匹配到 user `a.main` 或过度依赖局部 IR 细节”的问题；已进一步收紧到返回形状、是否调用 `println`、ctor root marker、aggregate field extract、actual caller graph 等特征。
-- 当前验证结果：
-  - `cargo fmt`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc direct_call_ -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc explicit_root_frame -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
-- 下一步：把 `P0-T02B` 在 `TODO.md` 标记为 `[DONE]` 并写回完成记录，然后创建提交并停止。
+## 当前任务确认
+
+- `TODO.md` 中首个未完成任务为 `P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住`。
+- 最近一次提交为 `[P0-T02B] Unbind callable symbol test spellings`，与本次 review 直接相关；本次工作将基于该提交结果复核 P0 审计脚手架与测试基线是否已闭合。
+
+## 当前执行细化
+
+1. 复核 `crates/scoopc/src/llvm/tests.rs`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 及四个 `.cone`/JSON 健康基线文件，确认审计 helper、source inventory 与行为测试是否仍残留旧字符串绑定。
+2. 结合代码搜索，检查 review 关注的旧命名样式（如 `scoop.lambda$0`、`__schema3`、`__scoop_object_init__...` 等）是否仍被测试当作正确性锚点。
+3. 重跑 P0-T01/P0-T02 要求的关键测试与 grep 审计，确认 object/symbol/path-stability/dense-id 泄漏审计入口可复用。
+4. 若发现阻塞 P1 的真实问题，优先修复或把最小前置任务写入 `TODO.md`；若未发现阻塞，则把 `P0-T02R` 标记完成并补全完成记录。
+5. 运行必要格式化/静态检查，提交本次 review 结果后停止。
+
+## 当前发现
+
+- `crates/scoopc/src/llvm/tests.rs` 中仍残留若干直接绑定当前 private / descriptor symbol 的行为测试，例如：
+  - `effectful_closure_dynamic_fallback_uses_schema_aware_carrier_adapter`
+  - `higher_order_effectful_function_value_uses_schema_aware_carrier_adapter`
+  - `refactor_class_ctor_uses_concrete_generic_instance_layout`
+  - `object_member_call_uses_gc_managed_singleton_receiver`
+  - `enum_single_field_non_scalar_payload_uses_boxed_variant_path`
+- `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中仍残留若干直接绑定当前 transport / descriptor / callable symbol 的行为测试，例如：
+  - `refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`
+  - `refactor_llvm_value_boxing_transport`
+  - `refactor_llvm_enum_payload_transport`
+  - `refactor_llvm_closure_env_transport`
+  - `refactor_llvm_cross_thread_resume_payload_transport`
+  - `refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+  - `refactor_llvm_runtime_type_primitives`
+- 这些断言会在后续 P3/P4 调整 private naming source、transport type 名称和 user ABI surface 时制造非语义噪音，因此当前不能把 `P0-T02R` 视为完成。
+
+## 决策
+
+1. 不在本次 invocation 内继续扩大实现范围去顺手清理整类测试绑定。
+2. 在 `TODO.md` 中新增最小前置任务 `P0-T02C`，专门清理 review 发现的剩余 stable-id 敏感 LLVM / pipeline 测试字符串绑定。
+3. 将 `P0-T02R` 的依赖更新为 `P0-T02C`，保持任务顺序真实反映当前阻塞关系。
+4. 本次提交只记录 review 发现与任务重排，不改 `PLAN.md`，因为阶段级计划并未变化。
