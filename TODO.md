@@ -1310,9 +1310,78 @@
   - 基于上述修复重新跑默认环境逐个 fixture 扫描：`1226 total / 1202 pass / 24 fail / 0 timeout`。默认环境剩余失败已进一步收敛到 `codegen/monomorph_id_int.scoop`、`class_init_order_primary_secondary_basic.scoop`、continuation/finally/cross-thread `run-pass` 簇、若干 stdlib/adapter fixture，以及 `runtime_gc/effect_cross_thread_resume_payload_{refs,composite}.scoop`。
   - `runtime/c/scoop_thread.c` 已补齐仅供 fixture/internal surface 使用的 `scoop_thread_spawn_join_resume_u64` / `scoop_thread_spawn_join_resume_transport` helper；它们只负责 spawn + join + thunk 调用，不承担 continuation 核心语义。定向回归 `effect_escape_continuation_resume_cross_thread.scoop`、`effect_escape_continuation_multi_perform_cross_thread.scoop`、`gc_continuation_cross_thread_resume_with_objects.scoop`、`object_once_init_cross_thread.scoop`、以及 `runtime_gc/effect_cross_thread_resume_payload_{refs,composite}.scoop` 已恢复通过。
   - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs` 已修正 handle boundary 的优先级：当前 callable 内部已静态确定的 `ConsumeToArm` / `PendingCompletion` 现在先于外层动态 `EffectCtx` 扫描生效，从而恢复 `finally` 在 arm/body raise 路径上的执行。定向回归 `effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_arm_raise.scoop`、`effect_resume_finally_body_raise_after_resume.scoop`、`effect_multi_nonresuming_finally_nested_handle.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop` 已恢复通过。
-  - 下一步应优先处理两大剩余簇：
-    1. `class_init_order_primary_secondary_basic.scoop`、`unsafe_funptr_aggregate_return_tuple.scoop`、`handle_arm_explicit_type_args_basic.scoop` 这类单点 codegen/ABI 缺口；
-    2. `stdlib_hash_set_map_basic.scoop` / `stdlib_set_map_basic.scoop` / `stdlib_smoke_collections_and_iteration.scoop` 这类 reachable stdlib callable publication 缺口。
+  - `crates/scoopc/src/llvm/codegen/{call/abi.rs,call/lowering.rs,mir_body.rs,mod.rs}` 与 `crates/scoopc/src/llvm/emit.rs` 已继续把 direct-call / materialized callable 的 authoritative signature/body 查询接到 concrete publication：materialized MIR 参数/返回类型现在先映射回 codegen `TypeStore` 再做 ABI lowering；已具体化的 overload / instance FQN 不再被 top-level call binding 降级回 base FQN。定向回归 `class_init_order_primary_secondary_basic.scoop`、`stdlib_hash_set_map_basic.scoop`、`stdlib_set_map_basic.scoop`、`stdlib_smoke_collections_and_iteration.scoop` 已恢复通过。
+  - `crates/scoopc/src/effect_lowered/ir.rs` 已补入 call-boundary -> `ResumeBoundary` 的 wrapper projection publication；`effect_typed_plain_adapter_{aggregate_return_basic,multiple_effect_rows_basic}.scoop` 已从“缺 `k4/k6` surface-resume owner dispatch contract 的前端失败”前移到“可成功 build、但运行仍未收口”的阶段。
+  - 尚未基于上述最新修复重跑完整 default/full-GC 双环境 scan；`1226 total / 1202 pass / 24 fail / 0 timeout` 仍是旧 inventory，不应再视为当前 authoritative 剩余列表。
+  - 下一步应优先处理三类剩余任务：
+    1. `handle_arm_explicit_type_args_basic.scoop`：`Query.ask<Int>` 的显式 type arg 还没有完整 materialize 到 handle binder / continuation schema；`t387`（用户源码里的 type param `T`）仍泄漏进 effect facts / ABI query，当前报错为 `refactor LLVM ABI query 缺少 source type 387 的 ABI value lowering contract`。
+    2. `effect_typed_plain_adapter_aggregate_return_basic.scoop` / `effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`：build 已通过，但运行仍挂起；当前 `aggregate_return` 样本会输出 `41`、`42` 后停住，说明 plain adapter 的 surface-resume wrapper completion payload / owner resume dispatch 仍有 state-machine 闭环缺口。
+    3. `stdlib_smoke_test_and_preconditions.scoop`：build 已通过，但运行打印到 `all_passed` 后未退出；需定位程序尾部 cleanup / return / runtime-exit 路径的挂起点。
+  - 处理完以上三簇后，再重新跑：
+    1. 默认环境逐个 fixture scan（timeout <= 30s）。
+    2. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 逐个 fixture scan（timeout <= 30s）。
+    3. `cargo test --all`。
+  - 为避免历史收敛记录和剩余 blocker 继续挤在同一任务中，后续剩余 failure 的 owner / gap / 验证策略已拆分到 `G8-T13`。
+- 完成记录：
+
+## G8-T13：按 PIPELINE_GAPS 收口当前剩余 fixture failure
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §2 / G8
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md)（优先关注 `§2.7`、`§3.12`、`§5.1`、`§5.3`、`§5.4`；若现有条目不能准确承接当前 blocker，必须先补 gap 条目再修代码）
+  - G8-T12 的当前进展与已完成收敛记录
+- 目标：
+  - 将当前剩余 fixture failure 从“按单个症状打补丁”改为“按 pipeline gap 整体收口”；优先一次修完整个缺口涉及的 materialize / effect facts / late-lowered / LLVM / runtime 路径，而不是只做局部最小改动。
+- 当前已确认仍失败的 fixture（2026-05-12；注意：尚未基于最新修复重跑 full scan，因此下列列表表示“当前已确认仍失败”，不是新的全量 authoritative inventory）：
+  1. `tests/fixtures/run-pass/handle_arm_explicit_type_args_basic.scoop`
+     - 当前症状：`refactor LLVM ABI query 缺少 source type 387 的 ABI value lowering contract`。
+     - 当前定位：`Query.ask<Int>` 的显式 type arg 还没有完整 materialize 到 handle binder / continuation schema；用户源码里的 type param `T` 仍泄漏进 effect facts / ABI query。
+     - 首选 gap 映射：`PIPELINE_GAPS.md §2.7`；若修复过程中确认它属于“resume surface / binder typed contract 的独立缺口”，需在 `PIPELINE_GAPS.md` 先新增或细分条目。
+  2. `tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop`
+     - 当前症状：build 已通过，但运行时输出 `41`、`42` 后挂住。
+     - 当前定位：plain adapter 的 surface-resume wrapper completion payload / owner resume dispatch 仍未闭环。
+     - 首选 gap 映射：`PIPELINE_GAPS.md §3.12`、`§5.1`、`§5.3`。
+  3. `tests/fixtures/run-pass/effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`
+     - 当前症状：build 已通过，但运行仍未收口。
+     - 当前定位：effect-typed plain adapter 在多 effect row / shared wrapper schema 下的 owner dispatch publication 仍有残口。
+     - 首选 gap 映射：`PIPELINE_GAPS.md §3.12`、`§5.1`、`§5.3`。
+  4. `tests/fixtures/run-pass/stdlib_smoke_test_and_preconditions.scoop`
+     - 当前症状：build 已通过，运行会打印到 `all_passed`，但未正常退出。
+     - 当前定位：程序尾部 cleanup / return / runtime-exit 路径仍有挂起点。
+     - 首选 gap 映射：优先对照 `PIPELINE_GAPS.md §5.3`、`§5.4`；若最终根因落在更窄的 return/runtime-exit contract，应在 `PIPELINE_GAPS.md` 新增对应条目。
+- 必须实现的内容：
+  1. 在开始每一类修复前，先把该 fixture 映射到 `PIPELINE_GAPS.md` 的明确 gap owner：
+     - 若现有条目能覆盖，就在实现/完成记录中明确写出命中的 gap 编号；
+     - 若现有条目不能准确描述当前 blocker，必须先更新 `PIPELINE_GAPS.md`，再继续编码。
+  2. 修复策略默认按“整类缺口一次收口”执行：
+     - 允许跨 `mir/materialize`、`effect_facts`、`effect_lowered`、`llvm/codegen`、`runtime` 做协调修改；
+     - 不要只为单个 fixture span / 单个 schema id / 单个 symbol name 做一次性补丁，如果同一 root cause 明显会影响同类 surface。
+  3. 若某次修复实质上关闭、改写或缩小了 `PIPELINE_GAPS.md` 中的某个 gap，必须同步更新：
+     - `PIPELINE_GAPS.md` 的状态 / 结论 / 证据；
+     - 当前 `TODO.md` 任务的进展或完成记录。
+  4. 每完成一个 gap owner 的收口，至少重跑：
+     - 当前 4 个已确认失败 fixture；
+     - `PIPELINE_GAPS.md §9` 中与该 gap 对应的 targeted tests（尤其是 effect-refactor / cleanup / cross-thread 相关回归）。
+  5. 当上述 4 个 fixture 全部恢复通过后，再重新执行完整扫描：
+     - 默认环境逐个 fixture scan（timeout <= 30s）；
+     - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1` 逐个 fixture scan（timeout <= 30s）；
+     - `cargo test --all`。
+- 必须遵从的约束：
+  - 本任务默认不追求“最小改动”；若最小改动只会制造新的 sibling failure 或继续让同一 gap 在别处复现，应优先做完整 gap closure。
+  - 仍然禁止用跳过 fixture、放宽 golden、回退 legacy path、恢复 deleted TLS bridge 的方式让结果变绿。
+  - 若修复某个 gap 同时改变前端 gate / typed contract / publication contract，必须同步更新对应文档和 gap 账本，不能只改代码。
+  - 只有在同一 gap 的 sibling surface 也完成验证后，才能把该 gap 标记为 `Closed/Re-scoped` 或从剩余任务里移除。
+- 验证：
+  1. 当前已确认失败的 4 个 fixture 必须全部恢复通过。
+  2. 与变更 gap 对应的 `PIPELINE_GAPS.md §9` targeted tests 必须恢复通过。
+  3. 完整 default/full-GC 双环境逐个 fixture scan 必须重新跑，并更新 authoritative inventory。
+  4. `cargo test --all` 必须通过。
+- 完成条件：
+  - 当前已确认失败的 4 个 fixture 全部恢复通过；
+  - 相关 `PIPELINE_GAPS.md` live gap 已同步更新；
+  - 重新跑出的全量 failure inventory 与文档保持一致，并继续向空收敛。
+- 依赖：G8-T11R（承接 G8-T12 已完成的历史收敛）
+- 当前进展：
 - 完成记录：
 
 ## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合
@@ -1320,6 +1389,7 @@
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
   - [`EFFECT_REFACTOR_GAPS.md`](./EFFECT_REFACTOR_GAPS.md) 全文
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md)
 - 重点：
   - 是否真的以 fixture harness 为 authoritative 用户面通过，而不是仅靠局部单测通过；
   - 全量 fixture 通过后，是否仍有未记录的 design debt / temporary workaround；
@@ -1330,6 +1400,7 @@
   - 最终 failure inventory（应为空）
   - 最终 `cargo test --all` 输出
   - 修复过程中更新过的 `EFFECT_REFACTOR_GAPS.md`
+  - 修复过程中更新过的 `PIPELINE_GAPS.md`
 - 验证：
   - 复跑：
     - 逐个 fixture 默认环境扫描（每个 fixture timeout <= 30s）
@@ -1338,5 +1409,5 @@
   - grep 活跃实现源码，不得重新出现 deleted TLS continuation/effect surface。
 - 完成条件：
   - 可以明确声明：当前活跃实现、活跃测试、活跃 fixture 用户面都已重新闭合到 target-shape 单主线。
-- 依赖：G8-T12
+- 依赖：G8-T13
 - 完成记录：
