@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use inkwell::AddressSpace;
 use inkwell::AtomicOrdering;
 use inkwell::basic_block::BasicBlock;
+use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, GlobalValue, IntValue,
@@ -1635,10 +1636,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         case_tag: CaseTag,
         resume_tuple_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
-        let function = self
-            .module
-            .get_function(symbol_name)
-            .unwrap_or_else(|| self.module.add_function(symbol_name, fn_ty, None));
+        let function =
+            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::External);
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -1677,10 +1676,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         symbol_name: &str,
         fn_ty: inkwell::types::FunctionType<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self
-            .module
-            .get_function(symbol_name)
-            .unwrap_or_else(|| self.module.add_function(symbol_name, fn_ty, None));
+        let function =
+            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::External);
         if function.count_basic_blocks() == 0 {
             let entry = self.context.append_basic_block(function, "entry");
             self.builder.position_at_end(entry);
@@ -1695,13 +1692,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         abi: &ProgramAbiQuery<'ctx>,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self
-            .module
-            .get_function(surface.symbol_name())
-            .unwrap_or_else(|| {
-                self.module
-                    .add_function(surface.symbol_name(), surface.llvm_ty(), None)
-            });
+        let function = self.declare_compiler_private_helper_function(
+            surface.symbol_name(),
+            surface.llvm_ty(),
+            Linkage::External,
+        );
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -2768,9 +2763,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_surface_resume_outcome_symbol_name(surface.continuation_schema());
         let llvm_ty = self.refactor_surface_resume_outcome_llvm_ty(surface);
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 
     fn refactor_surface_resume_owner_outcome_function(
@@ -2780,9 +2773,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_surface_resume_owner_outcome_llvm_ty(surface);
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 
     fn refactor_surface_resume_owner_core_function(
@@ -2792,9 +2783,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_surface_resume_owner_core_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 
     fn refactor_continuation_drive_outcome_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
@@ -2827,9 +2816,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_continuation_drive_outcome_symbol_name(surface.continuation_schema());
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 
     fn refactor_continuation_drive_owner_outcome_function(
@@ -2840,9 +2827,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_continuation_drive_owner_outcome_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 
     fn refactor_continuation_step_function(
@@ -2851,9 +2836,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_continuation_step_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_continuation_step_llvm_ty();
-        self.module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.module.add_function(&symbol_name, llvm_ty, None))
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
     }
 }
 
@@ -8071,11 +8054,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "__scoop_refactor_task_transport_resume__s{}",
             callable.step_schema().as_u32()
         );
-        let function = self
-            .codegen
-            .module
-            .get_function(&symbol_name)
-            .unwrap_or_else(|| self.codegen.module.add_function(&symbol_name, fn_ty, None));
+        let function = self.codegen.declare_compiler_private_helper_function(
+            &symbol_name,
+            fn_ty,
+            Linkage::External,
+        );
         if function.count_basic_blocks() > 0 {
             return Ok(function);
         }

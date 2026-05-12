@@ -37,6 +37,7 @@ use inkwell::types::AnyType;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
+use inkwell::types::FunctionType;
 use inkwell::types::IntType;
 use inkwell::types::PointerType;
 use inkwell::types::StructType;
@@ -470,6 +471,109 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     effect_cx: EffectLoweringCodegenCx<'ctx>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LlvmFunctionDeclarationSurface {
+    ExportedAbi,
+    RuntimeOrNativeImport,
+    CompilerPrivateHelper,
+}
+
+impl LlvmFunctionDeclarationSurface {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::ExportedAbi => "exported ABI",
+            Self::RuntimeOrNativeImport => "runtime/native import",
+            Self::CompilerPrivateHelper => "compiler-private helper",
+        }
+    }
+}
+
+/// 所有 LLVM function declaration 都必须先声明外部 surface，再显式给出 linkage。
+///
+/// 当前允许保留 external 的显式例外包括：
+/// - source/user exported callable 与宿主固定入口 `main`
+/// - `malloc` / `exit`
+/// - runtime ABI entry（如 `scoop_runtime_init` / `scoop_entry_argv_array`）
+/// - `@Extern` 指定的 native symbol
+///
+/// 其余 compiler-private helper 也必须先走 `CompilerPrivateHelper` 分类；P2-T02
+/// 会沿同一入口把这些 helper 从 `External` 收回到 `Internal` / `Private`。
+fn declare_classified_llvm_function<'ctx>(
+    module: &Module<'ctx>,
+    name: &str,
+    fn_ty: FunctionType<'ctx>,
+    surface: LlvmFunctionDeclarationSurface,
+    linkage: Linkage,
+) -> FunctionValue<'ctx> {
+    match surface {
+        LlvmFunctionDeclarationSurface::ExportedAbi
+        | LlvmFunctionDeclarationSurface::RuntimeOrNativeImport => {
+            assert_eq!(
+                linkage,
+                Linkage::External,
+                "{name} declared as {} must stay external",
+                surface.label()
+            );
+        }
+        LlvmFunctionDeclarationSurface::CompilerPrivateHelper => {
+            assert!(
+                matches!(
+                    linkage,
+                    Linkage::External | Linkage::Internal | Linkage::Private
+                ),
+                "{name} declared as compiler-private helper must use explicit external/internal/private linkage"
+            );
+        }
+    }
+    if let Some(existing) = module.get_function(name) {
+        return existing;
+    }
+    module.add_function(name, fn_ty, Some(linkage))
+}
+
+pub(crate) fn declare_exported_abi_function<'ctx>(
+    module: &Module<'ctx>,
+    name: &str,
+    fn_ty: FunctionType<'ctx>,
+) -> FunctionValue<'ctx> {
+    declare_classified_llvm_function(
+        module,
+        name,
+        fn_ty,
+        LlvmFunctionDeclarationSurface::ExportedAbi,
+        Linkage::External,
+    )
+}
+
+pub(crate) fn declare_runtime_or_native_import_function<'ctx>(
+    module: &Module<'ctx>,
+    name: &str,
+    fn_ty: FunctionType<'ctx>,
+) -> FunctionValue<'ctx> {
+    declare_classified_llvm_function(
+        module,
+        name,
+        fn_ty,
+        LlvmFunctionDeclarationSurface::RuntimeOrNativeImport,
+        Linkage::External,
+    )
+}
+
+pub(crate) fn declare_compiler_private_helper_function<'ctx>(
+    module: &Module<'ctx>,
+    name: &str,
+    fn_ty: FunctionType<'ctx>,
+    linkage: Linkage,
+) -> FunctionValue<'ctx> {
+    declare_classified_llvm_function(
+        module,
+        name,
+        fn_ty,
+        LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+        linkage,
+    )
+}
+
 /// T0141: Loop context for break/continue targets.
 #[derive(Debug, Clone, Copy)]
 struct LoopContext<'ctx> {
@@ -700,6 +804,31 @@ impl<'a, 'ctx> Deref for MainCodegen<'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(crate) fn declare_exported_abi_function(
+        &self,
+        name: &str,
+        fn_ty: FunctionType<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        declare_exported_abi_function(self.module, name, fn_ty)
+    }
+
+    pub(crate) fn declare_runtime_or_native_import_function(
+        &self,
+        name: &str,
+        fn_ty: FunctionType<'ctx>,
+    ) -> FunctionValue<'ctx> {
+        declare_runtime_or_native_import_function(self.module, name, fn_ty)
+    }
+
+    pub(crate) fn declare_compiler_private_helper_function(
+        &self,
+        name: &str,
+        fn_ty: FunctionType<'ctx>,
+        linkage: Linkage,
+    ) -> FunctionValue<'ctx> {
+        declare_compiler_private_helper_function(self.module, name, fn_ty, linkage)
+    }
+
     pub(super) fn enable_callable_carrier_contract(&self) {
         self.shared_caches
             .callable_carrier_contract_enabled
@@ -2496,12 +2625,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let linkage = if is_extern {
-            Some(Linkage::External)
+        let llvm_fun = if is_extern {
+            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
         } else {
-            None
+            self.declare_exported_abi_function(llvm_name, fn_ty)
         };
-        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
@@ -2581,12 +2709,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let linkage = if is_extern {
-            Some(Linkage::External)
+        let llvm_fun = if is_extern {
+            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
         } else {
-            None
+            self.declare_exported_abi_function(llvm_name, fn_ty)
         };
-        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -2686,12 +2813,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let linkage = if is_extern {
-            Some(Linkage::External)
+        let llvm_fun = if is_extern {
+            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
         } else {
-            None
+            self.declare_exported_abi_function(llvm_name, fn_ty)
         };
-        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -2730,7 +2856,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .llvm_basic_type_of(at, other)?
                 .fn_type(&llvm_params, false),
         };
-        let llvm_fun = self.module.add_function(name, fn_ty, None);
+        let llvm_fun =
+            self.declare_compiler_private_helper_function(name, fn_ty, Linkage::External);
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -3854,10 +3981,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let name = top_level_immutable_value_init_fn_name(value_fqn);
         let fn_ty = self.context.void_type().fn_type(&[], false);
-        let llvm_fun = self
-            .module
-            .get_function(&name)
-            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+        let llvm_fun =
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -3888,10 +4013,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let name = refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn);
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
-        let llvm_fun = self
-            .module
-            .get_function(&name)
-            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+        let llvm_fun =
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -5028,7 +5151,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .void_type()
             .fn_type(&[self.context.i32_type().into()], false);
-        self.module.add_function("exit", fn_ty, None)
+        self.declare_runtime_or_native_import_function("exit", fn_ty)
     }
 
     fn declare_libc_malloc(&self) -> FunctionValue<'ctx> {
@@ -5040,7 +5163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let size_ty = self.context.i64_type();
         let fn_ty = i8_ptr_ty.fn_type(&[size_ty.into()], false);
-        self.module.add_function("malloc", fn_ty, None)
+        self.declare_runtime_or_native_import_function("malloc", fn_ty)
     }
 
     fn emit_exit_with_code(

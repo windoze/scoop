@@ -354,7 +354,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .llvm_basic_type_of(mir_fun.span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
-        let llvm_fun = self.module.add_function(&mir_fun.fqn, fn_ty, None);
+        let llvm_fun =
+            self.declare_compiler_private_helper_function(&mir_fun.fqn, fn_ty, Linkage::External);
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -365,6 +366,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_materialized_mir_plain_fun_with_symbol(
         &mut self,
         llvm_name: &str,
+        surface: LlvmFunctionDeclarationSurface,
         mir_fun: &crate::mir::FunDecl,
         param_tys: &[TypeId],
         return_ty: TypeId,
@@ -416,7 +418,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .llvm_basic_type_of(mir_fun.span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
-        let llvm_fun = self.module.add_function(llvm_name, fn_ty, None);
+        let llvm_fun = match surface {
+            LlvmFunctionDeclarationSurface::ExportedAbi => {
+                self.declare_exported_abi_function(llvm_name, fn_ty)
+            }
+            LlvmFunctionDeclarationSurface::RuntimeOrNativeImport => {
+                self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
+            }
+            LlvmFunctionDeclarationSurface::CompilerPrivateHelper => {
+                self.declare_compiler_private_helper_function(llvm_name, fn_ty, Linkage::External)
+            }
+        };
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -4921,8 +4933,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // compilation-unit codegen context and outlives this call.
                     let mir_types = unsafe { &**mir_types };
                     let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+                    let declaration_surface = if is_extern {
+                        LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
+                    } else {
+                        LlvmFunctionDeclarationSurface::ExportedAbi
+                    };
                     self.declare_materialized_mir_plain_fun_with_symbol(
                         llvm_name,
+                        declaration_surface,
                         fun,
                         &param_tys,
                         fun.return_ty,

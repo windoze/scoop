@@ -1,33 +1,37 @@
-## 本次执行计划
+# 执行计划
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 确定首个未完成任务。
-2. 检查最近一次提交信息是否直接提到与该任务相关且尚未完成的问题；若是，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
-3. 阅读当前任务要求、依赖、验证标准，以及必要的相关代码与测试。
-4. 以最小且正确的改动完成该任务；若发现阻塞且无法按规格继续，则先在 `TODO.md` 中补充最小前置任务并停止。
-5. 运行该任务要求的验证，以及必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若作用范围合理且可执行）。
-6. 更新 `TODO.md`：将完成的任务标题加上 `[DONE]`，补充完成记录；仅在阶段计划确实变化时更新 `PLAN.md`。
-7. 提交本次所有相关改动，提交信息使用当前任务编号。
+## 目标
+- 严格以 `TODO.md` 为准，识别首个未完成任务并只完成这一项。
+- 如果遇到阻塞当前任务的真实缺陷或缺失能力，则先把该前置问题按要求写入 `TODO.md`，提交后停止。
 
-## 进展记录
+## 执行步骤
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
+2. 检查最近一次提交是否有与该任务直接相关且明确未完成的问题；若有，将其视为当前任务的一部分或在 `TODO.md` 中登记为前置任务。
+3. 阅读与当前任务直接相关的代码、测试、规范和任务说明，确认实现边界、依赖和验收标准。
+4. 实现任务要求，优先做最小且正确的修改，不引入规避性方案。
+5. 运行与该任务相关的验证、测试、格式化和必要的 lint；若失败则继续修复直到满足要求，或在确认存在真实前置阻塞后回写 `TODO.md`。
+6. 更新 `TODO.md`：将已完成任务标题加上 `[DONE]`，补全完成记录；仅在阶段计划真的变化时更新 `PLAN.md`。
+7. 记录本文件中的关键进展与计划调整。
+8. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
 
-- 已创建计划文件，下一步读取 `TODO.md` 并锁定首个未完成任务。
-- 已锁定首个未完成任务：`P1-T02R`（Review `stable_id` 基础设施，确认后续阶段已有唯一 authoritative API）。
-- 最近一次提交为 `[P1-T02] Unify stable-id keys and hash helpers`，提交信息未显式记录新的未完成阻塞项；本次按 `P1-T02R` 的 review 要求继续审阅。
-- 下一步：检查 `stable_id.rs`、`lib.rs`、`rtti/*`、`llvm/codegen/mod.rs`、`itable.rs`，并结合精确搜索确认是否仍有分叉 hash/helper 或 identity 来源未脱离 `ConeId` / path/span / `TypeId`。
-- 审阅结论：`stable_id.rs` 已提供后续 P2-P6 所需的唯一 key/hash/mangler/label authoritative API；未发现必须在 `P1-T02R` 前新增的 blocker/prerequisite。
-- 允许暂留的旧结构边界已确认并准备回写 `TODO.md`：
-  - `TemplateKey` / `InstanceKey` 仅保留为 MIR materialization 内部键，不再承担 exported identity。
-  - `StableConeKey::for_virtual_source_path(...)` 仅限单文件 dump / 测试 / manifest-less 虚拟源路径。
-  - RTTI closure env 仍使用 `ClosureId` 形状，后续由 `P6-T01` 收尾。
-  - `cone/archive.rs` 的 `SOURCES_SHA256` 属于内容 fingerprint，不属于 stable-id 协议 helper。
-- 验证完成：
-  - `cargo test -p scoopc stable_id -- --nocapture`
-  - `cargo test -p scoopc canonical_ -- --nocapture`
-  - `cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct -- --nocapture`
-  - `cargo test -p scoopc`
-  - `cargo clippy -p scoopc --all-targets -- -D warnings`
-- 精确搜索结论（`crates/scoopc/src`）：
-  - `fn stable_hash64` 仅剩 `stable_id.rs`
-  - `Sha256::digest` 为 0 命中
-  - `stable_template_symbol_suffix` 仅剩 shared helper、两个调用模块与审计/单元测试引用
-- 当前下一步：提交 `TODO.md` 与 `memory/claude_plan.md` 的 review 结论，结束本次 invocation。
+## 决策原则
+- 不跳过顺序，不因为任务较大而默认拆分。
+- 不用 workaround、fixture-only hack 或缩小范围来绕过规范缺口。
+- 若发现阻塞当前任务的缺陷，优先修复；若本次无法直接完成，则在 `TODO.md` 中插入最小前置任务并停止。
+
+## 进度记录
+- 已创建执行计划，待读取 `TODO.md` 并确认当前任务。
+- 已确认首个未完成任务为 `P2-T01`：分类 `module.add_function(..., None)` 调用点并建立统一 declaration/linkage helper。
+- 最近一次提交为 `[P1-T02R] Review stable-id authoritative API`，提交摘要未显示与 `P2-T01` 直接相关的新增未完成阻塞项；继续按 `P2-T01` 执行。
+- 已复核 `PLAN.md` P2 与 `STABLE_ID.md` §3.4.1/§3.4.4/§3.4.5/§7.4/§8.6，确认本任务重点是“先把 function declaration surface 显式分类”，不在本任务提前做完整 private internalize。
+- 已用 `rg` 盘点 `crates/scoopc/src/llvm/**` 中全部 `module.add_function(...)` 调用点；除测试模式字符串外，当前高风险调用分为三类：
+  - exported ABI / fixed external：top-level/source callable、materialized plain callable、host `main`
+  - runtime/native import：`malloc`、`exit`、runtime ABI entry、`scoop_runtime_init`、`scoop_entry_argv_array`、`@Extern`
+  - compiler-private helper：closure body、callee resume、effect helper/surface resume/outcome/transport thunk、object/top-level init bridge 与 init function
+- 当前执行方案：先在 `llvm::codegen` 增加显式 surface/linkage helper（exported ABI、runtime/native import、compiler-private helper + linkage 参数），然后把上述 declaration path 全部改接 helper；再补测试验证 linkages/source inventory，最后跑格式化、测试与 clippy。
+- 已完成 helper 接线：`codegen/mod.rs` 新增统一 declaration/linkage helper；`emit.rs`、`runtime_abi.rs`、`mir_body.rs`、`closure/mod.rs`、`object_init.rs`、`effect_lowered/{layout,body,value}.rs` 均已改为显式声明 exported/import/private surface，不再直接留下 raw `module.add_function(..., None)` 调用点。
+- 已补两类测试：helper linkage 行为测试、源代码 inventory 测试（阻止 raw `add_function(..., None)` 回流）。
+- 已执行 `cargo fmt`，下一步运行定向测试与全量验证。
+- 定向验证已通过：`function_declaration_*`、`stable_id_audit*`、`external_symbol*`。
+- 全量验证已通过：`cargo test -p scoopc`、`cargo clippy -p scoopc --all-targets -- -D warnings`。
+- 额外审计：`rg -n "module\.add_function\(.*None\)" crates/scoopc/src/llvm` 已无命中；source inventory 测试也覆盖了多行 `add_function(..., None)` 回流场景。

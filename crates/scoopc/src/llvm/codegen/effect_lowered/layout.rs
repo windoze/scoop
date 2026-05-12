@@ -34,7 +34,9 @@ use crate::mir::{
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
-use super::super::{CallableCarrierKind, MainCodegen, sanitize_llvm_ident};
+use super::super::{
+    CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen, sanitize_llvm_ident,
+};
 use super::types::{
     ProgramAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
     RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
@@ -578,7 +580,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 params.push(payload_abi.llvm_ty().into());
             }
             let fn_ty = return_step_ty.fn_type(&params, false);
-            self.ensure_declared_function(&symbol_name, fn_ty);
+            self.ensure_declared_compiler_private_helper_function(&symbol_name, fn_ty);
             vtable_fields.push(self.codegen.llvm_i8_ptr_type().into());
             methods.insert(
                 method.case_tag(),
@@ -752,7 +754,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             params.push(payload_abi.llvm_ty().into());
         }
         let fn_ty = return_step_ty.fn_type(&params, false);
-        self.ensure_declared_function(&symbol_name, fn_ty);
+        self.ensure_declared_compiler_private_helper_function(&symbol_name, fn_ty);
         Ok(RefactorContinuationSurfaceResumeLayout::new(
             continuation_schema,
             dispatch_source_kind,
@@ -1136,8 +1138,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let direct_ty = step_ty.fn_type(&params, false);
         let dynamic_name = format!("__scoop_refactor_dynamic_invoke__{stem}");
         let direct_name = format!("__scoop_refactor_direct_invoke__{stem}");
-        self.ensure_declared_function(&dynamic_name, dynamic_ty);
-        self.ensure_declared_function(&direct_name, direct_ty);
+        self.ensure_declared_compiler_private_helper_function(&dynamic_name, dynamic_ty);
+        self.ensure_declared_compiler_private_helper_function(&direct_name, direct_ty);
         self.validate_published_resume_packing_ids(
             &format!("callable `{}`", callable.root_fqn()),
             callable.step_schema(),
@@ -1224,6 +1226,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             self.codegen
                 .declare_materialized_mir_plain_fun_with_symbol(
                     symbol,
+                    LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
                     &mir_fun,
                     &mir_param_tys,
                     mir_fun.return_ty,
@@ -1242,6 +1245,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             self.codegen
                 .declare_materialized_mir_plain_fun_with_symbol(
                     callable.root_fqn(),
+                    LlvmFunctionDeclarationSurface::ExportedAbi,
                     &mir_fun,
                     &mir_param_tys,
                     mir_fun.return_ty,
@@ -1833,7 +1837,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             self.view.step_stem(owner_callable.step_schema()),
             entry.continuation_schema().as_u32(),
         );
-        self.ensure_declared_function(&symbol_name, surface_layout.llvm_ty());
+        self.ensure_declared_compiler_private_helper_function(
+            &symbol_name,
+            surface_layout.llvm_ty(),
+        );
 
         Ok(RefactorContinuationSurfaceResumeOwnerTrampolineLayout::new(
             owner_version_key,
@@ -2521,7 +2528,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             "__scoop_refactor_closure_dynamic_entry__{}",
             self.view.step_stem(callable_layout.step_schema())
         );
-        self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
+        self.ensure_declared_compiler_private_helper_function(
+            &symbol_name,
+            step_ty.fn_type(&params, false),
+        );
         self.register_callable_carrier_target_contract(
             CallableCarrierKind::ClosureObject,
             callable_fqn,
@@ -2583,7 +2593,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             },
             self.view.step_stem(callable_layout.step_schema())
         );
-        self.ensure_declared_function(&symbol_name, step_ty.fn_type(&params, false));
+        self.ensure_declared_compiler_private_helper_function(
+            &symbol_name,
+            step_ty.fn_type(&params, false),
+        );
         self.register_callable_carrier_target_contract(
             kind,
             impl_fqn,
@@ -6193,10 +6206,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         storage_ty
     }
 
-    fn ensure_declared_function(&self, name: &str, fn_ty: inkwell::types::FunctionType<'ctx>) {
-        if self.codegen.module.get_function(name).is_none() {
-            self.codegen.module.add_function(name, fn_ty, None);
-        }
+    fn ensure_declared_compiler_private_helper_function(
+        &self,
+        name: &str,
+        fn_ty: inkwell::types::FunctionType<'ctx>,
+    ) {
+        let _ =
+            self.codegen
+                .declare_compiler_private_helper_function(name, fn_ty, Linkage::External);
     }
 
     fn ensure_struct_anchor(&self, name: &str, struct_ty: StructType<'ctx>) {
@@ -10540,10 +10557,10 @@ mod tests {
             |inputs| inputs.abi_visibility_program.clone(),
             |_inputs, codegen, result, _module| {
                 let _ = result.expect("ABI materialization 应成功");
-                let dummy_fn = codegen.module.add_function(
+                let dummy_fn = codegen.declare_compiler_private_helper_function(
                     "__scoop_refactor_missing_carrier_target_dummy",
                     codegen.context.void_type().fn_type(&[], false),
-                    None,
+                    Linkage::External,
                 );
                 let err = match codegen.callable_carrier_target_fn_ptr(
                     CallableCarrierKind::ClassVtable,

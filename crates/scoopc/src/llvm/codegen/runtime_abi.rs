@@ -147,7 +147,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] =
             [self.llvm_scoop_string_ptr_type().into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(name, fn_ty, None)
+        self.declare_runtime_or_native_import_function(name, fn_ty)
     }
 
     pub(super) fn declare_runtime_format_int(&self, name: &str) -> FunctionValue<'ctx> {
@@ -165,7 +165,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [i64_ty.into(), i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(name, fn_ty, None)
+        self.declare_runtime_or_native_import_function(name, fn_ty)
     }
 
     pub(super) fn declare_runtime_trim_indent(&self) -> FunctionValue<'ctx> {
@@ -178,7 +178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
         let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // T1811: String P0 methods.
@@ -192,7 +192,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// T0107: `int64_t scoop_string_equals(const ScoopString* a, const ScoopString* b)`
@@ -204,7 +204,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// T1817: `int64_t scoop_string_hash(const ScoopString* s)`
@@ -216,7 +216,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_composite_trace(&self) -> FunctionValue<'ctx> {
@@ -230,7 +230,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[ptr_ty.into(), ptr_ty.into(), ptr_ty.into(), ptr_ty.into()],
             false,
         );
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_composite_copy(&self) -> FunctionValue<'ctx> {
@@ -243,7 +243,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .void_type()
             .fn_type(&[ptr_ty.into(), ptr_ty.into(), ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_composite_drop(&self) -> FunctionValue<'ctx> {
@@ -256,7 +256,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .void_type()
             .fn_type(&[ptr_ty.into(), ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // `const ScoopString* scoop_string_substring(const ScoopString* s, int64_t start, int64_t end)`
@@ -271,7 +271,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into(), i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_string_concat(const ScoopString* a, const ScoopString* b)`
@@ -282,7 +282,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
@@ -299,7 +299,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_string_replace(const ScoopString* s, const ScoopString* old, const ScoopString* new_str)`
@@ -313,7 +313,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[str_ptr_ty.into(), str_ptr_ty.into(), str_ptr_ty.into()],
             false,
         );
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `int64_t scoop_string_char_at(const ScoopString* s, int64_t index)`
@@ -325,7 +325,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_string_repeat(const ScoopString* s, int64_t n)`
@@ -337,7 +337,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `int64_t scoop_string_compare_to(const ScoopString* a, const ScoopString* b)`
@@ -349,7 +349,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // T0114: Bool→String conversion.
@@ -363,7 +363,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_char_to_string(int32_t codepoint)`
@@ -375,7 +375,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[i32_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_float64_to_string(double value)`
@@ -386,7 +386,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[self.context.f64_type().into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `const ScoopString* scoop_float32_to_string(float value)`
@@ -397,7 +397,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[self.context.f32_type().into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // T1812: Int↔String conversion methods.
@@ -411,7 +411,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `int64_t scoop_string_to_int(const ScoopString* s)`
@@ -423,7 +423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `int64_t scoop_float64_to_int(double value)`
@@ -436,7 +436,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .i64_type()
             .fn_type(&[self.context.f64_type().into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     /// `int64_t scoop_float32_to_int(float value)`
@@ -449,7 +449,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .i64_type()
             .fn_type(&[self.context.f32_type().into()], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_panic(&self) -> FunctionValue<'ctx> {
@@ -462,7 +462,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_error_fatal(&self) -> FunctionValue<'ctx> {
@@ -475,7 +475,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [payload_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // --- std v3：sync（T1319b） ---
@@ -489,7 +489,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_sync_mutex_create(void)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_mutex_lock(&self) -> FunctionValue<'ctx> {
@@ -502,7 +502,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_mutex_unlock(&self) -> FunctionValue<'ctx> {
@@ -515,7 +515,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_mutex_destroy(&self) -> FunctionValue<'ctx> {
@@ -528,7 +528,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_condvar_create(&self) -> FunctionValue<'ctx> {
@@ -540,7 +540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_sync_condvar_create(void)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_condvar_wait(&self) -> FunctionValue<'ctx> {
@@ -554,7 +554,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_condvar_notify_one(&self) -> FunctionValue<'ctx> {
@@ -567,7 +567,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_condvar_notify_all(&self) -> FunctionValue<'ctx> {
@@ -580,7 +580,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_condvar_destroy(&self) -> FunctionValue<'ctx> {
@@ -593,7 +593,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_once_create(&self) -> FunctionValue<'ctx> {
@@ -605,7 +605,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_sync_once_create(void)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_once_is_done(&self) -> FunctionValue<'ctx> {
@@ -619,7 +619,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i1_ty = self.context.bool_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = i1_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_sync_once_run(&self) -> FunctionValue<'ctx> {
@@ -638,7 +638,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             init_fn_ptr_ty.into(),
         ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     // --- std v3：thread（T1319c） ---
@@ -656,7 +656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [i8_ptr_ty.into(), start_fn_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_spawn_join_compat_resume_u64(
@@ -671,7 +671,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
@@ -686,7 +686,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [gc_i8_ptr_ty.into(), i64_ty.into(), thunk_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_spawn_join_resume_transport(&self) -> FunctionValue<'ctx> {
@@ -708,7 +708,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             thunk_ptr_ty.into(),
         ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_join(&self) -> FunctionValue<'ctx> {
@@ -721,7 +721,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_yield(&self) -> FunctionValue<'ctx> {
@@ -732,7 +732,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_thread_yield(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_sleep_millis(&self) -> FunctionValue<'ctx> {
@@ -745,7 +745,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_thread_current_id(&self) -> FunctionValue<'ctx> {
@@ -757,7 +757,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `int64_t scoop_thread_current_id(void)`
         let i64_ty = self.context.i64_type();
         let fn_ty = i64_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_new(&self) -> FunctionValue<'ctx> {
@@ -769,7 +769,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_array_builder_new(void)`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_push_u64(&self) -> FunctionValue<'ctx> {
@@ -783,7 +783,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_push_ref(&self) -> FunctionValue<'ctx> {
@@ -797,7 +797,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_push_composite(&self) -> FunctionValue<'ctx> {
@@ -812,7 +812,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [gc_i8_ptr_ty.into(), ptr_ty.into(), ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_build_array(&self) -> FunctionValue<'ctx> {
@@ -825,7 +825,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_build_array_composite(
@@ -841,7 +841,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_build_mutable_array(&self) -> FunctionValue<'ctx> {
@@ -854,7 +854,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_builder_build_mutable_array_composite(
@@ -870,7 +870,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_len(&self) -> FunctionValue<'ctx> {
@@ -884,7 +884,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_get_u64(&self) -> FunctionValue<'ctx> {
@@ -898,7 +898,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_get_ref(&self) -> FunctionValue<'ctx> {
@@ -912,7 +912,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_get_composite(&self) -> FunctionValue<'ctx> {
@@ -932,7 +932,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ptr_ty.into(),
         ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_set_u64(&self) -> FunctionValue<'ctx> {
@@ -947,7 +947,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [i8_ptr_ty.into(), i64_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_set_ref(&self) -> FunctionValue<'ctx> {
@@ -962,7 +962,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_array_set_composite(&self) -> FunctionValue<'ctx> {
@@ -982,7 +982,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ptr_ty.into(),
         ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_alloc_typed(&self) -> FunctionValue<'ctx> {
@@ -997,7 +997,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = ret_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_once_begin(&self) -> FunctionValue<'ctx> {
@@ -1011,7 +1011,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_once_end(&self) -> FunctionValue<'ctx> {
@@ -1024,7 +1024,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_write_barrier(&self) -> FunctionValue<'ctx> {
@@ -1049,7 +1049,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_register_global_root(&self) -> FunctionValue<'ctx> {
@@ -1068,7 +1068,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [default_ptr_ty.into(), default_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_collect_safepoint(&self) -> FunctionValue<'ctx> {
@@ -1085,7 +1085,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - codegen 会丢弃返回值，仅把它作为 safepoint 边界（供 roots 枚举/更新）。
         let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
         let fn_ty = ret_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_enter_native(&self) -> FunctionValue<'ctx> {
@@ -1100,7 +1100,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [slots_ptr_ty.into(), i32_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        let function = self.module.add_function(NAME, fn_ty, None);
+        let function = self.declare_runtime_or_native_import_function(NAME, fn_ty);
         self.mark_gc_leaf_function(function);
         function
     }
@@ -1114,7 +1114,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_leave_native(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
-        let function = self.module.add_function(NAME, fn_ty, None);
+        let function = self.declare_runtime_or_native_import_function(NAME, fn_ty);
         self.mark_gc_leaf_function(function);
         function
     }
@@ -1130,7 +1130,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_unpin(&self) -> FunctionValue<'ctx> {
@@ -1144,7 +1144,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_handle_new(&self) -> FunctionValue<'ctx> {
@@ -1158,7 +1158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_handle_get(&self) -> FunctionValue<'ctx> {
@@ -1172,7 +1172,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ret_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = ret_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_handle_drop(&self) -> FunctionValue<'ctx> {
@@ -1186,7 +1186,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_debug_heap_object_count(&self) -> FunctionValue<'ctx> {
@@ -1197,7 +1197,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint64_t scoop_gc_debug_heap_object_count(void)`
         let fn_ty = self.context.i64_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_gc_debug_alloc_garbage(&self) -> FunctionValue<'ctx> {
@@ -1210,7 +1210,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
     pub(super) fn declare_runtime_stackmap_statepoint_smoke(&self) -> FunctionValue<'ctx> {
@@ -1229,7 +1229,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   enter_native/leave_native leaf lowering，则调用点本身不会留下 stackmap record，
         //   helper 内部的 `__builtin_return_address(0)` 也无法命中 registry。
         let fn_ty = self.context.i64_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 }
 

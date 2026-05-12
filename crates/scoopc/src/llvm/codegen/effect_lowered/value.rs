@@ -9,6 +9,7 @@
 
 use std::collections::{BTreeSet, HashSet};
 
+use inkwell::module::Linkage;
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{
     AggregateValueEnum, BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue,
@@ -6393,10 +6394,8 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
         .context
         .void_type()
         .fn_type(&[k_ty.into(), i64_ty.into()], false);
-    let function = codegen
-        .module
-        .get_function(&symbol)
-        .unwrap_or_else(|| codegen.module.add_function(&symbol, fn_ty, None));
+    let function =
+        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::External);
     if function.count_basic_blocks() > 0 {
         return Ok(function);
     }
@@ -6415,14 +6414,11 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
             "refactor thread resume thunk `{symbol}` 缺少 payload 参数"
         ))
     })?;
-    let surface_fun = codegen
-        .module
-        .get_function(surface.symbol_name())
-        .unwrap_or_else(|| {
-            codegen
-                .module
-                .add_function(surface.symbol_name(), surface.llvm_ty(), None)
-        });
+    let surface_fun = codegen.declare_compiler_private_helper_function(
+        surface.symbol_name(),
+        surface.llvm_ty(),
+        Linkage::External,
+    );
     let call = codegen.builder.build_call(
         surface_fun,
         &[continuation.into(), payload.into()],
@@ -6479,10 +6475,8 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
         ],
         false,
     );
-    let function = codegen
-        .module
-        .get_function(&symbol)
-        .unwrap_or_else(|| codegen.module.add_function(&symbol, fn_ty, None));
+    let function =
+        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::External);
     if function.count_basic_blocks() > 0 {
         return Ok(function);
     }

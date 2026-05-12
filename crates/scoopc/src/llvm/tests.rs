@@ -126,6 +126,7 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::TypeStore;
 use inkwell::context::Context;
+use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
 use object::Object;
 use object::ObjectSection;
@@ -611,6 +612,44 @@ fn stable_id_relative_repo_path(path: &Path) -> String {
         .to_string()
 }
 
+fn llvm_raw_add_function_none_callsites() -> Vec<String> {
+    let llvm_root = stable_id_repo_root().join("crates/scoopc/src/llvm");
+    let mut files = Vec::new();
+    stable_id_collect_audit_files("crates/scoopc/src/llvm", &llvm_root, &mut files);
+
+    let mut hits = Vec::new();
+    for (_, path) in files {
+        if path.file_name().and_then(|name| name.to_str()) == Some("tests.rs") {
+            continue;
+        }
+        let Ok(contents) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let lines = contents.lines().collect::<Vec<_>>();
+        for start in 0..lines.len() {
+            if !lines[start].contains("module.add_function(") {
+                continue;
+            }
+            let mut snippet = lines[start].trim().to_string();
+            let mut cursor = start + 1;
+            while !snippet.contains(");") && cursor < lines.len() && cursor <= start + 8 {
+                snippet.push(' ');
+                snippet.push_str(lines[cursor].trim());
+                cursor += 1;
+            }
+            if snippet.contains("None") {
+                hits.push(format!(
+                    "{}:{}: {}",
+                    stable_id_relative_repo_path(&path),
+                    start + 1,
+                    snippet
+                ));
+            }
+        }
+    }
+    hits
+}
+
 fn stable_id_line_contains_prefix_digits_suffix(line: &str, prefix: &str, suffix: &str) -> bool {
     let bytes = line.as_bytes();
     let prefix_bytes = prefix.as_bytes();
@@ -733,6 +772,60 @@ fn stable_id_audit_grep_inventory_scans_repo_roots() {
             }
         );
     }
+}
+
+#[test]
+fn function_declaration_helpers_emit_explicit_linkage() {
+    let context = Context::create();
+    let module = context.create_module("function_declaration_helpers");
+    let fn_ty = context.void_type().fn_type(&[], false);
+
+    let _ = crate::llvm::codegen::declare_exported_abi_function(&module, "user_export", fn_ty);
+    let _ = crate::llvm::codegen::declare_runtime_or_native_import_function(
+        &module,
+        "runtime_import",
+        fn_ty,
+    );
+    let _ = crate::llvm::codegen::declare_compiler_private_helper_function(
+        &module,
+        "__helper_internal",
+        fn_ty,
+        Linkage::Internal,
+    );
+    let _ = crate::llvm::codegen::declare_compiler_private_helper_function(
+        &module,
+        "__helper_private",
+        fn_ty,
+        Linkage::Private,
+    );
+
+    let ir = module.print_to_string().to_string();
+    assert!(
+        ir.contains("declare void @user_export()"),
+        "exported ABI declaration 应显式保留 external surface\n{ir}"
+    );
+    assert!(
+        ir.contains("declare void @runtime_import()"),
+        "runtime/native import declaration 应显式保留 external surface\n{ir}"
+    );
+    assert!(
+        ir.contains("declare internal void @__helper_internal()"),
+        "compiler-private helper 应能显式切到 internal linkage\n{ir}"
+    );
+    assert!(
+        ir.contains("declare private void @__helper_private()"),
+        "compiler-private helper 应能显式切到 private linkage\n{ir}"
+    );
+}
+
+#[test]
+fn function_declaration_inventory_eliminates_raw_add_function_none_callsites() {
+    let hits = llvm_raw_add_function_none_callsites();
+    assert!(
+        hits.is_empty(),
+        "LLVM declaration path 不应再直接留下 raw `module.add_function(..., None)`：\n{}",
+        hits.join("\n")
+    );
 }
 
 #[test]

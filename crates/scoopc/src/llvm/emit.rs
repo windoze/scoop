@@ -680,7 +680,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         let i8_ptr_ptr_ty = context.ptr_type(inkwell::AddressSpace::default());
         let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
-        let main = module.add_function("main", fn_type, None);
+        let main = codegen::declare_exported_abi_function(&module, "main", fn_type);
         let entry = context.append_basic_block(main, "entry");
         builder.position_at_end(entry);
 
@@ -699,15 +699,11 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         argc.set_name("argc");
         argv.set_name("argv");
 
-        let rt_init = module
-            .get_function("scoop_runtime_init")
-            .unwrap_or_else(|| {
-                module.add_function(
-                    "scoop_runtime_init",
-                    context.void_type().fn_type(&[], false),
-                    None,
-                )
-            });
+        let rt_init = codegen::declare_runtime_or_native_import_function(
+            &module,
+            "scoop_runtime_init",
+            context.void_type().fn_type(&[], false),
+        );
         builder.build_call(rt_init, &[], "rt_init")?;
 
         let mut main_codegen = unit_codegen.fresh_main_codegen();
@@ -716,17 +712,13 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         let entry_argv_array = match arg_shape {
             EntryMainArgShape::None => None,
             EntryMainArgShape::ArrayString => {
-                let argv_array_fn = module
-                    .get_function("scoop_entry_argv_array")
-                    .unwrap_or_else(|| {
-                        module.add_function(
-                            "scoop_entry_argv_array",
-                            context
-                                .ptr_type(inkwell::AddressSpace::from(1u16))
-                                .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
-                            None,
-                        )
-                    });
+                let argv_array_fn = codegen::declare_runtime_or_native_import_function(
+                    &module,
+                    "scoop_entry_argv_array",
+                    context
+                        .ptr_type(inkwell::AddressSpace::from(1u16))
+                        .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
+                );
                 let call =
                     builder.build_call(argv_array_fn, &[argc.into(), argv.into()], "entry_argv")?;
                 let raw = call.try_as_basic_value().basic().ok_or(

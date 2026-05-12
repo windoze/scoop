@@ -684,7 +684,7 @@
 
 ## P2：收紧 linkage，先处理 external namespace 污染
 
-### [TODO] P2-T01：分类 `module.add_function(..., None)` 调用点并建立统一 declaration/linkage helper
+### [DONE] P2-T01：分类 `module.add_function(..., None)` 调用点并建立统一 declaration/linkage helper
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P2
@@ -723,7 +723,33 @@
   - LLVM function declaration 的可见性分类已经统一收口，不再依赖调用点自行决定。
 - 依赖：P1-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/object_init.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+    - `crates/scoopc/src/llvm/emit.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+  - 核心决策：
+    - 在 `codegen/mod.rs` 新增统一 declaration/linkage helper：显式区分 `ExportedAbi`、`RuntimeOrNativeImport`、`CompilerPrivateHelper` 三类 surface，并在 helper 注释里固定 `main`、`malloc`、`exit`、runtime ABI entry、`@Extern` symbol 这些显式 external 例外。
+    - 把 source-level top-level callable、materialized plain callable、host `main` 收口到 exported ABI path；把 `runtime_abi.rs`、`scoop_runtime_init`、`scoop_entry_argv_array`、`malloc`、`exit`、`@Extern` 声明收口到 runtime/native import path。
+    - 把 closure body / callee resume、effect helper shell/surface resume/outcome/transport thunk、object/top-level init bridge 与 init function、materialized closure body 等收口到 compiler-private helper path；本任务先把它们的“角色”和“linkage 决策入口”显式化，仍保留当前 `External` 以避免提前越过 `P2-T02` 的 internal/private 收口任务。
+    - 在 `llvm/tests.rs` 增加两类定向测试：一类直接验证 helper 可显式生成 external/internal/private linkage；一类对 `crates/scoopc/src/llvm` 做 source inventory，阻止 raw `module.add_function(..., None)`（含多行形式）回流。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc function_declaration_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `rg -n "module\.add_function\(.*None\)" crates/scoopc/src/llvm` 返回 0 命中；`function_declaration_inventory_eliminates_raw_add_function_none_callsites` 进一步覆盖了多行 `add_function(..., None)` 回流检查。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P2 的第一步：LLVM function declaration 已先按 exported ABI / runtime-native import / compiler-private helper 三类统一收口，后续 `P2-T02` 可直接在 compiler-private helper path 上做 internal/private internalize，而不再由各调用点自行决定。
+    - 对应 `STABLE_ID.md` §3.4.1 / §3.4.4 / §3.4.5 / §7.4 / §8.6：顶层 callable、effect helper、object/top-level init bridge、closure/materialized helper 的 declaration surface 已显式建模；runtime import 与 fixed external 例外也不再混入“默认 `None`”隐式路径。
 
 ### [TODO] P2-T02：把 compiler-private helper 从 external namespace 收回 internal/private
 
