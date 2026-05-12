@@ -412,7 +412,7 @@
     - 对应 `PLAN.md` P0 的“测试基线先解除对剩余当前命名形状的强绑定”要求：review 已确认的剩余 LLVM / pipeline stable-id 敏感行为测试，已不再直接把当前 private / descriptor / callable symbol 文本当作正确性标准。
     - 对应 `STABLE_ID.md` §3.4 / §8.5 / §10：closure adapter、class/object/type descriptor、composite transport、value box、thread resume transport、main wrapper entry、runtime type primitive helper 等 identity surface 已迁移为角色/结构语义断言，并有 source inventory 防止旧 spelling 回流。
 
-### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
+### [DONE] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P0
@@ -436,7 +436,43 @@
   - 可以明确写出：P1-P7 已有稳定审计基线，不会被旧名字断言或 schema churn 噪音主导。
 - 依赖：P0-T02C
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+    - 复核并验证（无代码改动）：
+      - `crates/scoopc/src/llvm/tests.rs`
+      - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+      - `crates/scoopc/src/cone/scoopir/schema.rs`
+      - `crates/scoopc/src/cone/pre_specialize.rs`
+      - `crates/scoopc/src/cone/visibility.rs`
+      - `crates/scoopc/src/cone/annotations.rs`
+  - 核心决策：
+    - 以 review 任务要求重查 stable-id 审计脚手架与测试基线，不新增实现性改动；只有在发现会阻塞后续 P1-P7 的真实缺口时才插入新前置任务。本轮复核未发现此类 blocker，因此直接闭合 `P0-T02R`。
+    - 明确后续阶段的 authoritative 验证入口：
+      - `stable_id_audit_*` / `external_symbol_*` 负责 object/symbol/linkage 审计；
+      - `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests` 负责旧字符串绑定回流防护；
+      - 四个 `*_path_free` JSON 基线测试负责 `.cone` / schema path-stability 与 dense-id 泄漏审计；
+      - `cargo test -p scoopc` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 负责全量行为与质量收口。
+    - 对 review 重点文件的结论：
+      - `llvm/tests.rs` 中与旧 `lambda` / hidden-init / direct-invoke / descriptor 字符串相关的剩余命中，均位于审计 helper、分类器示例或 source inventory 防回流清单；未发现新的 stable-id 敏感行为测试强绑定。
+      - `pipeline/llvm_codegen_stage.rs` 中 `P0-T02C` 指向的 `@sample.main`、`@sample.classifyValue`、closure adapter / transport / descriptor 旧字符串绑定已无残留。
+      - `schema.rs`、`pre_specialize.rs`、`visibility.rs`、`annotations.rs` 的 dense-id/path 相关命中均位于禁止词清单或内部实现变量，不构成对外 `.cone` / JSON surface 泄漏。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composite_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - grep 审计摘要（来自 `stable_id_audit_grep_inventory_scans_repo_roots`）：
+      - `module\.add_function\(.*None\)` 101 命中，`stable_template_symbol_suffix` 7 命中，`source_path.*decl_span` 5 命中。
+      - `scoop\.lambda\$[0-9]+` 2 命中、`scoop\.lambda_resume\$[0-9]+` 1 命中、`scoop\.lambda_env\$[0-9]+` 1 命中，均来自审计测试自身的分类器/防回流清单。
+      - `__schema[0-9]+`、`__k[0-9]+`、`t[0-9]+__` 均为 0 命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 review 验收：已确认 P1-P7 可继续依赖现有 object/symbol 审计、source inventory 与 `.cone` / JSON path-free 基线，而不会被旧字符串绑定或 schema churn 噪音主导。
+    - 对应 `STABLE_ID.md` §10 / §11 / §12：审计入口、grep 清单与健康 schema 基线均已重新复核并通过，无需在进入 P1 前再插入新的 prerequisite task。
 
 ## P1：建立统一 `stable_id` 基础设施
 

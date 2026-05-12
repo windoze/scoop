@@ -14,6 +14,20 @@
 
 ## 进度日志
 
+- 本次调用开始：先核对 `TODO.md`、最近一次提交与当前工作区，确认上次记录中的 `P0-T02C` 是否仍是首个未完成任务，以及是否存在未提交的续做内容需要一并收口。
+- 已核对：`P0-T02C` 已在 `TODO.md` 标记为 `[DONE]`，且最近提交为 `[P0-T02C] Unbind remaining stable-id test spellings`；当前首个未完成任务已切换为 `P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住`。
+- 本次执行目标调整为完成 `P0-T02R`：复核 stable-id 审计 helper、LLVM/pipeline 测试基线与 `.cone`/JSON 健康基线，重跑 P0-T01 / P0-T02 相关验证，并根据 review 结果决定是直接完成该 review 任务，还是先把新发现的阻塞项写成前置任务。
+- 已完成 review 搜索：
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中，任务关注的 `@sample.main`、`@sample.classifyValue`、closure adapter / transport / descriptor 旧字符串绑定已无命中。
+  - `crates/scoopc/src/llvm/tests.rs` 中与旧 `lambda` / hidden-init / direct-invoke / descriptor 字符串相关的剩余命中，均位于审计 helper、分类器样例或 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests` 的防回流清单；未发现新的行为测试强绑定。
+  - `.cone` / JSON 四个健康基线文件中的 dense-id/path 相关命中，均位于 `assert_json_surface_stays_semantic_and_path_free(...)` 的禁止词清单或内部实现字段名（如 `source_paths`），未发现对外 schema surface 泄漏。
+- 已完成验证：
+  - 定向：`stable_id_audit`、`external_symbol`、`stable_id_source_inventory`、`path_free`、`composite_transport`、`runtime_type_primitives`、`refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry` 全部通过；`closure_step_adapter` 过滤名本身未命中测试名，但其覆盖点已由随后全量 `cargo test -p scoopc` 通过确认。
+  - 全量：`LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc` 与 `... cargo clippy -p scoopc --all-targets -- -D warnings` 已通过。
+  - grep 审计当前摘要：`module.add_function(...None)` 101 命中、`stable_template_symbol_suffix` 7、`source_path.*decl_span` 5、`scoop.lambda$[0-9]+` 2、`scoop.lambda_resume$[0-9]+` 1、`scoop.lambda_env$[0-9]+` 1、`__schema[0-9]+` / `__k[0-9]+` / `t[0-9]+__` 均为 0；其中剩余 `lambda` 命中仅来自审计测试本身。
+- review 结论：P1-P7 后续阶段已有可复用的稳定验证入口：`stable_id_audit_*`/`external_symbol_*` 用于 object/symbol/linkage 审计，`stable_id_source_inventory_*` 用于旧字符串回流防护，四个 `*_path_free` JSON 基线用于 `.cone` / schema path-stability 审计，再辅以 `cargo test -p scoopc` 与 `cargo clippy -p scoopc --all-targets -- -D warnings` 做全量收口；未发现需要在 `P1-T01` 前新增的前置修复任务。
+- 已更新 `TODO.md`：`P0-T02R` 已显式改为 `[DONE]`，并补齐 review 范围、核心结论、验证结果与 `PLAN.md` / `STABLE_ID.md` 闭合说明。
+- 当前仅剩收尾提交：将 `TODO.md` 与本文件一并提交，按要求在完成当前任务后停止。
 - 已创建本文件并记录初始计划。
 - 已读取 `TODO.md`，确认首个未完成任务为 `P0-T02C：清理 review 发现的剩余 stable-id 敏感 LLVM / pipeline 测试字符串绑定`。
 - 已检查最近一次提交：`[P0-T02R] Add prerequisite for remaining test bindings`。该提交与当前任务直接相关，说明 `P0-T02C` 就是为完成 `P0-T02R` 而新增的前置任务，无需再额外拆分。
