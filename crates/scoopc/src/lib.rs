@@ -32,6 +32,7 @@ pub mod rtti;
 pub mod session;
 pub mod source;
 pub mod span;
+pub mod stable_id;
 pub mod stackmap;
 pub mod syntax;
 pub mod sysroot;

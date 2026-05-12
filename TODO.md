@@ -476,7 +476,7 @@
 
 ## P1：建立统一 `stable_id` 基础设施
 
-### [TODO] P1-T01：新增共享 `stable_id` 模块，收口 canonical encoder 与 shared hash helper
+### [DONE] P1-T01：新增共享 `stable_id` 模块，收口 canonical encoder 与 shared hash helper
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P1
@@ -521,7 +521,24 @@
   - 仓库中已经存在唯一的 stable-id 基础模块，后续 P2-P6 可直接复用。
 - 依赖：P0-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/lib.rs`
+    - `crates/scoopc/src/stable_id.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 新增共享 `stable_id` 模块作为单一 authoritative 入口，先集中收口 canonical type/effect encoder、版本化 SHA-256 helper、128-bit/64-bit 截断与 dump label 基础 API；本任务不迁移大批现有调用点，把跨子系统替换留给 `P1-T02` 继续推进。
+    - canonical encoder 明确不接受 `TypeStore::display()`、raw `Debug` 或 path/span 作为 type-param canonical 输入；对 `TypeKind::Param` 改为要求调用方显式提供 `StableTypeParamResolver`，缺失时直接报错，避免把当前 `(decl_file, decl_span)` 或 pretty name 重新包装成“稳定”文本。
+    - effect row / union 的 canonical 文本在编码时按 canonical term 文本重新排序去重，而不是沿用 `TypeId` 或当前 pretty 顺序，确保不同 intern 顺序下仍得到相同 canonical 主体。
+    - 版本化 hash helper 固定使用 `SHA-256` + scope prefix（`abi0:`、`priv0:`、`rtti0:`、`dump0:`）；linker-visible surface 使用前 128 bit lowercase hex，runtime-only 场景保留 64 bit 截断 helper 供后续统一接入。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc canonical_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P1 / `STABLE_ID.md` §8.1、§9 Phase 1：仓库内已存在统一 `stable_id` 基础设施入口，后续 P2-P6 可以直接复用 canonical encoder、shared hash helper 与 dump label 基础 API。
+    - 对应 `STABLE_ID.md` §7.1 / §7.2：canonical type/effect text 已覆盖 nominal、builtin ref/value、type param、function、tuple、union、effect row，并固定采用版本化 `SHA-256` 规则；未再让 pretty/path/span 文本承担 canonical 输入责任。
 
 ### [TODO] P1-T02：落地 stable key / mangler / label API，并收口仓库内分叉 hash 实现
 
