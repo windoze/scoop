@@ -156,6 +156,9 @@ impl<'a> Parser<'a> {
             inferred_handle_arm_effect_tys: std::cell::RefCell::new(
                 std::collections::HashMap::new(),
             ),
+            inferred_handle_arm_op_type_args: std::cell::RefCell::new(
+                std::collections::HashMap::new(),
+            ),
             safe_member_access_resolved: std::cell::RefCell::new(std::collections::HashMap::new()),
             typechecked_member_resolved: std::cell::RefCell::new(
                 std::collections::HashMap::new(),

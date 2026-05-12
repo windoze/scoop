@@ -1392,6 +1392,11 @@
   - 重新跑出的全量 failure inventory 与文档保持一致，并继续向空收敛。
 - 依赖：G8-T11R（承接 G8-T12 已完成的历史收敛）
 - 当前进展：
+  - 2026-05-12：基于当前工作区重跑本任务列出的 4 个已确认失败 fixture，均已通过：`handle_arm_explicit_type_args_basic.scoop`、`effect_typed_plain_adapter_aggregate_return_basic.scoop`、`effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`、`stdlib_smoke_test_and_preconditions.scoop`。
+  - 2026-05-12：对用户提供的 63 个历史失败 fixture 逐个复跑，首轮只剩 `effect_handle_return_from_function_any_boxing.scoop` 与 `generic_fun_recursion.scoop`；修复后同一列表 `63/63` 通过。
+  - 2026-05-12：`generic_fun_recursion.scoop` 映射到 `PIPELINE_GAPS.md §2.7`。修复内容为：generic template body 不再作为 concrete materialized callable fallback；pure direct-call lowering 对已有 concrete instance 的 generic template 先走 materialized plain MIR call；含 `TypeKind::Param` 的 call-site binding 不得覆盖已经具体化的 fallback FQN。
+  - 2026-05-12：`effect_handle_return_from_function_any_boxing.scoop` 映射到 `PIPELINE_GAPS.md §5.3` 的 cleanup/return lifetime 子面。修复内容为：call-boundary complete 后的 frame-free tail 在无 handle、无 resume/runtime-error/composed boundary、无后续 suspend/cleanup 时提前释放 frame root，避免 internal frame / empty `EffectCtx` 干扰用户可观测 GC。
+  - 2026-05-12：近邻回归已通过：上述 4 个 G8-T13 fixture、`generic_fun_recursion.scoop`、`effect_handle_return_from_function_any_boxing.scoop`、`effect_resume_finally_{arm_raise,body_raise_after_resume,normal}.scoop`、`effect_resume_nested_escape_handle_tail{,_multi_perform_nonunit}.scoop`、`effect_handle_yield_and_step_finally.scoop`。
 - 完成记录：
 
 ## G8-T12R：Review 全量 fixture 收口结果，确认真实用户面已闭合

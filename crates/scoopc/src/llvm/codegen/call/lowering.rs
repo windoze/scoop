@@ -1110,7 +1110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         enum CallableSig<'b> {
             Hir(&'b hir::FunDecl),
-            Mir(&'b crate::mir::FunDecl),
+            Mir(crate::mir::FunDecl, *const TypeStore),
         }
 
         let is_extern = self.extern_funs.contains_key(fqn);
@@ -1118,32 +1118,90 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_explicit_effect_hidden_abi = !is_extern
             && (self.callable_uses_explicit_effect_hidden_abi(fqn)
                 || self.callable_uses_explicit_effect_hidden_abi(dispatch_fqn));
-        let sig_fun =
-            self.fun_index
-                .get(fqn)
-                .copied()
-                .map(CallableSig::Hir)
-                .or_else(|| {
-                    self.materialized_pass_view()
-                        .and_then(|view| view.callable(fqn).map(CallableSig::Mir))
+        let sig_fun = self
+            .materialized_pass_view()
+            .and_then(|view| {
+                view.callable(fqn).cloned().map(|fun| {
+                    CallableSig::Mir(fun, &view.materialized().types as *const TypeStore)
                 })
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call callee type",
-                    at: callee_span.into(),
-                })?;
+            })
+            .or_else(|| self.fun_index.get(fqn).copied().map(CallableSig::Hir))
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "call callee type",
+                at: callee_span.into(),
+            })?;
 
-        let (param_names, param_tys, return_ty) = match sig_fun {
-            CallableSig::Hir(fun) => (
-                fun.params.iter().map(|param| param.name.clone()).collect::<Vec<_>>(),
-                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>(),
-                fun.return_ty,
-            ),
-            CallableSig::Mir(fun) => (
-                fun.params.iter().map(|param| param.name.clone()).collect::<Vec<_>>(),
-                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>(),
-                fun.return_ty,
-            ),
+        let (param_names, param_tys, return_ty) = match &sig_fun {
+            CallableSig::Hir(fun) => {
+                let param_names = fun
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<Vec<_>>();
+                let fallback_param_tys =
+                    fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+                let fallback_return_ty = fun.return_ty;
+                let needs_published_sig = fallback_param_tys
+                    .iter()
+                    .any(|&ty| self.cg_ty_of(ty).is_none())
+                    || self.cg_ty_of(fallback_return_ty).is_none();
+                let (param_tys, return_ty) = if needs_published_sig {
+                    self.published_callable_signature(fqn)
+                        .or_else(|| {
+                            (dispatch_fqn != fqn)
+                                .then(|| self.published_callable_signature(dispatch_fqn))
+                                .flatten()
+                        })
+                        .unwrap_or((fallback_param_tys, fallback_return_ty))
+                } else {
+                    (fallback_param_tys, fallback_return_ty)
+                };
+                (param_names, param_tys, return_ty)
+            }
+            CallableSig::Mir(fun, types) => {
+                // SAFETY: `types` points into the materialized pass view owned by the
+                // compilation-unit codegen context and outlives this call.
+                let mir_types = unsafe { &**types };
+                let param_names = fun
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<Vec<_>>();
+                let fallback_param_tys = fun
+                    .params
+                    .iter()
+                    .map(|param| {
+                        self.equivalent_codegen_type_id(mir_types, param.ty)
+                            .unwrap_or(param.ty)
+                    })
+                    .collect::<Vec<_>>();
+                let fallback_return_ty = self
+                    .equivalent_codegen_type_id(mir_types, fun.return_ty)
+                    .unwrap_or(fun.return_ty);
+                let needs_published_sig = fallback_param_tys
+                    .iter()
+                    .any(|&ty| self.cg_ty_of(ty).is_none())
+                    || self.cg_ty_of(fallback_return_ty).is_none();
+                let (param_tys, return_ty) = if needs_published_sig {
+                    self.published_callable_signature(fqn)
+                        .or_else(|| {
+                            (dispatch_fqn != fqn)
+                                .then(|| self.published_callable_signature(dispatch_fqn))
+                                .flatten()
+                        })
+                        .unwrap_or((fallback_param_tys, fallback_return_ty))
+                } else {
+                    (fallback_param_tys, fallback_return_ty)
+                };
+                (param_names, param_tys, return_ty)
+            }
         };
+        if param_names.len() != param_tys.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call signature arity mismatch",
+                at: callee_span.into(),
+            });
+        }
 
         if args.len() != param_tys.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1151,12 +1209,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-        let ret_cg =
-            self.cg_ty_of(return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call return type",
-                    at: span.into(),
-                })?;
+        let ret_cg = match &sig_fun {
+            CallableSig::Hir(_) => self.cg_ty_of(return_ty),
+            CallableSig::Mir(fun, types) => {
+                // SAFETY: `types` points into the materialized pass view owned by the
+                // compilation-unit codegen context and outlives this call.
+                let mir_types = unsafe { &**types };
+                self.cg_ty_of_mir_type(mir_types, fun.return_ty)
+                    .or_else(|| self.cg_ty_of(return_ty))
+            }
+        }
+        .ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "call return type",
+            at: span.into(),
+        })?;
         let hidden_sret_result_ty = if is_extern {
             None
         } else {
@@ -1210,9 +1276,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => match sig_fun {
-                CallableSig::Hir(fun) => self.declare_top_level_fun(fun)?,
-                CallableSig::Mir(fun) => {
-                    self.declare_materialized_top_level_fun_with_symbol(fun, llvm_name)?
+                CallableSig::Hir(fun) => self.declare_top_level_fun_with_signature_override(
+                    fun, llvm_name, &param_tys, return_ty,
+                )?,
+                CallableSig::Mir(ref fun, _) => {
+                    self.declare_materialized_top_level_fun_with_symbol(&fun, llvm_name)?
                 }
             },
         };
@@ -1583,7 +1651,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "funptr call return type",
                 at: callee_span.into(),
             })?;
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
+        // `FunPtr<F>` models a native function pointer surface. Its return ABI must follow the
+        // target's native calling convention rather than the ordinary Scoop sret policy used for
+        // managed direct calls.
+        let hidden_sret_result_ty = None;
 
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
             expected_arity

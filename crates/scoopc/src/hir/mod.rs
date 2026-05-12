@@ -594,10 +594,23 @@ impl fmt::Debug for ClosureExpr {
 /// 一个 effect operation 的“引用”（以 FQN 表示）。
 ///
 /// 说明：该结构主要用于 HIR dump/fixtures 的稳定输出；后续可替换为更结构化的 symbol 引用。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EffectOpRef {
     pub span: Span,
     pub fqn: String,
+    pub type_args: Vec<TypeId>,
+}
+
+impl fmt::Debug for EffectOpRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("EffectOpRef");
+        s.field("span", &self.span);
+        s.field("fqn", &self.fqn);
+        if !self.type_args.is_empty() {
+            s.field("type_args", &self.type_args);
+        }
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -2050,14 +2050,31 @@ pub struct PerformArg {
 }
 
 /// `perform` 调用点在 MIR 上保留的最小 metadata。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PerformMetadata {
     pub effect_ty: TypeId,
+    pub op_type_args: Vec<TypeId>,
     pub result_ty: TypeId,
     pub payload_tuple_ty: Option<TypeId>,
     pub payload_component_tys: Vec<TypeId>,
     pub payload_transport: Vec<ValueTransportMetadata>,
     pub arg_mapping: Vec<usize>,
+}
+
+impl fmt::Debug for PerformMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("PerformMetadata");
+        s.field("effect_ty", &self.effect_ty);
+        if !self.op_type_args.is_empty() {
+            s.field("op_type_args", &self.op_type_args);
+        }
+        s.field("result_ty", &self.result_ty);
+        s.field("payload_tuple_ty", &self.payload_tuple_ty);
+        s.field("payload_component_tys", &self.payload_component_tys);
+        s.field("payload_transport", &self.payload_transport);
+        s.field("arg_mapping", &self.arg_mapping);
+        s.finish()
+    }
 }
 
 /// virtual / interface dispatch 在 MIR 上保留的最小语言级 metadata。
@@ -2553,9 +2570,10 @@ pub enum TerminatorKind {
 }
 
 /// `handle` 在 MIR 视图下的一个 handler arm（结构占位）。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HandlerArm {
     pub op_fqn: String,
+    pub op_type_args: Vec<TypeId>,
     /// arm payload binder 数量（与 `binder_locals.len()` 保持一致）。
     pub binder_count: usize,
     /// arm payload binder 在当前 body 中的隐式输入 local。
@@ -2570,6 +2588,25 @@ pub struct HandlerArm {
     pub payload_component_tys: Vec<TypeId>,
     pub body_ty: TypeId,
     pub kind: HandlerArmKind,
+}
+
+impl fmt::Debug for HandlerArm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("HandlerArm");
+        s.field("op_fqn", &self.op_fqn);
+        if !self.op_type_args.is_empty() {
+            s.field("op_type_args", &self.op_type_args);
+        }
+        s.field("binder_count", &self.binder_count);
+        s.field("binder_locals", &self.binder_locals);
+        s.field("continuation_local", &self.continuation_local);
+        s.field("handled_effect_ty", &self.handled_effect_ty);
+        s.field("payload_tuple_ty", &self.payload_tuple_ty);
+        s.field("payload_component_tys", &self.payload_component_tys);
+        s.field("body_ty", &self.body_ty);
+        s.field("kind", &self.kind);
+        s.finish()
+    }
 }
 
 impl TerminatorKind {
@@ -3425,6 +3462,7 @@ mod tests {
                     op_fqn: "sample.E.op".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.any,
+                        op_type_args: Vec::new(),
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: vec![builtins.int],
@@ -3562,6 +3600,7 @@ mod tests {
                     op_fqn: "scoop.core.Raise.raise".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,
+                        op_type_args: Vec::new(),
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
@@ -3637,6 +3676,7 @@ mod tests {
                     op_fqn: "scoop.core.Raise.raise".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,
+                        op_type_args: Vec::new(),
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
@@ -3715,6 +3755,7 @@ mod tests {
                     op_fqn: "scoop.core.Raise.raise".to_string(),
                     metadata: PerformMetadata {
                         effect_ty: builtins.unit,
+                        op_type_args: Vec::new(),
                         result_ty: builtins.unit,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),

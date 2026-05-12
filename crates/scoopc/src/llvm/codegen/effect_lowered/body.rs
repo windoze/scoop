@@ -771,6 +771,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(hir_fun) = hir_fun {
                 emitter.emit_plain_direct(
                     hir_fun,
+                    mir_types,
                     u32::from(uses_hidden_sret),
                     declared_return_cg,
                 )?;
@@ -805,6 +806,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.bind_mir_params(
                 hir_fun,
                 mir_fun,
+                mir_types,
                 function,
                 u32::from(uses_hidden_sret),
                 &mut slots,
@@ -4506,11 +4508,36 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             || self.callable.needs_reentry()
             || self.return_projection.is_some()
             || self.surface_resume_handle_sites.is_some()
+            || self.callable_has_handle_or_composed_resume_boundary()
             || !self.reachable_tail_is_frame_free(resume_state)
         {
             return Ok(());
         }
         self.clear_frame_root()
+    }
+
+    fn callable_has_handle_or_composed_resume_boundary(&self) -> bool {
+        if self.callable.state_graph().states().iter().any(|state| {
+            matches!(
+                state.terminator(),
+                LateLoweredStateTerminator::HandleDispatch { .. }
+            )
+        }) {
+            return true;
+        }
+        self.callable
+            .boundary_map()
+            .entries()
+            .iter()
+            .any(|boundary| match boundary.lowering() {
+                Some(LateLoweredBoundaryLowering::Resume(_))
+                | Some(LateLoweredBoundaryLowering::RuntimeError(_)) => true,
+                Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                    !lowering.continuation_compositions().is_empty()
+                }
+                None => false,
+                Some(_) => true,
+            })
     }
 
     fn reachable_tail_is_frame_free(&self, start: StateId) -> bool {
@@ -4996,7 +5023,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ));
         }
 
-        let body_ctx = self.alloc_empty_effect_ctx(&format!("refactor_handle{}_body_ctx", site_id.as_u32()))?;
+        let body_ctx =
+            self.alloc_empty_effect_ctx(&format!("refactor_handle{}_body_ctx", site_id.as_u32()))?;
         let body_ctx = self.root_gc_pointer_in_slot(
             body_ctx_root_slot,
             body_ctx,
@@ -5248,6 +5276,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     fn emit_plain_direct(
         mut self,
         hir_fun: &crate::hir::FunDecl,
+        mir_types: &TypeStore,
         param_offset: u32,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
@@ -5255,6 +5284,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.bind_mir_params(
             hir_fun,
             self.mir_fun,
+            mir_types,
             self.function,
             param_offset,
             &mut self.slots,
@@ -6857,7 +6887,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             LateLoweredStateTerminator::Return {
                 payload_source: _,
-                complete_state: _,
+                complete_state,
             } => {
                 let binding = self
                     .abi
@@ -6897,6 +6927,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                                     state.state_id().as_u32(),
                                 ))
                             })?;
+                        self.cleanup_handle_contexts_before_function_return(
+                            state.state_id(),
+                            *complete_state,
+                        )?;
                         self.return_step(step).map_err(|err| {
                             frontend_error(format!(
                                 "refactor return state st{} return Step failed: {err}",
@@ -6923,6 +6957,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                             complete_transport,
                             zero_signal,
                         )?;
+                        self.cleanup_handle_contexts_before_function_return(
+                            state.state_id(),
+                            *complete_state,
+                        )?;
                         self.emit_effect_outcome_return(outcome).map_err(|err| {
                             frontend_error(format!(
                                 "refactor return state st{} return EffectOutcome failed: {err}",
@@ -6945,6 +6983,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                             self.mir_fun.span,
                             value,
                             declared_return_cg,
+                        )?;
+                        self.cleanup_handle_contexts_before_function_return(
+                            state.state_id(),
+                            *complete_state,
                         )?;
                         self.codegen.finish_function_return_path(
                             self.mir_fun.span,
@@ -7295,7 +7337,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let payload = self
                     .lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
                 let cleared_outcome = self.codegen.build_zero_complete_effect_outcome()?;
-                self.codegen.builder.build_store(outcome_slot, cleared_outcome)?;
+                self.codegen
+                    .builder
+                    .build_store(outcome_slot, cleared_outcome)?;
                 self.emit_or_consume_outward_case(
                     boundary,
                     emission.case_tag(),
@@ -7520,7 +7564,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let payload =
             self.lower_class_ctor_outcome_payload(outcome_slot, emission.payload_tuple_ty())?;
         let cleared_outcome = self.codegen.build_zero_complete_effect_outcome()?;
-        self.codegen.builder.build_store(outcome_slot, cleared_outcome)?;
+        self.codegen
+            .builder
+            .build_store(outcome_slot, cleared_outcome)?;
         self.emit_or_consume_outward_case(
             boundary,
             emission.case_tag(),
@@ -8939,9 +8985,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     );
                 }
                 RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
-                    return self.apply_handle_boundary_pending_completion(
-                        action, payload, payload_ty,
-                    );
+                    return self
+                        .apply_handle_boundary_pending_completion(action, payload, payload_ty);
                 }
                 RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
             }
@@ -8965,9 +9010,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             // so the fallback outward path below now runs with the innermost matching local
             // handler (if any) already consumed via explicit `EffectCtx`.
         }
-        if has_dispatch_candidates
-            && self.codegen.builder.get_insert_block() == Some(origin_bb)
-        {
+        if has_dispatch_candidates && self.codegen.builder.get_insert_block() == Some(origin_bb) {
             return Err(frontend_error(format!(
                 "refactor boundary bd{} case c{} 已解析到显式 handle dispatch candidate，但 origin block 仍未切到 dispatch loop；不能继续生成 fallback outward path",
                 boundary.boundary_id().as_u32(),
@@ -8991,9 +9034,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     );
                 }
                 RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
-                    return self.apply_handle_boundary_pending_completion(
-                        action, payload, payload_ty,
-                    );
+                    return self
+                        .apply_handle_boundary_pending_completion(action, payload, payload_ty);
                 }
                 RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
             }
@@ -9804,6 +9846,63 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return Ok(false);
         };
         self.return_handle_completion_payload(payload_source)
+    }
+
+    fn cleanup_handle_contexts_before_function_return(
+        &mut self,
+        state_id: StateId,
+        complete_state: StateId,
+    ) -> Result<(), LlvmEmitError> {
+        let mut handles = Vec::<(usize, SiteId)>::new();
+        for handle_state in self.callable.state_graph().states() {
+            let LateLoweredStateTerminator::HandleDispatch {
+                site_id, contract, ..
+            } = handle_state.terminator()
+            else {
+                continue;
+            };
+            let returns_past_handle = match contract.state_region(state_id) {
+                LateLoweredHandleStateRegion::Body => {
+                    complete_state != contract.body_complete_target()
+                }
+                LateLoweredHandleStateRegion::Arm { .. } => {
+                    complete_state != contract.arm_complete_target()
+                }
+                LateLoweredHandleStateRegion::Finally => contract
+                    .finally_complete_target()
+                    .is_some_and(|finally_complete| complete_state != finally_complete),
+                LateLoweredHandleStateRegion::OutsideHandle
+                | LateLoweredHandleStateRegion::Dispatch
+                | LateLoweredHandleStateRegion::Exit => false,
+            };
+            if !returns_past_handle {
+                continue;
+            }
+            handles.push((
+                self.handle_dispatch_nesting_depth(handle_state.state_id()),
+                *site_id,
+            ));
+        }
+
+        handles.sort_by(|left, right| {
+            right
+                .0
+                .cmp(&left.0)
+                .then_with(|| left.1.as_u32().cmp(&right.1.as_u32()))
+        });
+        for pair in handles.windows(2) {
+            if pair[0].0 == pair[1].0 {
+                return Err(frontend_error(format!(
+                    "refactor return state st{} 命中多个同层 HandleDispatch return cleanup contract",
+                    state_id.as_u32()
+                )));
+            }
+        }
+        for (_, site_id) in handles {
+            self.restore_handle_saved_effect_ctx(site_id, "refactor_handle_return_restore_ctx")?;
+            self.clear_handle_effect_ctx_slots(site_id, "refactor_handle_return_clear_ctx")?;
+        }
+        Ok(())
     }
 
     fn return_handle_completion_payload(
@@ -11148,6 +11247,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         match payload_source {
             LateLoweredCompletionPayloadSource::Unit { .. } => Ok(None),
             LateLoweredCompletionPayloadSource::Operand(source) => {
+                if self.source_ty_is_unit(source.source_ty()) {
+                    return Ok(None);
+                }
                 let value = self.lower_operand_source(source)?;
                 if value.value.is_none() {
                     return Err(frontend_error(format!(

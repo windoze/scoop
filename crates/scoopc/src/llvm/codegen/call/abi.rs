@@ -3,17 +3,36 @@
 use super::super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn callable_source_carrier_tys_impl(&self, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
+        let types = self.codegen_type_store_for_type_id(carrier_ty)?;
+        match types.kind(carrier_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
+            TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
+            _ => Some(vec![carrier_ty]),
+        }
+    }
+
     pub(in crate::llvm::codegen) fn llvm_param_ty_impl(
         &mut self,
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self
-            .cg_ty_of(ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let cg = self.cg_ty_of(ty).ok_or_else(|| {
+            let ty_desc = self
+                .codegen_type_store_for_type_id(ty)
+                .map(|types| types.display(ty).to_string())
+                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+            tracing::warn!(
+                current_callable = ?self.function_cx.current_callable_fqn,
+                ?span,
+                ty = %ty_desc,
+                "llvm_param_ty: unsupported function param type"
+            );
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "function param type",
                 at: span.into(),
-            })?;
+            }
+        })?;
 
         Ok(self.llvm_basic_type_of(span, cg)?.into())
     }
@@ -23,12 +42,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
-        let cg = self
-            .cg_ty_of(ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let cg = self.cg_ty_of(ty).ok_or_else(|| {
+            let ty_desc = self
+                .codegen_type_store_for_type_id(ty)
+                .map(|types| types.display(ty).to_string())
+                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+            tracing::warn!(
+                current_callable = ?self.function_cx.current_callable_fqn,
+                ?span,
+                ty = %ty_desc,
+                "ordinary_param_abi: unsupported function param type"
+            );
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "function param type",
                 at: span.into(),
-            })?;
+            }
+        })?;
         let llvm_ty = self.llvm_basic_type_of(span, cg)?;
         let needs_indirect = matches!(
             llvm_ty,
@@ -77,6 +106,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         && callable.needs_reentry()
                 })
             })
+    }
+
+    pub(in crate::llvm::codegen) fn published_callable_signature_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<(Vec<TypeId>, TypeId)> {
+        let program = self.published_late_lowered_program()?;
+        let callable = program.callable(callable_fqn)?;
+        if let Some(plain) = callable.plain_abi() {
+            return Some((plain.param_tys().to_vec(), plain.return_ty()));
+        }
+        let effect = callable.effect_step_abi()?;
+        let param_tys = self.callable_source_carrier_tys_impl(
+            effect.dynamic_invoke_entry().invoke_args_tuple_ty(),
+        )?;
+        let return_ty = program.step_type(effect.step_schema())?.complete_ty();
+        Some((param_tys, return_ty))
     }
 
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(

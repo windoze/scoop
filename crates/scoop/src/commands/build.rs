@@ -969,7 +969,9 @@ public fun main() / Pure! {
         assert!(
             !ll.contains("__scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping")
                 && !ll.contains("__scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping")
-                && !ll.contains("__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0")
+                && !ll.contains(
+                    "__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0"
+                )
                 && !ll.contains("%scoop.refactor.Step__"),
             "NoOutward carrier target 不应重新发布 effect-step dynamic entry 或 Step shell:\n{ll}"
         );

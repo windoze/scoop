@@ -1,7 +1,7 @@
 //! 表达式 codegen（T0102d：从 `codegen/mod.rs` 拆分）。
 
-use super::*;
 use super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
+use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_expr_in_expected_context(
@@ -184,20 +184,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::never());
         };
 
-        let effect_instance_key = self
-            .effect_instance_key(effect_ty)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: format!(
-                    "direct HIR perform `{}`（effect `{}`）缺少可发布的 effect_instance_key",
-                    op.fqn,
-                    self.types.display(effect_ty),
-                ),
-            })?;
+        let effect_instance_key =
+            self.effect_instance_key(effect_ty)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "direct HIR perform `{}`（effect `{}`）缺少可发布的 effect_instance_key",
+                        op.fqn,
+                        self.types.display(effect_ty),
+                    ),
+                })?;
         let op_tag = self.effect_op_tag(&op.fqn);
         let signal = self.build_effect_signal(
-            self.context
-                .i32_type()
-                .const_int(u64::from(op_tag), false),
+            self.context.i32_type().const_int(u64::from(op_tag), false),
             self.context
                 .i32_type()
                 .const_int(u64::from(effect_instance_key), false),

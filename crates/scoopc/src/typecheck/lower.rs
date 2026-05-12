@@ -482,6 +482,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - parser 当前不支持显式 `Effect<T>.op(...)` handler head；
     /// - 因此 lowering/codegen 必须读取 typecheck 推导出的 handled effect 实例，而不是只看语法层路径。
     inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
+    /// 当前文件中“handle arm op span -> 最终实例化后的 op type args”。
+    ///
+    /// 用途：
+    /// - `Effect.op<T>(...)` 的 concrete op type args 不能在 HIR/MIR/effect-facts 阶段重新猜；
+    /// - 这里直接保留 typecheck 最终实例化结果，供后续阶段稳定复用。
+    inferred_handle_arm_op_type_args: HashMap<Span, Vec<TypeId>>,
     /// `receiver?.member` 在 typecheck 阶段补做出的成员解析结果。
     ///
     /// 用途：
@@ -672,6 +678,7 @@ impl<'a> TypeLowering<'a> {
             inferred_fun_return_tys: HashMap::new(),
             inferred_performed_effect_tys: HashMap::new(),
             inferred_handle_arm_effect_tys: HashMap::new(),
+            inferred_handle_arm_op_type_args: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
             typechecked_member_resolutions: HashMap::new(),
             splice_field_contracts: HashMap::new(),
@@ -1587,6 +1594,15 @@ impl<'a> TypeLowering<'a> {
         self.inferred_handle_arm_effect_tys.insert(span, ty);
     }
 
+    pub(super) fn record_inferred_handle_arm_op_type_args(
+        &mut self,
+        span: Span,
+        type_args: Vec<TypeId>,
+    ) {
+        self.inferred_handle_arm_op_type_args
+            .insert(span, type_args);
+    }
+
     pub(super) fn record_safe_member_access_resolution(
         &mut self,
         member_span: Span,
@@ -1797,9 +1813,15 @@ impl<'a> TypeLowering<'a> {
         &mut self,
         call_span: Span,
         arg_mapping: Vec<usize>,
+        op_type_args: Vec<TypeId>,
     ) {
-        self.typechecked_effect_op_call_bindings
-            .insert(call_span, ast::EffectOpCallBinding { arg_mapping });
+        self.typechecked_effect_op_call_bindings.insert(
+            call_span,
+            ast::EffectOpCallBinding {
+                arg_mapping,
+                op_type_args,
+            },
+        );
     }
 
     pub(super) fn record_typechecked_ctor_call_binding(
@@ -1837,6 +1859,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_inferred_handle_arm_effect_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_handle_arm_effect_tys)
+    }
+
+    pub(super) fn take_inferred_handle_arm_op_type_args(&mut self) -> HashMap<Span, Vec<TypeId>> {
+        std::mem::take(&mut self.inferred_handle_arm_op_type_args)
     }
 
     pub(super) fn take_safe_member_access_resolutions(

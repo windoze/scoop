@@ -46,6 +46,7 @@ impl EffectFactsTypeContext {
         types: &mut TypeStore,
         effect_ty: TypeId,
         op_fqn: &str,
+        op_type_args: &[TypeId],
     ) -> Result<ConcreteEffectOpContract, EffectFactsError> {
         let (effect_fqn, effect_type_args) = lower_effect_nominal_identity(types, effect_ty)?;
         let effect_sym = self.env.type_symbol(&effect_fqn).ok_or_else(|| {
@@ -67,6 +68,7 @@ impl EffectFactsTypeContext {
             op_fqn,
             &op,
             effect_sym,
+            op_type_args,
         )
     }
 
@@ -310,13 +312,18 @@ impl<'a> EffectFactsSchemaPool<'a> {
     ) -> Result<StepSchemaId, EffectFactsError> {
         let invoke_args_tuple_ty = canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
         let continuation_obj_ty = continuation_object_ty(types, &seed.key);
-        self.intern_step_schema(
+        let case_seeds = self.type_ctx.step_case_seeds(
+            types,
+            &seed.step_effect_row,
+            &seed.body_concrete_effect_ops,
+        )?;
+        self.intern_step_schema_from_case_seeds(
             types,
             invoke_args_tuple_ty,
             seed.complete_ty,
             continuation_obj_ty,
-            &seed.step_effect_row,
             &seed.surface_effect_row,
+            case_seeds,
         )
     }
 
@@ -388,10 +395,28 @@ impl<'a> EffectFactsSchemaPool<'a> {
         effect_row: &EffectRow,
         continuation_surface_row: &EffectRow,
     ) -> Result<StepSchemaId, EffectFactsError> {
+        let case_seeds = self.type_ctx.step_case_seeds(types, effect_row, &[])?;
+        self.intern_step_schema_from_case_seeds(
+            types,
+            invoke_args_tuple_ty,
+            complete_ty,
+            continuation_obj_ty,
+            continuation_surface_row,
+            case_seeds,
+        )
+    }
+
+    fn intern_step_schema_from_case_seeds(
+        &mut self,
+        types: &mut TypeStore,
+        invoke_args_tuple_ty: TypeId,
+        complete_ty: TypeId,
+        continuation_obj_ty: TypeId,
+        continuation_surface_row: &EffectRow,
+        case_seeds: Vec<StepCaseSeed>,
+    ) -> Result<StepSchemaId, EffectFactsError> {
         let step_schema_id = StepSchemaId::new(self.next_step_schema_id);
         self.next_step_schema_id += 1;
-
-        let case_seeds = self.type_ctx.step_case_seeds(types, effect_row)?;
         let mut cases = Vec::with_capacity(case_seeds.len());
         for (case_index, case_seed) in case_seeds.into_iter().enumerate() {
             let case_tag = CaseTag::new(case_index as u32);
@@ -919,7 +944,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             return Ok(facts.emitted_case());
         }
 
-        let case_info = self.current_case_for_effect_op(types, metadata.effect_ty, op_fqn)?;
+        let case_info = self.current_case_for_effect_op(
+            types,
+            metadata.effect_ty,
+            op_fqn,
+            &metadata.op_type_args,
+        )?;
         let payload_tuple_ty = metadata
             .payload_tuple_ty
             .unwrap_or_else(|| canonical_tuple_carrier_ty(types, &metadata.payload_component_tys));
@@ -972,8 +1002,12 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let mut cleanup_outward = body_cases.cleanup.clone();
 
         for (arm, arm_target) in arms.iter().zip(arm_targets.iter().copied()) {
-            let case_info =
-                self.current_case_for_effect_op(types, arm.handled_effect_ty, &arm.op_fqn)?;
+            let case_info = self.current_case_for_effect_op(
+                types,
+                arm.handled_effect_ty,
+                &arm.op_fqn,
+                &arm.op_type_args,
+            )?;
             handled_tags.insert(case_info.tag);
 
             let arm_cases =
@@ -1540,10 +1574,14 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         types: &mut TypeStore,
         effect_ty: TypeId,
         op_fqn: &str,
+        op_type_args: &[TypeId],
     ) -> Result<CurrentBodyCaseInfo, EffectFactsError> {
-        let contract = self
-            .type_ctx
-            .concrete_effect_op_contract_for_site(types, effect_ty, op_fqn)?;
+        let contract = self.type_ctx.concrete_effect_op_contract_for_site(
+            types,
+            effect_ty,
+            op_fqn,
+            op_type_args,
+        )?;
         self.current_case_index
             .get(&contract.concrete_op_key)
             .cloned()
@@ -1580,6 +1618,7 @@ struct CallableSeed {
     step_effect_row: EffectRow,
     invoke_arg_components: Vec<TypeId>,
     complete_ty: TypeId,
+    body_concrete_effect_ops: Vec<ConcreteEffectOpContract>,
 }
 
 #[derive(Debug, Clone)]
@@ -1598,7 +1637,7 @@ struct ContinuationSchemaKey {
     surface_ty: TypeId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ConcreteEffectOpContract {
     concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: TypeId,
@@ -1725,6 +1764,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             find_or_intern_raise_runtime_error_effect(&mut self.materialized.types);
         let callable_seeds = collect_callable_seeds(
             self.materialized,
+            &type_ctx,
             &type_ctx.index,
             &self.compiler_continuation_runtime_error_callables,
             compiler_generated_runtime_error_effect_ty,
@@ -1860,6 +1900,7 @@ impl EffectFactsTypeContext {
         &self,
         types: &mut TypeStore,
         declared_row: &EffectRow,
+        body_concrete_effect_ops: &[ConcreteEffectOpContract],
     ) -> Result<Vec<StepCaseSeed>, EffectFactsError> {
         let mut effect_terms = declared_row.terms.clone();
         effect_terms.sort_by(|lhs, rhs| {
@@ -1883,25 +1924,52 @@ impl EffectFactsTypeContext {
             ops.sort_by(|(lhs_fqn, _), (rhs_fqn, _)| lhs_fqn.cmp(rhs_fqn));
 
             for (op_fqn, op) in ops {
-                let contract = self.lower_effect_op_contract(
-                    types,
-                    &effect_fqn,
-                    &effect_type_args,
-                    &op_fqn,
-                    &op,
-                    effect_sym,
-                )?;
-                let sort_key = format!(
-                    "{effect_display}::{op_fqn}::{}::{}",
-                    types.display(contract.payload_tuple_ty),
-                    types.display(contract.resume_tuple_ty)
-                );
-                cases.push(StepCaseSeed {
-                    sort_key,
-                    concrete_op_key: contract.concrete_op_key,
-                    payload_tuple_ty: contract.payload_tuple_ty,
-                    resume_tuple_ty: contract.resume_tuple_ty,
-                });
+                let mut concrete_cases = body_concrete_effect_ops
+                    .iter()
+                    .filter(|contract| {
+                        contract.concrete_op_key.effect_family().effect_fqn() == effect_fqn
+                            && contract.concrete_op_key.effect_family().type_args()
+                                == effect_type_args.as_slice()
+                            && contract.concrete_op_key.instance_key().template.fqn == op_fqn
+                    })
+                    .map(|contract| StepCaseSeed {
+                        sort_key: format!(
+                            "{effect_display}::{op_fqn}::{}::{}",
+                            types.display(contract.payload_tuple_ty),
+                            types.display(contract.resume_tuple_ty)
+                        ),
+                        concrete_op_key: contract.concrete_op_key.clone(),
+                        payload_tuple_ty: contract.payload_tuple_ty,
+                        resume_tuple_ty: contract.resume_tuple_ty,
+                    })
+                    .collect::<Vec<_>>();
+                concrete_cases.sort_by(|lhs, rhs| lhs.sort_key.cmp(&rhs.sort_key));
+                let mut seen = HashSet::new();
+                concrete_cases.retain(|case| seen.insert(case.concrete_op_key.clone()));
+                if concrete_cases.is_empty() {
+                    let contract = self.lower_effect_op_contract(
+                        types,
+                        &effect_fqn,
+                        &effect_type_args,
+                        &op_fqn,
+                        &op,
+                        effect_sym,
+                        &[],
+                    )?;
+                    let sort_key = format!(
+                        "{effect_display}::{op_fqn}::{}::{}",
+                        types.display(contract.payload_tuple_ty),
+                        types.display(contract.resume_tuple_ty)
+                    );
+                    cases.push(StepCaseSeed {
+                        sort_key,
+                        concrete_op_key: contract.concrete_op_key,
+                        payload_tuple_ty: contract.payload_tuple_ty,
+                        resume_tuple_ty: contract.resume_tuple_ty,
+                    });
+                } else {
+                    cases.extend(concrete_cases);
+                }
             }
         }
 
@@ -1917,6 +1985,7 @@ impl EffectFactsTypeContext {
         op_fqn: &str,
         op: &FunOverload,
         effect_sym: &TypeSymbol,
+        op_type_args: &[TypeId],
     ) -> Result<ConcreteEffectOpContract, EffectFactsError> {
         if effect_sym.type_param_names.len() != effect_type_args.len() {
             return Err(EffectFactsError::EffectTypeArgArityMismatch {
@@ -1928,12 +1997,17 @@ impl EffectFactsTypeContext {
 
         let mut type_bindings = Vec::new();
         let mut concrete_key_type_args = Vec::new();
-        for type_param in &op.sig.type_params {
-            let ty = types.ty_param(TypeParamType {
-                name: type_param.name.clone(),
-                decl_file: op.symbol.decl_file.clone(),
-                decl_span: type_param.name_span,
-            });
+        let use_concrete_op_type_args = op.sig.type_params.len() == op_type_args.len();
+        for (index, type_param) in op.sig.type_params.iter().enumerate() {
+            let ty = if use_concrete_op_type_args {
+                op_type_args[index]
+            } else {
+                types.ty_param(TypeParamType {
+                    name: type_param.name.clone(),
+                    decl_file: op.symbol.decl_file.clone(),
+                    decl_span: type_param.name_span,
+                })
+            };
             type_bindings.push((type_param.name.clone(), ty));
             concrete_key_type_args.push(ty);
         }
@@ -2040,19 +2114,64 @@ impl EffectFactsTypeContext {
     }
 }
 
+fn collect_body_concrete_effect_ops(
+    type_ctx: &EffectFactsTypeContext,
+    types: &mut TypeStore,
+    root_fun: &MirFunDecl,
+) -> Result<Vec<ConcreteEffectOpContract>, EffectFactsError> {
+    let Some(body) = &root_fun.body else {
+        return Ok(Vec::new());
+    };
+
+    let mut contracts = Vec::new();
+    for block in &body.blocks {
+        if let TerminatorKind::Perform {
+            op_fqn, metadata, ..
+        } = &block.terminator.kind
+        {
+            contracts.push(type_ctx.concrete_effect_op_contract_for_site(
+                types,
+                metadata.effect_ty,
+                op_fqn,
+                &metadata.op_type_args,
+            )?);
+        }
+        if let TerminatorKind::Handle { arms, .. } = &block.terminator.kind {
+            for arm in arms {
+                contracts.push(type_ctx.concrete_effect_op_contract_for_site(
+                    types,
+                    arm.handled_effect_ty,
+                    &arm.op_fqn,
+                    &arm.op_type_args,
+                )?);
+            }
+        }
+    }
+
+    contracts.sort_by_key(|contract| format!("{:?}", contract.concrete_op_key));
+    let mut seen = HashSet::new();
+    contracts.retain(|contract| seen.insert(contract.concrete_op_key.clone()));
+    Ok(contracts)
+}
+
 fn collect_callable_seeds(
-    materialized: &MaterializedMir,
+    materialized: &mut MaterializedMir,
+    type_ctx: &EffectFactsTypeContext,
     index: &Index,
     compiler_continuation_runtime_error_callables: &HashSet<InstanceKey>,
     compiler_generated_runtime_error_effect_ty: TypeId,
 ) -> Result<Vec<CallableSeed>, EffectFactsError> {
     let pass_view = materialized.pass_view();
-    let mut seeds = Vec::with_capacity(pass_view.len());
-    for family in pass_view.instances() {
+    let families = pass_view
+        .instances()
+        .map(|family| (family.key().clone(), family.root_body().cloned()))
+        .collect::<Vec<_>>();
+    let mut seeds = Vec::with_capacity(families.len());
+    for (family_key, root_fun) in families {
         // effect-op 声明与 compiler-owned `Continuation.resume` surface contract 都会由更专门的
         // metadata/schema 路径承载；它们不应在 P4 被误当成“普通 callable body shell”参与求解。
-        if template_decl_is_effect_op(index, &family.key().template)
-            || template_decl_is_compiler_owned_resume(&family.key().template)
+        if template_decl_is_effect_op(index, &family_key.template)
+            || template_decl_is_compiler_owned_resume(&family_key.template)
         {
             continue;
         }
@@ -2060,27 +2179,30 @@ fn collect_callable_seeds(
         // declaration-only instance，或某个 pass 已把 root body 从当前 snapshot 中移除）。
         // P4 facts 只能基于仍存在于当前 canonical snapshot 的 root body 建立 callable/body facts；
         // 对这类无 root body 的 family 直接跳过，而不是回 raw MIR 或报错要求补 fallback。
-        let Some(root_fun) = family.root_body() else {
+        let Some(root_fun) = root_fun else {
             continue;
         };
-        let declared_row = declared_effect_row(root_fun, &materialized.types);
-        let surface_effect_row = callable_step_effect_row(root_fun, &declared_row, None);
-        let step_effect_row =
-            if compiler_continuation_runtime_error_callables.contains(family.key()) {
-                let mut terms = surface_effect_row.terms.clone();
-                terms.push(compiler_generated_runtime_error_effect_ty);
-                EffectRow::new(terms)
-            } else {
-                surface_effect_row.clone()
-            };
+        let declared_row = declared_effect_row(&root_fun, &materialized.types);
+        let surface_effect_row = callable_step_effect_row(&root_fun, &declared_row, None);
+        let step_effect_row = if compiler_continuation_runtime_error_callables.contains(&family_key)
+        {
+            let mut terms = surface_effect_row.terms.clone();
+            terms.push(compiler_generated_runtime_error_effect_ty);
+            EffectRow::new(terms)
+        } else {
+            surface_effect_row.clone()
+        };
+        let body_concrete_effect_ops =
+            collect_body_concrete_effect_ops(type_ctx, &mut materialized.types, &root_fun)?;
         seeds.push(CallableSeed {
-            key: family.key().clone(),
+            key: family_key,
             root_fun: root_fun.clone(),
             surface_effect_row,
             step_effect_row,
             declared_row,
             invoke_arg_components: root_fun.params.iter().map(|param| param.ty).collect(),
             complete_ty: root_fun.return_ty,
+            body_concrete_effect_ops,
         });
     }
     propagate_static_callee_effect_rows(&mut seeds);

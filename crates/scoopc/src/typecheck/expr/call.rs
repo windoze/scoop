@@ -5054,7 +5054,14 @@ pub(super) fn infer_effect_op_call_expr_type(
         });
     }
 
-    lower.record_typechecked_effect_op_call_binding(call_expr.span, mapping.clone());
+    let op_type_param_count = lowered_sig.op_type_params.len();
+    let op_type_args = instantiated
+        .type_args
+        .iter()
+        .copied()
+        .take(op_type_param_count)
+        .collect::<Vec<_>>();
+    lower.record_typechecked_effect_op_call_binding(call_expr.span, mapping.clone(), op_type_args);
     if used_unit_sugar {
         lower.record_zero_arg_unit_call_sugar_site(call_expr.span);
     }

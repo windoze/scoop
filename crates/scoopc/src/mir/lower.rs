@@ -471,6 +471,7 @@ impl MirLoweringFacts {
                 call_site.clone(),
                 PerformMetadata {
                     effect_ty: contract.effect_ty(),
+                    op_type_args: Vec::new(),
                     result_ty: contract.result_ty(),
                     payload_tuple_ty: contract.payload().ty(),
                     payload_component_tys: contract.payload().components().to_vec(),
@@ -486,6 +487,7 @@ impl MirLoweringFacts {
                 .iter()
                 .map(|arm| HandlerArm {
                     op_fqn: arm.op_fqn().to_string(),
+                    op_type_args: Vec::new(),
                     binder_count: arm.payload().components().len(),
                     binder_locals: Vec::new(),
                     continuation_local: None,
@@ -3384,6 +3386,7 @@ impl<'a> FnLowering<'a> {
                 op_fqn: "scoop.core.Raise.raise".to_string(),
                 metadata: PerformMetadata {
                     effect_ty,
+                    op_type_args: Vec::new(),
                     result_ty: self.builtins.nothing,
                     payload_tuple_ty: Some(runtime_error_ty),
                     payload_component_tys: vec![runtime_error_ty],
@@ -4705,6 +4708,7 @@ impl<'a> FnLowering<'a> {
             perform_args,
             PerformMetadata {
                 effect_ty: self.builtins.any,
+                op_type_args: Vec::new(),
                 result_ty,
                 payload_tuple_ty,
                 payload_component_tys,
@@ -5398,6 +5402,7 @@ impl<'a> FnLowering<'a> {
                     op_fqn: String::new(),
                     metadata: PerformMetadata {
                         effect_ty,
+                        op_type_args: op.type_args.clone(),
                         result_ty: ty,
                         payload_tuple_ty: None,
                         payload_component_tys: Vec::new(),
@@ -5413,6 +5418,9 @@ impl<'a> FnLowering<'a> {
             return result;
         };
         metadata.effect_ty = effect_ty;
+        if metadata.op_type_args.is_empty() {
+            metadata.op_type_args = op.type_args.clone();
+        }
 
         let result = self.push_temp_local(span, ty);
         self.assign(
@@ -5493,6 +5501,11 @@ impl<'a> FnLowering<'a> {
             self.current_bb = exit_bb;
             return result;
         };
+        for (hir_arm, lowered_arm) in handle.arms.iter().zip(arms.iter_mut()) {
+            if lowered_arm.op_type_args.is_empty() {
+                lowered_arm.op_type_args = hir_arm.op.op.type_args.clone();
+            }
+        }
         for (hir_arm, lowered_arm) in handle.arms.iter().zip(arms.iter_mut()) {
             self.allocate_handle_arm_locals(hir_arm, lowered_arm);
         }
@@ -5609,6 +5622,7 @@ impl<'a> FnLowering<'a> {
                 );
                 HandlerArm {
                     op_fqn: arm.op.op.fqn.clone(),
+                    op_type_args: arm.op.op.type_args.clone(),
                     binder_count: arm.op.binders.len(),
                     handled_effect_ty: arm.op.effect_ty,
                     payload_tuple_ty,

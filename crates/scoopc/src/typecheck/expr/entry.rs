@@ -98,6 +98,7 @@ struct CheckFileExprsPassResult {
     inferred_fun_return_tys: HashMap<Span, TypeId>,
     inferred_performed_effect_tys: HashMap<Span, TypeId>,
     inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
+    inferred_handle_arm_op_type_args: HashMap<Span, Vec<TypeId>>,
     safe_member_access_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     typechecked_member_resolved: HashMap<Span, ast::ResolvedMemberRef>,
     splice_field_contracts: HashMap<Span, ast::SpliceFieldContract>,
@@ -270,6 +271,7 @@ fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_inferred_fun_return_tys(HashMap::new());
     file.replace_inferred_performed_effect_tys(HashMap::new());
     file.replace_inferred_handle_arm_effect_tys(HashMap::new());
+    file.replace_inferred_handle_arm_op_type_args(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
     file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_splice_field_contracts(HashMap::new());
@@ -291,6 +293,7 @@ fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsP
     file.replace_inferred_fun_return_tys(result.inferred_fun_return_tys.clone());
     file.replace_inferred_performed_effect_tys(result.inferred_performed_effect_tys.clone());
     file.replace_inferred_handle_arm_effect_tys(result.inferred_handle_arm_effect_tys.clone());
+    file.replace_inferred_handle_arm_op_type_args(result.inferred_handle_arm_op_type_args.clone());
     file.replace_safe_member_access_resolved(result.safe_member_access_resolved.clone());
     file.replace_typechecked_member_resolved(result.typechecked_member_resolved.clone());
     file.replace_splice_field_contracts(result.splice_field_contracts.clone());
@@ -447,6 +450,7 @@ fn check_file_exprs_pass(
         inferred_fun_return_tys: lower.take_inferred_fun_return_tys(),
         inferred_performed_effect_tys: lower.take_inferred_performed_effect_tys(),
         inferred_handle_arm_effect_tys: lower.take_inferred_handle_arm_effect_tys(),
+        inferred_handle_arm_op_type_args: lower.take_inferred_handle_arm_op_type_args(),
         safe_member_access_resolved: lower.take_safe_member_access_resolutions(),
         typechecked_member_resolved: lower.take_typechecked_member_resolutions(),
         splice_field_contracts: lower.take_splice_field_contracts(),

@@ -876,6 +876,7 @@ pub(super) fn infer_handle_expr_type(
         callee_fqn: String,
         handled_effect: TypeId,
         op_return_ty: TypeId,
+        op_type_args: Vec<TypeId>,
         binder_tys: Vec<(Span, TypeId)>,
     }
 
@@ -1047,6 +1048,7 @@ pub(super) fn infer_handle_expr_type(
         // - handler arm head 现允许显式写 `op<T>(...)`；显式实参按与普通 call 相同的“前缀绑定”
         //   规则先绑定到 op type params；
         // - 若无法从注解中推断出某个 op type param，则保留为未实例化的 type param（仍可表达多态 handler）。
+        let mut resolved_op_type_args = Vec::new();
         if !lowered_sig.op_type_params.is_empty() {
             #[derive(Debug, Clone)]
             struct InferredTypeArgSource {
@@ -1168,6 +1170,17 @@ pub(super) fn infer_handle_expr_type(
                     arm.span,
                 )?;
             }
+            if lowered_sig
+                .op_type_params
+                .iter()
+                .all(|param_ty| inferred.contains_key(param_ty))
+            {
+                resolved_op_type_args = lowered_sig
+                    .op_type_params
+                    .iter()
+                    .map(|param_ty| inferred[param_ty].0)
+                    .collect();
+            }
         }
 
         // 7) binder 数量校验。
@@ -1207,6 +1220,7 @@ pub(super) fn infer_handle_expr_type(
             callee_fqn,
             handled_effect,
             op_return_ty: instantiated.return_ty,
+            op_type_args: resolved_op_type_args,
             binder_tys,
         })
     }
@@ -1333,6 +1347,7 @@ pub(super) fn infer_handle_expr_type(
         seen.push(lowered.handled_effect);
         handled_effects.push(lowered.handled_effect);
         lower.record_inferred_handle_arm_effect_ty(arm.op.span, lowered.handled_effect);
+        lower.record_inferred_handle_arm_op_type_args(arm.op.span, lowered.op_type_args.clone());
         lowered_arms.push(lowered);
     }
 

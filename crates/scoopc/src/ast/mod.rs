@@ -57,6 +57,12 @@ pub struct File {
     /// - HIR lowering 读取该表，才能把 dispatch 建立在真实 handled-effect 合同上；
     /// - 对于 `Effect<T>.op<U>(...)` 这类显式 type args 的 arm head，也必须以这里写回的实例类型为准。
     pub(crate) inferred_handle_arm_effect_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 写回的“handle arm op span -> 最终实例化后的 op type args” side table。
+    ///
+    /// 说明：
+    /// - handler arm head 允许显式/推断的 op type args（例如 `Query.ask<Int>(...)`）；
+    /// - HIR/MIR/effect-facts 后续阶段需要消费这里的 concrete args，不能回退到声明处的裸 type param。
+    pub(crate) inferred_handle_arm_op_type_args: RefCell<HashMap<Span, Vec<TypeId>>>,
     /// typecheck 补回的 safe member access 解析结果（按 member name 的源码 span 索引）。
     ///
     /// 说明：
@@ -211,6 +217,17 @@ impl File {
             .borrow()
             .get(&span)
             .copied()
+    }
+
+    pub fn replace_inferred_handle_arm_op_type_args(&self, inferred: HashMap<Span, Vec<TypeId>>) {
+        *self.inferred_handle_arm_op_type_args.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_handle_arm_op_type_args(&self, span: Span) -> Option<Vec<TypeId>> {
+        self.inferred_handle_arm_op_type_args
+            .borrow()
+            .get(&span)
+            .cloned()
     }
 
     pub fn replace_safe_member_access_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {
@@ -413,6 +430,7 @@ pub struct CallArgElementBinding {
 #[derive(Debug, Clone)]
 pub struct EffectOpCallBinding {
     pub arg_mapping: Vec<usize>,
+    pub op_type_args: Vec<TypeId>,
 }
 
 #[derive(Debug, Clone)]

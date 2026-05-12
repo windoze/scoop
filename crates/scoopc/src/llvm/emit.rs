@@ -635,15 +635,32 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         &abi_query,
     )?;
 
+    fn callable_base_fqn(fqn: &str) -> &str {
+        let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+        base.split_once("$overload$")
+            .map(|(base, _)| base)
+            .unwrap_or(base)
+    }
+    let has_published_body = |program: &crate::effect_lowered::LateLoweredProgram, fqn: &str| {
+        let base_fqn = callable_base_fqn(fqn);
+        program.callables().iter().any(|callable| {
+            callable_base_fqn(callable.root_fqn()) == base_fqn
+                || callable_base_fqn(&callable.instance_key().template.fqn) == base_fqn
+        })
+    };
+
     for fun in &reachable {
+        if has_published_body(late_lowered_program, &fun.fqn)
+            || has_published_body(abi_program, &fun.fqn)
+        {
+            continue;
+        }
         let _ = declare.declare_top_level_fun(fun)?;
     }
 
     for fun in &reachable {
-        if let Some(callable) = late_lowered_program
-            .callable(&fun.fqn)
-            .or_else(|| abi_program.callable(&fun.fqn))
-            && (callable.plain_abi().is_some() || callable.effect_step_abi().is_some())
+        if has_published_body(late_lowered_program, &fun.fqn)
+            || has_published_body(abi_program, &fun.fqn)
         {
             continue;
         }

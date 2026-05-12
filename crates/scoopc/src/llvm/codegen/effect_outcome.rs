@@ -508,12 +508,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_ptr_type(self.gc_address_space()),
             &format!("{name}_box_ptr"),
         )?;
-        let payload_ptr = self.builder.build_struct_gep(
-            box_ty,
-            box_ptr,
-            1,
-            &format!("{name}_payload_gep"),
-        )?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(box_ty, box_ptr, 1, &format!("{name}_payload_gep"))?;
         Ok(self.builder.build_load(
             self.llvm_basic_type_of(at, target)?,
             payload_ptr,

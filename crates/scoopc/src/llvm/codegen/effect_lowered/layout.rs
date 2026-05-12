@@ -1202,46 +1202,52 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let mir_fun = self
             .materialized_callable_for_plain_signature(callable.root_fqn())?
             .clone();
+        let mir_types = &self.pass_view.materialized().types;
+        let mir_param_tys = mir_fun
+            .params
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
         if mir_fun.ty != plain.function_ty()
             || mir_fun.return_ty != plain.return_ty()
-            || mir_fun
-                .params
-                .iter()
-                .map(|param| param.ty)
-                .collect::<Vec<_>>()
-                != plain.param_tys()
+            || mir_param_tys != plain.param_tys()
         {
             return Err(frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 plain callable `{}` 的 materialized MIR signature 与 P5 plain ABI handoff 漂移",
                 callable.root_fqn()
             )));
         }
-        let llvm_fun =
-            if let Some(hir_fun) = self.codegen.fun_index.get(callable.root_fqn()).copied() {
-                let plain_symbol_override =
-                    (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
-                let symbol = plain_symbol_override.unwrap_or(hir_fun.fqn.as_str());
-                self.codegen
-                    .declare_materialized_mir_plain_fun_with_symbol(
-                        symbol,
-                        &mir_fun,
-                        plain.param_tys(),
-                        plain.return_ty(),
-                        self.source_types,
-                    )?
-            } else if mir_fun.name.starts_with("$lambda") {
-                self.codegen
-                    .declare_materialized_mir_closure_fun_with_signature(
-                        mir_fun.span,
-                        &mir_fun,
-                        plain.param_tys(),
-                        plain.return_ty(),
-                        self.source_types,
-                    )?
-            } else {
-                self.codegen
-                    .declare_materialized_mir_plain_fun(&mir_fun, self.source_types)?
-            };
+        let llvm_fun = if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
+            let plain_symbol_override =
+                (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
+            let symbol = plain_symbol_override.unwrap_or(callable.root_fqn());
+            self.codegen
+                .declare_materialized_mir_plain_fun_with_symbol(
+                    symbol,
+                    &mir_fun,
+                    &mir_param_tys,
+                    mir_fun.return_ty,
+                    mir_types,
+                )?
+        } else if mir_fun.name.starts_with("$lambda") {
+            self.codegen
+                .declare_materialized_mir_closure_fun_with_signature(
+                    mir_fun.span,
+                    &mir_fun,
+                    &mir_param_tys,
+                    mir_fun.return_ty,
+                    mir_types,
+                )?
+        } else {
+            self.codegen
+                .declare_materialized_mir_plain_fun_with_symbol(
+                    callable.root_fqn(),
+                    &mir_fun,
+                    &mir_param_tys,
+                    mir_fun.return_ty,
+                    mir_types,
+                )?
+        };
         let symbol_name = llvm_fun
             .get_name()
             .to_str()
@@ -7020,30 +7026,66 @@ fn same_surface_resume_wrapper_projection_shape(
     right: &LateLoweredSurfaceResumeWrapperProjection,
 ) -> bool {
     left == right
-        || (same_surface_resume_wrapper_underlying_route_shape(
-            left.underlying_route(),
-            right.underlying_route(),
-        ) && left.owner_step_schema() == right.owner_step_schema()
+        || (same_surface_resume_projection_owner_identity(left, right)
+            && left.owner_step_schema() == right.owner_step_schema()
             && left.wrapper_step_schema() == right.wrapper_step_schema()
-            && same_surface_resume_wrapper_complete_shape(left.complete(), right.complete())
+            && same_surface_resume_wrapper_complete_shape(
+                left.complete(),
+                right.complete(),
+                matches!(
+                    (
+                        left.underlying_route().publication(),
+                        right.underlying_route().publication()
+                    ),
+                    (
+                        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+                        _
+                    ) | (
+                        _,
+                        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+                    )
+                ),
+            )
             && left.outward_cases() == right.outward_cases())
+}
+
+fn same_surface_resume_projection_owner_identity(
+    left: &LateLoweredSurfaceResumeWrapperProjection,
+    right: &LateLoweredSurfaceResumeWrapperProjection,
+) -> bool {
+    match (
+        surface_resume_publication_owner_identity(left.underlying_route().publication()),
+        surface_resume_publication_owner_identity(right.underlying_route().publication()),
+    ) {
+        (Some((left_owner, left_object)), Some((right_owner, right_object))) => {
+            left.underlying_route().continuation_schema()
+                == right.underlying_route().continuation_schema()
+                && left_owner == right_owner
+                && left_object == right_object
+        }
+        (None, None) => left.underlying_route() == right.underlying_route(),
+        _ => false,
+    }
 }
 
 fn same_surface_resume_wrapper_complete_shape(
     left: &LateLoweredSurfaceResumeWrapperCompleteProjection,
     right: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+    ignore_resume_boundary_local_identity: bool,
 ) -> bool {
     left.owner_answer_ty() == right.owner_answer_ty()
         && left.wrapper_answer_ty() == right.wrapper_answer_ty()
         && same_surface_resume_wrapper_complete_payload_source_shape(
             left.payload_source(),
             right.payload_source(),
+            ignore_resume_boundary_local_identity,
         )
 }
 
 fn same_surface_resume_wrapper_complete_payload_source_shape(
     left: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     right: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+    ignore_resume_boundary_local_identity: bool,
 ) -> bool {
     match (left, right) {
         (
@@ -7057,7 +7099,32 @@ fn same_surface_resume_wrapper_complete_payload_source_shape(
         (
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(left),
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(right),
-        ) => same_completion_payload_source_ignoring_span(left, right),
+        ) => {
+            same_completion_payload_source_ignoring_span(left, right)
+                || (ignore_resume_boundary_local_identity
+                    && matches!(
+                        (left, right),
+                        (
+                            LateLoweredCompletionPayloadSource::Operand(left_operand),
+                            LateLoweredCompletionPayloadSource::Operand(right_operand)
+                        ) if left_operand.source_ty() == right_operand.source_ty()
+                            && matches!(left_operand.value(), LateLoweredOperandValueSource::Local(_))
+                            && matches!(right_operand.value(), LateLoweredOperandValueSource::Local(_))
+                    ))
+                || (ignore_resume_boundary_local_identity
+                    && matches!(
+                        (left, right),
+                        (
+                            LateLoweredCompletionPayloadSource::Unit { complete_ty },
+                            LateLoweredCompletionPayloadSource::Operand(operand)
+                        )
+                            | (
+                                LateLoweredCompletionPayloadSource::Operand(operand),
+                                LateLoweredCompletionPayloadSource::Unit { complete_ty }
+                            ) if *complete_ty == operand.source_ty()
+                                && matches!(operand.value(), LateLoweredOperandValueSource::Local(_))
+                    ))
+        }
         _ => false,
     }
 }
@@ -7079,34 +7146,6 @@ fn same_completion_payload_source_ignoring_span(
             LateLoweredCompletionPayloadSource::Operand(left),
             LateLoweredCompletionPayloadSource::Operand(right),
         ) => left.source_ty() == right.source_ty() && left.value() == right.value(),
-        _ => false,
-    }
-}
-
-fn same_surface_resume_wrapper_underlying_route_shape(
-    left: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
-    right: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
-) -> bool {
-    if left.continuation_schema() != right.continuation_schema() {
-        return false;
-    }
-    match (left.publication(), right.publication()) {
-        (
-            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-            LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
-        ) => true,
-        (
-            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                owner_version_key: left_owner,
-                owner_continuation_object: left_object,
-                ..
-            },
-            LateLoweredSurfaceResumeDispatchPublication::HandleContinuationBinder {
-                owner_version_key: right_owner,
-                owner_continuation_object: right_object,
-                ..
-            },
-        ) => left_owner == right_owner && left_object == right_object,
         _ => false,
     }
 }

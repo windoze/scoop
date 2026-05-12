@@ -1587,10 +1587,36 @@ impl<'a> HirLowering<'a> {
     }
 
     fn typechecked_effect_op_call_binding(
-        &self,
+        &mut self,
         span: Span,
     ) -> Option<crate::ast::EffectOpCallBinding> {
-        self.file.typechecked_effect_op_call_binding(span)
+        let typecheck_types = self.typecheck_types?;
+        let binding = self.file.typechecked_effect_op_call_binding(span)?;
+        let op_type_args = binding
+            .op_type_args
+            .into_iter()
+            .map(|ty| {
+                let ty = self.types.re_intern_from(typecheck_types, ty);
+                self.apply_active_type_param_bindings(ty)
+            })
+            .collect();
+        Some(crate::ast::EffectOpCallBinding {
+            arg_mapping: binding.arg_mapping,
+            op_type_args,
+        })
+    }
+
+    fn typechecked_handle_arm_op_type_args(&mut self, span: Span) -> Option<Vec<TypeId>> {
+        let typecheck_types = self.typecheck_types?;
+        let args = self.file.inferred_handle_arm_op_type_args(span)?;
+        Some(
+            args.into_iter()
+                .map(|ty| {
+                    let ty = self.types.re_intern_from(typecheck_types, ty);
+                    self.apply_active_type_param_bindings(ty)
+                })
+                .collect(),
+        )
     }
 
     fn typechecked_top_level_fun_value_ref(
@@ -5468,6 +5494,10 @@ impl<'a> HirLowering<'a> {
         let op = EffectOpRef {
             span: member.span,
             fqn: fqn.clone(),
+            type_args: self
+                .typechecked_effect_op_call_binding(call_span)
+                .map(|binding| binding.op_type_args)
+                .unwrap_or_default(),
         };
         let effect_ty = self
             .typechecked_performed_effect_ty(call_span)
@@ -5923,6 +5953,7 @@ impl<'a> HirLowering<'a> {
                 op: EffectOpRef {
                     span: perform_span,
                     fqn: Self::RAISE_RAISE_FQN.to_string(),
+                    type_args: Vec::new(),
                 },
                 args: vec![CallArg::Positional(error_expr)],
             },
@@ -6104,6 +6135,14 @@ impl<'a> HirLowering<'a> {
             op: EffectOpRef {
                 span: op.op.span,
                 fqn: op_fqn,
+                type_args: self
+                    .typechecked_handle_arm_op_type_args(op.span)
+                    .unwrap_or_else(|| {
+                        op.op_type_args
+                            .iter()
+                            .map(|arg| self.lower_type_ref(arg))
+                            .collect()
+                    }),
             },
             binders,
         }

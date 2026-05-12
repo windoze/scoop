@@ -1512,26 +1512,46 @@ fn build_surface_resume_dispatch_inventory(
         for boundary in callable.boundary_map().entries() {
             match boundary.lowering() {
                 Some(LateLoweredBoundaryLowering::Call(lowering)) => {
+                    let LateLoweredBoundarySource::Site {
+                        site_id,
+                        kind: BoundarySiteKind::Call,
+                    } = boundary.source()
+                    else {
+                        continue;
+                    };
                     for composition in lowering.continuation_compositions() {
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
                             &mut wrapper_projections,
+                            callable,
+                            site_id,
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
                             &carrier_target_step_schemas,
+                            true,
                         );
                     }
                 }
                 Some(LateLoweredBoundaryLowering::Resume(lowering)) => {
+                    let LateLoweredBoundarySource::Site {
+                        site_id,
+                        kind: BoundarySiteKind::Resume,
+                    } = boundary.source()
+                    else {
+                        continue;
+                    };
                     for composition in lowering.continuation_compositions() {
                         register_call_boundary_callee_wrapper_projection(
                             &mut inventory,
                             &mut wrapper_projections,
+                            callable,
+                            site_id,
                             composition,
                             &step_types_by_schema,
                             continuation_objects,
                             &carrier_target_step_schemas,
+                            false,
                         );
                     }
                 }
@@ -1565,10 +1585,13 @@ fn register_call_boundary_callee_wrapper_projection(
         ContinuationSchemaId,
         Vec<LateLoweredSurfaceResumeWrapperProjection>,
     >,
+    callable: &LateLoweredCallable,
+    boundary_site_id: SiteId,
     composition: &LateLoweredCallBoundaryContinuationComposition,
     step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
     continuation_objects: &[LateLoweredContinuationObject],
     carrier_target_step_schemas: &BTreeSet<StepSchemaId>,
+    allow_resume_boundary_fallback: bool,
 ) {
     let wrapper_contract = composition.callee_continuation_contract();
     let Some(wrapper_step) = step_types_by_schema
@@ -1633,6 +1656,27 @@ fn register_call_boundary_callee_wrapper_projection(
         }
     }
     if candidates.is_empty() {
+        if allow_resume_boundary_fallback
+            && let Some((publication, projection)) = build_call_boundary_resume_boundary_projection(
+                callable,
+                boundary_site_id,
+                composition,
+                step_types_by_schema,
+            )
+        {
+            inventory
+                .entry(wrapper_contract.continuation_schema())
+                .or_default()
+                .register(
+                    Some(surface_resume_contract_from_continuation(wrapper_contract)),
+                    publication,
+                );
+            register_surface_resume_wrapper_projection(
+                wrapper_projections,
+                wrapper_contract.continuation_schema(),
+                projection,
+            );
+        }
         return;
     }
     for (publication, projection) in candidates {
@@ -1649,6 +1693,77 @@ fn register_call_boundary_callee_wrapper_projection(
             projection,
         );
     }
+}
+
+fn build_call_boundary_resume_boundary_projection(
+    callable: &LateLoweredCallable,
+    boundary_site_id: SiteId,
+    composition: &LateLoweredCallBoundaryContinuationComposition,
+    step_types_by_schema: &BTreeMap<StepSchemaId, &LateLoweredStepType>,
+) -> Option<(
+    LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredSurfaceResumeWrapperProjection,
+)> {
+    let wrapper_step = step_types_by_schema
+        .get(&composition.input_step_schema())
+        .copied()?;
+    let owner_step_schema = continuation_owner_step_schema(
+        step_types_by_schema,
+        composition.caller_continuation_schema(),
+    )?;
+    let owner_step = step_types_by_schema.get(&owner_step_schema).copied()?;
+    let outward_cases = wrapper_step
+        .cases()
+        .iter()
+        .map(|wrapper_case| {
+            let owner_case = owner_step
+                .cases()
+                .iter()
+                .find(|case| case.concrete_op_key() == wrapper_case.concrete_op_key())?;
+            Some(LateLoweredSurfaceResumeWrapperCaseProjection::new(
+                owner_case.case_tag(),
+                owner_case.concrete_op_key().clone(),
+                owner_case.payload_tuple_ty(),
+                wrapper_case.case_tag(),
+                wrapper_case.concrete_op_key().clone(),
+                wrapper_case.payload_tuple_ty(),
+                wrapper_case.continuation_contract(),
+            ))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let publication = LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
+        owner_version_key: callable.body_version_key().clone(),
+        owner_continuation_object: callable.continuation_object(),
+        site_id: boundary_site_id,
+    };
+    let payload_source = if owner_step.complete_ty() == composition.caller_result_ty() {
+        LateLoweredSurfaceResumeWrapperCompletePayloadSource::owner_complete(
+            owner_step.complete_ty(),
+        )
+    } else {
+        LateLoweredSurfaceResumeWrapperCompletePayloadSource::wrapper_payload(
+            LateLoweredCompletionPayloadSource::operand(LateLoweredOperandSource::new_local(
+                composition.caller_result_local(),
+                composition.caller_result_ty(),
+                None,
+            )),
+        )
+    };
+    let projection = LateLoweredSurfaceResumeWrapperProjection::new(
+        LateLoweredContinuationRoute::new(
+            composition.caller_continuation_schema(),
+            publication.clone(),
+        ),
+        owner_step.step_schema(),
+        wrapper_step.step_schema(),
+        LateLoweredSurfaceResumeWrapperCompleteProjection::new(
+            owner_step.complete_ty(),
+            composition.caller_result_ty(),
+            payload_source,
+        ),
+        outward_cases,
+    );
+    Some((publication, projection))
 }
 
 fn build_call_boundary_callee_wrapper_projection(
@@ -1753,7 +1868,23 @@ fn same_surface_resume_wrapper_projection_shape(
         || (same_surface_resume_projection_owner_identity(left, right)
             && left.owner_step_schema() == right.owner_step_schema()
             && left.wrapper_step_schema() == right.wrapper_step_schema()
-            && same_surface_resume_wrapper_complete_shape(left.complete(), right.complete())
+            && same_surface_resume_wrapper_complete_shape(
+                left.complete(),
+                right.complete(),
+                matches!(
+                    (
+                        left.underlying_route().publication(),
+                        right.underlying_route().publication()
+                    ),
+                    (
+                        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. },
+                        _
+                    ) | (
+                        _,
+                        LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary { .. }
+                    )
+                ),
+            )
             && left.outward_cases() == right.outward_cases())
 }
 
@@ -1925,18 +2056,21 @@ fn continuation_owner_step_schema(
 fn same_surface_resume_wrapper_complete_shape(
     left: &LateLoweredSurfaceResumeWrapperCompleteProjection,
     right: &LateLoweredSurfaceResumeWrapperCompleteProjection,
+    ignore_resume_boundary_local_identity: bool,
 ) -> bool {
     left.owner_answer_ty() == right.owner_answer_ty()
         && left.wrapper_answer_ty() == right.wrapper_answer_ty()
         && same_surface_resume_wrapper_complete_payload_source_shape(
             left.payload_source(),
             right.payload_source(),
+            ignore_resume_boundary_local_identity,
         )
 }
 
 fn same_surface_resume_wrapper_complete_payload_source_shape(
     left: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     right: &LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+    ignore_resume_boundary_local_identity: bool,
 ) -> bool {
     match (left, right) {
         (
@@ -1950,7 +2084,32 @@ fn same_surface_resume_wrapper_complete_payload_source_shape(
         (
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(left),
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(right),
-        ) => same_completion_payload_source_ignoring_span(left, right),
+        ) => {
+            same_completion_payload_source_ignoring_span(left, right)
+                || (ignore_resume_boundary_local_identity
+                    && matches!(
+                        (left, right),
+                        (
+                            LateLoweredCompletionPayloadSource::Operand(left_operand),
+                            LateLoweredCompletionPayloadSource::Operand(right_operand)
+                        ) if left_operand.source_ty() == right_operand.source_ty()
+                            && matches!(left_operand.value(), LateLoweredOperandValueSource::Local(_))
+                            && matches!(right_operand.value(), LateLoweredOperandValueSource::Local(_))
+                    ))
+                || (ignore_resume_boundary_local_identity
+                    && matches!(
+                        (left, right),
+                        (
+                            LateLoweredCompletionPayloadSource::Unit { complete_ty },
+                            LateLoweredCompletionPayloadSource::Operand(operand)
+                        )
+                            | (
+                                LateLoweredCompletionPayloadSource::Operand(operand),
+                                LateLoweredCompletionPayloadSource::Unit { complete_ty }
+                            ) if *complete_ty == operand.source_ty()
+                                && matches!(operand.value(), LateLoweredOperandValueSource::Local(_))
+                    ))
+        }
         _ => false,
     }
 }

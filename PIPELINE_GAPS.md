@@ -16,7 +16,7 @@
 
 - 状态：`Open` 表示当前仍是 live gap 或高价值 guard bucket。
 - 状态：`Partial` 表示主线已收口，但剩余 narrow surface、contract drift 或 residual unsupported 仍存在。
-- 状态：`LegacyOnly` 表示默认 refactor 主线不再以本节为 owner，只剩旧 fallback/兼容路径还可能制造同类 placeholder。
+- 状态：`LegacyOnly` 表示源码里仍残留 legacy producer / 遗留分支，但 refactor 计划要求这些路径对 production/refactor pipeline 完全不可达；如果任何真实编译路径还能命中它们，那是实现错误，不是可接受的剩余 gap。
 - 状态：`FrontendReject` 表示当前由前端显式拒绝；不是 codegen-stage blocker，但解禁前必须同步补 backend。
 - 状态：`Closed/Re-scoped` 表示默认 pipeline 已收口，或问题已改写成更上游/更窄的 contract。
 - 状态：`Historical` 表示保留 legacy 编号，但本轮未发现新的 machine-readable owner 或默认 pipeline blocker。
@@ -27,7 +27,7 @@
 ### 1.1 `comptime` block/if/for 语句仍是 Todo
 
 - 状态：`Open`。
-- 结论：这些 placeholder 仍由 MIR placeholder inventory 明确追踪，属于进入 runtime MIR 之前必须消除的前置实现项，而不是 LLVM 末端再兜底的事项。
+- 结论：这些 placeholder 仍由 MIR placeholder inventory 明确追踪，属于进入 runtime MIR 之前必须消除的前置实现项，而不是 LLVM 末端再补救的事项。
 - 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:76-101`，`crates/scoopc/src/pipeline/hir_preflight.rs:91-104`。
 
 ### 1.2 splice field `value.[field]` 仍是 Todo
@@ -36,7 +36,7 @@
 - 结论：静态 splice field 已在 HIR 阶段改写为 resolved member access；动态字段名改为 source diagnostic，不再以 `Todo` 形式漂到后端。
 - 证据：`crates/scoopc/src/pipeline/hir_stage.rs:3269-3328`。
 
-### 1.3 class literal / annotation class literal runtime fallback 不闭合
+### 1.3 class literal / annotation class literal 运行期路径不闭合
 
 - 状态：`Historical`。
 - 结论：本轮未把它识别为当前默认 pipeline 的独立 codegen-stage owner；若重新开放该表面，应先补 machine-readable inventory 与 source-level contract。
@@ -50,31 +50,31 @@
 ### 1.5 `typealias`、package-level `comptime if`、`type`、`object` file item 仍是 Todo
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`typealias` / nominal `type` / `object` metadata 已有 HIR/MIR-owned roots；package-level `comptime if` 改为必须在 HIR lowering 前裁剪，而不是留给后端兜底。
+- 结论：`typealias` / nominal `type` / `object` metadata 已有 HIR/MIR-owned roots；package-level `comptime if` 改为必须在 HIR lowering 前裁剪，而不是留给后端处理异常输入。
 - 证据：`crates/scoopc/src/pipeline/hir_stage.rs:3132-3168`，`crates/scoopc/src/pipeline/mir_stage.rs:128`，`crates/scoopc/src/hir/lower/mod.rs:624`，`crates/scoopc/src/pipeline/hir_preflight.rs:108-117`。
 
 ### 1.6 赋值 LHS 只覆盖 local、top-level 和 member access
 
 - 状态：`LegacyOnly`。
-- 结论：placeholder inventory 已把 `assign lhs missing local` / `assign lhs lowering pending` 明确标成 legacy-only；默认 refactor MIR 依赖 typed place contract，而不是后端重新猜 LHS provenance。
+- 结论：这里不应再被理解成“旧路径专属缺口”，而应视为待删除的 residual producer。`mir/lower.rs` 里仍保留 `assign lhs missing local` / `assign lhs lowering pending` 的遗留分支；只要 refactor 编译还能走到这里，就是实现错误。
 - 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:112-129`。
 
 ### 1.7 callable callee / ctor callee provenance 不完整会生成 Todo
 
 - 状态：`LegacyOnly`。
-- 结论：这类 placeholder 仍有 inventory 记录，但只属于旧 fallback。默认主线应依赖 typed call-site / selected ctor contract。
+- 结论：这类 placeholder 仍有 inventory 记录，但它们不是“允许存在的旧路径能力”，而是待删除的 legacy producer。默认主线必须完全依赖 typed call-site / selected ctor contract；任何实际命中都说明 contract 发布或 routing 仍有漏洞。
 - 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:139-156`。
 
 ### 1.8 dynamic dispatch callee 拆解失败会生成 Todo
 
 - 状态：`LegacyOnly`。
-- 结论：旧 fallback 仍可能用字符串拆 owner/member；默认主线已转向 structured dispatch metadata。
+- 结论：`dispatch callee lowering pending` 仍有源码 producer，但 refactor 主线不应再依赖它。typed dispatch contract 缺失后若还能落到这条分支，属于未完成的 refactor 实现错误。
 - 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:184-192`。
 
 ### 1.9 `Continuation.resume` 只接受 canonical callee shape
 
 - 状态：`LegacyOnly`。
-- 结论：旧 fallback 仍保留该 placeholder；默认 refactor 路径应消费 typed receiver/payload route，而不是在 LLVM 阶段猜 resume 语义。
+- 结论：`resume lowering requires canonical callee shape` 仍有 legacy producer，但 refactor 路径不应再使用无 contract 的 legacy resume 分支。任何 reachability 都表示 refactor resume contract 没有完全接管该表面。
 - 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:175-183`。
 
 ### 1.10 `perform` 缺 typed contract 时生成 Todo terminator
@@ -87,10 +87,10 @@
 - 状态：`Historical`。
 - 结论：与 `§1.10` 相同；当前更重要的是防止残留 `Handle` 形状进入 raw MIR 或 plain callable emission。
 
-### 1.12 `with` copy-update fallback 仍能产生 Todo
+### 1.12 `with` copy-update 遗留分支仍能产生 Todo
 
 - 状态：`Closed/Re-scoped`。
-- 结论：typed frontend 现在发布显式 copy-update contract；`with_update` 若仍作为 raw fallback 残留，应在 preflight/HIR completeness 阶段拦截，而不是作为默认 LLVM gap。
+- 结论：typed frontend 现在发布显式 copy-update contract；`with_update` 若仍作为 raw 遗留分支残留，应在 preflight/HIR completeness 阶段拦截，而不是作为默认 LLVM gap。
 - 证据：`crates/scoopc/src/typecheck/lower.rs:500`，`crates/scoopc/src/pipeline/hir_preflight.rs:111-113`。
 
 ## 2. MIR Handoff / Materialization 缺口
@@ -132,9 +132,9 @@
 
 ### 2.7 `TypeKind::Param` 仍可能到达 codegen
 
-- 状态：`Open`。
-- 结论：codegen 仍把 `TypeKind::Param` 视为 monomorph miss / ABI contract drift。它是高价值 guard，但不应被当成可接受输入。
-- 证据：`crates/scoopc/src/llvm/codegen/ty.rs:195-199`，`crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs:5853-5856`。
+- 状态：`Partial`。
+- 结论：已修复当前可复现的 materialized direct-call contract drift：codegen 不再把 generic template body 当作 concrete materialized callable，pure direct-call lowering 会把有 concrete instance 的 generic template 路由到 materialized plain MIR call；call-site binding 中仍含 `TypeKind::Param` 时也不得覆盖已经具体化的 fallback FQN。`TypeKind::Param` 在 codegen 侧仍保留为高价值 guard，未来若有新 surface 命中应继续视为上游单态化/typed contract 漏洞。
+- 证据：`crates/scoopc/src/llvm/codegen/mod.rs:1851-1947`，`crates/scoopc/src/llvm/codegen/mir_body.rs:94-121`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1684-1716`，`tests/fixtures/run-pass/generic_fun_recursion.scoop:1-20`。
 
 ### 2.8 resume surface 对裸 type param 有特例，普通 source value 没有
 
@@ -270,9 +270,9 @@
 
 ### 5.3 `ResumeUnwind` 只有空 cleanup placeholder 可接受
 
-- 状态：`Open`。
-- 结论：`ResumeUnwind` contract 现在更严格地校验 cleanup state、source slice、origin/resume-state；但复杂 cleanup/unwind contract 仍未完全泛化。
-- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:3368-3383`，`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:3385-3399`。
+- 状态：`Partial`。
+- 结论：`ResumeUnwind` contract 现在更严格地校验 cleanup state、source slice、origin/resume-state；call-boundary complete 后的 frame-free tail 也会在无 handle、无 resume/runtime-error/composed boundary、无后续 suspend/cleanup 时提前释放 frame root，避免普通返回路径把 internal frame / empty `EffectCtx` 继续暴露给用户可观测 GC。复杂 cleanup/unwind contract 仍未完全泛化。
+- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:3368-3399`，`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4493-4565`，`tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop:1-31`。
 
 ### 5.4 outward-empty callable 不应被路由为 effect-step entry；`main(args)` 是当前症状
 
@@ -311,7 +311,7 @@
 - 结论：当前受支持的 runtime cast/type-check 主线已通；剩余 function-type cast 被前端显式挡住，见 `§7.2`。
 - 证据：`tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop:1-11`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2365-2549`。
 
-### 6.3 runtime reflection fallback `nameOf<T>()` / `getPlatform()` 缺 codegen lowering
+### 6.3 runtime reflection 路径 `nameOf<T>()` / `getPlatform()` 缺 codegen lowering
 
 - 状态：`Closed/Re-scoped`。
 - 结论：`nameOf<T>()` 与 `getPlatform()` 现在都有 runtime lowering；`getPlatform()` 也有 IR 级断言确保不会退回 declaration-only call。
@@ -373,7 +373,7 @@
 2. 收口 raw MIR residual effect/control routing：`§3.1`、`§3.2`、`§3.3`、`§3.6` 应保证“要么先转 late-lowered/published boundary，要么 upstream verifier 明确拒绝”。
 3. 完成 effect-refactor 的 ABI/routing 主线：优先处理 `§3.12`、`§5.1`、`§5.3`、`§5.4`，确保 actual outward effect set 真正决定 callable ABI。
 4. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
-5. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 兜底。
+5. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
 
 ## 9. 建议验证矩阵
 

@@ -1792,9 +1792,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
-    fn current_local_effect_escape_target(
-        &self,
-    ) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
+    fn current_local_effect_escape_target(&self) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
         self.function_cx.local_effect_escape_targets.last().copied()
     }
 
@@ -1853,19 +1851,101 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fallback_fqn: &str,
     ) -> Result<String, LlvmEmitError> {
+        fn callable_dispatch_base_fqn(fqn: &str) -> &str {
+            let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
+            base.split_once("$overload$")
+                .map(|(base, _)| base)
+                .unwrap_or(base)
+        }
+
+        fn callable_fqn_specificity(fqn: &str) -> u8 {
+            u8::from(fqn.contains("$overload$")) + u8::from(fqn.contains("::<"))
+        }
+
+        fn type_contains_param(types: &TypeStore, ty: TypeId) -> bool {
+            let mut stack = vec![ty];
+            while let Some(id) = stack.pop() {
+                match types.kind(id) {
+                    TypeKind::Param(_) => return true,
+                    TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                    TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                    | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                        stack.extend(nominal.args.iter().copied());
+                        if let Some(eff) = &nominal.eff {
+                            stack.extend(eff.terms.iter().copied());
+                        }
+                    }
+                    TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                        if let Some(receiver) = fun.receiver {
+                            stack.push(receiver);
+                        }
+                        stack.extend(fun.params.iter().copied());
+                        stack.push(fun.return_ty);
+                        stack.extend(fun.effects.terms.iter().copied());
+                    }
+                    TypeKind::Ref(RefTypeKind::Union(union)) => {
+                        stack.extend(union.variants.iter().copied());
+                    }
+                    TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+                    TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                        stack.extend(elements.iter().copied());
+                    }
+                    TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+                    | TypeKind::Value(
+                        ValueTypeKind::Unit
+                        | ValueTypeKind::Nothing
+                        | ValueTypeKind::Bool
+                        | ValueTypeKind::Char
+                        | ValueTypeKind::Float64
+                        | ValueTypeKind::Float32
+                        | ValueTypeKind::Int
+                        | ValueTypeKind::UInt
+                        | ValueTypeKind::IntN(_)
+                        | ValueTypeKind::UIntN(_),
+                    ) => {}
+                }
+            }
+            false
+        }
+
         let Some(binding) = self.current_top_level_fun_call_binding(span)? else {
             return Ok(fallback_fqn.to_string());
         };
-        if binding.type_args.is_empty() {
-            return Ok(binding.fqn.clone());
-        }
-        let args = binding
+        let binding_fqn = if binding.type_args.is_empty() {
+            binding.fqn.clone()
+        } else {
+            let args = binding
+                .type_args
+                .iter()
+                .map(|ty| self.types.display(*ty).to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{}::<{}>", binding.fqn, args)
+        };
+        let binding_contains_unresolved_params = binding
             .type_args
             .iter()
-            .map(|ty| self.types.display(*ty).to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        Ok(format!("{}::<{}>", binding.fqn, args))
+            .any(|&ty| type_contains_param(self.types, ty))
+            || binding.eff_args.iter().any(|row| {
+                row.terms
+                    .iter()
+                    .any(|&ty| type_contains_param(self.types, ty))
+            });
+        if binding_contains_unresolved_params && callable_fqn_specificity(fallback_fqn) > 0 {
+            return Ok(fallback_fqn.to_string());
+        }
+        let fallback_base = callable_dispatch_base_fqn(fallback_fqn);
+        let binding_base = callable_dispatch_base_fqn(&binding_fqn);
+        if binding_base == fallback_base
+            && callable_fqn_specificity(binding_fqn.as_str())
+                < callable_fqn_specificity(fallback_fqn)
+        {
+            return Ok(fallback_fqn.to_string());
+        }
+        if binding_base != fallback_base && callable_fqn_specificity(fallback_fqn) > 0 {
+            return Ok(fallback_fqn.to_string());
+        }
+        Ok(binding_fqn)
     }
 
     fn source_id_for_path(
@@ -2240,7 +2320,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_gc_i8_ptr_type(),
             &format!("{label}_gc_ref"),
         )?;
-        self.clear_deferred_cg_value_root_homes(at, &format!("{label}_obj_root_drop"), &deferred_obj)?;
+        self.clear_deferred_cg_value_root_homes(
+            at,
+            &format!("{label}_obj_root_drop"),
+            &deferred_obj,
+        )?;
         Ok(gc_ref)
     }
 
@@ -2331,6 +2415,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun: &hir::FunDecl,
         llvm_name: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            return Ok(existing);
+        }
+
         let is_extern = self.extern_funs.contains_key(&fun.fqn);
 
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
@@ -2365,13 +2453,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
         let is_gc_leaf =
             is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
-
-        if let Some(existing) = self.module.get_function(llvm_name) {
-            if is_gc_leaf {
-                self.mark_gc_leaf_function(existing);
-            }
-            return Ok(existing);
-        }
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -2432,19 +2513,117 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    pub(crate) fn declare_top_level_fun_with_signature_override(
+        &mut self,
+        fun: &hir::FunDecl,
+        llvm_name: &str,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            return Ok(existing);
+        }
+
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(return_ty);
+
+        let Some(return_cg) = self.cg_ty_of(return_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            });
+        };
+        if param_tys.len() != fun.params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function param type",
+                at: fun.span.into(),
+            });
+        }
+
+        let hidden_sret_result_ty = if is_extern {
+            None
+        } else {
+            self.hidden_sret_result_ty(fun.span, return_cg)?
+        };
+        let uses_explicit_effect_hidden_abi =
+            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let is_gc_leaf =
+            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+
+        let mut llvm_params = Vec::with_capacity(
+            param_tys.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
+                    as usize,
+        );
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if uses_explicit_effect_hidden_abi {
+            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
+        }
+        for (param, param_ty) in fun.params.iter().zip(param_tys.iter().copied()) {
+            let llvm_param_ty = if is_extern {
+                self.llvm_param_ty(param.span, param_ty)
+            } else {
+                self.ordinary_param_abi(param.span, param_ty)
+                    .map(OrdinaryParamAbi::llvm_param_ty)
+            }?;
+            llvm_params.push(llvm_param_ty);
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, return_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_params, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(fun.span, other)?
+                .fn_type(&llvm_params, false),
+        };
+
+        let linkage = if is_extern {
+            Some(Linkage::External)
+        } else {
+            None
+        };
+        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
+        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+        }
+        if is_gc_leaf {
+            self.mark_gc_leaf_function(llvm_fun);
+        }
+        Ok(llvm_fun)
+    }
+
     pub(crate) fn declare_materialized_top_level_fun_with_symbol(
         &mut self,
         fun: &crate::mir::FunDecl,
         llvm_name: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
-        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            return Ok(existing);
+        }
 
-        let Some(return_cg) = self.cg_ty_of(fun.return_ty) else {
+        let mir_types = self
+            .materialized_pass_view()
+            .map(|view| &view.materialized().types)
+            .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let codegen_return_ty = self
+            .equivalent_codegen_type_id(mir_types, fun.return_ty)
+            .unwrap_or(fun.return_ty);
+        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(codegen_return_ty);
+
+        let Some(return_cg) = self
+            .cg_ty_of_mir_type(mir_types, fun.return_ty)
+            .or_else(|| self.cg_ty_of(codegen_return_ty))
+        else {
             tracing::warn!(
                 "declare_materialized_top_level_fun: unsupported return type for {} -> {}",
                 fun.fqn,
-                self.types.display(fun.return_ty)
+                mir_types.display(fun.return_ty)
             );
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function return type",
@@ -2459,14 +2638,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let uses_explicit_effect_hidden_abi =
             !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
-        let is_gc_leaf = is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
-
-        if let Some(existing) = self.module.get_function(llvm_name) {
-            if is_gc_leaf {
-                self.mark_gc_leaf_function(existing);
-            }
-            return Ok(existing);
-        }
+        let is_gc_leaf =
+            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -2481,10 +2654,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
         for param in &fun.params {
+            let param_ty = self
+                .equivalent_codegen_type_id(mir_types, param.ty)
+                .unwrap_or(param.ty);
             let llvm_param_ty = if is_extern {
-                self.llvm_param_ty(param.span, param.ty)
+                self.llvm_param_ty(param.span, param_ty)
             } else {
-                self.ordinary_param_abi(param.span, param.ty)
+                self.ordinary_param_abi(param.span, param_ty)
                     .map(OrdinaryParamAbi::llvm_param_ty)
             };
             match llvm_param_ty {
@@ -2494,7 +2670,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "declare_materialized_top_level_fun: unsupported param type for {} param {} -> {}",
                         fun.fqn,
                         param.name,
-                        self.types.display(param.ty)
+                        mir_types.display(param.ty)
                     );
                     return Err(err);
                 }
@@ -4640,6 +4816,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn callable_needs_callee_resume_shell(&self, callable_fqn: &str) -> bool {
         self.callable_needs_callee_resume_shell_impl(callable_fqn)
+    }
+
+    fn published_callable_signature(&self, callable_fqn: &str) -> Option<(Vec<TypeId>, TypeId)> {
+        self.published_callable_signature_impl(callable_fqn)
     }
 
     fn explicit_effect_hidden_abi_param_count(&self, uses_explicit_effect_hidden_abi: bool) -> u32 {

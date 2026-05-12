@@ -7651,6 +7651,7 @@ fun main(): Int {
                 arms: vec![
                     crate::mir::HandlerArm {
                         op_fqn: "sample.Ask.ask".to_string(),
+                        op_type_args: Vec::new(),
                         binder_count: 0,
                         binder_locals: Vec::new(),
                         continuation_local: Some(k0),
@@ -7662,6 +7663,7 @@ fun main(): Int {
                     },
                     crate::mir::HandlerArm {
                         op_fqn: "sample.Ask.ask".to_string(),
+                        op_type_args: Vec::new(),
                         binder_count: 0,
                         binder_locals: Vec::new(),
                         continuation_local: Some(k1),

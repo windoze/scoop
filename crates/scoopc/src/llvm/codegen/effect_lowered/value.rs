@@ -1684,9 +1684,30 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return self.codegen.coerce_value(span, value, target_cg);
         }
         if self.codegen.extern_funs.contains_key(callee_fqn) {
-            let value = self
-                .codegen
-                .codegen_mir_direct_call(span, callee_fqn, args, self.body, self.slots)?;
+            let value = self.codegen.codegen_mir_direct_call(
+                span,
+                callee_fqn,
+                args,
+                self.body,
+                self.source_types,
+                transport,
+                self.slots,
+            )?;
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
+        if self
+            .codegen
+            .has_materialized_instances_for_template(callee_fqn)
+        {
+            let value = self.codegen.codegen_mir_refactor_plain_direct_call(
+                span,
+                callee_fqn,
+                args,
+                self.body,
+                self.source_types,
+                transport,
+                self.slots,
+            )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
         let sig_fun = match self.codegen.hir_fun_for_callable_fqn(callee_fqn) {
@@ -1730,9 +1751,15 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
             .is_some()
         {
-            return self
-                .codegen
-                .codegen_mir_refactor_plain_direct_call(span, callee_fqn, args, self.slots);
+            return self.codegen.codegen_mir_refactor_plain_direct_call(
+                span,
+                callee_fqn,
+                args,
+                self.body,
+                self.source_types,
+                transport,
+                self.slots,
+            );
         }
         if self
             .codegen
