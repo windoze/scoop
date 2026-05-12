@@ -12,8 +12,8 @@ use inkwell::AtomicOrdering;
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 use inkwell::values::{
-    BasicMetadataValueEnum, BasicValueEnum, FunctionValue, GlobalValue, IntValue, PointerValue,
-    StructValue,
+    BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, GlobalValue, IntValue,
+    PointerValue, StructValue,
 };
 
 use crate::effect_facts::{CaseTag, StepSchemaId};
@@ -4850,6 +4850,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         Ok(())
     }
 
+    fn restore_and_clear_handle_effect_ctx_slots(
+        &mut self,
+        site_id: SiteId,
+        restore_name: &str,
+        clear_name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        self.restore_handle_saved_effect_ctx(site_id, restore_name)?;
+        self.clear_handle_effect_ctx_slots(site_id, clear_name)
+    }
+
     fn cast_gc_ref_to_effect_ctx_ptr(
         &mut self,
         value: PointerValue<'ctx>,
@@ -4885,8 +4895,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.effect_ctx_layout_anchor_name(),
             name,
         )?;
+        let ctx_root_slot = self.capture_gc_pointer_root_slot(ctx_ptr, &format!("{name}_root"))?;
+        let ctx_ptr =
+            self.reload_gc_pointer_from_root_slot(ctx_root_slot, &format!("{name}_root"))?;
         self.codegen
             .store_effect_ctx_handler_top(self.mir_fun.span, ctx_ptr, handler_top, name)?;
+        let ctx_ptr =
+            self.reload_gc_pointer_from_root_slot(ctx_root_slot, &format!("{name}_root"))?;
+        self.clear_root_gc_slot(ctx_root_slot, &format!("{name}_root_clear"))?;
         self.codegen.refactor_cast_ptr(
             ctx_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -4917,6 +4933,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.effect_handler_node_layout_anchor_name(),
             name,
         )?;
+        let node_root_slot =
+            self.capture_gc_pointer_root_slot(node_ptr, &format!("{name}_root"))?;
+        let node_ptr =
+            self.reload_gc_pointer_from_root_slot(node_root_slot, &format!("{name}_root"))?;
         let prev_ref = self.codegen.load_refactor_gc_root_slot(
             self.mir_fun.span,
             prev_ref_root_slot,
@@ -4940,6 +4960,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .const_int(u64::from(flags), false),
             name,
         )?;
+        let node_ptr =
+            self.reload_gc_pointer_from_root_slot(node_root_slot, &format!("{name}_root"))?;
         let owner_frame_ref = self.current_frame_gc_ref(&format!("{name}_owner_frame_reload"))?;
         self.codegen.store_effect_handler_owner_frame_ref(
             self.mir_fun.span,
@@ -4953,6 +4975,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .effect_handler_dispatch_identity_const(site_id, arm_ordinal),
             name,
         )?;
+        let node_ptr =
+            self.reload_gc_pointer_from_root_slot(node_root_slot, &format!("{name}_root"))?;
+        self.clear_root_gc_slot(node_root_slot, &format!("{name}_root_clear"))?;
         self.codegen.refactor_cast_ptr(
             node_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -4994,6 +5019,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let outer_ctx = self.load_current_effect_ctx("refactor_handle_outer_ctx")?;
         self.store_handle_saved_effect_ctx(site_id, outer_ctx, "refactor_handle_saved_ctx")?;
+        let outer_ctx = self.load_current_effect_ctx("refactor_handle_outer_ctx_reload")?;
         let outer_ctx_ptr =
             self.cast_gc_ref_to_effect_ctx_ptr(outer_ctx, "refactor_handle_outer_ctx_ptr")?;
         let outer_handler_top = self
@@ -5244,6 +5270,30 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .load_refactor_gc_root_slot(self.mir_fun.span, slot, name)
     }
 
+    // Fresh GC objects and loaded GC refs in effect lowering can cross write-barrier,
+    // allocation, and payload-materialization windows. Keep a stable reloadable home slot so
+    // later uses do not keep stale pre-GC SSA pointers.
+    fn capture_gc_pointer_root_slot(
+        &mut self,
+        value: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, name)?;
+        let _ = self.root_gc_pointer_in_slot(slot, value, name)?;
+        Ok(slot)
+    }
+
+    fn reload_gc_pointer_from_root_slot(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.codegen
+            .load_refactor_gc_root_slot(self.mir_fun.span, slot, name)
+    }
+
     fn clear_root_gc_slot(
         &mut self,
         slot: PointerValue<'ctx>,
@@ -5393,13 +5443,26 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
-        let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
-        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_resume_cont_root")?;
+        let cont_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_resume_cont_root")?;
+        let cont_ptr = self.root_gc_pointer_in_slot(
+            cont_root_slot,
+            cont.into_pointer_value(),
+            "refactor_resume_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
         self.store_frame_root(captured_frame)?;
         self.restore_frame_slots_to_locals()?;
         let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
         self.store_current_effect_ctx(current_effect_ctx, "refactor_resume_effect_ctx")?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_resume_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let payload = if self.function.count_params() > 1 {
             Some(self.function.get_nth_param(1).ok_or_else(|| {
                 frontend_error("refactor resume method 缺少 payload 参数".to_string())
@@ -5784,8 +5847,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
-        let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
-        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_continuation_drive_root")?;
+        let cont_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_continuation_drive_root")?;
+        let cont_ptr = self.root_gc_pointer_in_slot(
+            cont_root_slot,
+            cont.into_pointer_value(),
+            "refactor_continuation_drive_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let state_ref = self.load_frame_from_continuation(cont_ptr)?;
         self.store_frame_root(state_ref)?;
         let resume_word = self
@@ -5854,9 +5924,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             "refactor_continuation_drive",
         )?;
         self.store_current_state_tag(resume_state_tag, "refactor_continuation_drive_state")?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_continuation_drive_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
         let incoming_resume_token = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
         let step_fn = self.load_continuation_step_fn(cont_ptr)?;
+        let state_ref = self.current_frame_gc_ref("refactor_continuation_drive_state_reload")?;
         let step_args = [
             state_ref.into(),
             resume_word.into(),
@@ -8261,13 +8338,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         })?;
         match lowering.outward_emissions() {
             [] => {
-                self.restore_handle_saved_effect_ctx(handle_site_id, "refactor_handle_exit_ctx")?;
+                self.restore_and_clear_handle_effect_ctx_slots(
+                    handle_site_id,
+                    "refactor_handle_exit_ctx",
+                    "refactor_handle_exit_ctx_clear",
+                )?;
                 self.branch_to_state(boundary.resume_state())
             }
             [emission] => {
-                self.restore_handle_saved_effect_ctx(
+                self.restore_and_clear_handle_effect_ctx_slots(
                     handle_site_id,
                     "refactor_handle_outward_ctx",
+                    "refactor_handle_outward_ctx_clear",
                 )?;
                 self.emit_or_consume_outward_case(
                     boundary,
@@ -8599,11 +8681,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let continuation_effect_ctx =
             self.load_current_effect_ctx("refactor_handle_resume_effect_ctx")?;
+        let continuation_effect_ctx_root_slot = self.capture_gc_pointer_root_slot(
+            continuation_effect_ctx,
+            "refactor_handle_resume_effect_ctx_root",
+        )?;
         let arm_ctx = self.load_handle_arm_effect_ctx(
             action.site_id,
             action.arm_ordinal,
             "refactor_handle_arm_effect_ctx_load",
         )?;
+        let arm_ctx_root_slot =
+            self.capture_gc_pointer_root_slot(arm_ctx, "refactor_handle_arm_effect_ctx_root")?;
         self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_store")?;
 
         let deferred_callee_continuation = callee_continuation
@@ -8663,6 +8751,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 callee_continuation
             };
             let continuation = if composition.is_some() {
+                let continuation_effect_ctx = self.reload_gc_pointer_from_root_slot(
+                    continuation_effect_ctx_root_slot,
+                    "refactor_handle_resume_effect_ctx_root",
+                )?;
                 self.store_current_effect_ctx(
                     continuation_effect_ctx,
                     "refactor_handle_continuation_effect_ctx_store",
@@ -8676,15 +8768,44 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else if let Some(callee_continuation) = callee_continuation {
                 callee_continuation
             } else {
+                let continuation_effect_ctx = self.reload_gc_pointer_from_root_slot(
+                    continuation_effect_ctx_root_slot,
+                    "refactor_handle_resume_effect_ctx_root",
+                )?;
                 self.store_current_effect_ctx(
                     continuation_effect_ctx,
                     "refactor_handle_continuation_effect_ctx_store",
                 )?;
                 self.create_continuation_object(boundary.resume_state(), case_tag, None, None)?
             };
+            let continuation_root_slot = self.capture_gc_pointer_root_slot(
+                continuation,
+                "refactor_handle_continuation_binder_root",
+            )?;
+            let arm_ctx = self.reload_gc_pointer_from_root_slot(
+                arm_ctx_root_slot,
+                "refactor_handle_arm_effect_ctx_root",
+            )?;
             self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_restore")?;
+            let continuation = self.reload_gc_pointer_from_root_slot(
+                continuation_root_slot,
+                "refactor_handle_continuation_binder_root",
+            )?;
             self.store_gc_ref_to_binder(binder, continuation)?;
+            self.clear_root_gc_slot(
+                continuation_root_slot,
+                "refactor_handle_continuation_binder_root_clear",
+            )?;
         }
+
+        self.clear_root_gc_slot(
+            continuation_effect_ctx_root_slot,
+            "refactor_handle_resume_effect_ctx_root_clear",
+        )?;
+        self.clear_root_gc_slot(
+            arm_ctx_root_slot,
+            "refactor_handle_arm_effect_ctx_root_clear",
+        )?;
 
         let payload = if let Some(deferred_payload) = deferred_payload {
             self.codegen
@@ -9899,8 +10020,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
         }
         for (_, site_id) in handles {
-            self.restore_handle_saved_effect_ctx(site_id, "refactor_handle_return_restore_ctx")?;
-            self.clear_handle_effect_ctx_slots(site_id, "refactor_handle_return_clear_ctx")?;
+            self.restore_and_clear_handle_effect_ctx_slots(
+                site_id,
+                "refactor_handle_return_restore_ctx",
+                "refactor_handle_return_clear_ctx",
+            )?;
         }
         Ok(())
     }
@@ -9997,11 +10121,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 site_id,
                 target,
             } => {
-                self.restore_handle_saved_effect_ctx(site_id, "refactor_handle_direct_exit_ctx")?;
                 if clear_slots {
-                    self.clear_handle_effect_ctx_slots(
+                    self.restore_and_clear_handle_effect_ctx_slots(
                         site_id,
+                        "refactor_handle_direct_exit_ctx",
                         "refactor_handle_direct_exit_ctx_clear",
+                    )?;
+                } else {
+                    self.restore_handle_saved_effect_ctx(
+                        site_id,
+                        "refactor_handle_direct_exit_ctx",
                     )?;
                 }
                 self.branch_to_state(target)?;
@@ -10580,9 +10709,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.build_switch(tag, invalid_bb, &cases)?;
 
         self.codegen.builder.position_at_end(normal_bb);
-        self.restore_handle_saved_effect_ctx(
+        self.restore_and_clear_handle_effect_ctx_slots(
             finally.site_id,
             "refactor_handle_finally_normal_ctx",
+            "refactor_handle_finally_normal_ctx_clear",
         )?;
         match self.handle_completion_mode {
             RefactorHandleCompletionMode::ContinueToExit => {
@@ -10611,9 +10741,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         for (outward, bb) in outward_blocks {
             self.codegen.builder.position_at_end(bb);
-            self.restore_handle_saved_effect_ctx(
+            self.restore_and_clear_handle_effect_ctx_slots(
                 finally.site_id,
                 "refactor_handle_finally_outward_ctx",
+                "refactor_handle_finally_outward_ctx_clear",
             )?;
             let payload = self.load_handle_pending_payload(outward.payload_transport)?;
             let boundary = self
@@ -11076,6 +11207,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             &layout_anchor_name,
             name,
         )?;
+        let box_root_slot = self.capture_gc_pointer_root_slot(box_ptr, &format!("{name}_root"))?;
+        let box_ptr =
+            self.reload_gc_pointer_from_root_slot(box_root_slot, &format!("{name}_root"))?;
         let payload_ptr = self.codegen.builder.build_struct_gep(
             box_ty,
             box_ptr,
@@ -11097,6 +11231,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             materialized,
             &format!("{name}_payload"),
         )?;
+        let box_ptr =
+            self.reload_gc_pointer_from_root_slot(box_root_slot, &format!("{name}_root"))?;
+        self.clear_root_gc_slot(box_root_slot, &format!("{name}_root_clear"))?;
         self.codegen.refactor_cast_ptr(
             box_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -11791,8 +11928,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             cont_layout.layout_anchor_name(),
             "refactor_cont",
         )?;
-        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_cont_root")?;
-        let current_frame = self.current_frame_gc_ref("refactor_cont_state_ref")?;
+        let cont_root_slot = self
+            .codegen
+            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_cont_root")?;
+        let cont_ptr =
+            self.root_gc_pointer_in_slot(cont_root_slot, cont_ptr, "refactor_cont_root")?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let current_effect_ctx = self.load_current_effect_ctx("refactor_cont_effect_ctx")?;
         let resumed_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
@@ -11823,6 +11964,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             effect_ctx_gep,
             current_effect_ctx,
         )?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
+        let current_frame = self.current_frame_gc_ref("refactor_cont_state_ref_reload")?;
         let state_ref_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -11834,6 +11982,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             state_ref_gep,
             current_frame,
         )?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let step_fn_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -11867,6 +12021,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             resume_gc_ref_gep,
             self.codegen.llvm_gc_i8_ptr_type().const_null(),
         )?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let captured_token_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
             cont_ptr,
@@ -11886,6 +12046,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             captured_token_gep,
             captured_token,
         )?;
+        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+            self.mir_fun.span,
+            cont_root_slot,
+            "refactor_cont_root",
+        )?;
+        let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
+        if let Some(slot) = callee_continuation_root {
+            self.clear_root_gc_slot(slot, "refactor_composed_callee_root_clear")?;
+        }
+        self.clear_root_gc_slot(cont_root_slot, "refactor_cont_root_clear")?;
         self.codegen.refactor_cast_ptr(
             cont_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -12231,6 +12401,37 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn build_volatile_refactor_gc_root_store(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        value: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let store = self.builder.build_store(slot, value)?;
+        store.set_volatile(true).map_err(|err| {
+            frontend_error(format!("refactor GC root store 无法标记 volatile: {err}"))
+        })?;
+        Ok(())
+    }
+
+    fn build_volatile_refactor_gc_root_load(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let loaded =
+            self.builder
+                .build_load(self.llvm_gc_i8_ptr_type(), slot, &format!("{name}_reload"))?;
+        let Some(inst) = loaded.as_instruction_value() else {
+            return Err(frontend_error(format!(
+                "refactor GC root load `{name}` 缺少 instruction value"
+            )));
+        };
+        inst.set_volatile(true).map_err(|err| {
+            frontend_error(format!("refactor GC root load 无法标记 volatile: {err}"))
+        })?;
+        Ok(loaded.into_pointer_value())
+    }
+
     fn refactor_gc_root_explicit_frame_slot(
         &mut self,
         at: crate::span::Span,
@@ -12257,10 +12458,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // compiler-generated refactor root slots out of a second stack shadow so SROA cannot
             // turn reload/store pairs on the shadow slot into reachable `ptr poison` and then
             // leak that poison back into explicit-frame roots.
-            self.builder
-                .build_store(frame_slot, gc_ptr_ty.const_null())?;
+            self.build_volatile_refactor_gc_root_store(frame_slot, gc_ptr_ty.const_null())?;
         } else {
-            self.builder.build_store(slot, gc_ptr_ty.const_null())?;
+            self.build_volatile_refactor_gc_root_store(slot, gc_ptr_ty.const_null())?;
             self.track_gc_root_slots_for_spill_slot(at, slot, gc_ptr_ty.into(), name)?;
         }
         Ok(slot)
@@ -12276,10 +12476,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let value =
             self.refactor_cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
         if let Some(frame_slot) = self.refactor_gc_root_explicit_frame_slot(at, slot, name)? {
-            self.builder.build_store(frame_slot, value)?;
+            self.build_volatile_refactor_gc_root_store(frame_slot, value)?;
             Ok(())
         } else {
-            self.builder.build_store(slot, value)?;
+            self.build_volatile_refactor_gc_root_store(slot, value)?;
             self.sync_storage_slot_into_explicit_frame(
                 at,
                 slot,
@@ -12298,14 +12498,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let load_slot = self
             .refactor_gc_root_explicit_frame_slot(at, slot, name)?
             .unwrap_or(slot);
-        Ok(self
-            .builder
-            .build_load(
-                self.llvm_gc_i8_ptr_type(),
-                load_slot,
-                &format!("{name}_reload"),
-            )?
-            .into_pointer_value())
+        self.build_volatile_refactor_gc_root_load(load_slot, name)
     }
 
     fn refactor_alloc_gc_struct(

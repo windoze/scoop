@@ -219,7 +219,9 @@ fun main(): Int {
     assert!(ir.contains("define i32 @main("));
     assert!(
         ir.contains("@__scoop_refactor_resume__a_main__case0")
-            && ir.contains("handle_ctx_dispatch_loop_bd0_c0")
+            && ir.contains("refactor_handle_saved_ctx")
+            && ir.contains("refactor_handle_direct_exit_ctx_clear_saved")
+            && ir.contains("%scoop.runtime.ScoopEffectHandlerNode")
             && ir.contains("%scoop.runtime.ScoopEffectCtx"),
         "默认单文件 helper 应继续产出 refactor handle/state-machine lowering，而不是回退到已删除的 HIR handle lowering 或只剩空壳 C main:\n{ir}"
     );
@@ -1810,6 +1812,77 @@ fun main(): Int {
         ir.contains("store i32 %refactor_resume_state")
             || ir.contains("store i32 2, ptr addrspace(1) %refactor_cont_state_gep"),
         "surface-resume return path 应继续把 continuation state 写回 object contract\n{resume_window}"
+    );
+}
+
+#[test]
+fn continuation_resume_driver_reloads_state_ref_from_explicit_frame_before_step_call() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(
+            "../../../../tests/fixtures/run-pass/continuation_resume_answer_expression_basic.scoop"
+        ),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    let call_idx = ir
+        .find("call void %refactor_cont_step_fn(")
+        .expect("expected continuation step dispatch call in emitted IR");
+    let window_start = call_idx.saturating_sub(900);
+    let window_end = std::cmp::min(call_idx + 300, ir.len());
+    let window = &ir[window_start..window_end];
+
+    assert!(
+        window.contains("load volatile ptr addrspace(1), ptr %explicit_root_frame_slot_8")
+            && window.contains(
+                "call void %refactor_cont_step_fn(ptr addrspace(1) %refactor_frame_root_reload"
+            ),
+        "continuation resume driver should reload state_ref from explicit-frame home slot before calling cont_step\n{window}"
+    );
+    assert!(
+        !window
+            .contains("call void %refactor_cont_step_fn(ptr addrspace(1) %refactor_load_frame_gc"),
+        "continuation resume driver must not reuse stale pre-safepoint state_ref SSA at cont_step call site\n{window}"
+    );
+}
+
+#[test]
+fn fresh_continuation_object_reloads_rooted_self_after_gc_barrier_init() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        include_str!(
+            "../../../../tests/fixtures/run-pass/continuation_resume_answer_expression_basic.scoop"
+        ),
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    let state_ref_idx = ir
+        .find("refactor_cont_state_ref_gep")
+        .expect("expected continuation state_ref store in emitted IR");
+    let window_start = state_ref_idx.saturating_sub(500);
+    let window_end = std::cmp::min(state_ref_idx + 180, ir.len());
+    let window = &ir[window_start..window_end];
+
+    let barrier_idx = window
+        .find("gc_write_barrier")
+        .expect("expected write barrier before continuation state_ref init");
+    let reload_idx = window[barrier_idx..]
+        .find("refactor_cont_root_reload")
+        .map(|idx| barrier_idx + idx)
+        .expect("expected rooted continuation reload after write barrier");
+    let state_ref_local_idx = window
+        .find("refactor_cont_state_ref_gep")
+        .expect("expected continuation state_ref GEP in local window");
+
+    assert!(
+        reload_idx < state_ref_local_idx
+            && window[reload_idx..state_ref_local_idx]
+                .contains("load volatile ptr addrspace(1), ptr %explicit_root_frame_slot_"),
+        "fresh continuation object should reload rooted self after write-barrier init before storing state_ref\n{window}"
     );
 }
 
@@ -3711,8 +3784,10 @@ enum MyOpt {
 }
 
 fun explode(pair: (MyOpt, Int)): Unit / Raise<RuntimeError> {
-    val (Some(_), y) = pair
-    println(y)
+    when (pair) {
+        (Some(_), y) -> println(y)
+        else -> Raise.raise(RuntimeError.NullAssertionFailed)
+    }
 }
 
 fun main(): Int {
@@ -3735,15 +3810,12 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@fixtures.t5000j1d.explode"),
-        "compiled IR should still contain the tuple-arg effect-step body\n{ir}"
-    );
-    assert!(
-        ir.contains("@__scoop_refactor_direct_invoke__fixtures_t5000j1d_explode")
-            && ir.contains(
-                "%scoop.refactor.Frame__fixtures_t5000j1d_explode = type { %scoop.runtime.ScoopGcObjectHeader, { %fixtures.t5000j1d.MyOpt, i64 }"
-            ),
-        "tuple-arg effect-step callable 应继续保留 refactor direct entry 与 tuple payload frame layout，而不是回旧 wrapper\n{ir}"
+        ir.contains(
+            "define %scoop.refactor.Step__fixtures_t5000j1d_explode @__scoop_refactor_direct_invoke__fixtures_t5000j1d_explode({ %fixtures.t5000j1d.MyOpt, i64 } %0)"
+        ) && ir.contains(
+            "call %scoop.refactor.Step__fixtures_t5000j1d_explode @__scoop_refactor_direct_invoke__fixtures_t5000j1d_explode({ %fixtures.t5000j1d.MyOpt, i64 }"
+        ),
+        "tuple-arg effect-step callable 应继续以 tuple-shaped direct invoke surface 传递参数，而不是回退到旧 wrapper/拆散 carrier\n{ir}"
     );
 }
 

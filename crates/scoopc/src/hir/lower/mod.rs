@@ -4962,7 +4962,7 @@ fun main() {}
     }
 
     #[test]
-    fn lower_typed_single_source_file_expands_top_level_pattern_into_hidden_subject_and_check() {
+    fn lower_typed_single_source_file_expands_irrefutable_top_level_pattern_into_hidden_subject() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<t4004b>",
@@ -4971,21 +4971,16 @@ package fixtures.t4004b
 
 import scoop.core.*
 
-enum MaybeInt {
-    Present(val value: Int),
-    None,
-}
-
-val Present(total) = Present(7)
+val (left, right) = (7, 9)
 
 fun main(): Int {
-    return total
+    return left + right
 }
 "#,
         );
 
         let lowered = lower_typed_single_source_file(&sess, &source);
-        let total_fqn = "fixtures.t4004b.total";
+        let left_fqn = "fixtures.t4004b.left";
         let top_level_value_names = lowered
             .file
             .items
@@ -4995,7 +4990,8 @@ fun main(): Int {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        assert!(top_level_value_names.contains(&"total"));
+        assert!(top_level_value_names.contains(&"left"));
+        assert!(top_level_value_names.contains(&"right"));
 
         let hidden_subjects = lowered
             .top_level_immutable_values
@@ -5010,46 +5006,25 @@ fun main(): Int {
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(hidden_subjects.len(), 1);
-        assert_eq!(hidden_checks.len(), 1);
+        assert_eq!(hidden_checks.len(), 0);
         let hidden_subject = &hidden_subjects[0];
-        let hidden_check = &hidden_checks[0];
 
-        let total = lowered
+        let left = lowered
             .top_level_immutable_values
-            .get(total_fqn)
-            .expect("应收集到可见 binder total 的顶层 immutable value 记录");
-        let init = total.init.as_ref().expect("binder 应带 initializer");
-        let ExprKind::Block(block) = &init.kind else {
-            panic!("variant binder initializer 应先顺序触发隐藏 check，再执行 payload 提取");
-        };
-        let [check_stmt, extract_stmt] = block.stmts.as_slice() else {
-            panic!("binder initializer block 应只包含 check + extract 两步");
-        };
-
-        let StmtKind::Expr(check_expr) = &check_stmt.kind else {
-            panic!("第一步应为隐藏 check 的表达式语句");
+            .get(left_fqn)
+            .expect("应收集到可见 binder left 的顶层 immutable value 记录");
+        let init = left.init.as_ref().expect("binder 应带 initializer");
+        let ExprKind::MemberAccess { receiver, member } = &init.kind else {
+            panic!("irrefutable tuple binder initializer 应直接做成员访问提取");
         };
         assert!(
             matches!(
-                &check_expr.kind,
-                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) if fqn == hidden_check
-            ),
-            "第一步应引用隐藏 check 顶层值"
-        );
-
-        let StmtKind::Expr(extract_expr) = &extract_stmt.kind else {
-            panic!("第二步应为 binder 提取表达式");
-        };
-        let ExprKind::When { subject, .. } = &extract_expr.kind else {
-            panic!("第二步应通过 when 提取 variant payload");
-        };
-        assert!(
-            matches!(
-                &subject.kind,
+                &receiver.kind,
                 ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) if fqn == hidden_subject
             ),
-            "variant payload 提取应复用隐藏 subject 顶层值"
+            "tuple binder 提取应复用隐藏 subject 顶层值"
         );
+        assert_eq!(member.name, "_0");
     }
 
     fn assert_raise_runtime_error_effect_ty(types: &TypeStore, effect_ty: TypeId) {

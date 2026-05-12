@@ -362,25 +362,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    pub(super) fn declare_materialized_mir_plain_fun(
-        &mut self,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
-    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let param_tys = mir_fun
-            .params
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
-        self.declare_materialized_mir_plain_fun_with_symbol(
-            &mir_fun.fqn,
-            mir_fun,
-            &param_tys,
-            mir_fun.return_ty,
-            mir_types,
-        )
-    }
-
     pub(super) fn declare_materialized_mir_plain_fun_with_symbol(
         &mut self,
         llvm_name: &str,
