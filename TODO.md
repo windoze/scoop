@@ -179,7 +179,7 @@
     - 对应 `PLAN.md` P0 与 `STABLE_ID.md` §3.1 / §10：四个健康 `.cone` / JSON schema 已有常驻基线测试，后续阶段可在不引入无谓 schema churn 的前提下继续推进 stable-id 迁移。
     - 对应 `STABLE_ID.md` §3.4：已把 `Step__schema*`、`surface resume kN`、`lambda$0`、`object_init` 等当前最容易把旧 identity 形状锁进测试的入口改成语义断言，后续 P1-P4 可安全调整 symbol/linkage。
 
-### [TODO] P0-T02A：清理剩余 stable-id 敏感 LLVM 测试中的旧 private helper 名字绑定
+### [DONE] P0-T02A：清理剩余 stable-id 敏感 LLVM 测试中的旧 private helper 名字绑定
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P0
@@ -217,7 +217,26 @@
   - P2/P3 将调整的 compiler-private helper naming surface 不再被现有行为测试直接锁死。
 - 依赖：P0-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+  - 核心决策：
+    - 在 `llvm/tests.rs` 增加少量 IR 语义匹配 helper（symbol/header 解析、descriptor 发布提取、函数计数），并把 `function_ir_matching` 的失败信息升级为输出可见函数头，便于后续 stable-id 迁移继续按语义定位 helper。
+    - 把 `default_single_file_ir_helper_lowers_handle_main_without_hir_fallback`、`direct_call_with_real_outward_effect_uses_step_boundary_and_surface_resume_dispatch`、`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`top_level_immutable_init_emits_explicit_root_frame_descriptor`、`effect_state_machine_functions_emit_explicit_root_frame_descriptors` 等 review 指向入口，连同同类 direct-invoke / payload / tuple-carrier / virtual / interface / funptr 路径，一并从旧 private helper 全字符串断言迁移为 helper family、step/descriptor 发布、payload reload 与调用面语义断言。
+    - 扩充 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests`，把本轮清理掉的 `__scoop_refactor_resume__...`、`__scoop_refactor_direct_invoke__...`、`__scoop_refactor_surface_resume_owner_dispatch__...`、`__scoop_top_level_val_init__...` 相关旧绑定固化成回归检查。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc real_outward_effect -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc explicit_root_frame -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc default_single_file_ir_helper_lowers_handle_main_without_hir_fallback -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc effect_step_single_tuple_param_closure_carrier_preserves_tuple_args_payload -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc effectful_funptr_call_uses_explicit_outcome_boundary -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_safepoint -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 的测试基线收口目标：后续 P2/P3 将修改的 compiler-private helper naming surface，已不再被现有 LLVM 行为测试直接锁死到旧拼写。
+    - 对应 `STABLE_ID.md` §3.4 / §8.5 / §10：direct-invoke、resume、surface-resume owner-dispatch、top-level init descriptor 等 private surface 现在通过 helper family、descriptor 发布和调用关系建模；source inventory 也已阻止旧 private helper spelling 回流到行为测试。
 
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 

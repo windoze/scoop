@@ -514,8 +514,15 @@ fn function_ir_matching<'ir, F>(ir: &'ir str, description: &str, predicate: F) -
 where
     F: Fn(&str, &str) -> bool,
 {
-    maybe_function_ir_matching(ir, predicate)
-        .unwrap_or_else(|| panic!("expected function matching {description}"))
+    maybe_function_ir_matching(ir, predicate).unwrap_or_else(|| {
+        let headers = ir
+            .split("\ndefine ")
+            .skip(1)
+            .filter_map(|chunk| chunk.lines().next())
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!("expected function matching {description}; available function headers:\n{headers}")
+    })
 }
 
 fn stable_id_repo_root() -> PathBuf {
@@ -897,7 +904,7 @@ fun main(): Int {
 
     assert!(ir.contains("define i32 @main("));
     assert!(
-        ir.contains("@__scoop_refactor_resume__a_main__case0")
+        function_ir_count_matching(&ir, |header, _| header.contains("resume")) >= 1
             && ir.contains("refactor_handle_saved_ctx")
             && ir.contains("refactor_handle_direct_exit_ctx_clear_saved")
             && ir.contains("%scoop.runtime.ScoopEffectHandlerNode")
@@ -2831,11 +2838,22 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
-    let outward_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_outward");
+    let outward_ir = function_ir_matching(&ir, "outward effect helper", |header, function| {
+        !header.contains("@main(")
+            && header.contains("direct_invoke")
+            && !function.contains("switch i32 %refactor_step_tag")
+            && function.contains("store i32 1")
+            && function.contains("i64 41")
+    });
+    let entry_ir = function_ir_matching(&ir, "entry step-boundary helper", |header, function| {
+        !header.contains("@main(")
+            && header.contains("direct_invoke")
+            && function.contains("switch i32 %refactor_step_tag")
+            && function.contains("call %scoop.refactor.Step")
+    });
 
     assert!(
-        entry_ir.contains("@__scoop_refactor_direct_invoke__a_outward")
+        entry_ir.contains("call %scoop.refactor.Step")
             && entry_ir.contains("switch i32 %refactor_step_tag"),
         "ordinary direct outward-effect call 应改走 refactor Step boundary，并按 step tag dispatch:\n{entry_ir}"
     );
@@ -2844,8 +2862,9 @@ fun main(): Int {
         "effectful callee 自身应直接发布 outward Step case，而不是退回额外桥接 surface:\n{outward_ir}"
     );
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_entry__k")
-            && ir.contains("@__scoop_refactor_surface_resume_owner_dispatch__a_outward__k"),
+        function_ir_count_matching(&ir, |header, _| {
+            header.contains("surface_resume_owner_dispatch")
+        }) >= 2,
         "refactor direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
     );
 }
@@ -2882,14 +2901,33 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
+    let lambda_ir = function_ir_matching(&ir, "outward closure body helper", |header, function| {
+        !header.contains("@main(")
+            && (header.contains("lambda") || header.contains("closure"))
+            && !function.contains("switch i32 %refactor_step_tag")
+            && function.contains("store i32 1")
+            && function.contains("i64 41")
+    });
+    let lambda_symbol = llvm_function_symbol_name(lambda_ir);
+    let entry_ir = function_ir_matching(
+        &ir,
+        "entry helper for outward closure call",
+        |header, function| {
+            !header.contains("@main(")
+                && header.contains("direct_invoke")
+                && function.contains("switch i32 %refactor_step_tag")
+        },
+    );
 
     assert!(
         entry_ir.contains("switch i32 %refactor_step_tag"),
         "outward-effect closure call 应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
     );
     assert!(
-        entry_ir.contains("@__scoop_refactor_direct_invoke__a_entry__lambda0"),
+        stable_id_symbol_looks_like_closure_family(lambda_symbol)
+            && entry_ir.lines().any(|line| {
+                line.contains(" call ") && (line.contains("lambda") || line.contains("closure"))
+            }),
         "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry:\n{entry_ir}"
     );
 }
@@ -2928,7 +2966,14 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_entry");
+    let entry_ir = function_ir_matching(
+        &ir,
+        "effectful funptr direct-call helper",
+        |header, function| {
+            !header.contains("@main(")
+                && function.contains("refactor_dynamic_funptr_fn = inttoptr i64")
+        },
+    );
 
     assert!(
         entry_ir.contains("switch i32 %refactor_step_tag"),
@@ -2983,9 +3028,15 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named_any(
+    let helper_ir = function_ir_matching(
         &ir,
-        &["__scoop_refactor_direct_invoke__a_helper", "a.helper"],
+        "virtual dispatch outward helper",
+        |header, function| {
+            !header.contains("@main(")
+                && function.contains("load_vtable_fn")
+                && function.contains("call %scoop.refactor.Step")
+                && function.contains("switch i32 %refactor_step_tag")
+        },
     );
 
     assert!(
@@ -3039,10 +3090,13 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named_any(
-        &ir,
-        &["__scoop_refactor_direct_invoke__a_helper", "a.helper"],
-    );
+    let helper_ir =
+        function_ir_matching(&ir, "itable dispatch outward helper", |header, function| {
+            !header.contains("@main(")
+                && function.contains("itable_lookup")
+                && function.contains("load_itable_fn")
+                && function.contains("call %scoop.refactor.Step")
+        });
 
     assert!(
         helper_ir.contains("itable_lookup")
@@ -4345,7 +4399,11 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let go_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_go");
+    let go_ir = function_ir_matching(&ir, "managed outward payload helper", |header, function| {
+        !header.contains("@main(")
+            && header.contains("direct_invoke")
+            && function.contains("refactor_outward_payload_reload_frame_reload")
+    });
     let box_idx = go_ir
         .find("refactor_outward_payload_reload_frame_reload")
         .expect("expected refactor outward payload reload in go() IR");
@@ -4395,7 +4453,16 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let stop_ir = function_ir_named(&ir, "__scoop_refactor_direct_invoke__a_stop");
+    let stop_ir =
+        function_ir_matching(&ir, "never-returning managed helper", |header, function| {
+            !header.contains("@main(")
+                && function.contains("unreachable")
+                && function.contains(
+                    "store ptr %explicit_root_frame_storage, ptr @__scoop_explicit_root_frame_top",
+                )
+                && function
+                    .contains("store ptr addrspace(1) null, ptr %explicit_root_frame_pop_slot_0")
+        });
 
     assert!(
         stop_ir.contains(
@@ -4507,13 +4574,24 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let explode_ir = function_ir_matching(
+        &ir,
+        "tuple-shaped direct invoke helper for explode()",
+        |header, _| {
+            !header.contains("@main(")
+                && header.contains("direct_invoke")
+                && header.contains("%scoop.refactor.Step__fixtures_t5000j1d_explode")
+                && header.contains("({ %fixtures.t5000j1d.MyOpt, i64 } %0)")
+        },
+    );
+    let explode_symbol = llvm_function_symbol_name(explode_ir);
 
     assert!(
-        ir.contains(
-            "define %scoop.refactor.Step__fixtures_t5000j1d_explode @__scoop_refactor_direct_invoke__fixtures_t5000j1d_explode({ %fixtures.t5000j1d.MyOpt, i64 } %0)"
-        ) && ir.contains(
-            "call %scoop.refactor.Step__fixtures_t5000j1d_explode @__scoop_refactor_direct_invoke__fixtures_t5000j1d_explode({ %fixtures.t5000j1d.MyOpt, i64 }"
-        ),
+        ir.lines().any(|line| {
+            line.contains("call %scoop.refactor.Step__fixtures_t5000j1d_explode")
+                && llvm_line_mentions_symbol(line, explode_symbol)
+                && line.contains("({ %fixtures.t5000j1d.MyOpt, i64 }")
+        }),
         "tuple-arg effect-step callable 应继续以 tuple-shaped direct invoke surface 传递参数，而不是回退到旧 wrapper/拆散 carrier\n{ir}"
     );
 }
@@ -4613,9 +4691,20 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let init_ir = function_ir_matching(
+        &ir,
+        "top-level immutable value init helper",
+        |header, function| {
+            !header.contains("@main(")
+                && header.contains("top_level_val_init")
+                && function_ir_explicit_root_descriptor(function).is_some()
+        },
+    );
+    let init_desc = function_ir_explicit_root_descriptor(init_ir)
+        .expect("top-level immutable init helper should store an explicit-root descriptor");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc____scoop_top_level_val_init__a_greeting"),
+        llvm_ir_defines_global(&ir, init_desc),
         "expected top-level immutable initializer to emit a descriptor global\n{ir}"
     );
 }
@@ -4648,15 +4737,32 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let go_ir = function_ir_matching(
+        &ir,
+        "effectful callable entry helper",
+        |header, function| {
+            !header.contains("@main(")
+                && function.contains("store i32 1")
+                && function.contains("i64 7")
+        },
+    );
+    let go_desc = function_ir_explicit_root_descriptor(go_ir)
+        .expect("effectful callable entry should publish an explicit-root descriptor");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc____scoop_refactor_direct_invoke__a_go"),
+        llvm_ir_defines_global(&ir, go_desc),
         "effectful callable entry 应发布 direct-invoke descriptor global\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_desc__")
-            && ir.contains("surface_resume_owner_dispatch")
-            && ir.contains("resume"),
+        function_ir_count_matching(&ir, |header, function| {
+            header.contains("surface_resume_owner_dispatch")
+                && function_ir_explicit_root_descriptor(function).is_some()
+        }) >= 1
+            && function_ir_count_matching(&ir, |header, function| {
+                header.contains("resume")
+                    && !header.contains("surface_resume_owner_dispatch")
+                    && function_ir_explicit_root_descriptor(function).is_some()
+            }) >= 1,
         "effectful callable 的 resume/owner-dispatch 入口也应发布 explicit-root descriptors\n{ir}"
     );
 }
@@ -4937,6 +5043,74 @@ fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a s
     None
 }
 
+fn llvm_function_symbol_name(function_ir: &str) -> &str {
+    let header = function_ir
+        .lines()
+        .next()
+        .expect("expected function header");
+    let symbol = header
+        .split_once('@')
+        .map(|(_, rest)| rest)
+        .expect("expected function symbol name");
+    if let Some(symbol) = symbol.strip_prefix('"') {
+        symbol
+            .split_once('"')
+            .map(|(name, _)| name)
+            .expect("expected closing quote in function symbol")
+    } else {
+        symbol
+            .split_once('(')
+            .map(|(name, _)| name)
+            .expect("expected opening paren in function symbol")
+    }
+}
+
+fn llvm_line_mentions_symbol(line: &str, symbol_name: &str) -> bool {
+    line.contains(&format!("@{symbol_name}")) || line.contains(&format!("@\"{symbol_name}\""))
+}
+
+fn function_ir_explicit_root_descriptor(function_ir: &str) -> Option<&str> {
+    const MARKER: &str = "store ptr @";
+    const SLOT: &str = ", ptr %explicit_root_frame_desc_ptr";
+
+    for line in function_ir.lines() {
+        if !line.contains(SLOT) {
+            continue;
+        }
+        let Some(start) = line.find(MARKER) else {
+            continue;
+        };
+        let symbol = &line[start + MARKER.len()..];
+        let Some((name, _)) = symbol.split_once(SLOT) else {
+            continue;
+        };
+        return Some(name);
+    }
+    None
+}
+
+fn llvm_ir_defines_global(ir: &str, symbol_name: &str) -> bool {
+    ir.lines().any(|line| {
+        line.starts_with(&format!("@{symbol_name} ="))
+            || line.starts_with(&format!("@\"{symbol_name}\" ="))
+    })
+}
+
+fn function_ir_count_matching<F>(ir: &str, predicate: F) -> usize
+where
+    F: Fn(&str, &str) -> bool,
+{
+    ir.split("\ndefine ")
+        .skip(1)
+        .filter(|chunk| {
+            let end = chunk.find("\n}").expect("expected end of function body") + 2;
+            let function = &chunk[..end];
+            let header = function.lines().next().expect("expected function header");
+            predicate(header, function)
+        })
+        .count()
+}
+
 fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
     maybe_function_ir_named(ir, name_fragment)
         .unwrap_or_else(|| panic!("expected function containing {name_fragment}"))
@@ -5030,6 +5204,56 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
         [
             "function_ir_named_any(&ir, &[\"@\\\"scoop.lambda$0\\\"(\", ",
             "\"@\\\"a.main.$lambda0\\\"(\"])",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_refactor_resume__",
+            "a_main__case0\")",
+        ]
+        .concat(),
+        [
+            "function_ir_named(&ir, \"__scoop_refactor_direct_invoke__",
+            "a_entry\")",
+        ]
+        .concat(),
+        [
+            "function_ir_named(&ir, \"__scoop_refactor_direct_invoke__",
+            "a_outward\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_refactor_surface_resume_owner_dispatch__",
+            "a_entry__k\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_refactor_surface_resume_owner_dispatch__",
+            "a_outward__k\")",
+        ]
+        .concat(),
+        [
+            "function_ir_named(&ir, \"__scoop_refactor_direct_invoke__",
+            "a_go\")",
+        ]
+        .concat(),
+        [
+            "function_ir_named(&ir, \"__scoop_refactor_direct_invoke__",
+            "a_stop\")",
+        ]
+        .concat(),
+        [
+            "define %scoop.refactor.Step__fixtures_t5000j1d_explode @__scoop_refactor_direct_invoke__",
+            "fixtures_t5000j1d_explode",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_desc____scoop_top_level_val_init__",
+            "a_greeting\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_desc____scoop_refactor_direct_invoke__",
+            "a_go\")",
         ]
         .concat(),
     ] {

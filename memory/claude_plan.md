@@ -1,45 +1,30 @@
 ## 当前执行计划
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务；以该任务为本次唯一执行目标。
-2. 读取最近一次提交信息，检查是否存在与该任务直接相关且明确未完成的问题；若存在，将其视为当前任务的一部分或按要求补充为前置任务。
-3. 仅围绕该任务读取必要代码与文档，确认需求、依赖、现状和验证要求。
-4. 实现任务；若遇到阻塞当前任务且不能按规范继续推进的问题，则先在 `TODO.md` 中增加最小前置任务并停止。
-5. 运行该任务要求的验证，以及必要的回归测试、格式化和无警告检查。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
-7. 在 `TODO.md` 中将完成的任务标题显式标记为 `[DONE]`，补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-8. 按仓库约定创建一次 git 提交，然后停止，不进入下一个任务。
+说明：按要求先记录可公开的执行思路与步骤摘要；不写内部推理细节。
 
-## 记录约定
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务，确认它是本次唯一执行目标。
+2. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的遗留事项；若有，则将其视为当前任务内容或其前置条件。
+3. 阅读 `TODO.md` 中该任务的详细要求、依赖、验证标准，并检查相关代码与测试位置。
+4. 如任务可直接实现：完成代码修改，并为受影响行为补充或更新测试。
+5. 运行任务要求的验证命令，以及必要的 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`；若任务影响范围需要，也运行更广的测试。
+6. 若遇到阻塞当前任务的真实缺陷/缺失特性：
+   - 不做变通或缩小范围；
+   - 在 `TODO.md` 中插入最小必要前置任务并调整依赖顺序；
+   - 仅在阶段计划发生变化时更新 `PLAN.md`；
+   - 提交这些调整后停止。
+7. 若任务完成：
+   - 在 `TODO.md` 中将该任务标题标记为 `[DONE]`，并更新 completion record；
+   - 如有必要更新 `PLAN.md`；
+   - 提交本次所有相关变更；
+   - 停止，不继续下一个任务。
 
-- 不记录隐式内部推理；这里只保留可审计的决策摘要、执行步骤、发现的问题与验证结果。
-- 每完成关键步骤、发现阻塞、或调整计划时，立即更新本文件。
+## 进度记录
 
-## 当前任务
-
-- 已读取 `TODO.md`，当前首个未完成任务为 `P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住`。
-- 已检查最近一次提交：`[P0-T02] Harden stable-id test baselines`。提交信息未显式声明与 `P0-T02R` 直接相关的未完成问题。
-
-## 本轮细化计划
-
-1. 阅读 `P0-T02R` 指定文件与相关 helper，确认 object/symbol 审计入口、旧命名断言迁移情况、以及 `.cone` / JSON 健康基线边界。
-2. 复跑 P0-T01 / P0-T02 要求的测试与 grep 审计，核对 review 任务要求的验证入口是否完整可复用。
-3. 若 review 发现会阻塞后续 P1-P7 的具体缺口，则在 `TODO.md` 中插入最小前置任务并停止；若未发现阻塞，则补全 `P0-T02R` 完成记录并标记 `[DONE]`。
-4. 提交本轮变更并停止。
-
-## 执行记录
-
-- 已审阅 `crates/scoopc/src/llvm/tests.rs` 中 stable-id 审计 helper 与 source inventory，以及四个健康 `.cone` / JSON 基线测试文件。
-- 已复跑并通过：
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
-- review 发现的具体阻塞：`crates/scoopc/src/llvm/tests.rs` 仍有多处 stable-id 敏感行为测试直接绑定旧 private helper spelling，例如：
-  - `default_single_file_ir_helper_lowers_handle_main_without_hir_fallback` 仍命中 `__scoop_refactor_resume__a_main__case0`
-  - `direct_call_with_real_outward_effect_uses_step_boundary_and_surface_resume_dispatch` 仍命中 `__scoop_refactor_direct_invoke__a_entry` / `__scoop_refactor_surface_resume_owner_dispatch__...`
-  - `closure_call_with_real_outward_effect_uses_explicit_outcome_boundary` 仍命中 `__scoop_refactor_direct_invoke__a_entry__lambda0`
-  - `top_level_immutable_init_emits_explicit_root_frame_descriptor` 仍命中 `@__scoop_explicit_root_desc____scoop_top_level_val_init__a_greeting`
-  - `effect_state_machine_functions_emit_explicit_root_frame_descriptors` 仍命中 `@__scoop_explicit_root_desc____scoop_refactor_direct_invoke__a_go`
-- 结论：当前 `P0-T02R` 不能标记完成；已在 `TODO.md` 中插入最小前置任务 `P0-T02A`，用于清理这些剩余旧 private helper 名字绑定，并将 `P0-T02R` 依赖调整为 `P0-T02A`。
+- 已写入初始执行计划，下一步读取 `TODO.md` 与最近提交信息。
+- 已确认首个未完成任务为 `P0-T02A`：清理剩余 stable-id 敏感 LLVM 测试中的旧 private helper 名字绑定。
+- 已确认最近一次提交 `[P0-T02R] Add prerequisite for legacy helper assertions` 直接对应本任务的来源问题；`TODO.md` 已将其前置为当前执行单元，无需再新增前置任务。
+- 下一步：定位 `crates/scoopc/src/llvm/tests.rs` 中该任务列出的几个测试及相关 source inventory，迁移仍直接绑定旧 private helper spelling 的断言为稳定 family / namespace / linkage / 调用关系语义断言。
+- 已完成 `crates/scoopc/src/llvm/tests.rs` 的迁移：用 IR 语义 helper 替代多处旧 private helper 全字符串断言，并扩充 source inventory 以防止这些旧绑定回流。
+- 已完成验证：`cargo fmt`、若干 stable-id/LLVM 定向测试、`cargo test -p scoopc`、`cargo clippy -p scoopc --all-targets -- -D warnings` 全部通过。
+- 已将 `P0-T02A` 在 `TODO.md` 中标记为 `[DONE]`，并补全 completion record；`PLAN.md` 无需更新，因为阶段依赖与验收边界未变化。
+- 下一步：检查最终 diff，创建 `[P0-T02A] ...` 提交，然后停止。
