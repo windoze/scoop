@@ -238,6 +238,62 @@
     - 对应 `PLAN.md` P0 的测试基线收口目标：后续 P2/P3 将修改的 compiler-private helper naming surface，已不再被现有 LLVM 行为测试直接锁死到旧拼写。
     - 对应 `STABLE_ID.md` §3.4 / §8.5 / §10：direct-invoke、resume、surface-resume owner-dispatch、top-level init descriptor 等 private surface 现在通过 helper family、descriptor 发布和调用关系建模；source inventory 也已阻止旧 private helper spelling 回流到行为测试。
 
+### [TODO] P0-T02B：清理剩余 stable-id 敏感 LLVM / pipeline 测试中的当前 callable symbol 字符串绑定
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4 / P0
+  - [`STABLE_ID.md`](./STABLE_ID.md) §3.4、§7.3、§7.4、§10
+- 背景：
+  - `P0-T02R` 复核时发现，仓库里仍有一批 stable-id 敏感测试直接用当前 callable symbol 文本定位 LLVM IR 函数或调用点；这类断言虽然不一定再锁死 dense-id/private helper，但仍会在后续 user ABI / private symbol 命名迁移时把无关语义测试一起打断。
+  - 当前已确认的入口至少包括：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - 当前已确认的直接字符串绑定样例至少包括：
+    - `@a.id64(`、`@a.id32(`、`@a.choose(`
+    - `@a.entry(`、`@a.hidden(`、`@a.latent(`、`@a.keep(`、`@a.label(`、`@a.make(`、`@a.run(`、`@a.take(`、`@a.bounce(`
+    - `@sample.effectEntry(`、`@"sample.effectEntry"`
+    - `__scoop_refactor_direct_invoke__sample_effectEntry`
+- 目标：
+  - 在进入 P1/P2 之前，把 remaining stable-id 敏感行为测试从“依赖当前 callable symbol 拼写”迁移到“依赖语义、调用关系、namespace 角色、IR 结构”的断言模型。
+- 必须实现的内容：
+  1. 复核并迁移 `crates/scoopc/src/llvm/tests.rs` 中仍直接使用当前 callable symbol 文本定位函数/调用点的 stable-id 敏感断言，至少覆盖：
+     - `float_builtin_types_lower_to_llvm_scalars`
+     - `direct_effectful_signature_without_outward_effect_stays_on_direct_call_surface`
+     - `direct_call_with_uncalled_effectful_higher_order_param_stays_on_direct_call_surface`
+     - `closure_call_without_outward_effect_stays_on_direct_call_surface`
+     - `indirect_gc_aggregate_param_syncs_explicit_frame_home_slot_on_entry`
+     - `managed_function_emits_explicit_root_frame_tls_lifecycle_and_slot_clear`
+     - `zero_slot_managed_function_still_emits_explicit_root_frame_lifecycle`
+     - `managed_function_reloads_direct_gc_local_from_explicit_frame_after_safepoint`
+     - `object_property_init_access_stays_plain_without_effect_boundary`
+     - `class_ctor_factory_keeps_allocated_object_rooted_across_gc_sensitive_arg_eval`
+     - `deferred_call_arg_reloads_from_explicit_frame_after_later_safepoint`
+     - `aggregate_call_arg_rebuilds_from_explicit_frame_after_safepoint`
+     - `hidden_sret_aggregate_result_rebuilds_from_explicit_frame_slots`
+     - `direct_hir_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref`
+  2. 复核并迁移 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中仍把当前 callable symbol / direct-entry helper spelling 当作定位锚点的 stable-id 敏感断言，至少覆盖 `refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry`。
+  3. 为上述测试补齐稳定 IR 查询 helper 或等价语义断言，使其可以通过以下信息定位目标，而不是依赖当前 symbol 拼写：
+     - source role（例如 top-level entry、helper、wrapper）
+     - signature/ABI shape
+     - 调用关系与被调用者 family
+     - explicit root frame / effect boundary / wrapper forwarding 的结构性特征
+  4. 扩充 source inventory 或等价回归检查，防止 stable-id 敏感行为测试重新把当前 callable symbol 文本当作金标准。
+- 必须遵从的约束：
+  - 不得把断言弱化成“出现某个泛化子串即可”；迁移后仍必须能验证目标函数、调用面和行为语义。
+  - 不得把 `main`、runtime/native import、`@Extern` 指定的 native symbol 误当作需要清理的 current callable symbol 绑定。
+  - 不得只修一两个样例而已；要覆盖本次 review 已确认的同类入口。
+- 验证：
+  1. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  2. `cargo test -p scoopc explicit_root_frame -- --nocapture`
+  3. `cargo test -p scoopc direct_call_ -- --nocapture`
+  4. `cargo test -p scoopc refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry -- --nocapture`
+  5. `cargo test -p scoopc`
+- 完成条件：
+  - 后续 P1-P7 调整 callable symbol / linkage / namespace 时，现有 LLVM 与 pipeline 行为测试不会再因为当前 symbol 文本变化而误报回归。
+- 依赖：P0-T02A
+- 完成记录：
+  - 待填。
+
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 
 - 参考：
@@ -249,6 +305,7 @@
   - `.cone` / JSON 是否已被明确列为健康基线，而不是“下一步顺手重写”的对象。
 - 必须检查的文件/位置：
   - `crates/scoopc/src/llvm/tests.rs`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
   - 与新增 stable-id 测试 helper 对应的文件
   - `crates/scoopc/src/cone/scoopir/schema.rs`
   - `crates/scoopc/src/cone/pre_specialize.rs`
@@ -259,7 +316,7 @@
   - 在完成记录中明确说明：后续任务将基于哪些测试入口验证 symbol、linkage、path-stability 和 dense-id 泄漏。
 - 完成条件：
   - 可以明确写出：P1-P7 已有稳定审计基线，不会被旧名字断言或 schema churn 噪音主导。
-- 依赖：P0-T02A
+- 依赖：P0-T02B
 - 完成记录：
   - 待填。
 
