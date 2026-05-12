@@ -112,7 +112,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let name = refactor_hidden_object_init_bridge_fn_name(object_fqn);
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -175,7 +175,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_ty = self.context.void_type().fn_type(&[], false);
 
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
 
         // 已有 body：无需重复生成。
         if llvm_fun.get_first_basic_block().is_some() {

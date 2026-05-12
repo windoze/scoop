@@ -751,7 +751,7 @@
     - 对应 `PLAN.md` P2 的第一步：LLVM function declaration 已先按 exported ABI / runtime-native import / compiler-private helper 三类统一收口，后续 `P2-T02` 可直接在 compiler-private helper path 上做 internal/private internalize，而不再由各调用点自行决定。
     - 对应 `STABLE_ID.md` §3.4.1 / §3.4.4 / §3.4.5 / §7.4 / §8.6：顶层 callable、effect helper、object/top-level init bridge、closure/materialized helper 的 declaration surface 已显式建模；runtime import 与 fixed external 例外也不再混入“默认 `None`”隐式路径。
 
-### [TODO] P2-T02：把 compiler-private helper 从 external namespace 收回 internal/private
+### [DONE] P2-T02：把 compiler-private helper 从 external namespace 收回 internal/private
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P2
@@ -784,7 +784,31 @@
   - compiler-private helper 已不再污染外部符号空间。
 - 依赖：P2-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/object_init.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 把 production 代码里所有仍以 `CompilerPrivateHelper + Linkage::External` 声明的 helper，统一收口到显式 `Linkage::Internal`，覆盖 object init bridge/init function、top-level immutable init bridge/init function、callee resume entry、materialized MIR closure/plain helper、closure body、effect helper shell/trampoline/outcome/owner-core、thread resume thunk、task transport resume 等路径；不改 `main`、runtime/native import、`@Extern` 这类显式 external 例外。
+    - 把 `effect_lowered/body.rs` 与 `effect_lowered/value.rs` 中残留的裸 `module.add_function(..., None)` helper 声明全部改走统一 declaration helper，确保 compiler-private function 不再绕过 linkage 分类入口；复查后 `crates/scoopc/src/llvm/codegen` 里仅剩 `declare_classified_llvm_function(...)` 内部的 `module.add_function(name, fn_ty, Some(linkage))`。
+    - 同步收紧 source-level / materialized plain callable 的模块内实现体：在当前 `minimal main` 产物里，`a.helper`、`a.id`、`a.entry` 这类仅模块内消费的实现体不再泄漏到 object external symbol 集，而宿主固定入口 `main` 与 runtime/native import 继续保留 external surface。
+    - 更新 `llvm/tests.rs` 的 object/IR 审计模型：`external_symbol_audit_*` 现在直接断言 closure/effect/hidden-init helper 与模块内 source-level/materialized callable 不再进入 external symbol 集，并额外用 IR 检查这些 helper/实现体仍存在且使用 `internal/private` linkage。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc function_declaration_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `rg -n "add_function\(" crates/scoopc/src/llvm/codegen` 仅剩 `crates/scoopc/src/llvm/codegen/mod.rs:531`（统一 declaration helper 内部的 `Some(linkage)` 调用）
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P2 的 linkage 卫生目标：compiler-private helper 已不再以 external linkage 污染 object / linker namespace，后续 P3 只需继续迁移 private naming source，而不再冒 linker 冲突风险。
+    - 对应 `STABLE_ID.md` §7.4 / §8.5 / §8.6：closure/effect helper、object/top-level init bridge、thread/task resume thunk、模块内 source/materialized callable 实现体现在都显式使用 `InternalLinkage`，`main`/runtime/native import 例外保持 external，且 helper 声明不再绕开统一 declaration/linkage 分类入口。
 
 ### [TODO] P2-T02R：Review linkage 收口，确认 namespace 风险已经先于命名迁移被压住
 

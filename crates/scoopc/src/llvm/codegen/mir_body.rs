@@ -355,7 +355,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_param_tys, false),
         };
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&mir_fun.fqn, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(&mir_fun.fqn, fn_ty, Linkage::Internal);
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -426,7 +426,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
             }
             LlvmFunctionDeclarationSurface::CompilerPrivateHelper => {
-                self.declare_compiler_private_helper_function(llvm_name, fn_ty, Linkage::External)
+                self.declare_compiler_private_helper_function(llvm_name, fn_ty, Linkage::Internal)
             }
         };
         llvm_fun.set_call_conventions(0);

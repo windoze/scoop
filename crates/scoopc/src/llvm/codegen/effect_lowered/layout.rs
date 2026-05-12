@@ -6213,7 +6213,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) {
         let _ =
             self.codegen
-                .declare_compiler_private_helper_function(name, fn_ty, Linkage::External);
+                .declare_compiler_private_helper_function(name, fn_ty, Linkage::Internal);
     }
 
     fn ensure_struct_anchor(&self, name: &str, struct_ty: StructType<'ctx>) {

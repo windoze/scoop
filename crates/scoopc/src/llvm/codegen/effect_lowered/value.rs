@@ -1118,10 +1118,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             return Ok(existing.as_global_value().as_pointer_value());
         }
-        let function = self
-            .codegen
-            .module
-            .add_function(&name, adapter.llvm_ty, None);
+        let function = self.codegen.declare_compiler_private_helper_function(
+            &name,
+            adapter.llvm_ty,
+            Linkage::Internal,
+        );
         self.define_effect_typed_plain_closure_adapter(span, fn_ptr, fun_ty, adapter, function)?;
         Ok(function.as_global_value().as_pointer_value())
     }
@@ -1329,10 +1330,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             return Ok(existing.as_global_value().as_pointer_value());
         }
-        let function = self
-            .codegen
-            .module
-            .add_function(&name, adapter.llvm_ty, None);
+        let function = self.codegen.declare_compiler_private_helper_function(
+            &name,
+            adapter.llvm_ty,
+            Linkage::Internal,
+        );
         self.define_effect_typed_effectful_closure_adapter(
             span,
             fn_ptr,
@@ -6395,7 +6397,7 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
         .void_type()
         .fn_type(&[k_ty.into(), i64_ty.into()], false);
     let function =
-        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::External);
+        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::Internal);
     if function.count_basic_blocks() > 0 {
         return Ok(function);
     }
@@ -6417,7 +6419,7 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     let surface_fun = codegen.declare_compiler_private_helper_function(
         surface.symbol_name(),
         surface.llvm_ty(),
-        Linkage::External,
+        Linkage::Internal,
     );
     let call = codegen.builder.build_call(
         surface_fun,
@@ -6476,7 +6478,7 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
         false,
     );
     let function =
-        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::External);
+        codegen.declare_compiler_private_helper_function(&symbol, fn_ty, Linkage::Internal);
     if function.count_basic_blocks() > 0 {
         return Ok(function);
     }
@@ -6509,9 +6511,11 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
         .module
         .get_function(surface.symbol_name())
         .unwrap_or_else(|| {
-            codegen
-                .module
-                .add_function(surface.symbol_name(), surface.llvm_ty(), None)
+            codegen.declare_compiler_private_helper_function(
+                surface.symbol_name(),
+                surface.llvm_ty(),
+                Linkage::Internal,
+            )
         });
     let mut call_args = vec![continuation.into()];
     if !surface.resume_payload_abi().is_elided() {

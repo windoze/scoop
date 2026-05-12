@@ -544,6 +544,29 @@ fn maybe_function_ir_for_symbol<'ir>(ir: &'ir str, symbol_name: &str) -> Option<
     })
 }
 
+fn llvm_function_header_uses_internal_or_private_linkage(header: &str) -> bool {
+    header.starts_with("internal ") || header.starts_with("private ")
+}
+
+fn assert_ir_contains_internal_or_private_helper_family(
+    ir: &str,
+    description: &str,
+    family_matches: fn(&str) -> bool,
+) {
+    let function_ir = function_ir_matching(ir, description, |header, function| {
+        llvm_function_header_uses_internal_or_private_linkage(header)
+            && family_matches(llvm_function_symbol_name(function))
+    });
+    let header = function_ir
+        .lines()
+        .next()
+        .expect("expected helper function header");
+    assert!(
+        llvm_function_header_uses_internal_or_private_linkage(header),
+        "{description} 应使用 internal/private linkage，实际 header:\n{header}"
+    );
+}
+
 fn stable_id_repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -849,6 +872,8 @@ fun main(): Int {
 "#,
     );
     let audit = stable_id_emit_object_audit("stable_id_audit_generic", &source);
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
         !audit.all_external_symbols.is_empty(),
@@ -856,20 +881,50 @@ fun main(): Int {
         audit.summary()
     );
     assert!(
-        audit
-            .user_abi_symbols
+        !audit
+            .all_external_symbols
             .iter()
             .any(|name| stable_id_symbol_mentions_fqn(name, "a.helper")),
-        "source-level top-level function 应进入 user ABI 审计视野\n{}",
+        "仅模块内使用的 source-level top-level function 不应泄漏到 external symbol 集\n{}",
+        audit.summary()
+    );
+    assert!(
+        !audit
+            .all_external_symbols
+            .iter()
+            .any(|name| stable_id_symbol_mentions_fqn(name, "a.id")),
+        "仅模块内使用的 materialized generic callable 不应泄漏到 external symbol 集\n{}",
         audit.summary()
     );
     assert!(
         audit
-            .user_abi_symbols
+            .fixed_external_exceptions
             .iter()
-            .any(|name| stable_id_symbol_mentions_fqn(name, "a.id")),
-        "materialized generic callable 应进入 user ABI 审计视野\n{}",
+            .any(|name| name == "main"),
+        "宿主固定入口 main 仍应保留 external surface\n{}",
         audit.summary()
+    );
+
+    let helper_ir = function_ir_matching(&ir, "source-level helper impl", |header, function| {
+        llvm_function_header_uses_internal_or_private_linkage(header)
+            && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.helper")
+    });
+    assert!(
+        llvm_function_header_uses_internal_or_private_linkage(
+            helper_ir.lines().next().expect("expected helper header"),
+        ),
+        "source-level helper implementation 应使用 internal/private linkage"
+    );
+
+    let generic_ir = function_ir_matching(&ir, "materialized generic impl", |header, function| {
+        llvm_function_header_uses_internal_or_private_linkage(header)
+            && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.id")
+    });
+    assert!(
+        llvm_function_header_uses_internal_or_private_linkage(
+            generic_ir.lines().next().expect("expected generic header"),
+        ),
+        "materialized generic implementation 应使用 internal/private linkage"
     );
 }
 
@@ -910,30 +965,75 @@ fun main(): Int {
 "#,
     );
     let audit = stable_id_emit_object_audit("stable_id_audit_helpers", &source);
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        audit
-            .compiler_private_helpers
+        !audit
+            .all_external_symbols
             .iter()
             .any(|name| stable_id_symbol_looks_like_closure_family(name)),
-        "closure body/resume/env 应对 stable-id object audit 可见\n{}",
+        "closure body/resume/env 不应再进入 external symbol 集\n{}",
         audit.summary()
     );
     assert!(
-        audit
-            .compiler_private_helpers
+        !audit
+            .all_external_symbols
             .iter()
             .any(|name| stable_id_symbol_looks_like_effect_helper_family(name)),
-        "effect helper shell / continuation outcome helper 应对 stable-id object audit 可见\n{}",
+        "effect helper shell / continuation outcome helper 不应再进入 external symbol 集\n{}",
+        audit.summary()
+    );
+    assert!(
+        !audit
+            .all_external_symbols
+            .iter()
+            .any(|name| stable_id_symbol_looks_like_hidden_init_family(name)),
+        "object init bridge/object init function/top-level init bridge 不应再进入 external symbol 集\n{}",
+        audit.summary()
+    );
+    assert!(
+        !audit
+            .all_external_symbols
+            .iter()
+            .any(|name| stable_id_symbol_mentions_fqn(name, "a.entry")),
+        "仅模块内使用的 source-level entry 不应泄漏到 external symbol 集\n{}",
         audit.summary()
     );
     assert!(
         audit
-            .compiler_private_helpers
+            .fixed_external_exceptions
             .iter()
-            .any(|name| stable_id_symbol_looks_like_hidden_init_family(name)),
-        "object init bridge/object init function/top-level init bridge 应对 stable-id object audit 可见\n{}",
+            .any(|name| name == "main"),
+        "宿主固定入口 main 仍应保留 external surface\n{}",
         audit.summary()
+    );
+
+    let entry_ir = function_ir_matching(&ir, "source-level entry impl", |header, function| {
+        llvm_function_header_uses_internal_or_private_linkage(header)
+            && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.entry")
+    });
+    assert!(
+        llvm_function_header_uses_internal_or_private_linkage(
+            entry_ir.lines().next().expect("expected entry header"),
+        ),
+        "source-level entry implementation 应使用 internal/private linkage"
+    );
+
+    assert_ir_contains_internal_or_private_helper_family(
+        &ir,
+        "closure helper",
+        stable_id_symbol_looks_like_closure_family,
+    );
+    assert_ir_contains_internal_or_private_helper_family(
+        &ir,
+        "effect helper",
+        stable_id_symbol_looks_like_effect_helper_family,
+    );
+    assert_ir_contains_internal_or_private_helper_family(
+        &ir,
+        "hidden init helper",
+        stable_id_symbol_looks_like_hidden_init_family,
     );
 }
 

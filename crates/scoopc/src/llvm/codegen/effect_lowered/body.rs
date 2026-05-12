@@ -1637,7 +1637,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         resume_tuple_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
         let function =
-            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::Internal);
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -1677,7 +1677,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fn_ty: inkwell::types::FunctionType<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let function =
-            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(symbol_name, fn_ty, Linkage::Internal);
         if function.count_basic_blocks() == 0 {
             let entry = self.context.append_basic_block(function, "entry");
             self.builder.position_at_end(entry);
@@ -1695,7 +1695,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let function = self.declare_compiler_private_helper_function(
             surface.symbol_name(),
             surface.llvm_ty(),
-            Linkage::External,
+            Linkage::Internal,
         );
         if function.count_basic_blocks() > 0 {
             return Ok(());
@@ -2609,8 +2609,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .module
             .get_function(target.symbol_name())
             .unwrap_or_else(|| {
-                self.module
-                    .add_function(target.symbol_name(), target.llvm_ty(), None)
+                self.declare_compiler_private_helper_function(
+                    target.symbol_name(),
+                    target.llvm_ty(),
+                    Linkage::Internal,
+                )
             });
         if function.count_basic_blocks() > 0 {
             return Ok(());
@@ -2763,7 +2766,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_surface_resume_outcome_symbol_name(surface.continuation_schema());
         let llvm_ty = self.refactor_surface_resume_outcome_llvm_ty(surface);
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
     fn refactor_surface_resume_owner_outcome_function(
@@ -2773,7 +2776,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_surface_resume_owner_outcome_llvm_ty(surface);
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
     fn refactor_surface_resume_owner_core_function(
@@ -2783,7 +2786,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_surface_resume_owner_core_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
     fn refactor_continuation_drive_outcome_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
@@ -2816,7 +2819,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_continuation_drive_outcome_symbol_name(surface.continuation_schema());
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
     fn refactor_continuation_drive_owner_outcome_function(
@@ -2827,7 +2830,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let symbol_name =
             refactor_continuation_drive_owner_outcome_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
     fn refactor_continuation_step_function(
@@ -2836,7 +2839,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> FunctionValue<'ctx> {
         let symbol_name = refactor_continuation_step_symbol_name(target.symbol_name());
         let llvm_ty = self.refactor_continuation_step_llvm_ty();
-        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::External)
+        self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 }
 
@@ -8057,7 +8060,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let function = self.codegen.declare_compiler_private_helper_function(
             &symbol_name,
             fn_ty,
-            Linkage::External,
+            Linkage::Internal,
         );
         if function.count_basic_blocks() > 0 {
             return Ok(function);

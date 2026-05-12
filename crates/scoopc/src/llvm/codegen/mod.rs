@@ -496,8 +496,8 @@ impl LlvmFunctionDeclarationSurface {
 /// - runtime ABI entry（如 `scoop_runtime_init` / `scoop_entry_argv_array`）
 /// - `@Extern` 指定的 native symbol
 ///
-/// 其余 compiler-private helper 也必须先走 `CompilerPrivateHelper` 分类；P2-T02
-/// 会沿同一入口把这些 helper 从 `External` 收回到 `Internal` / `Private`。
+/// 其余 compiler-private helper 也必须先走 `CompilerPrivateHelper` 分类，并显式
+/// 选择 `Internal` / `Private` linkage。
 fn declare_classified_llvm_function<'ctx>(
     module: &Module<'ctx>,
     name: &str,
@@ -2857,7 +2857,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
         let llvm_fun =
-            self.declare_compiler_private_helper_function(name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(name, fn_ty, Linkage::Internal);
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -3982,7 +3982,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let name = top_level_immutable_value_init_fn_name(value_fqn);
         let fn_ty = self.context.void_type().fn_type(&[], false);
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -4014,7 +4014,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let name = refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn);
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::External);
+            self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
