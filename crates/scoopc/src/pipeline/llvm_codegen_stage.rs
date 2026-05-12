@@ -1279,6 +1279,90 @@ fun main(): Int {
         rest[..end].to_string()
     }
 
+    fn ir_function_matching<'a, F>(ir: &'a str, description: &str, predicate: F) -> &'a str
+    where
+        F: Fn(&str, &str) -> bool,
+    {
+        for chunk in ir.split("\ndefine ").skip(1) {
+            let end = chunk.find("\n}").expect("expected end of function body") + 2;
+            let function = &chunk[..end];
+            let header = function.lines().next().expect("expected function header");
+            if predicate(header, function) {
+                return function;
+            }
+        }
+        panic!("IR should contain function matching `{description}`:\n{ir}");
+    }
+
+    fn ir_function_symbol_name(function_ir: &str) -> &str {
+        let header = function_ir
+            .lines()
+            .next()
+            .expect("expected function header");
+        let symbol = header
+            .split_once('@')
+            .map(|(_, rest)| rest)
+            .expect("expected function symbol name");
+        if let Some(symbol) = symbol.strip_prefix('"') {
+            symbol
+                .split_once('"')
+                .map(|(name, _)| name)
+                .expect("expected closing quote in function symbol")
+        } else {
+            symbol
+                .split_once('(')
+                .map(|(name, _)| name)
+                .expect("expected opening paren in function symbol")
+        }
+    }
+
+    fn ir_call_target_symbol(line: &str) -> Option<&str> {
+        let after_call = if let Some(idx) = line.find(" call ") {
+            &line[idx + " call ".len()..]
+        } else if let Some(idx) = line.find(" invoke ") {
+            &line[idx + " invoke ".len()..]
+        } else {
+            return None;
+        };
+        let symbol = after_call.split_once('@')?.1;
+        if let Some(symbol) = symbol.strip_prefix('"') {
+            Some(
+                symbol
+                    .split_once('"')
+                    .map(|(name, _)| name)
+                    .expect("expected closing quote in call target symbol"),
+            )
+        } else {
+            let end = symbol.find(['(', ' ', ',']).unwrap_or(symbol.len());
+            Some(&symbol[..end])
+        }
+    }
+
+    fn ir_defined_function_symbols(ir: &str) -> Vec<&str> {
+        ir.split("\ndefine ")
+            .skip(1)
+            .map(|chunk| {
+                let end = chunk.find("\n}").expect("expected end of function body") + 2;
+                let function = &chunk[..end];
+                ir_function_symbol_name(function)
+            })
+            .collect()
+    }
+
+    fn ir_function_defined_call_targets(ir: &str, function_ir: &str) -> Vec<String> {
+        let defined = ir_defined_function_symbols(ir);
+        function_ir
+            .lines()
+            .filter_map(ir_call_target_symbol)
+            .filter(|target| {
+                defined
+                    .iter()
+                    .any(|defined_symbol| defined_symbol == target)
+            })
+            .map(str::to_owned)
+            .collect()
+    }
+
     fn emit_args_for_source(
         source: SourceFile,
     ) -> (
@@ -1511,27 +1595,45 @@ fun main(): Int {
         )
         .unwrap();
 
-        let dynamic = ir_function_body(
-            &ir,
-            "define %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_dynamic_invoke__sample_effectEntry(",
-        );
+        let main = ir_function_body(&ir, "define i32 @main(");
+        let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
         assert!(
-            dynamic.contains(
-                "call %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_direct_invoke__sample_effectEntry("
-            ),
+            main_defined_calls.len() == 1,
+            "C main wrapper should forward to exactly one defined entry shell instead of a legacy callable ABI: {:?}\n{main}",
+            main_defined_calls
+        );
+        let direct_entry_symbol = main_defined_calls[0].clone();
+        let _direct_entry = ir_function_matching(
+            &ir,
+            "direct entry shell called by main",
+            |header, function| {
+                !header.contains("@main(")
+                    && ir_function_symbol_name(function) == direct_entry_symbol.as_str()
+            },
+        );
+        let dynamic = ir_function_matching(
+            &ir,
+            "dynamic entry shell forwarding to direct entry",
+            |header, function| {
+                if header.contains("@main(")
+                    || ir_function_symbol_name(function) == direct_entry_symbol.as_str()
+                {
+                    return false;
+                }
+                let calls = ir_function_defined_call_targets(&ir, function);
+                calls.len() == 1 && calls[0] == direct_entry_symbol
+            },
+        );
+        let dynamic_calls = ir_function_defined_call_targets(&ir, dynamic);
+        assert!(
+            dynamic_calls.len() == 1 && dynamic_calls[0] == direct_entry_symbol,
             "dynamic entry should forward through the published refactor direct entry:\n{dynamic}"
         );
 
-        let main = ir_function_body(&ir, "define i32 @main(");
+        let main_calls = ir_function_defined_call_targets(&ir, &main);
         assert!(
-            main.contains(
-                "call %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_direct_invoke__sample_effectEntry("
-            ),
+            main_calls.len() == 1 && main_calls[0] == direct_entry_symbol,
             "C main wrapper should call the refactor direct entry, not the legacy function ABI:\n{main}"
-        );
-        assert!(
-            !main.contains("@sample.effectEntry(") && !main.contains("@\"sample.effectEntry\""),
-            "refactor main wrapper must not call the legacy callable ABI:\n{main}"
         );
     }
 

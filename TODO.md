@@ -238,7 +238,7 @@
     - 对应 `PLAN.md` P0 的测试基线收口目标：后续 P2/P3 将修改的 compiler-private helper naming surface，已不再被现有 LLVM 行为测试直接锁死到旧拼写。
     - 对应 `STABLE_ID.md` §3.4 / §8.5 / §10：direct-invoke、resume、surface-resume owner-dispatch、top-level init descriptor 等 private surface 现在通过 helper family、descriptor 发布和调用关系建模；source inventory 也已阻止旧 private helper spelling 回流到行为测试。
 
-### [TODO] P0-T02B：清理剩余 stable-id 敏感 LLVM / pipeline 测试中的当前 callable symbol 字符串绑定
+### [DONE] P0-T02B：清理剩余 stable-id 敏感 LLVM / pipeline 测试中的当前 callable symbol 字符串绑定
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P0
@@ -292,7 +292,25 @@
   - 后续 P1-P7 调整 callable symbol / linkage / namespace 时，现有 LLVM 与 pipeline 行为测试不会再因为当前 symbol 文本变化而误报回归。
 - 依赖：P0-T02A
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - 核心决策：
+    - 在 `llvm/tests.rs` 补齐一组稳定 IR 查询 helper：direct call target 解析、defined global 查询、explicit-root descriptor -> offsets 解析、actual symbol 提取、user-callable 角色判定、测试侧 LLVM ident sanitize。行为测试现在先用 `function_ir_matching(...)` 依 source role / ABI 形状 / explicit-frame / effect-boundary / ctor-root / aggregate rebuild 等结构特征锁定目标函数，再只把“运行时实际解析出的 symbol”用于调用关系断言，不再把某个固定 callable symbol spelling 当金标准。
+    - 按“同根问题成组清理”扩展了迁移范围：除任务列出的最小入口外，也一并迁移了同类 `a.helper` / `a.main` / explicit-root descriptor / frame type 派生名字绑定，以及 `object_member_call_uses_gc_managed_singleton_receiver`、`managed_function_emits_explicit_root_frame_descriptor`、`explicit_frame_layout_flattens_indirect_gc_aggregate_params` 等相邻 stable-id 敏感行为测试，避免后续 P1-P7 再被 sibling case 卡住。
+    - `pipeline/llvm_codegen_stage.rs` 中新增本地 IR matcher / symbol / defined-call-target helper；`refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry` 现在通过 defined-function call graph 识别 direct-entry shell 与 dynamic shell，并断言 `main`/dynamic wrapper 都只转发到该 direct-entry shell，而不是依赖 `sample.effectEntry` / `__scoop_refactor_*sample_effectEntry` 当前 spelling。
+    - 扩充 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests`，现在同时扫描 `llvm/tests.rs` 与 `pipeline/llvm_codegen_stage.rs`，把本轮移除的 callable symbol / explicit-root 派生命名硬编码固化为防回流清单。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc direct_call_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc explicit_root_frame -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 的“测试面先解除对现有命名形状的强绑定”要求：LLVM 与 pipeline 行为测试现在主要锁定语义、调用关系、namespace 角色与 IR 结构，不再把当前 callable symbol 文本当成正确性标准。
+    - 对应 `STABLE_ID.md` §3.4 / §7.3 / §7.4 / §10：top-level callable、direct-entry shell、derived explicit-root descriptor / frame type 等 identity surface 已从当前 spelling 断言中解耦；后续 user ABI / private symbol / linkage 迁移时，这些测试将继续验证行为语义而非旧名字。
 
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 

@@ -1205,13 +1205,41 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let id64_ir = function_ir_matching(&ir, "Float64 identity function", |header, function| {
+        !header.contains("@main(")
+            && header.contains("double @")
+            && header.contains("(double")
+            && !function.contains("br i1")
+            && function.contains("ret double")
+    });
+    let id32_ir = function_ir_matching(&ir, "Float32 identity function", |header, function| {
+        !header.contains("@main(")
+            && header.contains("float @")
+            && header.contains("(float")
+            && !function.contains("br i1")
+            && function.contains("ret float")
+    });
+    let choose_ir = function_ir_matching(&ir, "Float64 chooser", |header, function| {
+        !header.contains("@main(")
+            && header.contains("double @")
+            && header.contains("(i1")
+            && function.contains("br i1")
+            && function.contains("ret double")
+    });
+    let choose_symbol = llvm_function_symbol_name(choose_ir);
 
     assert!(
-        ir.contains("define double @a.id64("),
+        id64_ir
+            .lines()
+            .next()
+            .is_some_and(|header| { header.contains("double @") && header.contains("(double") }),
         "Float64 should lower to LLVM double in function signatures"
     );
     assert!(
-        ir.contains("define float @a.id32("),
+        id32_ir
+            .lines()
+            .next()
+            .is_some_and(|header| { header.contains("float @") && header.contains("(float") }),
         "Float32 should lower to LLVM float in function signatures"
     );
     assert!(
@@ -1223,7 +1251,9 @@ fun main() {
         "extern Float32 function should keep float ABI"
     );
     assert!(
-        ir.contains("call double @a.choose("),
+        function_ir_count_matching(&ir, |header, function| {
+            !header.contains("@main(") && function_ir_calls_symbol(function, choose_symbol)
+        }) >= 1,
         "Float64 return values should stay on the LLVM scalar path through calls"
     );
 }
@@ -2119,23 +2149,35 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let helper_ir = function_ir_matching(
+        &ir,
+        "user helper referenced only by object init body",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && !stable_id_ir_contains_hidden_init_call(function)
+                && !function.contains(" call ")
+        },
+    );
+    let helper_symbol = llvm_function_symbol_name(helper_ir);
     let object_init_ir = function_ir_matching(
         &ir,
         "compiler-private object init helper for BoomObject",
         |header, function| {
-            !header.contains("@a.helper(")
-                && !header.contains("@main(")
-                && function.contains("@a.helper(")
+            !header.contains("@main(")
+                && llvm_function_symbol_name(function) != helper_symbol
+                && function_ir_calls_symbol(function, helper_symbol)
         },
     );
 
     assert!(
-        object_init_ir.contains("a.helper"),
+        function_ir_calls_symbol(object_init_ir, helper_symbol),
         "direct-HIR reachability 也必须保留 object init body 对 helper 的调用:\n{object_init_ir}"
     );
     assert!(
         ir.lines()
-            .any(|line| line.starts_with("define ") && line.contains("a.helper")),
+            .any(|line| line.starts_with("define ")
+                && llvm_line_mentions_symbol(line, helper_symbol)),
         "仅由 object init body 触达的 helper 仍必须在模块中拥有定义:\n{ir}"
     );
 }
@@ -2699,14 +2741,30 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(
+    let hidden_ir = function_ir_matching(
         &ir,
-        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+        "handled effectful callee without outward Step dispatch",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && !function.contains("switch i32 %refactor_step_tag")
+                && function.contains("i64 41")
+        },
+    );
+    let hidden_symbol = llvm_function_symbol_name(hidden_ir);
+    let entry_ir = function_ir_matching(
+        &ir,
+        "ordinary entry forwarding to handled effectful callee",
+        |header, function| {
+            !header.contains("@main(")
+                && llvm_function_symbol_name(function) != hidden_symbol
+                && !function.contains("switch i32 %refactor_step_tag")
+                && function_ir_calls_symbol(function, hidden_symbol)
+        },
     );
 
     assert!(
-        (entry_ir.contains("@a.hidden(")
-            || entry_ir.contains("@__scoop_refactor_direct_invoke__a_hidden"))
+        function_ir_calls_symbol(entry_ir, hidden_symbol)
             && !entry_ir.contains("switch i32 %refactor_step_tag"),
         "签名 effectful 但 body 不 outward 的直调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
     );
@@ -2745,14 +2803,31 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(
+    let latent_ir = function_ir_matching(
         &ir,
-        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+        "latent higher-order wrapper without outward Step dispatch",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && !function.contains("switch i32 %refactor_step_tag")
+                && header.contains("ptr addrspace(1)")
+                && !function.contains(" call ")
+        },
+    );
+    let latent_symbol = llvm_function_symbol_name(latent_ir);
+    let entry_ir = function_ir_matching(
+        &ir,
+        "ordinary entry forwarding latent higher-order parameter",
+        |header, function| {
+            !header.contains("@main(")
+                && llvm_function_symbol_name(function) != latent_symbol
+                && !function.contains("switch i32 %refactor_step_tag")
+                && function_ir_calls_symbol(function, latent_symbol)
+        },
     );
 
     assert!(
-        (entry_ir.contains("@a.latent(")
-            || entry_ir.contains("@__scoop_refactor_direct_invoke__a_latent"))
+        function_ir_calls_symbol(entry_ir, latent_symbol)
             && !entry_ir.contains("switch i32 %refactor_step_tag"),
         "未调用的 higher-order effect 参数不应让外层 ordinary 直调用进入 Step dispatch:\n{entry_ir}"
     );
@@ -2794,13 +2869,26 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named_any(
+    let entry_ir = function_ir_matching(
         &ir,
-        &["@a.entry(", "__scoop_refactor_direct_invoke__a_entry"],
+        "ordinary entry calling closure without outward Step dispatch",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && !function.contains("switch i32 %refactor_step_tag")
+                && (function_ir_calls_matching_symbol(
+                    function,
+                    stable_id_symbol_looks_like_closure_family,
+                ) || function.contains("closure_dynamic_entry")
+                    || function.contains("closure_env"))
+        },
     );
 
     assert!(
-        entry_ir.contains("lambda0") && !entry_ir.contains("switch i32 %refactor_step_tag"),
+        (function_ir_calls_matching_symbol(entry_ir, stable_id_symbol_looks_like_closure_family)
+            || entry_ir.contains("closure_dynamic_entry")
+            || entry_ir.contains("closure_env"))
+            && !entry_ir.contains("switch i32 %refactor_step_tag"),
         "body 不 outward 的 closure 调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
     );
 }
@@ -3140,7 +3228,16 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
+    let helper_ir = function_ir_matching(
+        &ir,
+        "user helper reading object value init without effect boundary",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && stable_id_ir_contains_hidden_init_call(function)
+                && !function.contains("switch i32 %refactor_step_tag")
+        },
+    );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
@@ -3172,7 +3269,16 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
+    let helper_ir = function_ir_matching(
+        &ir,
+        "user helper reading object property init without effect boundary",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && stable_id_ir_contains_hidden_init_call(function)
+                && !function.contains("switch i32 %refactor_step_tag")
+        },
+    );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
@@ -3202,7 +3308,16 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
+    let helper_ir = function_ir_matching(
+        &ir,
+        "user helper reading top-level immutable init without effect boundary",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && stable_id_ir_contains_hidden_init_call(function)
+                && !function.contains("switch i32 %refactor_step_tag")
+        },
+    );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
@@ -3233,7 +3348,16 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let helper_ir = function_ir_named(&ir, "a.helper");
+    let helper_ir = function_ir_matching(
+        &ir,
+        "user helper issuing plain extern call without effect boundary",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_test_add_int")
+                && !function.contains("switch i32 %refactor_step_tag")
+        },
+    );
 
     assert!(
         helper_ir.contains("@scoop_test_add_int")
@@ -3311,7 +3435,16 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let keep_ir = function_ir_named(&ir, "@a.keep(");
+    let keep_ir = function_ir_matching(
+        &ir,
+        "managed aggregate-parameter helper with safepoint",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("explicit_root_frame_slot_0")
+        },
+    );
 
     let stores_into_home_slot = keep_ir
         .lines()
@@ -3490,12 +3623,27 @@ fun main(): Int {
         ir.contains("@scoop_alloc_typed"),
         "object 单例值应通过 typed alloc 生成真实 Ref 对象"
     );
+    let run_ir = function_ir_matching(&ir, "object member method body", |header, function| {
+        !header.contains("@main(")
+            && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+            && header.contains("ptr addrspace(1)")
+            && !function.contains(" call ")
+    });
+    let run_symbol = llvm_function_symbol_name(run_ir);
     assert!(
-        ir.contains("call i64 @a.Helper.run(ptr addrspace(1)"),
+        ir.lines().any(|line| {
+            line.contains(" call i64 ")
+                && llvm_line_mentions_symbol(line, run_symbol)
+                && line.contains("ptr addrspace(1)")
+        }),
         "object member call 应把 addrspace(1) receiver 传给成员函数"
     );
     assert!(
-        !ir.contains("call i64 @a.Helper.run(ptr @__scoop_object_instance__a.Helper)"),
+        !ir.lines().any(|line| {
+            line.contains(" call i64 ")
+                && llvm_line_mentions_symbol(line, run_symbol)
+                && line.contains("ptr @__scoop_object_instance__a.Helper")
+        }),
         "member call 不应再把默认地址空间全局地址直接当 receiver 传递"
     );
     assert!(
@@ -3922,19 +4070,33 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let keep_ir = function_ir_matching(
+        &ir,
+        "managed string helper with explicit root descriptor",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("ret ptr addrspace(1)")
+        },
+    );
+    let keep_desc = function_ir_explicit_root_descriptor(keep_ir)
+        .expect("managed function should publish an explicit root descriptor");
+    let keep_offsets = explicit_root_descriptor_offsets_symbol(&ir, keep_desc)
+        .expect("managed function descriptor should reference an offsets table");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc__a_keep"),
+        llvm_ir_defines_global(&ir, keep_desc),
         "expected managed function descriptor global\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_offsets__a_keep = internal constant [2 x i32]"),
+        llvm_ir_global_definition(&ir, keep_offsets)
+            .is_some_and(|line| line.contains("internal constant [2 x i32]")),
         "keep() 现在会同时发布参数 root 与 return slot root\n{ir}"
     );
     assert!(
-        ir.contains(
-            "@__scoop_explicit_root_offsets__a_keep = internal constant [2 x i32] [i32 16, i32 24]"
-        ),
+        llvm_ir_global_definition(&ir, keep_offsets)
+            .is_some_and(|line| { line.contains("internal constant [2 x i32] [i32 16, i32 24]") }),
         "keep() 的显式 root frame 偏移应从 header 后开始并覆盖参数/返回值 home slot\n{ir}"
     );
 }
@@ -3960,7 +4122,16 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let keep_ir = function_ir_named(&ir, "@a.keep(");
+    let keep_ir = function_ir_matching(
+        &ir,
+        "managed string helper with safepoint lifecycle",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("ret ptr addrspace(1)")
+        },
+    );
 
     assert!(
         ir.contains("@__scoop_explicit_root_frame_top = external thread_local global ptr"),
@@ -4012,10 +4183,21 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let label_ir = function_ir_named(&ir, "@a.label(");
+    let label_ir = function_ir_matching(
+        &ir,
+        "zero-slot managed string helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && header.contains("ptr addrspace(1)")
+                && !function.contains("@scoop_println")
+        },
+    );
+    let label_desc = function_ir_explicit_root_descriptor(label_ir)
+        .expect("zero-slot managed function should publish an explicit root descriptor");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc__a_label"),
+        llvm_ir_defines_global(&ir, label_desc),
         "expected managed function to publish an explicit root descriptor\n{ir}"
     );
     assert!(
@@ -4023,9 +4205,9 @@ fun main() {
         "expected managed function to allocate an explicit frame\n{label_ir}"
     );
     assert!(
-        label_ir.contains(
-            "store ptr @__scoop_explicit_root_desc__a_label, ptr %explicit_root_frame_desc_ptr"
-        ),
+        label_ir.contains(&format!(
+            "store ptr @{label_desc}, ptr %explicit_root_frame_desc_ptr"
+        )),
         "expected zero-slot managed function to publish its descriptor in the explicit frame header\n{label_ir}"
     );
     assert!(
@@ -4063,7 +4245,16 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let keep_ir = function_ir_named(&ir, "@a.keep(");
+    let keep_ir = function_ir_matching(
+        &ir,
+        "managed string helper reloading direct GC local after safepoint",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("ret ptr addrspace(1)")
+        },
+    );
     let call_idx = keep_ir
         .find("@scoop_gc_collect_safepoint")
         .expect("expected explicit safepoint helper call in keep() IR");
@@ -4106,7 +4297,16 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_named(&ir, "@a.entry(");
+    let entry_ir = function_ir_matching(
+        &ir,
+        "top-level entry inlining ctor property initializer safepoint",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("rt_alloc_refactor_class")
+        },
+    );
     let call_idx = entry_ir
         .find("@scoop_gc_collect_safepoint")
         .expect("expected ctor property initializer to emit a safepoint");
@@ -4197,7 +4397,17 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let make_ir = function_ir_named(&ir, "@a.make(");
+    let make_ir = function_ir_matching(
+        &ir,
+        "class factory with GC-sensitive ctor arg evaluation",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && header.contains("ptr addrspace(1)")
+                && !function.contains("@\"scoop.core.println::<String>\"")
+                && function.contains("refactor_class_ctor_obj_root")
+        },
+    );
     let string_alloc_idx = make_ir
         .find("@__scoop_type_desc_runtime__ScoopString")
         .expect("expected ctor arg f-string allocation in make() IR");
@@ -4256,10 +4466,26 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let run_ir = function_ir_named(&ir, "@a.run(");
-    let take_idx = run_ir
-        .find("call ptr addrspace(1) @a.take(")
-        .expect("expected call to take() in run() IR");
+    let run_ir = function_ir_matching(
+        &ir,
+        "run helper reloading deferred call arg after later safepoint",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && header.contains("ptr addrspace(1)")
+                && function.contains(
+                    "call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_",
+                )
+                && !function.contains("@\"scoop.core.println::<String>\"")
+        },
+    );
+    let reload_idx = run_ir
+        .find("call_arg_reload_0 = load ptr addrspace(1), ptr %explicit_root_frame_slot_")
+        .expect("expected deferred arg reload from explicit frame in run() IR");
+    let take_idx = run_ir[reload_idx..]
+        .find(" call ")
+        .map(|idx| reload_idx + idx)
+        .expect("expected deferred call after explicit-frame reload in run() IR");
     let reload_window_start = take_idx.saturating_sub(800);
     let reload_window = &run_ir[reload_window_start..take_idx + 200];
 
@@ -4271,6 +4497,10 @@ fun main() {
     assert!(
         !run_ir.contains("call_arg_reload_0 = load ptr addrspace(1), ptr %call_arg_0"),
         "deferred GC call arg should not reload from the original spill slot after later safepoint\n{reload_window}"
+    );
+    assert!(
+        reload_window.contains("%pass_mir_call_arg_reload_0"),
+        "deferred GC call should consume the explicit-frame reloaded argument, not the stale spill slot\n{reload_window}"
     );
 }
 
@@ -4301,10 +4531,22 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let run_ir = function_ir_named(&ir, "@a.run(");
-    let call_idx = run_ir
-        .find("@a.take(")
-        .expect("expected call to take() in run() IR");
+    let run_ir = function_ir_matching(
+        &ir,
+        "aggregate call-arg rebuild helper after safepoint",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("call_arg_reload_0_rebuild = alloca")
+        },
+    );
+    let frame_reload_idx = run_ir
+        .find("call_arg_reload_0_frame_reload = load ptr addrspace(1), ptr %explicit_root_frame_slot_")
+        .expect("expected aggregate arg frame reload before rebuilt call");
+    let call_idx = run_ir[frame_reload_idx..]
+        .find(" call ")
+        .map(|idx| frame_reload_idx + idx)
+        .expect("expected rebuilt aggregate call after explicit-frame reload");
     let reload_window_start = call_idx.saturating_sub(1600);
     let reload_window = &run_ir[reload_window_start..call_idx + 200];
 
@@ -4319,8 +4561,7 @@ fun main() {
         "aggregate call arg rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
     );
     assert!(
-        reload_window.contains("@a.take(ptr %pass_mir_call_arg_reload_0_rebuild")
-            || reload_window.contains("@a.take(ptr noundef %pass_mir_call_arg_reload_0_rebuild"),
+        reload_window.contains("%pass_mir_call_arg_reload_0_rebuild"),
         "aggregate call arg should pass the rebuilt slot instead of the stale original spill\n{reload_window}"
     );
 }
@@ -4351,10 +4592,22 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let run_ir = function_ir_named(&ir, "@a.run(");
-    let call_idx = run_ir
-        .find("@a.bounce(")
-        .expect("expected call to bounce() in run() IR");
+    let run_ir = function_ir_matching(
+        &ir,
+        "hidden-sret caller rebuilding aggregate result",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("call_sret_rebuild = alloca")
+        },
+    );
+    let rebuild_idx = run_ir
+        .find("call_sret_rebuild = alloca")
+        .expect("expected hidden-sret rebuild slot in run() IR");
+    let call_idx = run_ir[rebuild_idx..]
+        .find(" call ")
+        .map(|idx| rebuild_idx + idx)
+        .expect("expected hidden-sret call after rebuild slot allocation");
     let reload_window = &run_ir[call_idx..std::cmp::min(call_idx + 1800, run_ir.len())];
 
     assert!(
@@ -4620,17 +4873,38 @@ fun main() {
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
     let ir = module.print_to_string().to_string();
+    let first_ir = function_ir_matching(
+        &ir,
+        "indirect aggregate parameter helper with explicit frame",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && header.contains("ptr addrspace(1)")
+                && function_ir_explicit_root_descriptor(function).is_some()
+                && !function.contains(" call ")
+                && function.contains("extractvalue")
+        },
+    );
+    let first_desc = function_ir_explicit_root_descriptor(first_ir)
+        .expect("aggregate parameter helper should publish an explicit root descriptor");
+    let first_offsets = explicit_root_descriptor_offsets_symbol(&ir, first_desc)
+        .expect("aggregate parameter helper descriptor should reference an offsets table");
+    let frame_ty_name = format!(
+        "scoop.runtime.ScoopExplicitRootFrame${}",
+        llvm_sanitize_ident_for_test(llvm_function_symbol_name(first_ir))
+    );
 
     let frame_ty = context
-        .get_struct_type("scoop.runtime.ScoopExplicitRootFrame$a_first")
-        .expect("missing explicit frame type for a.first");
+        .get_struct_type(&frame_ty_name)
+        .expect("missing explicit frame type for aggregate parameter helper");
     assert_eq!(
         frame_ty.get_field_types().len(),
         3,
         "expected header + tracked aggregate/root leaf slots for Named.name"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_offsets__a_first = internal constant [2 x i32]"),
+        llvm_ir_global_definition(&ir, first_offsets)
+            .is_some_and(|line| line.contains("internal constant [2 x i32]")),
         "expected indirect aggregate param to publish tracked root slots\n{ir}"
     );
 }
@@ -4662,13 +4936,27 @@ fun main() {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let use_it_ir = function_ir_matching(
+        &ir,
+        "hidden-sret caller with explicit-frame call temps",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("call_sret_rebuild = alloca")
+                && function_ir_explicit_root_descriptor(function).is_some()
+        },
+    );
+    let use_it_desc = function_ir_explicit_root_descriptor(use_it_ir)
+        .expect("hidden-sret caller should publish an explicit root descriptor");
+    let use_it_offsets = explicit_root_descriptor_offsets_symbol(&ir, use_it_desc)
+        .expect("hidden-sret caller descriptor should reference an offsets table");
 
     assert!(
-        ir.contains("@__scoop_explicit_root_desc__a_useIt"),
+        llvm_ir_defines_global(&ir, use_it_desc),
         "expected descriptor for hidden-sret caller\n{ir}"
     );
     assert!(
-        ir.contains("@__scoop_explicit_root_offsets__a_useIt"),
+        llvm_ir_defines_global(&ir, use_it_offsets),
         "expected hidden-sret caller to emit root offsets table\n{ir}"
     );
 }
@@ -5031,18 +5319,6 @@ fn production_codegen_uint8_array_numeric_elements_keep_scalar_transport_metadat
     );
 }
 
-fn maybe_function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> Option<&'a str> {
-    for chunk in ir.split("\ndefine ").skip(1) {
-        let end = chunk.find("\n}").expect("expected end of function body") + 2;
-        let function = &chunk[..end];
-        let header = function.lines().next().expect("expected function header");
-        if header.contains(name_fragment) {
-            return Some(function);
-        }
-    }
-    None
-}
-
 fn llvm_function_symbol_name(function_ir: &str) -> &str {
     let header = function_ir
         .lines()
@@ -5065,8 +5341,65 @@ fn llvm_function_symbol_name(function_ir: &str) -> &str {
     }
 }
 
+fn stable_id_symbol_is_user_callable(symbol_name: &str) -> bool {
+    symbol_name != "main"
+        && !stable_id_symbol_looks_like_compiler_private_helper(symbol_name)
+        && !stable_id_symbol_looks_like_runtime_or_native_import(symbol_name)
+}
+
+fn llvm_sanitize_ident_for_test(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() { "_".to_string() } else { out }
+}
+
 fn llvm_line_mentions_symbol(line: &str, symbol_name: &str) -> bool {
     line.contains(&format!("@{symbol_name}")) || line.contains(&format!("@\"{symbol_name}\""))
+}
+
+fn llvm_call_target_symbol(line: &str) -> Option<&str> {
+    let after_call = if let Some(idx) = line.find(" call ") {
+        &line[idx + " call ".len()..]
+    } else if let Some(idx) = line.find(" invoke ") {
+        &line[idx + " invoke ".len()..]
+    } else {
+        return None;
+    };
+    let symbol = after_call.split_once('@')?.1;
+    if let Some(symbol) = symbol.strip_prefix('"') {
+        Some(
+            symbol
+                .split_once('"')
+                .map(|(name, _)| name)
+                .expect("expected closing quote in call target symbol"),
+        )
+    } else {
+        let end = symbol.find(['(', ' ', ',']).unwrap_or(symbol.len());
+        Some(&symbol[..end])
+    }
+}
+
+fn function_ir_calls_symbol(function_ir: &str, symbol_name: &str) -> bool {
+    function_ir
+        .lines()
+        .filter_map(llvm_call_target_symbol)
+        .any(|callee| callee == symbol_name)
+}
+
+fn function_ir_calls_matching_symbol<F>(function_ir: &str, predicate: F) -> bool
+where
+    F: FnMut(&str) -> bool,
+{
+    function_ir
+        .lines()
+        .filter_map(llvm_call_target_symbol)
+        .any(predicate)
 }
 
 fn function_ir_explicit_root_descriptor(function_ir: &str) -> Option<&str> {
@@ -5096,6 +5429,28 @@ fn llvm_ir_defines_global(ir: &str, symbol_name: &str) -> bool {
     })
 }
 
+fn llvm_ir_global_definition<'a>(ir: &'a str, symbol_name: &str) -> Option<&'a str> {
+    ir.lines().find(|line| {
+        line.starts_with(&format!("@{symbol_name} ="))
+            || line.starts_with(&format!("@\"{symbol_name}\" ="))
+    })
+}
+
+fn explicit_root_descriptor_offsets_symbol<'a>(ir: &'a str, desc_symbol: &str) -> Option<&'a str> {
+    let desc_line = llvm_ir_global_definition(ir, desc_symbol)?;
+    let after_equals = desc_line
+        .split_once("=")
+        .map(|(_, rest)| rest)
+        .expect("global definition should contain initializer");
+    let (_, offset_ref) = after_equals.split_once(" ptr @")?;
+    if let Some(offset_ref) = offset_ref.strip_prefix('"') {
+        offset_ref.split_once('"').map(|(name, _)| name)
+    } else {
+        let end = offset_ref.find([',', ' ', '}']).unwrap_or(offset_ref.len());
+        Some(&offset_ref[..end])
+    }
+}
+
 fn function_ir_count_matching<F>(ir: &str, predicate: F) -> usize
 where
     F: Fn(&str, &str) -> bool,
@@ -5109,23 +5464,6 @@ where
             predicate(header, function)
         })
         .count()
-}
-
-fn function_ir_named<'a>(ir: &'a str, name_fragment: &str) -> &'a str {
-    maybe_function_ir_named(ir, name_fragment)
-        .unwrap_or_else(|| panic!("expected function containing {name_fragment}"))
-}
-
-fn function_ir_named_any<'a>(ir: &'a str, name_fragments: &[&str]) -> &'a str {
-    for fragment in name_fragments {
-        if let Some(function) = maybe_function_ir_named(ir, fragment) {
-            return function;
-        }
-    }
-    panic!(
-        "expected function containing one of {}",
-        name_fragments.join(", ")
-    )
 }
 
 fn object_contains_stackmap_section(obj: &object::File<'_>) -> bool {
@@ -5181,7 +5519,7 @@ fn mir_fun_contains_fun_value_call(fun: &crate::mir::FunDecl) -> bool {
 
 #[test]
 fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests() {
-    let source = include_str!("tests.rs");
+    let llvm_source = include_str!("tests.rs");
 
     for needle in [
         [
@@ -5256,10 +5594,116 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
             "a_go\")",
         ]
         .concat(),
+        ["ir.contains(\"define double @a.id", "64(\")"].concat(),
+        ["ir.contains(\"define float @a.id", "32(\")"].concat(),
+        ["ir.contains(\"call double @a.", "choose(\")"].concat(),
+        ["!header.contains(\"@a.he", "lper(\")"].concat(),
+        ["function.contains(\"@a.he", "lper(\")"].concat(),
+        ["function_ir_named(&ir, \"a.he", "lper\")"].concat(),
+        ["entry_ir.contains(\"@a.hid", "den(\")"].concat(),
+        [
+            "entry_ir.contains(\"@__scoop_refactor_direct_invoke__a_",
+            "hidden\")",
+        ]
+        .concat(),
+        ["entry_ir.contains(\"@a.la", "tent(\")"].concat(),
+        [
+            "entry_ir.contains(\"@__scoop_refactor_direct_invoke__a_",
+            "latent\")",
+        ]
+        .concat(),
+        ["function_ir_named(&ir, \"@a.ke", "ep(\")"].concat(),
+        ["function_ir_named(&ir, \"@a.la", "bel(\")"].concat(),
+        ["function_ir_named(&ir, \"@a.en", "try(\")"].concat(),
+        ["function_ir_named(&ir, \"@a.ma", "ke(\")"].concat(),
+        ["function_ir_named(&ir, \"@a.ru", "n(\")"].concat(),
+        ["find(\"call i64 @a.Helper.", "run(ptr addrspace(1)\")"].concat(),
+        [
+            "!ir.contains(\"call i64 @a.Helper.run(ptr @__scoop_object_instance__",
+            "a.Helper)\")",
+        ]
+        .concat(),
+        ["find(\"call ptr addrspace(1) @a.ta", "ke(\")"].concat(),
+        ["find(\"@a.ta", "ke(\")"].concat(),
+        [
+            "contains(\"@a.take(ptr %pass_mir_call_arg_reload_0_",
+            "rebuild\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@a.take(ptr noundef %pass_mir_call_arg_reload_0_",
+            "rebuild\")",
+        ]
+        .concat(),
+        ["find(\"@a.bo", "unce(\")"].concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_desc__a_",
+            "keep\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_offsets__a_keep = ",
+            "internal constant [2 x i32]\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_desc__a_",
+            "label\")",
+        ]
+        .concat(),
+        [
+            "store ptr @__scoop_explicit_root_desc__a_label, ptr %explicit_",
+            "root_frame_desc_ptr",
+        ]
+        .concat(),
+        [
+            "get_struct_type(\"scoop.runtime.ScoopExplicitRootFrame$a_",
+            "first\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_offsets__a_first = ",
+            "internal constant [2 x i32]\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_desc__a_",
+            "useIt\")",
+        ]
+        .concat(),
+        [
+            "ir.contains(\"@__scoop_explicit_root_offsets__a_",
+            "useIt\")",
+        ]
+        .concat(),
     ] {
         assert!(
-            !source.contains(&needle),
-            "stable-id 行为测试不应继续锁死已知旧命名拼写: {needle}"
+            !llvm_source.contains(&needle),
+            "stable-id 行为测试不应继续锁死已知旧命名拼写 (llvm/tests.rs): {needle}"
+        );
+    }
+
+    let pipeline_source = include_str!("../pipeline/llvm_codegen_stage.rs");
+    for needle in [
+        [
+            "ir_function_body(&ir, \"define %scoop.refactor.Step__sample_",
+            "effectEntry @__scoop_refactor_dynamic_invoke__sample_effectEntry(\")",
+        ]
+        .concat(),
+        [
+            "call %scoop.refactor.Step__sample_effectEntry @__scoop_refactor_",
+            "direct_invoke__sample_effectEntry(",
+        ]
+        .concat(),
+        [
+            "!main.contains(\"@sample.effectEntry(\") && !main.contains(\"@\\\"sample.",
+            "effectEntry\\\"\")",
+        ]
+        .concat(),
+    ] {
+        assert!(
+            !pipeline_source.contains(&needle),
+            "stable-id 行为测试不应继续锁死已知旧命名拼写 (pipeline/llvm_codegen_stage.rs): {needle}"
         );
     }
 }
