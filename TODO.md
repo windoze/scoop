@@ -179,6 +179,46 @@
     - 对应 `PLAN.md` P0 与 `STABLE_ID.md` §3.1 / §10：四个健康 `.cone` / JSON schema 已有常驻基线测试，后续阶段可在不引入无谓 schema churn 的前提下继续推进 stable-id 迁移。
     - 对应 `STABLE_ID.md` §3.4：已把 `Step__schema*`、`surface resume kN`、`lambda$0`、`object_init` 等当前最容易把旧 identity 形状锁进测试的入口改成语义断言，后续 P1-P4 可安全调整 symbol/linkage。
 
+### [TODO] P0-T02A：清理剩余 stable-id 敏感 LLVM 测试中的旧 private helper 名字绑定
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4 / P0
+  - [`STABLE_ID.md`](./STABLE_ID.md) §3.4、§8.5、§10
+- 背景：
+  - `P0-T02` 已迁移一批高风险旧命名断言，但 `P0-T02R` review 复核时发现 `crates/scoopc/src/llvm/tests.rs` 仍有若干 stable-id 敏感断言直接锁死旧 private helper spelling，例如：
+    - `__scoop_refactor_resume__...`
+    - `__scoop_refactor_direct_invoke__...`
+    - `__scoop_refactor_surface_resume_owner_dispatch__...`
+    - `__scoop_top_level_val_init__...`
+  - 这些 symbol/descriptor 属于后续 P2/P3 会继续调整的 compiler-private naming surface；若不先清理，后续任务会被非语义文本噪音主导。
+- 目标：
+  - 补齐 P0 测试基线，让 stable-id 相关 LLVM 回归只锁定语义、namespace、linkage 与 helper family，而不再把旧 private helper 拼写当金标准。
+- 必须实现的内容：
+  1. 复核并迁移 `crates/scoopc/src/llvm/tests.rs` 中仍直接绑定旧 private helper spelling 的 stable-id 相关断言，至少覆盖：
+     - `default_single_file_ir_helper_lowers_handle_main_without_hir_fallback`
+     - `direct_call_with_real_outward_effect_uses_step_boundary_and_surface_resume_dispatch`
+     - `closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`
+     - `top_level_immutable_init_emits_explicit_root_frame_descriptor`
+     - `effect_state_machine_functions_emit_explicit_root_frame_descriptors`
+  2. 为 direct-invoke / resume / surface-resume owner-dispatch / explicit-root descriptor 路径补齐稳定 helper 或等价语义断言，验证：
+     - 仍发布正确 family 的 private helper / descriptor
+     - object/internal surface 与调用关系不漂移
+     - 不把旧具体 spelling 当作唯一正确答案
+  3. 扩充 `stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_tests` 或等价 source inventory，覆盖本轮新增清理的旧 private helper spelling。
+- 必须遵从的约束：
+  - 不得把断言放松成“只要出现 resume/descriptor 文本就算通过”；必须保持语义验证力度。
+  - 不得把 `main`、runtime import、`@Extern` 这类显式 external 例外误纳入清理范围。
+  - 不得把这类测试基线清理拖到 P3 再做；P0 必须先把 review 发现的噪音收口。
+- 验证：
+  1. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  2. 针对上述迁移点的新增/更新 LLVM 定向测试全部通过。
+  3. `cargo test -p scoopc`
+- 完成条件：
+  - P2/P3 将调整的 compiler-private helper naming surface 不再被现有行为测试直接锁死。
+- 依赖：P0-T02
+- 完成记录：
+  - 待填。
+
 ### [TODO] P0-T02R：Review 审计脚手架与测试基线，确认后续任务不会被旧字符串绑定卡住
 
 - 参考：
@@ -200,7 +240,7 @@
   - 在完成记录中明确说明：后续任务将基于哪些测试入口验证 symbol、linkage、path-stability 和 dense-id 泄漏。
 - 完成条件：
   - 可以明确写出：P1-P7 已有稳定审计基线，不会被旧名字断言或 schema churn 噪音主导。
-- 依赖：P0-T02
+- 依赖：P0-T02A
 - 完成记录：
   - 待填。
 
