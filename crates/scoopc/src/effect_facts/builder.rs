@@ -1977,6 +1977,7 @@ impl EffectFactsTypeContext {
         Ok(cases)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn lower_effect_op_contract(
         &self,
         types: &mut TypeStore,

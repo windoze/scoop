@@ -4564,6 +4564,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_call(
         &mut self,
         span: crate::span::Span,
@@ -4645,6 +4646,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_direct_call_with_policy(
         &mut self,
         span: crate::span::Span,
@@ -5860,6 +5862,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn codegen_mir_direct_call(
         &mut self,
         span: crate::span::Span,
@@ -5875,6 +5878,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn codegen_mir_refactor_plain_direct_call(
         &mut self,
         span: crate::span::Span,
@@ -6203,6 +6207,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_bound_mir_call_args_from_signature(
         &mut self,
         span: crate::span::Span,

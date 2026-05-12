@@ -47,7 +47,7 @@
 
 ## P0：冻结基线与审计脚手架
 
-### [TODO] P0-T01：建立 stable-id 外部 surface 审计脚手架
+### [DONE] P0-T01：建立 stable-id 外部 surface 审计脚手架
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P0
@@ -96,7 +96,31 @@
   - 后续任务已经拥有稳定可复用的 object / symbol / grep 审计入口。
 - 依赖：无
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/effect_facts/builder.rs`
+    - `crates/scoopc/src/effect_lowered/ir.rs`
+    - `crates/scoopc/src/llvm/codegen/call/lowering.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+  - 核心决策：
+    - 在 `llvm/tests.rs` 新增 stable-id object/symbol 审计 helper，基于 `object::File::parse(...)` 提取 external symbol 集，并按 `runtime/native import`、`fixed external exception`、`user ABI`、`compiler-private helper` 分类。
+    - 新增 `stable_id_audit_*` / `external_symbol_*` 测试骨架：
+      - `external_symbol_audit_top_level_and_materialized_generic_smoke` 覆盖 source-level top-level function 与 materialized generic callable。
+      - `external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke` 覆盖 closure body/resume/env、effect helper shell / continuation outcome helper、object init bridge / object init function / top-level init bridge。
+    - 把 `STABLE_ID.md` §11 的 grep 清单固化为测试常量与 repo 扫描 helper，固定扫描 `crates/scoop/src`、`crates/scoopc/src`、`tests/fixtures`。
+    - 在测试常量中显式声明“允许变化的 surface”与“禁止漂移的行为”，避免后续任务把 symbol/linkage/dump 文本变化误判为语义回归。
+    - 为满足本任务要求的 `clippy -D warnings` 验证，补齐了若干既有 `too_many_arguments` 精确 lint 豁免并修复一处 `needless_borrow`；未改动语义路径。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - grep 基线审计摘要（`stable_id_audit_grep_inventory_scans_repo_roots`）：
+      - `TypeId\(` 2583 命中，`BasicBlockId\(` 41 命中，`module\.add_function\(.*None\)` 101 命中。
+      - 当前重点 pattern 命中：`stable_template_symbol_suffix` 7、`source_path.*decl_span` 5、`scoop\.lambda\$[0-9]+` 2、`scoop\.lambda_resume\$[0-9]+` 1、`scoop\.lambda_env\$[0-9]+` 1、`__schema[0-9]+` 2、`__k[0-9]+` 4、`t[0-9]+__` 0。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P0 的 object-level 验证基线与 grep 审计入口要求，后续阶段已可复用统一 external symbol/object/grep 审计入口。
+    - 对应 `STABLE_ID.md` §10/§11：已把 dense-id/path/span 泄漏的主要 grep 入口固定下来，并把 external symbol 分类与允许变化/禁止漂移边界落到常驻测试中。
 
 ### [TODO] P0-T02：固化现有测试基线，移除对旧命名字符串的强绑定
 

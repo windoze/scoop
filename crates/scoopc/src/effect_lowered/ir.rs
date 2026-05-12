@@ -1579,6 +1579,7 @@ fn build_surface_resume_dispatch_inventory(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_call_boundary_callee_wrapper_projection(
     inventory: &mut BTreeMap<ContinuationSchemaId, SurfaceResumeDispatchInventoryAccumulator>,
     wrapper_projections: &mut BTreeMap<

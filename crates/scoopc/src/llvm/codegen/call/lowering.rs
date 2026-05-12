@@ -1280,7 +1280,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     fun, llvm_name, &param_tys, return_ty,
                 )?,
                 CallableSig::Mir(ref fun, _) => {
-                    self.declare_materialized_top_level_fun_with_symbol(&fun, llvm_name)?
+                    self.declare_materialized_top_level_fun_with_symbol(fun, llvm_name)?
                 }
             },
         };

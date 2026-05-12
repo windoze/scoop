@@ -113,6 +113,7 @@ fun main() {
     }
 }
 
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
@@ -128,6 +129,196 @@ use inkwell::context::Context;
 use inkwell::targets::TargetData;
 use object::Object;
 use object::ObjectSection;
+use object::ObjectSymbol;
+use object::SymbolKind;
+use object::SymbolScope;
+
+// stable-id 审计只允许 identity surface 变化；行为语义必须保持等价。
+const STABLE_ID_ALLOWED_SURFACE_CHANGES: &[&str] = &[
+    "symbol 文本",
+    "linkage",
+    "dump 文本",
+    "fixture expect",
+    "RTTI id",
+    "JSON identity 字段",
+];
+
+const STABLE_ID_FORBIDDEN_BEHAVIOR_DRIFT: &[&str] = &[
+    "语义",
+    "运行结果",
+    "typecheck",
+    "effect / continuation / GC 行为",
+];
+
+const STABLE_ID_AUDIT_SEARCH_ROOTS: &[&str] =
+    &["crates/scoop/src", "crates/scoopc/src", "tests/fixtures"];
+
+#[derive(Clone, Copy)]
+enum StableIdAuditMatcher {
+    Contains(&'static str),
+    ContainsAll(&'static [&'static str]),
+    PrefixDigitsSuffix {
+        prefix: &'static str,
+        suffix: &'static str,
+    },
+}
+
+#[derive(Clone, Copy)]
+struct StableIdAuditPattern {
+    regex: &'static str,
+    matcher: StableIdAuditMatcher,
+}
+
+const STABLE_ID_AUDIT_PATTERNS: &[StableIdAuditPattern] = &[
+    StableIdAuditPattern {
+        regex: r"TypeId\(",
+        matcher: StableIdAuditMatcher::Contains("TypeId("),
+    },
+    StableIdAuditPattern {
+        regex: r"SymbolId\(",
+        matcher: StableIdAuditMatcher::Contains("SymbolId("),
+    },
+    StableIdAuditPattern {
+        regex: r"ClosureId\(",
+        matcher: StableIdAuditMatcher::Contains("ClosureId("),
+    },
+    StableIdAuditPattern {
+        regex: r"SourceId\(",
+        matcher: StableIdAuditMatcher::Contains("SourceId("),
+    },
+    StableIdAuditPattern {
+        regex: r"ConeId\(",
+        matcher: StableIdAuditMatcher::Contains("ConeId("),
+    },
+    StableIdAuditPattern {
+        regex: r"BasicBlockId\(",
+        matcher: StableIdAuditMatcher::Contains("BasicBlockId("),
+    },
+    StableIdAuditPattern {
+        regex: r"LocalId\(",
+        matcher: StableIdAuditMatcher::Contains("LocalId("),
+    },
+    StableIdAuditPattern {
+        regex: r"SiteId\(",
+        matcher: StableIdAuditMatcher::Contains("SiteId("),
+    },
+    StableIdAuditPattern {
+        regex: r"StepSchemaId\(",
+        matcher: StableIdAuditMatcher::Contains("StepSchemaId("),
+    },
+    StableIdAuditPattern {
+        regex: r"ContinuationSchemaId\(",
+        matcher: StableIdAuditMatcher::Contains("ContinuationSchemaId("),
+    },
+    StableIdAuditPattern {
+        regex: r"CaseTag\(",
+        matcher: StableIdAuditMatcher::Contains("CaseTag("),
+    },
+    StableIdAuditPattern {
+        regex: r"ResumeInterfaceId\(",
+        matcher: StableIdAuditMatcher::Contains("ResumeInterfaceId("),
+    },
+    StableIdAuditPattern {
+        regex: r"ContinuationObjectId\(",
+        matcher: StableIdAuditMatcher::Contains("ContinuationObjectId("),
+    },
+    StableIdAuditPattern {
+        regex: r"StateId\(",
+        matcher: StableIdAuditMatcher::Contains("StateId("),
+    },
+    StableIdAuditPattern {
+        regex: r"BoundaryId\(",
+        matcher: StableIdAuditMatcher::Contains("BoundaryId("),
+    },
+    StableIdAuditPattern {
+        regex: r"FrameSlotId\(",
+        matcher: StableIdAuditMatcher::Contains("FrameSlotId("),
+    },
+    StableIdAuditPattern {
+        regex: r"module\.add_function\(.*None\)",
+        matcher: StableIdAuditMatcher::ContainsAll(&["module.add_function(", "None"]),
+    },
+    StableIdAuditPattern {
+        regex: "stable_template_symbol_suffix",
+        matcher: StableIdAuditMatcher::Contains("stable_template_symbol_suffix"),
+    },
+    StableIdAuditPattern {
+        regex: "source_path.*decl_span",
+        matcher: StableIdAuditMatcher::ContainsAll(&["source_path", "decl_span"]),
+    },
+    StableIdAuditPattern {
+        regex: r"scoop\.lambda\$[0-9]+",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "scoop.lambda$",
+            suffix: "",
+        },
+    },
+    StableIdAuditPattern {
+        regex: r"scoop\.lambda_resume\$[0-9]+",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "scoop.lambda_resume$",
+            suffix: "",
+        },
+    },
+    StableIdAuditPattern {
+        regex: r"scoop\.lambda_env\$[0-9]+",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "scoop.lambda_env$",
+            suffix: "",
+        },
+    },
+    StableIdAuditPattern {
+        regex: r"__schema[0-9]+",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "__schema",
+            suffix: "",
+        },
+    },
+    StableIdAuditPattern {
+        regex: r"__k[0-9]+",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "__k",
+            suffix: "",
+        },
+    },
+    StableIdAuditPattern {
+        regex: r"t[0-9]+__",
+        matcher: StableIdAuditMatcher::PrefixDigitsSuffix {
+            prefix: "t",
+            suffix: "__",
+        },
+    },
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StableIdExternalSymbolRole {
+    RuntimeOrNativeImport,
+    FixedExternalException,
+    UserAbi,
+    CompilerPrivateHelper,
+}
+
+#[derive(Debug, Default)]
+struct StableIdObjectAudit {
+    all_external_symbols: Vec<String>,
+    runtime_or_native_imports: Vec<String>,
+    fixed_external_exceptions: Vec<String>,
+    user_abi_symbols: Vec<String>,
+    compiler_private_helpers: Vec<String>,
+}
+
+#[derive(Debug)]
+struct StableIdGrepHit {
+    root: &'static str,
+    path: String,
+    line_number: usize,
+}
+
+#[derive(Debug)]
+struct StableIdGrepAuditEntry {
+    pattern: &'static str,
+    hits: Vec<StableIdGrepHit>,
+}
 
 fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
     let nanos = SystemTime::now()
@@ -138,6 +329,441 @@ fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
     std::fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+impl StableIdAuditPattern {
+    fn matches(self, line: &str) -> bool {
+        match self.matcher {
+            StableIdAuditMatcher::Contains(needle) => line.contains(needle),
+            StableIdAuditMatcher::ContainsAll(needles) => {
+                needles.iter().all(|needle| line.contains(needle))
+            }
+            StableIdAuditMatcher::PrefixDigitsSuffix { prefix, suffix } => {
+                stable_id_line_contains_prefix_digits_suffix(line, prefix, suffix)
+            }
+        }
+    }
+}
+
+impl StableIdObjectAudit {
+    fn from_object(obj: &object::File<'_>) -> Self {
+        let mut audit = Self::default();
+        for symbol in obj.symbols() {
+            let kind = symbol.kind();
+            if matches!(
+                kind,
+                SymbolKind::Section | SymbolKind::File | SymbolKind::Label
+            ) {
+                continue;
+            }
+            let scope = symbol.scope();
+            let is_external = symbol.is_undefined()
+                || matches!(scope, SymbolScope::Linkage | SymbolScope::Dynamic);
+            if !is_external {
+                continue;
+            }
+            let Ok(raw_name) = symbol.name() else {
+                continue;
+            };
+            if raw_name.is_empty() {
+                continue;
+            }
+
+            let name = stable_id_normalize_object_symbol_name(raw_name).to_string();
+            audit.all_external_symbols.push(name.clone());
+            match stable_id_classify_external_symbol(&name, symbol.is_undefined()) {
+                StableIdExternalSymbolRole::RuntimeOrNativeImport => {
+                    audit.runtime_or_native_imports.push(name)
+                }
+                StableIdExternalSymbolRole::FixedExternalException => {
+                    audit.fixed_external_exceptions.push(name)
+                }
+                StableIdExternalSymbolRole::UserAbi => audit.user_abi_symbols.push(name),
+                StableIdExternalSymbolRole::CompilerPrivateHelper => {
+                    audit.compiler_private_helpers.push(name)
+                }
+            }
+        }
+        stable_id_sort_and_dedup(&mut audit.all_external_symbols);
+        stable_id_sort_and_dedup(&mut audit.runtime_or_native_imports);
+        stable_id_sort_and_dedup(&mut audit.fixed_external_exceptions);
+        stable_id_sort_and_dedup(&mut audit.user_abi_symbols);
+        stable_id_sort_and_dedup(&mut audit.compiler_private_helpers);
+        audit
+    }
+
+    fn summary(&self) -> String {
+        format!(
+            "external={:?}\nruntime/native={:?}\nfixed-external={:?}\nuser-abi={:?}\ncompiler-private={:?}",
+            self.all_external_symbols,
+            self.runtime_or_native_imports,
+            self.fixed_external_exceptions,
+            self.user_abi_symbols,
+            self.compiler_private_helpers,
+        )
+    }
+}
+
+fn stable_id_sort_and_dedup(symbols: &mut Vec<String>) {
+    symbols.sort();
+    symbols.dedup();
+}
+
+fn stable_id_normalize_object_symbol_name(name: &str) -> &str {
+    // Mach-O 会为 external symbol 额外加一个 `_` 前缀；审计时只去掉这层 ABI 装饰。
+    name.strip_prefix('_').unwrap_or(name)
+}
+
+fn stable_id_classify_external_symbol(
+    name: &str,
+    is_undefined: bool,
+) -> StableIdExternalSymbolRole {
+    if is_undefined || stable_id_symbol_looks_like_runtime_or_native_import(name) {
+        StableIdExternalSymbolRole::RuntimeOrNativeImport
+    } else if name == "main" {
+        StableIdExternalSymbolRole::FixedExternalException
+    } else if stable_id_symbol_looks_like_compiler_private_helper(name) {
+        StableIdExternalSymbolRole::CompilerPrivateHelper
+    } else {
+        StableIdExternalSymbolRole::UserAbi
+    }
+}
+
+fn stable_id_symbol_looks_like_runtime_or_native_import(name: &str) -> bool {
+    name.starts_with("scoop_")
+        || name.starts_with("llvm.")
+        || matches!(name, "malloc" | "free" | "exit")
+}
+
+fn stable_id_symbol_looks_like_compiler_private_helper(name: &str) -> bool {
+    name.starts_with("__scoop_")
+        || name.starts_with("scoop.lambda$")
+        || name.starts_with("scoop.lambda_resume$")
+        || name.starts_with("scoop.lambda_env$")
+        || name.contains(".$lambda")
+}
+
+fn stable_id_symbol_looks_like_closure_family(name: &str) -> bool {
+    name.contains("lambda") || name.contains("closure")
+}
+
+fn stable_id_symbol_looks_like_effect_helper_family(name: &str) -> bool {
+    name.contains("refactor_") || name.contains("__outcome") || name.contains("__k")
+}
+
+fn stable_id_symbol_looks_like_hidden_init_family(name: &str) -> bool {
+    name.contains("object_init")
+        || name.contains("top_level_init")
+        || name.contains("top_level_val_init")
+}
+
+fn stable_id_symbol_mentions_fqn(name: &str, fqn: &str) -> bool {
+    name.contains(fqn) || name.contains(&fqn.replace('.', "_"))
+}
+
+fn stable_id_emit_object_audit(prefix: &str, source: &SourceFile) -> StableIdObjectAudit {
+    let dir = make_temp_dir(prefix);
+    let output = dir.join("main.o");
+    let session = Session::new().unwrap();
+    emit_minimal_main_obj_to_file(&session, source, &output).unwrap();
+
+    let bytes = std::fs::read(&output).unwrap();
+    let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+    let audit = StableIdObjectAudit::from_object(&obj);
+
+    std::fs::remove_dir_all(&dir).unwrap();
+    audit
+}
+
+fn stable_id_repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn stable_id_collect_audit_files(
+    root_name: &'static str,
+    path: &Path,
+    files: &mut Vec<(&'static str, PathBuf)>,
+) {
+    let entries = std::fs::read_dir(path).unwrap_or_else(|err| {
+        panic!("failed to read stable-id audit root {root_name} at {path:?}: {err}")
+    });
+    for entry in entries {
+        let entry = entry
+            .unwrap_or_else(|err| panic!("failed to read directory entry under {path:?}: {err}"));
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            stable_id_collect_audit_files(root_name, &entry_path, files);
+            continue;
+        }
+        if entry_path.is_file() {
+            files.push((root_name, entry_path));
+        }
+    }
+}
+
+fn stable_id_run_grep_audit() -> Vec<StableIdGrepAuditEntry> {
+    let repo_root = stable_id_repo_root();
+    let mut files = Vec::new();
+    for root in STABLE_ID_AUDIT_SEARCH_ROOTS {
+        let path = repo_root.join(root);
+        assert!(path.is_dir(), "stable-id audit root should exist: {path:?}");
+        stable_id_collect_audit_files(root, &path, &mut files);
+    }
+
+    let mut entries = Vec::with_capacity(STABLE_ID_AUDIT_PATTERNS.len());
+    for pattern in STABLE_ID_AUDIT_PATTERNS {
+        let mut hits = Vec::new();
+        for (root_name, path) in &files {
+            let Ok(contents) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            for (line_number, line) in contents.lines().enumerate() {
+                if pattern.matches(line) {
+                    hits.push(StableIdGrepHit {
+                        root: root_name,
+                        path: stable_id_relative_repo_path(path),
+                        line_number: line_number + 1,
+                    });
+                }
+            }
+        }
+        entries.push(StableIdGrepAuditEntry {
+            pattern: pattern.regex,
+            hits,
+        });
+    }
+    entries
+}
+
+fn stable_id_relative_repo_path(path: &Path) -> String {
+    let repo_root = stable_id_repo_root();
+    path.strip_prefix(&repo_root)
+        .unwrap_or(path)
+        .display()
+        .to_string()
+}
+
+fn stable_id_line_contains_prefix_digits_suffix(line: &str, prefix: &str, suffix: &str) -> bool {
+    let bytes = line.as_bytes();
+    let prefix_bytes = prefix.as_bytes();
+    let suffix_bytes = suffix.as_bytes();
+    if prefix_bytes.is_empty() || bytes.len() < prefix_bytes.len() {
+        return false;
+    }
+
+    for start in 0..=bytes.len() - prefix_bytes.len() {
+        if !bytes[start..].starts_with(prefix_bytes) {
+            continue;
+        }
+        let mut cursor = start + prefix_bytes.len();
+        let digit_start = cursor;
+        while cursor < bytes.len() && bytes[cursor].is_ascii_digit() {
+            cursor += 1;
+        }
+        if cursor == digit_start {
+            continue;
+        }
+        if suffix_bytes.is_empty() || bytes[cursor..].starts_with(suffix_bytes) {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn stable_id_audit_contract_keeps_surface_boundary_explicit() {
+    for allowed in [
+        "symbol 文本",
+        "linkage",
+        "dump 文本",
+        "fixture expect",
+        "RTTI id",
+        "JSON identity 字段",
+    ] {
+        assert!(
+            STABLE_ID_ALLOWED_SURFACE_CHANGES.contains(&allowed),
+            "stable-id 审计必须显式记住允许变化的 surface: {allowed}"
+        );
+    }
+    for forbidden in [
+        "语义",
+        "运行结果",
+        "typecheck",
+        "effect / continuation / GC 行为",
+    ] {
+        assert!(
+            STABLE_ID_FORBIDDEN_BEHAVIOR_DRIFT.contains(&forbidden),
+            "stable-id 审计必须显式记住禁止漂移的行为: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn stable_id_audit_external_symbol_classifier_distinguishes_roles() {
+    assert_eq!(
+        stable_id_classify_external_symbol("scoop_runtime_init", true),
+        StableIdExternalSymbolRole::RuntimeOrNativeImport
+    );
+    assert_eq!(
+        stable_id_classify_external_symbol("main", false),
+        StableIdExternalSymbolRole::FixedExternalException
+    );
+    assert_eq!(
+        stable_id_classify_external_symbol("a.helper", false),
+        StableIdExternalSymbolRole::UserAbi
+    );
+    for helper in [
+        "__scoop_refactor_hidden_object_init_bridge__a.Boot",
+        "__scoop_top_level_val_init__a.Seed",
+        "scoop.lambda$0",
+        "scoop.lambda_resume$0",
+        "scoop.lambda_env$0",
+    ] {
+        assert_eq!(
+            stable_id_classify_external_symbol(helper, false),
+            StableIdExternalSymbolRole::CompilerPrivateHelper,
+            "expected compiler-private helper classification for {helper}"
+        );
+    }
+}
+
+#[test]
+fn stable_id_audit_grep_inventory_scans_repo_roots() {
+    let report = stable_id_run_grep_audit();
+    assert_eq!(
+        report.len(),
+        STABLE_ID_AUDIT_PATTERNS.len(),
+        "stable-id grep 审计应覆盖 STABLE_ID.md §11 的全部固定 pattern"
+    );
+    println!("stable-id grep audit summary:");
+    for entry in &report {
+        let sample_hits = entry
+            .hits
+            .iter()
+            .take(3)
+            .map(|hit| format!("{}:{} ({})", hit.path, hit.line_number, hit.root))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "  {} -> {} hit(s){}",
+            entry.pattern,
+            entry.hits.len(),
+            if sample_hits.is_empty() {
+                String::new()
+            } else {
+                format!(": {sample_hits}")
+            }
+        );
+    }
+}
+
+#[test]
+fn external_symbol_audit_top_level_and_materialized_generic_smoke() {
+    let source = SourceFile::new_virtual(
+        "<mem>/stable_id_audit_generic.scoop",
+        r#"
+package a
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun helper(): Int {
+    return id<Int>(1)
+}
+
+fun main(): Int {
+    return helper()
+}
+"#,
+    );
+    let audit = stable_id_emit_object_audit("stable_id_audit_generic", &source);
+
+    assert!(
+        !audit.all_external_symbols.is_empty(),
+        "stable-id object audit 应能看见 external symbol 集\n{}",
+        audit.summary()
+    );
+    assert!(
+        audit
+            .user_abi_symbols
+            .iter()
+            .any(|name| stable_id_symbol_mentions_fqn(name, "a.helper")),
+        "source-level top-level function 应进入 user ABI 审计视野\n{}",
+        audit.summary()
+    );
+    assert!(
+        audit
+            .user_abi_symbols
+            .iter()
+            .any(|name| stable_id_symbol_mentions_fqn(name, "a.id")),
+        "materialized generic callable 应进入 user ABI 审计视野\n{}",
+        audit.summary()
+    );
+}
+
+#[test]
+fn external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke() {
+    let source = SourceFile::new_virtual(
+        "<mem>/stable_id_audit_helpers.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+object Boot {
+    val ready: Int = 7
+}
+
+val Seed: Int = 9
+
+fun entry(): Int / (Ask) {
+    val captured = Boot.ready + Seed
+    val thunk: () -> Int / (Ask) = {
+        Ask.ask(captured)
+    }
+    return thunk()
+}
+
+fun main(): Int {
+    return handle {
+        entry()
+    } with {
+        Ask.ask(seed) -> seed
+    }
+}
+"#,
+    );
+    let audit = stable_id_emit_object_audit("stable_id_audit_helpers", &source);
+
+    assert!(
+        audit
+            .compiler_private_helpers
+            .iter()
+            .any(|name| stable_id_symbol_looks_like_closure_family(name)),
+        "closure body/resume/env 应对 stable-id object audit 可见\n{}",
+        audit.summary()
+    );
+    assert!(
+        audit
+            .compiler_private_helpers
+            .iter()
+            .any(|name| stable_id_symbol_looks_like_effect_helper_family(name)),
+        "effect helper shell / continuation outcome helper 应对 stable-id object audit 可见\n{}",
+        audit.summary()
+    );
+    assert!(
+        audit
+            .compiler_private_helpers
+            .iter()
+            .any(|name| stable_id_symbol_looks_like_hidden_init_family(name)),
+        "object init bridge/object init function/top-level init bridge 应对 stable-id object audit 可见\n{}",
+        audit.summary()
+    );
 }
 
 #[test]
