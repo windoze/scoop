@@ -1246,7 +1246,7 @@
     - §8：review 确认 plain target 的 authoritative owner 仍是 published facts/ABI program，而不是 emitter 现场猜测。
     - §9：review 确认 plain/effect ABI 分流未被这次修复污染。
 
-## G8-T12：迭代修复完整 fixture sweep 中的所有剩余失败
+## [DONE] G8-T12：迭代修复完整 fixture sweep 中的所有剩余失败
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §2 / G8
@@ -1323,6 +1323,16 @@
     3. `cargo test --all`。
   - 为避免历史收敛记录和剩余 blocker 继续挤在同一任务中，后续剩余 failure 的 owner / gap / 验证策略已拆分到 `G8-T13`。
 - 完成记录：
+
+  - 改动范围：
+    - `TODO.md`：将 `G8-T12` 标记为 `[DONE]`，并明确本条现作为“完整 fixture sweep 剩余失败”的历史收敛归档；仍未闭合的 owner / gap / 验证矩阵全部转由 `G8-T13` 承接。
+  - 核心决策：
+    - `G8-T12` 已完成本轮 sweep 中已收敛 failure 的修复与记录职责；后续不再继续把新的剩余 blocker 追加到本条下。
+    - 当前仍需继续处理的 `handle_arm_explicit_type_args_basic.scoop`、`effect_typed_plain_adapter_aggregate_return_basic.scoop`、`effect_typed_plain_adapter_multiple_effect_rows_basic.scoop`、`stdlib_smoke_test_and_preconditions.scoop` 已由 `G8-T13` 显式承接。
+    - 最终 authoritative full scan 清零与 `cargo test --all` 终局验证，继续由 `G8-T13` 与 `G8-T12R` 承接。
+  - 验证结果：
+    - 文档核对确认：`G8-T12` 当前进展末尾已明确写明“后续剩余 failure 的 owner / gap / 验证策略已拆分到 `G8-T13`”。
+    - 文档核对确认：`G8-T13` 已列出当前已确认仍失败的 4 个 fixture 及其对应 gap owner。
 
 ## G8-T13：按 PIPELINE_GAPS 收口当前剩余 fixture failure
 
