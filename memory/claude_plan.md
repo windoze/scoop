@@ -1,71 +1,33 @@
-## 当前执行计划
+## 本次执行计划
 
-1. 先读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务；不做开放式问题排查。
-2. 查看最近一次提交信息，确认是否有与该任务直接相关且明确未完成的事项；若有，将其视为该任务内容或前置依赖。
-3. 阅读当前任务要求、依赖、验证标准，以及实现所需的最小相关代码与测试文件。
-4. 实现该任务；若遇到阻塞当前任务的真实缺陷或缺失能力，不做绕行，而是在 `TODO.md` 中加入最小必要前置任务并停止。
-5. 运行与该任务直接相关的验证；必要时补充或修正测试，直到结果满足任务要求。
-6. 更新 `TODO.md`：将已完成任务标题标记为 `[DONE]`，并填写或更新完成记录；仅在阶段计划确有变化时更新 `PLAN.md`。
-7. 检查工作区改动，按要求创建一次 git 提交，然后停止，不继续下一个任务。
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 确定首个未完成任务。
+2. 检查最近一次提交信息是否直接提到与该任务相关且尚未完成的问题；若是，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
+3. 阅读当前任务要求、依赖、验证标准，以及必要的相关代码与测试。
+4. 以最小且正确的改动完成该任务；若发现阻塞且无法按规格继续，则先在 `TODO.md` 中补充最小前置任务并停止。
+5. 运行该任务要求的验证，以及必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`（若作用范围合理且可执行）。
+6. 更新 `TODO.md`：将完成的任务标题加上 `[DONE]`，补充完成记录；仅在阶段计划确实变化时更新 `PLAN.md`。
+7. 提交本次所有相关改动，提交信息使用当前任务编号。
 
-## 记录约定
+## 进展记录
 
-- 在识别出当前任务后，补充任务编号、目标、相关文件和验证命令。
-- 在关键步骤完成或计划发生变化时，及时更新本文件。
-- 这里记录的是简明执行依据与步骤，不记录无关的开放式排查内容。
-
-## 当前任务
-
-- 任务编号：`P1-T02`
-- 任务标题：落地 stable key / mangler / label API，并收口仓库内分叉 hash 实现
-- 来自 `TODO.md` 的直接要求：
-  - 在 `crates/scoopc/src/stable_id.rs` 中补齐 stable key、`AbiMangler`、`PrivateSymbolMangler` 与 stable local label API。
-  - 让 `StableConeKey` 基于 cone 名称 / 版本，而不是 `ConeId`。
-  - 让 `StableTemplateKey` / `StableInstanceKey` 脱离 `TemplateKey { fqn, source_path, decl_span }` 与 `TypeId` 作为 exported identity。
-  - 删除或迁移 `rtti/mod.rs`、`rtti/type_desc.rs`、`llvm/codegen/mod.rs`、`itable.rs` 中分叉的 hash helper。
-  - 固定 ABI/private symbol 命名模式并补测试。
-- 最近提交检查：`[P1-T01] Add shared stable-id primitives`，提交说明中未显式记录与 `P1-T02` 直接相关的未完成 blocker。
-
-## 预期相关文件
-
-- `crates/scoopc/src/stable_id.rs`
-- `crates/scoopc/src/lib.rs`
-- `crates/scoopc/src/frontend.rs`
-- `crates/scoopc/src/mir/materialize.rs`
-- `crates/scoopc/src/rtti/mod.rs`
-- `crates/scoopc/src/rtti/type_desc.rs`
-- `crates/scoopc/src/llvm/codegen/mod.rs`
-- `crates/scoopc/src/itable.rs`
-- `TODO.md`
-
-## 预期验证
-
-- `cargo test -p scoopc stable_id -- --nocapture`
-- 任务要求中的精确搜索：`fn stable_hash64`、`Sha256::digest`、`stable_template_symbol_suffix`
-- 视改动面补跑 `cargo test -p scoopc`
-- `cargo clippy -p scoopc --all-targets -- -D warnings`
-
-## 当前实现策略
-
-1. 先在 `crates/scoopc/src/stable_id.rs` 增加统一 stable key trait/struct、mangler、local label API，以及 shared overload-suffix helper。
-2. 把 `rtti/mod.rs`、`rtti/type_desc.rs`、`llvm/codegen/mod.rs`、`itable.rs` 的分叉 `stable_hash64` 全部切到 shared `stable_id::stable_hash64(scope, ...)`。
-3. 把 `hir/lower/util.rs` 与 `mir/materialize.rs` 的 `stable_template_symbol_suffix` 迁到 shared helper，并让其输入改为 `StableTemplateKey`，不再从 `source_path + decl_span` 构造 exported/stable identity。
-4. 为了让 overload suffix 真正使用 cone 名/version，把 `StableConeKey` 从 manifest-aware 调用链传到 HIR lowering / MIR materialize；dump / 单文件 helper 使用虚拟 cone key（文件 stem + `0.0.0`），显式 cone 路径从 `Cone.toml` 提供真实值。
-5. 补充 `stable_id` 单元测试与必要调用点测试，最后运行格式化、测试、clippy、grep，并回写 `TODO.md` / git commit。
-
-## 当前状态
-
-- `stable_id` 基础设施已落地，并已接入 HIR overload suffix、MIR materialization、RTTI/itable/runtime type id、LLVM codegen 相关 shared hash 调用点。
-- manifest-aware 路径（frontend / `.cone` export / pre-specialize）已显式传递真实 `StableConeKey`；单文件 dump/test helper 使用虚拟 cone key。
-- 验证已完成：
-  - `cargo fmt`
+- 已创建计划文件，下一步读取 `TODO.md` 并锁定首个未完成任务。
+- 已锁定首个未完成任务：`P1-T02R`（Review `stable_id` 基础设施，确认后续阶段已有唯一 authoritative API）。
+- 最近一次提交为 `[P1-T02] Unify stable-id keys and hash helpers`，提交信息未显式记录新的未完成阻塞项；本次按 `P1-T02R` 的 review 要求继续审阅。
+- 下一步：检查 `stable_id.rs`、`lib.rs`、`rtti/*`、`llvm/codegen/mod.rs`、`itable.rs`，并结合精确搜索确认是否仍有分叉 hash/helper 或 identity 来源未脱离 `ConeId` / path/span / `TypeId`。
+- 审阅结论：`stable_id.rs` 已提供后续 P2-P6 所需的唯一 key/hash/mangler/label authoritative API；未发现必须在 `P1-T02R` 前新增的 blocker/prerequisite。
+- 允许暂留的旧结构边界已确认并准备回写 `TODO.md`：
+  - `TemplateKey` / `InstanceKey` 仅保留为 MIR materialization 内部键，不再承担 exported identity。
+  - `StableConeKey::for_virtual_source_path(...)` 仅限单文件 dump / 测试 / manifest-less 虚拟源路径。
+  - RTTI closure env 仍使用 `ClosureId` 形状，后续由 `P6-T01` 收尾。
+  - `cone/archive.rs` 的 `SOURCES_SHA256` 属于内容 fingerprint，不属于 stable-id 协议 helper。
+- 验证完成：
   - `cargo test -p scoopc stable_id -- --nocapture`
   - `cargo test -p scoopc canonical_ -- --nocapture`
   - `cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct -- --nocapture`
   - `cargo test -p scoopc`
   - `cargo clippy -p scoopc --all-targets -- -D warnings`
-- grep 状态已收口：
-  - `fn stable_hash64` 仅剩 shared `stable_id.rs`
-  - `Sha256::digest` 在 `crates/scoopc/src` 中为 0 命中
-  - `stable_template_symbol_suffix` 仅剩 shared helper、两个生产调用点和审计测试引用
-- 待完成：检查 git diff / git status，创建本任务提交，然后停止。
+- 精确搜索结论（`crates/scoopc/src`）：
+  - `fn stable_hash64` 仅剩 `stable_id.rs`
+  - `Sha256::digest` 为 0 命中
+  - `stable_template_symbol_suffix` 仅剩 shared helper、两个调用模块与审计/单元测试引用
+- 当前下一步：提交 `TODO.md` 与 `memory/claude_plan.md` 的 review 结论，结束本次 invocation。

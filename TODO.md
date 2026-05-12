@@ -633,7 +633,7 @@
     - 对应 `PLAN.md` P1：仓库内已经存在后续 P2-P6 可复用的唯一 stable key / hash / mangler / local-label API，后续命名与 linkage 任务不必再自带一套规则。
     - 对应 `STABLE_ID.md` §6 / §7.3 / §8.1：`StableConeKey` 已脱离 `ConeId`，`StableTemplateKey` / `StableInstanceKey` 已脱离 path/span 与 `TypeId` exported identity，ABI/private symbol 模式固定为 `__scoop_abi0_*__h<hash128>` / `__scoop_priv0__<role>__h<hash128>`，且 shared hash helper 已覆盖此前分叉实现与 overload suffix 来源。
 
-### [TODO] P1-T02R：Review `stable_id` 基础设施，确认后续阶段已有唯一 authoritative API
+### [DONE] P1-T02R：Review `stable_id` 基础设施，确认后续阶段已有唯一 authoritative API
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P1
@@ -656,7 +656,31 @@
   - 可以明确写出：P2-P6 的所有 identity 逻辑都必须只通过 `stable_id` 模块接入。
 - 依赖：P1-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+  - 核心决策：
+    - 本任务按 review 范围复核了 `crates/scoopc/src/stable_id.rs`、`lib.rs`、`rtti/mod.rs`、`rtti/type_desc.rs`、`llvm/codegen/mod.rs`、`itable.rs`，并补查了 `hir/lower/util.rs` 与 `mir/materialize.rs` 的 stable key 构造路径；结论是 `stable_id.rs` 已经是后续 P2-P6 唯一可复用的 key/hash/mangler/label authoritative API。
+    - `stable_id.rs` 当前已集中提供 `StableCanonicalKey` / `StableSymbolKey`、`StableConeKey`、`StableDefKey`、`StableTemplateKey`、`StableInstanceKey`、`StableClosureKey`、`StableCallSiteKey`、`StableEffectSchemaKey`、`StableContinuationSchemaKey`、`StableBoundaryKey`、`StableStateKey`、`StableFrameSlotKey`、`AbiMangler`、`PrivateSymbolMangler`、`stable_hash64` / `stable_hash128_hex` / `stable_digest`、`stable_local_label` / `stable_dump_label`；`lib.rs` 也已公开 `pub mod stable_id;`，后续阶段无需再自带第二套 API。
+    - `StableConeKey` 的 production 路径已经显式走 manifest：`frontend`、`.cone` export、`pre_specialize` 等入口都使用 `StableConeKey::from_manifest(...)`；`hir/lower/util.rs` 与 `mir/materialize.rs` 中构造 `StableTemplateKey` 的逻辑只再依赖 `stable_cone_key + fqn + namespace + declaration_kind + signature_key`，未把 `ConeId`、`source_path`、`decl_span` 或 `TypeId` 回灌进 exported identity。
+    - 剩余允许保留的旧结构与职责边界如下：
+      - `mir/materialize.rs` 中的 `TemplateKey` / `InstanceKey` 继续只作为 materialization 内部查找键，可保留 `source_path`、`decl_span` 与 `TypeId`；它们不再承担 exported identity，真正对外 key 已由 `StableTemplateKey` / `StableInstanceKey` 预留给后续 P4 接入。
+      - `StableConeKey::for_virtual_source_path(...)` 仅保留给单文件 dump、测试 helper 与 manifest-less 虚拟源路径；它不属于 build/frontend 的 production cone identity 来源。
+      - `rtti/mod.rs`、`rtti/type_desc.rs`、`itable.rs`、`llvm/codegen/mod.rs` 已统一通过 `stable_hash64(StableHashScope::RttiV0, ...)` 接入 shared hash helper；其中 `rtti/type_desc.rs` 的 closure env canonical name / `type_id` 仍暂时使用 `ClosureId` 形状 `scoop.lambda_env$N`，这是 `P6-T01` 明确要收尾的剩余旧结构，不构成当前 review 的新前置阻塞。
+      - `crates/scoopc/src/cone/archive.rs` 仍保留 `SOURCES_SHA256` 的内容摘要实现；该路径只负责归档内容 fingerprint，不参与 stable-id 的 key/hash/mangling 协议，因此允许继续独立使用 SHA-256。
+      - `AbiMangler` / `PrivateSymbolMangler` 已经是唯一 authoritative 命名 API，但实际 LLVM 命名调用点迁移仍按计划留在 P2-P4，不在本 review 中提前改动。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc canonical_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 精确搜索摘要（`crates/scoopc/src`）：
+      - `fn stable_hash64`：仅剩 `crates/scoopc/src/stable_id.rs`
+      - `Sha256::digest`：0 命中
+      - `stable_template_symbol_suffix`：仅剩 shared helper、本轮两个调用模块（`hir/lower/util.rs`、`mir/materialize.rs`）以及 stable-id 审计/单元测试引用
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P1 review 验收：已确认后续 P2-P6 需要的新 identity 入口均已在 `stable_id` 模块中集中定义；继续推进 linkage、private naming、ABI naming、dump/RTTI 收口时，不需要再新建第二套 key/hash/mangler 规则。
+    - 对应 `STABLE_ID.md` §6 / §7 / §8.1：`StableConeKey` 已明确区分 manifest-aware production 来源与 virtual-source 测试来源，`StableDefKey` / `StableTemplateKey` / `StableInstanceKey` 的语义边界已与 `ConeId`、path/span、`TypeId` 脱钩；剩余 closure env RTTI 旧输入边界也已明确记账到后续 P6，而不是继续模糊地留在 shared API 之外。
 
 ## P2：收紧 linkage，先处理 external namespace 污染
 
