@@ -40,3 +40,5 @@
 - 验证进展：`cargo fmt`、4 组定向测试、`cargo test -p scoopc`、`cargo clippy -p scoopc --all-targets -- -D warnings` 均已通过。
 - 文档进展：已在 `TODO.md` 将 `P7-T01C` 标记为 `[DONE]` 并补齐完成记录；`PLAN.md` 无需更新。
 - 剩余步骤：检查提交面、创建 `[P7-T01C] ...` 提交、记录提交完成并停止。
+
+- 提交进展：已创建提交 `28f3b506`（`[P7-T01C] Canonicalize RTTI type-id inputs`），`git status --short` 为空，当前工作区干净。
