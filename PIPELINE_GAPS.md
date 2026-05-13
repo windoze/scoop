@@ -109,9 +109,9 @@
 
 ### 2.3 raw MIR codegen 最终拒绝 Todo
 
-- 状态：`Open`。
-- 结论：`pass MIR statement todo`、`pass MIR terminator`、`pass MIR rvalue` 仍是 downstream guard bucket。它们的存在是合理的，但 production MIR 不应把这些 guard 当主线能力使用。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1526-1529`，`crates/scoopc/src/llvm/codegen/mir_body.rs:1627-1632`，`crates/scoopc/src/llvm/codegen/mir_body.rs:1801-1804`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`pass MIR statement todo`、`pass MIR terminator`、`pass MIR rvalue` 仍保留在 raw MIR codegen 作为最终 impossible-state guard，但 production/materialized MIR 现在必须更早通过 strict verifier / materializer 拒绝 `Todo`、missing root 与 unresolved concrete param。`codegen_gap_inventory.rs` 中的 `§2.3` 仅再表示 upstream contract guard，而不是 live feature gap 或 production blocker。
+- 证据：`crates/scoopc/src/mir/mod.rs`，`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen_gap_inventory.rs`。
 
 ### 2.4 `Return { value: None }` contract 不一致
 
@@ -121,9 +121,9 @@
 
 ### 2.5 generic template / MIR root 缺失是 hard error
 
-- 状态：`Open`。
-- 结论：这仍是 materialization contract 的 hard error，但它更像“上游根索引缺失”而不是 LLVM backend 实现缺口。
-- 证据：`crates/scoopc/src/mir/materialize.rs:257-269`。
+- 状态：`Closed/Re-scoped`。
+- 结论：materializer 现在会在 template catalog、call-site binding 和 request seeding 阶段把 missing generic template / missing MIR root 统一提升为 `MirMaterializeError::MissingGenericTemplate` / `MissingMirRootForTemplate` 的 source-level hard error；默认主线不再把它们当成 LLVM backend gap。
+- 证据：`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/mir/materialize.rs:10324-10479`。
 
 ### 2.6 effect-row generic direct-call instance 推断依赖 site binding
 
@@ -132,9 +132,9 @@
 
 ### 2.7 `TypeKind::Param` 仍可能到达 codegen
 
-- 状态：`Partial`。
-- 结论：已修复当前可复现的 materialized direct-call contract drift：codegen 不再把 generic template body 当作 concrete materialized callable，pure direct-call lowering 会把有 concrete instance 的 generic template 路由到 materialized plain MIR call；call-site binding 中仍含 `TypeKind::Param` 时也不得覆盖已经具体化的 fallback FQN。`TypeKind::Param` 在 codegen 侧仍保留为高价值 guard，未来若有新 surface 命中应继续视为上游单态化/typed contract 漏洞。
-- 证据：`crates/scoopc/src/llvm/codegen/mod.rs:1851-1947`，`crates/scoopc/src/llvm/codegen/mir_body.rs:94-121`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1684-1716`，`tests/fixtures/run-pass/generic_fun_recursion.scoop:1-20`。
+- 状态：`Closed/Re-scoped`。
+- 结论：successful materialized MIR 现在会验证并拒绝 frame slot、return、effect row、call target 与 transport metadata 中残留的 concrete-path `TypeKind::Param`；canonical `MaterializedMirPassView` 也只发布 concrete callable/root lookup。codegen 侧剩余的 `TypeKind::Param` 检测只再表示 monomorph miss / impossible-state guard，或 `§2.8` 的 resume-surface 特例，而不再是默认主线的正常结果。
+- 证据：`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/mir/pass_view.rs`，`crates/scoopc/src/llvm/codegen/mod.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`tests/fixtures/run-pass/generic_fun_recursion.scoop:1-20`。
 
 ### 2.8 resume surface 对裸 type param 有特例，普通 source value 没有
 
@@ -369,7 +369,7 @@
 
 ## 8. 建议收口顺序
 
-1. 先把 pre-MIR / MIR handoff contract 收紧：`§1.1`、`§1.4`、`§2.1`、`§2.3`、`§2.4`、`§2.7` 应继续向更早阶段 fail-fast，避免再把 `UnsupportedMainBody` 当成生产输入校验器。
+1. pre-MIR / MIR handoff contract 已基本收紧；后续只需继续保持 `§2.3` / `§2.7` 的 guard-only 语义，不要再让 `UnsupportedMainBody` 承担 production 输入校验角色。
 2. 收口 raw MIR residual effect/control routing：`§3.1`、`§3.2`、`§3.3`、`§3.6` 应保证“要么先转 late-lowered/published boundary，要么 upstream verifier 明确拒绝”。
 3. 完成 effect-refactor 的 ABI/routing 主线：优先处理 `§3.12`、`§5.1`、`§5.3`、`§5.4`，确保 actual outward effect set 真正决定 callable ABI。
 4. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。

@@ -6689,7 +6689,6 @@ fn infer_member_call_expr_type(
     // T0130：bound 驱动的方法分发——当 receiver 为 TypeKind::Param 时，
     // 通过 where 约束查找 bound 接口的方法集合。
     if let TypeKind::Param(p) = lower.type_kind(actual_receiver_ty) {
-        let member_name = source.slice(member.span);
         let param_name = p.name.clone();
 
         if let Some(ret) = try_infer_where_bound_method_call(
@@ -6698,7 +6697,7 @@ fn infer_member_call_expr_type(
             receiver,
             actual_receiver_ty,
             &param_name,
-            member_name,
+            member,
             args,
             explicit_type_args,
             safe,
@@ -9218,9 +9217,9 @@ fn try_infer_where_bound_method_call(
     receiver: &ast::Expr,
     receiver_ty: TypeId,
     param_name: &str,
-    member_name: &str,
+    member: &ast::MemberIdent,
     args: &[ast::Expr],
-    _explicit_type_args: Option<&[TypeId]>,
+    explicit_type_args: Option<&[TypeId]>,
     safe: bool,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
@@ -9229,6 +9228,7 @@ fn try_infer_where_bound_method_call(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let member_name = source.slice(member.span);
     let inputs = ExprInferInputs {
         source,
         builtins,
@@ -9252,6 +9252,8 @@ fn try_infer_where_bound_method_call(
         .into_iter()
         .map(|b| (b.bound.clone(), b.decl_file.clone()))
         .collect();
+
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
 
     for (bound_ref, decl_file) in &bound_entries {
         // Lower bound type ref 在声明处文件上下文中。
@@ -9285,8 +9287,12 @@ fn try_infer_where_bound_method_call(
         }
 
         // 找到了匹配的 bound 方法——按照普通 member method call 的模式进行类型检查。
-        let call_args = collect_call_arg_infos(inputs, args, lower)?;
         check_call_arg_named_rules(&method_fqn, &call_args)?;
+        check_call_named_args_exist_in_any_candidate(
+            &method_fqn,
+            &call_args,
+            sigs.iter().filter_map(|sig| sig.param_names.get(1..)),
+        )?;
 
         // 用 receiver 作为隐式第 0 个参数（使用 TypeKind::Param 的原始类型）。
         let receiver_arg = CallArgInfo {
@@ -9302,7 +9308,7 @@ fn try_infer_where_bound_method_call(
         call_args_with_receiver.extend(call_args.iter().cloned());
 
         // 尝试对每个签名候选进行匹配。
-        for cand in &sigs {
+        'candidates: for cand in &sigs {
             let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
                 &call_args_with_receiver,
                 &cand.param_names,
@@ -9315,33 +9321,166 @@ fn try_infer_where_bound_method_call(
             let mapping_pairs = expand_param_arg_pairs(&mapping);
             let mut generic_constraints: Vec<GenericArgConstraint> =
                 Vec::with_capacity(mapping_pairs.len());
-            let ok = true;
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                 let arg = &call_args_with_receiver[arg_idx];
                 generic_constraints.push(GenericArgConstraint {
                     expected: cand.params[param_idx],
                     found: arg.ty,
                     found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
-                    from: format!("第 {} 个实参", arg_idx + 1),
+                    from: if arg_idx == 0 {
+                        "接收者（receiver）".to_string()
+                    } else {
+                        format!("第 {} 个实参", arg_idx)
+                    },
                     span: arg.expr.span,
                 });
             }
-            if !ok {
-                continue;
-            }
 
-            let instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+            let mut instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
                 &method_fqn,
                 call_expr.span,
                 cand,
-                None,
+                explicit_type_args,
                 generic_constraints,
                 lower,
                 builtins,
             ) {
                 Ok(s) => s,
-                Err(_) => continue,
+                Err(_) => continue 'candidates,
             };
+
+            if check_fun_where_constraints_after_instantiation(
+                &method_fqn,
+                call_expr.span,
+                cand,
+                &instantiated.type_args,
+                lower,
+                builtins,
+            )
+            .is_err()
+            {
+                continue 'candidates;
+            }
+
+            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                let expected_ty = instantiated.params[param_idx];
+                let arg = &call_args_with_receiver[arg_idx];
+                let found_ty = arg.ty;
+
+                if arg.is_spread {
+                    if !cand
+                        .param_is_vararg
+                        .get(param_idx)
+                        .copied()
+                        .unwrap_or(false)
+                    {
+                        continue 'candidates;
+                    }
+                    let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                        continue 'candidates;
+                    };
+                    if elem_tys
+                        .into_iter()
+                        .any(|elem_ty| !is_type_assignable(elem_ty, expected_ty, lower, builtins))
+                    {
+                        continue 'candidates;
+                    }
+                    continue;
+                }
+
+                if is_type_assignable(found_ty, expected_ty, lower, builtins)
+                    || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+                {
+                    continue;
+                }
+                continue 'candidates;
+            }
+
+            let eff_arg = cand
+                .eff_param
+                .as_ref()
+                .map(|param| param.default.clone())
+                .unwrap_or_else(EffectRow::pure);
+            if instantiate_eff_row_var_in_sig_types(
+                cand,
+                &mut instantiated,
+                &eff_arg,
+                lower,
+                call_expr.span,
+            )
+            .is_err()
+            {
+                continue 'candidates;
+            }
+
+            check_unsafe_call_gate(&method_fqn, cand, call_expr.span, lower)?;
+            check_nogc_call_gate(&method_fqn, cand, call_expr.span, lower)?;
+            check_const_fun_call_gate(&method_fqn, cand, call_expr.span, lower)?;
+            emit_deprecated_call_warning(&method_fqn, cand, call_expr.span, lower);
+
+            let type_param_bindings = type_param_bindings_from_sig(&cand.type_params, lower);
+            let eff_bindings: Vec<(String, EffectRow)> = cand
+                .eff_param
+                .as_ref()
+                .map(|param| vec![(param.name.clone(), eff_arg.clone())])
+                .unwrap_or_default();
+            let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+                &cand.decl_file,
+                type_param_bindings,
+                eff_bindings,
+                cand.effects.as_ref(),
+            );
+            let call_effects = substitute_type_args_in_effect_row(
+                lowered_effects?,
+                &cand.type_params,
+                &instantiated.type_args,
+                lower,
+                call_expr.span,
+            )?;
+            for effect in call_effects.terms.iter().copied() {
+                lower.record_performed_effect(effect, call_expr.span);
+            }
+
+            // where-bound receiver 没有名义 owner 可从 `receiver_ty` 反推；实例身份应显式保留
+            // bound 接口实参，再拼接方法自身的泛型实参。
+            let mut type_args = bound_args.clone();
+            type_args.extend(instantiated.type_args.iter().copied());
+            let eff_args = cand
+                .eff_param
+                .as_ref()
+                .map(|_| vec![eff_arg.clone()])
+                .unwrap_or_default();
+
+            lower.record_typechecked_member_resolution(
+                member.span,
+                ast::ResolvedMemberRef::Fun {
+                    fqn: method_fqn.clone(),
+                },
+            );
+            lower.record_monomorph_call(
+                method_fqn.clone(),
+                &cand.decl_file,
+                cand.decl_span,
+                &type_args,
+                &eff_args,
+                call_expr.span,
+            );
+            lower.record_top_level_fun_call_binding(
+                call_expr.span,
+                ast::TopLevelFunCallBinding {
+                    fqn: method_fqn.clone(),
+                    decl_file: cand.decl_file.clone(),
+                    decl_span: cand.decl_span,
+                    is_intrinsic: cand.is_intrinsic,
+                    type_args,
+                    eff_args,
+                },
+            );
+            if let Some(binding) =
+                call_arg_binding_from_mapping_with_receiver(&mapping, &call_args_with_receiver)
+            {
+                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+            }
 
             let ret = if safe {
                 lower.ty_option(instantiated.return_ty)

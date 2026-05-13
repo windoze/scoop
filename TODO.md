@@ -506,7 +506,7 @@
     - 对应 `PLAN.md` P2 第 3、4、7 项：`unterminated` 已从“允许通过 direct-style validator 的 builder sentinel”收紧为 strict verifier hard failure；`Return { value: None }` contract 已在 production/materialized handoff 上统一，并从 raw MIR codegen 中移除默认值 fallback。
     - `PIPELINE_GAPS.md` 已回写 `§2.1`、`§2.4` 为 `Closed/Re-scoped`；`§2.3` 仍保留为 downstream impossible-state guard bucket，留待 `P2-T03` 继续收口。
 
-### [TODO] P2-T03：收紧 materialization/root/no-param handoff，并把 `§2.3` 降为 pure impossible-state guard
+### [DONE] P2-T03：收紧 materialization/root/no-param handoff，并把 `§2.3` 降为 pure impossible-state guard
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -551,9 +551,26 @@
 - 依赖：`P2-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/typecheck/expr/call.rs`，让 `TypeKind::Param` 的 where-bound member call 不再只返回类型；现在会同步发布 `ResolvedMemberRef::Fun`、`TopLevelFunCallBinding`、`CallArgBinding`、monomorph request 与 required effects，确保 `T: ToString` 这类 generic/sysroot 调用能穿过 typed HIR call-contract handoff。
+    - 新增 `crates/scoopc/src/pipeline/hir_stage.rs` 回归测试 `refactor_hir_call_contracts_publish_where_bound_member_dispatch`，锁定 `where T: ToString` 上 `value.toString()` 会发布 `TypedCallSiteContract::Interface`。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`，将 `PIPELINE_GAPS §2.3` 从 production blocker 收紧为 upstream impossible-state guard，并新增定向单测固定该语义。
+    - 更新 `PIPELINE_GAPS.md`，将 `§2.3`、`§2.5`、`§2.7` 回写为 `Closed/Re-scoped`，并同步重写建议收口顺序中的 handoff 说明。
   - 核心决策：
+    - 保留 raw MIR codegen 对 `pass MIR Todo` 的最终拒绝，但只把它作为 downstream impossible-state guard；production/materialized 主线必须更早在 verifier/materializer 上失败，不能再把它当 live feature gap 或 production blocker。
+    - missing generic template / missing MIR root / concrete-path `TypeKind::Param` 统一冻结为 canonical handoff 错误：前者在 materializer 入口给 source-level hard error，后者在 materialized MIR validation 里直接拒绝；不引入 fallback FQN、默认 type arg 或 late codegen guess。
+    - where-bound member call 必须发布和普通 member dispatch 等价的 typed contract。否则 generic `print/println` 与其它 bound-interface 调用即使 typecheck 通过，也会在 HIR stage 因“缺少 typed call-site contract”失败，破坏 materialization/root handoff 的主线验证。
   - 验证结果：
+    - `cargo test -p scoopc refactor_materialized_mir`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc refactor_hir_call_contracts_publish_where_bound_member_dispatch`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/generic_materialization.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/generic_fun_recursion.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/tostring_interface_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg -c 'TypeKind::Param|MaterializedTodo|MissingMirRootForTemplate|MissingGenericTemplate' crates/scoopc/src`：命中现在集中在 materializer diagnostics/validation（`mir/materialize.rs`: 30）、generic param type-system plumbing（如 `typecheck/lower.rs`: 13、`typecheck/expr/call.rs`: 16、`hir/lower/util.rs`: 12），以及 codegen impossible-state guard（`llvm/codegen/{layout,ty,mod,mir_body,composite_transport,effect_lowered/layout}.rs`: 14 个总命中）；未再发现把这些 bucket 当 production fallback 能力使用的新 active 路径。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P2 第 5、6 项：materialized MIR handoff 现在把 missing template/root 与 unresolved concrete param 明确冻结为 canonical hard failure；canonical `MaterializedMirPassView` / instance key lookup 继续作为 codegen 主入口，不再依赖 late root guess。
+    - `PIPELINE_GAPS.md` 已回写 `§2.3`、`§2.5`、`§2.7` 为 `Closed/Re-scoped`；`§2.3` 仅剩 downstream impossible-state 审计语义，`§2.8` 的 resume-surface 特例继续作为独立 historical bucket 保留。
 
 ## P3：收口 raw MIR route 与 call/member contract
 

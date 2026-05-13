@@ -3568,6 +3568,31 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
     }
 
     #[test]
+    fn refactor_hir_call_contracts_publish_where_bound_member_dispatch() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_where_bound_call_contracts.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun <T> stringify(value: T): String where T: ToString {
+    return value.toString()
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("where-bound member call should lower");
+        let contracts = output.effect_contracts().call_site_contracts();
+
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::Interface(member)
+                if member.owner_fqn() == "scoop.core.ToString"
+                    && member.member_name() == "toString"
+        )));
+    }
+
+    #[test]
     fn refactor_hir_with_update_publishes_copy_update_contracts() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(

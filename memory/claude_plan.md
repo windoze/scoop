@@ -1,67 +1,51 @@
-# 执行计划
+## 当前执行计划
 
-## 说明
+说明：按要求先记录执行计划与进度。这里记录的是可审计的执行步骤、假设、发现与变更，不包含内部推理细节。
 
-按要求先记录可公开的执行思路摘要与分步计划，再开始读取任务与执行命令。这里记录的是面向协作的计划与决策摘要，不包含逐词内部推理。
+### 初始计划
 
-## 初始计划
+1. 读取 `TODO.md`，识别首个标题未带 `[DONE]` 的任务；不做开放式问题排查。
+2. 查看最近提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若有，则将其视为当前任务的一部分或作为前置任务写入 `TODO.md`。
+3. 阅读该任务及其依赖中明确要求的相关代码、测试、文档位置，建立最小必要上下文。
+4. 实现该任务要求；若遇到阻塞当前任务且不能以规范方式完成的缺陷或缺失能力，则在 `TODO.md` 中增加最小前置任务并停止继续后续任务。
+5. 运行该任务要求的验证，以及受影响范围内必要的测试、格式化、lint（包括 `cargo clippy --all-targets -- -D warnings`，若适用）。
+6. 更新 `TODO.md`：仅当任务真正完成时，在任务标题前加 `[DONE]`，并补充 completion record；若只是发现阻塞，则保持任务未完成并写明新增前置任务与依赖。
+7. 仅在阶段计划、依赖结构或完成标准变化时更新 `PLAN.md`。
+8. 检查工作区改动，保留非本人改动；将当前任务相关改动与必要的任务记录更新一起提交到 Git。
+9. 停止，不进入下一个任务。
 
-1. 读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交信息，判断是否存在与该任务直接相关且明确未完成的问题；若有，则将其视为当前任务组成部分或按要求写入 `TODO.md` 作为前置。
-3. 阅读与当前任务直接相关的代码、测试、文档与任务说明，确认约束、依赖、验收方式。
-4. 如无阻塞，直接实现该任务；如有真实阻塞，按要求仅新增最小前置任务并更新 `TODO.md`/必要时更新 `PLAN.md`。
-5. 运行该任务要求的验证，以及必要的回归测试、格式化、lint/编译检查，修复发现的问题。
-6. 完成后更新 `TODO.md`：给任务标题加上 `[DONE]`，补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 将本次相关改动提交到 git，提交信息使用任务号并准确描述本次完成内容。
-8. 停止，不继续处理下一个任务。
+### 进度记录
 
-## 进度记录
-
-- 已读取 `TODO.md`，确认首个未完成任务为 `P2-T02`：收紧 production MIR verifier，拒绝 `unterminated` 与非 `Unit` 的 `Return { value: None }`。
-- 最近提交为 `[P2-T01] Close comptime and top-level val MIR handoff gaps`，提交标题未显式声明与 `P2-T02` 直接相关的未完成前置问题；按当前信息继续执行 `P2-T02`。
-
-## 当前任务摘要：P2-T02
-
-### 目标
-
-1. 让 production MIR verifier 将 `unterminated` 视为 hard failure。
-2. 统一 `Return { value: None }` 规则：仅 `Unit` 返回允许省略值；非 `Unit` 必须显式携带返回值。
-3. 删除 raw MIR codegen 中对 non-`Unit` `Return { value: None }` 的默认返回值兜底。
-4. 为上述 contract 补负向测试，并验证相关 fixture 不回退。
-
-### 预定执行步骤
-
-1. 检查工作树状态，避免误覆盖已有改动。
-2. 阅读以下入口并确认当前行为：
-   - `crates/scoopc/src/mir/mod.rs`
-   - `crates/scoopc/src/mir/placeholder_inventory.rs`
-   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
-   - 与 `refactor_mir_no_todo*`、`while_break_continue`、`handle_perform` 相关测试。
-3. 识别 `unterminated` 与 `ReturnNone` 的真实生产路径、测试覆盖和潜在耦合控制流。
-4. 先在 verifier 层收紧 contract，再删除 codegen fallback；若这暴露出 CFG 生成漏洞，则一并修正产生该漏洞的路径。
-5. 增补或收紧测试，确保 negative case 与正向 fixture 都覆盖。
-6. 运行任务要求的测试、相关定向测试及 `cargo clippy --all-targets -- -D warnings`。
-7. 回写 `TODO.md` 完成记录，并提交本次改动。
-
-## 当前进度更新
-
-1. 已完成 `crates/scoopc/src/mir/mod.rs` 修改：`validate_refactor_direct_style()` 现在会通过 forbidden-todo 规则直接拒绝 `unterminated` sentinel，并已补 direct-style 负例测试。
-2. 已完成 `crates/scoopc/src/mir/materialize.rs` 修改：materialized MIR 现在会拒绝 non-`Unit` 的 `Return { value: None }`，并已补对应负例测试。
-3. 已完成 `crates/scoopc/src/llvm/codegen/mir_body.rs` 修改：raw MIR codegen 不再为 non-`Unit` 空返回合成默认值，而是仅允许 `Unit` 空返回；并补了 helper 级单测。
-4. 下一步：运行任务要求的定向测试与 `cargo clippy --all-targets -- -D warnings`，确认无编译/风格回归；随后回写 `PIPELINE_GAPS.md`、`TODO.md` 并提交。
-
-## 验证与文档回写进度
-
-1. 已完成验证：
-   - `cargo test -p scoopc refactor_mir_no_todo`
-   - `cargo test -p scoopc refactor_mir_no_return_none`
-   - `cargo test -p scoopc refactor_mir_placeholder_inventory`
-   - `cargo test -p scoopc refactor_materialized_mir`
-   - `cargo test -p scoopc codegen_gap_inventory`
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/while_break_continue.scoop`
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`
-   - `cargo clippy --all-targets -- -D warnings`
-2. 已完成文档回写：
-   - `PIPELINE_GAPS.md`：`§2.1`、`§2.4` 已改为 `Closed/Re-scoped`。
-   - `TODO.md`：`P2-T02` 已标记为 `[DONE]`，完成记录已补齐。
-3. 剩余步骤：检查最终 diff 与工作树状态，按任务号创建 git commit，然后停止。
+- 已完成：创建本文件并写入初始计划。
+- 已完成：读取 `TODO.md`，确认首个未完成任务为 `P2-T03`（`P2-T02` 已标记 `[DONE]`）。
+- 已完成：检查最近提交，`git log -1` 为 `[P2-T02] Reject unterminated and empty non-Unit returns before codegen`，提交信息未显式声明与 `P2-T03` 直接相关的未完成事项。
+- 已完成：检查工作区；当前仅有本文件未提交，未发现其他残留改动需要一并纳入当前任务。
+- 已完成：运行 `P2-T03` 关键验证，发现 `tests/fixtures/run-pass/generic_fun_recursion.scoop` 失败，构成当前任务的直接阻塞。
+- 已完成：直接复现失败，`cargo run -p scoop -- build tests/fixtures/run-pass/generic_fun_recursion.scoop ...` 报 `typed HIR call contract` 错误：`sysroot/print.scoop` 中 `call expression missing typed call-site contract`。
+- 已完成：定位根因到 `crates/scoopc/src/typecheck/expr/call.rs::try_infer_where_bound_method_call(...)`。该路径对 `TypeKind::Param` 的 where-bound member call（如 `T: ToString` 上的 `value.toString()`）只返回类型，不记录 `TopLevelFunCallBinding`、`CallArgBinding`、member resolution 或 monomorph request，导致 HIR stage 无法发布 typed call-site contract。
+- 已完成：修复 where-bound member call contract 发布缺口；`TypeKind::Param` receiver 的 bound-interface 调用现在会同步记录 member resolution、top-level call binding、arg binding、monomorph request 与 required effects。
+- 已完成：新增 HIR-stage 回归测试 `refactor_hir_call_contracts_publish_where_bound_member_dispatch`，锁定 `where T: ToString` 上 `value.toString()` 会发布 `TypedCallSiteContract::Interface`。
+- 已完成：更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`，把 `PIPELINE_GAPS §2.3` 改写为 non-blocking upstream impossible-state guard，并新增 inventory 单测固定该语义。
+- 已完成：更新 `PIPELINE_GAPS.md`，将 `§2.3`、`§2.5`、`§2.7` 回写为 `Closed/Re-scoped`，并同步修正建议收口顺序说明。
+- 已完成：更新 `TODO.md`，将 `P2-T03` 标记为 `[DONE]` 并补齐完成记录。
+- 已完成：验证通过：
+  - `cargo test -p scoopc refactor_materialized_mir`
+  - `cargo test -p scoopc codegen_gap_inventory`
+  - `cargo test -p scoopc refactor_hir_call_contracts_publish_where_bound_member_dispatch`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/generic_materialization.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/generic_fun_recursion.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/tostring_interface_basic.scoop`
+  - `cargo clippy --all-targets -- -D warnings`
+- 说明：一次并行验证中的 `generic_fun_recursion.scoop` 曾因并行运行超时；随后单独串行复跑已快速通过，未复现真实挂死。
+- 细化计划（针对 `P2-T03`）：
+  1. 阅读 `P2-T03` 涉及的实现与测试入口：`mir/materialize.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/mir_body.rs`、`llvm/codegen/effect_lowered/value.rs`、相关测试与 `PIPELINE_GAPS.md` §2.3/§2.5/§2.7。
+  2. 识别当前 materialized MIR 仍可能保留的三类问题：`MaterializedTodo`、missing root / missing generic template、concrete path `TypeKind::Param` 漏到 codegen。
+  3. 以最小改动收紧 handoff contract：
+     - materializer 对 missing template/root 直接报 source-level hard error；
+     - 在 materialization 阶段消除 concrete path `TypeKind::Param` 漏出；
+     - 下游 codegen guard 保留，但改成 impossible-state / compiler bug sentinel 语义。
+  4. 补或收紧测试，覆盖 materialized root index / instance key 查询，以及 negative cases。
+  5. 先修复当前阻塞：为 where-bound member call 补齐与普通 member dispatch 等价的 typed call contract 发布，确保 `generic_fun_recursion.scoop` 能通过，并避免 generic/sysroot 调用再次在 HIR stage 漏 contract。
+  6. 回写 `PIPELINE_GAPS.md` 与 `TODO.md` 完成记录；若实现过程中发现真正前置阻塞，则先在 `TODO.md` 中插入最小前置任务并停止。
+  7. 运行任务要求测试、`cargo clippy --all-targets -- -D warnings`，再提交当前任务。
+- 下一步：检查工作区差异并创建 `P2-T03` 提交，然后停止。

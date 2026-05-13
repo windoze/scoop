@@ -55,12 +55,12 @@ macro_rules! gap {
 pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     gap!(
         "PIPELINE_GAPS §2.3",
-        "MIR production verifier",
-        "MIR-facing production verifier before CG-T01",
+        "P2-T03",
+        "P2-T03 / upstream impossible-state guard",
         UpstreamMirContract,
         true,
-        true,
-        "UnsupportedMainBody / pass MIR Todo"
+        false,
+        "UnsupportedMainBody / production MIR contract guard / pass MIR Todo"
     ),
     gap!(
         "PIPELINE_GAPS §3.1",
@@ -478,6 +478,23 @@ mod tests {
                 "{gap_id} must not use a shared CG-T04 owner"
             );
         }
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_2_3_as_nonblocking_upstream_guard() {
+        let entry = codegen_gap_entry("PIPELINE_GAPS §2.3")
+            .expect("§2.3 guard should remain tracked in inventory");
+        assert_eq!(entry.owner_task, "P2-T03");
+        assert_eq!(entry.route, CodegenGapRoute::UpstreamMirContract);
+        assert!(entry.needs_upstream_contract);
+        assert!(
+            !entry.production_blocker,
+            "§2.3 should now be a guard-only upstream contract bucket"
+        );
+        assert!(
+            entry.trigger.contains("pass MIR Todo"),
+            "§2.3 trigger should keep pointing at downstream Todo guard"
+        );
     }
 
     #[test]
