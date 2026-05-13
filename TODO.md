@@ -1973,7 +1973,7 @@
     - 对应 `PLAN.md` §5.4 / §6：LLVM codegen 的 generic-bearing type-driven stable-id helper 已统一接入 authoritative type-param resolver，`class_init_raise_cleanup_init_block_gc_basic.scoop` 不再阻断最终签收矩阵，`P7-T01R` 可继续执行最终审计。
     - 对应 `STABLE_ID.md` §5.1 / §7.1 / §8.4 / §8.5 / §10：MIR value-box、RTTI type-id、effect-lowered transport/private naming 等 active production surface 现在都从声明级 owner/index key 取得 canonical type-param identity，不再回退到 `NoTypeParamResolver`、pretty text、raw param 名或局部 workaround。
 
-### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
+### [DONE] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5、§6
@@ -1991,4 +1991,38 @@
   - 可以明确写出：stable-id 整改已经闭合，后续若还有工作，只属于增量优化或新需求，而不再是本轮 identity 治理主线。
 - 依赖：P7-T01、P7-T01A、P7-T01B、P7-T01C、P7-T01D
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - 本任务按 review/sign-off 处理，不再引入新的实现分支；以 `P0` 建立的审计脚手架、`P1-P6` 的 authoritative stable-id 基础设施，以及 `P7-T01` 到 `P7-T01D` 的补遗收口为依据，重新执行最终审计矩阵并逐项签收 `PLAN.md` §6 的 8 条完成标准。
+    - 重新复核后未发现新的阻塞项：`P7-T01` 暴露过的 object/top-level init private naming、sanitize/type-display/TypeId 驱动 private naming、RTTI/runtime-match 对 pretty text 的依赖、以及 generic-bearing type-driven stable-id helper 缺口，都已分别由 `P7-T01A` 到 `P7-T01D` 收口，当前不需要再插入新的前置任务。
+    - `PLAN.md` 不需要改写：阶段顺序、依赖和完成标准均未再变化，本次仅完成最终签收。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit_grep_inventory_scans_repo_roots -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc checkout_root -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc distinct_virtual_cones -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test --all`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop_tools -- spec-fixtures check`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy --workspace --all-targets -- -D warnings`
+    - 关键结果摘要：
+      - `stable_id_audit_grep_inventory_scans_repo_roots` 通过；`__schema[0-9]+`、`__k[0-9]+`、`t[0-9]+__` 均为 0 命中，`scoop.lambda$*` 只剩测试文本，`module.add_function(..., None)` 只剩测试审计文本。
+      - `checkout_root` 相关 4 项测试通过，覆盖 dump path/dump label、RTTI identity、exported object symbol 的跨 checkout 根一致性。
+      - `distinct_virtual_cones` 通过，确认不同 virtual cone 的 user ABI symbol 仍然不碰撞。
+      - `cargo test --all` 通过；workspace 总计 797 个测试通过。
+      - `cargo run -p scoop -- test` 通过；fixture 总计 1262 个用例通过。
+      - `cargo run -p scoop_tools -- spec-fixtures check` 通过；spec fixture 校验 1 项通过。
+      - `cargo clippy --workspace --all-targets -- -D warnings` 通过；无 lint warning。
+  - 最终结论清单（对应 `PLAN.md` §6 / `STABLE_ID.md` §10）：
+    1. active 外部 surface 已不再直接渲染或 hash `TypeId`、`SourceId`、`ConeId`、`SymbolId`、`ClosureId`、`BasicBlockId`、`LocalId`、`SiteId`、`StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`ResumeInterfaceId`、`ContinuationObjectId`、`StateId`、`BoundaryId`、`FrameSlotId`。最终 grep 审计中的残余命中仅落在内部 handle/type 定义、健康 schema 负向断言、或 stable-id 审计测试文本，未发现新的 active external leakage。
+    2. 所有仅供模块内部使用的 compiler-generated function/global 已收口到 `InternalLinkage` 或 `PrivateLinkage`。`external_symbol_audit_*`、`function_declaration_helpers_emit_explicit_linkage` 与 `function_declaration_inventory_eliminates_raw_add_function_none_callsites` 等回归在全量测试中继续通过，说明 external import / `main` / `@Extern` 例外与 compiler-private helper 已明确分家。
+    3. 同一输入在不同 checkout 路径下的导出 LLVM symbol 集合保持稳定。`checkout_root` 审计中的 exported-object-symbol、dump path/dump label、RTTI identity 跨根路径对比全部通过。
+    4. 不同 cone 即使内部 closure/site/schema 编号都从 0 开始，也不会因 helper 名字碰撞而链接失败。`refactor_llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones` 审计通过，说明 user ABI/private naming 的 cone 维度隔离已闭合。
+    5. `dump-hir`、`dump-mir`、`dump-ir`、`dump-effect-facts`、`dump-effect-lowered` 及其 fixtures 已脱离 allocator-derived 文本金标准。`cargo run -p scoop -- test` 全量通过，且最终 grep 审计确认 legacy effect/private naming pattern 已清零或仅存测试文本。
+    6. `dump-rtti` 的 closure env `name` 和 `type_id` 已不再依赖 `ClosureId` 分配顺序。`dump_rtti_identity_stays_stable_across_checkout_roots` 与相关 RTTI 回归在最终矩阵中保持通过，closure env identity 已固定到语义 key。
+    7. `sanitize_llvm_ident()` 已退回到可读前缀/合法化用途，不再承担唯一性主体。当前生产代码命中仅剩 explicit-root frame 与 callee-suspend-state 这类“基于已稳定 function symbol 派生的可读 LLVM type/global 名”，而 `P7-T01B` / `P7-T01C` 已阻止 `sanitize_llvm_ident(display)`、`TypeStore::display()`、raw `TypeId` 再次回流为 private/RTTI identity 输入。
+    8. 本轮变更仅作用于 identity / naming / serialization / linkage surface，没有引入语言语义、运行结果、effect / continuation / GC 行为漂移。最终 workspace test、fixture matrix、spec-fixture check 与 workspace clippy 全部通过，未复现新的语义/运行时回归。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` §5 / §6：此前风险项已由 P0-P7 各阶段逐项压平；本次最终 review 已对 8 条完成标准全部给出明确签收结论，且未发现需要回退到任一前置阶段的新 blocker。
+    - 对应 `STABLE_ID.md` §10 / §11 / §12：完整验收标准与常驻 grep 审计均已在当前 HEAD 上复核通过；stable-id 改造主线到此闭合，后续若再有工作，只属于增量优化或新需求，而不再是本轮 identity 治理遗留项。
