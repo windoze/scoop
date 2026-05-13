@@ -2933,6 +2933,7 @@ mod tests {
     use crate::ty::{TypeKind, TypeStore};
 
     const TEST_FQN: &str = "sample.main";
+    const SYNTHETIC_ITEM_TODO_REASON: &str = "synthetic item todo";
     const SYNTHETIC_STATEMENT_TODO_REASON: &str = "synthetic statement todo";
 
     fn test_span() -> Span {
@@ -3047,7 +3048,7 @@ mod tests {
         let file = File {
             items: vec![Item::Todo {
                 span: test_span(),
-                kind: "top-level val",
+                kind: SYNTHETIC_ITEM_TODO_REASON,
             }],
         };
 
@@ -3058,7 +3059,7 @@ mod tests {
                 block: None,
                 span: test_span(),
                 category: MirPlaceholderCategory::Item,
-                reason: "top-level val",
+                reason: SYNTHETIC_ITEM_TODO_REASON,
             })
         );
     }

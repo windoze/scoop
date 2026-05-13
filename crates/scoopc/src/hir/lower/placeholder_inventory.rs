@@ -1,8 +1,10 @@
 //! Executable inventory for refactor HIR placeholders.
 //!
-//! The refactor typed HIR handoff currently still reuses the generic `LoweredHir` shape, so this
-//! test fixture freezes every placeholder constructor that can be emitted from `src/hir/**` until
-//! the follow-up HIR completeness tasks replace them with diagnostics or concrete contracts.
+//! The refactor typed HIR handoff still reuses the generic `LoweredHir` shape, but the active
+//! runtime path should no longer construct placeholder HIR nodes.
+//!
+//! This test now acts as a zero-baseline guard: any newly introduced `Todo(...)` constructor in
+//! `src/hir/**` must be justified and inventory-gated before it lands.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -31,54 +33,11 @@ struct InventoryEntry {
     handling_strategy: &'static str,
 }
 
-const fn entry(
-    surface: PlaceholderSurface,
-    reason: &'static str,
-    disposition: PlaceholderDisposition,
-    owner_task: &'static str,
-    must_eliminate_from_refactor_hir: bool,
-    handling_strategy: &'static str,
-) -> InventoryEntry {
-    InventoryEntry {
-        surface,
-        reason,
-        disposition,
-        owner_task,
-        must_eliminate_from_refactor_hir,
-        handling_strategy,
-    }
-}
-
 const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[PlaceholderDisposition::ImplementBeforeMir];
 
-const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
-    entry(
-        PlaceholderSurface::StmtTodo,
-        "comptime_block",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion resolves block declarations/generated code before runtime HIR lowering.",
-    ),
-    entry(
-        PlaceholderSurface::StmtTodo,
-        "comptime_if",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion evaluates the condition and keeps only the selected runtime branch.",
-    ),
-    entry(
-        PlaceholderSurface::StmtTodo,
-        "comptime_for",
-        PlaceholderDisposition::ImplementBeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion unrolls compile-time iteration into ordinary runtime statements/items.",
-    ),
-];
+const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[];
 
-const REQUIRED_ELIMINATION_REASONS: &[&str] = &["comptime_block", "comptime_if", "comptime_for"];
+const REQUIRED_ELIMINATION_REASONS: &[&str] = &[];
 
 const EXPR_TODO_PATTERN: &str = concat!("ExprKind", "::Todo(\"");
 const STMT_TODO_PATTERN: &str = concat!("StmtKind", "::Todo(\"");

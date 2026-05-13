@@ -1,41 +1,46 @@
-## 执行计划
+# Claude Plan
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断第一个未完成任务。
-2. 检查最近提交是否存在与该任务直接相关且明确未完成的问题；若有且构成前置依赖，则先在 `TODO.md` 中显式记录依赖关系。
-3. 阅读当前任务涉及的代码、测试、规范与相关文件，确认实现边界与验收要求。
-4. 直接实现当前任务；若遇到阻塞当前任务且无法规避的缺失/缺陷，则在 `TODO.md` 中添加最小必要前置任务，更新依赖顺序后停止。
-5. 运行当前任务要求的验证，以及必要的回归测试、格式化、`cargo clippy --all-targets -- -D warnings` 等质量检查；若失败则继续修复直到通过，或按前述阻塞流程处理。
-6. 完成后更新 `TODO.md`：将当前任务标题前缀改为 `[DONE]`，补全完成记录；仅在阶段计划确有变化时更新 `PLAN.md`。
-7. 将本次关键进展同步回本文件，包括：已识别任务、实施步骤调整、验证结果、是否完成提交。
-8. 按任务号创建一次 git 提交，并在提交后停止，不继续执行下一个任务。
+## Working Rules
+- 先读取 `TODO.md`，只处理第一个未完成任务。
+- 如果遇到阻塞当前任务的真实前置问题，只添加最小必要前置任务到 `TODO.md`，然后停止。
+- 不做绕过式实现；实现后必须验证并更新记录。
+- 在关键步骤完成或计划变化时，持续更新本文件。
 
-## 进度记录
+## Initial Execution Plan
+1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务。
+2. 检查最近提交是否直接提到与该任务相关的未完成问题；若是，则将其视为当前任务范围的一部分或作为前置依赖记录到 `TODO.md`。
+3. 阅读该任务涉及的代码、文档与测试，确认需求、依赖、现状与验证方式。
+4. 实现该任务；如果发现阻塞当前任务的缺失功能或错误，先按要求更新 `TODO.md` / `PLAN.md`（仅在阶段计划变化时）并停止。
+5. 运行与该任务相关的测试与必要的质量检查，修复发现的问题直到通过，或确认存在必须先处理的新前置任务。
+6. 更新 `TODO.md` 中该任务的完成状态与 completion record；仅在阶段计划变化时更新 `PLAN.md`。
+7. 更新本文件记录已完成步骤、验证结果与任何计划调整。
+8. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
 
-- 已创建初始执行计划。
-- 已读取 `TODO.md`，确认首个未完成任务为 `P1-T02`：删除 resume/dispatch legacy producer，并清空 active `LegacyOnly` 依赖。
-- 最近提交为 `[P1-T01] Remove legacy MIR call and assign producers`；它与当前任务直接相邻，但未额外声明新的未完成前置问题。当前先按 `P1-T02` 既定范围检查相关代码、inventory、guard 与测试。
-- 已确认当前没有新的前置 blocker：`lower_for_dump` / materialize 仍处于“typed call/assign + fallback resume/dispatch”的混合状态，但这正是 `P1-T02` 需要收尾的边界，而不是额外拆分出的新任务。
-- 当前实施策略：
-  - 在不把 dump/materialize 整体切成 `RefactorTyped` 的前提下，把 resume 站点补接到现有 typed contract。
-  - 删除 dispatch/resume legacy producer，不再通过 callee 形状恢复语义；typed contract 缺失时改为 impossible-state panic，而不是 `Todo(...)`。
-  - 从 MIR/HIR placeholder inventory、preflight 禁词、verifier/materializer synthetic tests 中移除 `LegacyOnly` 与旧 legacy reason 绑定，改用 contract-neutral synthetic reason 覆盖 no-Todo guard。
-  - 完成后回写 `PIPELINE_GAPS.md` 与 `TODO.md`，再执行验证与提交。
-- 已完成的实现步骤：
-  - `crates/scoopc/src/mir/lower.rs`：删除 resume/dispatch legacy producer；resume 改为只消费 typed contract；dispatch 不再保留 legacy owner/member 猜测路径；缺失 typed contract 时转成 impossible-state panic。
-  - `crates/scoopc/src/mir/placeholder_inventory.rs`、`crates/scoopc/src/hir/lower/placeholder_inventory.rs`：移除 `LegacyOnly` disposition 与相关断言/条目。
-  - `crates/scoopc/src/pipeline/hir_preflight.rs`、`crates/scoopc/src/pipeline/mir_stage.rs`、`crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`crates/scoopc/src/mir/lower.rs` 测试区：移除对旧 legacy reason 的 active guard / whitelist / synthetic test 绑定，改成 contract-neutral no-Todo 断言或 synthetic reason。
-  - `crates/scoopc/src/pipeline_gap_audit.rs`：将 `LegacyOnly` 命中与 legacy reason 命中基线收紧为 0。
-  - `PIPELINE_GAPS.md`：将 `§1.8`、`§1.9` 回写为 `Closed/Re-scoped`，并同步更新 `§1.6`、`§1.7` 的 residual 描述。
-- 已完成验证：
+## Progress Log
+- 已创建初始执行计划，下一步读取 `TODO.md` 并识别首个未完成任务。
+- 已读取 `TODO.md`，确认首个未完成任务是 `P2-T01`：关闭 `comptime_*` 与 top-level `val` 的 pre-MIR/MIR gap。
+- 已核对最近一次提交为 `[P1-T02] Remove legacy MIR resume and dispatch fallbacks`；提交内容聚焦 P1 收尾，未显式声明与 `P2-T01` 直接相关的未完成补丁，因此继续按 `P2-T01` 本体推进。
+- 下一步：阅读 `PIPELINE_GAPS.md` 与 `P2-T01` 涉及的实现入口，确认当前 placeholder / `Item::Todo` 的具体流入路径，以及任务是否被新的真实前置问题阻塞。
+- 已完成实现入口勘察，确认当前剩余 gap 主要是两个残余构造点：
+  - `crates/scoopc/src/hir/lower/stmt.rs` 在缺少 runtime comptime plan 时仍会构造 `StmtKind::Todo("comptime_*")`。
+  - `crates/scoopc/src/mir/lower.rs` 在非 typed-contract 路径仍会把 top-level `val` 构造成 `Item::Todo { kind: "top-level val" }`。
+- 已运行现有定向测试：`refactor_mir_item_graph_publishes_top_level_roots`、`refactor_mir_comptime_splice_class_literal_and_with_update_preclosure`、`refactor_mir_placeholder_inventory`，当前均通过；说明主路径能力已基本存在，剩余工作是把残余 placeholder 构造点与审计基线一起收口。
+- 当前实施方案：
+  1. HIR lowering 总是优先处理 `comptime block/if/for`；`if/for` 若缺少 runtime comptime plan，则记录明确 stage error，而不再产出 `StmtKind::Todo`。
+  2. MIR lowering 不再把 top-level `val` 降成 `Item::Todo`；改为统一依赖 initializer/extern root contract，并让 `MirLoweringFacts::from_lowered_hir(...)` 也携带这些 root contract，使 `lower_for_dump` / materialization 入口同样拥有 canonical root。
+  3. 同步更新 HIR/MIR placeholder inventory、synthetic no-Todo 测试、`PIPELINE_GAPS.md` 和 `TODO.md` 完成记录，然后跑验证并提交。
+- 已完成代码修改：
+  - `hir/lower/stmt.rs` 已去掉 `comptime_*` 的 HIR `Todo` 构造点，缺计划时改为 stage error。
+  - `mir/lower.rs` 已去掉 top-level `val -> Item::Todo` 分支，并让 `from_lowered_hir(...)` 发布 initializer / extern root contract。
+  - HIR/MIR placeholder inventory、synthetic item-Todo 测试、`PIPELINE_GAPS.md`、`TODO.md` 已同步回写。
+- 已完成验证，结果全部通过：
   - `cargo test -p scoopc refactor_hir_placeholder_inventory`
   - `cargo test -p scoopc refactor_mir_placeholder_inventory`
-  - `cargo test -p scoopc pipeline_gap_audit`
-  - `cargo test -p scoopc refactor_mir_call_contract`
-  - `cargo test -p scoopc refactor_materialized_mir`
-  - `cargo test -p scoopc materialized_pass_view_non_generic_dispatch_and_resume_roots_are_published`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`
+  - `cargo test -p scoopc dump_mir_emits_top_level_initializer_and_extern_roots`
+  - `cargo test -p scoopc refactor_mir_item_graph_publishes_top_level_roots`
+  - `cargo test -p scoopc refactor_mir_comptime_splice_class_literal_and_with_update_preclosure`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/top_level_roots.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/top_level_val_with_type_ok.scoop`
   - `cargo clippy --all-targets -- -D warnings`
-  - `rg 'LegacyOnly|assign lhs missing local|assign lhs lowering pending|call callee lowering pending|ctor call lowering pending|sizeOf intrinsic requires value or type arg|nameOf intrinsic requires type arg|resume lowering requires canonical callee shape|dispatch callee lowering pending' crates/scoopc/src crates/scoop/src tests/fixtures`：0 命中。
-- 已回写 `TODO.md`：`P1-T02` 已标记为 `[DONE]`，完成记录已补齐。
-- 下一步：检查 git 工作树、确认提交范围，然后创建 `[P1-T02] ...` 提交并停止。
+- 下一步：检查 git 变更摘要，创建一次 `[P2-T01] ...` 提交，然后停止。

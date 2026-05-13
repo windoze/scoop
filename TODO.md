@@ -373,7 +373,7 @@
 
 ## P2：收紧 pre-MIR / MIR handoff
 
-### [TODO] P2-T01：关闭 `comptime_*` 与 top-level `val` 的 pre-MIR/MIR gap
+### [DONE] P2-T01：关闭 `comptime_*` 与 top-level `val` 的 pre-MIR/MIR gap
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -419,9 +419,28 @@
 - 依赖：`P1-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/hir/lower/stmt.rs`，移除 `comptime block/if/for` 的 `StmtKind::Todo("comptime_*")` 构造点；runtime `comptime if/for` 若缺少求值计划，改为在 HIR lowering 阶段记录明确 stage error，而不是继续把 placeholder 漏给 MIR。
+    - 更新 `crates/scoopc/src/mir/lower.rs`，让 `MirLoweringFacts::from_lowered_hir(...)` 也携带 top-level initializer / extern root contract，并让 MIR lowering 统一发射 `InitializerRoot` / `ExternGlobal`；删除 top-level `val -> Item::Todo { kind: "top-level val" }` 的残余分支。
+    - 更新 `crates/scoopc/src/hir/lower/placeholder_inventory.rs` 与 `crates/scoopc/src/mir/placeholder_inventory.rs`，把 `comptime_*` 与 `top-level val` 从 active placeholder inventory 中移除；HIR inventory 收紧为零基线 guard。
+    - 更新 `crates/scoopc/src/mir/lower.rs` 测试、`crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/pipeline/mir_stage.rs`，补 `dump_mir_emits_top_level_initializer_and_extern_roots` 覆盖，并把 synthetic no-Todo 负例从真实业务 reason 改成 synthetic item reason。
+    - 更新 `PIPELINE_GAPS.md`，将 `§1.1` 与 `§1.4` 回写为 `Closed/Re-scoped`。
   - 核心决策：
+    - 对 `comptime_*` 采用“主路径必须展开，缺计划则前移失败”的收口方式，而不是继续在 HIR/MIR 中保留 dormant placeholder；`comptime block` 直接展开其 body，`comptime if/for` 必须消费 runtime comptime plan。
+    - top-level `val` 的 canonical MIR 表示统一冻结为 `InitializerRoot` / `ExternGlobal` root model；不再允许任何 MIR lowering 路径把它回退成 `Item::Todo`。为避免只有 typed stage 输出正确、`lower_for_dump` 仍缺 root，本次把同一套 root contract 也接入 `from_lowered_hir(...)` 路径。
+    - synthetic no-Todo verifier 继续保留，但不再拿 `top-level val` 当 canonical 失败文案，避免已关闭 gap 的 reason 继续滞留在 active 测试语义中。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_placeholder_inventory`
+    - `cargo test -p scoopc refactor_mir_placeholder_inventory`
+    - `cargo test -p scoopc dump_mir_emits_top_level_initializer_and_extern_roots`
+    - `cargo test -p scoopc refactor_mir_item_graph_publishes_top_level_roots`
+    - `cargo test -p scoopc refactor_mir_comptime_splice_class_literal_and_with_update_preclosure`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/top_level_roots.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/top_level_val_with_type_ok.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P2 第 1 项：runtime `comptime_*` 已不再以 placeholder 形式进入 MIR，top-level `val` 已拥有可查询的 MIR root/initializer model。
+    - `PIPELINE_GAPS.md` 已回写 `§1.1`、`§1.4` 为 `Closed/Re-scoped`：这些 surface 现在要么在 HIR lowering 前展开，要么直接以 canonical root model 进入 MIR，不再作为 live placeholder gap 保留。
 
 ### [TODO] P2-T02：收紧 production MIR verifier，拒绝 `unterminated` 与 `Return { value: None }` 漏洞
 

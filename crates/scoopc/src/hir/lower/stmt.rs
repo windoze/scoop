@@ -103,20 +103,17 @@ impl<'a> HirLowering<'a> {
         expected: ExpectedExpr,
         is_tail: bool,
     ) -> bool {
-        if self.runtime_comptime_plan.is_some() {
-            match &s.kind {
-                ast::StmtKind::ComptimeBlock { body, .. } => {
-                    return self
-                        .lower_comptime_block_into(pkg_prefix, body, out, expected, is_tail);
-                }
-                ast::StmtKind::ComptimeIf(ci) => {
-                    return self.lower_comptime_if_into(pkg_prefix, ci, out, expected, is_tail);
-                }
-                ast::StmtKind::ComptimeFor(cf) => {
-                    return self.lower_comptime_for_into(pkg_prefix, cf, out, expected, is_tail);
-                }
-                _ => {}
+        match &s.kind {
+            ast::StmtKind::ComptimeBlock { body, .. } => {
+                return self.lower_comptime_block_into(pkg_prefix, body, out, expected, is_tail);
             }
+            ast::StmtKind::ComptimeIf(ci) => {
+                return self.lower_comptime_if_into(pkg_prefix, ci, out, expected, is_tail);
+            }
+            ast::StmtKind::ComptimeFor(cf) => {
+                return self.lower_comptime_for_into(pkg_prefix, cf, out, expected, is_tail);
+            }
+            _ => {}
         }
 
         if let ast::StmtKind::Val(v) = &s.kind
@@ -181,19 +178,19 @@ impl<'a> HirLowering<'a> {
         is_tail: bool,
     ) -> bool {
         let Some(plan) = self.runtime_comptime_plan else {
-            out.push(Stmt {
-                span: ci.span,
-                ty: self.builtins.unit,
-                kind: StmtKind::Todo("comptime_if"),
-            });
+            self.record_stage_error(
+                ci.span,
+                "runtime comptime if missing evaluated condition plan",
+                "runtime comptime lowering",
+            );
             return false;
         };
         let Some(cond) = plan.comptime_if_condition(ci.span) else {
-            out.push(Stmt {
-                span: ci.span,
-                ty: self.builtins.unit,
-                kind: StmtKind::Todo("comptime_if"),
-            });
+            self.record_stage_error(
+                ci.span,
+                "runtime comptime if missing evaluated condition plan",
+                "runtime comptime lowering",
+            );
             return false;
         };
 
@@ -229,19 +226,19 @@ impl<'a> HirLowering<'a> {
         is_tail: bool,
     ) -> bool {
         let Some(plan) = self.runtime_comptime_plan else {
-            out.push(Stmt {
-                span: cf.span,
-                ty: self.builtins.unit,
-                kind: StmtKind::Todo("comptime_for"),
-            });
+            self.record_stage_error(
+                cf.span,
+                "runtime comptime for missing unrolled iteration plan",
+                "runtime comptime lowering",
+            );
             return false;
         };
         let Some(iterations) = plan.comptime_for_iterations(cf.span) else {
-            out.push(Stmt {
-                span: cf.span,
-                ty: self.builtins.unit,
-                kind: StmtKind::Todo("comptime_for"),
-            });
+            self.record_stage_error(
+                cf.span,
+                "runtime comptime for missing unrolled iteration plan",
+                "runtime comptime lowering",
+            );
             return false;
         };
         let iterations = iterations.to_vec();
@@ -334,10 +331,29 @@ impl<'a> HirLowering<'a> {
                 self.builtins.unit,
             ),
             ast::StmtKind::ComptimeBlock { .. } => {
-                (StmtKind::Todo("comptime_block"), self.builtins.unit)
+                self.record_stage_error(
+                    s.span,
+                    "runtime comptime block must be lowered before plain statement lowering",
+                    "HIR statement lowering",
+                );
+                (StmtKind::Empty, self.builtins.unit)
             }
-            ast::StmtKind::ComptimeIf(_) => (StmtKind::Todo("comptime_if"), self.builtins.unit),
-            ast::StmtKind::ComptimeFor(_) => (StmtKind::Todo("comptime_for"), self.builtins.unit),
+            ast::StmtKind::ComptimeIf(_) => {
+                self.record_stage_error(
+                    s.span,
+                    "runtime comptime if must be lowered before plain statement lowering",
+                    "HIR statement lowering",
+                );
+                (StmtKind::Empty, self.builtins.unit)
+            }
+            ast::StmtKind::ComptimeFor(_) => {
+                self.record_stage_error(
+                    s.span,
+                    "runtime comptime for must be lowered before plain statement lowering",
+                    "HIR statement lowering",
+                );
+                (StmtKind::Empty, self.builtins.unit)
+            }
         };
 
         Stmt {

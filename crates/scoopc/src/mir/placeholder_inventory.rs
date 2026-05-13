@@ -63,42 +63,6 @@ const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
 
 const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
-        PlaceholderSurface::Item,
-        "top-level val",
-        "PIPELINE_GAPS.md §1.4",
-        PlaceholderDisposition::InMir,
-        "MIR-T05",
-        true,
-        "Model top-level values as MIR declaration/initializer roots instead of Item::Todo.",
-    ),
-    entry(
-        PlaceholderSurface::Statement,
-        "comptime_block",
-        "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::BeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion eliminates block statements before runtime MIR lowering.",
-    ),
-    entry(
-        PlaceholderSurface::Statement,
-        "comptime_if",
-        "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::BeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion keeps only the selected runtime branch before MIR lowering.",
-    ),
-    entry(
-        PlaceholderSurface::Statement,
-        "comptime_for",
-        "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::BeforeMir,
-        "MIR-T04",
-        true,
-        "Comptime expansion unrolls enumerable loops before MIR lowering.",
-    ),
-    entry(
         PlaceholderSurface::Terminator,
         "unterminated",
         "PIPELINE_GAPS.md §2.1",
@@ -118,7 +82,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     ),
 ];
 
-const REQUIRED_KNOWN_MIR_REASONS: &[&str] = &["top-level val", "missing expr"];
+const REQUIRED_KNOWN_MIR_REASONS: &[&str] = &["missing expr"];
 
 const ITEM_TODO_PATTERN: &str = concat!("Item", "::Todo");
 const STATEMENT_TODO_PATTERN: &str = concat!("StatementKind", "::Todo(\"");

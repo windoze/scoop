@@ -211,6 +211,8 @@ impl MirLoweringFacts {
 
         let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
             .map_err(hir::HirLowerError::from)?;
+        facts.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
+        facts.refactor_extern_global_contracts = contracts.extern_global_contracts().to_vec();
         for (call_site, contract) in contracts.continuation_resume_sites() {
             facts.refactor_resume_sites.insert(
                 call_site.clone(),
@@ -1150,26 +1152,32 @@ impl<'a> MirLowering<'a> {
     fn lower_file(&mut self, file: &hir::File, member_funs: &[hir::FunDecl]) -> File {
         let top_level_fun_return_tys = collect_top_level_fun_return_tys(file, member_funs);
         let top_level_fun_param_tys = collect_top_level_fun_param_tys(file, member_funs);
-        let mut items = Vec::with_capacity(file.items.len() + member_funs.len());
+        let mut items = Vec::with_capacity(
+            file.items.len()
+                + member_funs.len()
+                + file.decls.len()
+                + self.facts.refactor_top_level_init_roots().len()
+                + self.facts.refactor_extern_global_contracts().len(),
+        );
         if self.facts.uses_refactor_typed_contracts() {
             items.extend(
                 file.decls
                     .iter()
                     .map(|decl| Item::Metadata(lower_decl_metadata(decl))),
             );
-            items.extend(
-                self.facts
-                    .refactor_top_level_init_roots()
-                    .iter()
-                    .map(|root| Item::InitializerRoot(self.lower_initializer_root(root))),
-            );
-            items.extend(
-                self.facts
-                    .refactor_extern_global_contracts()
-                    .iter()
-                    .map(|contract| Item::ExternGlobal(lower_extern_global_root(contract))),
-            );
         }
+        items.extend(
+            self.facts
+                .refactor_top_level_init_roots()
+                .iter()
+                .map(|root| Item::InitializerRoot(self.lower_initializer_root(root))),
+        );
+        items.extend(
+            self.facts
+                .refactor_extern_global_contracts()
+                .iter()
+                .map(|contract| Item::ExternGlobal(lower_extern_global_root(contract))),
+        );
         for item in &file.items {
             match item {
                 hir::Item::Fun(fun) => {
@@ -1178,11 +1186,7 @@ impl<'a> MirLowering<'a> {
                     items.push(Item::Fun(primary));
                     items.extend(nested.into_iter().map(Item::Fun));
                 }
-                hir::Item::Val(_) if self.facts.uses_refactor_typed_contracts() => {}
-                hir::Item::Val(decl) => items.push(Item::Todo {
-                    span: decl.span,
-                    kind: "top-level val",
-                }),
+                hir::Item::Val(_) => {}
                 hir::Item::Todo { span, kind } => items.push(Item::Todo { span: *span, kind }),
             }
         }
@@ -6292,6 +6296,83 @@ mod tests {
         assert!(!facts.fallback_resume_site_matches(span));
         assert!(!facts.fallback_resume_site_suspends_outward(span));
         assert!(facts.fallback_perform_site_info(span).is_none());
+    }
+
+    #[test]
+    fn dump_mir_emits_top_level_initializer_and_extern_roots() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_top_level_roots.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+const val Base: Int = 1
+val Runtime: Int = Base + 1
+
+@Global
+var Counter: Int = Runtime
+
+@Extern(name = "native_counter")
+var NativeCounter: Int
+
+object Registry {
+    val count: Int = Runtime
+}
+
+fun main() {}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let initializer_fqns = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::InitializerRoot(root) => Some(root.fqn.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for expected in [
+            "sample.Base",
+            "sample.Runtime",
+            "sample.Counter",
+            "sample.Registry",
+        ] {
+            assert!(
+                initializer_fqns.contains(&expected),
+                "dump-mir should publish initializer root `{expected}`: {initializer_fqns:?}"
+            );
+        }
+
+        let runtime = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::InitializerRoot(root) if root.fqn == "sample.Runtime" => Some(root),
+                _ => None,
+            })
+            .expect("runtime top-level val should publish initializer root");
+        assert_eq!(runtime.kind, InitializerRootKind::RuntimeImmutableVal);
+        assert!(runtime.dependencies.iter().any(|dependency| {
+            dependency.fqn == "sample.Base"
+                && dependency.kind == InitializerDependencyKind::TopLevelValue
+        }));
+
+        let native = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::ExternGlobal(root) if root.fqn == "sample.NativeCounter" => Some(root),
+                _ => None,
+            })
+            .expect("dump-mir should publish extern global root");
+        assert_eq!(native.symbol, "native_counter");
+        assert!(native.initializer_absent);
     }
 
     #[test]

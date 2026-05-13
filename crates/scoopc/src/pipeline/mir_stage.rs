@@ -1303,12 +1303,14 @@ fun bad() {
 
     #[test]
     fn refactor_mir_no_todo_stage_validator_rejects_item_todo() {
+        const SYNTHETIC_ITEM_TODO_REASON: &str = "synthetic item todo";
+
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = crate::mir::File {
             items: vec![crate::mir::Item::Todo {
                 span: crate::span::Span::new(0, 1),
-                kind: "top-level val",
+                kind: SYNTHETIC_ITEM_TODO_REASON,
             }],
         };
 
@@ -1316,7 +1318,7 @@ fun bad() {
             .expect_err("production stage validator should reject item Todo");
         let rendered = err.to_string();
         assert!(rendered.contains("<file>"));
-        assert!(rendered.contains("top-level val"));
+        assert!(rendered.contains(SYNTHETIC_ITEM_TODO_REASON));
     }
 
     #[test]

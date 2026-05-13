@@ -26,9 +26,9 @@
 
 ### 1.1 `comptime` block/if/for 语句仍是 Todo
 
-- 状态：`Open`。
-- 结论：这些 placeholder 仍由 MIR placeholder inventory 明确追踪，属于进入 runtime MIR 之前必须消除的前置实现项，而不是 LLVM 末端再补救的事项。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:76-101`，`crates/scoopc/src/pipeline/hir_preflight.rs:91-104`。
+- 状态：`Closed/Re-scoped`。
+- 结论：runtime `comptime block/if/for` 现在必须在 HIR lowering 时被展开；typed HIR / direct MIR 主路径不再构造 `StmtKind::Todo("comptime_*")`。若 runtime comptime plan 缺失，lowering 会以前置 stage error 失败，而不是把 placeholder 漏到 MIR。
+- 证据：`crates/scoopc/src/hir/lower/stmt.rs`，`crates/scoopc/src/hir/lower/placeholder_inventory.rs`，`crates/scoopc/src/pipeline/hir_preflight.rs`，`crates/scoopc/src/mir/placeholder_inventory.rs`。
 
 ### 1.2 splice field `value.[field]` 仍是 Todo
 
@@ -43,9 +43,9 @@
 
 ### 1.4 顶层 `val` 在 MIR 中仍是 `Item::Todo`
 
-- 状态：`Open`。
-- 结论：`top-level val` 仍在 MIR placeholder inventory 中保留为必须消除的 item placeholder；它不是当前 LLVM lowering 要继续兼容的长期形态。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:67-75`，`crates/scoopc/src/mir/mod.rs:2987-2998`，`crates/scoopc/src/pipeline/mir_stage.rs:1438-1446`。
+- 状态：`Closed/Re-scoped`。
+- 结论：top-level `val` 现在统一通过 MIR `InitializerRoot` / `ExternGlobal` root model 暴露；`lower_for_dump` 与 direct MIR stage 都直接发布 canonical root，不再把顶层 `val` 变成 `Item::Todo`。
+- 证据：`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/mir/mod.rs`，`crates/scoopc/src/pipeline/mir_stage.rs`，`tests/fixtures/mir_refactor/top_level_roots.mir`。
 
 ### 1.5 `typealias`、package-level `comptime if`、`type`、`object` file item 仍是 Todo
 
