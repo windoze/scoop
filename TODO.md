@@ -1410,7 +1410,7 @@
     - 对应 `PLAN.md` P5 / `STABLE_ID.md` §3.2.4、§3.2.5、§8.2：effect facts 与 late-lowered active dump/fixture surface 已从 allocator 顺序、raw `Debug` id、`TypeId`/schema dense id 表面迁出。
     - 现在 HIR / MIR / IR / effect facts / effect lowered 五类 active textual surface 都有独立稳定 renderer，P5-T02R 可直接做全面 review，而不是再修 renderer 基础设施。
 
-### [TODO] P5-T02R：Review dump / fixture 迁移，确认所有 textual surface 已与 raw `Debug` 脱钩
+### [DONE] P5-T02R：Review dump / fixture 迁移，确认所有 textual surface 已与 raw `Debug` 脱钩
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P5
@@ -1426,7 +1426,34 @@
   - 可以明确写出：所有 active dump / fixture surface 均已脱离 raw `Debug` 协议。
 - 依赖：P5-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+  - 核心决策：
+    - 本次 review 未引入新的 renderer 改造；P5-T01 / P5-T02 已经把 HIR / MIR / materialized IR / effect facts / effect lowered 五类 active textual surface 全部收口到 stage-owned `stable_dump()` / dedicated renderer。`crates/scoop/src/commands/dump_{hir,mir,ir,effect_facts,effect_lowered}.rs` 与 `crates/scoop/src/fixtures/mod.rs` 当前 active 路径均直接复用这些稳定 surface，不再走 `format!("{:#?}")` 或“先 `Debug` 再字符串补丁”的链路。
+    - fixture 侧的 textual churn 继续限定在 identity surface：P5-T01 / P5-T02 两次提交只刷新了 `.hir` / `.mir` / `.effectfacts` / `.effectlowered` golden 与对应 renderer / dump 入口，没有引入额外语义测试协议分叉；本轮复跑 `cargo test -p scoopc`、`cargo test -p scoop` 与五个 fixture phase 后也未发现行为漂移。
+    - 允许继续保留 `Debug` 的边界明确为内部用途，不属于 active dump / fixture 协议：
+      - 单元测试 / panic / 诊断信息里的调试输出；
+      - `crates/scoop/src/fixtures/mod.rs` 中受 `SCOOP_FIXTURE_REPRO_DIR` 控制的 opt-in raw MIR repro 文件；
+      - `crates/scoop/src/commands/dump_ast.rs` 这类不在本轮 stable-id textual surface 范围内的命令。
+      - 上述边界之外，CLI dump、fixture golden、stage `stable_dump()` 与相关 snapshot surface 均不得再直接依赖 raw `Debug` 协议。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/hir`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoop --all-targets -- -D warnings`
+    - 精确文本审计结果：
+      - `tests/fixtures/hir/*.hir`、`tests/fixtures/mir/*.mir`、`tests/fixtures/mir_refactor/*.mir` 中 `TypeId(`、`S0`、`C0`、`bb0`、`site0` 均无命中。
+      - `tests/fixtures/effect_facts/*.effectfacts`、`tests/fixtures/effect_lowered/*.effectlowered` 中 `step_schema#0`、`continuation_schema#0`、`case#0`、`k0`、`ri0`、`ko0`、`st0`、`bd0`、`fs0`、`local0`、`bb0`、`site0` 均无命中。
+      - `crates/scoop/src` 中仅剩两处 `format!("{:#?}")`：`dump_ast` 命令与 `SCOOP_FIXTURE_REPRO_DIR` 控制的 raw MIR repro；不属于 active stable dump / fixture surface。
+      - `crates/scoopc/src` 中未发现 active dump/fixture 路径残留旧 textual protocol；仅有内部测试 / 诊断 / `hir_preflight` 调试用途的 `format!("{:#?}")`，以及 `effect_lowered/materialize.rs` 中局部变量名 `k0` 这类实现细节命中，不构成对外 textual surface 泄漏。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P5 review 目标：已复核 HIR / MIR / IR / effect facts / effect lowered 五类 active textual surface 都经由独立稳定 renderer 输出，fixture runner 与 CLI 也都复用同一 authoritative dump 入口。
+    - 对应 `STABLE_ID.md` §5.1 / §5.2 / §10：active textual surface 已满足“显式选择 identity 来源，而非先 `Debug` 再补丁”的强制规则；保留的 `Debug` 使用已收缩到内部调试边界，不再充当对外协议。
 
 ## P6：收尾 RTTI / JSON / shared hash helper
 
