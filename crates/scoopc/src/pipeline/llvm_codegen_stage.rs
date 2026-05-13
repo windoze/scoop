@@ -814,7 +814,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use inkwell::context::Context;
-    use object::{Object, ObjectSymbol, SymbolKind, SymbolScope};
+    use object::{BinaryFormat, Object, ObjectSymbol, SymbolKind, SymbolScope};
 
     use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
     use crate::llvm::{LlvmEmitError, build_main_module_from_stage_output};
@@ -1315,15 +1315,37 @@ fun main(): Int {
             if raw_name.is_empty() {
                 continue;
             }
-            symbols.push(normalize_object_symbol_name(raw_name).to_string());
+            symbols.push(normalize_object_symbol_name(raw_name, obj.format()).to_string());
         }
         symbols.sort();
         symbols.dedup();
         symbols
     }
 
-    fn normalize_object_symbol_name(name: &str) -> &str {
-        name.strip_prefix('_').unwrap_or(name)
+    fn normalize_object_symbol_name(name: &str, format: BinaryFormat) -> &str {
+        if matches!(format, BinaryFormat::MachO) {
+            name.strip_prefix('_').unwrap_or(name)
+        } else {
+            name
+        }
+    }
+
+    #[test]
+    fn normalize_object_symbol_name_only_strips_macho_abi_prefix() {
+        assert_eq!(
+            normalize_object_symbol_name(
+                "___scoop_abi0_fun__sample_helper__hdeadbeef",
+                BinaryFormat::MachO
+            ),
+            "__scoop_abi0_fun__sample_helper__hdeadbeef"
+        );
+        assert_eq!(
+            normalize_object_symbol_name(
+                "__scoop_abi0_fun__sample_helper__hdeadbeef",
+                BinaryFormat::Elf
+            ),
+            "__scoop_abi0_fun__sample_helper__hdeadbeef"
+        );
     }
 
     fn write_source_under_root(

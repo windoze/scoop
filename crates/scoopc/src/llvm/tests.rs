@@ -132,6 +132,7 @@ use crate::ty::TypeStore;
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
+use object::BinaryFormat;
 use object::Object;
 use object::ObjectSection;
 use object::ObjectSymbol;
@@ -374,7 +375,7 @@ impl StableIdObjectAudit {
                 continue;
             }
 
-            let name = stable_id_normalize_object_symbol_name(raw_name).to_string();
+            let name = stable_id_normalize_object_symbol_name(raw_name, obj.format()).to_string();
             audit.all_external_symbols.push(name.clone());
             match stable_id_classify_external_symbol(&name, symbol.is_undefined()) {
                 StableIdExternalSymbolRole::RuntimeOrNativeImport => {
@@ -414,9 +415,31 @@ fn stable_id_sort_and_dedup(symbols: &mut Vec<String>) {
     symbols.dedup();
 }
 
-fn stable_id_normalize_object_symbol_name(name: &str) -> &str {
-    // Mach-O 会为 external symbol 额外加一个 `_` 前缀；审计时只去掉这层 ABI 装饰。
-    name.strip_prefix('_').unwrap_or(name)
+fn stable_id_normalize_object_symbol_name(name: &str, format: BinaryFormat) -> &str {
+    // 只有 Mach-O 会在 object 外部符号上额外加一层 `_` ABI 装饰。
+    if matches!(format, BinaryFormat::MachO) {
+        name.strip_prefix('_').unwrap_or(name)
+    } else {
+        name
+    }
+}
+
+#[test]
+fn stable_id_object_symbol_normalization_only_strips_macho_abi_prefix() {
+    assert_eq!(
+        stable_id_normalize_object_symbol_name(
+            "___scoop_abi0_fun__sample_helper__hdeadbeef",
+            BinaryFormat::MachO,
+        ),
+        "__scoop_abi0_fun__sample_helper__hdeadbeef"
+    );
+    assert_eq!(
+        stable_id_normalize_object_symbol_name(
+            "__scoop_abi0_fun__sample_helper__hdeadbeef",
+            BinaryFormat::Elf,
+        ),
+        "__scoop_abi0_fun__sample_helper__hdeadbeef"
+    );
 }
 
 fn stable_id_classify_external_symbol(
