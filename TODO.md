@@ -1195,7 +1195,7 @@
     - 对应 `PLAN.md` P4 的第二阶段目标：source-level top-level function、materialized plain callable 与 effect-lowered plain callable 的 exported declaration path 现已统一走 `AbiMangler`；同一输入跨 checkout 根路径 external symbol 集一致，overload / multi-cone collision smoke 也证明 exported namespace 已进入 cone-aware、path-stable 语义。
     - 对应 `STABLE_ID.md` §5.2、§7.3、§7.4、§8.5：user ABI exported symbol 现统一落在 `__scoop_abi0_fun__<escaped-fqn>__h<hash128>` namespace，compiler-private refactor/closure/layout helper 继续留在 `__scoop_priv0__...`；`main`、`@Extern` 与 runtime/native fixed entry 仍是显式例外；不同 canonical key 复用同一 exported symbol 时会显式失败，不再静默碰撞。
 
-### [TODO] P4-T02R：Review exported ABI naming，确认 exported 与 private namespace 已完全分家
+### [DONE] P4-T02R：Review exported ABI naming，确认 exported 与 private namespace 已完全分家
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P4
@@ -1211,7 +1211,37 @@
   - 可以明确写出：exported ABI naming 已与 private LLVM helper naming 完全分家。
 - 依赖：P4-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+    - 复核并验证（无代码改动）：
+      - `crates/scoopc/src/stable_id.rs`
+      - `crates/scoopc/src/llvm/codegen/mod.rs`
+      - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+      - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+      - `crates/scoopc/src/llvm/tests.rs`
+      - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - 核心决策：
+    - 本轮按 review 任务要求只做定向复核，不新增实现性代码。复核结论是：authoritative exported declaration path 已闭合到 `AbiMangler`，且未发现需要插入到 `P5` 之前的新 blocker，因此直接闭合 `P4-T02R`。
+    - exported 与 private namespace 的最终分类规则明确如下：
+      - user ABI exported symbol：统一由 `AbiMangler` 生成，命名空间为 `__scoop_abi0_{fun|global|type}__<readable>__h<hash128>`，并通过 `declare_exported_abi_function(...)` 保持 `External` linkage。
+      - fixed external exception / runtime-native import：`main` 保留宿主固定入口；`@Extern` 指定 symbol、runtime/native 固定入口与 `malloc/free/exit` 继续通过 `declare_runtime_or_native_import_function(...)` 保持 external surface，不接入 private namespace。
+      - compiler-private helper：closure/object-init/effect/refactor helper 继续通过 `PrivateSymbolMangler` 与 compiler-private declaration API 发布，命名空间为 `__scoop_priv0__<role>__h<hash128>`，linkage 显式为 `Internal`/`Private`（以及少量设计上要求显式 external 的 helper），不与 exported ABI namespace 混用。
+    - `fqn` 仍保留源级语义：`exported_abi_symbol_for_hir_fun(...)` / `exported_abi_symbol_for_materialized_fun(...)` 会把 raw `fqn` 映射到 stable exported symbol，但 `mir_fun.fqn`、`callable.root_fqn()`、`StableDefKey.readable_path()` 仍只承担源级身份、查询、display/审计角色，没有被 whole-sale 改写成 mangled symbol。
+    - object audit、IR 行为测试与 source inventory 共同证明 exported/private 已分家：external symbol 集里只保留 user ABI 与显式例外；closure/effect/object-init 等 helper 继续留在 internal/private surface；旧 raw callable/private spelling 也有常驻 inventory 防止回流。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_top_level_and_materialized_generic_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_extern_global -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc function_declaration_helpers_emit_explicit_linkage -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_overloaded_source_level_callables_publish_distinct_abi_symbols -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_vtable_targets_use_abi_mangler_namespace -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_exported_object_symbols_are_path_stable_across_checkout_roots -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P4 的 review 验收项：可明确写出 exported ABI naming 已与 compiler-private helper naming 完全分家，且跨 checkout 路径稳定性、multi-cone collision 与全量 `scoopc` 测试均已通过。
+    - 对应 `STABLE_ID.md` §5.2 / §7.3 / §10：exported ABI 统一使用 `AbiMangler` namespace；`main`、`@Extern`、runtime/native fixed entry 仍是显式例外；closure/effect/object-init/private helper 继续停留在 private namespace 与 internal/private linkage，未回流到 external symbol 集。
 
 ## P5：重写 dump / fixture renderer
 
