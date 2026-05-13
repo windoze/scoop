@@ -4085,6 +4085,48 @@ fun main(): Int {
 }
 
 #[test]
+fn generic_class_init_raise_cleanup_uses_stable_type_driven_box_naming() {
+    let source = SourceFile::new_virtual(
+        "<mem>/generic_class_init_raise_cleanup.scoop",
+        r#"
+package a
+
+import scoop.core.*
+
+class Box<B>(val value: B) {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+fun main(): Int {
+    try {
+        val _x: Box<Int> = Box(1)
+    } catch (e: RuntimeError) {
+        // ignore
+    }
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source)
+        .expect("generic class init cleanup path 应可为 type-driven private box 命名生成 IR");
+
+    assert!(
+        ir.contains("scoop.refactor.MirValueBox__h")
+            || ir.contains("scoop.refactor.EffectTransportBox__h"),
+        "generic class init cleanup path 应继续发布 stable-hash private box family，而不是因为 type param resolver 缺失而失败\n{ir}"
+    );
+    assert!(
+        ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
+            || ir.contains("@__scoop_priv0__refactor_effect_transport_box__h"),
+        "generic class init cleanup path 应继续发布对应的 stable private descriptor/global anchor\n{ir}"
+    );
+}
+
+#[test]
 fn indirect_gc_aggregate_param_syncs_explicit_frame_home_slot_on_entry() {
     let source = SourceFile::new_virtual(
         "<mem>",

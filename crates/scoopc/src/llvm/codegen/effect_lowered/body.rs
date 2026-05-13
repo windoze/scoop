@@ -37,7 +37,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
-use crate::stable_id::{NoTypeParamResolver, canonical_record, canonical_type_text};
+use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
@@ -8076,7 +8076,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let transport_type_key = canonical_type_text(
             self.source_types,
             transport_ty,
-            &NoTypeParamResolver,
+            self.codegen.stable_type_param_resolver(),
         )
         .map_err(|err| {
             frontend_error(format!(
@@ -11191,8 +11191,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         cg_ty: CgTy,
     ) -> Result<(StructType<'ctx>, String), LlvmEmitError> {
         let payload_ty = self.codegen.llvm_basic_type_of(self.mir_fun.span, cg_ty)?;
-        let (type_name, layout_anchor_name) =
-            stable_naming::effect_transport_box_names(self.source_types, source_ty)?;
+        let (type_name, layout_anchor_name) = stable_naming::effect_transport_box_names(
+            self.source_types,
+            self.codegen.stable_type_param_resolver(),
+            source_ty,
+        )?;
         let struct_ty = self
             .codegen
             .context

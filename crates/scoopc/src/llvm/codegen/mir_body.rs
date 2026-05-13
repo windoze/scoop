@@ -7842,17 +7842,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         iface.fqn
                     ))
                 })?;
-                let interface_type_id = stable_rtti_type_id_for_type(
-                    self.types,
-                    interface_ty,
-                    &NoTypeParamResolver,
-                )
-                .map_err(|err| {
-                    frontend_error(format!(
-                        "MIR value box interface `{}` 无法构造 stable RTTI type id: {err}",
-                        iface.fqn
-                    ))
-                })?;
+                let interface_type_id = self
+                    .stable_rtti_type_id_for_codegen(interface_ty, "MIR value box interface RTTI")
+                    .map_err(|err| {
+                        frontend_error(format!(
+                            "MIR value box interface `{}` 无法构造 stable RTTI type id: {err}",
+                            iface.fqn
+                        ))
+                    })?;
                 Ok(crate::itable::ClassItableEntry {
                     interface_fqn: iface.fqn.clone(),
                     interface_id: iface.interface_id,

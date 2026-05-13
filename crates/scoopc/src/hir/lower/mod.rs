@@ -2434,9 +2434,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     };
     let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
+    let stable_type_param_keys =
+        collect_stable_type_param_keys(&[(source, &ast)], &stable_cone_key);
     Ok(LoweredHir {
         file,
         stable_cone_key,
+        stable_type_param_keys,
         member_funs,
         materialized_mir: None,
         types,
@@ -2785,10 +2788,12 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     };
     let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
+    let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
 
     Ok(LoweredHir {
         file: file_hir,
         stable_cone_key,
+        stable_type_param_keys,
         member_funs,
         materialized_mir: None,
         types,
@@ -3466,10 +3471,12 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
     );
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
+    let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
 
     Ok(LoweredHir {
         file: File { decls, items },
         stable_cone_key,
+        stable_type_param_keys,
         member_funs,
         materialized_mir: None,
         types,

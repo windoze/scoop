@@ -60,8 +60,8 @@ use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    AbiMangler, CanonicalTextKey, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey,
-    StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
+    AbiMangler, CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
+    StableConeKey, StableDefKey, StableDefNamespace, StableTypeParamKey,
     canonical_callable_signature_key, canonical_record, canonical_type_text,
     stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
 };
@@ -71,7 +71,8 @@ use crate::syntax::string_literal::{
 };
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{
-    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
+    ValueTypeKind,
 };
 
 use super::LlvmEmitError;
@@ -393,6 +394,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     source_map: &'a SourceMap,
     entry_source_id: SourceId,
     stable_cone_key: &'a StableConeKey,
+    stable_type_param_keys: &'a HashMap<TypeParamType, StableTypeParamKey>,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
@@ -698,6 +700,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) source_map: &'a SourceMap,
     pub(super) entry_source_id: SourceId,
     pub(super) stable_cone_key: &'a StableConeKey,
+    pub(super) stable_type_param_keys: &'a HashMap<TypeParamType, StableTypeParamKey>,
     pub(super) types: &'a TypeStore,
     pub(super) struct_layouts: &'a hir::StructLayoutIndex,
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
@@ -750,6 +753,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             source_map,
             entry_source_id,
             stable_cone_key,
+            stable_type_param_keys,
             types,
             struct_layouts,
             enum_layouts,
@@ -789,6 +793,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             source_map,
             entry_source_id,
             stable_cone_key,
+            stable_type_param_keys,
             types,
             struct_layouts,
             enum_layouts,
@@ -838,6 +843,10 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
         &self,
     ) -> Option<&crate::effect_lowered::LateLoweredProgram> {
         self.published_late_lowered_program
+    }
+
+    pub(super) fn stable_type_param_resolver(&self) -> &HashMap<TypeParamType, StableTypeParamKey> {
+        self.stable_type_param_keys
     }
 }
 
@@ -1936,7 +1945,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .ok_or_else(|| LlvmEmitError::Frontend {
                     message: format!("{context} 缺少 codegen type store"),
                 })?;
-        canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|err| {
+        canonical_type_text(types, ty, self.stable_type_param_resolver()).map_err(|err| {
             LlvmEmitError::Frontend {
                 message: format!("{context} 无法构造 stable canonical type key: {err}"),
             }
@@ -1953,7 +1962,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .ok_or_else(|| LlvmEmitError::Frontend {
                     message: format!("{context} 缺少 codegen type store"),
                 })?;
-        stable_rtti_type_id_for_type(types, ty, &NoTypeParamResolver).map_err(|err| {
+        stable_rtti_type_id_for_type(types, ty, self.stable_type_param_resolver()).map_err(|err| {
             LlvmEmitError::Frontend {
                 message: format!("{context} 无法构造 stable RTTI type id: {err}"),
             }
@@ -1967,13 +1976,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_ty: TypeId,
         types: &TypeStore,
     ) -> Result<StableDefKey, LlvmEmitError> {
-        let signature_key =
-            canonical_callable_signature_key(types, callable_ty, 0, 0, 0, &NoTypeParamResolver)
-                .map_err(|err| LlvmEmitError::Frontend {
-                    message: format!(
-                        "无法为 callable `{owner_path}` 计算 stable exported signature key: {err}"
-                    ),
-                })?;
+        let signature_key = canonical_callable_signature_key(
+            types,
+            callable_ty,
+            0,
+            0,
+            0,
+            self.stable_type_param_resolver(),
+        )
+        .map_err(|err| LlvmEmitError::Frontend {
+            message: format!(
+                "无法为 callable `{owner_path}` 计算 stable exported signature key: {err}"
+            ),
+        })?;
         Ok(StableDefKey::new(
             self.stable_cone_key.clone(),
             StableDefNamespace::Fun,

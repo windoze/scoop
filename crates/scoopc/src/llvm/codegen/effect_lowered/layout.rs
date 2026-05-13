@@ -343,6 +343,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_effect_key_text = stable_naming::effect_schema_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             step_type,
             &format!("step schema {}", step_type.step_schema().as_u32()),
@@ -402,6 +403,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let case_key_text = stable_naming::step_case_key_text(
                 self.codegen.stable_cone_key,
                 self.source_types,
+                self.codegen.stable_type_param_resolver(),
                 self.program,
                 case,
                 &format!(
@@ -605,6 +607,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         stable_naming::step_case_key_text(
                             self.codegen.stable_cone_key,
                             self.source_types,
+                            self.codegen.stable_type_param_resolver(),
                             self.program,
                             step_case,
                             &format!(
@@ -808,6 +811,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_continuation_key_text = stable_naming::continuation_schema_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             continuation_schema_facts,
             &format!("continuation schema {}", continuation_schema.as_u32()),
@@ -918,6 +922,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             callable.body_version_key(),
             &format!("frame callable `{}`", callable.root_fqn()),
@@ -993,6 +998,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_owner_key_text = stable_naming::callable_version_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             owner_callable.body_version_key(),
             &format!("continuation object {}", object.object_id().as_u32()),
@@ -1230,6 +1236,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             callable.body_version_key(),
             &format!("callable `{}`", callable.root_fqn()),
@@ -1303,6 +1310,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
+            self.codegen.stable_type_param_resolver(),
             self.program,
             callable.body_version_key(),
             &format!("plain callable `{}`", callable.root_fqn()),
@@ -1960,6 +1968,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 stable_naming::callable_version_key_text(
                     self.codegen.stable_cone_key,
                     self.source_types,
+                    self.codegen.stable_type_param_resolver(),
                     self.program,
                     &owner_version_key,
                     &format!(
@@ -7473,6 +7482,7 @@ mod tests {
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
             stable_cone_key: &lowered.stable_cone_key,
+            stable_type_param_keys: &lowered.stable_type_param_keys,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,
@@ -7553,6 +7563,7 @@ mod tests {
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
             stable_cone_key: &lowered.stable_cone_key,
+            stable_type_param_keys: &lowered.stable_type_param_keys,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,
@@ -7632,6 +7643,7 @@ mod tests {
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
             stable_cone_key: &lowered.stable_cone_key,
+            stable_type_param_keys: &lowered.stable_type_param_keys,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,

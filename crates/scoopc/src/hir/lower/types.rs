@@ -14,8 +14,8 @@ use crate::parser::ParseError;
 use crate::resolve::ResolveError;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::stable_id::StableConeKey;
-use crate::ty::{BuiltinTypes, TypeStore};
+use crate::stable_id::{StableConeKey, StableTypeParamKey};
+use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use crate::typecheck::{
     AnnotationError, ExprTypeError, PropertyDeclError, StructDeclError, TypeEnvError,
     TypeHeaderError, TypeLowerError,
@@ -316,6 +316,8 @@ pub struct LoweredHir {
     /// - 让后续 LLVM / RTTI / stable-id 迁移继续沿用 lowering 已解析好的 cone 语义身份；
     /// - 避免 backend 再从 source path 临时猜一个 cone key。
     pub stable_cone_key: StableConeKey,
+    /// 声明级 type/effect 参数到 stable owner/index key 的 authoritative 映射。
+    pub stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///
     /// 说明：
@@ -478,6 +480,7 @@ impl LoweredHir {
         Self {
             file: self.file.clone(),
             stable_cone_key: self.stable_cone_key.clone(),
+            stable_type_param_keys: self.stable_type_param_keys.clone(),
             member_funs: self.member_funs.clone(),
             materialized_mir: None,
             types: self.types.clone(),

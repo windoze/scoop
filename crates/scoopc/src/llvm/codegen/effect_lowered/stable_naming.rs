@@ -6,8 +6,8 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::stable_id::{
-    NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey, StableConeKey,
-    StableContinuationSchemaKey, StableEffectSchemaKey, canonical_effect_row_text, canonical_list,
+    PrivateSymbolMangler, StableCanonicalKey, StableConeKey, StableContinuationSchemaKey,
+    StableEffectSchemaKey, StableTypeParamResolver, canonical_effect_row_text, canonical_list,
     canonical_record, canonical_type_text,
 };
 use crate::ty::{TypeId, TypeStore};
@@ -46,13 +46,17 @@ pub(super) fn private_type_name_from_key_text(
     Ok(format!("scoop.refactor.{family}__h{hash}"))
 }
 
-pub(super) fn callable_version_key_text(
+pub(super) fn callable_version_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     version_key: &LateLoweredBodyVersionKey,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let owner_callable = program
         .callable_by_version_key(version_key)
         .ok_or_else(|| {
@@ -65,12 +69,14 @@ pub(super) fn callable_version_key_text(
     let allowed_row = canonical_effect_row_fragment(
         types,
         version_key.allowed_row(),
+        type_params,
         &format!("{context} allowed row"),
     )?;
     let step_schema = owner_callable.body_step_schema();
     let impl_plan = impl_plan_key_text(
         stable_cone_key,
         types,
+        type_params,
         program,
         step_schema,
         version_key.impl_plan(),
@@ -87,16 +93,21 @@ pub(super) fn callable_version_key_text(
     ))
 }
 
-pub(super) fn effect_schema_key_text(
+pub(super) fn effect_schema_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     step_type: &LateLoweredStepType,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let owner_key = step_schema_owner_key_text(
         stable_cone_key,
         types,
+        type_params,
         program,
         step_type.step_schema(),
         &format!("{context} owner"),
@@ -108,6 +119,7 @@ pub(super) fn effect_schema_key_text(
             step_case_key_text(
                 stable_cone_key,
                 types,
+                type_params,
                 program,
                 case,
                 &format!("{context} case"),
@@ -119,16 +131,19 @@ pub(super) fn effect_schema_key_text(
         canonical_type_fragment(
             types,
             step_type.invoke_args_tuple_ty(),
+            type_params,
             &format!("{context} invoke args tuple"),
         )?,
         canonical_type_fragment(
             types,
             step_type.complete_ty(),
+            type_params,
             &format!("{context} complete type"),
         )?,
         canonical_type_fragment(
             types,
             step_type.continuation_obj_ty(),
+            type_params,
             &format!("{context} continuation object type"),
         )?,
         canonical_list(&case_fragments),
@@ -139,16 +154,21 @@ pub(super) fn effect_schema_key_text(
     )
 }
 
-pub(super) fn continuation_schema_key_text(
+pub(super) fn continuation_schema_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     schema: &ContinuationSchema,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     continuation_key_text_from_fields(
         stable_cone_key,
         types,
+        type_params,
         program,
         schema.resume_tuple_ty(),
         schema.answer_ty(),
@@ -158,16 +178,21 @@ pub(super) fn continuation_schema_key_text(
     )
 }
 
-pub(super) fn continuation_contract_key_text(
+pub(super) fn continuation_contract_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     contract: LateLoweredContinuationContract,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     continuation_key_text_from_fields(
         stable_cone_key,
         types,
+        type_params,
         program,
         contract.resume_tuple_ty(),
         contract.answer_ty(),
@@ -177,15 +202,20 @@ pub(super) fn continuation_contract_key_text(
     )
 }
 
-pub(super) fn effect_transport_box_names(
+pub(super) fn effect_transport_box_names<R>(
     types: &TypeStore,
+    type_params: &R,
     source_ty: TypeId,
-) -> Result<(String, String), LlvmEmitError> {
+) -> Result<(String, String), LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let key_text = canonical_record(
         "effect_transport_box",
         [canonical_type_fragment(
             types,
             source_ty,
+            type_params,
             &format!("effect transport box t{}", source_ty.as_u32()),
         )?],
     );
@@ -198,19 +228,24 @@ pub(super) fn effect_transport_box_names(
     Ok((type_name, layout_anchor_name))
 }
 
-pub(super) fn step_case_key_text(
+pub(super) fn step_case_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     case: &LateLoweredStepCase,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     Ok(canonical_record(
         "step_case",
         [
             concrete_op_key_text(
                 stable_cone_key,
                 types,
+                type_params,
                 program,
                 case.concrete_op_key(),
                 &format!("{context} concrete op"),
@@ -218,11 +253,13 @@ pub(super) fn step_case_key_text(
             canonical_type_fragment(
                 types,
                 case.payload_tuple_ty(),
+                type_params,
                 &format!("{context} payload tuple"),
             )?,
             continuation_contract_key_text(
                 stable_cone_key,
                 types,
+                type_params,
                 program,
                 case.continuation_contract(),
                 &format!("{context} continuation contract"),
@@ -232,19 +269,24 @@ pub(super) fn step_case_key_text(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn continuation_key_text_from_fields(
+fn continuation_key_text_from_fields<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     resume_tuple_ty: TypeId,
     answer_ty: TypeId,
     out_step_schema: StepSchemaId,
     surface_ty: TypeId,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let owner_key = step_schema_owner_key_text(
         stable_cone_key,
         types,
+        type_params,
         program,
         out_step_schema,
         &format!("{context} out-step owner"),
@@ -252,15 +294,26 @@ fn continuation_key_text_from_fields(
     let out_step_summary = step_schema_shallow_summary_text(
         stable_cone_key,
         types,
+        type_params,
         program,
         out_step_schema,
         &format!("{context} out-step summary"),
     )?;
     let fragments = vec![
-        canonical_type_fragment(types, resume_tuple_ty, &format!("{context} resume tuple"))?,
-        canonical_type_fragment(types, answer_ty, &format!("{context} answer"))?,
+        canonical_type_fragment(
+            types,
+            resume_tuple_ty,
+            type_params,
+            &format!("{context} resume tuple"),
+        )?,
+        canonical_type_fragment(types, answer_ty, type_params, &format!("{context} answer"))?,
         canonical_record("out_step", [owner_key.clone(), out_step_summary]),
-        canonical_type_fragment(types, surface_ty, &format!("{context} surface"))?,
+        canonical_type_fragment(
+            types,
+            surface_ty,
+            type_params,
+            &format!("{context} surface"),
+        )?,
     ];
     Ok(StableContinuationSchemaKey::new(
         &CanonicalTextKey(owner_key),
@@ -270,13 +323,17 @@ fn continuation_key_text_from_fields(
     .canonical_text())
 }
 
-fn step_schema_owner_key_text(
+fn step_schema_owner_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     step_schema: StepSchemaId,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     if let Some(callable) = program
         .callables()
         .iter()
@@ -285,6 +342,7 @@ fn step_schema_owner_key_text(
         return callable_version_key_text(
             stable_cone_key,
             types,
+            type_params,
             program,
             callable.body_version_key(),
             context,
@@ -295,6 +353,7 @@ fn step_schema_owner_key_text(
         [step_schema_shallow_summary_text(
             stable_cone_key,
             types,
+            type_params,
             program,
             step_schema,
             context,
@@ -302,13 +361,17 @@ fn step_schema_owner_key_text(
     ))
 }
 
-fn step_schema_shallow_summary_text(
+fn step_schema_shallow_summary_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     step_schema: StepSchemaId,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let step_type = program.step_type(step_schema).ok_or_else(|| {
         frontend_error(format!(
             "{context} 缺少 step schema {} 对应的 late-lowered step type",
@@ -325,6 +388,7 @@ fn step_schema_shallow_summary_text(
                     concrete_op_key_text(
                         stable_cone_key,
                         types,
+                        type_params,
                         program,
                         case.concrete_op_key(),
                         &format!("{context} concrete op"),
@@ -332,6 +396,7 @@ fn step_schema_shallow_summary_text(
                     canonical_type_fragment(
                         types,
                         case.payload_tuple_ty(),
+                        type_params,
                         &format!("{context} payload tuple"),
                     )?,
                 ],
@@ -345,16 +410,19 @@ fn step_schema_shallow_summary_text(
             canonical_type_fragment(
                 types,
                 step_type.invoke_args_tuple_ty(),
+                type_params,
                 &format!("{context} invoke args tuple"),
             )?,
             canonical_type_fragment(
                 types,
                 step_type.complete_ty(),
+                type_params,
                 &format!("{context} complete type"),
             )?,
             canonical_type_fragment(
                 types,
                 step_type.continuation_obj_ty(),
+                type_params,
                 &format!("{context} continuation object type"),
             )?,
             canonical_list(&case_fragments),
@@ -362,14 +430,18 @@ fn step_schema_shallow_summary_text(
     ))
 }
 
-fn impl_plan_key_text(
+fn impl_plan_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     step_schema: Option<StepSchemaId>,
     impl_plan: ImplPlan,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     match impl_plan {
         ImplPlan::NoOutward => Ok(canonical_record("impl_plan", ["no_outward".to_string()])),
         ImplPlan::CanonicalFull => Ok(canonical_record(
@@ -402,6 +474,7 @@ fn impl_plan_key_text(
                         concrete_op_key_text(
                             stable_cone_key,
                             types,
+                            type_params,
                             program,
                             case.concrete_op_key(),
                             &format!("{context} concrete op"),
@@ -409,11 +482,13 @@ fn impl_plan_key_text(
                         canonical_type_fragment(
                             types,
                             case.payload_tuple_ty(),
+                            type_params,
                             &format!("{context} payload tuple"),
                         )?,
                         continuation_contract_shallow_text(
                             stable_cone_key,
                             types,
+                            type_params,
                             program,
                             case.continuation_contract(),
                             &format!("{context} continuation contract"),
@@ -425,48 +500,75 @@ fn impl_plan_key_text(
     }
 }
 
-fn continuation_contract_shallow_text(
+fn continuation_contract_shallow_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     program: &LateLoweredProgram,
     contract: LateLoweredContinuationContract,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     Ok(canonical_record(
         "continuation_contract_shallow",
         [
             canonical_type_fragment(
                 types,
                 contract.resume_tuple_ty(),
+                type_params,
                 &format!("{context} resume tuple"),
             )?,
-            canonical_type_fragment(types, contract.answer_ty(), &format!("{context} answer"))?,
+            canonical_type_fragment(
+                types,
+                contract.answer_ty(),
+                type_params,
+                &format!("{context} answer"),
+            )?,
             step_schema_shallow_summary_text(
                 stable_cone_key,
                 types,
+                type_params,
                 program,
                 contract.out_step_schema(),
                 &format!("{context} out-step summary"),
             )?,
-            canonical_type_fragment(types, contract.surface_ty(), &format!("{context} surface"))?,
+            canonical_type_fragment(
+                types,
+                contract.surface_ty(),
+                type_params,
+                &format!("{context} surface"),
+            )?,
         ],
     ))
 }
 
-fn concrete_op_key_text(
+fn concrete_op_key_text<R>(
     _stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    type_params: &R,
     _program: &LateLoweredProgram,
     concrete_op: &ConcreteOpKey,
     context: &str,
-) -> Result<String, LlvmEmitError> {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
     let instance = concrete_op.stable_instance_key().canonical_text();
     let mut family_type_args = concrete_op
         .effect_family()
         .type_args()
         .iter()
         .copied()
-        .map(|ty| canonical_type_fragment(types, ty, &format!("{context} effect family arg")))
+        .map(|ty| {
+            canonical_type_fragment(
+                types,
+                ty,
+                type_params,
+                &format!("{context} effect family arg"),
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
     family_type_args.shrink_to_fit();
     Ok(canonical_record(
@@ -484,12 +586,16 @@ fn concrete_op_key_text(
     ))
 }
 
-fn canonical_type_fragment(
+fn canonical_type_fragment<R>(
     types: &TypeStore,
     ty: TypeId,
+    type_params: &R,
     context: &str,
-) -> Result<String, LlvmEmitError> {
-    canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|err| {
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    canonical_type_text(types, ty, type_params).map_err(|err| {
         frontend_error(format!(
             "{context} 编码 canonical type text 失败（t{}）: {err}",
             ty.as_u32()
@@ -497,12 +603,16 @@ fn canonical_type_fragment(
     })
 }
 
-fn canonical_effect_row_fragment(
+fn canonical_effect_row_fragment<R>(
     types: &TypeStore,
     row: &crate::ty::EffectRow,
+    type_params: &R,
     context: &str,
-) -> Result<String, LlvmEmitError> {
-    canonical_effect_row_text(types, row, &NoTypeParamResolver)
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    canonical_effect_row_text(types, row, type_params)
         .map_err(|err| frontend_error(format!("{context} 编码 canonical effect row 失败: {err}")))
 }
 
@@ -618,6 +728,7 @@ mod tests {
         let left_key = callable_version_key_text(
             &stable_cone_key,
             &types,
+            &NoTypeParamResolver,
             &program,
             &left_version,
             "left callable",
@@ -626,6 +737,7 @@ mod tests {
         let right_key = callable_version_key_text(
             &stable_cone_key,
             &types,
+            &NoTypeParamResolver,
             &program,
             &right_version,
             "right callable",

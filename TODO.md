@@ -1903,7 +1903,7 @@
     - 对应 `PLAN.md` §6 与 `STABLE_ID.md` §3.3 / §3.4.6 / §3.4.7 / §7.1 / §8.4：remaining RTTI query、interface runtime-match type-id、boxed enum / MIR capture-box / MIR value-box derived type-desc identity 已全部切到 canonical semantic key，不再由 pretty text / sanitize 直接控制。
     - 对应 `STABLE_ID.md` §5.1 / §10：可读 RTTI/type-desc 名称与真正 hash 输入现在已显式分离，且有常驻 source inventory / RTTI dump / LLVM metadata 回归防止旧输入源回流；`P7-T01R` 可以继续做最终全量签收。
 
-### [TODO] P7-T01D：为 LLVM type-driven stable-id helper 接入 authoritative type-param resolver
+### [DONE] P7-T01D：为 LLVM type-driven stable-id helper 接入 authoritative type-param resolver
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5.4、§6
@@ -1943,7 +1943,35 @@
   - LLVM codegen 的 generic-bearing type-driven stable-id helper 已能稳定拿到 authoritative type-param key，不再因为 `missing stable type parameter key` 阻断 active production 编译路径；随后 `P7-T01R` 才能继续最终签收。
 - 依赖：P7-T01C
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/hir/lower/mod.rs`
+    - `crates/scoopc/src/hir/lower/types.rs`
+    - `crates/scoopc/src/hir/lower/util.rs`
+    - `crates/scoopc/src/llvm/emit.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/stable_naming.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 在 HIR lowering 侧新增 `stable_type_param_keys` 索引，把声明级 `TypeParamType` / effect-row placeholder 绑定到 authoritative `StableTypeParamKey(owner_def_key#index)`，并随 `LoweredHir` 一起传入 LLVM codegen；这样 codegen 不再需要按 pretty text、raw param 名或 path/span 临时猜测 owner。
+    - `CompilationUnitCodegenCx` 现在把这份索引作为共享 `StableTypeParamResolver` 暴露给 production 路径；`canonical_type_key_text_for_codegen`、`stable_rtti_type_id_for_codegen`、MIR value-box interface RTTI、non-generic callable signature key、以及 effect-lowered 的 task transport / effect transport box / step schema / continuation schema stable naming 全部切到同一 authoritative resolver。
+    - effect-lowered stable naming 不再把 generic-bearing type/effect canonicalization 固定绑在 `NoTypeParamResolver`；同根的 MIR value-box、effect transport box、resume task transport、continuation/step private naming sibling case 现在会与主 helper 共用同一份 owner/index 规则，而不是只修单个 fixture。
+    - 新增 `generic_class_init_raise_cleanup_uses_stable_type_driven_box_naming`，直接锁定“generic class init cleanup + Raise unwind”下的 type-driven private box naming，防止 `missing stable type parameter key` 在 MIR value-box / effect transport family 回流。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc generic_class_init_raise_cleanup_uses_stable_type_driven_box_naming -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` §5.4 / §6：LLVM codegen 的 generic-bearing type-driven stable-id helper 已统一接入 authoritative type-param resolver，`class_init_raise_cleanup_init_block_gc_basic.scoop` 不再阻断最终签收矩阵，`P7-T01R` 可继续执行最终审计。
+    - 对应 `STABLE_ID.md` §5.1 / §7.1 / §8.4 / §8.5 / §10：MIR value-box、RTTI type-id、effect-lowered transport/private naming 等 active production surface 现在都从声明级 owner/index key 取得 canonical type-param identity，不再回退到 `NoTypeParamResolver`、pretty text、raw param 名或局部 workaround。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 

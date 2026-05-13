@@ -462,6 +462,265 @@ pub(super) fn collect_nominal_variances(
     out
 }
 
+pub(crate) fn collect_stable_type_param_keys(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    stable_cone_key: &StableConeKey,
+) -> HashMap<TypeParamType, StableTypeParamKey> {
+    let mut out = HashMap::new();
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            collect_stable_type_param_keys_in_item(
+                source,
+                item,
+                &pkg_prefix,
+                stable_cone_key,
+                &mut out,
+            );
+        }
+    }
+    out
+}
+
+fn collect_stable_type_param_keys_in_item(
+    source: &SourceFile,
+    item: &ast::Item,
+    owner_prefix: &str,
+    stable_cone_key: &StableConeKey,
+    out: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    match item {
+        ast::Item::TypeAlias(alias) => {
+            let owner_fqn = join_prefix(owner_prefix, alias.name.text(source));
+            let owner_key = stable_signature_param_owner_key(
+                stable_cone_key,
+                StableDefNamespace::Type,
+                &owner_fqn,
+                "type_alias",
+            );
+            register_owner_type_param_keys(&owner_key, source, &alias.type_params, None, out);
+        }
+        ast::Item::Fun(fun) => {
+            let owner_fqn = join_prefix(owner_prefix, fun.name.text(source));
+            let owner_key = stable_signature_param_owner_key(
+                stable_cone_key,
+                StableDefNamespace::Fun,
+                &owner_fqn,
+                generic_fun_decl_kind(fun),
+            );
+            register_owner_type_param_keys(
+                &owner_key,
+                source,
+                &fun.type_params,
+                fun.eff_param.as_ref(),
+                out,
+            );
+        }
+        ast::Item::ExtensionProperty(prop) => {
+            let owner_fqn = join_prefix(owner_prefix, prop.name.text(source));
+            let owner_key = stable_signature_param_owner_key(
+                stable_cone_key,
+                StableDefNamespace::PropertyGetter,
+                &owner_fqn,
+                "generic_extension_property_getter",
+            );
+            register_owner_type_param_keys(&owner_key, source, &prop.type_params, None, out);
+        }
+        ast::Item::Type(ty) => collect_stable_type_param_keys_in_type_decl(
+            source,
+            owner_prefix,
+            ty,
+            stable_cone_key,
+            out,
+        ),
+        ast::Item::Object(obj) => collect_stable_type_param_keys_in_object_decl(
+            source,
+            owner_prefix,
+            obj,
+            stable_cone_key,
+            out,
+        ),
+        ast::Item::Val(_) | ast::Item::ComptimeIf(_) => {}
+    }
+}
+
+fn collect_stable_type_param_keys_in_type_decl(
+    source: &SourceFile,
+    owner_prefix: &str,
+    decl: &ast::TypeDecl,
+    stable_cone_key: &StableConeKey,
+    out: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    let owner_fqn = join_prefix(owner_prefix, decl.name.text(source));
+    let owner_key = stable_signature_param_owner_key(
+        stable_cone_key,
+        StableDefNamespace::Type,
+        &owner_fqn,
+        stable_type_decl_kind(decl.kind),
+    );
+    register_owner_type_param_keys(
+        &owner_key,
+        source,
+        &decl.type_params,
+        decl.eff_param.as_ref(),
+        out,
+    );
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => {
+                let owner_fqn = format!("{owner_fqn}.{}", fun.name.text(source));
+                let owner_key = stable_signature_param_owner_key(
+                    stable_cone_key,
+                    StableDefNamespace::Fun,
+                    &owner_fqn,
+                    generic_fun_decl_kind(fun),
+                );
+                register_owner_type_param_keys(
+                    &owner_key,
+                    source,
+                    &fun.type_params,
+                    fun.eff_param.as_ref(),
+                    out,
+                );
+            }
+            ast::TypeMember::Type(nested) => collect_stable_type_param_keys_in_type_decl(
+                source,
+                &owner_fqn,
+                nested,
+                stable_cone_key,
+                out,
+            ),
+            ast::TypeMember::Object(obj) => collect_stable_type_param_keys_in_object_decl(
+                source,
+                &owner_fqn,
+                obj,
+                stable_cone_key,
+                out,
+            ),
+            ast::TypeMember::Property(_)
+            | ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn collect_stable_type_param_keys_in_object_decl(
+    source: &SourceFile,
+    owner_prefix: &str,
+    obj: &ast::ObjectDecl,
+    stable_cone_key: &StableConeKey,
+    out: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    let Some(name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let owner_fqn = join_prefix(owner_prefix, &name);
+    let Some(body) = &obj.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => {
+                let member_fqn = format!("{owner_fqn}.{}", fun.name.text(source));
+                let owner_key = stable_signature_param_owner_key(
+                    stable_cone_key,
+                    StableDefNamespace::Fun,
+                    &member_fqn,
+                    generic_fun_decl_kind(fun),
+                );
+                register_owner_type_param_keys(
+                    &owner_key,
+                    source,
+                    &fun.type_params,
+                    fun.eff_param.as_ref(),
+                    out,
+                );
+            }
+            ast::TypeMember::Type(nested) => collect_stable_type_param_keys_in_type_decl(
+                source,
+                &owner_fqn,
+                nested,
+                stable_cone_key,
+                out,
+            ),
+            ast::TypeMember::Object(nested) => collect_stable_type_param_keys_in_object_decl(
+                source,
+                &owner_fqn,
+                nested,
+                stable_cone_key,
+                out,
+            ),
+            ast::TypeMember::Property(_)
+            | ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn register_owner_type_param_keys(
+    owner_key: &str,
+    source: &SourceFile,
+    type_params: &[ast::TypeParam],
+    eff_param: Option<&ast::EffectRowParam>,
+    out: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    for (index, param) in type_params.iter().enumerate() {
+        insert_stable_type_param_key(
+            out,
+            TypeParamType {
+                name: param.name.text(source).to_string(),
+                decl_file: source.path().to_path_buf(),
+                decl_span: param.name.span,
+            },
+            StableTypeParamKey::new(owner_key.to_string(), index),
+        );
+    }
+    if let Some(eff_param) = eff_param {
+        insert_stable_type_param_key(
+            out,
+            TypeParamType {
+                name: eff_param.name.text(source).to_string(),
+                decl_file: std::path::PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
+                decl_span: eff_param.name.span,
+            },
+            StableTypeParamKey::new(owner_key.to_string(), type_params.len()),
+        );
+    }
+}
+
+fn insert_stable_type_param_key(
+    out: &mut HashMap<TypeParamType, StableTypeParamKey>,
+    param: TypeParamType,
+    key: StableTypeParamKey,
+) {
+    match out.get(&param) {
+        Some(existing) => debug_assert_eq!(
+            existing, &key,
+            "stable type parameter key collision for `{}` at {:?}:{:?}",
+            param.name, param.decl_file, param.decl_span,
+        ),
+        None => {
+            out.insert(param, key);
+        }
+    }
+}
+
+fn stable_type_decl_kind(kind: ast::TypeKind) -> &'static str {
+    match kind {
+        ast::TypeKind::Class => "class",
+        ast::TypeKind::Interface => "interface",
+        ast::TypeKind::Struct => "struct",
+        ast::TypeKind::Enum => "enum",
+        ast::TypeKind::Effect => "effect",
+    }
+}
+
 pub(super) fn collect_direct_supertypes(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
