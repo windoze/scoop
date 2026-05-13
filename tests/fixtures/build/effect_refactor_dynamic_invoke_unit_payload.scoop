@@ -4,10 +4,10 @@
 // - `Ping.tick(): Unit` 的 resume tuple 也是 `Unit`，因此 resume method 只保留 receiver；
 // - outward step case payload 只应留下 continuation object 指针，而不是额外 `Unit` 载荷。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_dynamic_invoke__fixtures_build_unitWorker()
-// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_direct_invoke__fixtures_build_unitWorker()
-// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_unitWorker @__scoop_refactor_resume__fixtures_build_unitWorker__case0(
-// BUILD-LLVM-CONTAINS: %scoop.refactor.StepCase__fixtures_build_unitWorker__case0 = type { ptr addrspace(1) }
+// BUILD-LLVM-REGEX: define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_dynamic_invoke__h[0-9a-f]+\(\)
+// BUILD-LLVM-REGEX: define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_direct_invoke__h[0-9a-f]+\(\)
+// BUILD-LLVM-REGEX: define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_resume__h[0-9a-f]+\(ptr addrspace\(1\) %0\)
+// BUILD-LLVM-REGEX: %scoop\.refactor\.StepCase__h[0-9a-f]+ = type \{ ptr addrspace\(1\) \}
 package fixtures.build
 
 effect Ping {

@@ -2194,6 +2194,39 @@ fun main() {
     }
 
     #[test]
+    fn dump_rtti_identity_stays_stable_across_checkout_roots() {
+        let sess = Session::new().unwrap();
+        let program = r#"
+package a
+import scoop.core.*
+
+fun main() {
+  val s: String = "hi"
+  val keep = { println(s) }
+  keep()
+}
+"#;
+        let src_a = SourceFile::new_virtual(
+            "/tmp/scoop-checkout-a/tests/fixtures/rtti/path_stable_closure_env.scoop",
+            program,
+        );
+        let src_b = SourceFile::new_virtual(
+            "/tmp/scoop-checkout-b/tests/fixtures/rtti/path_stable_closure_env.scoop",
+            program,
+        );
+
+        let dump_a = dump_file_type_desc(&sess, &src_a).unwrap();
+        let dump_b = dump_file_type_desc(&sess, &src_b).unwrap();
+
+        let json_a = serde_json::to_string_pretty(&dump_a).unwrap();
+        let json_b = serde_json::to_string_pretty(&dump_b).unwrap();
+        assert_eq!(
+            json_a, json_b,
+            "RTTI dump identity 不应依赖 checkout 根路径"
+        );
+    }
+
+    #[test]
     fn dump_rtti_interface_id_and_method_slots() {
         let sess = Session::new().unwrap();
         let src = SourceFile::new_virtual(

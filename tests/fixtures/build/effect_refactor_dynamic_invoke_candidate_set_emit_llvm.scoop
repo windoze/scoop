@@ -3,10 +3,8 @@
 // - `Base.ping` / `DerivedA.ping` / `DerivedB.ping` / `helper` 的 canonical dynamic entry 应全部发布；
 // - pure `main()` 的 ABI visibility build 不得为此落回 legacy effect body lowering。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_Base_ping
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_DerivedA_ping
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_DerivedB_ping
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_helper
+// BUILD-LLVM-REGEX: (?s)(?:define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_dynamic_invoke__h[0-9a-f]+\(ptr addrspace\(1\) %0\).*?){4}
+// BUILD-LLVM-REGEX: (?s)(?:define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_direct_invoke__h[0-9a-f]+\(ptr addrspace\(1\) %0\).*?){4}
 // BUILD-LLVM-NOT-CONTAINS: scoop.effect.frame.
 package fixtures.build
 

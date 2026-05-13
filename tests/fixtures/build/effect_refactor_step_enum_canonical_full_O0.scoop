@@ -1,9 +1,9 @@
 // 目标：P6-T05 build matrix 的 `CanonicalFull` 样本。
 // `canonicalFullWorker` 可能 outward `Alpha + Beta`，O0 下必须保留 full Step case layout。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_canonicalFullWorker__complete = internal constant i32 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_canonicalFullWorker__case0 = internal constant i32 1
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_canonicalFullWorker__case1 = internal constant i32 2
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_complete__h[0-9a-f]+ = internal constant i32 0
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_case__h[0-9a-f]+ = internal constant i32 1
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_case__h[0-9a-f]+ = internal constant i32 2
 
 package fixtures.build
 

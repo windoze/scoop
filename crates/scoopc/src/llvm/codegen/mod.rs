@@ -1981,6 +1981,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(symbol)
     }
 
+    fn exported_abi_symbol_for_hir_fun_with_signature_override(
+        &self,
+        fun: &hir::FunDecl,
+        owner_path: &str,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<String, LlvmEmitError> {
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun.ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function type",
+                at: fun.span.into(),
+            });
+        };
+        let mut signature_types = self.types.clone();
+        let callable_ty = signature_types.ty_function(
+            fun_ty.receiver,
+            param_tys.to_vec(),
+            return_ty,
+            fun_ty.effects.clone(),
+            fun_ty.effects_closed,
+        );
+        let param_ty_text = param_tys
+            .iter()
+            .map(|&ty| signature_types.display(ty).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let return_ty_text = signature_types.display(return_ty).to_string();
+        let stable_key = self.stable_def_key_for_callable_signature(
+            owner_path,
+            "non_generic_callable",
+            callable_ty,
+            &signature_types,
+        )
+        .map_err(|err| LlvmEmitError::Frontend {
+            message: format!(
+                "无法为 callable `{owner_path}` 基于 signature override 计算 stable exported signature key: params=[{param_ty_text}] return={return_ty_text}: {err}"
+            ),
+        })?;
+        let symbol = AbiMangler.fun_symbol(&stable_key);
+        self.reserve_exported_abi_symbol(
+            &symbol,
+            &stable_key,
+            format!(
+                "source callable `{}` via signature override concrete callable type",
+                owner_path
+            ),
+        )?;
+        Ok(symbol)
+    }
+
     pub(in crate::llvm::codegen) fn exported_abi_symbol_for_materialized_fun(
         &self,
         mir_fun: &crate::mir::FunDecl,
@@ -2006,7 +2056,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             return Ok(symbol);
         }
-        if let Some(hir_fun) = self.hir_fun_for_callable_fqn(&mir_fun.fqn) {
+        if let Some(hir_fun) = self.hir_fun_for_callable_fqn(&mir_fun.fqn)
+            && hir_fun.fqn == mir_fun.fqn
+        {
             return self.exported_abi_symbol_for_hir_fun(hir_fun);
         }
         let stable_key = self.stable_def_key_for_callable_signature(
@@ -2966,8 +3018,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let is_extern = self.extern_funs.contains_key(&fun.fqn);
         let llvm_name = if is_extern {
             llvm_name.to_string()
+        } else if let Some(pass_view) = self.materialized_pass_view()
+            && let Some(owner) = pass_view.owner_of_callable(llvm_name)
+            && let Some(stable_key) = pass_view
+                .materialized()
+                .authoritative_stable_instance_key(owner)
+        {
+            let symbol = AbiMangler.fun_symbol(&stable_key);
+            self.reserve_exported_abi_symbol(
+                &symbol,
+                &stable_key,
+                format!(
+                    "source callable `{}` via signature override authoritative instance key",
+                    llvm_name
+                ),
+            )?;
+            symbol
         } else {
-            self.exported_abi_symbol_for_hir_fun(fun)?
+            self.exported_abi_symbol_for_hir_fun_with_signature_override(
+                fun, llvm_name, param_tys, return_ty,
+            )?
         };
         if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);

@@ -705,7 +705,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-            let concrete_fqn = self.concrete_top_level_fun_call_fqn(callee.span, fqn)?;
+            let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
             let dispatch_fqn = direct_call_dispatch_fqn(&concrete_fqn);
 
             if dispatch_fqn == "scoop.unsafe.invoke" {
@@ -1141,6 +1141,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let fallback_param_tys =
                     fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
                 let fallback_return_ty = fun.return_ty;
+                let inferred_param_tys = if fallback_param_tys
+                    .iter()
+                    .any(|&ty| self.cg_ty_of(ty).is_none())
+                {
+                    let mut inferred = fallback_param_tys.clone();
+                    let mut next_positional = 0usize;
+                    let mut changed = false;
+                    for arg in args {
+                        let (param_index, expr) = match arg {
+                            hir::CallArg::Positional(expr) => {
+                                let param_index = next_positional;
+                                next_positional += 1;
+                                if param_index >= inferred.len() {
+                                    continue;
+                                }
+                                (param_index, expr)
+                            }
+                            hir::CallArg::Named { name, value, .. } => {
+                                let Some(param_index) =
+                                    fun.params.iter().position(|param| param.name == *name)
+                                else {
+                                    continue;
+                                };
+                                (param_index, value)
+                            }
+                        };
+                        let concrete_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
+                        if self.cg_ty_of(inferred[param_index]).is_none()
+                            && self.cg_ty_of(concrete_ty).is_some()
+                        {
+                            inferred[param_index] = concrete_ty;
+                            changed = true;
+                        }
+                    }
+                    changed.then_some(inferred)
+                } else {
+                    None
+                };
                 let needs_published_sig = fallback_param_tys
                     .iter()
                     .any(|&ty| self.cg_ty_of(ty).is_none())
@@ -1151,6 +1189,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             (dispatch_fqn != fqn)
                                 .then(|| self.published_callable_signature(dispatch_fqn))
                                 .flatten()
+                        })
+                        .or_else(|| {
+                            inferred_param_tys
+                                .clone()
+                                .map(|param_tys| (param_tys, fallback_return_ty))
                         })
                         .unwrap_or((fallback_param_tys, fallback_return_ty))
                 } else {

@@ -19,6 +19,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 serde_json = "1.0.149"
 object = { version = "0.37.3", default-features = false, features = ["read", "std"] }
 sha2 = "0.10.9"
+regex = "1.11.1"
 
 scoopc = { path = "../scoopc", default-features = false }
 

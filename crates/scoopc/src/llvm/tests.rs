@@ -2029,6 +2029,44 @@ fun main(): Int {
 }
 
 #[test]
+fn class_init_order_fixture_codegen_accepts_materialized_generic_sysroot_direct_calls() {
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_println"),
+        "class/object/init helper 中的 concrete generic direct call 应继续复用 materialized generic sysroot direct-call lowering\n{ir}"
+    );
+}
+
+#[test]
+fn class_init_order_fixture_collects_class_init_println_call_bindings() {
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
+    let println_bindings = codegen_unit
+        .lowered
+        .top_level_fun_call_sites
+        .values()
+        .filter(|binding| binding.fqn == "scoop.core.println")
+        .count();
+
+    assert_eq!(
+        println_bindings, 14,
+        "class init / ctor / main 中的 println call-site binding 都应被前端记录"
+    );
+}
+
+#[test]
 fn frontend_codegen_rewrites_string_literal_compare_to_and_concat_to_extension_direct_calls() {
     fn find_local_init<'a>(body: &'a hir::Block, name: &str) -> &'a hir::Expr {
         body.stmts
@@ -2539,6 +2577,22 @@ fn callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir() {
             crate::span::Span::new(1781, 1782)
         ],
         "top-level FunPtr named direct call should reorder args to receiver-then-a0 in MIR"
+    );
+}
+
+#[test]
+fn callable_value_pattern_binder_receiver_named_args_fixture_codegen_succeeds() {
+    let session = Session::new().unwrap();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop")
+        .canonicalize()
+        .unwrap();
+    let source = SourceFile::load(&fixture).unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("top_level_val_init") && ir.contains("__scoop_priv0__closure_body__h"),
+        "top-level callable-value initializers should lower pure closure carriers without requiring a published dynamic entry\n{ir}"
     );
 }
 

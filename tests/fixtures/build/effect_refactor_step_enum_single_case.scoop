@@ -3,10 +3,10 @@
 // - `P6-T01b` 之后，refactor build 会通过独立 ABI visibility handoff 暴露 request-source 范围的 ABI shell，
 //   因此这里不再需要让 effectful helper 从 `main` 可达，也不允许借 reachable handle 走 legacy lowering。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__complete = internal constant i32 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case0 = internal constant i32 1
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case1 = internal constant i32 2
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_singleCaseWorker__case2 = internal constant i32 3
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_complete__h[0-9a-f]+ = internal constant i32 0
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_case__h[0-9a-f]+ = internal constant i32 1
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_case__h[0-9a-f]+ = internal constant i32 2
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_step_case_tag_case__h[0-9a-f]+ = internal constant i32 3
 package fixtures.build
 
 effect Ping {

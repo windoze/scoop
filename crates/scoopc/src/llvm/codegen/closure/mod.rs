@@ -439,6 +439,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
+        if fun_ty.effects.is_pure() {
+            self.register_plain_callable_carrier_fallback(
+                CallableCarrierKind::ClosureObject,
+                closure_identity.callable_fqn.as_str(),
+            )?;
+        }
+
         let fn_ptr = self.callable_carrier_target_fn_ptr(
             CallableCarrierKind::ClosureObject,
             closure_identity.callable_fqn.as_str(),

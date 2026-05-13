@@ -1564,7 +1564,7 @@
 
 ## P7：全量审计、fixture refresh 与无功能漂移验收
 
-### [TODO] P7-T01：运行最终审计矩阵，刷新快照，并验证路径稳定性 / 多 cone / 无功能漂移
+### [DONE] P7-T01：运行最终审计矩阵，刷新快照，并验证路径稳定性 / 多 cone / 无功能漂移
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P7
@@ -1609,7 +1609,58 @@
   - `PLAN.md` §6 与 `STABLE_ID.md` §10 的验收标准全部可以明确陈述为已满足。
 - 依赖：P6-T01R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoop/Cargo.toml`
+    - `Cargo.lock`
+    - `crates/scoop/src/fixtures/expectations.rs`
+    - `crates/scoop/src/fixtures/mod.rs`
+    - `crates/scoopc/src/dump_support.rs`
+    - `crates/scoopc/src/rtti/type_desc.rs`
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/call/lowering.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`
+    - `tests/fixtures/build/effect_refactor_dynamic_invoke_unit_payload.scoop`
+    - `tests/fixtures/build/effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop`
+    - `tests/fixtures/build/effect_refactor_step_enum_canonical_full_O0.scoop`
+    - `tests/fixtures/build/effect_refactor_step_enum_single_case.scoop`
+    - `tests/fixtures/build/effect_refactor_continuation_interface_full_methods.scoop`
+  - 核心决策：
+    - 为满足 `P7` 的“路径稳定性”验收，补了两类常驻回归：`dump_support.rs` 现在显式验证不同 checkout 根路径下的 dump path / dump label 归一化结果一致；`rtti/type_desc.rs` 现在显式比较不同 checkout 根路径下的 RTTI dump identity 一致。现有 `pipeline::llvm_codegen_stage` object-level path-stable / multi-cone tests 继续作为 external symbol 与 collision 基线。
+    - build fixture 断言模型扩展为支持 `BUILD-LLVM-REGEX`，并把仍锁定旧 private helper spelling 的 stable-id 敏感 build fixtures 统一迁到 hashed family regex。这样保留了对 helper family / case-tag / vtable shape 的验证力度，同时不再把旧 textual spelling 当作正确性标准。
+    - 全量矩阵暴露并修复了两个真实 P7 blocker，而不是用 snapshot/fixture 规避：
+      - 纯 direct-HIR closure 在 `top_level_val_init` / 同类 compiler-private init helper 中构造 callable object 时，没有注册 plain callable-carrier fallback，导致 callable carrier contract 报缺少 published target entry；现已在 `closure/mod.rs` 为纯 direct-HIR closure 注册 fallback，并补了对应 LLVM 回归。
+      - class init / ctor 路径上的 concrete generic direct call 在缺少 authoritative instance key 或 published signature 时，会错误退回 generic HIR callable 计算 exported symbol；现已同时修正 HIR direct-call 的 concrete arg-type 回填、materialized callable 的 concrete-MIR signature fallback，以及 HIR top-level call binding 的 call-span 使用，恢复 init/helper 路径对 concrete generic callable 的 stable ABI 解析。
+    - 最终 grep 审计分类结论：
+      - `__schema[0-9]+`、`__k[0-9]+`、`t[0-9]+__` 均为 0 命中，说明旧 effect private symbol 路径已经退出 active tree。
+      - `scoop.lambda$[0-9]+` / `scoop.lambda_resume$[0-9]+` / `scoop.lambda_env$[0-9]+` 仅剩 `crates/scoopc/src/llvm/tests.rs` 中的 classifier / negative inventory 文本，属于测试数据，不是生产路径。
+      - `module.add_function(..., None)` 命中仅剩 `crates/scoopc/src/llvm/tests.rs` 审计常量与失败信息文本，生产 LLVM declaration path 已无 raw callsite。
+      - `stable_template_symbol_suffix` 命中只剩 `stable_id.rs` authoritative helper、本体接入点（`hir/lower/util.rs`、`mir/materialize.rs`）与审计测试；它是当前 stable-id 正式 API，不是 legacy fallback。
+      - `source_path.*decl_span` 命中仅剩内部 binder/symbol key（`hir/mod.rs`、`hir/lower/types.rs`）与 dump wiring，本轮未再发现它们进入 active dump / JSON / RTTI / object external surface。
+      - 其余 `TypeId(` / `SymbolId(` / `ClosureId(` / `SourceId(` / `ConeId(` / `BasicBlockId(` / `LocalId(` / `SiteId(` / `StepSchemaId(` / `ContinuationSchemaId(` / `CaseTag(` / `ResumeInterfaceId(` / `ContinuationObjectId(` / `StateId(` / `BoundaryId(` / `FrameSlotId(` 残余命中，均落在三类位置：内部 handle/type 定义、healthy schema 的负向 path-free 断言、以及 stable-id 审计测试常量；未发现新的 active external leakage，因此无需插回新的前置任务。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc checkout_root -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc distinct_virtual_cones -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_audit_grep_inventory_scans_repo_roots -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop parse_build_llvm_contains_directives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop build_fixtures_propagate_single_pipeline_session_options_to_build_command -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/build`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc callable_value_pattern_binder_receiver_named_args_fixture_codegen_succeeds -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc class_init_order_fixture_collects_class_init_println_call_bindings -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop_runtime`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop_tools -- spec-fixtures check`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test --all`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P7 与 `STABLE_ID.md` §10 的验收项：external symbol 集、RTTI identity、dump label 的路径稳定性已有常驻验证；多-cone virtual-source user ABI symbol 继续保持无碰撞；dump/fixture/build surface 现已刷新到 stable family / stable label / hashed namespace 基线。
+    - 对应 `STABLE_ID.md` §11：完整 grep 清单已重跑并分类，旧 effect helper 名字模式已清零，残余命中均已证明属于内部 handle、健康基线负向断言或审计测试文本，而不是 active external leakage。
+    - 对应 `PLAN.md` §6 / `STABLE_ID.md` §10-§12：在全量 `scoopc` / runtime / fixture / spec-fixture / workspace / clippy 矩阵通过后，本轮 stable-id 技术迁移面的实现与验证已闭合；剩余只需 `P7-T01R` 做最终 review 签收。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 

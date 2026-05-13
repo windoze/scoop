@@ -45,6 +45,7 @@ use std::process::Command;
 
 use miette::Diagnostic;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
+use regex::Regex;
 use scoopc::opt::OptLevel;
 use scoopc::session::SessionOptions;
 use thiserror::Error;
@@ -953,6 +954,25 @@ struct BuildLlvmIrMissingSubstring {
 }
 
 #[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures LLVM IR regex 无法编译：{pattern}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_regex_compile_failed))]
+struct BuildLlvmIrRegexCompileFailed {
+    pattern: String,
+    fixture: String,
+    #[source]
+    source: regex::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures LLVM IR 未匹配期望 regex：{pattern}（fixture: {fixture}；path: {path}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_missing_regex_match))]
+struct BuildLlvmIrMissingRegexMatch {
+    pattern: String,
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
 #[error("build fixtures LLVM IR 包含禁止子串：{substring}（fixture: {fixture}；path: {path}）")]
 #[diagnostic(code(scoop::fixtures::build_llvm_ir_unexpected_substring))]
 struct BuildLlvmIrUnexpectedSubstring {
@@ -1054,8 +1074,9 @@ fn build_fixture(
     let emit_obj = exp.args.iter().any(|a| a == "--emit-obj");
     let emit_asm = exp.args.iter().any(|a| a == "--emit-asm");
     let emit_requested = emit_llvm || emit_obj || emit_asm;
-    let needs_llvm_ir_assertions =
-        !exp.build_llvm_contains.is_empty() || !exp.build_llvm_not_contains.is_empty();
+    let needs_llvm_ir_assertions = !exp.build_llvm_contains.is_empty()
+        || !exp.build_llvm_regex.is_empty()
+        || !exp.build_llvm_not_contains.is_empty();
 
     // 约定：build fixtures 主要用于产出后端相关单文件产物（`.ll`/`.o`/`.s`）做排查；
     // 若未请求 emit，则该 fixture 在当前阶段视为“无操作”直接通过。
@@ -1168,6 +1189,23 @@ fn build_fixture(
             if !ir.contains(substring) {
                 return Err(box_diagnostic(BuildLlvmIrMissingSubstring {
                     substring: substring.to_string(),
+                    path: out.display().to_string(),
+                    fixture: fixture_path.display().to_string(),
+                }));
+            }
+        }
+
+        for &pattern in &exp.build_llvm_regex {
+            let regex = Regex::new(pattern).map_err(|source| {
+                box_diagnostic(BuildLlvmIrRegexCompileFailed {
+                    pattern: pattern.to_string(),
+                    fixture: fixture_path.display().to_string(),
+                    source,
+                })
+            })?;
+            if !regex.is_match(&ir) {
+                return Err(box_diagnostic(BuildLlvmIrMissingRegexMatch {
+                    pattern: pattern.to_string(),
                     path: out.display().to_string(),
                     fixture: fixture_path.display().to_string(),
                 }));
@@ -3475,7 +3513,7 @@ val bad: Int = Box("oops").bodyCopy
             &fixture,
             r#"// EXPECT: pass
 // ARGS: --emit-llvm
-// BUILD-LLVM-CONTAINS: __scoop_priv0__refactor_dynamic_invoke__h
+// BUILD-LLVM-REGEX: __scoop_priv0__refactor_dynamic_invoke__h[0-9a-f]+
 
 package fixtures.build_fixture_visibility
 

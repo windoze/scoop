@@ -19,6 +19,7 @@
 //! - `// EXPECT-EXIT: <code>`（run-pass fixtures：期望退出码）
 //! - `// TIMEOUT: <ms>`（run-pass fixtures：超时毫秒）
 //! - `// BUILD-LLVM-CONTAINS: <substring>`（build fixtures：断言 `--emit-llvm` 产物包含子串；可重复）
+//! - `// BUILD-LLVM-REGEX: <regex>`（build fixtures：断言 `--emit-llvm` 产物匹配 regex；可重复）
 //! - `// BUILD-LLVM-NOT-CONTAINS: <substring>`（build fixtures：断言 `--emit-llvm` 产物不包含子串；可重复）
 //! - `// EXPECT-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的实例数量）
 //! - `// EXPECT-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的实例数量）
@@ -41,6 +42,7 @@ pub struct FixtureExpectation<'a> {
     pub env: Vec<(String, String)>,
     pub ast_golden: Option<&'a str>,
     pub build_llvm_contains: Vec<&'a str>,
+    pub build_llvm_regex: Vec<&'a str>,
     pub build_llvm_not_contains: Vec<&'a str>,
     pub run_stdout: Option<&'a str>,
     pub run_stderr: Option<&'a str>,
@@ -68,6 +70,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut env = Vec::new();
         let mut ast_golden = None;
         let mut build_llvm_contains = Vec::new();
+        let mut build_llvm_regex = Vec::new();
         let mut build_llvm_not_contains = Vec::new();
         let mut run_stdout = None;
         let mut run_stderr = None;
@@ -132,6 +135,13 @@ impl<'a> FixtureExpectation<'a> {
                 let rest = rest.trim();
                 if !rest.is_empty() {
                     build_llvm_contains.push(rest);
+                }
+            }
+
+            if let Some(rest) = directive.strip_prefix("BUILD-LLVM-REGEX:") {
+                let rest = rest.trim();
+                if !rest.is_empty() {
+                    build_llvm_regex.push(rest);
                 }
             }
 
@@ -204,6 +214,7 @@ impl<'a> FixtureExpectation<'a> {
             env,
             ast_golden,
             build_llvm_contains,
+            build_llvm_regex,
             build_llvm_not_contains,
             run_stdout,
             run_stderr,
@@ -254,6 +265,7 @@ mod tests {
         assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert!(exp.build_llvm_contains.is_empty());
+        assert!(exp.build_llvm_regex.is_empty());
         assert!(exp.build_llvm_not_contains.is_empty());
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
@@ -283,6 +295,7 @@ mod tests {
         assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert!(exp.build_llvm_contains.is_empty());
+        assert!(exp.build_llvm_regex.is_empty());
         assert!(exp.build_llvm_not_contains.is_empty());
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
@@ -308,6 +321,7 @@ mod tests {
         assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert!(exp.build_llvm_contains.is_empty());
+        assert!(exp.build_llvm_regex.is_empty());
         assert!(exp.build_llvm_not_contains.is_empty());
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
@@ -362,9 +376,13 @@ mod tests {
     #[test]
     fn parse_build_llvm_contains_directives() {
         let exp = FixtureExpectation::from_source(
-            "// BUILD-LLVM-CONTAINS: define\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i32 1\nfun main() {}\n",
+            "// BUILD-LLVM-CONTAINS: define\n// BUILD-LLVM-REGEX: __scoop_priv0__refactor_resume__h[0-9a-f]+\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i32 1\nfun main() {}\n",
         );
         assert_eq!(exp.build_llvm_contains, vec!["define"]);
+        assert_eq!(
+            exp.build_llvm_regex,
+            vec!["__scoop_priv0__refactor_resume__h[0-9a-f]+"]
+        );
         assert_eq!(
             exp.build_llvm_not_contains,
             vec!["inttoptr (i64 1", "inttoptr (i32 1"]

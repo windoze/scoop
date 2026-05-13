@@ -26,9 +26,29 @@ impl LocalEntityKey {
         readable_name: impl Into<String>,
         ordinal: usize,
     ) -> Self {
+        Self::new_with_workspace_root(
+            owner,
+            source_path,
+            span,
+            entity_kind,
+            readable_name,
+            ordinal,
+            dump_workspace_root(),
+        )
+    }
+
+    fn new_with_workspace_root(
+        owner: impl Into<String>,
+        source_path: &Path,
+        span: Span,
+        entity_kind: impl Into<String>,
+        readable_name: impl Into<String>,
+        ordinal: usize,
+        workspace_root: &Path,
+    ) -> Self {
         Self {
             owner: owner.into(),
-            source_path: normalize_dump_path(source_path),
+            source_path: normalize_dump_path_with_workspace_root(source_path, workspace_root),
             span,
             entity_kind: entity_kind.into(),
             readable_name: readable_name.into(),
@@ -116,14 +136,20 @@ pub(crate) fn format_type(types: &TypeStore, ty: TypeId) -> String {
     "<invalid-type>".to_string()
 }
 
-/// Normalizes a path for dump output so fixtures stay workspace-relative and slash-stable.
-pub(crate) fn normalize_dump_path(path: &Path) -> String {
+fn dump_workspace_root() -> &'static Path {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir
+    manifest_dir
         .parent()
         .and_then(Path::parent)
-        .unwrap_or(manifest_dir);
+        .unwrap_or(manifest_dir)
+}
 
+/// Normalizes a path for dump output so fixtures stay workspace-relative and slash-stable.
+pub(crate) fn normalize_dump_path(path: &Path) -> String {
+    normalize_dump_path_with_workspace_root(path, dump_workspace_root())
+}
+
+fn normalize_dump_path_with_workspace_root(path: &Path, workspace_root: &Path) -> String {
     let relative = if path.is_absolute() {
         path.strip_prefix(workspace_root)
             .unwrap_or(path)
@@ -165,14 +191,32 @@ fn lexical_normalize(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{LocalEntityKey, normalize_dump_path};
+    use super::{LocalEntityKey, normalize_dump_path, normalize_dump_path_with_workspace_root};
     use crate::span::Span;
+    use std::path::Path;
 
     #[test]
     fn normalize_dump_path_keeps_workspace_relative_fixture_paths() {
         let input = std::path::Path::new("crates/scoop/../../tests/fixtures/mir/example.scoop");
         assert_eq!(
             normalize_dump_path(input),
+            "tests/fixtures/mir/example.scoop"
+        );
+    }
+
+    #[test]
+    fn normalize_dump_path_strips_checkout_root_prefixes_consistently() {
+        let root_a = Path::new("/tmp/scoop-checkout-a");
+        let root_b = Path::new("/tmp/scoop-checkout-b");
+        let path_a = root_a.join("tests/fixtures/mir/example.scoop");
+        let path_b = root_b.join("tests/fixtures/mir/example.scoop");
+
+        assert_eq!(
+            normalize_dump_path_with_workspace_root(&path_a, root_a),
+            "tests/fixtures/mir/example.scoop"
+        );
+        assert_eq!(
+            normalize_dump_path_with_workspace_root(&path_b, root_b),
             "tests/fixtures/mir/example.scoop"
         );
     }
@@ -202,5 +246,38 @@ mod tests {
         assert_ne!(first, second);
         assert!(first.starts_with("local#h"));
         assert!(second.starts_with("local#h"));
+    }
+
+    #[test]
+    fn local_entity_key_labels_stay_stable_across_checkout_roots() {
+        let span = Span::new(10, 20);
+        let root_a = Path::new("/tmp/scoop-checkout-a");
+        let root_b = Path::new("/tmp/scoop-checkout-b");
+        let path_a = root_a.join("tests/fixtures/sample.scoop");
+        let path_b = root_b.join("tests/fixtures/sample.scoop");
+
+        let first = LocalEntityKey::new_with_workspace_root(
+            "owner:sample.main",
+            &path_a,
+            span,
+            "local",
+            "tmp",
+            0,
+            root_a,
+        )
+        .label("local");
+        let second = LocalEntityKey::new_with_workspace_root(
+            "owner:sample.main",
+            &path_b,
+            span,
+            "local",
+            "tmp",
+            0,
+            root_b,
+        )
+        .label("local");
+
+        assert_eq!(first, second);
+        assert!(first.starts_with("local#h"));
     }
 }

@@ -3,9 +3,9 @@
 // - `P6-T01b` 之后，这里直接观察 request-source ABI visibility 发布的 continuation shell，不再依赖 reachable handle；
 // - 对应的 resume vtable 仍必须同时发布 `hit$ret` / `pong$ret` 两个 method slot。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_refactor_resume_vtable_layout__fixtures_build_continuationCarrier__fixtures_build_Ping = internal constant %scoop.refactor.ResumeVtable__fixtures_build_continuationCarrier__fixtures_build_Ping zeroinitializer
-// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case0(
-// BUILD-LLVM-CONTAINS: define %scoop.refactor.Step__fixtures_build_continuationCarrier @__scoop_refactor_resume__fixtures_build_continuationCarrier__case1(
+// BUILD-LLVM-REGEX: @__scoop_priv0__refactor_resume_vtable_layout__h[0-9a-f]+ = internal constant %scoop\.refactor\.ResumeVtable__h[0-9a-f]+ zeroinitializer
+// BUILD-LLVM-REGEX: %scoop\.refactor\.ResumeVtable__h[0-9a-f]+ = type \{ ptr, ptr \}
+// BUILD-LLVM-REGEX: define internal %scoop\.refactor\.Step__h[0-9a-f]+ @__scoop_priv0__refactor_resume__h[0-9a-f]+\(ptr addrspace\(1\) %0\)
 package fixtures.build
 
 effect Ping {
