@@ -49,6 +49,8 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::New { project_name } => new::run(project_name),
         Command::Test {
             fixtures,
+            exit_on_failure,
+            processes,
             opt_level,
             gc_stress,
             gc_move,
@@ -60,6 +62,8 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 gc_stress,
                 gc_move,
                 threads,
+                exit_on_failure,
+                processes,
                 session_options,
             },
         ),

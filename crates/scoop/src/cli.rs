@@ -2,7 +2,7 @@
 //!
 //! 本模块只负责“解析参数 → 结构化配置”，不做具体业务逻辑。
 
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -27,6 +27,14 @@ pub enum Command {
         /// fixtures 目录或单个 fixture 文件（默认：`tests/fixtures`）
         #[arg(long)]
         fixtures: Option<PathBuf>,
+
+        /// 遇到首个失败后停止调度新的 fixture（默认：false）
+        #[arg(long = "exit-on-failure")]
+        exit_on_failure: bool,
+
+        /// 并行运行 fixture 的进程数（默认：5）
+        #[arg(short = 'j', long = "processes", value_name = "N", default_value = "5")]
+        processes: NonZeroUsize,
 
         /// 优化等级（0|1|2|3|s|z）
         ///
@@ -356,16 +364,48 @@ mod tests {
         match args.command {
             Command::Test {
                 fixtures,
+                exit_on_failure,
+                processes,
                 opt_level,
                 gc_stress,
                 gc_move,
                 threads,
             } => {
                 assert!(fixtures.is_none());
+                assert!(!exit_on_failure);
+                assert_eq!(processes.get(), 5);
                 assert_eq!(opt_level.as_deref(), Some("2"));
                 assert!(gc_stress);
                 assert!(gc_move);
                 assert_eq!(threads.unwrap().get(), 4);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_parses_fixture_parallel_flags() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "test",
+            "--fixtures",
+            "tests/fixtures/parse",
+            "--exit-on-failure",
+            "--processes",
+            "7",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Test {
+                fixtures,
+                exit_on_failure,
+                processes,
+                ..
+            } => {
+                assert_eq!(fixtures, Some(PathBuf::from("tests/fixtures/parse")));
+                assert!(exit_on_failure);
+                assert_eq!(processes.get(), 7);
             }
             other => panic!("unexpected command: {other:?}"),
         }

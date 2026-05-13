@@ -117,6 +117,134 @@ fn new_fixture_session(session_options: SessionOptions) -> Result<scoopc::sessio
     scoopc::session::Session::with_options(session_options).wrap_err("加载 fixtures session 失败")
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedFixtureTarget {
+    pub path: PathBuf,
+    pub display: PathBuf,
+}
+
+pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
+    if fixtures_root.is_file()
+        || is_resolve_multi_case_root(fixtures_root)
+        || is_resolve_cone_case_root(fixtures_root)
+        || is_typecheck_multi_case_root(fixtures_root)
+        || is_typecheck_cone_case_root(fixtures_root)
+        || is_typecheck_cone_archive_case_root(fixtures_root)
+        || is_run_pass_cone_case_root(fixtures_root)
+    {
+        return Ok(vec![PlannedFixtureTarget {
+            path: fixtures_root.to_path_buf(),
+            display: display_target(fixtures_root, fixtures_root),
+        }]);
+    }
+
+    // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
+    // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
+    let resolve_multi_root = fixtures_root.join("resolve_multi");
+    let resolve_multi_cases = collect_resolve_multi_cases(&resolve_multi_root)?;
+    // T0321a：`resolve_cone/<case>/<cone>/` 用于模拟“多个 cone（包/依赖边界）”。
+    let resolve_cone_root = fixtures_root.join("resolve_cone");
+    let resolve_cone_cases = collect_resolve_cone_cases(&resolve_cone_root)?;
+    let typecheck_multi_root = fixtures_root.join("typecheck_multi");
+    let typecheck_multi_cases = collect_typecheck_multi_cases(&typecheck_multi_root)?;
+    let typecheck_cone_root = fixtures_root.join("typecheck_cone");
+    let typecheck_cone_cases = collect_typecheck_cone_cases(&typecheck_cone_root)?;
+    let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
+    let typecheck_cone_archive_cases =
+        collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
+    let run_pass_cone_root = run_pass_cone_root(fixtures_root);
+    let run_pass_cone_cases = collect_run_pass_cone_cases(&run_pass_cone_root)?;
+
+    let mut files = Vec::new();
+    let mut skip_dirs: Vec<&Path> = Vec::new();
+    if resolve_multi_root.is_dir() {
+        skip_dirs.push(resolve_multi_root.as_path());
+    }
+    if resolve_cone_root.is_dir() {
+        skip_dirs.push(resolve_cone_root.as_path());
+    }
+    if typecheck_multi_root.is_dir() {
+        skip_dirs.push(typecheck_multi_root.as_path());
+    }
+    if typecheck_cone_root.is_dir() {
+        skip_dirs.push(typecheck_cone_root.as_path());
+    }
+    if typecheck_cone_archive_root.is_dir() {
+        skip_dirs.push(typecheck_cone_archive_root.as_path());
+    }
+    if run_pass_cone_root.is_dir() {
+        skip_dirs.push(run_pass_cone_root.as_path());
+    }
+    collect_scoop_files(fixtures_root, &mut files, &skip_dirs)?;
+    files.sort();
+
+    let mut targets = Vec::new();
+    for file in files {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &file),
+            path: file,
+        });
+    }
+    for case_dir in resolve_multi_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+    for case_dir in resolve_cone_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+    for case_dir in typecheck_multi_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+    for case_dir in typecheck_cone_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+    for case_dir in typecheck_cone_archive_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+    for case_dir in run_pass_cone_cases {
+        targets.push(PlannedFixtureTarget {
+            display: display_target(fixtures_root, &case_dir),
+            path: case_dir,
+        });
+    }
+
+    if targets.is_empty() {
+        return Err(miette!(
+            "fixtures 目录下未发现任何 .scoop 文件：{}",
+            fixtures_root.display()
+        ));
+    }
+
+    Ok(targets)
+}
+
+fn display_target(fixtures_root: &Path, target: &Path) -> PathBuf {
+    if let Ok(rel) = target.strip_prefix(fixtures_root)
+        && !rel.as_os_str().is_empty()
+    {
+        return rel.to_path_buf();
+    }
+
+    target
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| target.to_path_buf())
+}
+
 pub fn run_all(
     fixtures_root: &Path,
     opt_level: Option<OptLevel>,
@@ -179,109 +307,10 @@ pub fn run_all(
         .wrap_err_with(|| format!("run_pass_cone case 失败：{}", fixtures_root.display()));
     }
 
-    // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
-    // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
-    let resolve_multi_root = fixtures_root.join("resolve_multi");
-    let resolve_multi_cases = collect_resolve_multi_cases(&resolve_multi_root)?;
-    // T0321a：`resolve_cone/<case>/<cone>/` 用于模拟“多个 cone（包/依赖边界）”。
-    let resolve_cone_root = fixtures_root.join("resolve_cone");
-    let resolve_cone_cases = collect_resolve_cone_cases(&resolve_cone_root)?;
-    let typecheck_multi_root = fixtures_root.join("typecheck_multi");
-    let typecheck_multi_cases = collect_typecheck_multi_cases(&typecheck_multi_root)?;
-    let typecheck_cone_root = fixtures_root.join("typecheck_cone");
-    let typecheck_cone_cases = collect_typecheck_cone_cases(&typecheck_cone_root)?;
-    let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
-    let typecheck_cone_archive_cases =
-        collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
-    let run_pass_cone_root = run_pass_cone_root(fixtures_root);
-    let run_pass_cone_cases = collect_run_pass_cone_cases(&run_pass_cone_root)?;
-
-    let mut files = Vec::new();
-    let mut skip_dirs: Vec<&Path> = Vec::new();
-    if resolve_multi_root.is_dir() {
-        skip_dirs.push(resolve_multi_root.as_path());
-    }
-    if resolve_cone_root.is_dir() {
-        skip_dirs.push(resolve_cone_root.as_path());
-    }
-    if typecheck_multi_root.is_dir() {
-        skip_dirs.push(typecheck_multi_root.as_path());
-    }
-    if typecheck_cone_root.is_dir() {
-        skip_dirs.push(typecheck_cone_root.as_path());
-    }
-    if typecheck_cone_archive_root.is_dir() {
-        skip_dirs.push(typecheck_cone_archive_root.as_path());
-    }
-    if run_pass_cone_root.is_dir() {
-        skip_dirs.push(run_pass_cone_root.as_path());
-    }
-    collect_scoop_files(fixtures_root, &mut files, &skip_dirs)?;
-    files.sort();
-
-    if files.is_empty()
-        && resolve_multi_cases.is_empty()
-        && typecheck_multi_cases.is_empty()
-        && typecheck_cone_cases.is_empty()
-        && typecheck_cone_archive_cases.is_empty()
-        && run_pass_cone_cases.is_empty()
-    {
-        return Err(miette!(
-            "fixtures 目录下未发现任何 .scoop 文件：{}",
-            fixtures_root.display()
-        ));
-    }
-
     let mut ok = 0usize;
-    for file in files {
-        // 每个独立 fixture 都要使用新 Session：sysroot AST 会携带可变的 typecheck/HIR side
-        // tables，若跨 fixture 复用同一 Session，会让后续 golden/snapshot 变成顺序敏感。
-        let session = new_fixture_session(session_options)?;
-        run_one(&session, fixtures_root, &file, opt_level, run_pass_env)
-            .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
-        ok += 1;
-    }
-
-    for case_dir in resolve_multi_cases {
-        let session = new_fixture_session(session_options)?;
-        ok += run_resolve_multi_case(&session, fixtures_root, &case_dir)
-            .wrap_err_with(|| format!("resolve_multi case 失败：{}", case_dir.display()))?;
-    }
-
-    for case_dir in resolve_cone_cases {
-        let session = new_fixture_session(session_options)?;
-        ok += run_resolve_cone_case(&session, fixtures_root, &case_dir)
-            .wrap_err_with(|| format!("resolve_cone case 失败：{}", case_dir.display()))?;
-    }
-
-    for case_dir in typecheck_multi_cases {
-        let session = new_fixture_session(session_options)?;
-        ok += run_typecheck_multi_case(&session, fixtures_root, &case_dir)
-            .wrap_err_with(|| format!("typecheck_multi case 失败：{}", case_dir.display()))?;
-    }
-
-    for case_dir in typecheck_cone_cases {
-        let session = new_fixture_session(session_options)?;
-        ok += run_typecheck_cone_case(&session, fixtures_root, &case_dir)
-            .wrap_err_with(|| format!("typecheck_cone case 失败：{}", case_dir.display()))?;
-    }
-
-    for case_dir in typecheck_cone_archive_cases {
-        let session = new_fixture_session(session_options)?;
-        ok += run_typecheck_cone_archive_case(&session, fixtures_root, &case_dir).wrap_err_with(
-            || format!("typecheck_cone_archive case 失败：{}", case_dir.display()),
-        )?;
-    }
-
-    for case_dir in run_pass_cone_cases {
-        ok += run_run_pass_cone_case(
-            fixtures_root,
-            &case_dir,
-            opt_level,
-            session_options,
-            run_pass_env,
-        )
-        .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
+    for target in plan_targets(fixtures_root)? {
+        ok += run_all(&target.path, opt_level, session_options, run_pass_env)
+            .wrap_err_with(|| format!("fixture 失败：{}", target.display.display()))?;
     }
 
     Ok(ok)
@@ -1063,6 +1092,38 @@ fn parse_opt_level_from_fixture_args(
     Ok(None)
 }
 
+fn build_fixture_output_path(
+    rel_fixture: &Path,
+    emit: crate::commands::build::BuildEmit,
+) -> PathBuf {
+    let ext = match emit {
+        crate::commands::build::BuildEmit::LlvmIr => "ll",
+        crate::commands::build::BuildEmit::Obj => {
+            if cfg!(windows) {
+                "obj"
+            } else {
+                "o"
+            }
+        }
+        crate::commands::build::BuildEmit::Asm => {
+            if cfg!(windows) {
+                "asm"
+            } else {
+                "s"
+            }
+        }
+        crate::commands::build::BuildEmit::Executable => {
+            let ext = std::env::consts::EXE_EXTENSION;
+            if ext.is_empty() { "bin" } else { ext }
+        }
+    };
+
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/fixtures")
+        .join(rel_fixture.with_extension(""))
+        .join(format!("artifact.{ext}"))
+}
+
 fn build_fixture(
     session: &scoopc::session::Session,
     rel_fixture: &Path,
@@ -1107,30 +1168,10 @@ fn build_fixture(
     // 用于回归“优化确实发生”（T1602）。全局 `scoop test -O...` 仍然优先级更高。
     let opt_level = opt_level.or(parse_opt_level_from_fixture_args(&exp.args, fixture_path)?);
 
-    let mut out = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target/fixtures")
-        .join(rel_fixture);
-    let ext = match emit {
-        crate::commands::build::BuildEmit::LlvmIr => "ll",
-        crate::commands::build::BuildEmit::Obj => {
-            if cfg!(windows) {
-                "obj"
-            } else {
-                "o"
-            }
-        }
-        crate::commands::build::BuildEmit::Asm => {
-            if cfg!(windows) {
-                "asm"
-            } else {
-                "s"
-            }
-        }
-        crate::commands::build::BuildEmit::Executable => std::env::consts::EXE_EXTENSION,
-    };
-    out.set_extension(ext);
+    let out = build_fixture_output_path(rel_fixture, emit);
 
     if let Some(parent) = out.parent() {
+        let _ = std::fs::remove_dir_all(parent);
         std::fs::create_dir_all(parent).map_err(|e| {
             box_diagnostic(BuildOutputDirCreateFailed {
                 path: parent.display().to_string(),
@@ -3217,8 +3258,9 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        RunPassEnvOverrides, build_run_pass_cone_run_command, is_run_pass_cone_case_root,
-        phase_name, run_all, run_pass_cone_root, strip_deleted_exe_suffix,
+        RunPassEnvOverrides, build_fixture_output_path, build_run_pass_cone_run_command,
+        is_run_pass_cone_case_root, phase_name, plan_targets, run_all, run_pass_cone_root,
+        strip_deleted_exe_suffix,
     };
 
     fn command_args(cmd: &std::process::Command) -> Vec<String> {
@@ -3345,6 +3387,64 @@ mod tests {
         assert_eq!(args.first().map(String::as_str), Some("run"));
         assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
         assert!(args.iter().any(|arg| arg == "--release"));
+    }
+
+    #[test]
+    fn plan_targets_splits_root_into_files_and_case_dirs() {
+        let dir = tempdir().unwrap();
+        let fixtures_root = dir.path().join("fixtures");
+        let parse_dir = fixtures_root.join("parse");
+        let typecheck_multi_case = fixtures_root
+            .join("typecheck_multi")
+            .join("cross_file_box_case");
+        fs::create_dir_all(&parse_dir).unwrap();
+        fs::create_dir_all(&typecheck_multi_case).unwrap();
+
+        fs::write(
+            parse_dir.join("single.scoop"),
+            "// EXPECT: pass\npackage fixtures.parse.single\npublic fun main() / Pure! {}\n",
+        )
+        .unwrap();
+        fs::write(
+            typecheck_multi_case.join("defs.scoop"),
+            "// EXPECT: pass\npackage fixtures.typecheck_multi.case\nstruct Box(val value: Int)\n",
+        )
+        .unwrap();
+        fs::write(
+            typecheck_multi_case.join("use.scoop"),
+            "// EXPECT: pass\npackage fixtures.typecheck_multi.case\nval value = 1\n",
+        )
+        .unwrap();
+
+        let targets = plan_targets(&fixtures_root).unwrap();
+        let displays = targets
+            .iter()
+            .map(|target| target.display.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            displays,
+            vec![
+                PathBuf::from("parse/single.scoop"),
+                PathBuf::from("typecheck_multi/cross_file_box_case"),
+            ]
+        );
+    }
+
+    #[test]
+    fn build_fixture_output_path_uses_per_fixture_directory() {
+        let out = build_fixture_output_path(
+            Path::new("build/nested/demo_case.scoop"),
+            crate::commands::build::BuildEmit::LlvmIr,
+        );
+
+        assert!(
+            out.ends_with(Path::new(
+                "target/fixtures/build/nested/demo_case/artifact.ll"
+            )),
+            "unexpected build fixture output path: {}",
+            out.display()
+        );
     }
 
     #[test]
