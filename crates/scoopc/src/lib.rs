@@ -51,3 +51,6 @@ pub mod llvm;
 
 #[cfg(test)]
 mod pipeline_gap_audit;
+
+#[cfg(test)]
+mod pipeline_user_visible_failure_policy;

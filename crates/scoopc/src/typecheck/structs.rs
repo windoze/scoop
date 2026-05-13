@@ -32,7 +32,7 @@ pub enum StructDeclError {
         first: miette::SourceSpan,
     },
 
-    #[error("struct 字段暂不支持 `var`：{struct_fqn}.{field}")]
+    #[error("struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}")]
     #[diagnostic(code(scoop::typecheck::struct_field_must_be_val))]
     StructFieldMustBeVal {
         struct_fqn: String,

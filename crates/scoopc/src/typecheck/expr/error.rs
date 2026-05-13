@@ -22,6 +22,13 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("when or-pattern（不允许 binder）")]
+    #[diagnostic(code(scoop::typecheck::when_or_pattern_binder_not_allowed))]
+    WhenOrPatternBinderNotAllowed {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error(
         "无法推断 lambda 参数类型：参数 `{param}` 缺少类型注解，且当前语境没有期望的函数类型（约束来源：期望函数类型）"
     )]

@@ -132,7 +132,7 @@
     - 对应 `PLAN.md` P0 第 1-5 项：active inventory / legacy reason / codegen scope-drift 的审计边界已冻结为可执行测试。
     - 本任务只建立审计基线，不改变 `PIPELINE_GAPS.md` 中任何状态、owner 或 route；后续任务可直接引用审计模块输出更新对应条目。
 
-### [TODO] P0-T02：固定“非法输入 vs 编译器 bug”的用户可见失败策略
+### [DONE] P0-T02：固定“非法输入 vs 编译器 bug”的用户可见失败策略
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0、§5 / P0、P7
@@ -185,9 +185,29 @@
 - 依赖：`P0-T01`
 - 完成记录：
   - 改动范围：
+    - 新增 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`，固定 production-path failure audit：分类规则、审计文件范围、`UnsupportedMainBody` 当前基线、stale `Unsupported*` 标记、production `todo! = 0` 基线，以及 `panic!` / `unreachable!` internal sentinel 基线。
+    - 更新 `crates/scoopc/src/lib.rs`，通过 `#[cfg(test)] mod pipeline_user_visible_failure_policy;` 接入新的审计测试模块。
+    - 更新 `crates/scoopc/src/typecheck/expr/error.rs` 与 `crates/scoopc/src/typecheck/when_pat.rs`，为 `when` 的 or-pattern binder reject 提升独立诊断代码 `scoop::typecheck::when_or_pattern_binder_not_allowed`，不再复用 generic `UnsupportedExpr`。
+    - 更新 `crates/scoopc/src/typecheck/structs.rs`，将 `struct` 可变字段拒绝文案收紧为“必须是 `val`，不允许 `var`”。
+    - 同步更新 `tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_{is_error,sharing_is_error}.scoop` 与 `tests/fixtures/typecheck/struct_{primary_ctor_var_is_error,field_must_be_val_is_error}.scoop` 的预期文案/错误码。
   - 核心决策：
+    - 将 failure policy 审计做成独立测试模块，并只统计 production slice（遇到 `#[cfg(test)]` 即截断），避免把单元测试里的 `panic!` / `UnsupportedMainBody` 噪音混入生产路径基线。
+    - `FrontendReject` 统一冻结为“前端显式诊断拒绝非法输入”，并集中锁定四个关键 surface：or-pattern binder、function-type runtime cast、use-site effect row type arg、struct mutable field。
+    - 当前仍暴露在生产路径上的 `UnsupportedMainBody` 明确归类为 `stale user-visible failure`，后续任务必须逐步将其替换为真实实现、verifier failure 或更早的 frontend reject，而不是继续当成可接受的用户结果。
+    - `panic!` / `unreachable!` 当前只允许以 internal bug sentinel 身份保留；新的审计基线锁定了现有 20 个命中，后续若新增必须先说明分类。
   - 验证结果：
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`：repo-wide grep 仍能看到大量现存 `UnsupportedMainBody` / `Unsupported*` 命中；新的审计基线将当前任务入口冻结为 815 个 `UnsupportedMainBody`、4 个 stale typecheck `Unsupported*` 标记、0 个 production `todo!`、20 个 internal bug sentinel。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P0 第 6 项，以及 `PIPELINE_GAPS.md` §0、§7.1、§7.2、§7.3、§7.5：`非法输入 vs 编译器 bug` 的可执行边界已被固定到测试中，后续任务可以直接复用同一套分类与审计出口。
+    - 本任务只冻结失败类型边界与允许列表，不改变 `PLAN.md` 阶段顺序，也不修改 `PIPELINE_GAPS.md` 的状态、owner 或 route。
 
 ## P1：删除旧主线 residual producer 与 `LegacyOnly` 依赖
 

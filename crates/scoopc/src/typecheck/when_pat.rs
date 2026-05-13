@@ -91,8 +91,7 @@ fn check_when_pat(
             // 为避免在“不同分支绑定集合不一致”时引入未定义语义，这里先限制：
             // - or-pattern 内不得引入任何 binder（含嵌套 bind）。
             if pats.iter().any(when_pat_contains_bind) {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "when or-pattern（暂不支持 binder）",
+                return Err(ExprTypeError::WhenOrPatternBinderNotAllowed {
                     span: (*span).into(),
                 });
             }

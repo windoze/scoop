@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_expr
+// EXPECT-ERROR-CODE: scoop::typecheck::when_or_pattern_binder_not_allowed
 // EXPECT-ERROR-AT: 15:3
-// EXPECT-ERROR: when or-pattern（暂不支持 binder）
+// EXPECT-ERROR: when or-pattern（不允许 binder）
 
 package fixtures.typecheck
 
