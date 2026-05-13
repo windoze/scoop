@@ -946,7 +946,7 @@ fn hex_lower(bytes: &[u8]) -> String {
     out
 }
 
-fn canonical_record<I>(tag: &str, parts: I) -> String
+pub(crate) fn canonical_record<I>(tag: &str, parts: I) -> String
 where
     I: IntoIterator<Item = String>,
 {
@@ -967,7 +967,7 @@ where
     out
 }
 
-fn canonical_list(parts: &[String]) -> String {
+pub(crate) fn canonical_list(parts: &[String]) -> String {
     canonical_record("list", parts.iter().cloned())
 }
 

@@ -935,7 +935,7 @@
     - 对应 `PLAN.md` P3 / `STABLE_ID.md` §6.5、§8.5：closure private body/resume/env/type-desc 现在统一以 `StableClosureKey` 为 authoritative identity，并由 `PrivateSymbolMangler` 生成 private LLVM naming。
     - 对应 `PLAN.md` P3 的 alias 清理目标与 `STABLE_ID.md` §3.4.3：旧 `scoop.lambda$<n>` / `scoop.lambda_resume$<n>` / `scoop.lambda_env$<n>` 以及 direct-HIR closure carrier alias 已退出 production LLVM codegen 路径；materialized-MIR / effect-lowered closure env 也不再残留 `scoop.mir.lambda_env$...` / `__scoop_type_desc_mir_closure_env__...` 旧族名。
 
-### [TODO] P3-T02：用 stable schema key / canonical type hash 替换 effect helper 与 transport type 的 private naming
+### [DONE] P3-T02：用 stable schema key / canonical type hash 替换 effect helper 与 transport type 的 private naming
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P3
@@ -972,7 +972,35 @@
   - effect helper 与 transport type 的 private naming 已彻底脱离 allocator 顺序和 pretty text。
 - 依赖：P3-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/stable_naming.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/types.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 新增 `effect_lowered::stable_naming` 作为本阶段 private effect naming 的集中入口：它复用共享 `stable_id` canonical encoder / `PrivateSymbolMangler`，构造 callable version key、`StableEffectSchemaKey`、`StableContinuationSchemaKey` 与 transport canonical type key，避免 `layout.rs` / `body.rs` / `value.rs` 各自再拼 ad hoc hash/字符串。
+    - 为了让 `body.rs` / `value.rs` 在缺少完整 semantic 上下文时仍能用 authoritative identity 生成 helper 名字，给 `RefactorStepLayout`、`RefactorCallableLayout`、`RefactorPlainCallableLayout`、`RefactorContinuationSurfaceResumeLayout`、`RefactorContinuationSurfaceResumeOwnerTrampolineLayout` 增加 stable key text；后续同家族 helper 统一基于这些 key text + private role 继续 mangling。
+    - 任务范围按“同根问题成组修复”扩展到 review 文本未逐项列出的 sibling case：除条目正文点名的 `resume` / `surface_resume` / `dynamic_invoke` / `direct_invoke` / `owner_dispatch` / `task_transport_resume` / effect transport box 外，也一并迁移了 `plain_adapter`、`closure_step_adapter`、`thread_resume_u64`、`thread_resume_transport`，确保 production LLVM effect helper naming 不再残留 `StepSchemaId` / `ContinuationSchemaId` / `TypeId` 控制路径。
+    - 新 private role 继续保留语义家族前缀（如 `refactor_direct_invoke`、`refactor_surface_resume_owner__core`、`refactor_thread_resume_transport`），但唯一性主体只来自 stable schema key / canonical type text hash，不再依赖 `__schemaN` / `kN` / `t<TypeId>__pretty` 旧拼写。
+    - 同步迁移 3 条 LLVM 测试定位逻辑：effect helper 现在按 private role、step type 与 helper family 定位，不再假设 effect helper symbol 仍包含 FQN 或 `ContinuationSchemaId` 文本。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc surface_resume -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composed_continuation_resume_publishes_internal_outcome_surface_and_owner_core -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 精确 grep（`crates/scoopc/src/llvm/codegen`）：`__schema[0-9]+` / `__k[0-9]+` / `t[0-9]+__` 均为 0 命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P3：closure 之外剩余的 effect helper / continuation helper / transport type private naming 已统一迁移到 stable schema key / canonical type hash，不再受 `StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`TypeId` 或 pretty type text 控制。
+    - 对应 `STABLE_ID.md` §3.4.4 / §3.4.6 / §6.7 / §8.5：`resume`、`surface_resume`、`dynamic/direct invoke`、owner dispatch、task/thread transport thunk、plain/closure adapter、effect transport box/type 等 production effect lowering helper 已改走 `PrivateSymbolMangler` + stable key；旧 `__schemaN` / `kN` / `t<TypeId>__...` spelling 已退出 production LLVM naming 路径。
 
 ### [TODO] P3-T02R：Review private naming 迁移，确认 dense id 已退出 LLVM private symbol 控制路径
 

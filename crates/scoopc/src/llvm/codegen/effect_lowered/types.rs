@@ -327,6 +327,7 @@ impl<'ctx> RefactorStepCaseLayout<'ctx> {
 /// 单个 `StepSchemaId` 对应的 canonical `Step_F` 布局。
 pub(super) struct RefactorStepLayout<'ctx> {
     step_schema: StepSchemaId,
+    stable_effect_key_text: String,
     llvm_ty: StructType<'ctx>,
     layout_anchor_name: String,
     complete_tag_constant_name: String,
@@ -337,6 +338,7 @@ pub(super) struct RefactorStepLayout<'ctx> {
 impl<'ctx> RefactorStepLayout<'ctx> {
     pub(super) fn new(
         step_schema: StepSchemaId,
+        stable_effect_key_text: String,
         llvm_ty: StructType<'ctx>,
         layout_anchor_name: String,
         complete_tag_constant_name: String,
@@ -345,6 +347,7 @@ impl<'ctx> RefactorStepLayout<'ctx> {
     ) -> Self {
         Self {
             step_schema,
+            stable_effect_key_text,
             llvm_ty,
             layout_anchor_name,
             complete_tag_constant_name,
@@ -359,6 +362,10 @@ impl<'ctx> RefactorStepLayout<'ctx> {
 
     pub(super) fn llvm_ty(&self) -> StructType<'ctx> {
         self.llvm_ty
+    }
+
+    pub(super) fn stable_effect_key_text(&self) -> &str {
+        &self.stable_effect_key_text
     }
 
     pub(super) fn layout_anchor_name(&self) -> &str {
@@ -1463,6 +1470,7 @@ impl RefactorHandleDispatchLayout {
 pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
     dispatch_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+    stable_continuation_key_text: String,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
@@ -1477,6 +1485,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
         dispatch_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
+        stable_continuation_key_text: String,
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
@@ -1488,6 +1497,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
         Self {
             continuation_schema,
             dispatch_source_kind,
+            stable_continuation_key_text,
             symbol_name,
             llvm_ty,
             param_count,
@@ -1508,6 +1518,10 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
 
     pub(super) fn symbol_name(&self) -> &str {
         &self.symbol_name
+    }
+
+    pub(super) fn stable_continuation_key_text(&self) -> &str {
+        &self.stable_continuation_key_text
     }
 
     pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
@@ -1619,6 +1633,7 @@ pub(super) struct RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
     owner_root_fqn: String,
     owner_step_schema: StepSchemaId,
     owner_continuation_object: ContinuationObjectId,
+    stable_owner_dispatch_key_text: String,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
@@ -1634,6 +1649,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
         owner_root_fqn: String,
         owner_step_schema: StepSchemaId,
         owner_continuation_object: ContinuationObjectId,
+        stable_owner_dispatch_key_text: String,
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
@@ -1646,6 +1662,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
             owner_root_fqn,
             owner_step_schema,
             owner_continuation_object,
+            stable_owner_dispatch_key_text,
             symbol_name,
             llvm_ty,
             param_count,
@@ -1673,6 +1690,10 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
 
     pub(super) fn symbol_name(&self) -> &str {
         &self.symbol_name
+    }
+
+    pub(super) fn stable_owner_dispatch_key_text(&self) -> &str {
+        &self.stable_owner_dispatch_key_text
     }
 
     pub(super) fn llvm_ty(&self) -> FunctionType<'ctx> {
@@ -2048,6 +2069,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
 pub(super) struct RefactorCallableLayout<'ctx> {
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
+    stable_callable_key_text: String,
     step_schema: StepSchemaId,
     dynamic_entry: RefactorCallableEntryLayout<'ctx>,
     direct_entry: RefactorCallableEntryLayout<'ctx>,
@@ -2056,9 +2078,11 @@ pub(super) struct RefactorCallableLayout<'ctx> {
 }
 
 impl<'ctx> RefactorCallableLayout<'ctx> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
+        stable_callable_key_text: String,
         step_schema: StepSchemaId,
         dynamic_entry: RefactorCallableEntryLayout<'ctx>,
         direct_entry: RefactorCallableEntryLayout<'ctx>,
@@ -2068,6 +2092,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
         Self {
             root_fqn,
             body_version_key,
+            stable_callable_key_text,
             step_schema,
             dynamic_entry,
             direct_entry,
@@ -2082,6 +2107,10 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
 
     pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
         &self.body_version_key
+    }
+
+    pub(super) fn stable_callable_key_text(&self) -> &str {
+        &self.stable_callable_key_text
     }
 
     pub(super) fn surface_instance(&self) -> &InstanceKey {
@@ -2113,6 +2142,7 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
 pub(super) struct RefactorPlainCallableLayout<'ctx> {
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
+    stable_callable_key_text: String,
     direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
 }
 
@@ -2120,11 +2150,13 @@ impl<'ctx> RefactorPlainCallableLayout<'ctx> {
     pub(super) fn new(
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
+        stable_callable_key_text: String,
         direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
     ) -> Self {
         Self {
             root_fqn,
             body_version_key,
+            stable_callable_key_text,
             direct_entry,
         }
     }
@@ -2135,6 +2167,10 @@ impl<'ctx> RefactorPlainCallableLayout<'ctx> {
 
     pub(super) fn body_version_key(&self) -> &LateLoweredBodyVersionKey {
         &self.body_version_key
+    }
+
+    pub(super) fn stable_callable_key_text(&self) -> &str {
+        &self.stable_callable_key_text
     }
 
     pub(super) fn surface_instance(&self) -> &InstanceKey {

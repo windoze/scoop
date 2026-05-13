@@ -7,5 +7,6 @@
 
 mod body;
 mod layout;
+mod stable_naming;
 mod types;
 mod value;

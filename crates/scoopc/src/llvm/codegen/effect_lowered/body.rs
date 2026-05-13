@@ -37,6 +37,7 @@ use crate::effect_lowered::ir::{
 };
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId, SiteId};
+use crate::stable_id::{NoTypeParamResolver, canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
@@ -44,8 +45,9 @@ use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, TypeDescriptorSpec,
-    private_closure_env_type_name, sanitize_llvm_ident,
+    private_closure_env_type_name,
 };
+use super::stable_naming;
 use super::types::{
     ProgramAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
     RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
@@ -81,38 +83,58 @@ enum RefactorCallableReturnMode {
     Plain { declared_return_cg: CgTy },
 }
 
-fn refactor_surface_resume_outcome_symbol_name(
-    continuation_schema: crate::effect_facts::ContinuationSchemaId,
+fn refactor_surface_resume_outcome_symbol_name<'ctx>(
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
 ) -> String {
-    format!(
-        "__scoop_refactor_surface_resume_outcome__k{}",
-        continuation_schema.as_u32()
+    stable_naming::private_name_from_key_text(
+        "refactor_surface_resume__outcome",
+        surface.stable_continuation_key_text(),
     )
 }
 
-fn refactor_surface_resume_owner_outcome_symbol_name(owner_symbol_name: &str) -> String {
-    format!("{owner_symbol_name}__outcome")
-}
-
-fn refactor_surface_resume_owner_core_symbol_name(owner_symbol_name: &str) -> String {
-    format!("{owner_symbol_name}__core")
-}
-
-fn refactor_continuation_drive_outcome_symbol_name(
-    continuation_schema: crate::effect_facts::ContinuationSchemaId,
+fn refactor_surface_resume_owner_outcome_symbol_name<'ctx>(
+    target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
 ) -> String {
-    format!(
-        "__scoop_refactor_continuation_drive_outcome__k{}",
-        continuation_schema.as_u32()
+    stable_naming::private_name_from_key_text(
+        "refactor_surface_resume_owner__outcome",
+        target.stable_owner_dispatch_key_text(),
     )
 }
 
-fn refactor_continuation_drive_owner_outcome_symbol_name(owner_symbol_name: &str) -> String {
-    format!("{owner_symbol_name}__cont_outcome")
+fn refactor_surface_resume_owner_core_symbol_name<'ctx>(
+    target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+) -> String {
+    stable_naming::private_name_from_key_text(
+        "refactor_surface_resume_owner__core",
+        target.stable_owner_dispatch_key_text(),
+    )
 }
 
-fn refactor_continuation_step_symbol_name(owner_symbol_name: &str) -> String {
-    format!("{owner_symbol_name}__cont_step")
+fn refactor_continuation_drive_outcome_symbol_name<'ctx>(
+    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+) -> String {
+    stable_naming::private_name_from_key_text(
+        "refactor_continuation_drive__outcome",
+        surface.stable_continuation_key_text(),
+    )
+}
+
+fn refactor_continuation_drive_owner_outcome_symbol_name<'ctx>(
+    target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+) -> String {
+    stable_naming::private_name_from_key_text(
+        "refactor_continuation_drive_owner__outcome",
+        target.stable_owner_dispatch_key_text(),
+    )
+}
+
+fn refactor_continuation_step_symbol_name<'ctx>(
+    target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+) -> String {
+    stable_naming::private_name_from_key_text(
+        "refactor_continuation__step",
+        target.stable_owner_dispatch_key_text(),
+    )
 }
 
 impl RefactorHandleCompletionMode {
@@ -2764,8 +2786,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name =
-            refactor_surface_resume_outcome_symbol_name(surface.continuation_schema());
+        let symbol_name = refactor_surface_resume_outcome_symbol_name(surface);
         let llvm_ty = self.refactor_surface_resume_outcome_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -2775,7 +2796,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target.symbol_name());
+        let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target);
         let llvm_ty = self.refactor_surface_resume_owner_outcome_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -2785,7 +2806,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_surface_resume_owner_core_symbol_name(target.symbol_name());
+        let symbol_name = refactor_surface_resume_owner_core_symbol_name(target);
         let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -2817,8 +2838,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name =
-            refactor_continuation_drive_outcome_symbol_name(surface.continuation_schema());
+        let symbol_name = refactor_continuation_drive_outcome_symbol_name(surface);
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -2828,8 +2848,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
         target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name =
-            refactor_continuation_drive_owner_outcome_symbol_name(target.symbol_name());
+        let symbol_name = refactor_continuation_drive_owner_outcome_symbol_name(target);
         let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -2838,7 +2857,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         target: &super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_continuation_step_symbol_name(target.symbol_name());
+        let symbol_name = refactor_continuation_step_symbol_name(target);
         let llvm_ty = self.refactor_continuation_step_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
@@ -8054,9 +8073,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             params.push(payload_abi.llvm_ty().into());
         }
         let fn_ty = step_layout.llvm_ty().fn_type(&params, false);
-        let symbol_name = format!(
-            "__scoop_refactor_task_transport_resume__s{}",
-            callable.step_schema().as_u32()
+        let transport_type_key = canonical_type_text(
+            self.source_types,
+            transport_ty,
+            &NoTypeParamResolver,
+        )
+        .map_err(|err| {
+            frontend_error(format!(
+                "refactor task transport resume `{}` 计算 canonical type text 失败（t{}）: {err}",
+                callable.root_fqn(),
+                transport_ty.as_u32()
+            ))
+        })?;
+        let symbol_name = stable_naming::private_name_from_key_text(
+            "refactor_task_transport_resume",
+            &canonical_record(
+                "task_transport_resume",
+                [
+                    step_layout.stable_effect_key_text().to_string(),
+                    transport_type_key,
+                ],
+            ),
         );
         let function = self.codegen.declare_compiler_private_helper_function(
             &symbol_name,
@@ -11154,10 +11191,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         cg_ty: CgTy,
     ) -> Result<(StructType<'ctx>, String), LlvmEmitError> {
         let payload_ty = self.codegen.llvm_basic_type_of(self.mir_fun.span, cg_ty)?;
-        let source_name = sanitize_llvm_ident(&self.source_types.display(source_ty).to_string());
-        let stem = format!("t{}__{source_name}", source_ty.as_u32());
-        let type_name = format!("scoop.refactor.EffectTransportBox__{stem}");
-        let layout_anchor_name = format!("__scoop_refactor_effect_transport_box__{stem}");
+        let (type_name, layout_anchor_name) =
+            stable_naming::effect_transport_box_names(self.source_types, source_ty)?;
         let struct_ty = self
             .codegen
             .context

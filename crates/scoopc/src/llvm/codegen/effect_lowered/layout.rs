@@ -31,12 +31,14 @@ use crate::mir::{
     Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
     TerminatorKind as MirTerminatorKind,
 };
+use crate::stable_id::canonical_record;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
 use super::super::{
     CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen, sanitize_llvm_ident,
 };
+use super::stable_naming;
 use super::types::{
     ProgramAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
     RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
@@ -376,6 +378,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         step_type: &LateLoweredStepType,
     ) -> Result<RefactorStepLayout<'ctx>, LlvmEmitError> {
+        let stable_effect_key_text = stable_naming::effect_schema_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            step_type,
+            &format!("step schema {}", step_type.step_schema().as_u32()),
+        )?;
         let stem = self.view.step_stem(step_type.step_schema()).to_string();
         let step_type_name = format!("scoop.refactor.Step__{stem}");
         let storage_type_name = format!("scoop.refactor.StepStorage__{stem}");
@@ -462,6 +471,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         Ok(RefactorStepLayout::new(
             step_type.step_schema(),
+            stable_effect_key_text,
             step_ty,
             step_anchor_name,
             complete_tag_name,
@@ -494,6 +504,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let step_type = self.program.step_type(step_schema).ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 缺少 resume packing {} 的 step type {}",
+                interface.interface_id().as_u32(),
+                step_schema.as_u32()
+            ))
+        })?;
+        let step_layout = step_layouts.get(&step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 resume packing {} 的 step layout {}",
                 interface.interface_id().as_u32(),
                 step_schema.as_u32()
             ))
@@ -568,9 +585,32 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )));
             }
 
-            let symbol_name = format!(
-                "__scoop_refactor_resume__{stem}__case{}",
-                method.case_tag().as_u32()
+            let step_case = step_type.case(method.case_tag()).ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 resume packing {} method case {} 的 authoritative step case",
+                    interface.interface_id().as_u32(),
+                    method.case_tag().as_u32(),
+                ))
+            })?;
+            let symbol_name = stable_naming::private_name_from_key_text(
+                "refactor_resume",
+                &canonical_record(
+                    "resume_method",
+                    [
+                        step_layout.stable_effect_key_text().to_string(),
+                        stable_naming::step_case_key_text(
+                            self.codegen.stable_cone_key,
+                            self.source_types,
+                            self.program,
+                            step_case,
+                            &format!(
+                                "resume packing {} method case {}",
+                                interface.interface_id().as_u32(),
+                                method.case_tag().as_u32()
+                            ),
+                        )?,
+                    ],
+                ),
             );
             let payload_abi = self.resume_surface_abi_value(method.resume_tuple_ty())?;
             let _answer_abi = self.resume_surface_abi_value(method.answer_ty())?;
@@ -742,9 +782,35 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?
             .llvm_ty();
-        let symbol_name = format!(
-            "__scoop_refactor_surface_resume__k{}",
-            continuation_schema.as_u32()
+        let continuation_schema_facts = self
+            .effect_facts
+            .continuation_schemas()
+            .get(&continuation_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation schema {} 的 authoritative facts",
+                    continuation_schema.as_u32()
+                ))
+            })?;
+        if continuation_schema_facts.resume_tuple_ty() != resume_tuple_ty
+            || continuation_schema_facts.answer_ty() != answer_ty
+            || continuation_schema_facts.out_step_schema() != step_schema
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation schema {} 的 layout 输入与 authoritative facts 漂移",
+                continuation_schema.as_u32()
+            )));
+        }
+        let stable_continuation_key_text = stable_naming::continuation_schema_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            continuation_schema_facts,
+            &format!("continuation schema {}", continuation_schema.as_u32()),
+        )?;
+        let symbol_name = stable_naming::private_name_from_key_text(
+            "refactor_surface_resume",
+            &stable_continuation_key_text,
         );
         let payload_abi = self.resume_surface_abi_value(resume_tuple_ty)?;
         let _answer_abi = self.resume_surface_abi_value(answer_ty)?;
@@ -758,6 +824,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(RefactorContinuationSurfaceResumeLayout::new(
             continuation_schema,
             dispatch_source_kind,
+            stable_continuation_key_text,
             symbol_name,
             fn_ty,
             params.len(),
@@ -1116,17 +1183,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable: &LateLoweredCallable,
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorCallableLayout<'ctx>, LlvmEmitError> {
-        let stem = self.view.step_stem(callable.step_schema()).to_string();
-        let step_ty = step_layouts
-            .get(&callable.step_schema())
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 step layout {}",
-                    callable.root_fqn(),
-                    callable.step_schema().as_u32()
-                ))
-            })?
-            .llvm_ty();
+        let step_layout = step_layouts.get(&callable.step_schema()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` 的 step layout {}",
+                callable.root_fqn(),
+                callable.step_schema().as_u32()
+            ))
+        })?;
+        let step_ty = step_layout.llvm_ty();
         let args_layout =
             self.source_value_layout(callable.dynamic_invoke_entry().invoke_args_tuple_ty())?;
         let args_abi = *args_layout.abi();
@@ -1136,8 +1200,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let dynamic_ty = step_ty.fn_type(&params, false);
         let direct_ty = step_ty.fn_type(&params, false);
-        let dynamic_name = format!("__scoop_refactor_dynamic_invoke__{stem}");
-        let direct_name = format!("__scoop_refactor_direct_invoke__{stem}");
+        let stable_callable_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            callable.body_version_key(),
+            &format!("callable `{}`", callable.root_fqn()),
+        )?;
+        let dynamic_name = stable_naming::private_name_from_key_text(
+            "refactor_dynamic_invoke",
+            step_layout.stable_effect_key_text(),
+        );
+        let direct_name = stable_naming::private_name_from_key_text(
+            "refactor_direct_invoke",
+            step_layout.stable_effect_key_text(),
+        );
         self.ensure_declared_compiler_private_helper_function(&dynamic_name, dynamic_ty);
         self.ensure_declared_compiler_private_helper_function(&direct_name, direct_ty);
         self.validate_published_resume_packing_ids(
@@ -1169,6 +1246,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(RefactorCallableLayout::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
+            stable_callable_key_text,
             callable.step_schema(),
             RefactorCallableEntryLayout::new(
                 dynamic_name,
@@ -1195,6 +1273,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
     ) -> Result<RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+        let stable_callable_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            callable.body_version_key(),
+            &format!("plain callable `{}`", callable.root_fqn()),
+        )?;
         let plain = callable.plain_abi().ok_or_else(|| {
             frontend_error(format!(
                 "refactor LLVM ABI materialization 发现 callable `{}` 没有 plain ABI handoff",
@@ -1265,6 +1350,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         Ok(RefactorPlainCallableLayout::new(
             callable.root_fqn().to_string(),
             callable.body_version_key().clone(),
+            stable_callable_key_text,
             RefactorPlainCallableEntryLayout::new(
                 symbol_name,
                 llvm_fun.get_type(),
@@ -1832,10 +1918,26 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             candidate.wrapper_projection.as_ref(),
         )?;
 
-        let symbol_name = format!(
-            "__scoop_refactor_surface_resume_owner_dispatch__{}__k{}",
-            self.view.step_stem(owner_callable.step_schema()),
-            entry.continuation_schema().as_u32(),
+        let stable_owner_dispatch_key_text = canonical_record(
+            "surface_resume_owner_dispatch",
+            [
+                stable_naming::callable_version_key_text(
+                    self.codegen.stable_cone_key,
+                    self.source_types,
+                    self.program,
+                    &owner_version_key,
+                    &format!(
+                        "continuation schema {} owner trampoline `{}`",
+                        entry.continuation_schema().as_u32(),
+                        owner_callable.root_fqn()
+                    ),
+                )?,
+                surface_layout.stable_continuation_key_text().to_string(),
+            ],
+        );
+        let symbol_name = stable_naming::private_name_from_key_text(
+            "refactor_surface_resume_owner_dispatch",
+            &stable_owner_dispatch_key_text,
         );
         self.ensure_declared_compiler_private_helper_function(
             &symbol_name,
@@ -1847,6 +1949,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             owner_callable.root_fqn().to_string(),
             owner_callable.step_schema(),
             owner_continuation_object,
+            stable_owner_dispatch_key_text,
             symbol_name,
             surface_layout.llvm_ty(),
             surface_layout.param_count(),
@@ -2502,7 +2605,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             CallableCarrierKind::ClosureObject,
             callable_fqn,
         )?;
-        let step_ty = step_layouts
+        let step_layout = step_layouts
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
@@ -2510,17 +2613,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     callable_fqn,
                     callable_layout.step_schema().as_u32(),
                 ))
-            })?
-            .llvm_ty();
+            })?;
+        let step_ty = step_layout.llvm_ty();
         let args_abi = self.closure_carrier_args_abi(callable_fqn)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> =
             vec![self.codegen.llvm_gc_i8_ptr_type().into()];
         if !args_abi.is_elided() {
             params.push(args_abi.llvm_ty().into());
         }
-        let symbol_name = format!(
-            "__scoop_refactor_closure_dynamic_entry__{}",
-            self.view.step_stem(callable_layout.step_schema())
+        let symbol_name = stable_naming::private_name_from_key_text(
+            "refactor_closure_dynamic_entry",
+            step_layout.stable_effect_key_text(),
         );
         self.ensure_declared_compiler_private_helper_function(
             &symbol_name,
@@ -2563,19 +2666,28 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?
             .llvm_ty();
+        let owner_step_layout = step_layouts
+            .get(&callable_layout.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 {} `{}` owner step layout {}",
+                    kind.label(),
+                    impl_fqn,
+                    callable_layout.step_schema().as_u32(),
+                ))
+            })?;
         let (receiver_abi, args_abi) = self.dispatch_carrier_receiver_and_args_abi(impl_fqn)?;
         let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = vec![receiver_abi.llvm_ty().into()];
         if !args_abi.is_elided() {
             params.push(args_abi.llvm_ty().into());
         }
-        let symbol_name = format!(
-            "__scoop_refactor_{}_dynamic_entry__{}",
+        let symbol_name = stable_naming::private_name_from_key_text(
             match kind {
-                CallableCarrierKind::ClassVtable => "vtable",
-                CallableCarrierKind::InterfaceItable => "itable",
-                CallableCarrierKind::ClosureObject => "closure",
+                CallableCarrierKind::ClassVtable => "refactor_vtable_dynamic_entry",
+                CallableCarrierKind::InterfaceItable => "refactor_itable_dynamic_entry",
+                CallableCarrierKind::ClosureObject => "refactor_closure_dynamic_entry",
             },
-            self.view.step_stem(callable_layout.step_schema())
+            owner_step_layout.stable_effect_key_text(),
         );
         self.ensure_declared_compiler_private_helper_function(
             &symbol_name,

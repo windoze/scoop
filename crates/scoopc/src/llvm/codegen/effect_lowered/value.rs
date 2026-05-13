@@ -21,11 +21,13 @@ use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValu
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId};
 use crate::span::Span;
+use crate::stable_id::canonical_record;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue, IntTy};
-use super::super::{CallableCarrierKind, MainCodegen, sanitize_llvm_ident};
+use super::super::{CallableCarrierKind, MainCodegen};
+use super::stable_naming;
 use super::types::{
     ProgramAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
     RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
@@ -1105,10 +1107,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         adapter: RefactorClosureSurfaceLayout<'ctx>,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "__scoop_refactor_plain_adapter__{}__s{}",
-            sanitize_llvm_ident(fn_ptr),
-            adapter.return_step_schema.as_u32(),
+        let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
+        let return_step_layout = self
+            .abi
+            .step_layout(adapter.return_step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effect-typed plain adapter `{}` 缺少 return step schema s{} layout",
+                    fn_ptr,
+                    adapter.return_step_schema.as_u32(),
+                ))
+            })?;
+        let name = stable_naming::private_name_from_key_text(
+            "refactor_plain_adapter",
+            &canonical_record(
+                "plain_adapter",
+                [
+                    plain.stable_callable_key_text().to_string(),
+                    return_step_layout.stable_effect_key_text().to_string(),
+                ],
+            ),
         );
         if let Some(existing) = self.codegen.module.get_function(&name) {
             if existing.count_basic_blocks() == 0 {
@@ -1311,11 +1329,32 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         source_step_schema: crate::effect_facts::StepSchemaId,
         source_symbol_name: &str,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "__scoop_refactor_closure_step_adapter__{}__s{}__to__s{}",
-            sanitize_llvm_ident(fn_ptr),
-            source_step_schema.as_u32(),
-            adapter.return_step_schema.as_u32(),
+        let source_step_layout = self.abi.step_layout(source_step_schema).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor effectful closure adapter `{}` 缺少 source step schema s{} layout",
+                fn_ptr,
+                source_step_schema.as_u32(),
+            ))
+        })?;
+        let return_step_layout = self
+            .abi
+            .step_layout(adapter.return_step_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor effectful closure adapter `{}` 缺少 return step schema s{} layout",
+                    fn_ptr,
+                    adapter.return_step_schema.as_u32(),
+                ))
+            })?;
+        let name = stable_naming::private_name_from_key_text(
+            "refactor_closure_step_adapter",
+            &canonical_record(
+                "closure_step_adapter",
+                [
+                    source_step_layout.stable_effect_key_text().to_string(),
+                    return_step_layout.stable_effect_key_text().to_string(),
+                ],
+            ),
         );
         if let Some(existing) = self.codegen.module.get_function(&name) {
             if existing.count_basic_blocks() == 0 {
@@ -6386,9 +6425,9 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     step_layout: &RefactorStepLayout<'ctx>,
 ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-    let symbol = format!(
-        "__scoop_refactor_thread_resume_u64__k{}",
-        surface.continuation_schema().as_u32()
+    let symbol = stable_naming::private_name_from_key_text(
+        "refactor_thread_resume_u64",
+        surface.stable_continuation_key_text(),
     );
     let k_ty = codegen.llvm_gc_i8_ptr_type();
     let i64_ty = codegen.context.i64_type();
@@ -6460,9 +6499,9 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
     surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
     step_layout: &RefactorStepLayout<'ctx>,
 ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-    let symbol = format!(
-        "__scoop_refactor_thread_resume_transport__k{}",
-        surface.continuation_schema().as_u32(),
+    let symbol = stable_naming::private_name_from_key_text(
+        "refactor_thread_resume_transport",
+        surface.stable_continuation_key_text(),
     );
     let k_ty = codegen.llvm_gc_i8_ptr_type();
     let i64_ty = codegen.context.i64_type();
@@ -6907,8 +6946,8 @@ mod tests {
         let value = include_str!("value.rs");
 
         assert!(value.contains("maybe_build_effect_typed_closure_target_fn_ptr"));
-        assert!(value.contains("__scoop_refactor_plain_adapter__"));
-        assert!(value.contains("__scoop_refactor_closure_step_adapter__"));
+        assert!(value.contains("refactor_plain_adapter"));
+        assert!(value.contains("refactor_closure_step_adapter"));
         assert!(value.contains("refactor_carrier_to_plain"));
         assert!(value.contains("refactor_carrier_to_effectful"));
         assert!(value.contains("refactor_adapter_plain_sret"));

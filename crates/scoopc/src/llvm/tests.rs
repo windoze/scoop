@@ -1132,9 +1132,10 @@ fun main(): Int {
         audit.summary()
     );
 
-    let entry_ir = function_ir_matching(&ir, "source-level entry impl", |header, function| {
+    let entry_ir = function_ir_matching(&ir, "source-level entry impl", |header, _function| {
         llvm_function_header_uses_internal_or_private_linkage(header)
-            && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.entry")
+            && header.contains("__scoop_priv0__refactor_direct_invoke__h")
+            && header.contains("%scoop.refactor.Step__a_entry @")
     });
     assert!(
         llvm_function_header_uses_internal_or_private_linkage(
@@ -3041,11 +3042,10 @@ fn composed_continuation_resume_publishes_internal_outcome_surface_and_owner_cor
         "composed continuation resume 应发布 internal outcome surface / owner outcome wrapper / owner core，而不是只剩 shared Step_F surface:\n{ir}"
     );
 
-    let outcome_idx = ir
-        .find("surface_resume_outcome")
-        .expect("expected internal outcome surface in emitted IR");
-    let outcome_window_end = std::cmp::min(outcome_idx + 2400, ir.len());
-    let outcome_window = &ir[outcome_idx..outcome_window_end];
+    let outcome_window = function_ir_matching(&ir, "owner outcome core", |header, _function| {
+        llvm_function_header_uses_internal_or_private_linkage(header)
+            && header.contains("surface_resume_owner__core")
+    });
     assert!(
         outcome_window.contains("ScoopEffectOutcome")
             && outcome_window.contains("store")
@@ -3391,7 +3391,6 @@ fun main(): Int {
             && function.contains("store i32 1")
             && function.contains("i64 41")
     });
-    let lambda_symbol = llvm_function_symbol_name(lambda_ir);
     let entry_ir = function_ir_matching(
         &ir,
         "entry helper for outward closure call",
@@ -3407,9 +3406,11 @@ fun main(): Int {
         "outward-effect closure call 应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
     );
     assert!(
-        stable_id_symbol_looks_like_closure_family(lambda_symbol)
+        lambda_ir.contains("%scoop.refactor.Step__a_entry__lambda0")
             && entry_ir.lines().any(|line| {
-                line.contains(" call ") && (line.contains("lambda") || line.contains("closure"))
+                line.contains(" call ")
+                    && line.contains("@__scoop_priv0__refactor_direct_invoke__h")
+                    && line.contains("%scoop.refactor.Step__a_entry__lambda0")
             }),
         "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry:\n{entry_ir}"
     );

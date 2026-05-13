@@ -1,35 +1,76 @@
-# Claude Plan
+## 当前执行计划
 
-## 当前状态
-- 已确认 `TODO.md` 中首个未完成任务为 `P3-T01：用 StableClosureKey 替换 closure private naming，并清理旧 alias 兼容层`。
-- 最新提交为 `[P2-T02R] Review linkage containment`，提交信息未声明与 `P3-T01` 直接相关的未完成修复项。
-- 工作区中已存在一批未提交改动，集中在 `stable_id.rs`、`llvm/codegen/{mod,closure,ordinary_callee,gc}.rs`、`effect_lowered/layout.rs`、`llvm/tests.rs` 等 `P3-T01` 目标文件，判断为本任务的半成品而非无关改动。
-- 定向测试发现当前仍有一类真实漏口：materialized MIR / effect-lowered closure env type/type-desc 仍落在 `scoop.mir.lambda_env$...` / `__scoop_type_desc_mir_closure_env__...` 命名族，导致 `external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke` 失败。
-- 当前处理方案：在 `llvm/codegen/mod.rs` 增加基于 HIR 词法遍历恢复 closure stable path 的共享 helper，并把 `mir_body.rs` / `effect_lowered/body.rs` 的 closure env 命名收口到 `StableClosureKey + PrivateSymbolMangler`；同时补一条 materialized MIR closure IR 测试与 source inventory 防回流检查。
-- 已完成实现并通过验证：direct-HIR closure body/resume/env/type-desc 与 materialized-MIR closure body/env/type-desc 都已接入 `StableClosureKey + PrivateSymbolMangler`；effect-lowered closure env transport 同步复用同一 stable key，旧 direct-HIR carrier alias 兼容层也已清理。
-- `TODO.md` 已将 `P3-T01` 标记为 `[DONE]` 并补全完成记录；下一步只剩创建本次任务提交并停止。
-- 验证结果：
-  - `cargo fmt`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialized_mir_closure_private_symbols_use_stable_hash_namespaces -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_ -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
-  - 生产级 `crates/scoopc/src/llvm/codegen` grep：`scoop\.lambda\$[0-9]+` / `scoop\.lambda_resume\$[0-9]+` / `scoop\.lambda_env\$[0-9]+` / `scoop\.mir\.lambda_env\$` / `__scoop_type_desc_mir_closure_env__` 均为 0 命中。
-- 本文件记录执行计划、关键进展、以及过程中如果出现的阻塞与计划调整。
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断首个未完成任务；不依据完成记录文字跳过任务。
+2. 检查最近的提交信息，确认是否存在与该任务直接相关且明确未完成的事项；若有，则将其视为当前任务范围或在 `TODO.md` 中补充为前置任务。
+3. 阅读当前任务涉及的代码、测试、规范与依赖，确认需要修改的最小范围，并识别是否存在阻塞当前任务的真实缺口。
+4. 若无阻塞：直接实现当前任务，优先采用最小且正确的改动；若存在真实阻塞：先在 `TODO.md` 中加入最小前置任务并调整依赖顺序，然后停止本次执行。
+5. 运行与当前任务直接相关的验证；在可行范围内补充必要测试，并执行任务要求的构建/测试/静态检查命令。
+6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化；将完成的任务在 `TODO.md` 标题前加上 `[DONE]`，并补全 completion record；仅在阶段计划真正变化时更新 `PLAN.md`。
+7. 检查工作区中与本任务相关的改动，使用符合仓库风格的提交信息创建一次提交；完成后停止，不继续处理下一个任务。
 
-## 初始执行计划
-1. 读取 `TODO.md`，严格按标题是否带有 `[DONE]` 来识别首个未完成任务。
-2. 读取与该任务直接相关的上下文（必要时包括 `PLAN.md`、相关源码、测试、最新提交信息），只聚焦当前任务，不做开放式问题扫荡。
-3. 判断该任务是否可以直接完整实现；若存在会阻塞该任务的明确前置缺陷或缺失能力，则先在 `TODO.md` 中补充最小必要前置任务并停止。
-4. 若无阻塞，则实现当前任务所要求的全部改动，保持实现与规范一致，不采用规避性方案。
-5. 运行该任务要求的验证，以及必要的回归验证，包括相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`（若适用且可执行）、以及其他任务明确要求的检查。
-6. 更新 `memory/claude_plan.md` 记录关键步骤和结果。
-7. 在 `TODO.md` 中将已完成任务标题标记为 `[DONE]`，并更新完成记录；仅在阶段计划确实变化时更新 `PLAN.md`。
-8. 检查工作区变更，按要求创建一次 git 提交，然后停止，不继续下一个任务。
+## 计划记录约定
 
-## 约束
-- 一次调用只完成 `TODO.md` 中当前顺序的一个任务。
-- 不把带完成记录但标题未标 `[DONE]` 的任务视为已完成。
-- 若发现阻塞当前任务的真实问题，必须先把它作为前置任务写入 `TODO.md`，而不是绕过。
-- 不回退或覆盖我未创建的现有改动。
+- 这里记录执行步骤、关键决策、阻塞与验证结果。
+- 这里不会记录逐字逐句的内部推理，而是记录可审计的外部执行计划与进展。
+
+## 当前任务识别（已更新）
+
+- `TODO.md` 中首个未完成任务为 `P3-T02：用 stable schema key / canonical type hash 替换 effect helper 与 transport type 的 private naming`。
+- 最近提交 `13be4d69 [P3-T01] Stabilize closure private naming` 与当前阶段直接相邻，但提交标题本身未显式声明未完成的附属问题；仍需继续读取任务正文与相邻完成记录，确认是否存在需要并入本任务的直接遗留项。
+
+## 面向 P3-T02 的执行计划
+
+1. 读取 `P3-T01` 与 `P3-T02` 的任务正文、完成记录，以及 `PLAN.md` / `STABLE_ID.md` 中 P3 对应要求。
+2. 搜索 effect helper、transport type、schema key、canonical type hash、private mangling 当前实现位置，明确还在使用 dense id、旧 schema/id 文本或 ad hoc naming 的代码路径与测试。
+3. 判断是否存在阻塞 `P3-T02` 的真实缺口；若存在且未被 `TODO.md` 跟踪，则最小化新增前置任务并停止；若不存在，则直接在当前任务内完成迁移。
+4. 实现 `P3-T02` 所需的 naming 来源替换与相关测试迁移，优先复用现有 `stable_id` authoritative API，不新增平行命名/哈希逻辑。
+5. 运行任务要求的定向测试、全量 `scoopc` 测试与 `clippy -D warnings`，必要时修复验证中暴露的问题。
+6. 更新 `memory/claude_plan.md`、`TODO.md` 的完成记录并提交一次 git commit，然后停止。
+
+## 当前进展
+
+- 已确认生产代码中当前任务的旧 private naming 入口至少包括：
+  - `effect_lowered/layout.rs`：`refactor_resume`、`surface_resume`、`dynamic_invoke`、`direct_invoke`、`surface_resume_owner_dispatch`、carrier dynamic entry shell。
+  - `effect_lowered/body.rs`：`surface_resume_outcome`、`continuation_drive_outcome`、`task_transport_resume`、effect transport box/type。
+  - `effect_lowered/value.rs`：`plain_adapter`、`closure_step_adapter`、`thread_resume_u64`、`thread_resume_transport`。
+- 其中 `value.rs` 的 adapter/thread-resume helper 虽未在 `TODO.md` 条目正文逐项列出，但与当前任务同属“private effect helper naming 仍受 schema/continuation/type id 控制”的同根问题，按类修复要求并入本任务一起处理。
+- 当前实现策略：新增 `effect_lowered` 内部稳定命名 helper，基于现有 `stable_id` canonical encoder / `PrivateSymbolMangler` 统一生成：
+  - callable version 语义 key
+  - effect/continuation schema key
+  - transport type canonical key
+  并让 `layout.rs`、`body.rs`、`value.rs` 的 helper/type 名统一改走这条路径。
+
+## 已完成的关键步骤
+
+1. 新增 `crates/scoopc/src/llvm/codegen/effect_lowered/stable_naming.rs`，集中构造：
+   - callable version key text
+   - effect schema key text
+   - continuation schema key text
+   - transport box/type stable name
+   - 基于 canonical text 的 `PrivateSymbolMangler` 包装
+2. 把以下旧命名入口迁移到 stable key / canonical type hash：
+   - `effect_lowered/layout.rs`：`refactor_resume`、`surface_resume`、`dynamic_invoke`、`direct_invoke`、`surface_resume_owner_dispatch`、closure/vtable/itable dynamic entry
+   - `effect_lowered/body.rs`：`surface_resume__outcome`、`surface_resume_owner__outcome`、`surface_resume_owner__core`、`continuation_drive__outcome`、`continuation__step`、`task_transport_resume`、effect transport box/type
+   - `effect_lowered/value.rs`：`plain_adapter`、`closure_step_adapter`、`thread_resume_u64`、`thread_resume_transport`
+3. 为了让 `body.rs` / `value.rs` 在缺少完整上下文时仍能复用 authoritative identity，给 ABI layout 结构补充了 stable key text：
+   - `RefactorStepLayout`
+   - `RefactorCallableLayout`
+   - `RefactorPlainCallableLayout`
+   - `RefactorContinuationSurfaceResumeLayout`
+   - `RefactorContinuationSurfaceResumeOwnerTrampolineLayout`
+4. 迁移了 3 条被新 naming 触发的 LLVM 测试定位逻辑，改为按 private role / step type / helper family 定位，而不再假设 effect helper 带 FQN 或 `kN`。
+
+## 验证结果
+
+- `cargo fmt`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_ -- --nocapture`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc surface_resume -- --nocapture`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composed_continuation_resume_publishes_internal_outcome_surface_and_owner_core -- --nocapture`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+- `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+- 精确 grep（`crates/scoopc/src/llvm/codegen`）结果：
+  - `__schema[0-9]+`：0 命中
+  - `__k[0-9]+`：0 命中
+  - `t[0-9]+__`：0 命中
