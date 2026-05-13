@@ -2080,7 +2080,26 @@ fn validate_materialized_terminator(
             locals,
             value,
         ),
-        TerminatorKind::Return { value: None } => Ok(()),
+        TerminatorKind::Return { value: None } => {
+            let builtins = materialized
+                .types
+                .builtins()
+                .expect("materialized MIR should always intern builtin types before validation");
+            if fun.return_ty != builtins.unit {
+                return Err(materialize_err(
+                    MirMaterializeError::MaterializedMirValidation {
+                        fqn: fun.fqn.clone(),
+                        error: super::MirValidationError::RefactorProductionMissingReturnValue {
+                            fqn: fun.fqn.clone(),
+                            block,
+                            span: terminator.span,
+                            return_ty: fun.return_ty,
+                        },
+                    },
+                ));
+            }
+            Ok(())
+        }
         TerminatorKind::Perform { metadata, args, .. } => {
             validate_materialized_perform_metadata(
                 materialized,
@@ -10229,6 +10248,36 @@ fun main(): Int {
                 reason: "perform unwind pending",
                 ..
             }
+        ));
+    }
+
+    #[test]
+    fn refactor_mir_no_return_none_materialized_rejects_non_unit_empty_return() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = File {
+            items: vec![Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.int,
+                params: Vec::new(),
+                return_ty: builtins.int,
+                body: Some(unit_return_body()),
+            })],
+        };
+        let materialized = materialized_for_test(file, types);
+
+        let err = materialized.validate_refactor_materialized().unwrap_err();
+        assert!(matches!(
+            *err,
+            MirMaterializeError::MaterializedMirValidation {
+                error: crate::mir::MirValidationError::RefactorProductionMissingReturnValue {
+                    return_ty,
+                    ..
+                },
+                ..
+            } if return_ty == builtins.int
         ));
     }
 

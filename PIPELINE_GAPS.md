@@ -97,9 +97,9 @@
 
 ### 2.1 refactor direct-style MIR validator 允许普通 Todo 通过
 
-- 状态：`Open`。
-- 结论：`unterminated` 仍在 placeholder inventory 中保留为必须由 strict MIR 覆盖的 builder sentinel；production MIR 不应继续依赖“后续阶段一定会修好它”。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:103-111`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`unterminated` 仍可作为 MIR builder 的局部 sentinel 存在，但它现在必须在 handoff 前被 strict verifier 拒绝；`validate_refactor_direct_style()` 与 materialized MIR 校验都不再允许它穿过 production/materialized 边界。
+- 证据：`crates/scoopc/src/mir/mod.rs`，`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/mir/placeholder_inventory.rs`。
 
 ### 2.2 MIR materialization 透传 Todo
 
@@ -115,9 +115,9 @@
 
 ### 2.4 `Return { value: None }` contract 不一致
 
-- 状态：`Open`。
-- 结论：raw MIR codegen 仍会把 `Return { value: None }` 降成 declared return type 的默认值；这不是稳定语义，应更早被 verifier 拒绝或被 MIR 显式改写。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1557-1568`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`Return { value: None }` 现在只允许用于 `Unit` 返回；production MIR 与 materialized MIR 都会拒绝 non-`Unit` 空返回，raw MIR codegen 也不再为它偷偷合成默认值。
+- 证据：`crates/scoopc/src/mir/mod.rs`，`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`。
 
 ### 2.5 generic template / MIR root 缺失是 hard error
 

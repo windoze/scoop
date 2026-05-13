@@ -1,46 +1,67 @@
-# Claude Plan
+# 执行计划
 
-## Working Rules
-- 先读取 `TODO.md`，只处理第一个未完成任务。
-- 如果遇到阻塞当前任务的真实前置问题，只添加最小必要前置任务到 `TODO.md`，然后停止。
-- 不做绕过式实现；实现后必须验证并更新记录。
-- 在关键步骤完成或计划变化时，持续更新本文件。
+## 说明
 
-## Initial Execution Plan
-1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务。
-2. 检查最近提交是否直接提到与该任务相关的未完成问题；若是，则将其视为当前任务范围的一部分或作为前置依赖记录到 `TODO.md`。
-3. 阅读该任务涉及的代码、文档与测试，确认需求、依赖、现状与验证方式。
-4. 实现该任务；如果发现阻塞当前任务的缺失功能或错误，先按要求更新 `TODO.md` / `PLAN.md`（仅在阶段计划变化时）并停止。
-5. 运行与该任务相关的测试与必要的质量检查，修复发现的问题直到通过，或确认存在必须先处理的新前置任务。
-6. 更新 `TODO.md` 中该任务的完成状态与 completion record；仅在阶段计划变化时更新 `PLAN.md`。
-7. 更新本文件记录已完成步骤、验证结果与任何计划调整。
-8. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
+按要求先记录可公开的执行思路摘要与分步计划，再开始读取任务与执行命令。这里记录的是面向协作的计划与决策摘要，不包含逐词内部推理。
 
-## Progress Log
-- 已创建初始执行计划，下一步读取 `TODO.md` 并识别首个未完成任务。
-- 已读取 `TODO.md`，确认首个未完成任务是 `P2-T01`：关闭 `comptime_*` 与 top-level `val` 的 pre-MIR/MIR gap。
-- 已核对最近一次提交为 `[P1-T02] Remove legacy MIR resume and dispatch fallbacks`；提交内容聚焦 P1 收尾，未显式声明与 `P2-T01` 直接相关的未完成补丁，因此继续按 `P2-T01` 本体推进。
-- 下一步：阅读 `PIPELINE_GAPS.md` 与 `P2-T01` 涉及的实现入口，确认当前 placeholder / `Item::Todo` 的具体流入路径，以及任务是否被新的真实前置问题阻塞。
-- 已完成实现入口勘察，确认当前剩余 gap 主要是两个残余构造点：
-  - `crates/scoopc/src/hir/lower/stmt.rs` 在缺少 runtime comptime plan 时仍会构造 `StmtKind::Todo("comptime_*")`。
-  - `crates/scoopc/src/mir/lower.rs` 在非 typed-contract 路径仍会把 top-level `val` 构造成 `Item::Todo { kind: "top-level val" }`。
-- 已运行现有定向测试：`refactor_mir_item_graph_publishes_top_level_roots`、`refactor_mir_comptime_splice_class_literal_and_with_update_preclosure`、`refactor_mir_placeholder_inventory`，当前均通过；说明主路径能力已基本存在，剩余工作是把残余 placeholder 构造点与审计基线一起收口。
-- 当前实施方案：
-  1. HIR lowering 总是优先处理 `comptime block/if/for`；`if/for` 若缺少 runtime comptime plan，则记录明确 stage error，而不再产出 `StmtKind::Todo`。
-  2. MIR lowering 不再把 top-level `val` 降成 `Item::Todo`；改为统一依赖 initializer/extern root contract，并让 `MirLoweringFacts::from_lowered_hir(...)` 也携带这些 root contract，使 `lower_for_dump` / materialization 入口同样拥有 canonical root。
-  3. 同步更新 HIR/MIR placeholder inventory、synthetic no-Todo 测试、`PIPELINE_GAPS.md` 和 `TODO.md` 完成记录，然后跑验证并提交。
-- 已完成代码修改：
-  - `hir/lower/stmt.rs` 已去掉 `comptime_*` 的 HIR `Todo` 构造点，缺计划时改为 stage error。
-  - `mir/lower.rs` 已去掉 top-level `val -> Item::Todo` 分支，并让 `from_lowered_hir(...)` 发布 initializer / extern root contract。
-  - HIR/MIR placeholder inventory、synthetic item-Todo 测试、`PIPELINE_GAPS.md`、`TODO.md` 已同步回写。
-- 已完成验证，结果全部通过：
-  - `cargo test -p scoopc refactor_hir_placeholder_inventory`
-  - `cargo test -p scoopc refactor_mir_placeholder_inventory`
-  - `cargo test -p scoopc dump_mir_emits_top_level_initializer_and_extern_roots`
-  - `cargo test -p scoopc refactor_mir_item_graph_publishes_top_level_roots`
-  - `cargo test -p scoopc refactor_mir_comptime_splice_class_literal_and_with_update_preclosure`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/top_level_roots.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/top_level_val_with_type_ok.scoop`
-  - `cargo clippy --all-targets -- -D warnings`
-- 下一步：检查 git 变更摘要，创建一次 `[P2-T01] ...` 提交，然后停止。
+## 初始计划
+
+1. 读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务。
+2. 检查最近提交信息，判断是否存在与该任务直接相关且明确未完成的问题；若有，则将其视为当前任务组成部分或按要求写入 `TODO.md` 作为前置。
+3. 阅读与当前任务直接相关的代码、测试、文档与任务说明，确认约束、依赖、验收方式。
+4. 如无阻塞，直接实现该任务；如有真实阻塞，按要求仅新增最小前置任务并更新 `TODO.md`/必要时更新 `PLAN.md`。
+5. 运行该任务要求的验证，以及必要的回归测试、格式化、lint/编译检查，修复发现的问题。
+6. 完成后更新 `TODO.md`：给任务标题加上 `[DONE]`，补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 将本次相关改动提交到 git，提交信息使用任务号并准确描述本次完成内容。
+8. 停止，不继续处理下一个任务。
+
+## 进度记录
+
+- 已读取 `TODO.md`，确认首个未完成任务为 `P2-T02`：收紧 production MIR verifier，拒绝 `unterminated` 与非 `Unit` 的 `Return { value: None }`。
+- 最近提交为 `[P2-T01] Close comptime and top-level val MIR handoff gaps`，提交标题未显式声明与 `P2-T02` 直接相关的未完成前置问题；按当前信息继续执行 `P2-T02`。
+
+## 当前任务摘要：P2-T02
+
+### 目标
+
+1. 让 production MIR verifier 将 `unterminated` 视为 hard failure。
+2. 统一 `Return { value: None }` 规则：仅 `Unit` 返回允许省略值；非 `Unit` 必须显式携带返回值。
+3. 删除 raw MIR codegen 中对 non-`Unit` `Return { value: None }` 的默认返回值兜底。
+4. 为上述 contract 补负向测试，并验证相关 fixture 不回退。
+
+### 预定执行步骤
+
+1. 检查工作树状态，避免误覆盖已有改动。
+2. 阅读以下入口并确认当前行为：
+   - `crates/scoopc/src/mir/mod.rs`
+   - `crates/scoopc/src/mir/placeholder_inventory.rs`
+   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+   - 与 `refactor_mir_no_todo*`、`while_break_continue`、`handle_perform` 相关测试。
+3. 识别 `unterminated` 与 `ReturnNone` 的真实生产路径、测试覆盖和潜在耦合控制流。
+4. 先在 verifier 层收紧 contract，再删除 codegen fallback；若这暴露出 CFG 生成漏洞，则一并修正产生该漏洞的路径。
+5. 增补或收紧测试，确保 negative case 与正向 fixture 都覆盖。
+6. 运行任务要求的测试、相关定向测试及 `cargo clippy --all-targets -- -D warnings`。
+7. 回写 `TODO.md` 完成记录，并提交本次改动。
+
+## 当前进度更新
+
+1. 已完成 `crates/scoopc/src/mir/mod.rs` 修改：`validate_refactor_direct_style()` 现在会通过 forbidden-todo 规则直接拒绝 `unterminated` sentinel，并已补 direct-style 负例测试。
+2. 已完成 `crates/scoopc/src/mir/materialize.rs` 修改：materialized MIR 现在会拒绝 non-`Unit` 的 `Return { value: None }`，并已补对应负例测试。
+3. 已完成 `crates/scoopc/src/llvm/codegen/mir_body.rs` 修改：raw MIR codegen 不再为 non-`Unit` 空返回合成默认值，而是仅允许 `Unit` 空返回；并补了 helper 级单测。
+4. 下一步：运行任务要求的定向测试与 `cargo clippy --all-targets -- -D warnings`，确认无编译/风格回归；随后回写 `PIPELINE_GAPS.md`、`TODO.md` 并提交。
+
+## 验证与文档回写进度
+
+1. 已完成验证：
+   - `cargo test -p scoopc refactor_mir_no_todo`
+   - `cargo test -p scoopc refactor_mir_no_return_none`
+   - `cargo test -p scoopc refactor_mir_placeholder_inventory`
+   - `cargo test -p scoopc refactor_materialized_mir`
+   - `cargo test -p scoopc codegen_gap_inventory`
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/while_break_continue.scoop`
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`
+   - `cargo clippy --all-targets -- -D warnings`
+2. 已完成文档回写：
+   - `PIPELINE_GAPS.md`：`§2.1`、`§2.4` 已改为 `Closed/Re-scoped`。
+   - `TODO.md`：`P2-T02` 已标记为 `[DONE]`，完成记录已补齐。
+3. 剩余步骤：检查最终 diff 与工作树状态，按任务号创建 git commit，然后停止。

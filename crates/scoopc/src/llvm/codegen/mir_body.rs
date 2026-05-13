@@ -66,6 +66,19 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn mir_empty_return_contract_is_lowerable(
+    span: crate::span::Span,
+    declared_return_cg: CgTy,
+) -> Result<(), LlvmEmitError> {
+    if matches!(declared_return_cg, CgTy::Unit) {
+        return Ok(());
+    }
+    Err(LlvmEmitError::UnsupportedMainBody {
+        kind: "pass MIR non-Unit empty return",
+        at: span.into(),
+    })
+}
+
 fn mir_direct_call_base_fqn(fqn: &str) -> &str {
     let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
     base.split_once("$overload")
@@ -1678,7 +1691,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         slots,
                         Some(declared_return_cg),
                     )?,
-                    None => self.default_value(terminator.span, declared_return_cg)?,
+                    None => {
+                        mir_empty_return_contract_is_lowerable(
+                            terminator.span,
+                            declared_return_cg,
+                        )?;
+                        CgValue::unit()
+                    }
                 };
                 let value = self.coerce_value(terminator.span, value, declared_return_cg)?;
                 self.finish_function_return_path(terminator.span, declared_return_cg, value)
@@ -8672,6 +8691,27 @@ mod tests {
         assert_unsupported_kind(
             drift,
             "pass MIR member continuation route source type drift",
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_return_none_raw_codegen_rejects_non_unit_empty_return() {
+        let result = mir_empty_return_contract_is_lowerable(
+            crate::span::Span::new(0, 1),
+            CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            }),
+        );
+
+        assert_unsupported_kind(result, "pass MIR non-Unit empty return");
+    }
+
+    #[test]
+    fn refactor_mir_no_return_none_raw_codegen_allows_unit_empty_return() {
+        assert!(
+            mir_empty_return_contract_is_lowerable(crate::span::Span::new(0, 1), CgTy::Unit,)
+                .is_ok()
         );
     }
 }

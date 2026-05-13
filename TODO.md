@@ -442,7 +442,7 @@
     - 对应 `PLAN.md` P2 第 1 项：runtime `comptime_*` 已不再以 placeholder 形式进入 MIR，top-level `val` 已拥有可查询的 MIR root/initializer model。
     - `PIPELINE_GAPS.md` 已回写 `§1.1`、`§1.4` 为 `Closed/Re-scoped`：这些 surface 现在要么在 HIR lowering 前展开，要么直接以 canonical root model 进入 MIR，不再作为 live placeholder gap 保留。
 
-### [TODO] P2-T02：收紧 production MIR verifier，拒绝 `unterminated` 与 `Return { value: None }` 漏洞
+### [DONE] P2-T02：收紧 production MIR verifier，拒绝 `unterminated` 与 `Return { value: None }` 漏洞
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -485,9 +485,26 @@
 - 依赖：`P2-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/mir/mod.rs`，把 `unterminated` builder sentinel 纳入 `validate_refactor_direct_style()` 的 forbidden-todo contract，并补 direct-style 负例测试。
+    - 更新 `crates/scoopc/src/mir/materialize.rs`，让 materialized MIR 在 non-`Unit` `Return { value: None }` 时返回 `MaterializedMirValidation(RefactorProductionMissingReturnValue)`，并补对应负例测试。
+    - 更新 `crates/scoopc/src/llvm/codegen/mir_body.rs`，删除 raw MIR terminator lowering 对 non-`Unit` 空返回的默认值发射路径；新增 `mir_empty_return_contract_is_lowerable(...)` helper 与 raw-codegen 级单测。
+    - 更新 `PIPELINE_GAPS.md`，将 `§2.1` 与 `§2.4` 回写为 `Closed/Re-scoped`。
   - 核心决策：
+    - `unterminated` 继续保留为 builder 内部 sentinel，但只允许存在于 lowering 过程内部；一旦出现在 direct-style / production handoff 上，就必须由 verifier 立即拒绝，而不是等后续阶段“补全”。
+    - non-`Unit` 空返回的 contract 统一冻结为“上游必须显式提供返回值”；stage output 与 materialized output 共用同一条规则，不再让 raw MIR codegen 用零值/null 值悄悄兜底。
+    - raw MIR codegen 仍保留最终 contract guard，但 guard 的语义已收紧为“production MIR 被破坏”，不再承担默认返回值修补职责。
   - 验证结果：
+    - `cargo test -p scoopc refactor_mir_no_todo`
+    - `cargo test -p scoopc refactor_mir_no_return_none`
+    - `cargo test -p scoopc refactor_mir_placeholder_inventory`
+    - `cargo test -p scoopc refactor_materialized_mir`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/while_break_continue.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/handle_perform.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P2 第 3、4、7 项：`unterminated` 已从“允许通过 direct-style validator 的 builder sentinel”收紧为 strict verifier hard failure；`Return { value: None }` contract 已在 production/materialized handoff 上统一，并从 raw MIR codegen 中移除默认值 fallback。
+    - `PIPELINE_GAPS.md` 已回写 `§2.1`、`§2.4` 为 `Closed/Re-scoped`；`§2.3` 仍保留为 downstream impossible-state guard bucket，留待 `P2-T03` 继续收口。
 
 ### [TODO] P2-T03：收紧 materialization/root/no-param handoff，并把 `§2.3` 降为 pure impossible-state guard
 

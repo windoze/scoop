@@ -2915,7 +2915,8 @@ impl MirValidationError {
 fn is_forbidden_refactor_effect_todo(reason: &str) -> bool {
     matches!(
         reason,
-        "handle result pending"
+        "unterminated"
+            | "handle result pending"
             | "handle body exit pending"
             | "handle arm exit pending"
             | "handle finally exit pending"
@@ -3132,6 +3133,25 @@ mod tests {
             Err(MirValidationError::RefactorProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
+                span: test_span(),
+                category: MirPlaceholderCategory::Terminator,
+                reason: "unterminated",
+            })
+        );
+    }
+
+    #[test]
+    fn refactor_mir_no_todo_direct_style_rejects_unterminated_sentinel() {
+        let body = single_block_body(
+            Vec::new(),
+            TerminatorKind::Todo("unterminated"),
+            UnwindAction::NoUnwind,
+        );
+
+        assert_eq!(
+            body.validate_refactor_direct_style(),
+            Err(MirValidationError::RefactorTodo {
+                block: BasicBlockId(0),
                 span: test_span(),
                 category: MirPlaceholderCategory::Terminator,
                 reason: "unterminated",
