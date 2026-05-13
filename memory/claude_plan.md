@@ -1,37 +1,46 @@
-## 当前执行计划
+## 执行计划
 
-1. 已确认第一个未完成任务为 `P7-T01`；最近提交 `[P6-T01R] Review RTTI and JSON closure` 未声明需先回插的新前置任务，因此按既有顺序继续执行 `P7-T01`。
-2. 检查工作区状态，确认是否存在与本任务相关的未提交改动；若有阻塞性异常，先在此记录并同步到 `TODO.md`。
-3. 阅读 `P7-T01` 涉及的测试/快照/审计 helper 入口，确定：
-   - grep 审计清单如何落地
-   - 受影响 fixture / snapshot 的刷新方式
-   - 路径稳定性与多-cone 验证的现有测试基础
-4. 补齐 `P7-T01` 所需实现或验证脚手架；若 full audit 暴露真实缺陷，则优先修复缺陷，或在必须时把最小前置任务写回 `TODO.md` 后停止。
-5. 运行本任务要求的完整验证矩阵：定向 grep 审计、`cargo test -p scoopc`、`cargo test -p scoop_runtime`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`、可行时 `cargo test --all`，以及 `cargo clippy --all-targets -- -D warnings`。
-6. 如有 textual surface 变化，刷新相关 fixture / snapshot 并逐项确认只涉及 identity 层变化。
-7. 完成后更新 `TODO.md` 的 `P7-T01` 为 `[DONE]` 并填写完成记录；仅在阶段计划本身改变时修改 `PLAN.md`。
-8. 提交本次任务的全部相关改动并停止。
+说明：我不会写入私有推理细节，但会在这里持续维护可审阅的执行计划、决策依据摘要、进度和阻塞信息。
 
-## 说明
+1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务。
+2. 检查最近提交是否直接提到与该任务相关的未完成问题；如果有且它构成当前任务的直接前提，则把它作为当前任务范围的一部分，或在 `TODO.md` 中补充为前置任务。
+3. 阅读当前任务在 `TODO.md` 中的详细要求、依赖、验收和完成记录，并只围绕该任务展开工作，不做开放式问题扫查。
+4. 检查相关代码、测试、夹具和文档，确认需要修改的最小范围。
+5. 实现当前任务；如果遇到阻塞当前任务的真实缺陷或缺失能力，不采用绕过方案，而是在 `TODO.md` 中插入最小必要前置任务并停止。
+6. 运行任务要求的验证，以及必要的构建、测试和 `cargo clippy --all-targets -- -D warnings`；修复由本次任务暴露的相关问题。
+7. 更新 `memory/claude_plan.md` 记录关键进展或计划调整。
+8. 若任务完成，则在 `TODO.md` 中将任务标题前缀改为 `[DONE]`，补全完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+9. 按要求创建一次 git 提交，提交信息使用当前任务编号，随后停止，不继续下一个任务。
 
-- 这里记录的是可审计的执行计划与关键决策摘要，不包含逐字的内部推理展开。
-- 如果实现过程中发现新的硬性前置依赖，会先更新该文件与 `TODO.md`，再停止在当前任务边界。
+## 当前状态
 
-## 当前进展
+- 状态：已读取 `TODO.md`，首个未完成任务已确认。
+- 当前任务：`P7-T01R Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移`。
+- 相关提交：最近一次提交为 `[P7-T01] Close final stable-id audit matrix`；提交信息中未显式记录新的未完成前置问题。
+- 阻塞：无。
 
-- 已读取 `TODO.md` 并锁定当前任务：`P7-T01`。
-- 已复核最近提交与 `P6-T01R` 完成记录：当前没有必须插回 `P7-T01` 之前的新前置任务。
-- 已识别出 `P7-T01` 中“路径稳定性”缺少两处常驻覆盖：
-  - dump path / dump label 跨 checkout 根路径稳定性
-  - RTTI identity 跨 checkout 根路径稳定性
-- 已在 `crates/scoopc/src/dump_support.rs` 与 `crates/scoopc/src/rtti/type_desc.rs` 补充对应回归测试，下一步进入格式化与定向验证。
-- 全量矩阵首次运行在 `cargo run -p scoop -- test` 处发现 build fixture 仍锁定旧 private helper spelling；这是 `P7` 允许变化的 identity textual surface，属于 fixture 断言模型滞后，不是语义回归。
-- 为保持验证力度，已把 `crates/scoop/src/fixtures` 扩展为支持 `BUILD-LLVM-REGEX`，并开始把受 stable-id 影响的 build fixtures 从旧固定字符串迁移到 hashed family regex 断言。
-- build fixtures 收口后，`cargo run -p scoop -- test` 继续暴露真实编译缺陷：top-level callable-value fixture 在 `top_level_val_init` 内生成纯 direct-HIR closure object 时，没有注册 plain callable-carrier fallback，导致 callable carrier contract 误报缺少 published target entry。
-- 已在 `crates/scoopc/src/llvm/codegen/closure/mod.rs` 为纯 direct-HIR closure 注册 plain fallback，并在 `crates/scoopc/src/llvm/tests.rs` 增加对应 LLVM codegen 回归；定向 run-pass fixture 已恢复通过。
-- 后续全量回归又暴露 class init / ctor 路径的 generic callable 退化：
-  - 一类 HIR 直调在缺少 published signature 时没有尽量回填 concrete arg type；
-  - 一类 concrete materialized callable 在缺 authoritative instance key 时错误退回 generic HIR fun 计算 exported symbol。
-- 已在 `crates/scoopc/src/llvm/codegen/call/lowering.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 修复这两条回退路径，并补了 class-init 相关回归测试/审计；`class_init_order_primary_secondary_basic` 已恢复 build/run 通过。
-- 完整 `P7` 验证矩阵现已通过：`cargo test -p scoopc`、`cargo test -p scoop_runtime`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部成功。
-- 已把 `TODO.md` 中的 `P7-T01` 标记为 `[DONE]`，并写回改动范围、核心决策、grep 审计分类与验证结果。下一步仅剩 git 提交并停止。
+## 本轮执行细化
+
+1. 复核 `PLAN.md` §5、§6 与 `STABLE_ID.md` §10、§11、§12，提炼 review 签收清单。
+2. 先做静态预检查，确认是否还存在直接违反 `STABLE_ID.md` 强制规则的 active production 路径；若存在，则不继续跑全量复核矩阵，而是先把 blocker 写回 `TODO.md`。
+3. 若静态预检查无 blocker，再重跑 `P7-T01` 的关键验证矩阵，覆盖：
+   - checkout-path 稳定性
+   - distinct virtual cones / symbol 冲突防护
+   - grep 审计清单
+   - `scoop` build fixture / run-pass fixture / spec-fixtures
+   - `scoopc`、`scoop_runtime`、workspace 全量测试
+   - `cargo clippy --all-targets -- -D warnings`
+4. 若验证全部通过，则仅更新 `TODO.md`：
+   - 将 `P7-T01R` 标为 `[DONE]`
+   - 在完成记录中逐项签收 `PLAN.md` §6 的 8 条完成标准
+5. 若验证或静态预检查中发现当前任务范围内的真实缺口：
+   - 不做绕过
+   - 视是否需要插入前置任务到 `TODO.md`
+   - 记录阻塞后提交并停止
+6. 最后检查工作区、提交本轮变更并停止。
+
+## 本轮发现
+
+- 已确认 blocker：`crates/scoopc/src/llvm/codegen/object_init.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 仍在 production 路径中使用 legacy object/top-level init private names（如 `__scoop_object_init__...`、`__scoop_top_level_val_init__...`、`__scoop_object_guard__...`、`__scoop_top_level_val__...`）。
+- 该问题与 `STABLE_ID.md` §5.1 第 5/7 条、§7.3、§8.5 冲突：compiler-private LLVM function/global/type 名称应统一走 `PrivateSymbolMangler`，`sanitize_llvm_ident()` 只能作为可读前缀，不能继续让旧 raw prefix 充当最终命名。
+- 处理决定：不继续执行 `P7-T01R` 的最终签收；已在 `TODO.md` 中插入新的前置任务 `P7-T01A`，等待后续调用先修复该缺口。

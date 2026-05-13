@@ -1660,7 +1660,58 @@
   - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
     - 对应 `PLAN.md` P7 与 `STABLE_ID.md` §10 的验收项：external symbol 集、RTTI identity、dump label 的路径稳定性已有常驻验证；多-cone virtual-source user ABI symbol 继续保持无碰撞；dump/fixture/build surface 现已刷新到 stable family / stable label / hashed namespace 基线。
     - 对应 `STABLE_ID.md` §11：完整 grep 清单已重跑并分类，旧 effect helper 名字模式已清零，残余命中均已证明属于内部 handle、健康基线负向断言或审计测试文本，而不是 active external leakage。
-    - 对应 `PLAN.md` §6 / `STABLE_ID.md` §10-§12：在全量 `scoopc` / runtime / fixture / spec-fixture / workspace / clippy 矩阵通过后，本轮 stable-id 技术迁移面的实现与验证已闭合；剩余只需 `P7-T01R` 做最终 review 签收。
+    - 对应 `PLAN.md` §6 / `STABLE_ID.md` §10-§12：在当次全量 `scoopc` / runtime / fixture / spec-fixture / workspace / clippy 矩阵通过后进入最终 review；随后 `P7-T01R` 预检查发现 object/top-level init 仍残留 legacy private naming，因此需先完成补遗任务 `P7-T01A`，再做最终签收。
+
+### [TODO] P7-T01A：收口剩余 object/top-level init compiler-private function/global 命名到 `PrivateSymbolMangler`
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4 / P2、§6
+  - [`STABLE_ID.md`](./STABLE_ID.md) §5.1、§7.3、§7.4、§8.5、§10
+- 背景：
+  - `P7-T01R` 预检查发现，production code 中 object/top-level init 相关 compiler-private function/global 仍有 active legacy spelling，尚未统一走 `PrivateSymbolMangler`。
+  - 当前已确认入口包括：
+    - `crates/scoopc/src/llvm/codegen/object_init.rs`
+      - `__scoop_object_init__{object_fqn}`
+      - `__scoop_refactor_hidden_object_init_bridge__{object_fqn}`
+      - `__scoop_object_guard__{object_fqn}`
+      - `__scoop_object_instance__{object_fqn}`
+      - `__scoop_object_prop__{prop_fqn}`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+      - `__scoop_top_level_val_init__{value_fqn}`
+      - `__scoop_refactor_hidden_top_level_init_bridge__{value_fqn}`
+      - `__scoop_top_level_val_guard__{value_fqn}`
+      - `__scoop_top_level_val__{value_fqn}`
+      - `__scoop_top_level_var__{var_fqn}`
+  - 该缺口直接违反 `STABLE_ID.md` §5.1 第 5/7 条与 §7.3/§8.5 对 compiler-private helper/global 命名的强制要求，因此 `P7-T01R` 不能在此之前签收。
+- 目标：
+  - 把 remaining object/top-level init compiler-private function/global 命名统一迁移到 `PrivateSymbolMangler`，同时保持现有 internal/private linkage 与初始化/GC 语义不变。
+- 必须实现的内容：
+  1. 在 `crates/scoopc/src/llvm/codegen/object_init.rs` 中，把 object init bridge/init function/guard/instance/property global 的 active production 命名收口到 `PrivateSymbolMangler`，必要时仅保留 FQN 作为 readable prefix。
+  2. 在 `crates/scoopc/src/llvm/codegen/mod.rs` 中，把 top-level immutable init bridge/init function/guard/value global/top-level var global 的 active production 命名收口到 `PrivateSymbolMangler`，并同步更新相关 root-callable identity、explicit-root descriptor 与调用路径。
+  3. 更新 `crates/scoopc/src/llvm/tests.rs` 与相关 source inventory / object audit，确保：
+     - 不再把 `__scoop_object_init__...` / `__scoop_top_level_val__...` 一族视为 production-active private name；
+     - 仍继续验证 helper family、调用关系、descriptor/global 角色与 linkage 语义。
+  4. 对 class/object/top-level init 相关 fixture 与定向 LLVM 测试补齐回归验证，避免只修一个 helper 而留下 sibling case。
+- 必须遵从的约束：
+  - 不得改变 class/object/top-level init 的 once 语义、求值顺序、GC rooting 或 runtime ABI。
+  - 不得把 `main`、runtime/native import、`@Extern` symbol 误并入 private naming 清理范围。
+  - 必须按同根问题成组处理 object/top-level init private functions 与 globals，不能只改其中一两个名字。
+- 验证：
+  1. `cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+  2. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  3. `cargo test -p scoopc top_level_immutable_init_emits_explicit_root_frame_descriptor -- --nocapture`
+  4. `cargo test -p scoopc direct_hir_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref -- --nocapture`
+  5. `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+  6. `cargo test -p scoopc class_init_order_fixture_collects_class_init_println_call_bindings -- --nocapture`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop`
+  9. `cargo test -p scoopc`
+  10. `cargo clippy -p scoopc --all-targets -- -D warnings`
+- 完成条件：
+  - object/top-level init 相关 compiler-private function/global 的 active production 命名已统一走 `PrivateSymbolMangler`，不再残留上述 legacy family；随后才能继续执行 `P7-T01R`。
+- 依赖：P7-T01
+- 完成记录：
+  - 待填。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 
@@ -1678,6 +1729,6 @@
   - 在完成记录中给出一份最终结论清单，对应 `PLAN.md` §6 的 8 条完成标准逐项签收。
 - 完成条件：
   - 可以明确写出：stable-id 整改已经闭合，后续若还有工作，只属于增量优化或新需求，而不再是本轮 identity 治理主线。
-- 依赖：P7-T01
+- 依赖：P7-T01、P7-T01A
 - 完成记录：
   - 待填。
