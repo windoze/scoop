@@ -38,6 +38,9 @@ pub enum EffectLoweringError {
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 callable facts")]
     MissingCallableFacts { root_fqn: String },
 
+    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 stable instance key")]
+    MissingStableInstanceKey { root_fqn: String },
+
     #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 body facts")]
     MissingBodyFacts { root_fqn: String },
 

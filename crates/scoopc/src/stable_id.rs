@@ -735,6 +735,48 @@ where
     encoder.encode_effect_row(row, 0)
 }
 
+/// Encodes a callable overload signature from canonical function type text plus generic arity.
+pub fn canonical_callable_signature_key<R>(
+    types: &TypeStore,
+    callable_ty: TypeId,
+    owner_type_param_count: usize,
+    callable_type_param_count: usize,
+    effect_param_count: usize,
+    type_params: &R,
+) -> Result<String, CanonicalEncodingError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    Ok(canonical_record(
+        "callable_sig",
+        [
+            owner_type_param_count.to_string(),
+            callable_type_param_count.to_string(),
+            effect_param_count.to_string(),
+            canonical_type_text(types, callable_ty, type_params)?,
+        ],
+    ))
+}
+
+/// Encodes a property getter overload signature from canonical return type text plus owner arity.
+pub fn canonical_property_getter_signature_key<R>(
+    types: &TypeStore,
+    return_ty: TypeId,
+    owner_type_param_count: usize,
+    type_params: &R,
+) -> Result<String, CanonicalEncodingError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    Ok(canonical_record(
+        "getter_sig",
+        [
+            owner_type_param_count.to_string(),
+            canonical_type_text(types, return_ty, type_params)?,
+        ],
+    ))
+}
+
 /// Hashes canonical text with a fixed version prefix using SHA-256.
 pub fn stable_digest(scope: StableHashScope, canonical_text: &str) -> [u8; 32] {
     let mut hasher = Sha256::new();
@@ -1214,6 +1256,52 @@ mod tests {
         assert!(instance_text.contains("E()"));
         assert!(!instance_text.contains("TypeId"));
         assert!(!instance_text.contains("decl_span"));
+    }
+
+    #[test]
+    fn canonical_callable_signature_key_depends_on_canonical_type_text_and_generic_arity() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let param = TypeParamType {
+            name: "T".to_string(),
+            decl_file: std::path::PathBuf::from("<sig>"),
+            decl_span: Span::new(1, 2),
+        };
+        let param_ty = types.ty_param(param.clone());
+        let callable_ty = types.ty_function(
+            None,
+            vec![param_ty],
+            builtins.unit,
+            EffectRow::pure(),
+            false,
+        );
+        let resolver = HashMap::from([(param, StableTypeParamKey::new("pkg.owner.fun", 0))]);
+
+        let base = canonical_callable_signature_key(&types, callable_ty, 0, 1, 0, &resolver)
+            .expect("callable signature key should encode canonical type text");
+        let different_arity =
+            canonical_callable_signature_key(&types, callable_ty, 1, 0, 0, &resolver)
+                .expect("generic arity must participate in callable signature key");
+
+        assert!(base.contains("F(-;[P(pkg.owner.fun#0)]->V(Unit)/E())"));
+        assert!(!base.contains("TypeId"));
+        assert_ne!(base, different_arity);
+    }
+
+    #[test]
+    fn canonical_property_getter_signature_key_depends_on_owner_arity() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        let base =
+            canonical_property_getter_signature_key(&types, builtins.int, 1, &NoTypeParamResolver)
+                .expect("property getter signature key should encode canonical return type");
+        let different_owner_arity =
+            canonical_property_getter_signature_key(&types, builtins.int, 0, &NoTypeParamResolver)
+                .expect("owner generic arity must participate in getter signature key");
+
+        assert!(base.contains("V(Int)"));
+        assert_ne!(base, different_owner_arity);
     }
 
     #[test]

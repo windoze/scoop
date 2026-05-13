@@ -1,4 +1,5 @@
 use crate::mir::InstanceKey;
+use crate::stable_id::StableInstanceKey;
 use crate::ty::TypeId;
 
 /// `StepSchema(F)` 的稳定 identity。
@@ -73,19 +74,29 @@ impl EffectFamilyKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConcreteOpKey {
     instance: InstanceKey,
+    stable_instance_key: StableInstanceKey,
     effect_family: EffectFamilyKey,
 }
 
 impl ConcreteOpKey {
-    pub fn new(instance: InstanceKey, effect_family: EffectFamilyKey) -> Self {
+    pub fn new(
+        instance: InstanceKey,
+        stable_instance_key: StableInstanceKey,
+        effect_family: EffectFamilyKey,
+    ) -> Self {
         Self {
             instance,
+            stable_instance_key,
             effect_family,
         }
     }
 
     pub fn instance_key(&self) -> &InstanceKey {
         &self.instance
+    }
+
+    pub fn stable_instance_key(&self) -> &StableInstanceKey {
+        &self.stable_instance_key
     }
 
     pub fn effect_family(&self) -> &EffectFamilyKey {

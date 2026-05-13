@@ -60,8 +60,8 @@ use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    NoTypeParamResolver, PrivateSymbolMangler, StableClosureKey, StableConeKey, StableDefKey,
-    StableDefNamespace, StableHashScope, StableInstanceKey, StableTemplateKey, stable_hash64,
+    PrivateSymbolMangler, StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
+    StableHashScope, stable_hash64,
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -1969,24 +1969,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && let Some(owner) = pass_view.owner_of_callable(owner_callable_fqn)
             && (!owner.type_args.is_empty() || !owner.eff_args.is_empty())
         {
-            let template = StableTemplateKey::new(self.stable_def_key_for_current_cone(
-                StableDefNamespace::Fun,
-                &owner.template.fqn,
-                "top_level_fun",
-            ));
-            let stable_instance = StableInstanceKey::from_type_arguments(
-                template,
-                &pass_view.materialized().types,
-                &owner.type_args,
-                &owner.eff_args,
-                &NoTypeParamResolver,
-            )
-            .map_err(|err| LlvmEmitError::Frontend {
-                message: format!(
-                    "无法为 materialized MIR closure `{callable_fqn}` 构造 stable instance key: {err}"
-                ),
+            let stable_instance = pass_view.materialized().stable_instance_key(owner).ok_or_else(|| {
+                LlvmEmitError::Frontend {
+                    message: format!(
+                        "无法为 materialized MIR closure `{callable_fqn}` 找到 authoritative stable instance key"
+                    ),
+                }
             })?;
-            return Ok(StableClosureKey::new(&stable_instance, lexical_path));
+            return Ok(StableClosureKey::new(stable_instance, lexical_path));
         }
 
         let owner_key = self.stable_def_key_for_current_cone(

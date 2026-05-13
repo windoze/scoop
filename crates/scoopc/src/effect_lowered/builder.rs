@@ -79,6 +79,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             effect_facts,
             &continuation_route_owner_plans,
         )?;
+        let materialized = pass_view.materialized();
+        let mut stable_instance_keys = materialized.stable_instance_keys().clone();
 
         let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
         let mut callables = Vec::with_capacity(effect_facts.callable_facts().len());
@@ -93,6 +95,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 }
                 continue;
             };
+            let stable_instance_key = materialized
+                .authoritative_stable_instance_key(family.key())
+                .ok_or_else(|| EffectLoweringError::MissingStableInstanceKey {
+                    root_fqn: root_fqn.clone(),
+                })?;
+            stable_instance_keys.insert(family.key().clone(), stable_instance_key.clone());
             let body_version_key = LateLoweredBodyVersionKey::new(
                 family.key().clone(),
                 callable_facts.declared_row().clone(),
@@ -130,6 +138,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 }
                 callables.push(LateLoweredCallable::new_plain(
                     root_fqn,
+                    stable_instance_key,
                     body_version_key,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
                     plain.callable,
@@ -292,6 +301,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             callables.push(
                 LateLoweredCallable::new(
                     family.root_fqn().to_string(),
+                    stable_instance_key,
                     body_version_key,
                     step_schema_id,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
@@ -312,12 +322,10 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             );
         }
 
-        Ok(LateLoweredProgram::new(
-            step_types,
-            resume_packings,
-            continuation_objects,
-            callables,
-        ))
+        Ok(
+            LateLoweredProgram::new(step_types, resume_packings, continuation_objects, callables)
+                .with_stable_instance_keys(stable_instance_keys),
+        )
     }
 }
 

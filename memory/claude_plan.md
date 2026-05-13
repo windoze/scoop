@@ -1,38 +1,33 @@
-# 当前执行计划
+# 本次执行计划
 
-## 约束
-- 先以 `TODO.md` 为唯一任务顺序与完成状态来源，定位首个未完成任务。
-- 仅完成一个任务；若存在阻塞，则最小化补充前置任务并停止。
-- 在执行过程中持续更新本文件，记录计划调整、关键发现、实现进度、验证结果与收尾状态。
-- 不采用规避性方案；若遇到会阻塞当前任务的实现缺口或规范不匹配，先修复或在 `TODO.md` 中补充前置任务。
+1. 读取 `TODO.md`，确认第一个未标记为 `[DONE]` 的任务。
+2. 检查最近一次提交是否存在与该任务直接相关且尚未完成的问题；若存在，将其视为当前任务的一部分或作为前置任务写回 `TODO.md`。
+3. 阅读与当前任务相关的代码、测试、规格与任务说明，明确实现边界与验证要求。
+4. 直接完成当前任务；如果遇到会阻塞任务的真实缺陷或缺失能力，则先按要求更新 `TODO.md` / `PLAN.md` 并停止，不采用变通方案。
+5. 运行与当前任务相关的验证命令，并在必要时修复失败。
+6. 更新 `memory/claude_plan.md` 记录关键进展，更新 `TODO.md` 的完成状态与 completion record；仅在阶段计划发生变化时更新 `PLAN.md`。
+7. 按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
 
-## 初始步骤
-1. 读取 `TODO.md`，确认首个标题未带 `[DONE]` 的任务。
-2. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题需要并入当前工作。
-3. 阅读当前任务相关说明、依赖、验证要求，以及必要的上下文文件。
-4. 实现任务要求的代码或文档变更。
-5. 运行当前任务要求的验证，以及必要的构建、测试、lint（至少确保相关测试通过；如任务影响范围较大，再补充更广验证）。
-6. 更新 `TODO.md`：将任务标题标记为 `[DONE]`，填写或刷新完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 检查工作区变更，按仓库既有风格创建一次 git 提交，然后停止。
+## 进展记录
 
-## 进度记录
-- 已创建初始计划，下一步开始读取 `TODO.md` 与最近提交信息。
-- 已确认首个未完成任务为 `P3-T02R`（Review private naming 迁移）。
-- 最新提交为 `[P3-T02] Stabilize effect helper private naming`，无额外提交正文说明未完成前置问题；当前按 `P3-T02R` 直接开展复核。
-- 当前 review 重点：
-  - 复跑 `P3-T01` / `P3-T02` 指定的 object / IR / grep 审计。
-  - 复核 `ClosureId`、`StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`TypeId` 是否仍直接控制任何 private LLVM symbol 文本。
-  - 记录允许保留数字但不属于 authoritative naming 的场景（如 basic block label、SSA 临时名等）。
-- 下一步：优先检查工作区状态与当前代码/测试是否已存在未提交变更，然后执行针对性审计命令和代码搜索。
-- 阻塞发现：`crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs` 中 `ProgramLayoutView::step_stem()` 仍使用 `__schema{StepSchemaId}` / `schema{StepSchemaId}` 作为 step/layout/frame/continuation 等 LLVM 命名 stem 回退路径；这与 `P3-T02R` 的完成条件直接冲突。
-- 处理策略更新：先定位 `step_stem` 覆盖的所有命名 surface 与可复用的 stable key/hash helper，修复 dense-id 回退路径；修复完成后再重新跑 `P3` 审计并决定是否可将 `P3-T02R` 标记完成。
+- 已创建初始计划文件，下一步读取 `TODO.md` 与最近提交信息以确认当前任务。
+- 已确认首个未完成任务为 `P4-T01`：重写 overload / template / instance 的 exported identity 来源。
+- 已检查最新提交 `[P3-T02R]`；提交信息未显式引入与 `P4-T01` 直接相关的新未完成前置问题，因此继续按 `P4-T01` 本体推进。
+- 下一步：读取 `mir/materialize.rs`、`hir/lower/util.rs`、`stable_id.rs` 及相关测试，确认当前 exported naming 仍通过哪些旧路径依赖 `source_path + decl_span`、pretty text 与 `TypeId`。
+- 已确认当前缺口不在 `stable_template_symbol_suffix()` 主实现本身，而在后续阶段对 `InstanceKey -> StableInstanceKey` 的“现场重建”：部分 late-lowered / LLVM 路径仍只拿 `template.fqn + type/effect args` 重建 key，遗漏 overload signature，导致同名 overload 的同型实例可能坍缩到同一 stable key。
+- 已开始修复方案：
+  1. 在 `MaterializedMir` 上持久化 authoritative `StableInstanceKey` side table；
+  2. 在 late-lowered callable 上显式携带该 key，禁止 downstream 再按旧字段重建；
+  3. 用该 authoritative key 替换 LLVM closure stable key 与 effect stable naming 的重建路径；
+  4. 补定向测试覆盖 overloaded generic 同型实例的 distinct/path-stable exported identity。
 - 已完成实现：
-  - 在 `effect_lowered::stable_naming` 新增 private type-name helper，复用 `PrivateSymbolMangler` 的 hash 主体生成 `scoop.refactor.*__h<hash>` 类型名。
-  - `effect_lowered/layout.rs` 中 step/storage/complete/case/vtable/frame/continuation 的 type/global 命名已切到 stable key/hash，不再通过 `step_stem` / `schemaN` / `caseN` 模板退回 dense id。
-  - `llvm/tests.rs` 新增 source inventory 防回流检查，并把受影响的 LLVM 行为测试迁移为 hashed family / IR 结构断言；`crates/scoop/src/commands/build.rs` 的 LLVM 断言也同步迁移到新的 private family。
-- 已完成验证：
-  - 定向测试：`stable_id_`、`effect_contract_struct_types_are_registered_for_effect_codegen`、`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell`、`materialized_mir_closure_private_symbols_use_stable_hash_namespaces`、`external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke`、`composed_continuation_resume_publishes_internal_outcome_surface_and_owner_core`、`build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable`。
-  - 全量：`cargo test -p scoopc`。
-  - lint：`cargo clippy -p scoopc --all-targets -- -D warnings` 与 `cargo clippy -p scoop --all-targets -- -D warnings`。
-  - grep 复核：`crates/scoopc/src/llvm/codegen` 中 `scoop.lambda$<n>` / `scoop.lambda_resume$<n>` / `scoop.lambda_env$<n>` / `scoop.mir.lambda_env$` / `__scoop_type_desc_mir_closure_env__` / `__schema<n>` / `__k<n>` / `t<TypeId>__` 均为 0 命中。
-- 当前状态：`P3-T02R` 已满足完成条件；下一步只剩检查工作区、整理最终提交说明并创建 commit，然后停止。
+  - `MaterializedMir` 现在保存 authoritative stable instance/template/signature side table，并通过 `instance_exported_fun_symbol(...)` 暴露 exported symbol 路径。
+  - effect facts 的 `ConcreteOpKey`、late-lowered callable、LLVM materialized-closure stable key、effect-lowered stable naming 已全部改为消费 authoritative stable key，而不是现场从 `InstanceKey` / `template.fqn` 重建。
+  - 新增/更新回归测试，覆盖 overloaded generic exported symbol path-stability、downstream callable version key distinctness，以及 receiver overload direct-call 目标的 distinct overload-aware symbol。
+- 验证已完成：
+  - `cargo fmt`
+  - 关键定向测试全部通过。
+  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - grep 审计已确认 exported naming 路径不再回退到 `source_path + decl_span` / pretty-text 驱动。
+- 下一步：查看工作区变更、回写 `git` 提交信息，并按 `P4-T01` 提交后停止。

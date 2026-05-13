@@ -5,11 +5,9 @@ use crate::effect_lowered::ir::{
     LateLoweredStepType,
 };
 use crate::llvm::LlvmEmitError;
-use crate::mir::InstanceKey;
 use crate::stable_id::{
     NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey, StableConeKey,
-    StableContinuationSchemaKey, StableDefKey, StableDefNamespace, StableEffectSchemaKey,
-    StableInstanceKey, StableTemplateKey, canonical_effect_row_text, canonical_list,
+    StableContinuationSchemaKey, StableEffectSchemaKey, canonical_effect_row_text, canonical_list,
     canonical_record, canonical_type_text,
 };
 use crate::ty::{TypeId, TypeStore};
@@ -63,12 +61,7 @@ pub(super) fn callable_version_key_text(
                 version_key.surface_instance().template.fqn
             ))
         })?;
-    let surface_instance = stable_instance_key_text(
-        stable_cone_key,
-        types,
-        version_key.surface_instance(),
-        &format!("{context} surface instance"),
-    )?;
+    let surface_instance = owner_callable.stable_instance_key().canonical_text();
     let allowed_row = canonical_effect_row_fragment(
         types,
         version_key.allowed_row(),
@@ -218,6 +211,7 @@ pub(super) fn step_case_key_text(
             concrete_op_key_text(
                 stable_cone_key,
                 types,
+                program,
                 case.concrete_op_key(),
                 &format!("{context} concrete op"),
             )?,
@@ -331,6 +325,7 @@ fn step_schema_shallow_summary_text(
                     concrete_op_key_text(
                         stable_cone_key,
                         types,
+                        program,
                         case.concrete_op_key(),
                         &format!("{context} concrete op"),
                     )?,
@@ -407,6 +402,7 @@ fn impl_plan_key_text(
                         concrete_op_key_text(
                             stable_cone_key,
                             types,
+                            program,
                             case.concrete_op_key(),
                             &format!("{context} concrete op"),
                         )?,
@@ -458,17 +454,13 @@ fn continuation_contract_shallow_text(
 }
 
 fn concrete_op_key_text(
-    stable_cone_key: &StableConeKey,
+    _stable_cone_key: &StableConeKey,
     types: &TypeStore,
+    _program: &LateLoweredProgram,
     concrete_op: &ConcreteOpKey,
     context: &str,
 ) -> Result<String, LlvmEmitError> {
-    let instance = stable_instance_key_text(
-        stable_cone_key,
-        types,
-        concrete_op.instance_key(),
-        &format!("{context} instance"),
-    )?;
+    let instance = concrete_op.stable_instance_key().canonical_text();
     let mut family_type_args = concrete_op
         .effect_family()
         .type_args()
@@ -490,30 +482,6 @@ fn concrete_op_key_text(
             ),
         ],
     ))
-}
-
-fn stable_instance_key_text(
-    stable_cone_key: &StableConeKey,
-    types: &TypeStore,
-    instance: &InstanceKey,
-    context: &str,
-) -> Result<String, LlvmEmitError> {
-    let template = StableTemplateKey::new(StableDefKey::new(
-        stable_cone_key.clone(),
-        StableDefNamespace::Fun,
-        &instance.template.fqn,
-        "top_level_fun",
-        None,
-    ));
-    StableInstanceKey::from_type_arguments(
-        template,
-        types,
-        &instance.type_args,
-        &instance.eff_args,
-        &NoTypeParamResolver,
-    )
-    .map(|key| key.canonical_text())
-    .map_err(|err| frontend_error(format!("{context} 构造 stable instance key 失败: {err}")))
 }
 
 fn canonical_type_fragment(
@@ -540,4 +508,135 @@ fn canonical_effect_row_fragment(
 
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::effect_lowered::ir::{LateLoweredCallable, LateLoweredPlainCallable};
+    use crate::mir::{InstanceKey, TemplateKey};
+    use crate::span::Span;
+    use crate::stable_id::{
+        NoTypeParamResolver, StableDefKey, StableDefNamespace, StableInstanceKey, StableTemplateKey,
+    };
+
+    fn overloaded_instance(
+        source_path: &str,
+        decl_span: Span,
+        builtins: crate::ty::BuiltinTypes,
+    ) -> InstanceKey {
+        InstanceKey {
+            template: TemplateKey {
+                fqn: "demo.pick".to_string(),
+                source_path: PathBuf::from(source_path),
+                decl_span,
+            },
+            type_args: vec![builtins.int],
+            eff_args: Vec::new(),
+        }
+    }
+
+    fn overloaded_stable_instance(
+        cone: &StableConeKey,
+        types: &TypeStore,
+        instance: &InstanceKey,
+        signature_key: &str,
+    ) -> StableInstanceKey {
+        StableInstanceKey::from_type_arguments(
+            StableTemplateKey::new(StableDefKey::new(
+                cone.clone(),
+                StableDefNamespace::Fun,
+                &instance.template.fqn,
+                "generic_fun",
+                Some(signature_key.to_string()),
+            )),
+            types,
+            &instance.type_args,
+            &instance.eff_args,
+            &NoTypeParamResolver,
+        )
+        .expect("overloaded instance 应可构造 stable instance key")
+    }
+
+    #[test]
+    fn callable_version_key_text_distinguishes_overloaded_instances_with_same_type_args() {
+        let stable_cone_key = StableConeKey::new("demo", "0.1.0");
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let left_instance =
+            overloaded_instance("/tmp/root-a/demo.scoop", Span::new(1, 10), builtins);
+        let right_instance =
+            overloaded_instance("/tmp/root-b/demo.scoop", Span::new(20, 30), builtins);
+        let left_stable =
+            overloaded_stable_instance(&stable_cone_key, &types, &left_instance, "sig$arity1");
+        let right_stable =
+            overloaded_stable_instance(&stable_cone_key, &types, &right_instance, "sig$arity2");
+        let left_version = LateLoweredBodyVersionKey::new(
+            left_instance,
+            crate::ty::EffectRow::pure(),
+            ImplPlan::NoOutward,
+            false,
+        );
+        let right_version = LateLoweredBodyVersionKey::new(
+            right_instance,
+            crate::ty::EffectRow::pure(),
+            ImplPlan::NoOutward,
+            false,
+        );
+        let plain = LateLoweredPlainCallable::new(
+            builtins.unit,
+            vec![builtins.int],
+            builtins.int,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        let program = LateLoweredProgram::new(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                LateLoweredCallable::new_plain(
+                    "demo.pick::<Int>$overload$left".to_string(),
+                    left_stable,
+                    left_version.clone(),
+                    Vec::new(),
+                    plain.clone(),
+                ),
+                LateLoweredCallable::new_plain(
+                    "demo.pick::<Int>$overload$right".to_string(),
+                    right_stable,
+                    right_version.clone(),
+                    Vec::new(),
+                    plain,
+                ),
+            ],
+        );
+
+        let left_key = callable_version_key_text(
+            &stable_cone_key,
+            &types,
+            &program,
+            &left_version,
+            "left callable",
+        )
+        .expect("left overload callable 应可构造 callable version key");
+        let right_key = callable_version_key_text(
+            &stable_cone_key,
+            &types,
+            &program,
+            &right_version,
+            "right callable",
+        )
+        .expect("right overload callable 应可构造 callable version key");
+
+        assert_ne!(
+            left_key, right_key,
+            "同名 overloaded generic 的同型实例必须保留不同的 callable version key"
+        );
+        assert!(!left_key.contains("/tmp/root-a"));
+        assert!(!right_key.contains("/tmp/root-b"));
+    }
 }

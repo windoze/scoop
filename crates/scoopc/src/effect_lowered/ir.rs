@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts,
@@ -7,6 +7,7 @@ use crate::effect_facts::{
 };
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
+use crate::stable_id::StableInstanceKey;
 use crate::ty::{EffectRow, TypeId};
 
 /// P5 late-lowering 阶段的顶层中间表示。
@@ -25,6 +26,7 @@ pub struct LateLoweredProgram {
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
+    stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
 }
 
 impl LateLoweredProgram {
@@ -42,7 +44,16 @@ impl LateLoweredProgram {
             continuation_objects,
             surface_resume_dispatch_inventory,
             callables,
+            stable_instance_keys: HashMap::new(),
         }
+    }
+
+    pub(crate) fn with_stable_instance_keys(
+        mut self,
+        stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
+    ) -> Self {
+        self.stable_instance_keys = stable_instance_keys;
+        self
     }
 
     #[cfg(test)]
@@ -57,6 +68,7 @@ impl LateLoweredProgram {
             continuation_objects: self.continuation_objects.clone(),
             surface_resume_dispatch_inventory,
             callables: self.callables.clone(),
+            stable_instance_keys: self.stable_instance_keys.clone(),
         }
     }
 
@@ -141,6 +153,18 @@ impl LateLoweredProgram {
         self.callables
             .iter()
             .find(|callable| callable.body_version_key() == version_key)
+    }
+
+    pub fn stable_instance_key(&self, instance: &InstanceKey) -> Option<&StableInstanceKey> {
+        self.stable_instance_keys.get(instance).or_else(|| {
+            self.callables.iter().find_map(|callable| {
+                (callable.instance_key() == instance).then_some(callable.stable_instance_key())
+            })
+        })
+    }
+
+    pub fn stable_instance_keys(&self) -> &HashMap<InstanceKey, StableInstanceKey> {
+        &self.stable_instance_keys
     }
 
     pub fn len(&self) -> usize {
@@ -522,6 +546,7 @@ pub enum LateLoweredCallableAbi {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredCallable {
     root_fqn: String,
+    stable_instance_key: StableInstanceKey,
     body_version_key: LateLoweredBodyVersionKey,
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
@@ -531,6 +556,7 @@ impl LateLoweredCallable {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         root_fqn: String,
+        stable_instance_key: StableInstanceKey,
         body_version_key: LateLoweredBodyVersionKey,
         step_schema: StepSchemaId,
         resolved_outward_cases: Vec<CaseTag>,
@@ -544,6 +570,7 @@ impl LateLoweredCallable {
     ) -> Self {
         Self {
             root_fqn,
+            stable_instance_key,
             body_version_key,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::EffectStep(Box::new(LateLoweredEffectStepCallable::new(
@@ -561,12 +588,14 @@ impl LateLoweredCallable {
 
     pub(crate) fn new_plain(
         root_fqn: String,
+        stable_instance_key: StableInstanceKey,
         body_version_key: LateLoweredBodyVersionKey,
         resolved_outward_cases: Vec<CaseTag>,
         plain_abi: LateLoweredPlainCallable,
     ) -> Self {
         Self {
             root_fqn,
+            stable_instance_key,
             body_version_key,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
@@ -592,6 +621,10 @@ impl LateLoweredCallable {
 
     pub fn root_fqn(&self) -> &str {
         &self.root_fqn
+    }
+
+    pub fn stable_instance_key(&self) -> &StableInstanceKey {
+        &self.stable_instance_key
     }
 
     pub fn abi(&self) -> &LateLoweredCallableAbi {
@@ -4991,6 +5024,9 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
+    use crate::stable_id::{
+        NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    };
     use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
 
     fn refactor_session() -> Session {
@@ -5053,6 +5089,33 @@ mod tests {
         }
     }
 
+    fn sample_stable_instance_key(instance: &InstanceKey, types: &TypeStore) -> StableInstanceKey {
+        StableInstanceKey::from_type_arguments(
+            StableTemplateKey::new(StableDefKey::new(
+                StableConeKey::new("sample", "0.0.0"),
+                StableDefNamespace::Fun,
+                &instance.template.fqn,
+                "top_level_fun",
+                None,
+            )),
+            types,
+            &instance.type_args,
+            &instance.eff_args,
+            &NoTypeParamResolver,
+        )
+        .expect("sample instance 应可构造 stable instance key")
+    }
+
+    fn sample_concrete_op_key(
+        types: &TypeStore,
+        fqn: &str,
+        effect_family: crate::effect_facts::EffectFamilyKey,
+    ) -> crate::effect_facts::ConcreteOpKey {
+        let instance = sample_instance_key(fqn);
+        let stable_instance = sample_stable_instance_key(&instance, types);
+        crate::effect_facts::ConcreteOpKey::new(instance, stable_instance, effect_family)
+    }
+
     fn nominal_effect(types: &mut TypeStore, fqn: &str) -> TypeId {
         types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
             fqn: fqn.to_string(),
@@ -5102,16 +5165,13 @@ mod tests {
             vec![
                 LateLoweredStepCase::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     payload_tuple_ty,
                     contract0,
                 ),
                 LateLoweredStepCase::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     builtins.unit,
                     contract1,
                 ),
@@ -5126,22 +5186,21 @@ mod tests {
             vec![
                 LateLoweredResumeMethod::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                 ),
                 LateLoweredResumeMethod::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     contract1,
                 ),
             ],
         );
 
+        let worker_instance = sample_instance_key("sample.worker");
+        let worker_stable_instance = sample_stable_instance_key(&worker_instance, &types);
         let version_key = LateLoweredBodyVersionKey::new(
-            sample_instance_key("sample.worker"),
+            worker_instance,
             allowed_row,
             ImplPlan::SingleCase(case0),
             true,
@@ -5177,7 +5236,7 @@ mod tests {
             vec![
                 LateLoweredContinuationSurfaceResume::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                     LateLoweredContinuationResumeBody::ResumeCapturedState {
                         repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
@@ -5185,10 +5244,7 @@ mod tests {
                 ),
                 LateLoweredContinuationSurfaceResume::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     contract1,
                     LateLoweredContinuationResumeBody::Unreachable,
                 ),
@@ -5197,7 +5253,7 @@ mod tests {
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                     LateLoweredContinuationResumeBody::ResumeCapturedState {
                         repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
@@ -5206,10 +5262,7 @@ mod tests {
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     contract1,
                     LateLoweredContinuationResumeBody::Unreachable,
                 ),
@@ -5218,6 +5271,7 @@ mod tests {
 
         let callable = LateLoweredCallable::new(
             "sample.worker".to_string(),
+            worker_stable_instance,
             version_key,
             step_schema,
             vec![case0],

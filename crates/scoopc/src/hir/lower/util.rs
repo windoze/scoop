@@ -13,12 +13,15 @@ use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    StableCanonicalKey, StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    StableTypeParamKey, canonical_callable_signature_key, canonical_property_getter_signature_key,
     stable_template_symbol_suffix,
 };
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, ValueTypeKind,
+};
 
 use super::types::*;
 use super::{HirLowering, HirLoweringSetup};
@@ -561,7 +564,7 @@ pub(super) fn collect_object_inits(
     let value_type_computed_properties =
         super::collect_value_type_computed_property_fqns(&compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(&compilation_unit);
+        collect_generic_template_symbol_suffixes(index, &compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -752,7 +755,7 @@ pub(super) fn collect_class_inits(
     let value_type_computed_properties =
         super::collect_value_type_computed_property_fqns(&compilation_unit);
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes(&compilation_unit);
+        collect_generic_template_symbol_suffixes(index, &compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -3459,7 +3462,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
     if generic_owners.is_empty() {
         return Vec::new();
     }
-    let generic_template_symbol_suffixes = collect_generic_template_symbol_suffixes(pairs);
+    let generic_template_symbol_suffixes = collect_generic_template_symbol_suffixes(index, pairs);
     let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
     let empty_interfaces = crate::itable::InterfaceIndex::new();
@@ -3652,75 +3655,260 @@ struct TemplateSymbolCandidate {
     stable_template_key: StableTemplateKey,
 }
 
-fn normalize_sig_piece(s: &str) -> String {
-    s.split_whitespace().collect()
+fn stable_signature_param_owner_key(
+    stable_cone_key: &StableConeKey,
+    namespace: StableDefNamespace,
+    owner_fqn: &str,
+    declaration_kind: &str,
+) -> String {
+    StableDefKey::new(
+        stable_cone_key.clone(),
+        namespace,
+        owner_fqn,
+        declaration_kind,
+        None,
+    )
+    .canonical_text()
 }
 
-fn generic_fun_signature_key_with_owner_params(
+fn bind_signature_type_params(
     source: &SourceFile,
+    scope: &HashMap<String, TypeId>,
+    params: &[ast::TypeParam],
+    owner_key: &str,
+    start_index: usize,
+    types: &TypeStore,
+    resolver: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    for (offset, param) in params.iter().enumerate() {
+        let name = param.name.text(source);
+        let ty = scope
+            .get(name)
+            .copied()
+            .unwrap_or_else(|| panic!("missing signature placeholder for type parameter `{name}`"));
+        let TypeKind::Param(param_ty) = types.kind(ty) else {
+            panic!(
+                "signature placeholder for type parameter `{name}` should lower to TypeKind::Param"
+            );
+        };
+        resolver.insert(
+            param_ty.clone(),
+            StableTypeParamKey::new(owner_key.to_string(), start_index + offset),
+        );
+    }
+}
+
+fn bind_signature_effect_param(
+    source: &SourceFile,
+    scope: &HashMap<String, super::EffectRowParamBinding>,
+    eff_param: &ast::EffectRowParam,
+    owner_key: &str,
+    index: usize,
+    types: &TypeStore,
+    resolver: &mut HashMap<TypeParamType, StableTypeParamKey>,
+) {
+    let name = eff_param.name.text(source);
+    let binding = scope
+        .get(name)
+        .unwrap_or_else(|| panic!("missing signature placeholder for effect parameter `{name}`"));
+    let super::EffectRowParamBinding::Placeholder(marker) = binding else {
+        panic!("signature effect parameter `{name}` should stay on placeholder binding path");
+    };
+    let TypeKind::Param(param_ty) = types.kind(*marker) else {
+        panic!(
+            "signature placeholder for effect parameter `{name}` should lower to TypeKind::Param"
+        );
+    };
+    resolver.insert(
+        param_ty.clone(),
+        StableTypeParamKey::new(owner_key.to_string(), index),
+    );
+}
+
+fn with_signature_lowering_ctx<T>(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    f: impl FnOnce(&mut HirLowering<'_>) -> T,
+) -> T {
+    let compilation_unit = [(source, file)];
+    let type_kinds = HashMap::new();
+    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let default_arg_structs = HashMap::new();
+    let value_type_computed_properties = HashSet::new();
+    let generic_template_symbol_suffixes = HashMap::new();
+    let known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
+    let class_vtables = crate::vtable::ClassVtableIndex::new();
+    let interfaces = crate::itable::InterfaceIndex::new();
+    let class_itables = crate::itable::ClassItableIndex::new();
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        &mut types,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds: &type_kinds,
+            delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
+            builtins,
+            generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
+            known_receiver_subclasses: &known_receiver_subclasses,
+            class_vtables: &class_vtables,
+            interfaces: &interfaces,
+            class_itables: &class_itables,
+            materialize_direct_call_targets: false,
+            devirtualize_dispatch_calls: false,
+            runtime_comptime_plan: None,
+        },
+    );
+    f(&mut ctx)
+}
+
+pub(crate) fn canonical_generic_fun_signature_key(
+    stable_cone_key: &StableConeKey,
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
     fun: &ast::FunDecl,
 ) -> String {
-    let mut out = String::new();
-    out.push_str(match fun.kind {
-        ast::FunDeclKind::Regular => "fun",
-        ast::FunDeclKind::EffectOp => "effect-op",
-    });
-    out.push('|');
-    for param in owner_type_params {
-        out.push_str(param.name.text(source));
-        out.push(',');
-    }
-    out.push('|');
-    for param in &fun.type_params {
-        out.push_str(param.name.text(source));
-        out.push(',');
-    }
-    out.push('|');
-    if let Some(eff) = &fun.eff_param {
-        out.push_str(&normalize_sig_piece(source.slice(eff.span)));
-    }
-    out.push('|');
-    if let Some(receiver) = &fun.receiver {
-        out.push_str(&normalize_sig_piece(source.slice(receiver.span())));
-    }
-    out.push('|');
-    for param in &fun.params {
-        if let Some(ty) = &param.ty {
-            out.push_str(&normalize_sig_piece(source.slice(ty.span())));
-        } else {
-            out.push('_');
+    let declaration_kind = generic_fun_decl_kind(fun);
+    let owner_key = stable_signature_param_owner_key(
+        stable_cone_key,
+        StableDefNamespace::Fun,
+        owner_fqn,
+        declaration_kind,
+    );
+    with_signature_lowering_ctx(source, file, index, |ctx| {
+        ctx.push_type_params(owner_type_params);
+        let owner_scope_index = ctx.type_param_scopes.len() - 1;
+        let mut resolver = HashMap::new();
+        bind_signature_type_params(
+            source,
+            &ctx.type_param_scopes[owner_scope_index],
+            owner_type_params,
+            &owner_key,
+            0,
+            &*ctx.types,
+            &mut resolver,
+        );
+
+        ctx.push_type_params(&fun.type_params);
+        let fun_scope_index = ctx.type_param_scopes.len() - 1;
+        bind_signature_type_params(
+            source,
+            &ctx.type_param_scopes[fun_scope_index],
+            &fun.type_params,
+            &owner_key,
+            owner_type_params.len(),
+            &*ctx.types,
+            &mut resolver,
+        );
+
+        if let Some(eff_param) = &fun.eff_param {
+            let name = eff_param.name.text(source).to_string();
+            ctx.push_effect_row_param_placeholder(name, eff_param.name.span);
+            let effect_scope_index = ctx.effect_row_param_scopes.len() - 1;
+            bind_signature_effect_param(
+                source,
+                &ctx.effect_row_param_scopes[effect_scope_index],
+                eff_param,
+                &owner_key,
+                owner_type_params.len() + fun.type_params.len(),
+                &*ctx.types,
+                &mut resolver,
+            );
         }
-        out.push(';');
-    }
-    out.push('|');
-    match &fun.return_ty {
-        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
-        None => out.push_str("Unit"),
-    }
-    out.push('|');
-    if let Some(effects) = &fun.effects {
-        out.push_str(&normalize_sig_piece(source.slice(effects.span)));
-    }
-    out
+
+        let receiver = fun
+            .receiver
+            .as_ref()
+            .map(|receiver| ctx.lower_type_ref(receiver));
+        let params = fun
+            .params
+            .iter()
+            .map(|param| {
+                param
+                    .ty
+                    .as_ref()
+                    .map(|ty| ctx.lower_type_ref(ty))
+                    .unwrap_or(ctx.builtins.any)
+            })
+            .collect::<Vec<_>>();
+        let return_ty = fun
+            .return_ty
+            .as_ref()
+            .map(|ret| ctx.lower_type_ref(ret))
+            .unwrap_or(ctx.builtins.unit);
+        let effects = ctx.lower_effect_row_expr(fun.effects.as_ref());
+        let callable_ty = ctx.types.ty_function(
+            receiver,
+            params,
+            return_ty,
+            effects,
+            fun.effects.as_ref().is_some_and(|row| row.closed),
+        );
+
+        canonical_callable_signature_key(
+            &*ctx.types,
+            callable_ty,
+            owner_type_params.len(),
+            fun.type_params.len(),
+            usize::from(fun.eff_param.is_some()),
+            &resolver,
+        )
+        .expect("generic callable signature key should encode canonical type/effect text")
+    })
 }
 
-fn generic_value_property_getter_signature_key(
+pub(crate) fn canonical_generic_property_getter_signature_key(
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
     owner_type_params: &[ast::TypeParam],
     property: &ast::PropertyDecl,
 ) -> String {
-    let mut out = String::from("value-getter|");
-    for param in owner_type_params {
-        out.push_str(param.name.text(source));
-        out.push(',');
-    }
-    out.push('|');
-    match &property.ty {
-        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
-        None => out.push_str("Any"),
-    }
-    out
+    let owner_key = stable_signature_param_owner_key(
+        stable_cone_key,
+        StableDefNamespace::PropertyGetter,
+        owner_fqn,
+        generic_property_getter_decl_kind(property),
+    );
+    with_signature_lowering_ctx(source, file, index, |ctx| {
+        ctx.push_type_params(owner_type_params);
+        let owner_scope_index = ctx.type_param_scopes.len() - 1;
+        let mut resolver = HashMap::new();
+        bind_signature_type_params(
+            source,
+            &ctx.type_param_scopes[owner_scope_index],
+            owner_type_params,
+            &owner_key,
+            0,
+            &*ctx.types,
+            &mut resolver,
+        );
+
+        let return_ty = property
+            .ty
+            .as_ref()
+            .map(|ret| ctx.lower_type_ref(ret))
+            .unwrap_or(ctx.builtins.any);
+        canonical_property_getter_signature_key(
+            &*ctx.types,
+            return_ty,
+            owner_type_params.len(),
+            &resolver,
+        )
+        .expect("generic value getter signature key should encode canonical return type")
+    })
 }
 
 fn build_template_symbol_suffixes(
@@ -3794,13 +3982,14 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
         return Ok(Vec::new());
     }
 
-    let templates = collect_explicit_member_templates(compilation_unit);
+    let templates = collect_explicit_member_templates(stable_cone_key, index, compilation_unit);
     if templates.is_empty() {
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
         collect_generic_template_symbol_suffixes_with_stable_cone_key(
             stable_cone_key,
+            index,
             compilation_unit,
         );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
@@ -4006,12 +4195,16 @@ pub(super) fn collect_generic_member_fun_instantiations_from_instance_keys(
 }
 
 fn collect_explicit_member_templates<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
 ) -> HashMap<TemplateKey, ExplicitMemberTemplate<'a>> {
     let mut out = HashMap::new();
     for (source, file) in compilation_unit {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         collect_explicit_member_templates_in_items(
+            stable_cone_key,
+            index,
             source,
             file,
             &pkg_prefix,
@@ -4023,6 +4216,8 @@ fn collect_explicit_member_templates<'a>(
 }
 
 fn collect_explicit_member_templates_in_items<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
     source: &'a SourceFile,
     file: &'a ast::File,
     owner_prefix: &str,
@@ -4032,10 +4227,20 @@ fn collect_explicit_member_templates_in_items<'a>(
     for item in items {
         match item {
             ast::Item::Type(ty) => {
-                collect_explicit_member_templates_in_type_decl(source, file, ty, owner_prefix, out);
+                collect_explicit_member_templates_in_type_decl(
+                    stable_cone_key,
+                    index,
+                    source,
+                    file,
+                    ty,
+                    owner_prefix,
+                    out,
+                );
             }
             ast::Item::Object(obj) => {
                 collect_explicit_member_templates_in_object_decl(
+                    stable_cone_key,
+                    index,
                     source,
                     file,
                     obj,
@@ -4053,6 +4258,8 @@ fn collect_explicit_member_templates_in_items<'a>(
 }
 
 fn collect_explicit_member_templates_in_type_decl<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
     source: &'a SourceFile,
     file: &'a ast::File,
     decl: &'a ast::TypeDecl,
@@ -4085,8 +4292,12 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
                         owner_type_params: &decl.type_params,
                         this_decl_span: decl.name.span,
                         fun,
-                        signature_key: generic_fun_signature_key_with_owner_params(
+                        signature_key: canonical_generic_fun_signature_key(
+                            stable_cone_key,
                             source,
+                            file,
+                            index,
+                            &owner_fqn,
                             &decl.type_params,
                             fun,
                         ),
@@ -4113,8 +4324,12 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
                         owner_type_params: &decl.type_params,
                         this_decl_span: decl.name.span,
                         property,
-                        signature_key: generic_value_property_getter_signature_key(
+                        signature_key: canonical_generic_property_getter_signature_key(
+                            stable_cone_key,
                             source,
+                            file,
+                            index,
+                            &owner_fqn,
                             &decl.type_params,
                             property,
                         ),
@@ -4126,12 +4341,24 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
             }
             ast::TypeMember::Type(nested) => {
                 collect_explicit_member_templates_in_type_decl(
-                    source, file, nested, &owner_fqn, out,
+                    stable_cone_key,
+                    index,
+                    source,
+                    file,
+                    nested,
+                    &owner_fqn,
+                    out,
                 );
             }
             ast::TypeMember::Object(obj) => {
                 collect_explicit_member_templates_in_object_decl(
-                    source, file, obj, &owner_fqn, out,
+                    stable_cone_key,
+                    index,
+                    source,
+                    file,
+                    obj,
+                    &owner_fqn,
+                    out,
                 );
             }
             ast::TypeMember::EnumVariant(_)
@@ -4144,6 +4371,8 @@ fn collect_explicit_member_templates_in_type_decl<'a>(
 }
 
 fn collect_explicit_member_templates_in_object_decl<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
     source: &'a SourceFile,
     file: &'a ast::File,
     obj: &'a ast::ObjectDecl,
@@ -4176,8 +4405,12 @@ fn collect_explicit_member_templates_in_object_decl<'a>(
                         owner_type_params: &[],
                         this_decl_span,
                         fun,
-                        signature_key: generic_fun_signature_key_with_owner_params(
+                        signature_key: canonical_generic_fun_signature_key(
+                            stable_cone_key,
                             source,
+                            file,
+                            index,
+                            &owner_fqn,
                             &[],
                             fun,
                         ),
@@ -4187,12 +4420,24 @@ fn collect_explicit_member_templates_in_object_decl<'a>(
             }
             ast::TypeMember::Type(nested) => {
                 collect_explicit_member_templates_in_type_decl(
-                    source, file, nested, &owner_fqn, out,
+                    stable_cone_key,
+                    index,
+                    source,
+                    file,
+                    nested,
+                    &owner_fqn,
+                    out,
                 );
             }
             ast::TypeMember::Object(nested) => {
                 collect_explicit_member_templates_in_object_decl(
-                    source, file, nested, &owner_fqn, out,
+                    stable_cone_key,
+                    index,
+                    source,
+                    file,
+                    nested,
+                    &owner_fqn,
+                    out,
                 );
             }
             ast::TypeMember::EnumVariant(_)
@@ -5099,6 +5344,7 @@ pub(super) fn collect_generic_fun_instantiations(
     let generic_template_symbol_suffixes =
         collect_generic_template_symbol_suffixes_with_stable_cone_key(
             stable_cone_key,
+            index,
             compilation_unit,
         );
     let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
@@ -5333,13 +5579,15 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
         return Ok(Vec::new());
     }
 
-    let generic_funs = collect_explicit_top_level_generic_fun_templates(compilation_unit);
+    let generic_funs =
+        collect_explicit_top_level_generic_fun_templates(stable_cone_key, index, compilation_unit);
     if generic_funs.is_empty() {
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
         collect_generic_template_symbol_suffixes_with_stable_cone_key(
             stable_cone_key,
+            index,
             compilation_unit,
         );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
@@ -5436,6 +5684,8 @@ pub(super) fn collect_generic_fun_instantiations_from_instance_keys(
 }
 
 fn collect_explicit_top_level_generic_fun_templates<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
 ) -> HashMap<TemplateKey, ExplicitTopLevelGenericFunTemplate<'a>> {
     let mut out = HashMap::new();
@@ -5456,7 +5706,7 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
             };
             out.insert(
                 TemplateKey {
-                    fqn,
+                    fqn: fqn.clone(),
                     source_path: source.path().to_path_buf(),
                     decl_span: fun.span,
                 },
@@ -5464,7 +5714,15 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
                     source,
                     file,
                     fun,
-                    signature_key: generic_fun_signature_key_with_owner_params(source, &[], fun),
+                    signature_key: canonical_generic_fun_signature_key(
+                        stable_cone_key,
+                        source,
+                        file,
+                        index,
+                        &fqn,
+                        &[],
+                        fun,
+                    ),
                     has_body: !matches!(fun.body, ast::FunBody::Missing),
                 },
             );
@@ -5474,22 +5732,27 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
 }
 
 pub(super) fn collect_generic_template_symbol_suffixes(
+    index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
     let stable_cone_key = virtual_stable_cone_key_for_compilation_unit(compilation_unit);
     collect_generic_template_symbol_suffixes_with_stable_cone_key(
         &stable_cone_key,
+        index,
         compilation_unit,
     )
 }
 
 pub(super) fn collect_generic_template_symbol_suffixes_with_stable_cone_key(
     stable_cone_key: &StableConeKey,
+    index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
     let mut candidates = Vec::new();
 
-    for (template, info) in collect_explicit_top_level_generic_fun_templates(compilation_unit) {
+    for (template, info) in
+        collect_explicit_top_level_generic_fun_templates(stable_cone_key, index, compilation_unit)
+    {
         candidates.push(TemplateSymbolCandidate {
             stable_template_key: stable_template_key_for_template(
                 stable_cone_key,
@@ -5504,7 +5767,9 @@ pub(super) fn collect_generic_template_symbol_suffixes_with_stable_cone_key(
         });
     }
 
-    for (template, info) in collect_explicit_member_templates(compilation_unit) {
+    for (template, info) in
+        collect_explicit_member_templates(stable_cone_key, index, compilation_unit)
+    {
         let (signature_key, prefers_materialized_body, stable_template_key) = match info {
             ExplicitMemberTemplate::Fun {
                 fun,

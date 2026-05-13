@@ -20,6 +20,9 @@ mod stmt;
 
 pub use types::{HirLowerError, HirStageError, LoweredHir};
 pub use util::mangle_nominal_fqn;
+pub(crate) use util::{
+    canonical_generic_fun_signature_key, canonical_generic_property_getter_signature_key,
+};
 
 use std::collections::{HashMap, HashSet};
 
@@ -2270,6 +2273,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let generic_template_symbol_suffixes =
         util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
             &stable_cone_key,
+            &index,
             &pairs,
         );
 
@@ -2572,10 +2576,12 @@ pub fn lower_typed_for_dump(
 
 pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
     stable_cone_key: &StableConeKey,
+    index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> util::GenericTemplateSymbolSuffixIndex {
     util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
         stable_cone_key,
+        index,
         compilation_unit,
     )
 }
@@ -2643,6 +2649,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     let generic_template_symbol_suffixes =
         util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
             &stable_cone_key,
+            index,
             compilation_unit,
         );
 
@@ -3156,6 +3163,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
     let generic_template_symbol_suffixes =
         util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
             &stable_cone_key,
+            index,
             compilation_unit,
         );
 
@@ -4913,6 +4921,107 @@ fun main(): Int {
         assert!(
             !closure_call_fqns.contains(&binary_pick_fqn),
             "函数值 closure 体不应误调用 binary overload 的实例 target"
+        );
+    }
+
+    #[test]
+    fn compilation_unit_via_mir_instances_keeps_overloaded_generic_identity_path_stable() {
+        let sess = Session::new().unwrap();
+        let program = r#"
+package fixtures.t5000e3d
+
+import scoop.core.*
+
+fun <T> pick(x: T): T { return x }
+fun <T> pick(x: T, y: T): T { return y }
+
+object Box {
+    fun <T> pick(x: T): T { return x }
+    fun <T> pick(x: T, y: T): T { return y }
+}
+
+fun main(): Int {
+    val a: Int = pick(1)
+    val b: Int = pick(1, 2)
+    val c: Int = Box.pick(3)
+    val d: Int = Box.pick(3, 4)
+    return a + b + c + d
+}
+"#;
+        let source_a = SourceFile::new_virtual(
+            "/tmp/root-a/fixtures/t5000e3d_overload_identity.scoop",
+            program,
+        );
+        let source_b = SourceFile::new_virtual(
+            "/tmp/root-b/fixtures/t5000e3d_overload_identity.scoop",
+            program,
+        );
+
+        let lowered_a =
+            lower_typed_single_source_file_via_mir_instance_collection(&sess, &source_a);
+        let lowered_b =
+            lower_typed_single_source_file_via_mir_instance_collection(&sess, &source_b);
+
+        let top_level_instances = |lowered: &LoweredHir| {
+            lowered
+                .file
+                .items
+                .iter()
+                .filter_map(|item| match item {
+                    Item::Fun(fun)
+                        if fun.fqn.starts_with("fixtures.t5000e3d.pick::<Int>")
+                            && fun.fqn != "fixtures.t5000e3d.main" =>
+                    {
+                        Some(fun.fqn.clone())
+                    }
+                    _ => None,
+                })
+                .collect::<HashSet<_>>()
+        };
+        let member_instances = |lowered: &LoweredHir| {
+            lowered
+                .member_funs
+                .iter()
+                .filter(|fun| fun.fqn.starts_with("fixtures.t5000e3d.Box.pick::<Int>"))
+                .map(|fun| fun.fqn.clone())
+                .collect::<HashSet<_>>()
+        };
+        let main_direct_targets = |lowered: &LoweredHir| {
+            let main = lowered
+                .file
+                .items
+                .iter()
+                .find_map(|item| match item {
+                    Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
+                    _ => None,
+                })
+                .expect("应收集到 fixtures.t5000e3d.main");
+            let main_body = main.body.as_ref().expect("main 应有 body");
+            let mut call_fqns = Vec::new();
+            collect_top_level_call_fqns_in_block(main_body, &mut call_fqns);
+            call_fqns
+                .into_iter()
+                .filter(|fqn| {
+                    fqn.starts_with("fixtures.t5000e3d.pick::<Int>")
+                        || fqn.starts_with("fixtures.t5000e3d.Box.pick::<Int>")
+                })
+                .collect::<HashSet<_>>()
+        };
+
+        assert_eq!(
+            top_level_instances(&lowered_a),
+            top_level_instances(&lowered_b),
+            "不同源码根路径下的 top-level generic overload 实例名应保持一致"
+        );
+        assert_eq!(
+            member_instances(&lowered_a),
+            member_instances(&lowered_b),
+            "不同源码根路径下的 generic member overload 实例名应保持一致"
+        );
+        assert_eq!(
+            main_direct_targets(&lowered_a),
+            main_direct_targets(&lowered_b),
+            "不同源码根路径下的 overload-aware direct-call target 应保持一致"
         );
     }
 

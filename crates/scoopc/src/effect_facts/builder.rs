@@ -10,6 +10,10 @@ use crate::mir::{
 use crate::resolve::{FunOverload, Index};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::stable_id::{
+    NoTypeParamResolver, StableCanonicalKey, StableConeKey, StableDefKey, StableDefNamespace,
+    StableInstanceKey, StableTemplateKey, StableTypeParamKey, canonical_callable_signature_key,
+};
 use crate::ty::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, ValueTypeKind,
 };
@@ -1646,6 +1650,7 @@ struct ConcreteEffectOpContract {
 
 #[derive(Debug)]
 struct EffectFactsTypeContext {
+    stable_cone_key: StableConeKey,
     index: Index,
     env: TypeEnv,
     class_vtables: crate::vtable::ClassVtableIndex,
@@ -1758,8 +1763,12 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             let pass_view = self.materialized.pass_view();
             MirSnapshotBinding::from_pass_view(&pass_view)
         };
-        let type_ctx =
-            EffectFactsTypeContext::build(self.session, self.source, self.compilation_sources)?;
+        let type_ctx = EffectFactsTypeContext::build(
+            self.session,
+            self.source,
+            self.compilation_sources,
+            self.materialized.stable_cone_key().clone(),
+        )?;
         let compiler_generated_runtime_error_effect_ty =
             find_or_intern_raise_runtime_error_effect(&mut self.materialized.types);
         let callable_seeds = collect_callable_seeds(
@@ -1842,6 +1851,7 @@ impl EffectFactsTypeContext {
         session: &Session,
         source: &SourceFile,
         compilation_sources: &[SourceFile],
+        stable_cone_key: StableConeKey,
     ) -> Result<Self, EffectFactsError> {
         let mut sources = compilation_sources.to_vec();
         if !sources
@@ -1887,6 +1897,7 @@ impl EffectFactsTypeContext {
         let direct_subclasses = collect_direct_subclasses(&pairs, &index);
 
         Ok(Self {
+            stable_cone_key,
             index,
             env,
             class_vtables,
@@ -2092,6 +2103,141 @@ impl EffectFactsTypeContext {
             };
             (payload_component_tys, resume_tuple_ty)
         };
+        let declaration_kind =
+            if op.sig.type_params.is_empty() && effect_sym.type_param_names.is_empty() {
+                "effect_op"
+            } else {
+                "generic_effect_op"
+            };
+        let owner_def_key = StableDefKey::new(
+            self.stable_cone_key.clone(),
+            StableDefNamespace::Fun,
+            op_fqn,
+            declaration_kind,
+            None,
+        );
+        let owner_def_key_text = owner_def_key.canonical_text();
+        let mut signature_resolver = HashMap::new();
+        let mut op_signature_type_bindings = Vec::new();
+        let mut effect_signature_type_bindings = Vec::new();
+        for (index, type_param) in effect_sym.type_param_names.iter().enumerate() {
+            let placeholder = TypeParamType {
+                name: type_param.clone(),
+                decl_file: op.symbol.decl_file.clone(),
+                decl_span: op.symbol.span,
+            };
+            let ty = types.ty_param(placeholder.clone());
+            signature_resolver.insert(
+                placeholder.clone(),
+                StableTypeParamKey::new(owner_def_key_text.clone(), index),
+            );
+            effect_signature_type_bindings.push((type_param.clone(), ty));
+        }
+        for (index, type_param) in op.sig.type_params.iter().enumerate() {
+            let placeholder = TypeParamType {
+                name: type_param.name.clone(),
+                decl_file: op.symbol.decl_file.clone(),
+                decl_span: type_param.name_span,
+            };
+            let ty = types.ty_param(placeholder.clone());
+            signature_resolver.insert(
+                placeholder.clone(),
+                StableTypeParamKey::new(
+                    owner_def_key_text.clone(),
+                    effect_sym.type_param_names.len() + index,
+                ),
+            );
+            op_signature_type_bindings.push((type_param.name.clone(), ty));
+        }
+        let mut signature_type_bindings = op_signature_type_bindings;
+        signature_type_bindings.extend(effect_signature_type_bindings);
+        let signature_fun_ty = {
+            let builtins = types.intern_builtins();
+            let mut lower = TypeLowering::new_with_ctx(
+                decl_source,
+                &self.index,
+                &self.env,
+                types,
+                builtins,
+                file_ctx.pkg_prefix.clone(),
+                file_ctx.imports.clone(),
+            );
+            let receiver_ty = op
+                .sig
+                .receiver
+                .as_ref()
+                .map(|receiver_ref| {
+                    lower
+                        .lower_type_ref_in_decl_file_with_scopes(
+                            &op.symbol.decl_file,
+                            signature_type_bindings.clone(),
+                            std::iter::empty::<(String, EffectRow)>(),
+                            receiver_ref,
+                        )
+                        .map_err(|error| EffectFactsError::TypeLower(Box::new(error)))
+                })
+                .transpose()?;
+            let mut param_tys = Vec::with_capacity(op.sig.params.len());
+            for param in &op.sig.params {
+                let Some(param_ty_ref) = &param.ty else {
+                    return Err(EffectFactsError::MalformedEffectOpSignature {
+                        op_fqn: op_fqn.to_string(),
+                        detail: "missing parameter type",
+                    });
+                };
+                param_tys.push(
+                    lower
+                        .lower_type_ref_in_decl_file_with_scopes(
+                            &op.symbol.decl_file,
+                            signature_type_bindings.clone(),
+                            std::iter::empty::<(String, EffectRow)>(),
+                            param_ty_ref,
+                        )
+                        .map_err(|error| EffectFactsError::TypeLower(Box::new(error)))?,
+                );
+            }
+            let return_ty = match &op.sig.return_ty {
+                Some(return_ty_ref) => lower
+                    .lower_type_ref_in_decl_file_with_scopes(
+                        &op.symbol.decl_file,
+                        signature_type_bindings,
+                        std::iter::empty::<(String, EffectRow)>(),
+                        return_ty_ref,
+                    )
+                    .map_err(|error| EffectFactsError::TypeLower(Box::new(error)))?,
+                None => builtins.unit,
+            };
+            types.ty_function(receiver_ty, param_tys, return_ty, EffectRow::pure(), false)
+        };
+        let signature_key = canonical_callable_signature_key(
+            types,
+            signature_fun_ty,
+            effect_sym.type_param_names.len(),
+            op.sig.type_params.len(),
+            0,
+            &signature_resolver,
+        )
+        .map_err(|_| EffectFactsError::MalformedEffectOpSignature {
+            op_fqn: op_fqn.to_string(),
+            detail: "stable signature encoding failed",
+        })?;
+        let stable_instance_key = StableInstanceKey::from_type_arguments(
+            StableTemplateKey::new(StableDefKey::new(
+                self.stable_cone_key.clone(),
+                StableDefNamespace::Fun,
+                op_fqn,
+                declaration_kind,
+                Some(signature_key),
+            )),
+            types,
+            &concrete_key_type_args,
+            &[],
+            &NoTypeParamResolver,
+        )
+        .map_err(|_| EffectFactsError::MalformedEffectOpSignature {
+            op_fqn: op_fqn.to_string(),
+            detail: "stable instance key encoding failed",
+        })?;
 
         Ok(ConcreteEffectOpContract {
             concrete_op_key: ConcreteOpKey::new(
@@ -2104,6 +2250,7 @@ impl EffectFactsTypeContext {
                     type_args: concrete_key_type_args,
                     eff_args: Vec::new(),
                 },
+                stable_instance_key,
                 crate::effect_facts::EffectFamilyKey::new(
                     effect_fqn.to_string(),
                     effect_type_args.to_vec(),

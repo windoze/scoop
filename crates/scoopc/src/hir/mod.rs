@@ -33,7 +33,11 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_with_type_env,
     lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
 };
-pub(crate) use lower::{LoweringInputs, generic_template_symbol_suffixes_for_compilation_unit};
+pub(crate) use lower::{
+    LoweringInputs, canonical_generic_fun_signature_key,
+    canonical_generic_property_getter_signature_key,
+    generic_template_symbol_suffixes_for_compilation_unit,
+};
 
 pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(
     inputs: LoweringInputs<'_>,

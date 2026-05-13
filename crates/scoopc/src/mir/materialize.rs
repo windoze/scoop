@@ -23,7 +23,8 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::stable_id::{
-    StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    AbiMangler, NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace,
+    StableInstanceKey, StableTemplateKey, canonical_callable_signature_key,
     stable_template_symbol_suffix,
 };
 use crate::ty::{
@@ -147,6 +148,10 @@ pub struct MaterializedMir {
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
+    stable_cone_key: StableConeKey,
+    stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
+    stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
+    nongeneric_callable_signature_keys: HashMap<TemplateKey, String>,
     opt_level: OptLevel,
     callable_families: MaterializedCallableFamilies,
     pass_artifacts: MaterializedMirPassArtifacts,
@@ -172,6 +177,59 @@ impl MaterializedMir {
     /// 返回当前 materialized MIR 上挂载的 canonical pass 产物 side table。
     pub fn pass_artifacts(&self) -> &super::MaterializedMirPassArtifacts {
         &self.pass_artifacts
+    }
+
+    /// 返回某个 materialized instance 对应的 authoritative stable instance key。
+    pub fn stable_instance_key(&self, instance: &InstanceKey) -> Option<&StableInstanceKey> {
+        self.stable_instance_keys.get(instance)
+    }
+
+    pub fn stable_instance_keys(&self) -> &HashMap<InstanceKey, StableInstanceKey> {
+        &self.stable_instance_keys
+    }
+
+    pub(crate) fn stable_cone_key(&self) -> &StableConeKey {
+        &self.stable_cone_key
+    }
+
+    pub fn authoritative_stable_instance_key(
+        &self,
+        instance: &InstanceKey,
+    ) -> Option<StableInstanceKey> {
+        if let Some(stable_key) = self.stable_instance_keys.get(instance) {
+            return Some(stable_key.clone());
+        }
+        let stable_template_key = self
+            .stable_template_keys
+            .get(&instance.template)
+            .cloned()
+            .or_else(|| {
+                self.nongeneric_callable_signature_keys
+                    .get(&instance.template)
+                    .map(|signature_key| {
+                        StableTemplateKey::new(StableDefKey::new(
+                            self.stable_cone_key.clone(),
+                            StableDefNamespace::Fun,
+                            &instance.template.fqn,
+                            "non_generic_callable",
+                            Some(signature_key.clone()),
+                        ))
+                    })
+            })?;
+        StableInstanceKey::from_type_arguments(
+            stable_template_key,
+            &self.types,
+            &instance.type_args,
+            &instance.eff_args,
+            &NoTypeParamResolver,
+        )
+        .ok()
+    }
+
+    /// 返回某个 materialized instance 后续应使用的 exported function symbol。
+    pub fn instance_exported_fun_symbol(&self, instance: &InstanceKey) -> Option<String> {
+        self.authoritative_stable_instance_key(instance)
+            .map(|stable_key| AbiMangler.fun_symbol(&stable_key))
     }
 
     /// 返回当前 canonical materialized MIR snapshot 对应的优化等级。
@@ -2698,7 +2756,8 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         request_root_mode,
         opt_level,
     } = options;
-    let template_catalog = collect_generic_template_infos(&stable_cone_key, compilation_unit);
+    let template_catalog =
+        collect_generic_template_infos(&stable_cone_key, index, compilation_unit);
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
@@ -2827,6 +2886,7 @@ struct CallableSignatureInfo {
     fun_ty: TypeId,
     return_ty: TypeId,
     params: Vec<CallableSignatureParam>,
+    has_generic_params_or_effect_param: bool,
 }
 
 struct MaterializerConstructionInputs<'a> {
@@ -2945,22 +3005,40 @@ fn collect_callable_signature_infos(
             _ => None,
         })
         .chain(lowered_hir.member_funs.iter())
-        .map(|fun| CallableSignatureInfo {
-            template: TemplateKey {
-                fqn: fun.fqn.clone(),
-                source_path: fun.source_path.clone(),
-                decl_span: fun.span,
-            },
-            fun_ty: fun.ty,
-            return_ty: fun.return_ty,
-            params: fun
-                .params
-                .iter()
-                .map(|param| CallableSignatureParam {
-                    name: param.name.clone(),
-                    ty: param.ty,
-                })
-                .collect(),
+        .map(|fun| {
+            let mut type_param_names = Vec::new();
+            for param in &fun.params {
+                collect_type_param_names_in_type(
+                    &lowered_hir.types,
+                    param.ty,
+                    &mut type_param_names,
+                );
+            }
+            collect_type_param_names_in_type(
+                &lowered_hir.types,
+                fun.return_ty,
+                &mut type_param_names,
+            );
+            let has_effect_param = function_type_has_effect_param(&lowered_hir.types, fun.ty);
+            CallableSignatureInfo {
+                template: TemplateKey {
+                    fqn: fun.fqn.clone(),
+                    source_path: fun.source_path.clone(),
+                    decl_span: fun.span,
+                },
+                fun_ty: fun.ty,
+                return_ty: fun.return_ty,
+                params: fun
+                    .params
+                    .iter()
+                    .map(|param| CallableSignatureParam {
+                        name: param.name.clone(),
+                        ty: param.ty,
+                    })
+                    .collect(),
+                has_generic_params_or_effect_param: !type_param_names.is_empty()
+                    || has_effect_param,
+            }
         })
         .collect()
 }
@@ -3863,68 +3941,38 @@ struct GenericTemplateInfo {
     has_body: bool,
 }
 
-fn normalize_sig_piece(s: &str) -> String {
-    s.split_whitespace().collect()
-}
-
 fn generic_template_signature_key_with_owner_params(
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
-    owner_type_param_names: &[String],
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
+    owner_type_params: &[ast::TypeParam],
     fun: &ast::FunDecl,
 ) -> String {
-    let mut out = String::new();
-    out.push_str(match fun.kind {
-        ast::FunDeclKind::Regular => "fun",
-        ast::FunDeclKind::EffectOp => "effect-op",
-    });
-    out.push('|');
-    for param in owner_type_param_names {
-        out.push_str(param);
-        out.push(',');
-    }
-    out.push('|');
-    for param in &fun.type_params {
-        out.push_str(param.name.text(source));
-        out.push(',');
-    }
-    out.push('|');
-    if let Some(eff) = &fun.eff_param {
-        out.push_str(&normalize_sig_piece(source.slice(eff.span)));
-    }
-    out.push('|');
-    if let Some(receiver) = &fun.receiver {
-        out.push_str(&normalize_sig_piece(source.slice(receiver.span())));
-    }
-    out.push('|');
-    for param in &fun.params {
-        if let Some(ty) = &param.ty {
-            out.push_str(&normalize_sig_piece(source.slice(ty.span())));
-        } else {
-            out.push('_');
-        }
-        out.push(';');
-    }
-    out.push('|');
-    match &fun.return_ty {
-        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
-        None => out.push_str("Unit"),
-    }
-    out.push('|');
-    if let Some(effects) = &fun.effects {
-        out.push_str(&normalize_sig_piece(source.slice(effects.span)));
-    }
-    out
+    crate::hir::canonical_generic_fun_signature_key(
+        stable_cone_key,
+        source,
+        file,
+        index,
+        owner_fqn,
+        owner_type_params,
+        fun,
+    )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_generic_template_info(
     out: &mut Vec<GenericTemplateInfo>,
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     owner_fqn: &str,
-    owner_type_param_names: &[String],
+    owner_type_params: &[ast::TypeParam],
     fun: &ast::FunDecl,
 ) {
-    if owner_type_param_names.is_empty() && fun.type_params.is_empty() && fun.eff_param.is_none() {
+    if owner_type_params.is_empty() && fun.type_params.is_empty() && fun.eff_param.is_none() {
         return;
     }
 
@@ -3934,8 +3982,15 @@ fn push_generic_template_info(
     } else {
         format!("{owner_fqn}.{local_name}")
     };
-    let signature_key =
-        generic_template_signature_key_with_owner_params(source, owner_type_param_names, fun);
+    let signature_key = generic_template_signature_key_with_owner_params(
+        stable_cone_key,
+        source,
+        file,
+        index,
+        owner_fqn,
+        owner_type_params,
+        fun,
+    );
     out.push(GenericTemplateInfo {
         request_lookup_key: (fqn.clone(), source.path().to_path_buf(), fun.name.span),
         template: TemplateKey {
@@ -3950,9 +4005,9 @@ fn push_generic_template_info(
             generic_fun_decl_kind(fun),
             &signature_key,
         ),
-        type_param_names: owner_type_param_names
+        type_param_names: owner_type_params
             .iter()
-            .cloned()
+            .map(|param| param.name.text(source).to_string())
             .chain(
                 fun.type_params
                     .iter()
@@ -3969,32 +4024,37 @@ fn push_generic_template_info(
 }
 
 fn generic_value_property_getter_signature_key(
+    stable_cone_key: &StableConeKey,
     source: &SourceFile,
-    owner_type_param_names: &[String],
+    file: &ast::File,
+    index: &Index,
+    owner_fqn: &str,
+    owner_type_params: &[ast::TypeParam],
     property: &ast::PropertyDecl,
 ) -> String {
-    let mut out = String::from("value-getter|");
-    for param in owner_type_param_names {
-        out.push_str(param);
-        out.push(',');
-    }
-    out.push('|');
-    match &property.ty {
-        Some(ret) => out.push_str(&normalize_sig_piece(source.slice(ret.span()))),
-        None => out.push_str("Any"),
-    }
-    out
+    crate::hir::canonical_generic_property_getter_signature_key(
+        stable_cone_key,
+        source,
+        file,
+        index,
+        owner_fqn,
+        owner_type_params,
+        property,
+    )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_generic_value_property_getter_template_info(
     out: &mut Vec<GenericTemplateInfo>,
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     owner_fqn: &str,
-    owner_type_param_names: &[String],
+    owner_type_params: &[ast::TypeParam],
     property: &ast::PropertyDecl,
 ) {
-    if owner_type_param_names.is_empty() || property.getter.is_none() {
+    if owner_type_params.is_empty() || property.getter.is_none() {
         return;
     }
 
@@ -4004,8 +4064,15 @@ fn push_generic_value_property_getter_template_info(
     } else {
         format!("{owner_fqn}.{local_name}")
     };
-    let signature_key =
-        generic_value_property_getter_signature_key(source, owner_type_param_names, property);
+    let signature_key = generic_value_property_getter_signature_key(
+        stable_cone_key,
+        source,
+        file,
+        index,
+        owner_fqn,
+        owner_type_params,
+        property,
+    );
     out.push(GenericTemplateInfo {
         request_lookup_key: (fqn.clone(), source.path().to_path_buf(), property.name.span),
         template: TemplateKey {
@@ -4020,7 +4087,10 @@ fn push_generic_value_property_getter_template_info(
             generic_property_getter_decl_kind(property),
             &signature_key,
         ),
-        type_param_names: owner_type_param_names.to_vec(),
+        type_param_names: owner_type_params
+            .iter()
+            .map(|param| param.name.text(source).to_string())
+            .collect(),
         eff_param_name: None,
         signature_key,
         has_body: property
@@ -4030,12 +4100,15 @@ fn push_generic_value_property_getter_template_info(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_generic_templates_from_type_body(
     out: &mut Vec<GenericTemplateInfo>,
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     owner_fqn: &str,
-    owner_type_param_names: &[String],
+    owner_type_params: &[ast::TypeParam],
     owner_kind: Option<ast::TypeKind>,
     body: Option<&ast::TypeBody>,
 ) {
@@ -4048,8 +4121,10 @@ fn collect_generic_templates_from_type_body(
                 out,
                 stable_cone_key,
                 source,
+                file,
+                index,
                 owner_fqn,
-                owner_type_param_names,
+                owner_type_params,
                 fun,
             ),
             ast::TypeMember::Property(property)
@@ -4062,24 +4137,23 @@ fn collect_generic_templates_from_type_body(
                     out,
                     stable_cone_key,
                     source,
+                    file,
+                    index,
                     owner_fqn,
-                    owner_type_param_names,
+                    owner_type_params,
                     property,
                 );
             }
             ast::TypeMember::Type(ty) => {
                 let nested_owner = format!("{owner_fqn}.{}", ty.name.text(source));
-                let nested_owner_type_param_names = ty
-                    .type_params
-                    .iter()
-                    .map(|param| param.name.text(source).to_string())
-                    .collect::<Vec<_>>();
                 collect_generic_templates_from_type_body(
                     out,
                     stable_cone_key,
                     source,
+                    file,
+                    index,
                     &nested_owner,
-                    &nested_owner_type_param_names,
+                    &ty.type_params,
                     Some(ty.kind),
                     ty.body.as_ref(),
                 );
@@ -4101,6 +4175,8 @@ fn collect_generic_templates_from_type_body(
                     out,
                     stable_cone_key,
                     source,
+                    file,
+                    index,
                     &nested_owner,
                     &[],
                     None,
@@ -4117,6 +4193,7 @@ fn collect_generic_templates_from_type_body(
 
 fn collect_generic_template_infos(
     stable_cone_key: &StableConeKey,
+    index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Vec<GenericTemplateInfo> {
     let mut out = Vec::new();
@@ -4129,6 +4206,8 @@ fn collect_generic_template_infos(
                         &mut out,
                         stable_cone_key,
                         source,
+                        file,
+                        index,
                         &pkg_prefix,
                         &[],
                         fun,
@@ -4140,17 +4219,14 @@ fn collect_generic_template_infos(
                     } else {
                         format!("{pkg_prefix}.{}", ty.name.text(source))
                     };
-                    let owner_type_param_names = ty
-                        .type_params
-                        .iter()
-                        .map(|param| param.name.text(source).to_string())
-                        .collect::<Vec<_>>();
                     collect_generic_templates_from_type_body(
                         &mut out,
                         stable_cone_key,
                         source,
+                        file,
+                        index,
                         &owner_fqn,
-                        &owner_type_param_names,
+                        &ty.type_params,
                         Some(ty.kind),
                         ty.body.as_ref(),
                     );
@@ -4176,6 +4252,8 @@ fn collect_generic_template_infos(
                         &mut out,
                         stable_cone_key,
                         source,
+                        file,
+                        index,
                         &owner_fqn,
                         &[],
                         None,
@@ -4766,6 +4844,8 @@ struct MirInstanceMaterializer {
     request_templates: HashMap<RequestTemplateKey, TemplateKey>,
     roots: HashMap<TemplateKey, TemplateRootInfo>,
     template_signatures: HashMap<TemplateKey, TemplateSignatureInfo>,
+    stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
+    nongeneric_callable_signature_keys: HashMap<TemplateKey, String>,
     template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
@@ -4894,6 +4974,22 @@ impl MirInstanceMaterializer {
         }
         let mut member_value_tys = collect_member_value_type_infos(&generic_file);
         member_value_tys.extend(hir_member_value_tys);
+        let nongeneric_callable_signature_keys = callable_signatures
+            .iter()
+            .filter(|signature| !signature.has_generic_params_or_effect_param)
+            .filter_map(|signature| {
+                canonical_callable_signature_key(
+                    &types,
+                    signature.fun_ty,
+                    0,
+                    0,
+                    0,
+                    &NoTypeParamResolver,
+                )
+                .ok()
+                .map(|signature_key| (signature.template.clone(), signature_key))
+            })
+            .collect::<HashMap<_, _>>();
         let callable_signatures = callable_signatures
             .into_iter()
             .map(|signature| (signature.template.clone(), signature))
@@ -4975,6 +5071,23 @@ impl MirInstanceMaterializer {
             canonical_stable_keys
                 .entry(canonical)
                 .or_insert_with(|| candidate.stable_template_key.clone());
+        }
+
+        let mut stable_template_keys = HashMap::new();
+        for candidate in &canonical_candidates {
+            let group_key = (
+                candidate.template.fqn.clone(),
+                candidate.signature_key.clone(),
+            );
+            let canonical = canonical_templates
+                .get(&group_key)
+                .cloned()
+                .expect("canonical template must exist for every stable template alias");
+            let stable_template_key = canonical_stable_keys
+                .get(&canonical)
+                .cloned()
+                .expect("every canonical template should retain a stable template key");
+            stable_template_keys.insert(candidate.template.clone(), stable_template_key);
         }
 
         let mut request_templates = HashMap::new();
@@ -5137,6 +5250,8 @@ impl MirInstanceMaterializer {
             request_templates,
             roots,
             template_signatures,
+            stable_template_keys,
+            nongeneric_callable_signature_keys,
             template_symbol_suffixes,
             roots_by_fqn,
             direct_call_bindings,
@@ -5421,7 +5536,12 @@ impl MirInstanceMaterializer {
             });
         }
         initial.extend(request_root_instances);
-        initial.sort_by_key(|a| self.instance_fqn(a));
+        initial.sort_by_key(|a| {
+            (
+                self.instance_display_fqn(a),
+                self.instance_exported_fun_symbol(a),
+            )
+        });
         initial.dedup();
         Ok(initial)
     }
@@ -6031,12 +6151,20 @@ impl MirInstanceMaterializer {
         if !overloaded {
             return fun.fqn.clone();
         }
+        let signature_key =
+            canonical_callable_signature_key(&self.types, fun.ty, 0, 0, 0, &NoTypeParamResolver)
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "failed to build non-generic overload signature key for `{}`: {err}",
+                        fun.fqn
+                    )
+                });
         let stable_template_key = stable_template_key_for_template(
             &self.stable_cone_key,
             &fun.fqn,
             StableDefNamespace::Fun,
             "non_generic_overload",
-            "pass-non-generic",
+            &signature_key,
         );
         format!(
             "{}$overload${}",
@@ -6184,7 +6312,12 @@ impl MirInstanceMaterializer {
         }
 
         let mut materialized_instance_keys = self.materialized.keys().cloned().collect::<Vec<_>>();
-        materialized_instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        materialized_instance_keys.sort_by_key(|a| {
+            (
+                self.instance_display_fqn(a),
+                self.instance_exported_fun_symbol(a),
+            )
+        });
         let materialized_instance_set = materialized_instance_keys
             .iter()
             .cloned()
@@ -6198,7 +6331,12 @@ impl MirInstanceMaterializer {
 
         let mut instance_keys = materialized_instance_keys.clone();
         instance_keys.extend(decl_only_instances.iter().cloned());
-        instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        instance_keys.sort_by_key(|a| {
+            (
+                self.instance_display_fqn(a),
+                self.instance_exported_fun_symbol(a),
+            )
+        });
         instance_keys.dedup();
 
         let mut pass_visible_non_generic_roots = self
@@ -6214,7 +6352,8 @@ impl MirInstanceMaterializer {
                 )
             })
             .collect::<Vec<_>>();
-        pass_visible_non_generic_roots.sort_by_key(|(instance, _)| self.instance_fqn(instance));
+        pass_visible_non_generic_roots
+            .sort_by_key(|(instance, _)| self.instance_display_fqn(instance));
         pass_visible_non_generic_roots.dedup_by(|(left, _), (right, _)| left == right);
         for (_, fun) in &mut pass_visible_non_generic_roots {
             if let Some(body) = fun.body.as_mut() {
@@ -6234,14 +6373,27 @@ impl MirInstanceMaterializer {
                 .iter()
                 .map(|(instance, _)| instance.clone()),
         );
-        pass_instance_keys.sort_by_key(|a| self.instance_fqn(a));
+        pass_instance_keys.sort_by_key(|a| {
+            (
+                self.instance_display_fqn(a),
+                self.instance_exported_fun_symbol(a),
+            )
+        });
         pass_instance_keys.dedup();
+        let stable_instance_keys = pass_instance_keys
+            .iter()
+            .cloned()
+            .map(|instance| {
+                let stable_key = self.stable_instance_key(&instance);
+                (instance, stable_key)
+            })
+            .collect::<HashMap<_, _>>();
 
         let root_instances = materialized_instance_keys
             .iter()
             .cloned()
             .map(|instance| InstanceRootSummaryInput {
-                root_fqn: self.instance_fqn(&instance),
+                root_fqn: self.instance_display_fqn(&instance),
                 instance,
             })
             .collect::<Vec<_>>();
@@ -6262,7 +6414,7 @@ impl MirInstanceMaterializer {
                     self.build_instance_substitution_for_signature(signature, instance);
                 Some(DeclOnlySummaryInput {
                     instance: instance.clone(),
-                    root_fqn: self.instance_fqn(instance),
+                    root_fqn: self.instance_display_fqn(instance),
                     declared_fun_ty: substitute_type_and_effect_params(
                         &mut self.types,
                         signature.fun_ty,
@@ -6281,7 +6433,7 @@ impl MirInstanceMaterializer {
             .iter()
             .cloned()
             .map(|instance| {
-                let root_fqn = self.instance_fqn(&instance);
+                let root_fqn = self.instance_display_fqn(&instance);
                 let mut callable_fqns = self
                     .materialized
                     .get(&instance)
@@ -6316,7 +6468,7 @@ impl MirInstanceMaterializer {
             .iter()
             .cloned()
             .map(|instance| MaterializedCallableFamilyInput {
-                root_fqn: self.instance_fqn(&instance),
+                root_fqn: self.instance_display_fqn(&instance),
                 instance,
                 callable_fqns: Vec::new(),
             })
@@ -6335,8 +6487,8 @@ impl MirInstanceMaterializer {
                 .cloned()
                 .expect("materialized instance should exist");
             family.sort_by(|a, b| {
-                let a_root = a.fqn == self.instance_fqn(key);
-                let b_root = b.fqn == self.instance_fqn(key);
+                let a_root = a.fqn == self.instance_display_fqn(key);
+                let b_root = b.fqn == self.instance_display_fqn(key);
                 (!a_root).cmp(&!b_root).then_with(|| a.fqn.cmp(&b.fqn))
             });
             items.extend(family.into_iter().map(Item::Fun));
@@ -6373,6 +6525,10 @@ impl MirInstanceMaterializer {
             types: self.types,
             instance_keys,
             summaries,
+            stable_cone_key: self.stable_cone_key,
+            stable_instance_keys,
+            stable_template_keys: self.stable_template_keys,
+            nongeneric_callable_signature_keys: self.nongeneric_callable_signature_keys,
             opt_level: self.opt_level,
             callable_families,
             pass_artifacts,
@@ -6431,7 +6587,7 @@ impl MirInstanceMaterializer {
         }
 
         let substitution = self.build_instance_substitution(&root, instance)?;
-        let instance_root_fqn = self.instance_fqn(instance);
+        let instance_root_fqn = self.instance_display_fqn(instance);
 
         let mut out = Vec::with_capacity(root.family.len());
         for template_fun in &root.family {
@@ -7158,7 +7314,7 @@ impl MirInstanceMaterializer {
 
         let mut replacements = HashMap::new();
         for (local, instance_key) in patches {
-            let instance_fqn = self.instance_fqn(&instance_key);
+            let instance_fqn = self.instance_display_fqn(&instance_key);
             let fun_ty = self.instance_fun_ty(&instance_key);
             self.enqueue(instance_key);
             replacements.insert(local, (instance_fqn, fun_ty));
@@ -7732,7 +7888,7 @@ impl MirInstanceMaterializer {
             locals: ctx.locals,
             substitution: ctx.substitution,
         }) {
-            let instance_fqn = self.instance_fqn(&instance_key);
+            let instance_fqn = self.instance_display_fqn(&instance_key);
             if let Some(return_ty) = self.instance_return_ty(&instance_key)
                 && !type_contains_param(&self.types, return_ty)
             {
@@ -7785,7 +7941,7 @@ impl MirInstanceMaterializer {
             self.site_instance_binding_for_callee(ctx.template_source_path, ctx.call_span, fqn)
             && let Some(instance_key) = self.instantiate_site_binding(&binding, ctx.substitution)
         {
-            *fqn = self.instance_fqn(&instance_key);
+            *fqn = self.instance_display_fqn(&instance_key);
             self.enqueue(instance_key);
             return Ok(());
         }
@@ -7795,7 +7951,7 @@ impl MirInstanceMaterializer {
         if let Some(instance_key) =
             self.infer_top_level_ref_instance_from_result_ty(fqn, ctx.result_ty)
         {
-            *fqn = self.instance_fqn(&instance_key);
+            *fqn = self.instance_display_fqn(&instance_key);
             self.enqueue(instance_key);
             return Ok(());
         }
@@ -8586,7 +8742,43 @@ impl MirInstanceMaterializer {
             .unwrap_or("")
     }
 
-    fn instance_fqn(&self, instance: &InstanceKey) -> String {
+    fn stable_template_key(&self, template: &TemplateKey) -> StableTemplateKey {
+        self.stable_template_keys
+            .get(template)
+            .cloned()
+            .unwrap_or_else(|| {
+                StableTemplateKey::new(StableDefKey::new(
+                    self.stable_cone_key.clone(),
+                    StableDefNamespace::Fun,
+                    &template.fqn,
+                    "materialized_callable",
+                    None,
+                ))
+            })
+    }
+
+    fn stable_instance_key(&self, instance: &InstanceKey) -> StableInstanceKey {
+        StableInstanceKey::from_type_arguments(
+            self.stable_template_key(&instance.template),
+            &self.types,
+            &instance.type_args,
+            &instance.eff_args,
+            &NoTypeParamResolver,
+        )
+        .unwrap_or_else(|err| {
+            panic!(
+                "failed to build stable instance key for `{}`: {err}",
+                instance.template.fqn
+            )
+        })
+    }
+
+    fn instance_exported_fun_symbol(&self, instance: &InstanceKey) -> String {
+        AbiMangler.fun_symbol(&self.stable_instance_key(instance))
+    }
+
+    /// Display-only instance name used by dumps and HIR/MIR debugging.
+    fn instance_display_fqn(&self, instance: &InstanceKey) -> String {
         let symbol_suffix = self.template_symbol_suffix(&instance.template);
         if instance.type_args.is_empty() && instance.eff_args.is_empty() {
             return format!("{}{symbol_suffix}", instance.template.fqn);
@@ -9691,12 +9883,16 @@ mod tests {
         body
     }
 
-    fn generic_template_key() -> TemplateKey {
+    fn generic_template_key_with_source_path(source_path: PathBuf) -> TemplateKey {
         TemplateKey {
             fqn: "fixtures.materialize.id".to_string(),
-            source_path: test_source_path(),
+            source_path,
             decl_span: test_span(),
         }
+    }
+
+    fn generic_template_key() -> TemplateKey {
+        generic_template_key_with_source_path(test_source_path())
     }
 
     fn test_stable_cone_key() -> StableConeKey {
@@ -9713,13 +9909,13 @@ mod tests {
         )
     }
 
-    fn generic_materializer_for_body(
+    fn generic_materializer_for_body_with_template(
         body: Body,
         eff_param_name: Option<String>,
+        template: TemplateKey,
     ) -> (MirInstanceMaterializer, InstanceKey) {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let template = generic_template_key();
         let fun = FunDecl {
             span: template.decl_span,
             fqn: template.fqn.clone(),
@@ -9758,6 +9954,7 @@ mod tests {
                     fun_ty: builtins.unit,
                     return_ty: builtins.unit,
                     params: Vec::new(),
+                    has_generic_params_or_effect_param: false,
                 }],
                 known_receiver_subclasses: HashSet::new(),
                 direct_subclasses: HashMap::new(),
@@ -9789,6 +9986,13 @@ mod tests {
         (materializer, instance)
     }
 
+    fn generic_materializer_for_body(
+        body: Body,
+        eff_param_name: Option<String>,
+    ) -> (MirInstanceMaterializer, InstanceKey) {
+        generic_materializer_for_body_with_template(body, eff_param_name, generic_template_key())
+    }
+
     fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         let instance_keys = Vec::new();
         let callable_families = MaterializedCallableFamilies::from_inputs(Vec::new());
@@ -9804,11 +10008,145 @@ mod tests {
             types,
             instance_keys,
             summaries,
+            stable_cone_key: StableConeKey::new("tests", "0.0.0"),
+            stable_instance_keys: HashMap::new(),
+            stable_template_keys: HashMap::new(),
+            nongeneric_callable_signature_keys: HashMap::new(),
             opt_level: OptLevel::O0,
             callable_families,
             pass_artifacts,
             caller_side_pass_candidates: Vec::new(),
         }
+    }
+
+    #[test]
+    fn instance_display_fqn_and_exported_symbol_use_separate_identity_surfaces() {
+        let template_a = generic_template_key_with_source_path(PathBuf::from(
+            "/tmp/root-a/fixtures/materialize_id.scoop",
+        ));
+        let template_b = generic_template_key_with_source_path(PathBuf::from(
+            "/tmp/root-b/fixtures/materialize_id.scoop",
+        ));
+        let (materializer_a, mut instance_a) =
+            generic_materializer_for_body_with_template(unit_return_body(), None, template_a);
+        let (materializer_b, mut instance_b) =
+            generic_materializer_for_body_with_template(unit_return_body(), None, template_b);
+
+        instance_a.type_args.push(materializer_a.builtins.int);
+        instance_b.type_args.push(materializer_b.builtins.int);
+
+        let display_a = materializer_a.instance_display_fqn(&instance_a);
+        let display_b = materializer_b.instance_display_fqn(&instance_b);
+        let exported_a = materializer_a.instance_exported_fun_symbol(&instance_a);
+        let exported_b = materializer_b.instance_exported_fun_symbol(&instance_b);
+
+        assert_eq!(display_a, "fixtures.materialize.id::<Int>");
+        assert_eq!(display_a, display_b);
+        assert!(exported_a.starts_with("__scoop_abi0_fun__fixtures_materialize_id__h"));
+        assert_eq!(exported_a, exported_b);
+        assert!(!exported_a.contains("::<"));
+        assert!(!exported_a.contains("Int"));
+    }
+
+    #[test]
+    fn materialized_overloaded_generic_instances_publish_distinct_path_stable_exported_symbols() {
+        let sess = Session::new().unwrap();
+        let program = r#"
+package fixtures.materialize
+
+fun <T> pick(x: T): T { return x }
+fun <T> pick(x: T, y: T): T { return y }
+
+object Box {
+    fun <T> pick(x: T): T { return x }
+    fun <T> pick(x: T, y: T): T { return y }
+}
+
+fun main(): Int {
+    val a: Int = pick(1)
+    val b: Int = pick(1, 2)
+    val c: Int = Box.pick(3)
+    val d: Int = Box.pick(3, 4)
+    return a + b + c + d
+}
+"#;
+
+        let collect_symbols = |source: &SourceFile| {
+            let materialized = materialize_for_dump(&sess, source)
+                .expect("overloaded generic fixture 应可 materialize");
+            let pass_view = materialized.pass_view();
+            let top_level = pass_view
+                .instances()
+                .filter(|family| {
+                    family.key().template.fqn == "fixtures.materialize.pick"
+                        && !family.key().type_args.is_empty()
+                })
+                .map(|family| {
+                    materialized
+                        .instance_exported_fun_symbol(family.key())
+                        .expect(
+                            "materialized generic overload instance 应发布 stable exported symbol",
+                        )
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+            let member = pass_view
+                .instances()
+                .filter(|family| {
+                    family.key().template.fqn == "fixtures.materialize.Box.pick"
+                        && !family.key().type_args.is_empty()
+                })
+                .map(|family| {
+                    materialized
+                        .instance_exported_fun_symbol(family.key())
+                        .expect("materialized generic member overload instance 应发布 stable exported symbol")
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+            (top_level, member)
+        };
+
+        let source_a = SourceFile::new_virtual(
+            "/tmp/root-a/fixtures/materialize_overload_exported_identity.scoop",
+            program,
+        );
+        let source_b = SourceFile::new_virtual(
+            "/tmp/root-b/fixtures/materialize_overload_exported_identity.scoop",
+            program,
+        );
+
+        let (top_level_a, member_a) = collect_symbols(&source_a);
+        let (top_level_b, member_b) = collect_symbols(&source_b);
+
+        assert_eq!(
+            top_level_a.len(),
+            2,
+            "两个 top-level generic overload 应发布两个 distinct exported symbol：{top_level_a:#?}"
+        );
+        assert_eq!(
+            member_a.len(),
+            2,
+            "两个 generic member overload 应发布两个 distinct exported symbol：{member_a:#?}"
+        );
+        assert!(
+            top_level_a
+                .iter()
+                .all(|symbol| symbol.starts_with("__scoop_abi0_fun__fixtures_materialize_pick__h")),
+            "top-level generic overload exported symbol 应统一走 AbiMangler namespace：{top_level_a:#?}"
+        );
+        assert!(
+            member_a
+                .iter()
+                .all(|symbol| symbol
+                    .starts_with("__scoop_abi0_fun__fixtures_materialize_Box_pick__h")),
+            "generic member overload exported symbol 应统一走 AbiMangler namespace：{member_a:#?}"
+        );
+        assert_eq!(
+            top_level_a, top_level_b,
+            "不同源码根路径下的 top-level generic overload exported symbol 应保持稳定：{top_level_a:#?} vs {top_level_b:#?}"
+        );
+        assert_eq!(
+            member_a, member_b,
+            "不同源码根路径下的 generic member overload exported symbol 应保持稳定：{member_a:#?} vs {member_b:#?}"
+        );
     }
 
     #[test]
@@ -10026,6 +10364,7 @@ mod tests {
                     fun_ty: builtins.unit,
                     return_ty: builtins.unit,
                     params: Vec::new(),
+                    has_generic_params_or_effect_param: false,
                 }],
                 known_receiver_subclasses: HashSet::new(),
                 direct_subclasses: HashMap::new(),
@@ -10676,7 +11015,8 @@ fun main(): Int {
             .map(|(source, ast)| (source, ast))
             .collect::<Vec<_>>();
         let stable_cone_key = StableConeKey::for_virtual_source_path(&source_path);
-        let template_infos = collect_generic_template_infos(&stable_cone_key, &compilation_unit);
+        let template_infos =
+            collect_generic_template_infos(&stable_cone_key, &index, &compilation_unit);
         let callable_body_infos = collect_callable_body_infos(&compilation_unit);
         let (top_level_fun_value_refs, top_level_fun_call_bindings) =
             collect_site_instance_bindings(&compilation_unit);
@@ -11660,7 +12000,8 @@ fun main() {
         );
 
         let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
-        let template_catalog = collect_generic_template_infos(&stable_cone_key, &compilation_unit);
+        let template_catalog =
+            collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
         let callable_body_infos = collect_callable_body_infos(&compilation_unit);
         let (top_level_fun_value_refs, top_level_fun_call_bindings) =
             collect_site_instance_bindings(&compilation_unit);
@@ -11852,7 +12193,7 @@ fun main() {
                             reachable_fun.fun.fqn.clone(),
                             reachable_fun.source_path.clone(),
                             stmt.span,
-                            materializer.instance_fqn(&instance_key),
+                            materializer.instance_display_fqn(&instance_key),
                         ));
                         continue;
                     }
@@ -11888,7 +12229,7 @@ fun main() {
                 (
                     key.template.source_path.clone(),
                     key.template.decl_span,
-                    materializer.instance_fqn(key),
+                    materializer.instance_display_fqn(key),
                 )
             })
             .collect::<Vec<_>>();
@@ -12105,8 +12446,8 @@ fun use_zap(): Int / Zap {
         );
         assert_eq!(
             contains_targets.len(),
-            1,
-            "main 中的 contains direct-call target 应统一重写到 overload-aware symbol：{contains_targets:#?}"
+            2,
+            "main 中的 contains receiver overload target 应保留 distinct overload-aware symbol：{contains_targets:#?}"
         );
         assert!(
             contains_targets
@@ -12120,6 +12461,69 @@ fun use_zap(): Int / Zap {
                 "pass-view 应发布 direct-call target `{target}` 的 canonical body"
             );
         }
+    }
+
+    #[test]
+    fn materialize_for_dump_keeps_non_generic_overload_targets_path_stable() {
+        let sess = Session::new().unwrap();
+        let program = r#"
+package fixtures.materialize
+
+fun pick(x: Int): Int { return x }
+fun pick(x: Int, y: Int): Int { return y }
+
+fun main(): Int {
+    val a: Int = pick(1)
+    val b: Int = pick(1, 2)
+    return a + b
+}
+"#;
+
+        let collect_targets = |source: &SourceFile| {
+            let materialized = materialize_for_dump(&sess, source)
+                .expect("non-generic overload fixture 应可 materialize");
+            let pass_view = materialized.pass_view();
+            let published = pass_view
+                .instances()
+                .map(|family| family.root_fqn().to_string())
+                .filter(|fqn| fqn.starts_with("fixtures.materialize.pick$overload$"))
+                .collect::<std::collections::BTreeSet<_>>();
+            for target in &published {
+                assert!(
+                    pass_view.callable(target).is_some(),
+                    "pass-view 应发布非泛型 overload callable `{target}` 的 canonical body"
+                );
+            }
+            published
+        };
+
+        let source_a = SourceFile::new_virtual(
+            "/tmp/root-a/fixtures/non_generic_overload_identity.scoop",
+            program,
+        );
+        let source_b = SourceFile::new_virtual(
+            "/tmp/root-b/fixtures/non_generic_overload_identity.scoop",
+            program,
+        );
+
+        let targets_a = collect_targets(&source_a);
+        let targets_b = collect_targets(&source_b);
+
+        assert_eq!(
+            targets_a.len(),
+            2,
+            "两个非泛型 overload 应发布两个 distinct callable target：{targets_a:#?}"
+        );
+        assert!(
+            targets_a
+                .iter()
+                .all(|target| target.starts_with("fixtures.materialize.pick$overload$")),
+            "非泛型 overload callable 应统一切到 overload-aware FQN：{targets_a:#?}"
+        );
+        assert_eq!(
+            targets_a, targets_b,
+            "不同源码根路径下的非泛型 overload target 应保持稳定：{targets_a:#?} vs {targets_b:#?}"
+        );
     }
 
     #[test]

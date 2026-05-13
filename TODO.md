@@ -1053,7 +1053,7 @@
 
 ## P4：迁移 exported ABI naming
 
-### [TODO] P4-T01：重写 overload / template / instance 的 exported identity 来源
+### [DONE] P4-T01：重写 overload / template / instance 的 exported identity 来源
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P4
@@ -1094,7 +1094,38 @@
   - overload / template / instance 的 exported identity 已经脱离 path/span / pretty text / `TypeId`。
 - 依赖：P3-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/effect_facts/schema.rs`
+    - `crates/scoopc/src/effect_facts/builder.rs`
+    - `crates/scoopc/src/effect_lowered/ir.rs`
+    - `crates/scoopc/src/effect_lowered/builder.rs`
+    - `crates/scoopc/src/effect_lowered/opt.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/stable_naming.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+  - 核心决策：
+    - 保留 `TemplateKey { fqn, source_path, decl_span }` / `InstanceKey { template, type_args, eff_args }` 作为内部 materialization handle，但新增并持久化 authoritative stable identity side table：`MaterializedMir` 现在保存 `StableInstanceKey`、`StableTemplateKey` 与 non-generic callable signature fallback，供后续 exported naming / effect helper naming 直接消费，不再现场按 `template.fqn`、pretty text 或 path/span 重建。
+    - `stable_template_symbol_suffix()` 的实际输入继续统一为 `StableTemplateKey`；同时把 overloaded generic / non-generic callable 的 exported identity 收口到 `StableDefKey + canonical signature key`，并让 `MaterializedMir::instance_exported_fun_symbol(...)` 显式走 `StableInstanceKey + AbiMangler`。
+    - late-lowered callable 与 `ConcreteOpKey` 现在都显式携带 authoritative `StableInstanceKey`；LLVM materialized-closure stable key 与 effect-lowered stable naming 改为消费这些 authoritative key，避免同名 overload 的同型实例在 downstream private/exported naming 中坍缩到同一个 key。
+    - `stable_instance_fqn` / `monomorph_instance_fqn` 仍保留为 display-only 路径；grep 审计中的剩余命中仅对应 dump/debug 或 pre-specialize 文本，不再控制 exported identity。
+    - `materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct` 按新语义更新为断言 receiver overload target 维持 distinct overload-aware symbol，而不是把两个合法 overload 误压成单目标假设。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialized_overloaded_generic_instances_publish_distinct_path_stable_exported_symbols -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc callable_version_key_text_distinguishes_overloaded_instances_with_same_type_args -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_continuation_layout_uses_codegen_owned_fields -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_backend_gate_smoke_lowers_effectful_handle_body_without_legacy -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - grep 审计摘要：
+      - `stable_template_symbol_suffix` 只剩 shared helper、stable call site 与测试审计命中；无 path/span 版旧实现回流。
+      - `source_path.*decl_span` 剩余命中仅在 `TemplateKey` 说明注释、stable-id grep 审计测试，以及 `hir/lower/types.rs` 的内部 local symbol intern；不再进入 exported naming 路径。
+      - `instance_fqn\(` 剩余命中只对应 display-only `stable_instance_fqn` / `monomorph_instance_fqn` helper，与 exported symbol 生成解耦。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P4 的第一阶段目标：overload suffix、template identity、instance exported symbol 来源现在都已收口到 authoritative stable key / canonical signature / `AbiMangler` 预备路径，后续 P4-T02 只需把 declaration path 全量接入统一 mangler。
+    - 对应 `STABLE_ID.md` §3.4.2、§6.2-§6.4、§8.3：overload / template / instance identity 已脱离 `source_path + decl_span`、pretty type text 与 `TypeId`；同名 overload 的同型实例在 materialize、late-lowering 与 LLVM naming 下都保持 distinct 且 path-stable。
 
 ### [TODO] P4-T02：把 `AbiMangler` 接入 exported declaration path，并验证跨路径稳定性
 

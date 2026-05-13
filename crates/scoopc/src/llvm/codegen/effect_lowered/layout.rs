@@ -7717,6 +7717,7 @@ mod tests {
     ) -> LateLoweredCallable {
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -7816,6 +7817,7 @@ mod tests {
         }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -7855,6 +7857,7 @@ mod tests {
         }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -7894,6 +7897,7 @@ mod tests {
         }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -7915,6 +7919,7 @@ mod tests {
     ) -> LateLoweredCallable {
         LateLoweredCallable::new_plain(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.resolved_outward_cases().to_vec(),
             LateLoweredPlainCallable::new(
@@ -7953,6 +7958,7 @@ mod tests {
         }
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -8128,6 +8134,7 @@ mod tests {
     ) -> LateLoweredCallable {
         LateLoweredCallable::new(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             callable.body_version_key().clone(),
             callable.step_schema(),
             callable.resolved_outward_cases().to_vec(),
@@ -8170,6 +8177,7 @@ mod tests {
         let mut callables = program.callables().to_vec();
         callables.push(LateLoweredCallable::new_plain(
             callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
             cloned_version_key,
             callable.resolved_outward_cases().to_vec(),
             plain,
@@ -8181,6 +8189,7 @@ mod tests {
             program.continuation_objects().to_vec(),
             callables,
         )
+        .with_stable_instance_keys(program.stable_instance_keys().clone())
     }
 
     fn site_boundary(
@@ -8402,6 +8411,7 @@ mod tests {
             program.continuation_objects().to_vec(),
             program.callables().to_vec(),
         )
+        .with_stable_instance_keys(program.stable_instance_keys().clone())
     }
 
     fn resume_method_for_case(
@@ -8487,6 +8497,7 @@ mod tests {
             continuation_objects,
             callables,
         )
+        .with_stable_instance_keys(program.stable_instance_keys().clone())
     }
 
     #[test]
@@ -8522,6 +8533,8 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -8875,6 +8888,7 @@ mod tests {
                     continuation_objects,
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |inputs, result, _module| {
                 let query = result.expect("reordered published resume packings 应仍可物化 ABI");
@@ -9010,6 +9024,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     program.callables().to_vec(),
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |inputs, result, _module| {
                 let callable = inputs
@@ -9605,6 +9620,8 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -9691,6 +9708,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -9793,6 +9811,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -9857,6 +9876,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -9936,6 +9956,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10020,6 +10041,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10117,6 +10139,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10383,6 +10406,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10507,6 +10531,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10830,6 +10855,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -10911,6 +10937,7 @@ mod tests {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -11173,6 +11200,7 @@ fun propagate_before_finally(): Int {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -11341,6 +11369,7 @@ fun propagate_before_finally(): Int {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -11518,6 +11547,7 @@ fun main(): Int {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -11612,6 +11642,7 @@ fun main(): Int {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -11893,6 +11924,8 @@ fun main(): Int {
                     continuation_objects,
                     program.callables().to_vec(),
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -12544,6 +12577,7 @@ fun main(): Int {
                     continuation_objects,
                     program.callables().to_vec(),
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             |_inputs, result, _module| {
                 let err = match result {
@@ -12839,6 +12873,7 @@ fun main(): Int {
                     program.continuation_objects().to_vec(),
                     callables,
                 )
+                .with_stable_instance_keys(program.stable_instance_keys().clone())
             },
             move |_inputs| source_types,
             |_inputs, result, _module| {

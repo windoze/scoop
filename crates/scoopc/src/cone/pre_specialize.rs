@@ -344,6 +344,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
         let generic_template_symbol_suffixes =
             hir::generic_template_symbol_suffixes_for_compilation_unit(
                 &stable_cone_key,
+                &index,
                 &compilation_unit,
             );
         let empty_known_receiver_subclasses =

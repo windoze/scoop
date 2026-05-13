@@ -80,7 +80,8 @@ pub(crate) fn optimize_program_with_options(
             program.resume_packings().to_vec(),
             continuation_objects,
             optimized_callables,
-        );
+        )
+        .with_stable_instance_keys(program.stable_instance_keys().clone());
     }
 
     let live_methods_by_interface = collect_live_methods_by_interface(optimized_objects.values());
@@ -126,6 +127,7 @@ pub(crate) fn optimize_program_with_options(
                 .unwrap_or_default();
             LateLoweredCallable::new(
                 callable.root_fqn().to_string(),
+                callable.stable_instance_key().clone(),
                 callable.body_version_key().clone(),
                 callable.step_schema(),
                 callable.resolved_outward_cases().to_vec(),
@@ -149,6 +151,7 @@ pub(crate) fn optimize_program_with_options(
         continuation_objects,
         callables,
     )
+    .with_stable_instance_keys(program.stable_instance_keys().clone())
 }
 
 struct OptimizedCallable {
@@ -224,6 +227,7 @@ fn optimize_callable(
     );
     let callable = LateLoweredCallable::new(
         callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
         callable.body_version_key().clone(),
         callable.step_schema(),
         callable.resolved_outward_cases().to_vec(),
@@ -966,6 +970,9 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::span::Span;
+    use crate::stable_id::{
+        NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
+    };
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
     fn refactor_session() -> Session {
@@ -990,6 +997,36 @@ mod tests {
             type_args: Vec::new(),
             eff_args: Vec::new(),
         }
+    }
+
+    fn sample_stable_instance_key(
+        instance: &InstanceKey,
+        types: &TypeStore,
+    ) -> crate::stable_id::StableInstanceKey {
+        crate::stable_id::StableInstanceKey::from_type_arguments(
+            StableTemplateKey::new(StableDefKey::new(
+                StableConeKey::new("sample", "0.0.0"),
+                StableDefNamespace::Fun,
+                &instance.template.fqn,
+                "top_level_fun",
+                None,
+            )),
+            types,
+            &instance.type_args,
+            &instance.eff_args,
+            &NoTypeParamResolver,
+        )
+        .expect("sample instance 应可构造 stable instance key")
+    }
+
+    fn sample_concrete_op_key(
+        types: &TypeStore,
+        fqn: &str,
+        effect_family: EffectFamilyKey,
+    ) -> ConcreteOpKey {
+        let instance = sample_instance_key(fqn);
+        let stable_instance = sample_stable_instance_key(&instance, types);
+        ConcreteOpKey::new(instance, stable_instance, effect_family)
     }
 
     fn nominal_effect(types: &mut TypeStore, fqn: &str) -> TypeId {
@@ -1038,16 +1075,13 @@ mod tests {
             vec![
                 LateLoweredStepCase::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     payload_tuple_ty,
                     contract0,
                 ),
                 LateLoweredStepCase::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     builtins.unit,
                     contract1,
                 ),
@@ -1061,22 +1095,21 @@ mod tests {
             vec![
                 LateLoweredResumeMethod::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                 ),
                 LateLoweredResumeMethod::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     contract1,
                 ),
             ],
         );
 
+        let worker_instance = sample_instance_key("sample.worker");
+        let worker_stable_instance = sample_stable_instance_key(&worker_instance, &types);
         let version_key = LateLoweredBodyVersionKey::new(
-            sample_instance_key("sample.worker"),
+            worker_instance,
             allowed_row,
             ImplPlan::SingleCase(case0),
             true,
@@ -1107,7 +1140,7 @@ mod tests {
             vec![
                 LateLoweredContinuationSurfaceResume::new(
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                     LateLoweredContinuationResumeBody::ResumeCapturedState {
                         repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
@@ -1115,10 +1148,7 @@ mod tests {
                 ),
                 LateLoweredContinuationSurfaceResume::new(
                     case1,
-                    ConcreteOpKey::new(
-                        sample_instance_key("sample.Ping.pong"),
-                        ping_family.clone(),
-                    ),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family.clone()),
                     contract1,
                     LateLoweredContinuationResumeBody::Unreachable,
                 ),
@@ -1127,7 +1157,7 @@ mod tests {
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case0,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.hit"), ping_family.clone()),
+                    sample_concrete_op_key(&types, "sample.Ping.hit", ping_family.clone()),
                     contract0,
                     LateLoweredContinuationResumeBody::ResumeCapturedState {
                         repeated_resume: LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward,
@@ -1136,7 +1166,7 @@ mod tests {
                 LateLoweredContinuationMethod::new(
                     interface_id,
                     case1,
-                    ConcreteOpKey::new(sample_instance_key("sample.Ping.pong"), ping_family),
+                    sample_concrete_op_key(&types, "sample.Ping.pong", ping_family),
                     contract1,
                     LateLoweredContinuationResumeBody::Unreachable,
                 ),
@@ -1144,6 +1174,7 @@ mod tests {
         );
         let callable = LateLoweredCallable::new(
             "sample.worker".to_string(),
+            worker_stable_instance,
             version_key,
             step_schema,
             vec![case0],
