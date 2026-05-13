@@ -80,7 +80,12 @@ fn expected_legacy_reason_hits() -> Vec<String> {
 
 #[cfg(feature = "llvm")]
 const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
+    "PIPELINE_GAPS §2.3",
+    "PIPELINE_GAPS §3.1",
+    "PIPELINE_GAPS §3.2",
+    "PIPELINE_GAPS §3.3",
     "PIPELINE_GAPS §3.4",
+    "PIPELINE_GAPS §3.6",
     "PIPELINE_GAPS §3.7",
     "PIPELINE_GAPS §4.1",
     "PIPELINE_GAPS §4.2",

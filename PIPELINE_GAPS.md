@@ -146,21 +146,21 @@
 
 ### 3.1 `Handle`、`ResumeUnwind`、`Todo` terminator 不支持
 
-- 状态：`Open`。
-- 结论：raw MIR bridge 仍只接受一部分 terminator；残留 effect/control terminator 进入 raw path 依然会失败。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1627-1632`。
+- 状态：`Closed/Re-scoped`。
+- 结论：raw MIR route verifier 现在会在 body emission 之前拒绝 `Handle` / `ResumeUnwind`；`Todo` terminator 继续归入 `§2.3` 的 upstream impossible-state guard，而不再以 raw MIR backend unsupported 形态晚到 body emission 才炸。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen_gap_inventory.rs`。
 
 ### 3.2 `Perform` 不支持 cleanup unwind，且不使用 `resume_target`
 
-- 状态：`Open`。
-- 结论：raw MIR `Perform` 仍被视为“应先经 published late-lowered boundary lowering”的非法输入；这反映的是 routing / handoff contract 未闭合，而不是缺一个小的 LLVM helper。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1614-1626`，`crates/scoopc/src/llvm/codegen/mir_body.rs:4565-4580`。
+- 状态：`Closed/Re-scoped`。
+- 结论：raw MIR `Perform` 现在会在 route gate 处 fail-fast，并明确要求走 published late-lowered boundary；plain/materialized MIR emitter 不再尝试检查 cleanup/resume contract 后再晚期报 unsupported。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen_gap_inventory.rs`。
 
 ### 3.3 `PerformResult` 在 raw MIR 中返回默认值
 
-- 状态：`Open`。
-- 结论：raw MIR `Rvalue::PerformResult` 仍直接返回 target 的默认值；只要这条路径可达，就属于潜在 miscompile。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1749-1753`。
+- 状态：`Closed/Re-scoped`。
+- 结论：raw MIR `Rvalue::PerformResult` 现在会在 route gate 处被拒绝；原来的 default-value fallback 已删除，因此该 shape 不再以 silent miscompile 形式穿过 body emission。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen_gap_inventory.rs`。
 
 ### 3.4 `TypeCheck` / `Cast` raw MIR 不支持
 
@@ -176,9 +176,9 @@
 
 ### 3.6 `Virtual` / `Interface` / `Resume` call kind raw MIR 不支持
 
-- 状态：`Open`。
-- 结论：raw MIR `codegen_mir_call` 仍拒绝这些 call kind；默认主线要么走 plain dispatch / published boundary，要么更早 fail-fast。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:4549-4554`。
+- 状态：`Closed/Re-scoped`。
+- 结论：raw MIR route verifier 现在会在 body emission 之前拒绝 `Virtual` / `Interface` / `Resume` call kind，并把它们统一归类为 dispatch/resume handoff contract 缺失或 route bug，而不是模糊的 backend unsupported。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen_gap_inventory.rs`。
 
 ### 3.7 `TopLevelRef` raw MIR 不覆盖普通函数引用
 
@@ -370,7 +370,7 @@
 ## 8. 建议收口顺序
 
 1. pre-MIR / MIR handoff contract 已基本收紧；后续只需继续保持 `§2.3` / `§2.7` 的 guard-only 语义，不要再让 `UnsupportedMainBody` 承担 production 输入校验角色。
-2. 收口 raw MIR residual effect/control routing：`§3.1`、`§3.2`、`§3.3`、`§3.6` 应保证“要么先转 late-lowered/published boundary，要么 upstream verifier 明确拒绝”。
+2. raw MIR residual effect/control routing 已收口；后续保持 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 gate-only 语义，避免这些 shape 回流到 plain/materialized MIR emitter。
 3. 完成 effect-refactor 的 ABI/routing 主线：优先处理 `§3.12`、`§5.1`、`§5.3`、`§5.4`，确保 actual outward effect set 真正决定 callable ABI。
 4. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
 5. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。

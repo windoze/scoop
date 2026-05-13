@@ -574,7 +574,7 @@
 
 ## P3：收口 raw MIR route 与 call/member contract
 
-### [TODO] P3-T01：收口 raw MIR terminator/call-kind/`PerformResult` route policy
+### [DONE] P3-T01：收口 raw MIR terminator/call-kind/`PerformResult` route policy
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -626,9 +626,27 @@
 - 依赖：`P2-T03`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/llvm/codegen/mir_body.rs`，新增 raw MIR route verifier 与 backend-gate helper；在 closure/raw body emission 之前统一拒绝 `Handle` / `ResumeUnwind` / raw `Perform` / raw `PerformResult` / `CallKind::{Virtual,Interface,Resume}`，并删除 `PerformResult` 默认值 fallback，把原来的晚期 `UnsupportedMainBody` 改成 route-bug / missing-handoff-contract guard。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`，将 `§3.1`、`§3.2`、`§3.3`、`§3.6` 改记为 `P3-T01` owner 的 nonblocking raw-route guard，并补 inventory 断言，冻结新的 trigger 文案。
+    - 更新 `crates/scoopc/src/pipeline_gap_audit.rs` 与 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`，同步 scope-drift baseline、`UnsupportedMainBody` 计数（`mir_body.rs` 321 -> 318，总数 815 -> 812）与 internal bug sentinel 行号基线。
+    - 更新 `PIPELINE_GAPS.md`，将 `§3.1`、`§3.2`、`§3.3`、`§3.6` 回写为 `Closed/Re-scoped`，并把建议顺序中的 raw-route 项改成“保持 gate-only 语义”。
   - 核心决策：
+    - 不在 raw MIR emitter 内补第二套 handler/resume/cleanup/dynamic-dispatch 语义；这些 shape 统一在 route gate 处 fail-fast，并明确要求走 published late-lowered boundary 或 upstream handoff contract。
+    - `PerformResult` 到达 raw emitter 直接视为 route bug；production path 不再制造默认值兜底，从而消除 silent miscompile 风险。
+    - `§3.1`、`§3.2`、`§3.3`、`§3.6` 在 inventory 中继续保留 `RawMirLlvm` route，但降为 `production_blocker = false` 的 historical/raw-route guard，表示它们仍需可执行审计，却不再是默认主线的 live backend blocker。
   - 验证结果：
+    - `cargo test -p scoopc refactor_llvm_raw_route_gate -- --nocapture`
+    - `cargo test -p scoopc raw_mir_effect_control_route -- --nocapture`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_backend_gate`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P3 第 1 项：raw MIR emitter 现在只接受 raw-safe 输入；effect/control terminator、unsupported call kind 与 `PerformResult` 都在 route gate 或 impossible-state guard 处收口，不再晚到 body emission 才以 unsupported/default-value 形式失败。
+    - `PIPELINE_GAPS.md` 已回写 `§3.1`、`§3.2`、`§3.3`、`§3.6` 为 `Closed/Re-scoped`，并明确这些编号现在只表示 raw-route gate / handoff-contract audit，而不再是默认主线的 live blocker。
 
 ### [TODO] P3-T02：收口 ctor/default-arg typed contract，删除 backend 补参/猜测
 

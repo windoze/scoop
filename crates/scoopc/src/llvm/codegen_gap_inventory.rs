@@ -64,30 +64,30 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.1",
-        "CG-T01",
-        "CG-T01 / MIR-T12R",
+        "P3-T01",
+        "P3-T01 / raw-route gate guard",
         RawMirLlvm,
         true,
-        true,
-        "pass MIR terminator Handle/ResumeUnwind/Todo"
+        false,
+        "backend gate / raw MIR effect-control terminator route bug"
     ),
     gap!(
         "PIPELINE_GAPS §3.2",
-        "CG-T01",
-        "CG-T01 / MIR-T12R",
+        "P3-T01",
+        "P3-T01 / raw-route gate guard",
         RawMirLlvm,
         true,
-        true,
-        "pass MIR Perform cleanup unwind"
+        false,
+        "backend gate / raw MIR Perform route bug"
     ),
     gap!(
         "PIPELINE_GAPS §3.3",
-        "CG-T01",
-        "CG-T01 / MIR-T12R",
+        "P3-T01",
+        "P3-T01 / raw-route gate guard",
         RawMirLlvm,
         true,
-        true,
-        "pass MIR PerformResult default-value"
+        false,
+        "backend gate / raw MIR PerformResult route bug"
     ),
     gap!(
         "PIPELINE_GAPS §3.4",
@@ -109,12 +109,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.6",
-        "CG-T01",
-        "CG-T01 / MIR-T12R",
+        "P3-T01",
+        "P3-T01 / raw-route gate guard",
         RawMirLlvm,
         true,
-        true,
-        "pass MIR Virtual/Interface/Resume call kind"
+        false,
+        "backend gate / raw MIR missing dispatch/resume handoff contract"
     ),
     gap!(
         "PIPELINE_GAPS §3.7",
@@ -495,6 +495,39 @@ mod tests {
             entry.trigger.contains("pass MIR Todo"),
             "§2.3 trigger should keep pointing at downstream Todo guard"
         );
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_p3_t01_raw_route_gaps_as_nonblocking_guards() {
+        for (gap_id, trigger) in [
+            (
+                "PIPELINE_GAPS §3.1",
+                "backend gate / raw MIR effect-control terminator route bug",
+            ),
+            (
+                "PIPELINE_GAPS §3.2",
+                "backend gate / raw MIR Perform route bug",
+            ),
+            (
+                "PIPELINE_GAPS §3.3",
+                "backend gate / raw MIR PerformResult route bug",
+            ),
+            (
+                "PIPELINE_GAPS §3.6",
+                "backend gate / raw MIR missing dispatch/resume handoff contract",
+            ),
+        ] {
+            let entry = codegen_gap_entry(gap_id)
+                .unwrap_or_else(|| panic!("{gap_id} guard should remain tracked in inventory"));
+            assert_eq!(entry.owner_task, "P3-T01");
+            assert_eq!(entry.route, CodegenGapRoute::RawMirLlvm);
+            assert!(entry.needs_upstream_contract);
+            assert!(
+                !entry.production_blocker,
+                "{gap_id} should now be represented as a raw-route gate guard"
+            );
+            assert_eq!(entry.trigger, trigger);
+        }
     }
 
     #[test]

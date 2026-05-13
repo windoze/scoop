@@ -77,7 +77,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body.rs",
-        expected_count: 321,
+        expected_count: 318,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs",
@@ -228,7 +228,7 @@ const STALE_USER_VISIBLE_UNSUPPORTED_MARKERS: &[SourceMarker] = &[
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body.rs:5378:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body.rs:5486:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4407:                    _ => unreachable!(\"receiver_cg matched float above\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2912:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2960:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
@@ -243,8 +243,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mod.rs:8433:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/mod.rs:8465:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/mod.rs:8944:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
-    "crates/scoopc/src/mir/materialize.rs:6162:                    panic!(",
-    "crates/scoopc/src/mir/materialize.rs:8774:            panic!(",
+    "crates/scoopc/src/mir/materialize.rs:6192:                    panic!(",
+    "crates/scoopc/src/mir/materialize.rs:8804:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:2362:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
     "crates/scoopc/src/typecheck/lower.rs:2964:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
     "crates/scoopc/src/typecheck/lower.rs:3209:                unreachable!(\"is_value_only_enum implies first_super exists\");",
@@ -351,7 +351,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 815);
+    assert_eq!(total, 812);
 }
 
 #[test]
