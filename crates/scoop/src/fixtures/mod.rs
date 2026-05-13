@@ -3475,7 +3475,7 @@ val bad: Int = Box("oops").bodyCopy
             &fixture,
             r#"// EXPECT: pass
 // ARGS: --emit-llvm
-// BUILD-LLVM-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_fixture_visibility_hiddenWorker
+// BUILD-LLVM-CONTAINS: __scoop_priv0__refactor_dynamic_invoke__h
 
 package fixtures.build_fixture_visibility
 

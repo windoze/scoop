@@ -1,10 +1,10 @@
 // 目标：P6-T06 build matrix 的 `NoOutward` plain ABI 样本。
 // `helper` / `main` 都是 plain callable，LLVM 不应发布 complete-only `Step_F` 壳。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: define i64 @fixtures.build.helper()
-// BUILD-LLVM-CONTAINS: define i64 @fixtures.build.main()
-// BUILD-LLVM-CONTAINS: %pass_mir_direct_call = call i64 @fixtures.build.helper()
-// BUILD-LLVM-CONTAINS: %refactor_plain_main = call i64 @fixtures.build.main()
+// BUILD-LLVM-CONTAINS: define i64 @__scoop_abi0_fun__fixtures_build_helper__h
+// BUILD-LLVM-CONTAINS: define i64 @__scoop_abi0_fun__fixtures_build_main__h
+// BUILD-LLVM-CONTAINS: %pass_mir_direct_call = call i64 @__scoop_abi0_fun__fixtures_build_helper__h
+// BUILD-LLVM-CONTAINS: %refactor_plain_main = call i64 @__scoop_abi0_fun__fixtures_build_main__h
 // BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__complete
 // BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_main__case0
 // BUILD-LLVM-NOT-CONTAINS: @__scoop_refactor_step_case_tag__fixtures_build_helper__complete

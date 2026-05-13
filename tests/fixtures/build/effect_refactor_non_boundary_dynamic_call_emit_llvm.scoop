@@ -4,9 +4,9 @@
 // - `main()` 调用 `helper(DerivedA())`，真实覆盖 plain virtual call 的 ordinary ABI 路径；
 // - 该路径仍不得触发 legacy effect lowering。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: define i64 @fixtures.build.helper(
+// BUILD-LLVM-CONTAINS: define i64 @__scoop_abi0_fun__fixtures_build_helper__h
 // BUILD-LLVM-CONTAINS: refactor_plain_dispatch_call = call i64 %load_vtable_fn
-// BUILD-LLVM-CONTAINS: %pass_mir_direct_call = call i64 @fixtures.build.helper(
+// BUILD-LLVM-CONTAINS: %pass_mir_direct_call = call i64 @__scoop_abi0_fun__fixtures_build_helper__h
 // BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_dynamic_invoke__fixtures_build_helper
 // BUILD-LLVM-NOT-CONTAINS: %scoop.refactor.Step__
 // BUILD-LLVM-NOT-CONTAINS: scoop.effect.frame.

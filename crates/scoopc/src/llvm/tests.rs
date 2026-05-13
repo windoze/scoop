@@ -439,7 +439,7 @@ fn stable_id_symbol_looks_like_runtime_or_native_import(name: &str) -> bool {
 }
 
 fn stable_id_symbol_looks_like_compiler_private_helper(name: &str) -> bool {
-    name.starts_with("__scoop_")
+    (name.starts_with("__scoop_") && !name.starts_with("__scoop_abi0_"))
         || name.starts_with("scoop.lambda$")
         || name.starts_with("scoop.lambda_resume$")
         || name.starts_with("scoop.lambda_env$")
@@ -474,6 +474,10 @@ fn stable_id_symbol_looks_like_hidden_init_family(name: &str) -> bool {
 
 fn stable_id_symbol_mentions_fqn(name: &str, fqn: &str) -> bool {
     name.contains(fqn) || name.contains(&fqn.replace('.', "_"))
+}
+
+fn stable_id_symbol_is_exported_abi_fun(name: &str) -> bool {
+    name.starts_with("__scoop_abi0_fun__") && stable_id_symbol_has_hash128_suffix(name)
 }
 
 fn stable_id_symbol_has_hash128_suffix(name: &str) -> bool {
@@ -1040,19 +1044,19 @@ fun main(): Int {
         audit.summary()
     );
     assert!(
-        !audit
-            .all_external_symbols
+        audit
+            .user_abi_symbols
             .iter()
             .any(|name| stable_id_symbol_mentions_fqn(name, "a.helper")),
-        "仅模块内使用的 source-level top-level function 不应泄漏到 external symbol 集\n{}",
+        "source-level top-level function 现在应以 user ABI symbol 进入 external symbol 集\n{}",
         audit.summary()
     );
     assert!(
-        !audit
-            .all_external_symbols
+        audit
+            .user_abi_symbols
             .iter()
             .any(|name| stable_id_symbol_mentions_fqn(name, "a.id")),
-        "仅模块内使用的 materialized generic callable 不应泄漏到 external symbol 集\n{}",
+        "materialized generic callable 现在应以 user ABI symbol 进入 external symbol 集\n{}",
         audit.summary()
     );
     assert!(
@@ -1065,25 +1069,23 @@ fun main(): Int {
     );
 
     let helper_ir = function_ir_matching(&ir, "source-level helper impl", |header, function| {
-        llvm_function_header_uses_internal_or_private_linkage(header)
+        !llvm_function_header_uses_internal_or_private_linkage(header)
+            && stable_id_symbol_is_exported_abi_fun(llvm_function_symbol_name(function))
             && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.helper")
     });
     assert!(
-        llvm_function_header_uses_internal_or_private_linkage(
-            helper_ir.lines().next().expect("expected helper header"),
-        ),
-        "source-level helper implementation 应使用 internal/private linkage"
+        stable_id_symbol_is_exported_abi_fun(llvm_function_symbol_name(helper_ir)),
+        "source-level helper implementation 应使用 AbiMangler fun namespace"
     );
 
     let generic_ir = function_ir_matching(&ir, "materialized generic impl", |header, function| {
-        llvm_function_header_uses_internal_or_private_linkage(header)
+        !llvm_function_header_uses_internal_or_private_linkage(header)
+            && stable_id_symbol_is_exported_abi_fun(llvm_function_symbol_name(function))
             && stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "a.id")
     });
     assert!(
-        llvm_function_header_uses_internal_or_private_linkage(
-            generic_ir.lines().next().expect("expected generic header"),
-        ),
-        "materialized generic implementation 应使用 internal/private linkage"
+        stable_id_symbol_is_exported_abi_fun(llvm_function_symbol_name(generic_ir)),
+        "materialized generic implementation 应使用 AbiMangler fun namespace"
     );
 }
 
@@ -1457,9 +1459,30 @@ fun main(): Int {
         !ir.contains("call_itable"),
         "via-MIR frontend 已把 exact interface dispatch 去虚化为 direct call，backend 不应再按接口 owner FQN 回退成 itable call:\n{ir}"
     );
+    let ping_body = function_ir_matching(
+        &ir,
+        "AbiMangler interface default method body",
+        |header, _| header.contains("@__scoop_abi0_fun__fixtures_t5000gr_Ping_ping__h"),
+    );
+    let ping_symbol = llvm_function_symbol_name(ping_body);
     assert!(
-        ir.contains("@fixtures.t5000gr.Ping.ping"),
-        "default interface method 的 direct target 应继续保留在 IR 中，实际 IR:\n{ir}"
+        ping_symbol != "fixtures.t5000gr.Ping.ping"
+            && stable_id_symbol_is_exported_abi_fun(ping_symbol),
+        "default interface method 应发布到 authoritative ABI namespace，而不是保留 raw callable symbol，实际 symbol: {ping_symbol}"
+    );
+    assert_eq!(
+        function_ir_count_matching(&ir, |header, _| {
+            header.contains("@__scoop_abi0_fun__fixtures_t5000gr_Ping_ping__h")
+        }),
+        1,
+        "default interface method 应只发布一个 authoritative ABI symbol，避免不同声明路径各算各的 hash:\n{ir}"
+    );
+    assert!(
+        ir.lines().any(|line| {
+            line.contains("@__scoop_itable_methods__fixtures_t5000gr_Box")
+                && line.contains(&format!("@{ping_symbol}"))
+        }),
+        "itable method table 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条 declaration path 重新算出来的名字:\n{ir}"
     );
 }
 
@@ -1500,7 +1523,7 @@ fun main(): Int {
         .print_to_string()
         .to_string();
     assert!(
-        ir.contains("@fixtures.cgt03.Ping.ping"),
+        ir.contains("@__scoop_abi0_fun__fixtures_cgt03_Ping_ping__h"),
         "interface default method slot should keep the selected default implementation:\n{ir}"
     );
     assert!(
@@ -3953,8 +3976,24 @@ fun main(): Int {
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
+    let substring_ir = function_ir_matching(
+        &ir,
+        "compiled sysroot substring helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && stable_id_symbol_mentions_fqn(
+                    llvm_function_symbol_name(function),
+                    "scoop.core.substring",
+                )
+        },
+    );
+
     assert!(
-        ir.contains("@scoop.core.substring("),
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(substring_ir),
+            "scoop.core.substring"
+        ),
         "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
     );
 }
@@ -6159,6 +6198,8 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
         ["ir.contains(\"define double @a.id", "64(\")"].concat(),
         ["ir.contains(\"define float @a.id", "32(\")"].concat(),
         ["ir.contains(\"call double @a.", "choose(\")"].concat(),
+        ["ir.contains(\"@fixtures.t5000gr.Ping.", "ping\")"].concat(),
+        ["ir.contains(\"@fixtures.cgt03.Ping.pi", "ng\")"].concat(),
         ["!header.contains(\"@a.he", "lper(\")"].concat(),
         ["function.contains(\"@a.he", "lper(\")"].concat(),
         ["function_ir_named(&ir, \"a.he", "lper\")"].concat(),

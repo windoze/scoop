@@ -961,9 +961,11 @@ public fun main() / Pure! {
 
         let ll = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ll.contains("define internal i64 @fixtures.build.Base.ping(")
-                && ll.contains("define internal i64 @fixtures.build.Derived.ping(")
-                && ll.contains("define internal ptr addrspace(1) @fixtures.build.makeClosure(")
+            ll.contains("define i64 @__scoop_abi0_fun__fixtures_build_Base_ping__h")
+                && ll.contains("define i64 @__scoop_abi0_fun__fixtures_build_Derived_ping__h")
+                && ll.contains(
+                    "define ptr addrspace(1) @__scoop_abi0_fun__fixtures_build_makeClosure__h"
+                )
                 && ll.contains("define internal i64 @__scoop_priv0__closure_body__h"),
             "metadata-only plain carrier targets 也必须有已发布的 plain callable body:\n{ll}"
         );
@@ -1418,13 +1420,13 @@ fun main(): Int {
         );
         let ir = std::fs::read_to_string(&out).unwrap();
 
-        for fqn in [
-            "fixtures.t5000h0c.id::<Int>",
-            "fixtures.t5000h0c.Box.memberId::<Int>",
+        for symbol_prefix in [
+            "__scoop_abi0_fun__fixtures_t5000h0c_id__h",
+            "__scoop_abi0_fun__fixtures_t5000h0c_Box_memberId__h",
         ] {
             assert!(
-                ir.contains(fqn),
-                "build production codegen 入口应继续保留实例身份 `{fqn}`，实际 IR:\n{ir}"
+                ir.contains(symbol_prefix),
+                "build production codegen 入口应通过 AbiMangler 保留实例级 exported identity `{symbol_prefix}`，实际 IR:\n{ir}"
             );
         }
     }
@@ -1532,10 +1534,9 @@ fun main(): Int {
 
         let ir = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ir.contains(
-                "__scoop_refactor_dynamic_invoke__fixtures_build_abi_visibility_hiddenWorker"
-            ),
-            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell 出现在 refactor build IR 中：\n{ir}"
+            ir.contains("__scoop_priv0__refactor_dynamic_invoke__h")
+                && ir.contains("__scoop_priv0__refactor_direct_invoke__h"),
+            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell family 出现在 refactor build IR 中：\n{ir}"
         );
         assert!(
             !ir.contains("scoop.effect.frame."),
@@ -1575,8 +1576,8 @@ fun main(): Int {
 
         let ir = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ir.contains("__scoop_refactor"),
-            "refactor IR 应包含 canonical refactor symbol，而不是空壳输出：\n{ir}"
+            ir.contains("__scoop_priv0__refactor_"),
+            "refactor IR 应包含 canonical private refactor symbol family，而不是空壳输出：\n{ir}"
         );
         assert!(
             !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
@@ -1606,8 +1607,8 @@ fun main(): Int {
         let ir = std::fs::read_to_string(&out).unwrap();
 
         assert!(
-            ir.contains("__scoop_refactor"),
-            "default build should emit refactor-owned symbols:\n{ir}"
+            ir.contains("__scoop_priv0__refactor_"),
+            "default build should emit canonical private refactor symbols:\n{ir}"
         );
         assert!(
             !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),

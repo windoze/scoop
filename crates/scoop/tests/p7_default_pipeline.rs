@@ -222,7 +222,7 @@ fn single_pipeline_build_emit_llvm_cli_preserves_target_shape_effect_contract() 
         "single pipeline CLI IR should keep explicit EffectCtx / EffectOutcome surface: {ir}"
     );
     assert!(
-        ir.contains("@__scoop_refactor_surface_resume_outcome__k")
+        ir.contains("@__scoop_priv0__refactor_surface_resume__outcome__h")
             && ir.contains("cmpxchg")
             && ir.contains("refactor_step_is_complete"),
         "single pipeline CLI IR should keep target-shape Step_F / surface-resume contract: {ir}"

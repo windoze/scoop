@@ -1332,18 +1332,27 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
         let llvm_fun = if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
-            let plain_symbol_override =
-                (callable.root_fqn() == "main").then_some("__scoop_refactor_plain_source_main");
-            let symbol = plain_symbol_override.unwrap_or(callable.root_fqn());
-            self.codegen
-                .declare_materialized_mir_plain_fun_with_symbol(
-                    symbol,
-                    LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
-                    &mir_fun,
-                    &mir_param_tys,
-                    mir_fun.return_ty,
-                    mir_types,
-                )?
+            if callable.root_fqn() == "main" {
+                self.codegen
+                    .declare_materialized_mir_plain_fun_with_symbol(
+                        "__scoop_refactor_plain_source_main",
+                        LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+                        &mir_fun,
+                        &mir_param_tys,
+                        mir_fun.return_ty,
+                        mir_types,
+                    )?
+            } else {
+                self.codegen
+                    .declare_materialized_mir_plain_fun_with_symbol(
+                        callable.root_fqn(),
+                        LlvmFunctionDeclarationSurface::ExportedAbi,
+                        &mir_fun,
+                        &mir_param_tys,
+                        mir_fun.return_ty,
+                        mir_types,
+                    )?
+            }
         } else if mir_fun.name.starts_with("$lambda") {
             self.codegen
                 .declare_materialized_mir_closure_fun_with_signature(
@@ -8565,8 +8574,17 @@ mod tests {
                         .plain_callable_layout_by_version_key(callable.body_version_key())
                         .expect("plain callable layout 应可查询");
                     assert_eq!(layout.root_fqn(), fqn);
-                    assert_eq!(layout.direct_entry().symbol_name(), fqn);
-                    assert!(module.get_function(fqn).is_some());
+                    let direct_symbol = layout.direct_entry().symbol_name();
+                    let expected_prefix = if fqn == "fixtures.build.main" {
+                        "__scoop_abi0_fun__fixtures_build_main__h"
+                    } else {
+                        "__scoop_abi0_fun__fixtures_build_helper__h"
+                    };
+                    assert!(
+                        direct_symbol.starts_with(expected_prefix),
+                        "source-level plain callable direct entry 应切到 AbiMangler namespace: {direct_symbol}"
+                    );
+                    assert!(module.get_function(direct_symbol).is_some());
                     assert!(
                         query
                             .callable_layout_by_version_key(callable.body_version_key())
@@ -9144,7 +9162,7 @@ mod tests {
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
             |inputs| inputs.abi_visibility_program.clone(),
-            |inputs, result, _module| {
+            |inputs, result, module| {
                 let query =
                     result.expect("generic known-instance callable 应可回查 callable version");
                 let println_int = inputs
@@ -9166,6 +9184,12 @@ mod tests {
                         .is_err(),
                     "NoOutward generic callable 不应发布 effect-step callable layout"
                 );
+                let direct_symbol = target.direct_entry().symbol_name();
+                assert!(
+                    direct_symbol.starts_with("__scoop_abi0_fun__scoop_core_println__h"),
+                    "materialized generic plain callable 应切到 AbiMangler namespace: {direct_symbol}"
+                );
+                assert!(module.get_function(direct_symbol).is_some());
             },
         );
     }

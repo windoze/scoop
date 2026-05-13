@@ -1127,7 +1127,7 @@
     - 对应 `PLAN.md` P4 的第一阶段目标：overload suffix、template identity、instance exported symbol 来源现在都已收口到 authoritative stable key / canonical signature / `AbiMangler` 预备路径，后续 P4-T02 只需把 declaration path 全量接入统一 mangler。
     - 对应 `STABLE_ID.md` §3.4.2、§6.2-§6.4、§8.3：overload / template / instance identity 已脱离 `source_path + decl_span`、pretty type text 与 `TypeId`；同名 overload 的同型实例在 materialize、late-lowering 与 LLVM naming 下都保持 distinct 且 path-stable。
 
-### [TODO] P4-T02：把 `AbiMangler` 接入 exported declaration path，并验证跨路径稳定性
+### [DONE] P4-T02：把 `AbiMangler` 接入 exported declaration path，并验证跨路径稳定性
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P4
@@ -1160,7 +1160,40 @@
   - 同一份输入在不同 checkout 路径下导出的 external symbol 集完全一致。
 - 依赖：P4-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+    - `crates/scoop/src/commands/build.rs`
+    - `crates/scoop/src/fixtures/mod.rs`
+    - `crates/scoop/tests/p7_default_pipeline.rs`
+    - `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+    - `tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop`
+    - `tests/fixtures/build/effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop`
+    - `tests/fixtures/build/effect_refactor_step_enum_no_outward.scoop`
+    - `tests/fixtures/build/member_call_devirt_final_receiver_direct_call.scoop`
+  - 核心决策：
+    - 在 `MainCodegen` 中集中新增 authoritative exported declaration path：source-level HIR callable 与 materialized/plain callable 统一通过 `exported_abi_symbol_for_hir_fun(...)` / `exported_abi_symbol_for_materialized_fun(...)` 生成 user ABI symbol；优先消费 `authoritative StableInstanceKey + AbiMangler`，否则退回 `StableDefKey { StableConeKey, canonical callable signature key } + AbiMangler`。`main`、`@Extern` 指定 symbol 与 runtime/native fixed entry 继续保留显式例外。
+    - `declare_top_level_fun*`、`declare_materialized_top_level_fun_with_symbol(...)`、`declare_materialized_mir_plain_fun_with_symbol(...)` 与 effect-lowered plain callable layout 现在都把 `ExportedAbi` surface 接到同一套 authoritative symbol 生成路径上，不再把 raw callable `fqn` 直接作为 linker-visible exported symbol。
+    - 新增 exported ABI symbol reservation registry：若 HIR/MIR/effect-lowered 多条 declaration path 试图把不同 canonical key 注册到同一个 exported symbol，会在 codegen 期显式报 collision，而不是静默复用或继续生成冲突 object symbol。
+    - 新增 object external symbol audit helper 与路径稳定性/virtual-cone collision smoke，验证同源程序跨 checkout 根路径 external symbol 集一致，不同 virtual cone 的 user ABI symbol 保持分离；同时把 `scoop` 侧 build/pipeline 回归与 fixture 断言迁移到 `__scoop_abi0_fun__*` / `__scoop_priv0__*` namespace 语义，不再锁死旧 raw callable/private spelling。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_overloaded_source_level_callables_publish_distinct_abi_symbols -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_vtable_targets_use_abi_mangler_namespace -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_exported_object_symbols_are_path_stable_across_checkout_roots -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_top_level_and_materialized_generic_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop commands::build:: -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop --test p7_default_pipeline -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc -p scoop --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P4 的第二阶段目标：source-level top-level function、materialized plain callable 与 effect-lowered plain callable 的 exported declaration path 现已统一走 `AbiMangler`；同一输入跨 checkout 根路径 external symbol 集一致，overload / multi-cone collision smoke 也证明 exported namespace 已进入 cone-aware、path-stable 语义。
+    - 对应 `STABLE_ID.md` §5.2、§7.3、§7.4、§8.5：user ABI exported symbol 现统一落在 `__scoop_abi0_fun__<escaped-fqn>__h<hash128>` namespace，compiler-private refactor/closure/layout helper 继续留在 `__scoop_priv0__...`；`main`、`@Extern` 与 runtime/native fixed entry 仍是显式例外；不同 canonical key 复用同一 exported symbol 时会显式失败，不再静默碰撞。
 
 ### [TODO] P4-T02R：Review exported ABI naming，确认 exported 与 private namespace 已完全分家
 

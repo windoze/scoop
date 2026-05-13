@@ -3,10 +3,10 @@
 // - `makeClosure(41)` 会触发 closure callable object 的物化；
 // - 这些 target 都没有 outward case，因此不得再发布 refactor dynamic entry / `Step_F` shell。
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr] [ptr @fixtures.build.Base.ping]
+// BUILD-LLVM-CONTAINS: @__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr] [ptr @__scoop_abi0_fun__fixtures_build_Base_ping__h
 // BUILD-LLVM-CONTAINS: @__scoop_itable_methods__fixtures_build_Base__
-// BUILD-LLVM-CONTAINS: [1 x ptr] [ptr @fixtures.build.Base.ping]
-// BUILD-LLVM-CONTAINS: store ptr @"fixtures.build.makeClosure.$lambda0", ptr addrspace(1) %pass_mir_closure_fn_gep, align 8
+// BUILD-LLVM-CONTAINS: [1 x ptr] [ptr @__scoop_abi0_fun__fixtures_build_Base_ping__h
+// BUILD-LLVM-CONTAINS: store ptr @__scoop_priv0__closure_body__h
 // BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping
 // BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping
 // BUILD-LLVM-NOT-CONTAINS: __scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0

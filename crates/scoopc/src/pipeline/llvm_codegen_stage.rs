@@ -807,12 +807,14 @@ fn test_stage_run_count() -> usize {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use inkwell::context::Context;
+    use object::{Object, ObjectSymbol, SymbolKind, SymbolScope};
 
     use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
     use crate::llvm::{LlvmEmitError, build_main_module_from_stage_output};
@@ -1265,6 +1267,76 @@ fun main(): Int {
             LlvmArtifactKind::LlvmIr,
         )?;
         Ok(std::fs::read_to_string(out).unwrap())
+    }
+
+    fn emit_refactor_object_external_symbols_for_source_with_entry(
+        source: SourceFile,
+        file_name: &str,
+        entry_main_fqn: Option<&str>,
+    ) -> Result<Vec<String>, LlvmEmitError> {
+        let _guard = test_lock();
+        let temp = make_temp_dir();
+        let out = temp.path().join(file_name);
+        let (session, source_map, entry_source_id, lowered) = emit_args_for_source(source);
+        pipeline::emit_production_llvm_artifact_to_file(
+            &session,
+            &source_map,
+            entry_source_id,
+            lowered,
+            None,
+            &out,
+            entry_main_fqn,
+            OptLevel::O0,
+            LlvmArtifactKind::Object,
+        )?;
+
+        let bytes = std::fs::read(&out).unwrap();
+        let obj = object::File::parse(&*bytes).expect("generated object should parse");
+        Ok(object_external_symbols(&obj))
+    }
+
+    fn object_external_symbols(obj: &object::File<'_>) -> Vec<String> {
+        let mut symbols = Vec::new();
+        for symbol in obj.symbols() {
+            if matches!(
+                symbol.kind(),
+                SymbolKind::Section | SymbolKind::File | SymbolKind::Label
+            ) {
+                continue;
+            }
+            let is_external = symbol.is_undefined()
+                || matches!(symbol.scope(), SymbolScope::Linkage | SymbolScope::Dynamic);
+            if !is_external {
+                continue;
+            }
+            let Ok(raw_name) = symbol.name() else {
+                continue;
+            };
+            if raw_name.is_empty() {
+                continue;
+            }
+            symbols.push(normalize_object_symbol_name(raw_name).to_string());
+        }
+        symbols.sort();
+        symbols.dedup();
+        symbols
+    }
+
+    fn normalize_object_symbol_name(name: &str) -> &str {
+        name.strip_prefix('_').unwrap_or(name)
+    }
+
+    fn write_source_under_root(
+        root: &std::path::Path,
+        relative_path: &str,
+        text: &str,
+    ) -> SourceFile {
+        let path = root.join(relative_path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&path, text).unwrap();
+        SourceFile::load(&path).unwrap()
     }
 
     fn ir_function_body(ir: &str, header: &str) -> String {
@@ -1796,6 +1868,128 @@ fun main(): Int {
     }
 
     #[test]
+    fn refactor_llvm_overloaded_source_level_callables_publish_distinct_abi_symbols() {
+        let ir = emit_refactor_ir_for_source(
+            SourceFile::new_virtual(
+                "<mem>/refactor_overload_export_fixture.scoop",
+                r#"
+package sample
+
+fun pick(x: Int): Int {
+    return x
+}
+
+fun pick(x: Bool): Int {
+    return 2
+}
+
+fun main(): Int {
+    return pick(1) + pick(true)
+}
+"#,
+            ),
+            "refactor_overload_export.ll",
+        );
+
+        let overload_symbols = ir_defined_function_symbols(&ir)
+            .into_iter()
+            .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_pick_overload_"))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            overload_symbols.len(),
+            2,
+            "两个 source-level overload 应发布两个 distinct ABI-mangled symbol: {overload_symbols:#?}\n{ir}"
+        );
+        assert!(
+            !ir.contains("@sample.pick(") && !ir.contains("@\"sample.pick\""),
+            "source-level overload declaration path 不应再把 raw callable symbol 当作 linker-visible surface:\n{ir}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_vtable_targets_use_abi_mangler_namespace() {
+        let ir = emit_refactor_ir_for_source(
+            SourceFile::new_virtual(
+                "<mem>/refactor_vtable_symbol_fixture.scoop",
+                r#"
+package fixtures.build
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class DerivedA() : Base() {
+    override fun ping(): Int {
+        return 11
+    }
+}
+
+fun helper(base: Base): Int {
+    return base.ping() + 1
+}
+
+fun main() {
+    val base: Base = DerivedA()
+    val got: Int = helper(base)
+}
+"#,
+            ),
+            "refactor_vtable_symbol.ll",
+        );
+        let base_symbols = ir_defined_function_symbols(&ir)
+            .into_iter()
+            .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__fixtures_build_Base_ping__h"))
+            .collect::<BTreeSet<_>>();
+        let derived_symbols = ir_defined_function_symbols(&ir)
+            .into_iter()
+            .filter(|symbol| {
+                symbol.starts_with("__scoop_abi0_fun__fixtures_build_DerivedA_ping__h")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            base_symbols.len(),
+            1,
+            "Base.ping 应只发布一个 authoritative ABI symbol，避免定义路径和 vtable 路径各自产生不同 hash: {base_symbols:#?}\n{ir}"
+        );
+        assert_eq!(
+            derived_symbols.len(),
+            1,
+            "DerivedA.ping 应只发布一个 authoritative ABI symbol，避免定义路径和 vtable 路径各自产生不同 hash: {derived_symbols:#?}\n{ir}"
+        );
+        let base_symbol = *base_symbols
+            .iter()
+            .next()
+            .expect("Base.ping symbol should exist");
+        let derived_symbol = *derived_symbols
+            .iter()
+            .next()
+            .expect("DerivedA.ping symbol should exist");
+
+        assert!(
+            ir.lines().any(|line| {
+                line.contains("@__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr]")
+                    && ir_line_mentions_symbol(line, base_symbol)
+            }),
+            "Base vtable target 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条声明路径重新算出来的名字:\n{ir}"
+        );
+        assert!(
+            ir.lines().any(|line| {
+                line.contains(
+                    "@__scoop_vtable__fixtures_build_DerivedA = internal constant [1 x ptr]",
+                ) && ir_line_mentions_symbol(line, derived_symbol)
+            }),
+            "DerivedA vtable target 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条声明路径重新算出来的名字:\n{ir}"
+        );
+        assert!(
+            !ir.contains("@fixtures.build.Base.ping")
+                && !ir.contains("@fixtures.build.DerivedA.ping"),
+            "class vtable dispatch target 不应再把 raw method fqn 当作 linker-visible surface:\n{ir}"
+        );
+    }
+
+    #[test]
     fn refactor_llvm_codegen_stage_output_is_constructible() {
         let _guard = test_lock();
         let (session, source_map, entry_source_id, lowered) = sample_emit_args();
@@ -1968,5 +2162,125 @@ fun main(): Int {
         let ir = std::fs::read_to_string(out).unwrap();
         assert!(ir.contains("scoop.refactor.Step"));
         assert!(ir.contains("call void @scoop_runtime_init()"));
+    }
+
+    #[test]
+    fn refactor_llvm_exported_object_symbols_are_path_stable_across_checkout_roots() {
+        let source_text = r#"
+package sample
+
+fun helper(): Int {
+    return 41
+}
+
+fun main(): Int {
+    return helper() + 1
+}
+"#;
+        let root_a = make_temp_dir();
+        let root_b = make_temp_dir();
+        let source_a = write_source_under_root(
+            root_a.path(),
+            "fixtures/build/path_stable_plain_export.scoop",
+            source_text,
+        );
+        let source_b = write_source_under_root(
+            root_b.path(),
+            "fixtures/build/path_stable_plain_export.scoop",
+            source_text,
+        );
+
+        let symbols_a = emit_refactor_object_external_symbols_for_source_with_entry(
+            source_a,
+            "path_stable_plain_export_a.o",
+            None,
+        )
+        .expect("path-stable plain export source 应可成功发 object");
+        let symbols_b = emit_refactor_object_external_symbols_for_source_with_entry(
+            source_b,
+            "path_stable_plain_export_b.o",
+            None,
+        )
+        .expect("第二个 checkout 根路径下的同源程序也应可成功发 object");
+
+        assert_eq!(
+            symbols_a, symbols_b,
+            "同一份输入在不同 checkout 根路径下的 external symbol 集必须保持一致"
+        );
+        assert!(
+            symbols_a
+                .iter()
+                .any(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h")),
+            "source-level exported helper 应通过 AbiMangler 发布到 object 外部符号表: {symbols_a:#?}"
+        );
+        assert!(
+            !symbols_a.iter().any(|symbol| symbol == "sample.helper"),
+            "external symbol 集不应再泄漏 raw callable fqn: {symbols_a:#?}"
+        );
+    }
+
+    #[test]
+    fn refactor_llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones() {
+        let source_text = r#"
+package sample
+
+fun helper(): Int {
+    return 41
+}
+
+fun main(): Int {
+    return helper() + 1
+}
+"#;
+        let root_a = make_temp_dir();
+        let root_b = make_temp_dir();
+        let source_a = write_source_under_root(
+            root_a.path(),
+            "fixtures/build/collision_alpha.scoop",
+            source_text,
+        );
+        let source_b = write_source_under_root(
+            root_b.path(),
+            "fixtures/build/collision_beta.scoop",
+            source_text,
+        );
+
+        let user_abi_a = emit_refactor_object_external_symbols_for_source_with_entry(
+            source_a,
+            "collision_alpha.o",
+            None,
+        )
+        .expect("alpha virtual cone 应可成功发 object")
+        .into_iter()
+        .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
+        .collect::<BTreeSet<_>>();
+        let user_abi_b = emit_refactor_object_external_symbols_for_source_with_entry(
+            source_b,
+            "collision_beta.o",
+            None,
+        )
+        .expect("beta virtual cone 应可成功发 object")
+        .into_iter()
+        .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
+        .collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            user_abi_a.len(),
+            1,
+            "alpha virtual cone 应发布唯一的 helper user ABI symbol: {user_abi_a:#?}"
+        );
+        assert_eq!(
+            user_abi_b.len(),
+            1,
+            "beta virtual cone 应发布唯一的 helper user ABI symbol: {user_abi_b:#?}"
+        );
+        let shared = user_abi_a
+            .intersection(&user_abi_b)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            shared.is_empty(),
+            "不同 virtual cone 的 overload user ABI symbol 不应碰撞，否则链接阶段会发生冲突: {shared:#?}"
+        );
     }
 }

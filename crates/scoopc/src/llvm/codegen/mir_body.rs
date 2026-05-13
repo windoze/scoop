@@ -400,7 +400,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         return_ty: TypeId,
         mir_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(llvm_name) {
+        let llvm_name = match surface {
+            LlvmFunctionDeclarationSurface::ExportedAbi => {
+                self.exported_abi_symbol_for_materialized_fun(mir_fun, mir_types)?
+            }
+            LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
+            | LlvmFunctionDeclarationSurface::CompilerPrivateHelper => llvm_name.to_string(),
+        };
+        if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
         if param_tys.len() != mir_fun.params.len() {
@@ -448,13 +455,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let llvm_fun = match surface {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
-                self.declare_exported_abi_function(llvm_name, fn_ty)
+                self.declare_exported_abi_function(&llvm_name, fn_ty)
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport => {
-                self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
+                self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
             }
             LlvmFunctionDeclarationSurface::CompilerPrivateHelper => {
-                self.declare_compiler_private_helper_function(llvm_name, fn_ty, Linkage::Internal)
+                self.declare_compiler_private_helper_function(&llvm_name, fn_ty, Linkage::Internal)
             }
         };
         llvm_fun.set_call_conventions(0);

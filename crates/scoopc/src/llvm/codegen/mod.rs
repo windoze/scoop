@@ -60,8 +60,9 @@ use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    PrivateSymbolMangler, StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
-    StableHashScope, stable_hash64,
+    AbiMangler, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
+    StableConeKey, StableDefKey, StableDefNamespace, StableHashScope,
+    canonical_callable_signature_key, stable_hash64,
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -321,6 +322,39 @@ struct SharedCodegenCaches {
     callable_carrier_contract_enabled: Cell<bool>,
     callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
     plain_callable_carrier_fallback_targets: RefCell<HashSet<(CallableCarrierKind, String)>>,
+    exported_abi_symbols: RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ExportedAbiSymbolReservation {
+    canonical_key: String,
+    owner_label: String,
+}
+
+fn reserve_exported_abi_symbol_in_registry(
+    registry: &RefCell<HashMap<String, ExportedAbiSymbolReservation>>,
+    symbol: &str,
+    canonical_key: String,
+    owner_label: String,
+) -> Result<(), String> {
+    let mut registry = registry.borrow_mut();
+    if let Some(existing) = registry.get(symbol) {
+        if existing.canonical_key != canonical_key {
+            return Err(format!(
+                "exported ABI symbol collision: `{symbol}` already belongs to {} (canonical key `{}`), but {} tried to reuse it with canonical key `{canonical_key}`",
+                existing.owner_label, existing.canonical_key, owner_label,
+            ));
+        }
+        return Ok(());
+    }
+    registry.insert(
+        symbol.to_string(),
+        ExportedAbiSymbolReservation {
+            canonical_key,
+            owner_label,
+        },
+    );
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1867,6 +1901,129 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    fn stable_def_key_for_callable_signature(
+        &self,
+        owner_path: &str,
+        declaration_kind: &str,
+        callable_ty: TypeId,
+        types: &TypeStore,
+    ) -> Result<StableDefKey, LlvmEmitError> {
+        let signature_key =
+            canonical_callable_signature_key(types, callable_ty, 0, 0, 0, &NoTypeParamResolver)
+                .map_err(|err| LlvmEmitError::Frontend {
+                    message: format!(
+                        "无法为 callable `{owner_path}` 计算 stable exported signature key: {err}"
+                    ),
+                })?;
+        Ok(StableDefKey::new(
+            self.stable_cone_key.clone(),
+            StableDefNamespace::Fun,
+            callable_export_readable_path(owner_path),
+            declaration_kind,
+            Some(signature_key),
+        ))
+    }
+
+    fn reserve_exported_abi_symbol<K>(
+        &self,
+        symbol: &str,
+        stable_key: &K,
+        owner_label: impl Into<String>,
+    ) -> Result<(), LlvmEmitError>
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        reserve_exported_abi_symbol_in_registry(
+            &self.shared.shared_caches.exported_abi_symbols,
+            symbol,
+            stable_key.canonical_text(),
+            owner_label.into(),
+        )
+        .map_err(|message| LlvmEmitError::Frontend { message })
+    }
+
+    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_hir_fun(
+        &self,
+        fun: &hir::FunDecl,
+    ) -> Result<String, LlvmEmitError> {
+        if fun.fqn == "main" {
+            return Ok("main".to_string());
+        }
+        if let Some(pass_view) = self.materialized_pass_view()
+            && let Some(owner) = pass_view.owner_of_callable(&fun.fqn)
+            && let Some(stable_key) = pass_view
+                .materialized()
+                .authoritative_stable_instance_key(owner)
+        {
+            let symbol = AbiMangler.fun_symbol(&stable_key);
+            self.reserve_exported_abi_symbol(
+                &symbol,
+                &stable_key,
+                format!(
+                    "source callable `{}` via authoritative instance key",
+                    fun.fqn
+                ),
+            )?;
+            return Ok(symbol);
+        }
+        let stable_key = self.stable_def_key_for_callable_signature(
+            &fun.fqn,
+            "non_generic_callable",
+            fun.ty,
+            self.types,
+        )?;
+        let symbol = AbiMangler.fun_symbol(&stable_key);
+        self.reserve_exported_abi_symbol(
+            &symbol,
+            &stable_key,
+            format!("source callable `{}`", fun.fqn),
+        )?;
+        Ok(symbol)
+    }
+
+    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_materialized_fun(
+        &self,
+        mir_fun: &crate::mir::FunDecl,
+        mir_types: &TypeStore,
+    ) -> Result<String, LlvmEmitError> {
+        if mir_fun.fqn == "main" {
+            return Ok("main".to_string());
+        }
+        if let Some(pass_view) = self.materialized_pass_view()
+            && let Some(owner) = pass_view.owner_of_callable(&mir_fun.fqn)
+            && let Some(stable_key) = pass_view
+                .materialized()
+                .authoritative_stable_instance_key(owner)
+        {
+            let symbol = AbiMangler.fun_symbol(&stable_key);
+            self.reserve_exported_abi_symbol(
+                &symbol,
+                &stable_key,
+                format!(
+                    "materialized callable `{}` via authoritative instance key",
+                    mir_fun.fqn
+                ),
+            )?;
+            return Ok(symbol);
+        }
+        if let Some(hir_fun) = self.hir_fun_for_callable_fqn(&mir_fun.fqn) {
+            return self.exported_abi_symbol_for_hir_fun(hir_fun);
+        }
+        let stable_key = self.stable_def_key_for_callable_signature(
+            &mir_fun.fqn,
+            "non_generic_callable",
+            mir_fun.ty,
+            mir_types,
+        )?;
+        let symbol = AbiMangler.fun_symbol(&stable_key);
+        self.reserve_exported_abi_symbol(
+            &symbol,
+            &stable_key,
+            format!("materialized callable `{}`", mir_fun.fqn),
+        )?;
+        Ok(symbol)
+    }
+
     fn enter_root_callable_identity(
         &mut self,
         callable_fqn: String,
@@ -2686,20 +2843,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let llvm_name = self
-            .extern_funs
-            .get(&fun.fqn)
-            .map(|e| e.symbol.as_str())
-            .unwrap_or(fun.fqn.as_str());
+        let llvm_name = if self.extern_funs.contains_key(&fun.fqn) {
+            self.extern_funs
+                .get(&fun.fqn)
+                .map(|e| e.symbol.clone())
+                .unwrap_or_else(|| fun.fqn.clone())
+        } else {
+            self.exported_abi_symbol_for_hir_fun(fun)?
+        };
         self.declare_top_level_fun_with_symbol(fun, llvm_name)
     }
 
     pub(crate) fn declare_top_level_fun_with_symbol(
         &mut self,
         fun: &hir::FunDecl,
-        llvm_name: &str,
+        llvm_name: String,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(llvm_name) {
+        if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
 
@@ -2781,9 +2941,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let llvm_fun = if is_extern {
-            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
+            self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
-            self.declare_exported_abi_function(llvm_name, fn_ty)
+            self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
@@ -2803,11 +2963,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         param_tys: &[TypeId],
         return_ty: TypeId,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(llvm_name) {
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let llvm_name = if is_extern {
+            llvm_name.to_string()
+        } else {
+            self.exported_abi_symbol_for_hir_fun(fun)?
+        };
+        if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
-
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(return_ty);
 
         let Some(return_cg) = self.cg_ty_of(return_ty) else {
@@ -2865,9 +3029,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let llvm_fun = if is_extern {
-            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
+            self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
-            self.declare_exported_abi_function(llvm_name, fn_ty)
+            self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
@@ -2884,15 +3048,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun: &crate::mir::FunDecl,
         llvm_name: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(llvm_name) {
-            return Ok(existing);
-        }
-
         let mir_types = self
             .materialized_pass_view()
             .map(|view| &view.materialized().types)
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
         let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let llvm_name = if is_extern {
+            llvm_name.to_string()
+        } else {
+            self.exported_abi_symbol_for_materialized_fun(fun, mir_types)?
+        };
+        if let Some(existing) = self.module.get_function(&llvm_name) {
+            return Ok(existing);
+        }
         let codegen_return_ty = self
             .equivalent_codegen_type_id(mir_types, fun.return_ty)
             .unwrap_or(fun.return_ty);
@@ -2969,9 +3137,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let llvm_fun = if is_extern {
-            self.declare_runtime_or_native_import_function(llvm_name, fn_ty)
+            self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
-            self.declare_exported_abi_function(llvm_name, fn_ty)
+            self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if let Some(result_ty) = hidden_sret_result_ty {
@@ -8819,6 +8987,16 @@ fn stable_closure_lexical_path_in_fun(
     stable_closure_lexical_path_in_block(body, target_span, None, &mut next_closure_index)
 }
 
+fn callable_export_readable_path(owner_path: &str) -> &str {
+    let base = owner_path
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(owner_path);
+    base.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
 fn stable_closure_lexical_path_in_block(
     block: &hir::Block,
     target_span: crate::span::Span,
@@ -9318,4 +9496,78 @@ fn undouble_braces_preserving_escapes(text: &str) -> String {
     }
 
     out
+}
+
+#[cfg(test)]
+mod exported_abi_symbol_registry_tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    use super::{ExportedAbiSymbolReservation, reserve_exported_abi_symbol_in_registry};
+    use crate::stable_id::{StableCanonicalKey, StableConeKey, StableDefKey, StableDefNamespace};
+
+    #[test]
+    fn exported_abi_symbol_registry_allows_authoritative_reuse_from_multiple_paths() {
+        let registry = RefCell::new(HashMap::<String, ExportedAbiSymbolReservation>::new());
+        let key = StableDefKey::new(
+            StableConeKey::new("sample", "0.1.0"),
+            StableDefNamespace::Fun,
+            "sample.helper",
+            "non_generic_callable",
+            Some("sig$arity0".to_string()),
+        );
+
+        reserve_exported_abi_symbol_in_registry(
+            &registry,
+            "__scoop_abi0_fun__sample_helper__hdeadbeef",
+            key.canonical_text(),
+            "HIR declaration path".to_string(),
+        )
+        .expect("初次注册应成功");
+        reserve_exported_abi_symbol_in_registry(
+            &registry,
+            "__scoop_abi0_fun__sample_helper__hdeadbeef",
+            key.canonical_text(),
+            "materialized declaration path".to_string(),
+        )
+        .expect("同一 authoritative key 的重复声明路径应允许复用");
+    }
+
+    #[test]
+    fn exported_abi_symbol_registry_rejects_conflicting_canonical_owners() {
+        let registry = RefCell::new(HashMap::<String, ExportedAbiSymbolReservation>::new());
+        let left = StableDefKey::new(
+            StableConeKey::new("sample", "0.1.0"),
+            StableDefNamespace::Fun,
+            "sample.left",
+            "non_generic_callable",
+            Some("sig$arity0".to_string()),
+        );
+        let right = StableDefKey::new(
+            StableConeKey::new("sample", "0.1.0"),
+            StableDefNamespace::Fun,
+            "sample.right",
+            "non_generic_callable",
+            Some("sig$arity0".to_string()),
+        );
+
+        reserve_exported_abi_symbol_in_registry(
+            &registry,
+            "__scoop_abi0_fun__sample_collision__hdeadbeef",
+            left.canonical_text(),
+            "source callable `sample.left`".to_string(),
+        )
+        .expect("初次注册应成功");
+        let err = reserve_exported_abi_symbol_in_registry(
+            &registry,
+            "__scoop_abi0_fun__sample_collision__hdeadbeef",
+            right.canonical_text(),
+            "source callable `sample.right`".to_string(),
+        )
+        .expect_err("不同 canonical key 复用同一 ABI symbol 应显式失败");
+        assert!(
+            err.contains("collision") && err.contains("sample.right"),
+            "冲突报错应说明发生了 exported ABI symbol collision，实际: {err}"
+        );
+    }
 }
