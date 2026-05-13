@@ -70,9 +70,11 @@ fun main() {
         let ir = module.print_to_string().to_string();
 
         assert!(
-            ir.contains(
-                "__scoop_composite_transport_desc__inline__fixtures_clayout_AlignedPacked__Struct"
-            ) && ir.contains("i64 16, i64 16"),
+            ir.lines().any(|line| {
+                line.contains("@__scoop_priv0__composite_transport_desc__h")
+                    && line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("i64 16, i64 16")
+            }),
             "@CLayout(aligned=16, packed=1) 应把 composite transport 物理布局发布为 size=16 / align=16\n{ir}"
         );
     }
@@ -105,9 +107,11 @@ fun main() {
         let ir = module.print_to_string().to_string();
 
         assert!(
-            ir.contains(
-                "__scoop_composite_transport_desc__inline__fixtures_clayout_Packed__Struct"
-            ) && ir.contains("i64 9, i64 1"),
+            ir.lines().any(|line| {
+                line.contains("@__scoop_priv0__composite_transport_desc__h")
+                    && line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
+                    && line.contains("i64 9, i64 1")
+            }),
             "@CLayout(packed=1) 应继续把 composite transport 物理布局发布为 size=9 / align=1\n{ir}"
         );
     }
@@ -999,6 +1003,44 @@ fn stable_id_source_inventory_removes_legacy_init_private_naming_from_codegen() 
 }
 
 #[test]
+fn stable_id_source_inventory_removes_legacy_metadata_private_naming_from_codegen() {
+    for source in [
+        include_str!("mod.rs"),
+        include_str!("codegen/gc.rs"),
+        include_str!("codegen/mir_body.rs"),
+        include_str!("codegen/ty.rs"),
+        include_str!("codegen/composite_transport.rs"),
+    ] {
+        for needle in [
+            "\"scoop.runtime.BoxedEnum__{}\"",
+            "\"__scoop_type_desc_runtime__boxed_enum__{name}\"",
+            "\"__scoop_type_desc_class__{}\"",
+            "\"scoop.runtime.ObjectSingleton__{}\"",
+            "\"__scoop_type_desc_object__{}\"",
+            "\"__scoop_itable__{}\"",
+            "\"__scoop_itable_methods__{}__{:016x}__{:016x}\"",
+            "\"__scoop_itable_match_ids__{}__{:016x}__{:016x}\"",
+            "\"__scoop_vtable__{}\"",
+            "sanitize_llvm_ident(&self.types.display(value_ty).to_string())",
+            "sanitize_llvm_ident(&self.types.display(source_ty).to_string())",
+            "\"__scoop_type_desc_mir_value_box__{source_name}\"",
+            "\"scoop.runtime.ClassPayload__{}\"",
+            "\"scoop.runtime.ClassObject__{}\"",
+            "\"scoop_boxed_payload_{}_{}\"",
+            "\"__scoop_type_desc_runtime__enum_boxed_payload__{}__{}\"",
+            "\"__scoop_composite_transport_desc__{}__{}__{}__{}\"",
+            "sanitize_llvm_ident(&descriptor.source_name)",
+            "descriptor.source_ty.as_u32()",
+        ] {
+            assert!(
+                !source.contains(needle),
+                "runtime metadata/type-desc/transport 生产代码不应再残留 sanitize/type-display/TypeId 驱动的 legacy private naming：{needle}"
+            );
+        }
+    }
+}
+
+#[test]
 fn materialized_mir_closure_private_symbols_use_stable_hash_namespaces() {
     let source = SourceFile::new_virtual(
         "<mem>/stable_id_materialized_closure.scoop",
@@ -1505,7 +1547,7 @@ fun main(): Int {
     );
     assert!(
         ir.lines().any(|line| {
-            line.contains("@__scoop_itable_methods__fixtures_t5000gr_Box")
+            line.contains("@__scoop_priv0__itable_methods__h")
                 && line.contains(&format!("@{ping_symbol}"))
         }),
         "itable method table 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条 declaration path 重新算出来的名字:\n{ir}"
@@ -3963,33 +4005,56 @@ fun main(): Int {
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
     let ir = module.print_to_string().to_string();
 
-    let payload_ty = context
-        .get_struct_type("scoop.runtime.ClassPayload__a_Box_String_")
-        .expect("generic Box<String> constructor should publish a concrete class payload type");
-    let fields = payload_ty.get_field_types();
+    let payload_defs = ir
+        .lines()
+        .filter(|line| {
+            line.starts_with("%scoop.refactor.ClassPayload__h") && line.contains(" = type ")
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        fields.len(),
+        payload_defs.len(),
         1,
-        "Box<String> concrete payload should have the substituted value field"
+        "Box<String> constructor should publish exactly one concrete class payload type\n{ir}"
     );
+    let payload_ty_name = payload_defs[0]
+        .split_once(" = ")
+        .map(|(name, _)| name.trim_start_matches('%'))
+        .expect("class payload type definition should contain name");
     assert!(
-        fields[0].is_pointer_type(),
-        "Box<String>.value should lower as the concrete String GC pointer field, not generic T"
+        payload_defs[0].contains("type { ptr addrspace(1) }"),
+        "Box<String>.value should lower as the concrete String GC pointer field, not generic T\n{}",
+        payload_defs[0]
+    );
+    let object_defs = ir
+        .lines()
+        .filter(|line| {
+            line.starts_with("%scoop.refactor.ClassObject__h") && line.contains(" = type ")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        object_defs.len(),
+        1,
+        "Box<String> constructor should publish exactly one concrete class object type\n{ir}"
+    );
+    let object_ty_name = object_defs[0]
+        .split_once(" = ")
+        .map(|(name, _)| name.trim_start_matches('%'))
+        .expect("class object type definition should contain name");
+    assert!(
+        object_defs[0].contains(&format!("%{payload_ty_name}")),
+        "class object type 应内嵌 concrete payload type，而不是 generic/raw layout\n{}",
+        object_defs[0]
     );
     assert!(
         ir.contains("@scoop_alloc_typed")
-            && ir.contains("%refactor_class_payload_gep = getelementptr inbounds nuw %scoop.runtime.ClassObject__a_Box_String_")
-            && ir.contains("%class_field_gep = getelementptr inbounds nuw %scoop.runtime.ClassPayload__a_Box_String_"),
+            && ir.contains(&format!(
+                "%refactor_class_payload_gep = getelementptr inbounds nuw %{object_ty_name}"
+            ))
+            && ir.contains(&format!(
+                "%class_field_gep = getelementptr inbounds nuw %{payload_ty_name}"
+            ))
+            && ir.contains("@__scoop_priv0__class_type_desc__h"),
         "constructor allocation 应通过 typed descriptor 局部值发布 concrete Box<String> 分配路径，而不是锁死 descriptor symbol 文本\n{ir}"
-    );
-    assert!(
-        context
-            .get_struct_type("scoop.runtime.ClassPayload__a_Box")
-            .is_none()
-            && context
-                .get_struct_type("scoop.runtime.ClassObject__a_Box")
-                .is_none(),
-        "generic constructor 不应物化 raw Box<T> 布局类型；应只发布具体实例布局\n{ir}"
     );
 }
 
@@ -4235,6 +4300,10 @@ fun main(): Int {
         ir.contains("@scoop_alloc_typed"),
         "object 单例值应通过 typed alloc 生成真实 Ref 对象"
     );
+    assert!(
+        ir.contains("@__scoop_priv0__object_type_desc__h"),
+        "object singleton runtime metadata/type names 应改走 stable private naming，而不是 sanitize/object FQN 拼接\n{ir}"
+    );
     let run_ir = function_ir_matching(&ir, "object member method body", |header, function| {
         !header.contains("@main(")
             && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
@@ -4430,12 +4499,21 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Ok"),
-        "single-field struct payload 应生成 boxed payload object type"
+        ir.lines().any(|line| {
+            line.starts_with("%scoop.refactor.EnumBoxedPayloadObject__h")
+                && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %scoop.refactor.EnumBoxedPayloadFields__h")
+        }),
+        "single-field non-scalar payload 应生成 hashed boxed payload object type\n{ir}"
     );
     assert!(
-        ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Msg"),
-        "single-field tuple payload 应生成 boxed payload object type"
+        ir.lines()
+            .filter(|line| {
+                line.starts_with("@__scoop_priv0__enum_boxed_payload_type_desc__h")
+                    && line.contains("%scoop.runtime.ScoopTypeDescriptor")
+            })
+            .count()
+            >= 2,
+        "single-field struct/tuple payload 应生成 hashed boxed payload type descriptor global\n{ir}"
     );
     assert!(
         ir.matches("rt_alloc_enum_boxed_payload").count() >= 2
@@ -6399,7 +6477,27 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
         ]
         .concat(),
         [
+            "contains(\"__scoop_composite_transport_desc__inline__fixtures_clayout_",
+            "AlignedPacked__Struct\")",
+        ]
+        .concat(),
+        [
+            "contains(\"__scoop_composite_transport_desc__inline__fixtures_clayout_",
+            "Packed__Struct\")",
+        ]
+        .concat(),
+        [
             "contains(\"@__scoop_type_desc_class__",
+            "a_Box_String_\")",
+        ]
+        .concat(),
+        [
+            "starts_with(\"%scoop.runtime.ClassPayload__",
+            "a_Box_String_\")",
+        ]
+        .concat(),
+        [
+            "starts_with(\"%scoop.runtime.ClassObject__",
             "a_Box_String_\")",
         ]
         .concat(),
@@ -6409,12 +6507,32 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
         ]
         .concat(),
         [
+            "contains(\"@__scoop_itable_methods__fixtures_t5000gr_",
+            "Box\")",
+        ]
+        .concat(),
+        [
+            "contains(\"scoop.runtime.ObjectSingleton__",
+            "\")",
+        ]
+        .concat(),
+        [
             "contains(\"__scoop_type_desc_runtime__enum_boxed_payload__",
             "a_Result__Ok\")",
         ]
         .concat(),
         [
             "contains(\"__scoop_type_desc_runtime__enum_boxed_payload__",
+            "a_Result__Msg\")",
+        ]
+        .concat(),
+        [
+            "starts_with(\"%scoop.runtime.EnumBoxedPayload__",
+            "a_Result__Ok\")",
+        ]
+        .concat(),
+        [
+            "starts_with(\"%scoop.runtime.EnumBoxedPayload__",
             "a_Result__Msg\")",
         ]
         .concat(),
@@ -6490,6 +6608,16 @@ fn stable_id_source_inventory_removes_known_legacy_name_bindings_from_behavior_t
         [
             "contains(\"__scoop_refactor_thread_resume_transport__",
             "\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_vtable__fixtures_build_",
+            "Base = internal constant [1 x ptr]\")",
+        ]
+        .concat(),
+        [
+            "contains(\"@__scoop_vtable__fixtures_build_",
+            "DerivedA = internal constant [1 x ptr]\")",
         ]
         .concat(),
         ["contains(\"@sample.ma", "in\")"].concat(),

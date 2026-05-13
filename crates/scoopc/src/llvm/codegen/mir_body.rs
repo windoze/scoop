@@ -7662,10 +7662,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_ty: TypeId,
         value_cg: CgTy,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "scoop.mir.capture_box${}",
-            sanitize_llvm_ident(&self.types.display(value_ty).to_string())
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box LLVM type")?,
         );
+        let name = PrivateSymbolMangler.type_name("MirCaptureBox", "mir_capture_box_type", &key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }
@@ -7684,10 +7684,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_ty: TypeId,
         source_cg: CgTy,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "scoop.mir.value_box${}",
-            sanitize_llvm_ident(&self.types.display(source_ty).to_string())
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box LLVM type")?,
         );
+        let name = PrivateSymbolMangler.type_name("MirValueBox", "mir_value_box_type", &key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }
@@ -7730,16 +7730,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_ty: TypeId,
         box_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let value_name = sanitize_llvm_ident(&self.types.display(value_ty).to_string());
-        let global_name = format!("__scoop_type_desc_mir_capture_box__{value_name}");
+        let types = self
+            .codegen_type_store_for_type_id(value_ty)
+            .ok_or_else(|| {
+                frontend_error(
+                    "MIR capture box type descriptor 缺少 codegen type store".to_string(),
+                )
+            })?;
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box type descriptor")?,
+        );
+        let global_name = PrivateSymbolMangler.mangle("mir_capture_box_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
         let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
+        let value_name = sanitize_llvm_ident(&types.display(value_ty).to_string());
+        let canonical_name = format!("__scoop_type_desc_mir_capture_box__{value_name}");
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &global_name,
+            canonical_name: &canonical_name,
             obj_ty: box_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -7754,13 +7765,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_ty: TypeId,
         box_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let source_name = sanitize_llvm_ident(&self.types.display(source_ty).to_string());
-        let global_name = format!("__scoop_type_desc_mir_value_box__{source_name}");
+        let types = self
+            .codegen_type_store_for_type_id(source_ty)
+            .ok_or_else(|| {
+                frontend_error("MIR value box type descriptor 缺少 codegen type store".to_string())
+            })?;
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box type descriptor")?,
+        );
+        let global_name = PrivateSymbolMangler.mangle("mir_value_box_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
         let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
-        let canonical_name = format!("scoop.runtime.ValueBox<{}>", self.types.display(source_ty));
+        let canonical_name = format!("scoop.runtime.ValueBox<{}>", types.display(source_ty));
         let itable = self
             .get_or_create_mir_value_box_itable_global(at, source_ty)?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
@@ -7794,7 +7812,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if entries.is_empty() {
             return Ok(None);
         }
-        let owner_key = format!("mir_value_box__{}", self.types.display(source_ty));
+        let owner_key = CanonicalTextKey::new(canonical_record(
+            "mir_value_box_itable_owner",
+            [self.canonical_type_key_text_for_codegen(source_ty, "MIR value box itable owner")?],
+        ));
         self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
     }
 

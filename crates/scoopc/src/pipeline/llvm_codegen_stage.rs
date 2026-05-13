@@ -1528,6 +1528,10 @@ fun main(): Int {
             "traceable composite transport should publish an explicit GC slot map\n{descriptor}"
         );
         assert!(
+            descriptor.starts_with("@__scoop_priv0__composite_transport_desc__h"),
+            "composite transport descriptor global naming 应改走 stable private namespace\n{descriptor}"
+        );
+        assert!(
             descriptor.contains("@scoop_composite_trace")
                 && descriptor.contains("@scoop_composite_copy")
                 && descriptor.contains("@scoop_composite_drop"),
@@ -1557,7 +1561,11 @@ fun main(): Int {
             "struct -> Any boxing should consume a descriptor-backed composite transport contract\n{composite_descriptor}"
         );
         assert!(
-            ir.contains("scoop.mir.value_box$sample_Named")
+            ir.lines().any(|line| {
+                line.starts_with("%scoop.refactor.MirValueBox__h")
+                    && line
+                        .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Named }")
+            }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
                 && ir.contains("rt_alloc_mir_value_box"),
             "boxed struct carrier should materialize a concrete value-box object type and allocate it through typed alloc\n{ir}"
         );
@@ -1589,6 +1597,10 @@ fun main(): Int {
             "enum constructors should publish an explicit payload layout descriptor with GC slot metadata\n{payload_descriptor}"
         );
         assert!(
+            payload_descriptor.starts_with("@__scoop_priv0__composite_transport_desc__h"),
+            "enum payload composite descriptor 应改走 stable private namespace\n{payload_descriptor}"
+        );
+        assert!(
             ir.contains("rt_alloc_enum_boxed_payload"),
             "payload-bearing enum constructors should allocate GC-managed boxed payload objects\n{ir}"
         );
@@ -1598,7 +1610,12 @@ fun main(): Int {
             "boxed Unit+struct / nested tuple payload 都应通过 descriptor-backed typed alloc 发布 boxed variant path\n{ir}"
         );
         assert!(
-            ir.contains("scoop.mir.value_box$sample_Outer")
+            ir.lines().any(|line| {
+                line.starts_with("%scoop.refactor.MirValueBox__h")
+                    && line
+                        .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Outer }")
+            }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
+                && ir.contains("@__scoop_priv0__enum_boxed_payload_type_desc__h")
                 && ir.contains("rt_alloc_mir_value_box")
                 && ir.contains("mir_value_box_payload_gep"),
             "enum -> Any 擦除应继续走 descriptor-backed value box carrier，而不是锁死当前 value-box symbol\n{ir}"
@@ -1654,12 +1671,24 @@ fun main(): Int {
             "closure env lowering should consume a boxed composite transport descriptor with GC slot metadata\n{closure_env_descriptor}"
         );
         assert!(
+            closure_env_descriptor.starts_with("@__scoop_priv0__composite_transport_desc__h"),
+            "closure env composite descriptor 应改走 stable private namespace\n{closure_env_descriptor}"
+        );
+        assert!(
             ir.contains("rt_alloc_pass_mir_closure_env"),
             "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
         );
         assert!(
             ir.contains("rt_alloc_pass_mir_capture_box"),
             "mutable struct capture should allocate a typed capture box descriptor-backed object\n{ir}"
+        );
+        assert!(
+            ir.contains("@__scoop_priv0__mir_capture_box_type_desc__h")
+                && ir.lines().any(|line| {
+                    line.starts_with("%scoop.refactor.MirCaptureBox__h")
+                        && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader")
+                }),
+            "capture box private type/descriptor naming 应改走 stable type key，而不是 current TypeId/display 文本\n{ir}"
         );
         assert!(
             ir.contains("pass_mir_closure_env_field_gep")
@@ -1708,6 +1737,10 @@ fun main(): Int {
         assert!(
             payload_descriptor.contains("__gc_slots"),
             "composite resume payload should pass a descriptor with GC slot metadata\n{payload_descriptor}"
+        );
+        assert!(
+            payload_descriptor.starts_with("@__scoop_priv0__composite_transport_desc__h"),
+            "cross-thread resume payload descriptor 应改走 stable private namespace\n{payload_descriptor}"
         );
         assert!(
             ir.contains("%refactor_thread_resume_payload")
@@ -1969,16 +2002,17 @@ fun main() {
 
         assert!(
             ir.lines().any(|line| {
-                line.contains("@__scoop_vtable__fixtures_build_Base = internal constant [1 x ptr]")
+                line.contains("@__scoop_priv0__class_vtable__h")
+                    && line.contains("internal constant [1 x ptr]")
                     && ir_line_mentions_symbol(line, base_symbol)
             }),
             "Base vtable target 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条声明路径重新算出来的名字:\n{ir}"
         );
         assert!(
             ir.lines().any(|line| {
-                line.contains(
-                    "@__scoop_vtable__fixtures_build_DerivedA = internal constant [1 x ptr]",
-                ) && ir_line_mentions_symbol(line, derived_symbol)
+                line.contains("@__scoop_priv0__class_vtable__h")
+                    && line.contains("internal constant [1 x ptr]")
+                    && ir_line_mentions_symbol(line, derived_symbol)
             }),
             "DerivedA vtable target 应引用与函数定义相同的 authoritative ABI symbol，而不是另一条声明路径重新算出来的名字:\n{ir}"
         );

@@ -9,12 +9,28 @@ use inkwell::types::StructType;
 use inkwell::values::GlobalValue;
 
 use crate::hir;
+use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_record};
 use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
-use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
+use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec};
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn enum_boxed_payload_key(
+        &self,
+        enum_ty: TypeId,
+        variant_name: &str,
+        context: &str,
+    ) -> Result<CanonicalTextKey, LlvmEmitError> {
+        Ok(CanonicalTextKey::new(canonical_record(
+            "enum_boxed_payload",
+            [
+                self.canonical_type_key_text_for_codegen(enum_ty, context)?,
+                variant_name.to_string(),
+            ],
+        )))
+    }
+
     pub(super) fn codegen_type_store_for_type_id(&self, ty: TypeId) -> Option<&TypeStore> {
         if (ty.as_u32() as usize) < self.types.len() {
             return Some(self.types);
@@ -617,10 +633,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class: &hir::ClassInit,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "scoop.runtime.ClassPayload__{}",
-            sanitize_llvm_ident(&class.fqn)
-        );
+        let stable_key = self.stable_nominal_type_key(&class.fqn, "class_layout");
+        let name =
+            PrivateSymbolMangler.type_name("ClassPayload", "class_payload_type", &stable_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             if existing.is_opaque() {
                 let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> =
@@ -659,10 +674,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class: &hir::ClassInit,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!(
-            "scoop.runtime.ClassObject__{}",
-            sanitize_llvm_ident(&class.fqn)
-        );
+        let stable_key = self.stable_nominal_type_key(&class.fqn, "class_layout");
+        let name = PrivateSymbolMangler.type_name("ClassObject", "class_object_type", &stable_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             if existing.is_opaque() {
                 let header_ty = self.llvm_gc_object_header_type();
@@ -807,14 +820,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload type")?;
-
         // 说明：boxed payload 在运行期是一个独立的聚合对象；当前阶段用一个具名 LLVM struct 承载其字段布局，
         // 以便 ctor/binder 双方对齐类型（避免 bitcast 到不一致的匿名 struct）。
-        let name = format!(
-            "scoop_boxed_payload_{}_{}",
-            sanitize_llvm_ident(&enum_fqn),
-            sanitize_llvm_ident(&variant.name)
+        let key = self.enum_boxed_payload_key(
+            enum_ty,
+            &variant.name,
+            "enum boxed payload LLVM struct type",
+        )?;
+        let name = PrivateSymbolMangler.type_name(
+            "EnumBoxedPayloadFields",
+            "enum_boxed_payload_struct_type",
+            &key,
         );
 
         if let Some(existing) = self.context.get_struct_type(&name) {
@@ -836,12 +852,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload object type")?;
-
-        let name = format!(
-            "scoop.runtime.EnumBoxedPayload__{}__{}",
-            sanitize_llvm_ident(&enum_fqn),
-            sanitize_llvm_ident(&variant.name)
+        let key = self.enum_boxed_payload_key(
+            enum_ty,
+            &variant.name,
+            "enum boxed payload LLVM object type",
+        )?;
+        let name = PrivateSymbolMangler.type_name(
+            "EnumBoxedPayloadObject",
+            "enum_boxed_payload_object_type",
+            &key,
         );
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
@@ -863,11 +882,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
         let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload type desc")?;
 
-        let global_name = format!(
-            "__scoop_type_desc_runtime__enum_boxed_payload__{}__{}",
-            sanitize_llvm_ident(&enum_fqn),
-            sanitize_llvm_ident(&variant.name)
-        );
+        let key = self.enum_boxed_payload_key(
+            enum_ty,
+            &variant.name,
+            "enum boxed payload type descriptor",
+        )?;
+        let global_name = PrivateSymbolMangler.mangle("enum_boxed_payload_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }

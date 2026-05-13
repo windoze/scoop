@@ -60,9 +60,9 @@ use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
-    AbiMangler, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
-    StableConeKey, StableDefKey, StableDefNamespace, canonical_callable_signature_key,
-    stable_rtti_type_id,
+    AbiMangler, CanonicalTextKey, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey,
+    StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
+    canonical_callable_signature_key, canonical_record, canonical_type_text, stable_rtti_type_id,
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -1919,6 +1919,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn stable_top_level_var_key(&self, var_fqn: &str) -> StableDefKey {
         self.stable_def_key_for_current_cone(StableDefNamespace::Value, var_fqn, "top_level_var")
+    }
+
+    fn stable_nominal_type_key(&self, type_fqn: &str, declaration_kind: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(StableDefNamespace::Type, type_fqn, declaration_kind)
+    }
+
+    fn canonical_type_key_text_for_codegen(
+        &self,
+        ty: TypeId,
+        context: &str,
+    ) -> Result<String, LlvmEmitError> {
+        let types =
+            self.codegen_type_store_for_type_id(ty)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!("{context} 缺少 codegen type store"),
+                })?;
+        canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|err| {
+            LlvmEmitError::Frontend {
+                message: format!("{context} 无法构造 stable canonical type key: {err}"),
+            }
+        })
     }
 
     fn stable_def_key_for_callable_signature(
@@ -8756,7 +8777,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value: BasicValueEnum<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let payload_ty = self.llvm_basic_type_of(at, CgTy::Enum(enum_ty))?;
-        let object_ty = self.llvm_boxed_enum_type(enum_ty, payload_ty);
+        let object_ty = self.llvm_boxed_enum_type(enum_ty, payload_ty)?;
         let object_size = self.target_data.get_store_size(&object_ty);
         let size_v = self.context.i64_type().const_int(object_size, false);
         let desc = self.get_or_create_boxed_enum_type_desc_global(at, enum_ty, object_ty)?;
@@ -8801,18 +8822,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         enum_ty: TypeId,
         payload_ty: BasicTypeEnum<'ctx>,
-    ) -> StructType<'ctx> {
-        let name = format!(
-            "scoop.runtime.BoxedEnum__{}",
-            sanitize_llvm_ident(&self.types.display(enum_ty).to_string()),
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum LLVM type")?,
         );
+        let name = PrivateSymbolMangler.type_name("BoxedEnum", "boxed_enum_type", &key);
         if let Some(existing) = self.context.get_struct_type(&name) {
-            return existing;
+            return Ok(existing);
         }
         let ty = self.context.opaque_struct_type(&name);
         let header_ty = self.llvm_gc_object_header_type();
         ty.set_body(&[header_ty.into(), payload_ty], false);
-        ty
+        Ok(ty)
     }
 
     fn get_or_create_boxed_enum_type_desc_global(
@@ -8821,8 +8842,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         object_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let name = sanitize_llvm_ident(&self.types.display(enum_ty).to_string());
-        let global_name = format!("__scoop_type_desc_runtime__boxed_enum__{name}");
+        let type_store = self
+            .codegen_type_store_for_type_id(enum_ty)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: "boxed enum type descriptor 缺少 codegen type store".to_string(),
+            })?;
+        let key = CanonicalTextKey::new(
+            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum type descriptor")?,
+        );
+        let global_name = PrivateSymbolMangler.mangle("boxed_enum_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
@@ -8833,7 +8861,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &format!("scoop.runtime.BoxedEnum<{}>", self.types.display(enum_ty)),
+            canonical_name: &format!("scoop.runtime.BoxedEnum<{}>", type_store.display(enum_ty)),
             obj_ty: object_ty,
             trace_start_offset_bytes,
             parent: None,

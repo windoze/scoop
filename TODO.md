@@ -1742,7 +1742,7 @@
     - 对应 `PLAN.md` P2 / P7 与 `STABLE_ID.md` §5.1、§7.3、§7.4、§8.5：remaining object/top-level init compiler-private function/global 已全部收口到统一 private mangler，且继续保持 internal/private linkage，不再依赖 legacy FQN 拼接进入全局命名空间。
     - 对应 `STABLE_ID.md` §10：object/top-level init 相关 LLVM/build/runtime 回归现在锁定的是 private role family、调用关系、descriptor/global 角色与 linkage 语义，而不是 `__scoop_object_init__...` / `__scoop_top_level_var__...` 旧 textual spelling；`P7-T01R` 现在可以在此基线上继续做最终签收。
 
-### [TODO] P7-T01B：收口剩余 sanitize/type-display/TypeId 驱动的 private LLVM type/global 命名
+### [DONE] P7-T01B：收口剩余 sanitize/type-display/TypeId 驱动的 private LLVM type/global 命名
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6
@@ -1798,7 +1798,37 @@
   - remaining runtime metadata / type-desc / transport private LLVM type/global naming 不再由 sanitize/type-display/raw `TypeId` 控制；之后 `P7-T01R` 才能对 `PLAN.md` §6 第 1/7 条做最终签收。
 - 依赖：P7-T01A
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/ty.rs`
+    - `crates/scoopc/src/llvm/codegen/composite_transport.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+    - `tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop`
+  - 核心决策：
+    - 在 `stable_id.rs` 新增 `CanonicalTextKey`，并为 `PrivateSymbolMangler` 增加 `hash_suffix` / `type_name`，让 production code 可以直接从 authoritative canonical key 生成 hashed private LLVM type/global 名称，而不再依赖 `sanitize_llvm_ident()` 或 pretty text 拼接唯一性。
+    - 把 boxed-enum runtime metadata、class/object type desc、itable/vtable、MIR capture-box/value-box、enum boxed payload、composite transport descriptor 这批 sibling private family 成组迁到 stable semantic key + `PrivateSymbolMangler`：
+      - nominal/runtime metadata 路径统一走 `StableDefKey`；
+      - type-driven metadata 路径统一走 canonical type text；
+      - composite transport descriptor 改为用 transport contract 语义字段构造 canonical record，移除 `descriptor.source_ty.as_u32()` 与 display/sanitize 对唯一性的控制。
+    - 扩充 LLVM/pipeline/source inventory 与 fixture 断言，改为锁定 `__scoop_priv0__*` private namespace、hashed type family、descriptor/global 角色与结构语义，防止 legacy sanitize/type-display/TypeId 命名回流到行为测试。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composite_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_enum_payload_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` §6 第 1/7 条：remaining runtime metadata、transport descriptor 与 private LLVM type/global naming 已统一走 authoritative stable private naming，`sanitize_llvm_ident()` / `TypeStore::display()` / raw `TypeId` 不再承担 private identity 主体。
+    - 对应 `STABLE_ID.md` §5.1、§7.3、§8.5、§10：private LLVM metadata/type family 现已按 semantic key + hashed private namespace 发布，同时继续保持原有 RTTI/GC/layout/itable/vtable/transport ABI 语义不变，并有常驻 source inventory / IR 回归防止旧 naming source 回流。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 

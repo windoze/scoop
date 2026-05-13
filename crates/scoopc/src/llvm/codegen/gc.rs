@@ -1370,10 +1370,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class_fqn: &str,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let global_name = format!(
-            "__scoop_type_desc_class__{}",
-            sanitize_llvm_ident(class_fqn)
-        );
+        let stable_key = self.stable_nominal_type_key(class_fqn, "class_type_desc");
+        let global_name = PrivateSymbolMangler.mangle("class_type_desc", &stable_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
@@ -1409,10 +1407,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn llvm_object_singleton_type(&self, object_fqn: &str) -> StructType<'ctx> {
-        let name = format!(
-            "scoop.runtime.ObjectSingleton__{}",
-            sanitize_llvm_ident(object_fqn)
-        );
+        let stable_key = self.stable_nominal_type_key(object_fqn, "object_singleton_type");
+        let name =
+            PrivateSymbolMangler.type_name("ObjectSingleton", "object_singleton_type", &stable_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return existing;
         }
@@ -1428,10 +1425,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         object_fqn: &str,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let global_name = format!(
-            "__scoop_type_desc_object__{}",
-            sanitize_llvm_ident(object_fqn)
-        );
+        let stable_key = self.stable_nominal_type_key(object_fqn, "object_singleton_type_desc");
+        let global_name = PrivateSymbolMangler.mangle("object_type_desc", &stable_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
@@ -1468,20 +1463,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        self.get_or_create_itable_global_from_entries(at, class_fqn, entries)
+        let owner_key = self.stable_nominal_type_key(class_fqn, "itable_owner");
+        self.get_or_create_itable_global_from_entries(at, &owner_key, entries)
     }
 
-    pub(super) fn get_or_create_itable_global_from_entries(
+    pub(super) fn get_or_create_itable_global_from_entries<K>(
         &mut self,
         at: crate::span::Span,
-        owner_key: &str,
+        owner_key: &K,
         entries: &[crate::itable::ClassItableEntry],
-    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError>
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
         if entries.is_empty() {
             return Ok(None);
         }
 
-        let global_name = format!("__scoop_itable__{}", sanitize_llvm_ident(owner_key));
+        let global_name = PrivateSymbolMangler.mangle("itable", owner_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(Some(existing));
         }
@@ -1512,12 +1511,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         for entry in entries {
             // 1) 生成 method table：`i8*[]`。
-            let methods_gv_name = format!(
-                "__scoop_itable_methods__{}__{:016x}__{:016x}",
-                sanitize_llvm_ident(owner_key),
-                entry.interface_id,
-                entry.interface_type_id,
-            );
+            let methods_key = CanonicalTextKey::new(canonical_record(
+                "itable_methods",
+                [
+                    owner_key.canonical_text(),
+                    format!("{:016x}", entry.interface_id),
+                    format!("{:016x}", entry.interface_type_id),
+                ],
+            ));
+            let methods_gv_name = PrivateSymbolMangler.mangle("itable_methods", &methods_key);
 
             let methods_gv = if let Some(existing) = self.module.get_global(&methods_gv_name) {
                 existing
@@ -1570,12 +1572,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let match_ids_ptr_i8 = if entry.runtime_match_type_ids.is_empty() {
                 i8_ptr_ty.const_null().into()
             } else {
-                let match_gv_name = format!(
-                    "__scoop_itable_match_ids__{}__{:016x}__{:016x}",
-                    sanitize_llvm_ident(owner_key),
-                    entry.interface_id,
-                    entry.interface_type_id,
-                );
+                let match_key = CanonicalTextKey::new(canonical_record(
+                    "itable_match_ids",
+                    [
+                        owner_key.canonical_text(),
+                        format!("{:016x}", entry.interface_id),
+                        format!("{:016x}", entry.interface_type_id),
+                    ],
+                ));
+                let match_gv_name = PrivateSymbolMangler.mangle("itable_match_ids", &match_key);
                 let match_gv = if let Some(existing) = self.module.get_global(&match_gv_name) {
                     existing
                 } else {
@@ -1639,7 +1644,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let global_name = format!("__scoop_vtable__{}", sanitize_llvm_ident(class_fqn));
+        let stable_key = self.stable_nominal_type_key(class_fqn, "class_vtable");
+        let global_name = PrivateSymbolMangler.mangle("class_vtable", &stable_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(Some(existing));
         }

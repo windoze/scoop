@@ -16,9 +16,10 @@ use crate::mir::{
     ValueTransportMetadata,
 };
 use crate::span::Span;
+use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_list, canonical_record};
 use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind, is_builtin_scalar_nominal_value_type};
 
-use super::{MainCodegen, sanitize_llvm_ident};
+use super::MainCodegen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompositeTransportStorageKind {
@@ -49,6 +50,7 @@ impl CompositeTransportStorageKind {
 struct CompositeTransportLayoutDescriptor {
     source_ty: TypeId,
     source_name: String,
+    stable_name_key: String,
     kind: MirTransportKind,
     storage_kind: CompositeTransportStorageKind,
     size_bytes: u64,
@@ -85,6 +87,22 @@ impl CompositeTransportLayoutDescriptor {
             );
         }
         Ok(())
+    }
+}
+
+fn composite_transport_kind_key(kind: MirTransportKind) -> &'static str {
+    match kind {
+        MirTransportKind::Scalar => "scalar",
+        MirTransportKind::Reference => "reference",
+        MirTransportKind::Tuple => "tuple",
+        MirTransportKind::Struct => "struct",
+        MirTransportKind::EnumPayload => "enum_payload",
+        MirTransportKind::ClosureEnv => "closure_env",
+        MirTransportKind::CaptureBox => "capture_box",
+        MirTransportKind::ArrayElement => "array_element",
+        MirTransportKind::EffectPayload => "effect_payload",
+        MirTransportKind::FunctionValue => "function_value",
+        MirTransportKind::Unknown => "unknown",
     }
 }
 
@@ -412,9 +430,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             size_bytes = super::align_to(size_bytes, align_bytes);
         }
 
+        let gc_slot_offset_parts = gc_slot_offsets
+            .iter()
+            .map(u64::to_string)
+            .collect::<Vec<_>>();
+        let stable_name_key = canonical_record(
+            "composite_transport_desc",
+            [
+                composite_transport_storage_kind(metadata)
+                    .as_str()
+                    .to_string(),
+                composite_transport_kind_key(metadata.kind).to_string(),
+                self.canonical_type_key_text_for_codegen(
+                    source_ty,
+                    "composite transport descriptor source type",
+                )?,
+                size_bytes.to_string(),
+                align_bytes.to_string(),
+                canonical_list(&gc_slot_offset_parts),
+                trace_hook.to_string(),
+                metadata.requirements.copy.to_string(),
+                metadata.requirements.drop.to_string(),
+            ],
+        );
+
         Ok(CompositeTransportLayoutDescriptor {
             source_ty,
             source_name: mir_types.display(metadata.source_ty).to_string(),
+            stable_name_key,
             kind: metadata.kind,
             storage_kind: composite_transport_storage_kind(metadata),
             size_bytes,
@@ -714,12 +757,9 @@ fn composite_transport_gap_id(metadata: &ValueTransportMetadata) -> &'static str
 fn composite_transport_descriptor_global_name(
     descriptor: &CompositeTransportLayoutDescriptor,
 ) -> String {
-    format!(
-        "__scoop_composite_transport_desc__{}__{}__{}__{}",
-        descriptor.storage_kind.as_str(),
-        sanitize_llvm_ident(&descriptor.source_name),
-        sanitize_llvm_ident(&format!("{:?}", descriptor.kind)),
-        descriptor.source_ty.as_u32()
+    PrivateSymbolMangler.mangle(
+        "composite_transport_desc",
+        &CanonicalTextKey::new(descriptor.stable_name_key.clone()),
     )
 }
 
@@ -801,6 +841,7 @@ mod tests {
         let descriptor = CompositeTransportLayoutDescriptor {
             source_ty,
             source_name: "sample.Traceable".to_string(),
+            stable_name_key: "test".to_string(),
             kind: MirTransportKind::Struct,
             storage_kind: CompositeTransportStorageKind::Erased,
             size_bytes: 16,

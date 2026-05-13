@@ -46,6 +46,22 @@ pub trait StableCanonicalKey {
     fn canonical_text(&self) -> String;
 }
 
+/// Ad-hoc stable key wrapper for call sites that already computed canonical text.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CanonicalTextKey(String);
+
+impl CanonicalTextKey {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into())
+    }
+}
+
+impl StableCanonicalKey for CanonicalTextKey {
+    fn canonical_text(&self) -> String {
+        self.0.clone()
+    }
+}
+
 /// Stable keys that can also contribute a human-readable symbol prefix.
 pub trait StableSymbolKey: StableCanonicalKey {
     fn readable_path(&self) -> &str;
@@ -628,17 +644,42 @@ impl AbiMangler {
 pub struct PrivateSymbolMangler;
 
 impl PrivateSymbolMangler {
-    pub fn mangle<K>(self, role: &str, key: &K) -> String
+    fn canonical_private_text<K>(role: &str, key: &K) -> (String, String)
     where
         K: StableCanonicalKey + ?Sized,
     {
         let role = sanitize_symbol_component(role);
         let canonical = canonical_record("private", [role.clone(), key.canonical_text()]);
+        (role, canonical)
+    }
+
+    pub fn mangle<K>(self, role: &str, key: &K) -> String
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        let (role, canonical) = Self::canonical_private_text(role, key);
         format!(
             "__scoop_priv0__{}__h{}",
             role,
             stable_hash128_hex(StableHashScope::PrivateV0, &canonical)
         )
+    }
+
+    pub fn hash_suffix<K>(self, role: &str, key: &K) -> String
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        let (_, canonical) = Self::canonical_private_text(role, key);
+        stable_hash128_hex(StableHashScope::PrivateV0, &canonical)
+    }
+
+    pub fn type_name<K>(self, family: &str, role: &str, key: &K) -> String
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        let family = sanitize_symbol_component(family);
+        let hash = self.hash_suffix(role, key);
+        format!("scoop.refactor.{family}__h{hash}")
     }
 }
 
