@@ -74,6 +74,7 @@ For the first incomplete task in `TODO.md`:
 - **Quality:** Ensure that there is no warning during compilation and linting, e.g. `cargo clippy --all-targets -- -D warnings`.
 - **Completeness:** Make sure that all features are implemented as planned. You must either **fully** complete the current task, or, if a concrete blocker makes that impossible, add the minimum prerequisite task(s) needed. Do **not** recursively decompose tasks for convenience.
 - **Class-Wide Fixes Over Narrow Patches:** When fixing a defect or filling in a missing feature, do **not** artificially constrain yourself to the smallest local patch if the same root cause clearly affects a broader class of cases. Fix the whole identified class of problems, update the relevant tests/fixtures accordingly, and avoid knowingly leaving sibling cases broken just because only one instance was reported first.
+- **Patch Application Discipline:** When editing code, do **not** generate one large patch spanning many files or unrelated hunks. Prefer multiple small, targeted patches applied incrementally, and re-read the affected file/section between patches when needed. If a large patch risks context mismatch or fails to apply, split it into smaller patches before continuing.
 - **Modularity:** Break long source files into smaller, focused modules to improve readability and maintainability.
 - **Tests:** If test files grow too large, split them into separate test modules or files.
 - **Documentation:**
