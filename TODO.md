@@ -1526,7 +1526,7 @@
     - 对应 `PLAN.md` P6：RTTI / interface id / type id 已统一经 shared helper 生成；closure env 的 canonical name / `type_id` 已从 `ClosureId` 迁出；健康 `.cone` / JSON surface 继续停留在“防回归而非重写”的边界内。
     - 对应 `STABLE_ID.md` §3.3 / §8.4：`dump-rtti` closure env 现在显式走 `StableClosureKey -> canonical name -> shared RTTI hash helper`，不再把 dense id 当作 RTTI hash 输入；interface / runtime-match 同类 surface 也已统一到 shared helper，而不是各模块自带 `stable_hash64` 调用。
 
-### [TODO] P6-T01R：Review RTTI 与 JSON 收口，确认剩余外部 surface 已只需最终验收
+### [DONE] P6-T01R：Review RTTI 与 JSON 收口，确认剩余外部 surface 已只需最终验收
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P6
@@ -1542,7 +1542,25 @@
   - 可以明确写出：除最终全量审计外，stable-id 方案的技术迁移面已经闭合。
 - 依赖：P6-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `TODO.md`
+  - 核心决策：
+    - 本次 review 未发现需要回插到 `P6-T01R` 之前的新前置任务；最近一次提交 `[P6-T01] Unify RTTI helpers and closure env identity` 的正文也未声明仍待处理的直接后续项，因此 `P6-T01R` 可以按既定范围闭合。
+    - closure env 的 RTTI identity 路径已完成从 `ClosureId` 脱钩：`crates/scoopc/src/rtti/type_desc.rs` 现通过 `collect_stable_closure_envs(...)` 恢复 `StableClosureKey`，并以 `StableClosureKey::env_canonical_name()` + `stable_rtti_type_id(...)` 生成 `dump-rtti` 的 `name/type_id`；相关精确搜索未再发现 `rtti` / `itable` / `llvm/codegen/gc.rs` / `llvm/codegen/mir_body.rs` 中残留旧 `ClosureId` 或 `scoop.lambda_env$` 生产路径。
+    - RTTI / interface / runtime-match id 已统一收口到 shared helper：`rtti/mod.rs`、`rtti/type_desc.rs`、`itable.rs`、`llvm/codegen/gc.rs`、`llvm/codegen/mir_body.rs` 与 `llvm/codegen/mod.rs` 中的相关入口均复用 `stable_rtti_type_id(...)` / `stable_rtti_interface_id(...)`；`StableHashScope::RttiV0` 的直接使用已收缩到 `stable_id.rs` 内部 helper 封装与其单测。
+    - `.cone` / JSON 健康基线继续停留在“防回归而非重写”的边界内；本轮明确证明当前无需再改的 JSON / cache surface 为：`api.scoopir`、`PRE_SPECIALIZE.json`、`SYMBOL_VISIBILITY.json`、`ANNOTATION_CLASSES.json`。除最终 P7 全量审计外，这些 surface 不再需要单独的 stable-id 结构改写任务。
+  - 验证结果：
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc dump_rtti -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 精确搜索摘要：
+      - `ClosureId`：`crates/scoopc/src/rtti`、`crates/scoopc/src/itable.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` 中均为 0 命中；`crates/scoopc/src/llvm/codegen/mod.rs` 仍保留 2 处 `ClosureId` 作为 codegen-time lexical-path cache key，不属于 RTTI / JSON 外部 surface。
+      - `scoop\.lambda_env\$`：生产代码中无命中；仅 `crates/scoopc/src/rtti/type_desc.rs` 保留 1 处负向测试断言，用于防止旧 closure env spelling 回流。
+      - `stable_hash64\(`：RTTI 路径上不再有模块自带分叉调用；仓库内 `StableHashScope::RttiV0` 只剩 `crates/scoopc/src/stable_id.rs` 中的 shared helper 与单测命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P6 review 目标：已复核 closure env RTTI identity、interface/runtime-match id shared helper、以及 `.cone` / JSON 健康基线三项要求，确认除 P7 最终全量审计外，不再存在新的技术迁移面。
+    - 对应 `STABLE_ID.md` §3.1 / §3.3 / §10：closure env `name/type_id` 已与 `ClosureId` 脱钩；RTTI / interface / runtime-match id 统一由 shared helper 产生；四个健康 JSON / cache surface 继续保持语义键与 path-free 基线，无需额外 schema churn。
 
 ## P7：全量审计、fixture refresh 与无功能漂移验收
 

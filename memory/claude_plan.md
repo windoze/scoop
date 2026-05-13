@@ -1,64 +1,67 @@
-## 当前执行计划
+## 本次执行计划
 
-说明：出于安全与协作边界，这里记录可执行计划、关键判断依据与进度，不记录不可验证的私有推理细节。
+说明：这里记录可公开的任务执行计划与进度摘要，不包含逐字内部推理。
 
-1. 先读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务；该任务是本次唯一执行目标。
-2. 检查最近一次提交信息，判断是否存在与该任务直接相关且明确未完成的问题；若存在，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置依赖。
-3. 阅读当前任务在 `TODO.md` 中的完整要求、依赖、验证标准，再只针对该任务所涉及的代码与文档做最小范围检查。
-4. 实现任务；若遇到阻塞当前任务且不能绕过的规格缺口或缺陷，则在 `TODO.md` 中增加最小必要前置任务，保持当前任务未完成，并停止继续推进后续任务。
-5. 运行与该任务相关的验证；至少覆盖任务要求中的指定验证，并补充必要的回归验证。若本次修改触及通用构建/质量门槛，则执行相应检查。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
-7. 若任务完成：在 `TODO.md` 中将该任务标题改为 `[DONE]`，补全完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
-8. 按要求提交本次变更，提交信息以任务号为前缀，然后停止，不继续下一个任务。
-
-## 当前任务
-
-- 已确认第一个未完成任务：`P6-T01：统一 RTTI / interface hash helper，并修复 closure env identity 来源`。
-- 最近一次提交：`[P5-T02R] Review dump and fixture migration`。
-- 判断：最近提交没有明确提到与 `P6-T01` 直接相关且仍未完成的问题，因此不额外插入前置任务，先按 `P6-T01` 原任务执行。
-
-## 针对 P6-T01 的执行计划
-
-1. 阅读 `TODO.md` 中 `P6-T01` 条目对应的要求，并补充读取 `PLAN.md` / `STABLE_ID.md` 的 P6 / RTTI / closure env 相关段落，确认验收边界。
-2. 定位并阅读以下实现与测试入口：
-   - `crates/scoopc/src/rtti/type_desc.rs`
-   - `crates/scoopc/src/rtti/mod.rs`
-   - `crates/scoopc/src/itable.rs`
-   - 必要时补充 `stable_id`、closure stable key、`dump_rtti_*` 相关测试与调用链。
-3. 确认 closure env 当前 canonical name / `type_id` 是否仍由 `ClosureId` 或 `scoop.lambda_env$` 族名驱动；同时梳理 RTTI / interface hash helper 是否仍存在分叉输入前缀或局部实现。
-4. 以最小但完整的改动完成：
-   - RTTI / interface / type identity 收口到共享 stable-id helper；
-   - closure env canonical name 改为基于 `StableClosureKey` 的 authoritative 来源；
-   - 保持 `.cone` / JSON 健康 schema 仅做审计，不做结构重写。
-5. 补齐或更新定向测试，覆盖：
-   - `dump-rtti` / closure env identity
-   - RTTI / interface hash helper 统一入口
-   - 必要的 source inventory / grep 防回流
-6. 运行任务要求的验证，至少包括 `cargo test -p scoopc`、相关 RTTI 定向测试，以及 `clippy -D warnings`。
-7. 若任务完成：
-   - 更新 `TODO.md`：将 `P6-T01` 标题改为 `[DONE]` 并填写完成记录；
-   - 如 phase 计划未变，不改 `PLAN.md`；
-   - 提交本次改动并停止。
-8. 若发现无法按现有任务直接完成的真实阻塞：
-   - 在 `TODO.md` 中插入最小前置任务；
-   - 记录 blocker；
-   - 保持 `P6-T01` 未完成并提交后停止。
+1. 读取 `TODO.md`，严格按标题是否带有 `[DONE]` 判断完成状态，定位第一个未完成任务。
+2. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；若是，则将其视为当前任务的一部分或其前置条件。
+3. 阅读与当前任务直接相关的代码、测试、规范与任务说明，确认依赖、约束、验收标准，以及是否存在阻塞问题。
+4. 若任务可直接完成：实施代码修改，补充或更新测试，并进行必要验证（至少覆盖任务要求与相关回归）。
+5. 若发现阻塞当前任务的真实缺陷、缺失特性或规范不匹配：
+   - 不做规避性实现；
+   - 在 `TODO.md` 中插入最小必要前置任务并调整顺序/依赖；
+   - 仅在阶段计划确实变化时更新 `PLAN.md`；
+   - 提交这些变更后停止。
+6. 任务完成后：
+   - 更新 `memory/claude_plan.md` 记录关键进度与最终结果；
+   - 在 `TODO.md` 中把该任务标题标记为 `[DONE]`，并补充完成记录；
+   - 若需要，更新 `PLAN.md`；
+   - 运行格式化、测试与 `cargo clippy --all-targets -- -D warnings` 等相关验证；
+   - 按要求创建一次 git 提交；
+   - 停止，不继续下一个任务。
 
 ## 进度记录
 
-- 已创建计划文件。
-- 已读取 `TODO.md` 并识别第一个未完成任务为 `P6-T01`。
-- 已检查最近一次提交信息；未发现需要先插入的直接相关 unfinished issue。
-- 已读取 `PLAN.md` / `STABLE_ID.md` 的相关段落，并确认 `P6-T01` 的边界：closure env 必须改为 `StableClosureKey -> canonical name -> shared RTTI hash helper`，RTTI / interface/runtime-match id 需要统一 helper。
-- 已完成中的关键实现：
-  - 抽出共享 HIR closure lexical-path helper，避免 LLVM 与 RTTI 各自维护一套 `$lambdaN` 路径恢复逻辑。
-  - `dump-rtti` closure env 名字与 `type_id` 已切到 `StableClosureKey::env_canonical_name()` + shared RTTI helper。
-  - RTTI / interface/runtime-match 相关 `stable_hash64(RttiV0, ...)` 生产代码调用点，已开始统一替换为 shared helper（覆盖 `rtti` / `itable` / LLVM sibling case）。
-- 已完成验证：
-  - `cargo fmt`
+- 已创建本计划文件。
+- 已读取 `TODO.md`，当前首个未完成任务为 `P6-T01R：Review RTTI 与 JSON 收口，确认剩余外部 surface 已只需最终验收`。
+- 已查看最近一次提交摘要：`[P6-T01] Unify RTTI helpers and closure env identity`，与当前 review 任务直接相关；下一步需要检查提交正文与当前工作树，确认是否存在必须并入本任务的未完成事项。
+
+## 当前任务细化步骤（P6-T01R）
+
+1. 读取 `P6-T01R`、`PLAN.md` P6、`STABLE_ID.md` 中 RTTI / JSON / shared hash helper 相关要求，整理本次 review 的验收清单。
+2. 检查最近一次提交正文与当前工作树状态，确认是否存在直接相关但未完成的问题；若存在且会阻塞 `P6-T01R`，按要求先转化为前置任务或直接修复。
+3. 代码复核重点：
+   - `closure env canonical name / type_id` 是否完全脱离 `ClosureId`；
+   - RTTI / interface id 是否统一复用 shared helper；
+   - `.cone` / JSON 基线是否仅做防回归、没有无谓结构 churn；
+   - 是否还残留 RTTI identity path 上的旧 helper / 旧字符串来源。
+4. 运行验证：
+   - `cargo test -p scoopc dump_rtti -- --nocapture`
+   - `cargo test -p scoopc path_free -- --nocapture`
+   - `cargo test -p scoopc`
+   - `cargo clippy -p scoopc --all-targets -- -D warnings`
+   - 必要的精确搜索（如 `ClosureId`、`scoop.lambda_env$`、`stable_hash64`、shared helper 使用点）
+5. 若 review 发现真实缺陷：优先修复；若无法在本次内闭合，则在 `TODO.md` 插入最小前置任务并停止。
+6. 若 review 通过：
+   - 在 `TODO.md` 将 `P6-T01R` 标记为 `[DONE]` 并补全完成记录，明确哪些 JSON / cache surface 已证明无需再改；
+   - 仅在阶段计划变化时更新 `PLAN.md`；
+   - 更新本计划文件的结果摘要；
+   - 提交本次变更并停止。
+
+## 当前结果摘要
+
+- 最近一次提交正文未声明与 `P6-T01R` 直接相关的未完成问题；当前工作树在执行前仅有本计划文件变更，无外部阻塞项。
+- 代码复核结果：
+  - `crates/scoopc/src/rtti/type_desc.rs` 的 closure env RTTI 已通过 `StableClosureKey::env_canonical_name()` + `stable_rtti_type_id(...)` 生成；未发现继续把 `ClosureId` 或 `scoop.lambda_env$<id>` 用作 RTTI identity 输入的生产代码路径。
+  - `rtti/mod.rs`、`rtti/type_desc.rs`、`itable.rs`、`llvm/codegen/gc.rs`、`llvm/codegen/mir_body.rs`、`llvm/codegen/mod.rs` 中的 RTTI / interface / runtime-match id 入口均已收口到 `stable_rtti_type_id(...)` / `stable_rtti_interface_id(...)`。
+  - `.cone` / JSON 健康基线继续保持“防回归而非重写”：`api.scoopir`、`PRE_SPECIALIZE.json`、`SYMBOL_VISIBILITY.json`、`ANNOTATION_CLASSES.json` 无需在 P6 再做结构改写。
+- 验证已完成并通过：
   - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc dump_rtti -- --nocapture`
   - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
   - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
   - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
-  - 精确搜索：`fn stable_hash64` 仅剩 `crates/scoopc/src/stable_id.rs`；`ClosureId|scoop.lambda_env$` 在 `crates/scoopc/src/rtti`、`itable.rs`、`llvm/codegen/gc.rs`、`llvm/codegen/mir_body.rs` 中为 0 命中。
-- 待执行：更新 `TODO.md` 的完成记录，复查工作区后提交本次任务并停止。
+- 精确搜索摘要：
+  - `ClosureId` 在 `crates/scoopc/src/rtti`、`crates/scoopc/src/itable.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` 中均为 0 命中。
+  - `scoop.lambda_env$` 在生产代码中为 0 命中；仅 `rtti/type_desc.rs` 中保留 1 处负向测试断言。
+  - `StableHashScope::RttiV0` 只剩 `crates/scoopc/src/stable_id.rs` 中的 shared helper 与单测命中。
+- 已更新 `TODO.md`：`P6-T01R` 已标记为 `[DONE]`，并写入 review 结论与验证记录。
+- `PLAN.md` 无需更新。下一步仅剩提交本次变更并停止。
