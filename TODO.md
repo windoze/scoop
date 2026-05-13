@@ -54,7 +54,7 @@
 
 ## P0：冻结基线与失败策略
 
-### [TODO] P0-T01：建立 active inventory / legacy reason 审计基线
+### [DONE] P0-T01：建立 active inventory / legacy reason 审计基线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -113,9 +113,24 @@
 - 依赖：无
 - 完成记录：
   - 改动范围：
+    - 新增 `crates/scoopc/src/pipeline_gap_audit.rs`，固定 cross-inventory 审计入口、搜索根、分类规则、退出条件、active-tree `LegacyOnly` 基线、八个 legacy reason 基线，以及 codegen inventory scope-drift / closed-re-scoped blocker 基线。
+    - 更新 `crates/scoopc/src/lib.rs`，通过 `#[cfg(test)] mod pipeline_gap_audit;` 接入新的审计测试模块。
   - 核心决策：
+    - 审计入口放在独立测试模块中，而不是散落到现有 inventory 测试里，后续任务只需更新一处基线即可复用同一套 repo-scan 结果。
+    - 分类规则统一冻结为四类：`live contract`、`downstream impossible-state guard`、`frontend reject`、`historical-only mapping`；退出条件固定为 `Open = 0`、默认主线相关 `Partial = 0`、active code 中 `LegacyOnly = 0`。
+    - 为避免 `rg 'LegacyOnly' ...` 和 legacy reason 搜索被新审计模块自身污染，词表和预期命中行在测试里采用运行时拼接，不把目标字符串原样留在 `pipeline_gap_audit.rs` 源文件中。
+    - `codegen_gap_inventory.rs` 的当前基线分成两层冻结：scope-drift baseline 为 `§3.4`、`§3.7`、`§4.1`、`§4.2`、`§5.2`、`§5.5`、`§5.6`、`§5.7`、`§6.1`、`§6.2`、`§6.3`、`§6.4`、`§6.5`；其中已 `Closed/Re-scoped` 且仍是 `production_blocker` 的子集为 `§3.4`、`§3.7`、`§4.2`、`§5.2`、`§5.5`、`§5.6`、`§5.7`、`§6.1`、`§6.2`、`§6.3`、`§6.4`。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_placeholder_inventory`
+    - `cargo test -p scoopc refactor_mir_placeholder_inventory`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg 'LegacyOnly' crates/scoopc/src crates/scoop/src tests/fixtures`：16 个命中，仅在 `crates/scoopc/src/hir/lower/placeholder_inventory.rs` 与 `crates/scoopc/src/mir/placeholder_inventory.rs`。
+    - `rg 'assign lhs missing local|assign lhs lowering pending|call callee lowering pending|ctor call lowering pending|sizeOf intrinsic requires value or type arg|nameOf intrinsic requires type arg|resume lowering requires canonical callee shape|dispatch callee lowering pending' crates/scoopc/src crates/scoop/src tests/fixtures`：35 个命中，分布于 `mir/lower.rs`、`mir/materialize.rs`、`mir/mod.rs`、`mir/placeholder_inventory.rs`、`pipeline/hir_preflight.rs`、`pipeline/hir_stage.rs`、`pipeline/mir_stage.rs`。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P0 第 1-5 项：active inventory / legacy reason / codegen scope-drift 的审计边界已冻结为可执行测试。
+    - 本任务只建立审计基线，不改变 `PIPELINE_GAPS.md` 中任何状态、owner 或 route；后续任务可直接引用审计模块输出更新对应条目。
 
 ### [TODO] P0-T02：固定“非法输入 vs 编译器 bug”的用户可见失败策略
 

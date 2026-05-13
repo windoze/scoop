@@ -48,3 +48,6 @@ pub mod warnings;
 /// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认关闭）。
 #[cfg(feature = "llvm")]
 pub mod llvm;
+
+#[cfg(test)]
+mod pipeline_gap_audit;
