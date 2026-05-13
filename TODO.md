@@ -292,7 +292,7 @@
     - 对应 `PLAN.md` P1 第 1、2、4、6 项：assign/call/ctor/reflection intrinsic legacy producer 已从 active lowering path 移除，dump/materialize 入口同步接入 typed call/assign contract，相关 smoke/forbidden 断言已更新。
     - `PIPELINE_GAPS.md` 已回写 §1.6、§1.7、§6.3：这些 gap 不再描述 active `mir/lower.rs` producer；剩余 legacy reason 清理明确留给 `P1-T02` 的 inventory / guard / synthetic-test residual 收尾。
 
-### [TODO] P1-T02：删除 resume/dispatch legacy producer，并清空 active `LegacyOnly` 依赖
+### [DONE] P1-T02：删除 resume/dispatch legacy producer，并清空 active `LegacyOnly` 依赖
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -348,9 +348,28 @@
 - 依赖：`P1-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/mir/lower.rs`，删除 `Continuation.resume` 的 canonical-callee legacy fallback 与 dispatch `rsplit_once('.')` owner/member 猜测路径；resume 现在只消费 typed resume contract，dispatch 只消费 typed call-site/member contract，缺失 contract 时直接暴露 impossible-state panic，不再生成 `resume lowering requires canonical callee shape` / `dispatch callee lowering pending`。
+    - 更新 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/hir/lower/placeholder_inventory.rs`，移除 `LegacyOnly` disposition，以及 MIR inventory 中全部八个 legacy reason 对应条目。
+    - 更新 `crates/scoopc/src/pipeline/hir_preflight.rs`、`crates/scoopc/src/pipeline/mir_stage.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/materialize.rs`、`crates/scoopc/src/mir/lower.rs` 测试区，删除对 legacy reason 的 active guard/whitelist/synthetic 绑定，改成 contract-neutral 的 no-Todo 断言或 synthetic reason。
+    - 更新 `crates/scoopc/src/pipeline_gap_audit.rs`，将 active-tree `LegacyOnly` 命中与 legacy reason 命中基线都收紧为 0；更新 `PIPELINE_GAPS.md` §1.6-§1.9，关闭 dispatch/resume legacy lowering gap，并同步写明 assign/call residual 已从 active inventory/test/guard 中清理。
   - 核心决策：
+    - 不把 `lower_for_dump` / materialize 整体切换为 `MirSiteContractSource::RefactorTyped`；本任务只把 resume surface 补接到已有 typed contract，并让 dispatch 继续直接消费 `TypedCallSiteContract::{Virtual,Interface}`，避免超前改动 perform/handle 等尚不在本任务范围内的 handoff 边界。
+    - 对 resume/dispatch 缺失 typed contract 的情形，统一升级为 impossible-state panic，而不是继续靠 legacy `Todo(...)` 或 callee 形状恢复语义补洞。
+    - synthetic no-Todo 测试不再绑死任何已删除的 legacy reason，统一改成 contract-neutral synthetic reason 或“输出中不应出现任何 `Todo`”的正交断言，避免后续任务继续把旧 reason 当 canonical failure 文案。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_placeholder_inventory`
+    - `cargo test -p scoopc refactor_mir_placeholder_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo test -p scoopc refactor_mir_call_contract`
+    - `cargo test -p scoopc refactor_materialized_mir`
+    - `cargo test -p scoopc materialized_pass_view_non_generic_dispatch_and_resume_roots_are_published`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/dispatch_and_resume_call.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/continuation_resume_unit_sugar.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg 'LegacyOnly|assign lhs missing local|assign lhs lowering pending|call callee lowering pending|ctor call lowering pending|sizeOf intrinsic requires value or type arg|nameOf intrinsic requires type arg|resume lowering requires canonical callee shape|dispatch callee lowering pending' crates/scoopc/src crates/scoop/src tests/fixtures`：0 命中。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P1 第 3 项与第 5 项：resume/dispatch legacy producer 已从 active lowering path 删除，active inventory/active tests/active guards 中的 `LegacyOnly` bucket 和 legacy reason 绑定归零。
+    - `PIPELINE_GAPS.md` 已回写 §1.8、§1.9 为 `Closed/Re-scoped`，并同步更新 §1.6、§1.7 的 residual 说明：这些 surface 现在只允许通过 typed contract 成功 lowering，缺失 contract 不再以 `Todo(...)` 形式继续流动。
 
 ## P2：收紧 pre-MIR / MIR handoff
 

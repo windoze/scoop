@@ -2920,7 +2920,6 @@ fn is_forbidden_refactor_effect_todo(reason: &str) -> bool {
             | "handle arm exit pending"
             | "handle finally exit pending"
             | "perform unwind pending"
-            | "resume lowering requires canonical callee shape"
             | "break not in loop"
             | "continue not in loop"
     )
@@ -2934,6 +2933,7 @@ mod tests {
     use crate::ty::{TypeKind, TypeStore};
 
     const TEST_FQN: &str = "sample.main";
+    const SYNTHETIC_STATEMENT_TODO_REASON: &str = "synthetic statement todo";
 
     fn test_span() -> Span {
         Span::new(10, 20)
@@ -3069,7 +3069,7 @@ mod tests {
         let builtins = types.intern_builtins();
         let stmt = Statement {
             span: test_span(),
-            kind: StatementKind::Todo("assign lhs lowering pending"),
+            kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON),
         };
         let file = production_file(
             builtins.unit,
@@ -3087,7 +3087,7 @@ mod tests {
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 category: MirPlaceholderCategory::Statement,
-                reason: "assign lhs lowering pending",
+                reason: SYNTHETIC_STATEMENT_TODO_REASON,
             })
         );
     }

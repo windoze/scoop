@@ -18,10 +18,7 @@ enum PlaceholderSurface {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlaceholderDisposition {
-    ImplementInMir,
     ImplementBeforeMir,
-    RejectBeforeMir,
-    LegacyOnly,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,12 +49,7 @@ const fn entry(
     }
 }
 
-const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
-    PlaceholderDisposition::ImplementInMir,
-    PlaceholderDisposition::ImplementBeforeMir,
-    PlaceholderDisposition::RejectBeforeMir,
-    PlaceholderDisposition::LegacyOnly,
-];
+const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[PlaceholderDisposition::ImplementBeforeMir];
 
 const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
@@ -126,15 +118,14 @@ fn refactor_hir_placeholder_inventory() {
 }
 
 fn assert_inventory_entries_are_actionable() {
-    assert!(
-        ALL_DISPOSITIONS.contains(&PlaceholderDisposition::LegacyOnly),
-        "inventory classification set must keep the legacy-only bucket explicit even when unused"
-    );
-
     let mut seen = BTreeSet::new();
     for entry in REFACTOR_HIR_PLACEHOLDER_INVENTORY {
         let key = PlaceholderKey::new(entry.surface, entry.reason);
         assert!(seen.insert(key), "duplicate inventory entry: {entry:?}");
+        assert!(
+            ALL_DISPOSITIONS.contains(&entry.disposition),
+            "inventory entry has unknown disposition: {entry:?}"
+        );
         assert!(
             !entry.owner_task.is_empty(),
             "inventory entry lacks owner task: {entry:?}"
@@ -142,11 +133,6 @@ fn assert_inventory_entries_are_actionable() {
         assert!(
             !entry.handling_strategy.is_empty(),
             "inventory entry lacks handling strategy: {entry:?}"
-        );
-        assert!(
-            entry.disposition != PlaceholderDisposition::LegacyOnly
-                || !entry.must_eliminate_from_refactor_hir,
-            "legacy-only entries must not be required refactor eliminations: {entry:?}"
         );
     }
 

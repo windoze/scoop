@@ -56,26 +56,26 @@
 ### 1.6 赋值 LHS 只覆盖 local、top-level 和 member access
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`lower_assign_stmt(...)` 现在已收紧为只消费 typed place contract；`assign lhs missing local` / `assign lhs lowering pending` 不再存在于 active MIR lowering path。剩余 legacy reason 仅保留在 placeholder inventory、preflight 禁词和 synthetic verifier/materializer 负例里，待 `P1-T02` 一并清理 active residual。
+- 结论：`lower_assign_stmt(...)` 现在已收紧为只消费 typed place contract；`assign lhs missing local` / `assign lhs lowering pending` 已从 active MIR lowering path、active inventory、preflight 禁词和 synthetic verifier/materializer 负例中移除。缺失 contract 时只允许暴露更早阶段诊断或 impossible-state failure。
 - 证据：`crates/scoopc/src/mir/lower.rs:2385-2476`，`crates/scoopc/src/pipeline/hir_stage.rs:1510-1685`，`crates/scoopc/src/pipeline/mir_stage.rs:488-565`。
 
 ### 1.7 callable callee / ctor callee provenance 不完整会生成 Todo
 
 - 状态：`Closed/Re-scoped`。
-- 结论：普通 direct/closure/fun-value/ctor 调用与 reflection runtime intrinsic 现在都必须先发布 typed call-site contract，缺失时会在 typed HIR stage 直接报错，而不会再由 `mir/lower.rs` 生成 `call callee lowering pending` / `ctor call lowering pending` / reflection Todo。为避免 compiler-generated helper calls 继续因同一 `CallSite(span)` 互相覆盖，array-builder/vararg builder 合成调用现在也发布可区分的 call span。
+- 结论：普通 direct/closure/fun-value/ctor 调用与 reflection runtime intrinsic 现在都必须先发布 typed call-site contract，缺失时会在 typed HIR stage 直接报错，而不会再由 `mir/lower.rs` 生成 `call callee lowering pending` / `ctor call lowering pending` / reflection Todo。相关 legacy reason 也已从 active inventory、preflight 禁词和 synthetic no-Todo 负例中移除。为避免 compiler-generated helper calls 继续因同一 `CallSite(span)` 互相覆盖，array-builder/vararg builder 合成调用现在也发布可区分的 call span。
 - 证据：`crates/scoopc/src/pipeline/hir_stage.rs:1510-1685`，`crates/scoopc/src/hir/lower/expr.rs:3712-4065`，`crates/scoopc/src/mir/lower.rs:3965-4707`，`crates/scoopc/src/pipeline/mir_stage.rs:605-731`。
 
 ### 1.8 dynamic dispatch callee 拆解失败会生成 Todo
 
-- 状态：`LegacyOnly`。
-- 结论：`dispatch callee lowering pending` 仍有源码 producer，但 refactor 主线不应再依赖它。typed dispatch contract 缺失后若还能落到这条分支，属于未完成的 refactor 实现错误。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:184-192`。
+- 状态：`Closed/Re-scoped`。
+- 结论：dynamic dispatch 现在只通过 typed call-site / member contract lowering；旧的 `callee_fqn.rsplit_once('.')` owner/member 恢复和 `dispatch callee lowering pending` producer 已删除。typed dispatch contract 若缺失，会直接暴露为 impossible-state bug，而不是 `Todo(...)`。
+- 证据：`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/pipeline/mir_stage.rs`，`crates/scoopc/src/pipeline_gap_audit.rs`。
 
 ### 1.9 `Continuation.resume` 只接受 canonical callee shape
 
-- 状态：`LegacyOnly`。
-- 结论：`resume lowering requires canonical callee shape` 仍有 legacy producer，但 refactor 路径不应再使用无 contract 的 legacy resume 分支。任何 reachability 都表示 refactor resume contract 没有完全接管该表面。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:175-183`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`Continuation.resume` 现在只消费 typed receiver/payload contract；旧的 canonical callee shape fallback 与 `resume lowering requires canonical callee shape` producer 已删除。typed resume contract 若缺失，会直接暴露为 impossible-state bug，而不是 `Todo(...)`。
+- 证据：`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/pipeline/hir_stage.rs`，`crates/scoopc/src/pipeline_gap_audit.rs`。
 
 ### 1.10 `perform` 缺 typed contract 时生成 Todo terminator
 

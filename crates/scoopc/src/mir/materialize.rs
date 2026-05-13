@@ -2811,10 +2811,8 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                     .to_string(),
             })
         })?;
-    let facts = super::MirLoweringFacts::from_lowered_hir(
-        &lowered_hir,
-        default_contract_source_path,
-    )?;
+    let facts =
+        super::MirLoweringFacts::from_lowered_hir(&lowered_hir, default_contract_source_path)?;
     let generic_file = super::lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,
@@ -9621,6 +9619,8 @@ mod tests {
     use crate::source::SourceFile;
     use crate::ty::TypeParamType;
 
+    const SYNTHETIC_STATEMENT_TODO_REASON: &str = "synthetic statement todo";
+
     /// 构造“完整编译单元 facts + 仅部分文件贡献实例请求”的最小测试输入。
     fn prepare_typechecked_compilation_unit_inputs(
         session: &Session,
@@ -9839,7 +9839,7 @@ mod tests {
         let mut body = unit_return_body();
         body.blocks[0].stmts.push(Statement {
             span: test_span(),
-            kind: StatementKind::Todo("assign lhs lowering pending"),
+            kind: StatementKind::Todo(SYNTHETIC_STATEMENT_TODO_REASON),
         });
         body
     }
@@ -10177,7 +10177,7 @@ fun main(): Int {
             *err,
             MirMaterializeError::MaterializedTodo {
                 category: MirPlaceholderCategory::Statement,
-                reason: "assign lhs lowering pending",
+                reason: SYNTHETIC_STATEMENT_TODO_REASON,
                 ..
             }
         ));
@@ -11084,7 +11084,8 @@ fun main(): Int {
         let interfaces = lowered_hir.interfaces.clone();
         let class_itables = lowered_hir.class_itables.clone();
         let builtins = lowered_hir.types.intern_builtins();
-        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source_path.as_path()).unwrap();
+        let facts =
+            MirLoweringFacts::from_lowered_hir(&lowered_hir, source_path.as_path()).unwrap();
         let mut generic_file = lower_hir_file_for_dump_with_facts(
             builtins,
             &mut lowered_hir.types,

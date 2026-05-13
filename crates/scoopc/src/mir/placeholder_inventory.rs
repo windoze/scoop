@@ -19,10 +19,9 @@ enum PlaceholderSurface {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlaceholderDisposition {
-    ImplementInMir,
-    ImplementBeforeMir,
-    RejectBeforeMir,
-    LegacyOnly,
+    InMir,
+    BeforeMir,
+    Reject,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,10 +56,9 @@ const fn entry(
 }
 
 const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
-    PlaceholderDisposition::ImplementInMir,
-    PlaceholderDisposition::ImplementBeforeMir,
-    PlaceholderDisposition::RejectBeforeMir,
-    PlaceholderDisposition::LegacyOnly,
+    PlaceholderDisposition::InMir,
+    PlaceholderDisposition::BeforeMir,
+    PlaceholderDisposition::Reject,
 ];
 
 const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
@@ -68,7 +66,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Item,
         "top-level val",
         "PIPELINE_GAPS.md §1.4",
-        PlaceholderDisposition::ImplementInMir,
+        PlaceholderDisposition::InMir,
         "MIR-T05",
         true,
         "Model top-level values as MIR declaration/initializer roots instead of Item::Todo.",
@@ -77,7 +75,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Statement,
         "comptime_block",
         "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::ImplementBeforeMir,
+        PlaceholderDisposition::BeforeMir,
         "MIR-T04",
         true,
         "Comptime expansion eliminates block statements before runtime MIR lowering.",
@@ -86,7 +84,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Statement,
         "comptime_if",
         "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::ImplementBeforeMir,
+        PlaceholderDisposition::BeforeMir,
         "MIR-T04",
         true,
         "Comptime expansion keeps only the selected runtime branch before MIR lowering.",
@@ -95,7 +93,7 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Statement,
         "comptime_for",
         "PIPELINE_GAPS.md §1.1",
-        PlaceholderDisposition::ImplementBeforeMir,
+        PlaceholderDisposition::BeforeMir,
         "MIR-T04",
         true,
         "Comptime expansion unrolls enumerable loops before MIR lowering.",
@@ -104,91 +102,19 @@ const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
         PlaceholderSurface::Terminator,
         "unterminated",
         "PIPELINE_GAPS.md §2.1",
-        PlaceholderDisposition::ImplementInMir,
+        PlaceholderDisposition::InMir,
         "MIR-T01",
         true,
         "The builder sentinel must be overwritten before stage output; strict MIR rejects leaks.",
     ),
     entry(
-        PlaceholderSurface::Statement,
-        "assign lhs missing local",
-        "PIPELINE_GAPS.md §1.6",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T06",
-        false,
-        "Only the legacy non-refactor assignment fallback constructs this placeholder; refactor MIR consumes typed place contracts.",
-    ),
-    entry(
-        PlaceholderSurface::Statement,
-        "assign lhs lowering pending",
-        "PIPELINE_GAPS.md §1.6",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T06",
-        false,
-        "Only the legacy non-refactor assignment fallback constructs this placeholder; refactor MIR consumes typed place contracts.",
-    ),
-    entry(
         PlaceholderSurface::Rvalue,
         "missing expr",
         "PIPELINE_GAPS.md §1",
-        PlaceholderDisposition::RejectBeforeMir,
+        PlaceholderDisposition::Reject,
         "MIR-T03",
         true,
         "Parser recovery and unsupported HIR fallbacks must become source diagnostics before MIR.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "call callee lowering pending",
-        "PIPELINE_GAPS.md §1.7",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T07",
-        false,
-        "Only the legacy non-refactor call fallback constructs this placeholder; refactor MIR consumes typed call-site contracts.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "ctor call lowering pending",
-        "PIPELINE_GAPS.md §1.7",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T07",
-        false,
-        "Only the legacy non-refactor unresolved-name fallback constructs this placeholder; refactor MIR consumes selected constructor contracts.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "sizeOf intrinsic requires value or type arg",
-        "PIPELINE_GAPS.md §6.3",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T07",
-        false,
-        "Only the legacy non-refactor sizeOf lowering requires a value argument; refactor MIR lowers typed value/type-argument contracts explicitly.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "nameOf intrinsic requires type arg",
-        "PIPELINE_GAPS.md §6.3",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T07",
-        false,
-        "Only the legacy non-refactor nameOf fallback can lack a typed argument; refactor MIR lowers typed value/type-argument contracts explicitly.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "resume lowering requires canonical callee shape",
-        "PIPELINE_GAPS.md §1.9",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T08",
-        false,
-        "Only the legacy non-refactor resume fallback constructs this placeholder; refactor MIR consumes typed receiver/payload routes.",
-    ),
-    entry(
-        PlaceholderSurface::Rvalue,
-        "dispatch callee lowering pending",
-        "PIPELINE_GAPS.md §1.8",
-        PlaceholderDisposition::LegacyOnly,
-        "MIR-T08",
-        false,
-        "Only the legacy non-refactor dispatch fallback recovers owner/member from a callee string; refactor MIR consumes structured dispatch contracts.",
     ),
 ];
 
@@ -235,11 +161,6 @@ fn refactor_mir_placeholder_inventory() {
 }
 
 fn assert_inventory_entries_are_actionable() {
-    assert!(
-        ALL_DISPOSITIONS.contains(&PlaceholderDisposition::LegacyOnly),
-        "inventory disposition set must keep the legacy-only bucket explicit"
-    );
-
     let mut seen = BTreeSet::new();
     for entry in REFACTOR_MIR_PLACEHOLDER_INVENTORY {
         let key = PlaceholderKey::new(entry.surface, entry.reason);
@@ -259,11 +180,6 @@ fn assert_inventory_entries_are_actionable() {
         assert!(
             !entry.handling_strategy.is_empty(),
             "inventory entry lacks handling strategy: {entry:?}"
-        );
-        assert!(
-            entry.disposition != PlaceholderDisposition::LegacyOnly
-                || !entry.must_eliminate_from_refactor_production,
-            "legacy-only entries must not be required refactor eliminations: {entry:?}"
         );
     }
 

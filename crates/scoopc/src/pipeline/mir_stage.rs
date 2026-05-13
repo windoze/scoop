@@ -488,21 +488,10 @@ fun main() {}
     fn refactor_mir_place_contract_lowers_assignment_places() {
         let output = run_fixture("mir_refactor", "assignment_places.scoop");
         let dump = output.stable_dump();
-        for forbidden in [
-            "assign lhs missing local",
-            "assign lhs lowering pending",
-            "assign place contract missing",
-            "assign place local missing",
-            "assign place member receiver missing",
-            "boxed var decl init pending",
-            "val decl missing symbol id",
-            "unbound local ref",
-        ] {
-            assert!(
-                !dump.contains(forbidden),
-                "refactor MIR assignment place lowering leaked `{forbidden}`: {dump}"
-            );
-        }
+        assert!(
+            !dump.contains("Todo"),
+            "refactor MIR assignment place lowering must not leak Todo placeholders: {dump}"
+        );
 
         let native = output
             .extern_global_root("mir_refactor.assignment_places.NativeCounter")
@@ -605,17 +594,10 @@ fun main() {}
     fn refactor_mir_call_contract_lowers_typed_call_sites() {
         let output = run_fixture("mir_refactor", "call_contracts.scoop");
         let dump = output.stable_dump();
-        for forbidden in [
-            "call callee lowering pending",
-            "ctor call lowering pending",
-            "sizeOf intrinsic requires value or type arg",
-            "nameOf intrinsic requires type arg",
-        ] {
-            assert!(
-                !dump.contains(forbidden),
-                "refactor MIR call lowering leaked `{forbidden}`: {dump}"
-            );
-        }
+        assert!(
+            !dump.contains("Todo"),
+            "refactor MIR call lowering must not leak Todo placeholders: {dump}"
+        );
 
         let main = validated_callable_body(&output, "mir_refactor.call_contracts.main");
         let apply = validated_callable_body(&output, "mir_refactor.call_contracts.apply");
@@ -1526,9 +1508,8 @@ fun bad() {
             "fixtures.mir.Boom"
         );
         assert!(
-            !dispatch_output
-                .stable_dump()
-                .contains("resume callee lowering pending")
+            !dispatch_output.stable_dump().contains("Todo"),
+            "dispatch/resume fixture should not leak Todo placeholders"
         );
     }
 
@@ -1717,9 +1698,8 @@ fun entry(): Int / Raise<Int> {
             ));
         }
         assert!(
-            !output
-                .stable_dump()
-                .contains("resume callee lowering pending")
+            !output.stable_dump().contains("Todo"),
+            "resume unit sugar fixture should not leak Todo placeholders"
         );
     }
 

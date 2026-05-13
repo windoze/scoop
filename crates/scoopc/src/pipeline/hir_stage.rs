@@ -3724,10 +3724,7 @@ fun entry(box: Box): Int {
             };
             for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
                 assert!(
-                    !matches!(
-                        stmt.kind,
-                        crate::mir::StatementKind::Todo("assign lhs lowering pending")
-                    ),
+                    !matches!(stmt.kind, crate::mir::StatementKind::Todo(_)),
                     "refactor MIR should consume assignment place contracts: {mir:#?}"
                 );
                 match &stmt.kind {

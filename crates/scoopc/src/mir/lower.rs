@@ -73,7 +73,6 @@ pub(crate) struct MirLoweringFacts {
     refactor_resume_sites: HashMap<hir::CallSite, RefactorResumeCallInfo>,
     refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
-    refactor_dispatch_sites: HashMap<hir::CallSite, RefactorDispatchCallInfo>,
     refactor_call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
     refactor_assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_call_sites: HashMap<hir::CallSite, hir::CtorCallInfo>,
@@ -101,7 +100,6 @@ impl Default for MirLoweringFacts {
             refactor_resume_sites: HashMap::new(),
             refactor_perform_sites: HashMap::new(),
             refactor_handle_sites: HashMap::new(),
-            refactor_dispatch_sites: HashMap::new(),
             refactor_call_sites: HashMap::new(),
             refactor_assign_places: HashMap::new(),
             class_ctor_call_sites: HashMap::new(),
@@ -142,30 +140,6 @@ struct RefactorResumeCallInfo {
     receiver_route: ContinuationResumeReceiverRoute,
     payload_arg_indices: Vec<usize>,
     metadata: ResumeMetadata,
-}
-
-#[derive(Debug, Clone)]
-struct RefactorDispatchCallInfo {
-    kind: DispatchTargetKind,
-    owner_fqn: String,
-    member_name: String,
-    member_fqn: String,
-    member_decl_span: Option<Span>,
-    receiver_ty: TypeId,
-}
-
-fn refactor_dispatch_call_info(
-    kind: DispatchTargetKind,
-    member: &MemberCallTargetContract,
-) -> RefactorDispatchCallInfo {
-    RefactorDispatchCallInfo {
-        kind,
-        owner_fqn: member.owner_fqn().to_string(),
-        member_name: member.member_name().to_string(),
-        member_fqn: member.member_fqn().to_string(),
-        member_decl_span: member.function().decl_span(),
-        receiver_ty: member.receiver_ty(),
-    }
 }
 
 fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
@@ -237,6 +211,24 @@ impl MirLoweringFacts {
 
         let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
             .map_err(hir::HirLowerError::from)?;
+        for (call_site, contract) in contracts.continuation_resume_sites() {
+            facts.refactor_resume_sites.insert(
+                call_site.clone(),
+                RefactorResumeCallInfo {
+                    receiver_route: contract.receiver_route(),
+                    payload_arg_indices: contract.payload_arg_indices().to_vec(),
+                    metadata: ResumeMetadata {
+                        continuation_ty: contract.receiver_ty(),
+                        resume_ty: contract.resume_ty(),
+                        answer_ty: contract.answer_ty(),
+                        return_ty: contract.return_ty(),
+                        out_effects: contract.out_effects().clone(),
+                        runtime_error_effect_ty: contract.runtime_error_effect_ty(),
+                        suspends_outward: !contract.out_effects().is_pure(),
+                    },
+                },
+            );
+        }
         facts
             .refactor_call_sites
             .extend(contracts.call_site_contracts().clone());
@@ -455,7 +447,6 @@ impl MirLoweringFacts {
         self.refactor_resume_sites.clear();
         self.refactor_perform_sites.clear();
         self.refactor_handle_sites.clear();
-        self.refactor_dispatch_sites.clear();
         self.refactor_call_sites.clear();
         self.refactor_assign_places.clear();
         self.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
@@ -533,13 +524,6 @@ impl MirLoweringFacts {
         for (call_site, contract) in contracts.call_site_contracts() {
             self.refactor_call_sites
                 .insert(call_site.clone(), contract.clone());
-            let (kind, member) = match contract {
-                TypedCallSiteContract::Virtual(member) => (DispatchTargetKind::Virtual, member),
-                TypedCallSiteContract::Interface(member) => (DispatchTargetKind::Interface, member),
-                _ => continue,
-            };
-            self.refactor_dispatch_sites
-                .insert(call_site.clone(), refactor_dispatch_call_info(kind, member));
         }
 
         self.refactor_assign_places
@@ -571,13 +555,21 @@ impl MirLoweringFacts {
             .copied()
     }
 
-    fn refactor_dispatch_contract(
+    fn dispatch_site_kind_for_call(
         &self,
         source_path: &std::path::Path,
         call_span: Span,
-    ) -> Option<&RefactorDispatchCallInfo> {
-        self.refactor_dispatch_sites
-            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> Option<DispatchTargetKind> {
+        let receiver_ty = match &callee.kind {
+            hir::ExprKind::MemberAccess { receiver, .. } => Some(receiver.ty),
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
+                args.first().map(call_arg_expr).map(|receiver| receiver.ty)
+            }
+            _ => None,
+        }?;
+        self.dispatch_target_kind(source_path, call_span, receiver_ty)
     }
 
     fn refactor_assign_place_contract(
@@ -4653,14 +4645,7 @@ impl<'a> FnLowering<'a> {
             .refactor_resume_call_info(self.source_path.as_path(), span)
             .cloned()
         {
-            self.lower_resume_call_expr(span, result, callee, args, Some(resume_info));
-            return result;
-        }
-
-        if !self.facts.uses_refactor_typed_contracts()
-            && self.facts.fallback_resume_site_matches(span)
-        {
-            self.lower_resume_call_expr(span, result, callee, args, None);
+            self.lower_resume_call_expr(span, result, callee, args, &resume_info);
             return result;
         }
 
@@ -4668,8 +4653,24 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        if self.lower_dispatch_call_expr(span, result, callee, args) {
-            return result;
+        if self.facts.fallback_resume_site_matches(span) {
+            panic!(
+                "typed continuation resume contract missing before MIR lowering at {} {span:?} (suspends_outward={})",
+                self.source_path.display(),
+                self.facts.fallback_resume_site_suspends_outward(span),
+            );
+        }
+
+        if self
+            .facts
+            .dispatch_site_kind_for_call(self.source_path.as_path(), span, callee, args)
+            .is_some()
+        {
+            panic!(
+                "typed dispatch contract missing before MIR lowering at {} {span:?}: {:?}",
+                self.source_path.display(),
+                callee.kind,
+            );
         }
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind
@@ -4729,44 +4730,15 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee: &hir::Expr,
         args: &[hir::CallArg],
-        resume_info: Option<RefactorResumeCallInfo>,
+        resume_info: &RefactorResumeCallInfo,
     ) {
-        let (receiver, payload_args, metadata) = if let Some(info) = resume_info {
-            let Some(receiver) = self.resume_receiver_from_contract(callee, args, &info) else {
-                self.lower_malformed_refactor_resume_call(span, result, info.metadata);
-                return;
-            };
-            let Some(payload_args) = self.resume_payload_args_from_contract(args, &info) else {
-                self.lower_malformed_refactor_resume_call(span, result, info.metadata);
-                return;
-            };
-            (receiver, payload_args, Some(info.metadata))
-        } else {
-            let (receiver, payload_args) = match &callee.kind {
-                hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args.to_vec()),
-                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
-                    let Some((hir::CallArg::Positional(receiver), payload_args)) =
-                        args.split_first()
-                    else {
-                        self.assign(
-                            span,
-                            result,
-                            Rvalue::Todo("resume lowering requires canonical callee shape"),
-                        );
-                        return;
-                    };
-                    (receiver, payload_args.to_vec())
-                }
-                _ => {
-                    self.assign(
-                        span,
-                        result,
-                        Rvalue::Todo("resume lowering requires canonical callee shape"),
-                    );
-                    return;
-                }
-            };
-            (receiver, payload_args, None)
+        let Some(receiver) = self.resume_receiver_from_contract(callee, args, resume_info) else {
+            self.lower_malformed_refactor_resume_call(span, result, resume_info.metadata.clone());
+            return;
+        };
+        let Some(payload_args) = self.resume_payload_args_from_contract(args, resume_info) else {
+            self.lower_malformed_refactor_resume_call(span, result, resume_info.metadata.clone());
+            return;
         };
 
         let continuation_local = self.lower_expr_to_local(receiver);
@@ -4778,23 +4750,8 @@ impl<'a> FnLowering<'a> {
             return;
         };
         let continuation_ty = self.body.locals[continuation_local.as_u32() as usize].ty;
-        let resume = metadata.unwrap_or_else(|| {
-            let (resume_ty, answer_ty, out_effects) = continuation_contract_from_type(
-                self.types,
-                continuation_ty,
-            )
-            .unwrap_or((self.builtins.any, self.builtins.any, EffectRow::pure()));
-            ResumeMetadata {
-                continuation_ty,
-                resume_ty,
-                answer_ty,
-                return_ty: self.body.locals[result.as_u32() as usize].ty,
-                out_effects: out_effects.clone(),
-                runtime_error_effect_ty: find_raise_runtime_error_effect(self.types),
-                suspends_outward: !out_effects.is_pure()
-                    || self.facts.fallback_resume_site_suspends_outward(span),
-            }
-        });
+        let mut resume = resume_info.metadata.clone();
+        resume.continuation_ty = continuation_ty;
         let site_id = self.fresh_site_id();
         let kind = CallKind::Resume {
             continuation: Operand::Local(continuation_local),
@@ -4875,187 +4832,6 @@ impl<'a> FnLowering<'a> {
                 transport,
             },
         );
-    }
-
-    fn lower_dispatch_call_expr(
-        &mut self,
-        span: Span,
-        result: LocalId,
-        callee: &hir::Expr,
-        args: &[hir::CallArg],
-    ) -> bool {
-        if self.facts.uses_refactor_typed_contracts() {
-            return self.lower_refactor_dispatch_call_expr(span, result, callee, args);
-        }
-
-        let dispatch_target = match &callee.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                let Some((receiver_arg, remaining_args)) = args.split_first() else {
-                    return false;
-                };
-                let receiver_expr = match receiver_arg {
-                    hir::CallArg::Positional(expr) => expr,
-                    hir::CallArg::Named { value, .. } => value,
-                };
-                let Some(kind) = self.facts.dispatch_target_kind(
-                    self.source_path.as_path(),
-                    span,
-                    receiver_expr.ty,
-                ) else {
-                    return false;
-                };
-                (kind, fqn.as_str(), receiver_expr, remaining_args)
-            }
-            hir::ExprKind::MemberAccess { receiver, member } => {
-                let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() else {
-                    return false;
-                };
-                let Some(kind) =
-                    self.facts
-                        .dispatch_target_kind(self.source_path.as_path(), span, receiver.ty)
-                else {
-                    return false;
-                };
-                (kind, fqn.as_str(), receiver.as_ref(), args)
-            }
-            _ => return false,
-        };
-
-        let (dispatch_kind, callee_fqn, receiver_expr, call_args) = dispatch_target;
-        let receiver_local = self.lower_expr_to_local(receiver_expr);
-        if self.current_is_terminated() {
-            return true;
-        }
-        let Some(args) = self.lower_call_args(call_args) else {
-            return true;
-        };
-        let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
-        let Some((owner_fqn, member_name)) = callee_fqn.rsplit_once('.') else {
-            self.assign(
-                span,
-                result,
-                Rvalue::Todo("dispatch callee lowering pending"),
-            );
-            return true;
-        };
-        let member_decl_span = self
-            .facts
-            .top_level_fun_call_binding(self.source_path.as_path(), span)
-            .filter(|binding| binding.fqn == callee_fqn)
-            .map(|binding| binding.decl_span);
-        let dispatch = DispatchMetadata {
-            owner_fqn: owner_fqn.to_string(),
-            member_name: member_name.to_string(),
-            member_fqn: callee_fqn.to_string(),
-            member_decl_span,
-            receiver_ty,
-        };
-        let kind = match dispatch_kind {
-            DispatchTargetKind::Virtual => CallKind::Virtual {
-                receiver: Operand::Local(receiver_local),
-                dispatch,
-            },
-            DispatchTargetKind::Interface => CallKind::Interface {
-                receiver: Operand::Local(receiver_local),
-                dispatch,
-            },
-        };
-        let site_id = self.fresh_site_id();
-        let transport = self.call_transport_metadata(
-            self.body.locals[result.as_u32() as usize].ty,
-            &kind,
-            &args,
-            None,
-        );
-        self.assign(
-            span,
-            result,
-            Rvalue::Call {
-                site_id,
-                kind,
-                args,
-                transport,
-            },
-        );
-        true
-    }
-
-    fn lower_refactor_dispatch_call_expr(
-        &mut self,
-        span: Span,
-        result: LocalId,
-        callee: &hir::Expr,
-        args: &[hir::CallArg],
-    ) -> bool {
-        let Some(dispatch_info) = self
-            .facts
-            .refactor_dispatch_contract(self.source_path.as_path(), span)
-            .cloned()
-        else {
-            return false;
-        };
-        let (receiver_expr, call_args) = match &callee.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {
-                let Some((receiver_arg, remaining_args)) = args.split_first() else {
-                    return false;
-                };
-                let receiver_expr = match receiver_arg {
-                    hir::CallArg::Positional(expr) => expr,
-                    hir::CallArg::Named { value, .. } => value,
-                };
-                (receiver_expr, remaining_args)
-            }
-            hir::ExprKind::MemberAccess { receiver, .. } => (receiver.as_ref(), args),
-            _ => return false,
-        };
-
-        let receiver_local = self.lower_expr_to_local(receiver_expr);
-        if self.current_is_terminated() {
-            return true;
-        }
-        let Some(args) = self.lower_call_args(call_args) else {
-            return true;
-        };
-        let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
-        let dispatch = DispatchMetadata {
-            owner_fqn: dispatch_info.owner_fqn,
-            member_name: dispatch_info.member_name,
-            member_fqn: dispatch_info.member_fqn,
-            member_decl_span: dispatch_info.member_decl_span,
-            receiver_ty: if receiver_ty == dispatch_info.receiver_ty {
-                receiver_ty
-            } else {
-                dispatch_info.receiver_ty
-            },
-        };
-        let kind = match dispatch_info.kind {
-            DispatchTargetKind::Virtual => CallKind::Virtual {
-                receiver: Operand::Local(receiver_local),
-                dispatch,
-            },
-            DispatchTargetKind::Interface => CallKind::Interface {
-                receiver: Operand::Local(receiver_local),
-                dispatch,
-            },
-        };
-        let site_id = self.fresh_site_id();
-        let transport = self.call_transport_metadata(
-            self.body.locals[result.as_u32() as usize].ty,
-            &kind,
-            &args,
-            None,
-        );
-        self.assign(
-            span,
-            result,
-            Rvalue::Call {
-                site_id,
-                kind,
-                args,
-                transport,
-            },
-        );
-        true
     }
 
     fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {
@@ -6879,12 +6655,12 @@ fun entry(user: User?): Int? {
                     !matches!(
                         &stmt.kind,
                         StatementKind::Assign {
-                            value: Rvalue::Todo("ctor call lowering pending"),
+                            value: Rvalue::Todo(_),
                             ..
                         }
                     )
                 }),
-            "safe member access desugar 应通过 Option variant ctor/value 主线，而不是留下 ctor-call TODO"
+            "safe member access desugar 应通过 Option variant ctor/value 主线，而不是留下任意 Rvalue Todo"
         );
 
         let mut saw_some = false;
@@ -7042,11 +6818,8 @@ fun readValue(x: Any): Int {
             body.blocks
                 .iter()
                 .flat_map(|block| block.stmts.iter())
-                .all(|stmt| !matches!(
-                    stmt.kind,
-                    StatementKind::Todo("assign lhs lowering pending")
-                )),
-            "member writes should no longer fall back to assign lhs TODO"
+                .all(|stmt| !matches!(stmt.kind, StatementKind::Todo(_))),
+            "member writes should no longer leak statement Todo"
         );
 
         let mut saw_some_k_write = false;
