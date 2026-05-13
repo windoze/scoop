@@ -1903,6 +1903,48 @@
     - 对应 `PLAN.md` §6 与 `STABLE_ID.md` §3.3 / §3.4.6 / §3.4.7 / §7.1 / §8.4：remaining RTTI query、interface runtime-match type-id、boxed enum / MIR capture-box / MIR value-box derived type-desc identity 已全部切到 canonical semantic key，不再由 pretty text / sanitize 直接控制。
     - 对应 `STABLE_ID.md` §5.1 / §10：可读 RTTI/type-desc 名称与真正 hash 输入现在已显式分离，且有常驻 source inventory / RTTI dump / LLVM metadata 回归防止旧输入源回流；`P7-T01R` 可以继续做最终全量签收。
 
+### [TODO] P7-T01D：为 LLVM type-driven stable-id helper 接入 authoritative type-param resolver
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5.4、§6
+  - [`STABLE_ID.md`](./STABLE_ID.md) §5.1、§7.1、§8.4、§8.5、§10
+- 背景：
+  - 在执行 `P7-T01R` 的最终签收矩阵时，`cargo run -p scoop -- test` 失败，阻塞用例为 `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`。
+  - 直接复现 `cargo run -p scoop -- run tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 的报错为：
+    - `LLVM codegen 前端准备失败：MIR value box LLVM type 无法构造 stable canonical type key: missing stable type parameter key for 'B'`
+  - 初步定位显示，active production code 中 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `canonical_type_key_text_for_codegen` / `stable_rtti_type_id_for_codegen` 仍固定使用 `NoTypeParamResolver`；而 `crates/scoopc/src/llvm/codegen/mir_body.rs` 的 MIR value-box/type-desc/type-driven private naming 在某些泛型 cleanup / unwind / boxing 路径中已经会遇到仍含 type param 的 `TypeId`。这直接违反了 `stable_id` canonical encoder 对 type-param key 的要求，也阻断了最终全量验收。
+- 目标：
+  - 让 LLVM codegen 中所有会为“仍含 type param 的语义类型”生成 stable canonical key / RTTI type-id / private type-global 名称的 active production 路径，都改为使用 authoritative type-param resolver，而不是 `NoTypeParamResolver`。
+  - 修复该类路径后，恢复 `class_init_raise_cleanup_init_block_gc_basic.scoop` 与同根 generic cleanup/boxing 路径的正常编译运行。
+- 必须实现的内容：
+  1. 在 LLVM codegen 层建立可复用的 authoritative stable type-param resolver 接入点，来源必须是当前 callable / owner / instance 的真实语义键，而不是 pretty text、raw type param 名或任何 path/span 文本。
+  2. 把 `canonical_type_key_text_for_codegen`、`stable_rtti_type_id_for_codegen` 以及其 active production 调用点接到该 resolver；至少覆盖：
+     - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+       - `mir_value_box_object_type`
+       - `get_or_create_mir_value_box_type_desc_global`
+       - 同根的 MIR capture-box / value-box / itable owner type-driven naming 路径
+     - 任何仍会对 generic-bearing `TypeId` 调用上述 helper 的 RTTI / private metadata / transport sibling case
+  3. 为本次 blocker 补齐回归测试，至少覆盖：
+     - `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`
+     - 一个直接锁定 generic-bearing MIR value-box 或同根 type-driven naming 的 LLVM/codegen 定向测试
+  4. 按同根问题成组处理 sibling case，不能只让单个 fixture 通过，而继续让 generic capture-box / RTTI / transport private naming 在别的 cleanup/boxing 路径上保留同类缺口。
+- 必须遵从的约束：
+  - 不得回退到 `TypeStore::display()`、`sanitize_llvm_ident()`、raw type param 名字、path/span 或 dense id 作为 canonical 输入或 hash 主体。
+  - 不得只在该 fixture 上加特判；必须修复 generic-bearing type-driven stable-id helper 的整类问题。
+  - 不得改变 value-box / capture-box / RTTI / transport / cleanup unwind 的 GC、layout、ABI 与运行语义。
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`
+  2. `cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
+  3. `cargo test -p scoopc runtime_type_primitives -- --nocapture`
+  4. `cargo test -p scoopc`
+  5. `cargo run -p scoop -- test`
+  6. `cargo clippy -p scoopc --all-targets -- -D warnings`
+- 完成条件：
+  - LLVM codegen 的 generic-bearing type-driven stable-id helper 已能稳定拿到 authoritative type-param key，不再因为 `missing stable type parameter key` 阻断 active production 编译路径；随后 `P7-T01R` 才能继续最终签收。
+- 依赖：P7-T01C
+- 完成记录：
+  - 待填。
+
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 
 - 参考：
@@ -1919,6 +1961,6 @@
   - 在完成记录中给出一份最终结论清单，对应 `PLAN.md` §6 的 8 条完成标准逐项签收。
 - 完成条件：
   - 可以明确写出：stable-id 整改已经闭合，后续若还有工作，只属于增量优化或新需求，而不再是本轮 identity 治理主线。
-- 依赖：P7-T01、P7-T01A、P7-T01B、P7-T01C
+- 依赖：P7-T01、P7-T01A、P7-T01B、P7-T01C、P7-T01D
 - 完成记录：
   - 待填。
