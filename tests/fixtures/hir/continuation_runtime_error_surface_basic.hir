@@ -6,21 +6,25 @@ File {
                 fqn: "fixtures.hir.Boom",
                 name: "Boom",
                 kind: Effect,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Fun(
                         MemberFunDecl {
                             span: 61..76,
                             fqn: "fixtures.hir.Boom.next",
                             name: "next",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                5,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: Int,
                         },
                     ),
                 ],
@@ -33,89 +37,129 @@ File {
                 span: 80..194,
                 fqn: "fixtures.hir.resumeWithEffects",
                 name: "resumeWithEffects",
-                ty: TypeId(
-                    14,
-                ),
+                ty: (scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>) -> Int / (fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>),
                 params: [
                     Param {
                         span: 102..103,
-                        id: S0,
+                        label: sym#haeeb0b8513416c1a9d09a7031a0fa186,
                         name: "k",
-                        ty: TypeId(
-                            11,
-                        ),
+                        ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 175..194,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 181..192,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 181..192,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 181..189,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S1,
-                                                        fqn: "scoop.core.Continuation.resume",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 181..189,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "scoop.core.Continuation.resume",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 181..182,
-                                                        ty: TypeId(
-                                                            11,
-                                                        ),
+                                                        ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S0,
+                                                                label: sym#haeeb0b8513416c1a9d09a7031a0fa186,
                                                                 name: "k",
                                                                 decl_span: 102..103,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                                 Positional(
                                                     Expr {
                                                         span: 190..191,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                        ty: Int,
+                                                        kind: Literal(Int),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 61..76,
+            fqn: "fixtures.hir.Boom.next",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 80..194,
+            fqn: "fixtures.hir.resumeWithEffects",
+            return_ty: Int,
+            allowed_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 181..192,
+            kind: ContinuationResume,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 181..192,
+            kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
+            resume_ty: Int,
+            answer_ty: Int,
+            out_effects: fixtures.hir.Boom,
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+        ContinuationResumeSiteContract {
+            span: 181..192,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
+            resume_ty: Int,
+            answer_ty: Int,
+            return_ty: Int,
+            out_effects: fixtures.hir.Boom,
+            required_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

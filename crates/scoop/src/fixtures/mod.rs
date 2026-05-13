@@ -1375,9 +1375,9 @@ fn hir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered =
-        scoopc::pipeline::lower_typed_hir_for_dump(session, source).map_err(box_diagnostic)?;
-    let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
+    let output = scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
+        .map_err(box_diagnostic)?;
+    let actual = normalize_newlines(&output.stable_dump());
 
     let golden_path = fixture_path.with_extension("hir");
     let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
@@ -1404,9 +1404,9 @@ fn mir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let lowered = scoopc::pipeline::lower_direct_style_mir_for_dump(session, source)
+    let output = scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
         .map_err(box_diagnostic)?;
-    let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
+    let actual = normalize_newlines(&output.stable_dump());
 
     assert_mir_golden_matches(&actual, fixture_path)
 }

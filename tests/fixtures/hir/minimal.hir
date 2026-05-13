@@ -6,11 +6,16 @@ File {
                 fqn: "a.Point",
                 name: "Point",
                 kind: Struct,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
-                members: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
+                members: [
+                ],
             },
         ),
     ],
@@ -20,30 +25,23 @@ File {
                 span: 54..88,
                 fqn: "a.takes",
                 name: "takes",
-                ty: TypeId(
-                    11,
-                ),
+                ty: (Option<Int>) -> Unit / Pure,
                 params: [
                     Param {
                         span: 64..65,
-                        id: S0,
+                        label: sym#hda509c496d5b9de05f849b2f86d70f09,
                         name: "x",
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: Option<Int>,
                     },
                 ],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 86..88,
-                        ty: TypeId(
-                            2,
-                        ),
-                        stmts: [],
-                    },
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
                 ),
             },
         ),
@@ -52,21 +50,17 @@ File {
                 span: 90..110,
                 fqn: "a.make",
                 name: "make",
-                ty: TypeId(
-                    13,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    12,
-                ),
+                ty: () -> a.Point / Pure,
+                params: [
+                ],
+                return_ty: a.Point,
                 body: Some(
                     Block {
                         span: 108..110,
-                        ty: TypeId(
-                            2,
-                        ),
-                        stmts: [],
-                    },
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
                 ),
             },
         ),
@@ -75,52 +69,40 @@ File {
                 span: 112..137,
                 fqn: "a.id",
                 name: "id",
-                ty: TypeId(
-                    15,
-                ),
+                ty: (T) -> T / Pure,
                 params: [
                     Param {
                         span: 123..124,
-                        id: S1,
+                        label: sym#he3c8db31d0e2090858a3f90e5af2868f,
                         name: "x",
-                        ty: TypeId(
-                            14,
-                        ),
+                        ty: T,
                     },
                 ],
-                return_ty: TypeId(
-                    14,
-                ),
+                return_ty: T,
                 body: Some(
                     Block {
                         span: 132..137,
-                        ty: TypeId(
-                            0,
-                        ),
+                        ty: Any,
                         stmts: [
                             Stmt {
                                 span: 134..135,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 134..135,
-                                        ty: TypeId(
-                                            0,
-                                        ),
+                                        ty: Any,
                                         kind: VarRef(
                                             Local {
-                                                id: S1,
+                                                label: sym#he3c8db31d0e2090858a3f90e5af2868f,
                                                 name: "x",
                                                 decl_span: 123..124,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
@@ -129,101 +111,137 @@ File {
                 span: 139..178,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    16,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 150..178,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 154..168,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 154..168,
-                                        id: Some(
-                                            S2,
-                                        ),
-                                        name: Some(
-                                            "x",
-                                        ),
+                                        label: sym#hc49cdd9c69f4bb4843a670c293d9f2d1,
+                                        name: "x",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 167..168,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: Literal(
-                                                    Int,
-                                                ),
-                                            },
+                                                ty: Int,
+                                                kind: Literal(Int),
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 171..176,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 171..176,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 171..173,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S3,
-                                                        fqn: "a.id",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 171..173,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "a.id",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 174..175,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
+                                                        ty: Int,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S2,
+                                                                label: sym#hc49cdd9c69f4bb4843a670c293d9f2d1,
                                                                 name: "x",
                                                                 decl_span: 158..159,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 112..137,
+            fqn: "a.id",
+            return_ty: T,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 139..178,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 90..110,
+            fqn: "a.make",
+            return_ty: a.Point,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 54..88,
+            fqn: "a.takes",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 171..176,
+            kind: DirectTopLevel,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 171..176,
+            kind: DirectTopLevel,
+            target_fqn: "a.id",
+            target_decl_span: Some(120..122),
+            target_type_args: [Int],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

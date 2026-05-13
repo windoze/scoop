@@ -5,83 +5,57 @@ File {
                 span: 11..79,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 22..79,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 26..35,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 26..35,
-                                        id: Some(
-                                            S0,
-                                        ),
-                                        name: Some(
-                                            "y",
-                                        ),
+                                        label: sym#h0566753b8d56c4f48717c663e7375a1b,
+                                        name: "y",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 34..35,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: Literal(
-                                                    Int,
-                                                ),
-                                            },
+                                                ty: Int,
+                                                kind: Literal(Int),
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 38..70,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 38..70,
-                                        id: Some(
-                                            S2,
-                                        ),
-                                        name: Some(
-                                            "f",
-                                        ),
+                                        label: sym#h1a39ba83b7ed745ac75a9fe15809c352,
+                                        name: "f",
                                         mutable: false,
-                                        ty: TypeId(
-                                            11,
-                                        ),
+                                        ty: (Int) -> Int / Pure,
                                         init: Some(
                                             Expr {
                                                 span: 60..70,
-                                                ty: TypeId(
-                                                    11,
-                                                ),
+                                                ty: (Int) -> Int / Pure,
                                                 kind: Closure(
                                                     ClosureExpr {
                                                         span: 60..70,
-                                                        id: C0,
+                                                        label: closure#h48f0b37fefd1b2aeefd5b78c673cc06d,
+                                                        at_safe_span: None,
                                                         captures: [
                                                             Capture {
-                                                                id: S0,
+                                                                label: sym#h0566753b8d56c4f48717c663e7375a1b,
                                                                 name: "y",
                                                                 decl_span: 30..31,
                                                                 mutable: false,
@@ -90,79 +64,105 @@ File {
                                                         params: [
                                                             Param {
                                                                 span: 62..63,
-                                                                id: S1,
+                                                                label: sym#h233b2b42b349be7bf7c9629f7b30d588,
                                                                 name: "x",
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
+                                                                ty: Int,
                                                             },
                                                         ],
-                                                        body: Expr {
-                                                            span: 67..68,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: VarRef(
-                                                                Local {
-                                                                    id: S0,
-                                                                    name: "y",
-                                                                    decl_span: 30..31,
-                                                                },
-                                                            ),
-                                                        },
-                                                    },
+                                                        body:
+                                                            Expr {
+                                                                span: 67..68,
+                                                                ty: Int,
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        label: sym#h0566753b8d56c4f48717c663e7375a1b,
+                                                                        name: "y",
+                                                                        decl_span: 30..31,
+                                                                    }
+                                                                ),
+                                                            }
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 73..77,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 73..77,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 73..74,
-                                                ty: TypeId(
-                                                    11,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S2,
-                                                        name: "f",
-                                                        decl_span: 42..43,
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 73..74,
+                                                    ty: (Int) -> Int / Pure,
+                                                    kind: VarRef(
+                                                        Local {
+                                                            label: sym#h1a39ba83b7ed745ac75a9fe15809c352,
+                                                            name: "f",
+                                                            decl_span: 42..43,
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 75..76,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                        ty: Int,
+                                                        kind: Literal(Int),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 11..79,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 73..77,
+            kind: FunValue,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 73..77,
+            kind: FunValue,
+            callee_ty: (Int) -> Int / Pure,
+            return_ty: Int,
+            arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

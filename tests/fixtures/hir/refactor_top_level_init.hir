@@ -6,8 +6,10 @@ File {
                 fqn: "fixtures.hir_init.Holder",
                 name: "Holder",
                 kind: Object,
-                supertypes: [],
-                interfaces: [],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 initializer_root: "fixtures.hir_init.Holder",
                 members: [
                     Field(
@@ -16,9 +18,7 @@ File {
                             fqn: "fixtures.hir_init.Holder.value",
                             name: "value",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: BodyProperty,
                         },
                     ),
@@ -30,119 +30,81 @@ File {
         Val(
             ValDecl {
                 span: 220..243,
-                id: Some(
-                    S0,
-                ),
-                name: Some(
-                    "Base",
-                ),
+                label: sym#he69961aec3b46f920679177a8be6f395,
+                name: "Base",
                 mutable: false,
-                ty: TypeId(
-                    5,
-                ),
+                ty: Int,
                 init: Some(
                     Expr {
                         span: 242..243,
-                        ty: TypeId(
-                            5,
-                        ),
-                        kind: Literal(
-                            Int,
-                        ),
-                    },
+                        ty: Int,
+                        kind: Literal(Int),
+                    }
                 ),
             },
         ),
         Val(
             ValDecl {
                 span: 244..271,
-                id: Some(
-                    S1,
-                ),
-                name: Some(
-                    "Runtime",
-                ),
+                label: sym#hce04558649fd3d9df57b04b9b0ced949,
+                name: "Runtime",
                 mutable: false,
-                ty: TypeId(
-                    5,
-                ),
+                ty: Int,
                 init: Some(
                     Expr {
                         span: 263..271,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         kind: Binary {
-                            lhs: Expr {
-                                span: 263..267,
-                                ty: TypeId(
-                                    5,
-                                ),
-                                kind: VarRef(
-                                    TopLevel {
-                                        id: S0,
-                                        fqn: "fixtures.hir_init.Base",
-                                    },
-                                ),
-                            },
+                            lhs:
+                                Expr {
+                                    span: 263..267,
+                                    ty: Int,
+                                    kind: VarRef(
+                                        TopLevel {
+                                            fqn: "fixtures.hir_init.Base",
+                                        }
+                                    ),
+                                }
                             op: Add,
                             op_span: 268..269,
-                            rhs: Expr {
-                                span: 270..271,
-                                ty: TypeId(
-                                    5,
-                                ),
-                                kind: Literal(
-                                    Int,
-                                ),
-                            },
+                            rhs:
+                                Expr {
+                                    span: 270..271,
+                                    ty: Int,
+                                    kind: Literal(Int),
+                                }
                         },
-                    },
+                    }
                 ),
             },
         ),
         Val(
             ValDecl {
                 span: 273..307,
-                id: Some(
-                    S2,
-                ),
-                name: Some(
-                    "Counter",
-                ),
+                label: sym#h702b21712aa01e257aa140149a078258,
+                name: "Counter",
                 mutable: true,
-                ty: TypeId(
-                    5,
-                ),
+                ty: Int,
                 init: Some(
                     Expr {
                         span: 300..307,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         kind: VarRef(
                             TopLevel {
-                                id: S1,
                                 fqn: "fixtures.hir_init.Runtime",
-                            },
+                            }
                         ),
-                    },
+                    }
                 ),
             },
         ),
         Val(
             ValDecl {
                 span: 309..364,
-                id: Some(
-                    S3,
-                ),
-                name: Some(
-                    "NativeCounter",
-                ),
+                label: sym#h58f6043982f09a826da1d96efab2db86,
+                name: "NativeCounter",
                 mutable: true,
-                ty: TypeId(
-                    5,
-                ),
+                ty: Int,
                 init: None,
             },
         ),
@@ -151,23 +113,113 @@ File {
                 span: 414..427,
                 fqn: "fixtures.hir_init.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    2,
-                ),
+                ty: () -> Unit / Pure,
+                params: [
+                ],
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 425..427,
-                        ty: TypeId(
-                            2,
-                        ),
-                        stmts: [],
-                    },
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 414..427,
+            fqn: "fixtures.hir_init.main",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    top_level_init_roots: [
+        TopLevelInitRootContract {
+            span: 220..243,
+            fqn: "fixtures.hir_init.Base",
+            kind: ConstVal,
+            ty: Int,
+            initializer_ty: Int,
+            has_initializer: true,
+            dependencies: [
+            ],
+        },
+        TopLevelInitRootContract {
+            span: 273..307,
+            fqn: "fixtures.hir_init.Counter",
+            kind: RuntimeMutableVar { storage: Global },
+            ty: Int,
+            initializer_ty: Int,
+            has_initializer: true,
+            dependencies: [
+                TopLevelInitDependency {
+                    fqn: "fixtures.hir_init.Runtime",
+                    kind: TopLevelValue,
+                },
+            ],
+        },
+        TopLevelInitRootContract {
+            span: 366..412,
+            fqn: "fixtures.hir_init.Holder",
+            kind: ObjectSingleton,
+            ty: None,
+            initializer_ty: None,
+            has_initializer: true,
+            dependencies: [
+                TopLevelInitDependency {
+                    fqn: "fixtures.hir_init.Runtime",
+                    kind: TopLevelValue,
+                },
+            ],
+        },
+        TopLevelInitRootContract {
+            span: 244..271,
+            fqn: "fixtures.hir_init.Runtime",
+            kind: RuntimeImmutableVal,
+            ty: Int,
+            initializer_ty: Int,
+            has_initializer: true,
+            dependencies: [
+                TopLevelInitDependency {
+                    fqn: "fixtures.hir_init.Base",
+                    kind: TopLevelValue,
+                },
+            ],
+        },
+    ],
+    extern_global_contracts: [
+        ExternGlobalContract {
+            span: 309..364,
+            fqn: "fixtures.hir_init.NativeCounter",
+            symbol: "native_counter",
+            linkage: External,
+            storage: Global,
+            ty: Int,
+            mutable: true,
+            initializer_absent: true,
+            unsafe_required: true,
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

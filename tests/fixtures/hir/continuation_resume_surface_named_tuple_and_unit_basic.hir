@@ -5,30 +5,23 @@ File {
                 span: 43..78,
                 fqn: "fixtures.hir.takesUnit",
                 name: "takesUnit",
-                ty: TypeId(
-                    10,
-                ),
+                ty: (Unit) -> Unit / Pure,
                 params: [
                     Param {
                         span: 57..62,
-                        id: S0,
+                        label: sym#h41f25f90ae8918fdfdcd76e892c646eb,
                         name: "value",
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                     },
                 ],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 76..78,
-                        ty: TypeId(
-                            2,
-                        ),
-                        stmts: [],
-                    },
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
                 ),
             },
         ),
@@ -37,225 +30,173 @@ File {
                 span: 80..231,
                 fqn: "fixtures.hir.resumeUnit",
                 name: "resumeUnit",
-                ty: TypeId(
-                    14,
-                ),
+                ty: (scoop.core.Continuation<Unit, Unit, eff Pure>) -> Unit / scoop.core.Raise<scoop.core.RuntimeError>,
                 params: [
                     Param {
                         span: 95..96,
-                        id: S1,
+                        label: sym#h34145372a2348ed986a1466bb595891d,
                         name: "k",
-                        ty: TypeId(
-                            11,
-                        ),
+                        ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
                     },
                 ],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 162..231,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 168..178,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 168..178,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 168..176,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S2,
-                                                        fqn: "scoop.core.Continuation.resume",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 168..176,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "scoop.core.Continuation.resume",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 168..169,
-                                                        ty: TypeId(
-                                                            11,
-                                                        ),
+                                                        ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S1,
+                                                                label: sym#h34145372a2348ed986a1466bb595891d,
                                                                 name: "k",
                                                                 decl_span: 95..96,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                                 Positional(
                                                     Expr {
                                                         span: 168..178,
-                                                        ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Literal(
-                                                            Unit,
-                                                        ),
-                                                    },
+                                                        ty: Unit,
+                                                        kind: Literal(Unit),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 183..195,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 183..195,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 183..191,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S2,
-                                                        fqn: "scoop.core.Continuation.resume",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 183..191,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "scoop.core.Continuation.resume",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 183..184,
-                                                        ty: TypeId(
-                                                            11,
-                                                        ),
+                                                        ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S1,
+                                                                label: sym#h34145372a2348ed986a1466bb595891d,
                                                                 name: "k",
                                                                 decl_span: 95..96,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                                 Positional(
                                                     Expr {
                                                         span: 192..194,
-                                                        ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Literal(
-                                                            Unit,
-                                                        ),
-                                                    },
+                                                        ty: Unit,
+                                                        kind: Literal(Unit),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 200..211,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 200..211,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 200..209,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S3,
-                                                        fqn: "fixtures.hir.takesUnit",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 200..209,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "fixtures.hir.takesUnit",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 200..211,
-                                                        ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Literal(
-                                                            Unit,
-                                                        ),
-                                                    },
+                                                        ty: Unit,
+                                                        kind: Literal(Unit),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 216..229,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 216..229,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 216..225,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S3,
-                                                        fqn: "fixtures.hir.takesUnit",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 216..225,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "fixtures.hir.takesUnit",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 226..228,
-                                                        ty: TypeId(
-                                                            2,
-                                                        ),
-                                                        kind: Literal(
-                                                            Unit,
-                                                        ),
-                                                    },
+                                                        ty: Unit,
+                                                        kind: Literal(Unit),
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
@@ -264,108 +205,227 @@ File {
                 span: 233..351,
                 fqn: "fixtures.hir.resumePair",
                 name: "resumePair",
-                ty: TypeId(
-                    17,
-                ),
+                ty: (scoop.core.Continuation<(Int, String), Unit, eff Pure>) -> Unit / scoop.core.Raise<scoop.core.RuntimeError>,
                 params: [
                     Param {
                         span: 248..249,
-                        id: S4,
+                        label: sym#h48f08070437a7c0bd1f48ce741a72531,
                         name: "k",
-                        ty: TypeId(
-                            16,
-                        ),
+                        ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
                     },
                 ],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 324..351,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 330..349,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 330..349,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 330..338,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S2,
-                                                        fqn: "scoop.core.Continuation.resume",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 330..338,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "scoop.core.Continuation.resume",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 330..331,
-                                                        ty: TypeId(
-                                                            16,
-                                                        ),
+                                                        ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S4,
+                                                                label: sym#h48f08070437a7c0bd1f48ce741a72531,
                                                                 name: "k",
                                                                 decl_span: 248..249,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                                 Positional(
                                                     Expr {
                                                         span: 339..348,
-                                                        ty: TypeId(
-                                                            15,
-                                                        ),
+                                                        ty: (Int, String),
                                                         kind: TupleLit {
                                                             elements: [
                                                                 Expr {
                                                                     span: 340..341,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    kind: Literal(
-                                                                        Int,
-                                                                    ),
-                                                                },
+                                                                    ty: Int,
+                                                                    kind: Literal(Int),
+                                                                }
                                                                 Expr {
                                                                     span: 343..347,
-                                                                    ty: TypeId(
-                                                                        1,
-                                                                    ),
-                                                                    kind: Literal(
-                                                                        String,
-                                                                    ),
-                                                                },
+                                                                    ty: String,
+                                                                    kind: Literal(String),
+                                                                }
                                                             ],
                                                         },
-                                                    },
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 233..351,
+            fqn: "fixtures.hir.resumePair",
+            return_ty: Unit,
+            allowed_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 80..231,
+            fqn: "fixtures.hir.resumeUnit",
+            return_ty: Unit,
+            allowed_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 43..78,
+            fqn: "fixtures.hir.takesUnit",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 168..178,
+            kind: ContinuationResume,
+        },
+        TypedCallSiteContract {
+            span: 183..195,
+            kind: ContinuationResume,
+        },
+        TypedCallSiteContract {
+            span: 200..211,
+            kind: DirectTopLevel,
+        },
+        TypedCallSiteContract {
+            span: 216..229,
+            kind: DirectTopLevel,
+        },
+        TypedCallSiteContract {
+            span: 330..349,
+            kind: ContinuationResume,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 168..178,
+            kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            out_effects: Pure,
+        },
+        CallSiteContract {
+            span: 183..195,
+            kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            out_effects: Pure,
+        },
+        CallSiteContract {
+            span: 200..211,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.takesUnit",
+            target_decl_span: Some(47..56),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+        CallSiteContract {
+            span: 216..229,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.takesUnit",
+            target_decl_span: Some(47..56),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+        CallSiteContract {
+            span: 330..349,
+            kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
+            resume_ty: (Int, String),
+            answer_ty: Unit,
+            out_effects: Pure,
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+        ContinuationResumeSiteContract {
+            span: 168..178,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+        ContinuationResumeSiteContract {
+            span: 183..195,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
+            resume_ty: Unit,
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+        ContinuationResumeSiteContract {
+            span: 330..349,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
+            resume_ty: (Int, String),
+            answer_ty: Unit,
+            return_ty: Unit,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

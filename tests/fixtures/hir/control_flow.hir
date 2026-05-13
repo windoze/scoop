@@ -5,337 +5,296 @@ File {
                 span: 11..185,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 27..185,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 31..45,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 31..45,
-                                        id: Some(
-                                            S0,
-                                        ),
-                                        name: Some(
-                                            "x",
-                                        ),
+                                        label: sym#h5d02f229195a551ebc272708c1a216ce,
+                                        name: "x",
                                         mutable: true,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 44..45,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: Literal(
-                                                    Int,
-                                                ),
-                                            },
+                                                ty: Int,
+                                                kind: Literal(Int),
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 48..53,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Assign {
-                                    lhs: Expr {
-                                        span: 48..49,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: VarRef(
-                                            Local {
-                                                id: S0,
-                                                name: "x",
-                                                decl_span: 35..36,
-                                            },
-                                        ),
-                                    },
+                                    lhs:
+                                        Expr {
+                                            span: 48..49,
+                                            ty: Int,
+                                            kind: VarRef(
+                                                Local {
+                                                    label: sym#h5d02f229195a551ebc272708c1a216ce,
+                                                    name: "x",
+                                                    decl_span: 35..36,
+                                                }
+                                            ),
+                                        }
                                     eq_span: 50..51,
-                                    rhs: Expr {
-                                        span: 52..53,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: Literal(
-                                            Int,
-                                        ),
-                                    },
+                                    rhs:
+                                        Expr {
+                                            span: 52..53,
+                                            ty: Int,
+                                            kind: Literal(Int),
+                                        }
                                 },
                             },
                             Stmt {
                                 span: 57..83,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 57..83,
-                                        ty: TypeId(
-                                            0,
-                                        ),
+                                        ty: Any,
                                         kind: If {
-                                            cond: Expr {
-                                                span: 61..65,
-                                                ty: TypeId(
-                                                    4,
-                                                ),
-                                                kind: Literal(
-                                                    Bool(
-                                                        true,
-                                                    ),
-                                                ),
-                                            },
-                                            then_branch: Expr {
-                                                span: 67..72,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: Block(
-                                                    Block {
-                                                        span: 67..72,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 69..70,
-                                                                ty: TypeId(
-                                                                    2,
-                                                                ),
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 69..70,
-                                                                        ty: TypeId(
-                                                                            5,
-                                                                        ),
-                                                                        kind: VarRef(
-                                                                            Local {
-                                                                                id: S0,
-                                                                                name: "x",
-                                                                                decl_span: 35..36,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                ),
-                                                            },
-                                                        ],
-                                                    },
-                                                ),
-                                            },
-                                            else_branch: Some(
+                                            cond:
                                                 Expr {
-                                                    span: 78..83,
-                                                    ty: TypeId(
-                                                        5,
-                                                    ),
+                                                    span: 61..65,
+                                                    ty: Bool,
+                                                    kind: Literal(Bool(true)),
+                                                }
+                                            then_branch:
+                                                Expr {
+                                                    span: 67..72,
+                                                    ty: Int,
                                                     kind: Block(
                                                         Block {
-                                                            span: 78..83,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
+                                                            span: 67..72,
+                                                            ty: Int,
                                                             stmts: [
                                                                 Stmt {
-                                                                    span: 80..81,
-                                                                    ty: TypeId(
-                                                                        2,
-                                                                    ),
+                                                                    span: 69..70,
+                                                                    ty: Unit,
                                                                     kind: Expr(
                                                                         Expr {
-                                                                            span: 80..81,
-                                                                            ty: TypeId(
-                                                                                5,
+                                                                            span: 69..70,
+                                                                            ty: Int,
+                                                                            kind: VarRef(
+                                                                                Local {
+                                                                                    label: sym#h5d02f229195a551ebc272708c1a216ce,
+                                                                                    name: "x",
+                                                                                    decl_span: 35..36,
+                                                                                }
                                                                             ),
-                                                                            kind: Literal(
-                                                                                Int,
-                                                                            ),
-                                                                        },
+                                                                        }
                                                                     ),
                                                                 },
                                                             ],
-                                                        },
+                                                        }
                                                     ),
-                                                },
+                                                }
+                                            else_branch: Some(
+                                                Expr {
+                                                    span: 78..83,
+                                                    ty: Int,
+                                                    kind: Block(
+                                                        Block {
+                                                            span: 78..83,
+                                                            ty: Int,
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 80..81,
+                                                                    ty: Unit,
+                                                                    kind: Expr(
+                                                                        Expr {
+                                                                            span: 80..81,
+                                                                            ty: Int,
+                                                                            kind: Literal(Int),
+                                                                        }
+                                                                    ),
+                                                                },
+                                                            ],
+                                                        }
+                                                    ),
+                                                }
                                             ),
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 87..136,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 87..136,
-                                        ty: TypeId(
-                                            0,
-                                        ),
+                                        ty: Any,
                                         kind: When {
-                                            subject: Expr {
-                                                span: 93..94,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S0,
-                                                        name: "x",
-                                                        decl_span: 35..36,
-                                                    },
-                                                ),
-                                            },
+                                            subject:
+                                                Expr {
+                                                    span: 93..94,
+                                                    ty: Int,
+                                                    kind: VarRef(
+                                                        Local {
+                                                            label: sym#h5d02f229195a551ebc272708c1a216ce,
+                                                            name: "x",
+                                                            decl_span: 35..36,
+                                                        }
+                                                    ),
+                                                }
                                             arms: [
                                                 WhenArm {
                                                     span: 102..117,
-                                                    pat: IntLit {
-                                                        span: 102..103,
-                                                        raw: "0",
-                                                    },
+                                                    pat:
+                                                        IntLit {
+                                                            span: 102..103,
+                                                            raw: "0",
+                                                        },
                                                     guard: Some(
                                                         Expr {
                                                             span: 107..111,
-                                                            ty: TypeId(
-                                                                4,
-                                                            ),
-                                                            kind: Literal(
-                                                                Bool(
-                                                                    true,
-                                                                ),
-                                                            ),
-                                                        },
+                                                            ty: Bool,
+                                                            kind: Literal(Bool(true)),
+                                                        }
                                                     ),
                                                     arrow_span: 112..114,
-                                                    body: Expr {
-                                                        span: 115..117,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                    body:
+                                                        Expr {
+                                                            span: 115..117,
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                 },
                                                 WhenArm {
                                                     span: 122..132,
-                                                    pat: Else {
-                                                        span: 122..126,
-                                                    },
+                                                    pat:
+                                                        Else {
+                                                            span: 122..126,
+                                                        },
                                                     guard: None,
                                                     arrow_span: 127..129,
-                                                    body: Expr {
-                                                        span: 130..132,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                    body:
+                                                        Expr {
+                                                            span: 130..132,
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                 },
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 140..171,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: While {
-                                    cond: Expr {
-                                        span: 147..151,
-                                        ty: TypeId(
-                                            4,
-                                        ),
-                                        kind: Literal(
-                                            Bool(
-                                                true,
-                                            ),
-                                        ),
-                                    },
-                                    body: Block {
-                                        span: 153..171,
-                                        ty: TypeId(
-                                            2,
-                                        ),
-                                        stmts: [
-                                            Stmt {
-                                                span: 159..167,
-                                                ty: TypeId(
-                                                    3,
-                                                ),
-                                                kind: Return {
-                                                    value: Some(
-                                                        Expr {
-                                                            span: 166..167,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: VarRef(
-                                                                Local {
-                                                                    id: S0,
-                                                                    name: "x",
-                                                                    decl_span: 35..36,
-                                                                },
-                                                            ),
-                                                        },
-                                                    ),
+                                    cond:
+                                        Expr {
+                                            span: 147..151,
+                                            ty: Bool,
+                                            kind: Literal(Bool(true)),
+                                        }
+                                    body:
+                                        Block {
+                                            span: 153..171,
+                                            ty: Unit,
+                                            stmts: [
+                                                Stmt {
+                                                    span: 159..167,
+                                                    ty: Nothing,
+                                                    kind: Return {
+                                                        value: Some(
+                                                            Expr {
+                                                                span: 166..167,
+                                                                ty: Int,
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        label: sym#h5d02f229195a551ebc272708c1a216ce,
+                                                                        name: "x",
+                                                                        decl_span: 35..36,
+                                                                    }
+                                                                ),
+                                                            }
+                                                        ),
+                                                    },
                                                 },
-                                            },
-                                        ],
-                                    },
+                                            ],
+                                        }
                                 },
                             },
                             Stmt {
                                 span: 175..183,
-                                ty: TypeId(
-                                    3,
-                                ),
+                                ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
                                             span: 182..183,
-                                            ty: TypeId(
-                                                5,
-                                            ),
+                                            ty: Int,
                                             kind: VarRef(
                                                 Local {
-                                                    id: S0,
+                                                    label: sym#h5d02f229195a551ebc272708c1a216ce,
                                                     name: "x",
                                                     decl_span: 35..36,
-                                                },
+                                                }
                                             ),
-                                        },
+                                        }
                                     ),
                                 },
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 11..185,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+        AssignPlaceContract {
+            span: 48..53,
+            kind: Local,
+            label: sym#h63f290217046a6d86517365a2a8b006e,
+            name: "x",
+            decl_span: 35..36,
+            place_ty: Int,
+            value_ty: Int,
+            mutable: true,
+            write_barrier: NotRequired,
+            unsafe_required: false,
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

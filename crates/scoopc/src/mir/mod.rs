@@ -18,6 +18,7 @@
 
 mod callables;
 mod closure_simplify;
+mod dump;
 mod escape;
 mod inline;
 mod lower;
@@ -40,6 +41,7 @@ use crate::stable_id::StableConeKey;
 use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
+pub(crate) use dump::{stable_dump_file, stable_dump_materialized};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
 pub use escape::{
     CallableEscapeFacts, ClosureEscapeFact, ContinuationEscapeFact, EscapeStatus,

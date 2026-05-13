@@ -6,9 +6,12 @@ File {
                 fqn: "fixtures.hir.Point",
                 name: "Point",
                 kind: Struct,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 constructors: [
                     CtorDecl {
                         span: 55..79,
@@ -17,24 +20,16 @@ File {
                             CtorParamDecl {
                                 span: 60..61,
                                 name: "x",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                             CtorParamDecl {
                                 span: 72..73,
                                 name: "y",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                         ],
                         delegation: None,
@@ -47,9 +42,7 @@ File {
                             fqn: "fixtures.hir.Point.x",
                             name: "x",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -59,9 +52,7 @@ File {
                             fqn: "fixtures.hir.Point.y",
                             name: "y",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -73,62 +64,78 @@ File {
         Val(
             ValDecl {
                 span: 81..119,
-                id: Some(
-                    S0,
-                ),
-                name: Some(
-                    "point",
-                ),
+                label: sym#h46dab4ed5807f3e2fc3e4875d3eb9411,
+                name: "point",
                 mutable: false,
-                ty: TypeId(
-                    10,
-                ),
+                ty: fixtures.hir.Point,
                 init: Some(
                     Expr {
                         span: 100..119,
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: fixtures.hir.Point,
                         kind: StructLit {
-                            ty: TypeId(
-                                10,
-                            ),
+                            ty: fixtures.hir.Point,
                             fields: [
                                 StructLitField {
                                     span: 117..118,
                                     name: "x",
                                     name_span: 100..119,
                                     colon_span: 100..119,
-                                    value: Expr {
-                                        span: 117..118,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: Literal(
-                                            Int,
-                                        ),
-                                    },
+                                    value:
+                                        Expr {
+                                            span: 117..118,
+                                            ty: Int,
+                                            kind: Literal(Int),
+                                        }
                                 },
                                 StructLitField {
                                     span: 110..111,
                                     name: "y",
                                     name_span: 100..119,
                                     colon_span: 100..119,
-                                    value: Expr {
-                                        span: 110..111,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: Literal(
-                                            Int,
-                                        ),
-                                    },
+                                    value:
+                                        Expr {
+                                            span: 110..111,
+                                            ty: Int,
+                                            kind: Literal(Int),
+                                        }
                                 },
                             ],
                         },
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    top_level_init_roots: [
+        TopLevelInitRootContract {
+            span: 81..119,
+            fqn: "fixtures.hir.point",
+            kind: RuntimeImmutableVal,
+            ty: fixtures.hir.Point,
+            initializer_ty: fixtures.hir.Point,
+            has_initializer: true,
+            dependencies: [
+            ],
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

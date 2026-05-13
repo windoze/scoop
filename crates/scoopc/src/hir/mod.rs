@@ -12,7 +12,9 @@
 //! 注意：本模块尚未接入完整 typecheck/infer，因此未覆盖的表达式/语句会以 `Any` 作为类型占位，
 //! 并用 `Todo(...)` 节点保留结构位置，避免 `panic!()` 阻断调试。
 
+mod dump;
 mod lower;
+pub(crate) use dump::stable_dump_file;
 pub use lower::mangle_nominal_fqn;
 
 use std::collections::{HashMap, HashSet};

@@ -1180,6 +1180,7 @@ impl TypedHirEffectContracts {
 pub struct TypedHirStageOutput {
     lowered_hir: LoweredHir,
     effect_contracts: TypedHirEffectContracts,
+    source_path: PathBuf,
 }
 
 impl TypedHirStageOutput {
@@ -1195,6 +1196,7 @@ impl TypedHirStageOutput {
         Ok(Self {
             lowered_hir,
             effect_contracts,
+            source_path: source_path.to_path_buf(),
         })
     }
 
@@ -1214,9 +1216,14 @@ impl TypedHirStageOutput {
         &self.effect_contracts
     }
 
+    pub fn source_path(&self) -> &Path {
+        &self.source_path
+    }
+
     /// 以稳定文本渲染 refactor typed HIR dump：先打印 HIR `File`，再追加 typed side tables。
     pub fn stable_dump(&self) -> String {
-        let mut out = format!("{:#?}\n", self.hir_file());
+        let mut out = crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path());
+        out.push('\n');
         out.push('\n');
         out.push_str(&self.effect_contracts.stable_dump(self.types()));
         out.push('\n');
@@ -2381,18 +2388,26 @@ fn format_assign_place_contract(
     let _ = writeln!(out, "            span: {:?},", call_site.span);
     match &contract.kind {
         AssignPlaceKind::Local {
-            id,
             name,
             decl_span,
+            ..
         } => {
             let _ = writeln!(out, "            kind: Local,");
-            let _ = writeln!(out, "            id: {:?},", id);
+            let label = crate::dump_support::LocalEntityKey::new(
+                "typed_hir_assign_place",
+                &call_site.source_path,
+                *decl_span,
+                "assign_place_local",
+                name,
+                0,
+            )
+            .label("sym");
+            let _ = writeln!(out, "            label: {},", label);
             let _ = writeln!(out, "            name: {:?},", name);
             let _ = writeln!(out, "            decl_span: {:?},", decl_span);
         }
-        AssignPlaceKind::TopLevel { id, fqn } => {
+        AssignPlaceKind::TopLevel { fqn, .. } => {
             let _ = writeln!(out, "            kind: TopLevel,");
-            let _ = writeln!(out, "            id: {:?},", id);
             let _ = writeln!(out, "            fqn: {:?},", fqn);
         }
         AssignPlaceKind::Member {

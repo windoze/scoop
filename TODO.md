@@ -1245,7 +1245,7 @@
 
 ## P5：重写 dump / fixture renderer
 
-### [TODO] P5-T01：重写 HIR / MIR / materialized IR dump renderer，并刷新相关 fixture
+### [DONE] P5-T01：重写 HIR / MIR / materialized IR dump renderer，并刷新相关 fixture
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P5
@@ -1292,7 +1292,42 @@
   - HIR / MIR / `dump-ir` 及其 fixture 已彻底脱离 raw `Debug` 协议。
 - 依赖：P4-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/dump_support.rs`
+    - `crates/scoopc/src/hir/dump.rs`
+    - `crates/scoopc/src/mir/dump.rs`
+    - `crates/scoopc/src/hir/mod.rs`
+    - `crates/scoopc/src/mir/mod.rs`
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/pipeline/hir_stage.rs`
+    - `crates/scoopc/src/pipeline/mir_stage.rs`
+    - `crates/scoop/src/commands/dump_hir.rs`
+    - `crates/scoop/src/commands/dump_mir.rs`
+    - `crates/scoop/src/commands/dump_ir.rs`
+    - `crates/scoop/src/fixtures/mod.rs`
+    - `crates/scoopc/src/hir/lower/mod.rs`
+    - `crates/scoopc/src/hir/lower/placeholder_inventory.rs`
+    - `tests/fixtures/hir/**`
+    - `tests/fixtures/mir/**`
+    - `tests/fixtures/mir_refactor/**`
+  - 核心决策：
+    - 新增共享 `dump_support` 与专用 HIR/MIR renderer；`dump-hir`、`dump-mir`、`dump-ir` 都改为显式稳定 renderer，不再依赖 `format!("{:#?}")` 或字符串后处理 canonicalize。
+    - HIR renderer 现在用 source-anchor 派生的稳定 label 替代 `SymbolId` / `ClosureId`，并为 `ValDecl` 补了符号声明 span 收集器，保证声明/引用 label 对齐；typed HIR side-table dump 中的 assign-place contract 也移除了 `id: S*` 泄漏。
+    - MIR renderer 现在直接输出语义类型文本与稳定 `local` / `bb` / `site` label；workspace-relative path 规范化在 renderer 内完成，`dump-mir` 不再走 `TypeId(...)` canonicalize 或 path replace 补丁链。
+    - `dump-ir` 增加 `MaterializedMir::stable_dump()`，把 materialized instance surface 改为稳定 `instance#h...` label、稳定 instance display 与 exported symbol，不再暴露 `InstanceKey` 的 `tN` 视图。
+    - fixture runner、HIR golden 单测与 dump 命令测试全部切到 stage-owned `stable_dump()` surface，避免 CLI、fixture、单测各自维护不同文本协议。
+  - 验证结果：
+    - `cargo test -p scoopc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor`
+    - `cargo test -p scoop`
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `cargo clippy -p scoop --all-targets -- -D warnings`
+    - 文本审计：刷新后的 `tests/fixtures/hir/**`、`tests/fixtures/mir/**`、`tests/fixtures/mir_refactor/**` 中，`TypeId(`、`S0`、`C0`、`bb0`、`site0` 均已无命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P5 / `STABLE_ID.md` §3.2.1-§3.2.3、§8.2：HIR / MIR / materialized MIR 的对外文本协议已从 raw `Debug`、allocator-derived label 与 `TypeId`/`SymbolId`/`ClosureId` 表面完全迁出。
+    - 对应 `PLAN.md` P5 的 fixture 验收：`tests/fixtures/hir/**`、`tests/fixtures/mir/**`、`tests/fixtures/mir_refactor/**` 已一次性刷新到新的稳定协议，后续 P5-T02 可继续处理 effect facts / effect lowered textual surface。
 
 ### [TODO] P5-T02：重写 effect facts / effect lowered dump renderer，并刷新相关 snapshot
 

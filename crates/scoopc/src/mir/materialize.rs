@@ -159,6 +159,11 @@ pub struct MaterializedMir {
 }
 
 impl MaterializedMir {
+    /// Stable text surface for `dump-ir` and materialized MIR regression checks.
+    pub fn stable_dump(&self) -> String {
+        super::stable_dump_materialized(self)
+    }
+
     /// Validate the canonical materialized MIR handoff before it can be consumed by later stages.
     pub fn validate_refactor_materialized(&self) -> Result<(), Box<MirMaterializeError>> {
         validate_refactor_materialized_mir(self)

@@ -5,116 +5,129 @@ File {
                 span: 43..87,
                 fqn: "fixtures.hir.pick",
                 name: "pick",
-                ty: TypeId(
-                    11,
-                ),
+                ty: (Option<Int>) -> Int / Pure,
                 params: [
                     Param {
                         span: 52..53,
-                        id: S0,
+                        label: sym#h959aa5e100d18c5a2de7c13c74dc67ad,
                         name: "x",
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: Option<Int>,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 66..87,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 72..85,
-                                ty: TypeId(
-                                    3,
-                                ),
+                                ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
                                             span: 79..85,
-                                            ty: TypeId(
-                                                5,
-                                            ),
+                                            ty: Int,
                                             kind: When {
-                                                subject: Expr {
-                                                    span: 79..80,
-                                                    ty: TypeId(
-                                                        10,
-                                                    ),
-                                                    kind: VarRef(
-                                                        Local {
-                                                            id: S0,
-                                                            name: "x",
-                                                            decl_span: 52..53,
-                                                        },
-                                                    ),
-                                                },
+                                                subject:
+                                                    Expr {
+                                                        span: 79..80,
+                                                        ty: Option<Int>,
+                                                        kind: VarRef(
+                                                            Local {
+                                                                label: sym#h959aa5e100d18c5a2de7c13c74dc67ad,
+                                                                name: "x",
+                                                                decl_span: 52..53,
+                                                            }
+                                                        ),
+                                                    }
                                                 arms: [
                                                     WhenArm {
                                                         span: 81..83,
-                                                        pat: Variant {
-                                                            span: 81..83,
-                                                            name_span: 81..83,
-                                                            name: "Some",
-                                                            args: [
-                                                                Bind {
-                                                                    span: 81..83,
-                                                                    id: S1,
-                                                                    name: "__elvis_v",
-                                                                },
-                                                            ],
-                                                        },
+                                                        pat:
+                                                            Variant {
+                                                                span: 81..83,
+                                                                name_span: 81..83,
+                                                                name: "Some",
+                                                                args: [
+                                                                    Bind {
+                                                                        span: 81..83,
+                                                                        label: sym#hd1e12aab39030864b2065f5cb9c4b79e,
+                                                                        name: "__elvis_v",
+                                                                    },
+                                                                ],
+                                                            },
                                                         guard: None,
                                                         arrow_span: 81..83,
-                                                        body: Expr {
-                                                            span: 81..83,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: VarRef(
-                                                                Local {
-                                                                    id: S1,
-                                                                    name: "__elvis_v",
-                                                                    decl_span: 81..83,
-                                                                },
-                                                            ),
-                                                        },
+                                                        body:
+                                                            Expr {
+                                                                span: 81..83,
+                                                                ty: Int,
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        label: sym#hd1e12aab39030864b2065f5cb9c4b79e,
+                                                                        name: "__elvis_v",
+                                                                        decl_span: 81..83,
+                                                                    }
+                                                                ),
+                                                            }
                                                     },
                                                     WhenArm {
                                                         span: 81..83,
-                                                        pat: Variant {
-                                                            span: 81..83,
-                                                            name_span: 81..83,
-                                                            name: "None",
-                                                            args: [],
-                                                        },
+                                                        pat:
+                                                            Variant {
+                                                                span: 81..83,
+                                                                name_span: 81..83,
+                                                                name: "None",
+                                                                args: [
+                                                                ],
+                                                            },
                                                         guard: None,
                                                         arrow_span: 81..83,
-                                                        body: Expr {
-                                                            span: 84..85,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
+                                                        body:
+                                                            Expr {
+                                                                span: 84..85,
+                                                                ty: Int,
+                                                                kind: Literal(Int),
+                                                            }
                                                     },
                                                 ],
                                             },
-                                        },
+                                        }
                                     ),
                                 },
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 43..87,
+            fqn: "fixtures.hir.pick",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

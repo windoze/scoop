@@ -1,6 +1,6 @@
 //! `scoop dump-ir` 子命令。
 //!
-//! 当前阶段：输出 materialized MIR instances 的 Debug 视图，用于验证：
+//! 当前阶段：输出 materialized MIR instances 的稳定文本视图，用于验证：
 //! - `InstanceKey` 是否独立于最终 backend 符号名；
 //! - generic MIR template 是否在 MIR 层 materialize 成稳定实例；
 //! - 单一路径不再拼接已删除的 raw/codegen route 兼容输出。
@@ -14,10 +14,10 @@ use scoopc::source::SourceFile;
 fn render_materialized_ir_output(session: &Session, source: &SourceFile) -> Result<String> {
     let materialized = scoopc::pipeline::materialize_direct_style_mir_for_dump(session, source)
         .map_err(|err| miette::Report::from(*err))?;
-    Ok(format!("{materialized:#?}"))
+    Ok(materialized.stable_dump())
 }
 
-/// 读取输入文件并打印实例化后的 MIR Debug 输出。
+/// 读取输入文件并打印实例化后的 MIR 稳定文本输出。
 pub(super) fn render_dump_output(
     input: PathBuf,
     session_options: SessionOptions,
@@ -63,8 +63,10 @@ fun main(): Int {
         let actual = super::render_materialized_ir_output(&session, &source).unwrap();
 
         assert!(actual.contains("MaterializedMir"));
+        assert!(actual.contains("instance#h"));
         assert!(actual.contains("sample.id::<Int>"));
-        assert!(actual.contains("sample.main"));
+        assert!(!actual.contains("TypeId("));
+        assert!(!actual.contains("t0"));
         assert!(!actual.contains("MirCodegenRoutingFacts"));
     }
 }

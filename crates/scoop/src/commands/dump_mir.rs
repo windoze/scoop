@@ -1,6 +1,6 @@
 //! `scoop dump-mir` 子命令。
 //!
-//! 当前输出的是 generic early MIR / ANF template 的 Debug 视图，用于验证：
+//! 当前输出的是 generic early MIR / ANF template 的稳定文本视图，用于验证：
 //! - backend-agnostic 的 CFG / locals / call kind / perform / pattern lowering 形状；
 //! - `dump-mir` 仍停留在 generic template 边界，不提前 materialize `::<T>` 实例；
 //! - 更晚 backend lowering（如 LLVM 细节）不会混入这层输出。
@@ -19,7 +19,7 @@ fn load_mir_for_dump(
         .map_err(miette::Report::from)
 }
 
-/// 读取输入文件并打印 MIR（Debug）。
+/// 读取输入文件并打印 MIR 稳定文本视图。
 pub(super) fn render_dump_output(
     input: PathBuf,
     session_options: SessionOptions,

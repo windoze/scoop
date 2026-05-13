@@ -10,63 +10,8 @@ File {
                     type_params: [],
                     supertypes: [],
                     interfaces: [],
-                    constructors: [
-                        CtorMetadata {
-                            span: 242..266,
-                            kind: Primary,
-                            params: [
-                                CtorParamMetadata {
-                                    span: 247..248,
-                                    name: "x",
-                                    ty: TypeId(
-                                        0,
-                                    ),
-                                    has_default: false,
-                                    property: Some(
-                                        Val,
-                                    ),
-                                },
-                                CtorParamMetadata {
-                                    span: 259..260,
-                                    name: "y",
-                                    ty: TypeId(
-                                        0,
-                                    ),
-                                    has_default: false,
-                                    property: Some(
-                                        Val,
-                                    ),
-                                },
-                            ],
-                            delegation: None,
-                        },
-                    ],
-                    members: [
-                        Field(
-                            FieldMetadata {
-                                span: 247..248,
-                                fqn: "mir_refactor.comptime_splice_class_with_update.Point.x",
-                                name: "x",
-                                mutable: false,
-                                ty: TypeId(
-                                    0,
-                                ),
-                                origin: PrimaryCtorParam,
-                            },
-                        ),
-                        Field(
-                            FieldMetadata {
-                                span: 259..260,
-                                fqn: "mir_refactor.comptime_splice_class_with_update.Point.y",
-                                name: "y",
-                                mutable: false,
-                                ty: TypeId(
-                                    0,
-                                ),
-                                origin: PrimaryCtorParam,
-                            },
-                        ),
-                    ],
+                    constructors: [CtorMetadata { span: 242..266, kind: Primary, params: [CtorParamMetadata { span: 247..248, name: "x", ty: Int, has_default: false, property: Some(Val) }, CtorParamMetadata { span: 259..260, name: "y", ty: Int, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 247..248, fqn: "mir_refactor.comptime_splice_class_with_update.Point.x", name: "x", mutable: false, ty: Int, origin: PrimaryCtorParam }), Field(FieldMetadata { span: 259..260, fqn: "mir_refactor.comptime_splice_class_with_update.Point.y", name: "y", mutable: false, ty: Int, origin: PrimaryCtorParam })],
                 },
             ),
         ),
@@ -81,46 +26,7 @@ File {
                     supertypes: [],
                     interfaces: [],
                     constructors: [],
-                    members: [
-                        EnumVariant(
-                            EnumVariantMetadata {
-                                span: 286..306,
-                                fqn: "mir_refactor.comptime_splice_class_with_update.Result.Ok",
-                                name: "Ok",
-                                fields: [
-                                    FieldMetadata {
-                                        span: 293..298,
-                                        fqn: "mir_refactor.comptime_splice_class_with_update.Result.Ok.point",
-                                        name: "point",
-                                        mutable: false,
-                                        ty: TypeId(
-                                            1,
-                                        ),
-                                        origin: EnumVariantPayload,
-                                    },
-                                ],
-                            },
-                        ),
-                        EnumVariant(
-                            EnumVariantMetadata {
-                                span: 312..330,
-                                fqn: "mir_refactor.comptime_splice_class_with_update.Result.Err",
-                                name: "Err",
-                                fields: [
-                                    FieldMetadata {
-                                        span: 320..324,
-                                        fqn: "mir_refactor.comptime_splice_class_with_update.Result.Err.code",
-                                        name: "code",
-                                        mutable: false,
-                                        ty: TypeId(
-                                            0,
-                                        ),
-                                        origin: EnumVariantPayload,
-                                    },
-                                ],
-                            },
-                        ),
-                    ],
+                    members: [EnumVariant(EnumVariantMetadata { span: 286..306, fqn: "mir_refactor.comptime_splice_class_with_update.Result.Ok", name: "Ok", fields: [FieldMetadata { span: 293..298, fqn: "mir_refactor.comptime_splice_class_with_update.Result.Ok.point", name: "point", mutable: false, ty: mir_refactor.comptime_splice_class_with_update.Point, origin: EnumVariantPayload }] }), EnumVariant(EnumVariantMetadata { span: 312..330, fqn: "mir_refactor.comptime_splice_class_with_update.Result.Err", name: "Err", fields: [FieldMetadata { span: 320..324, fqn: "mir_refactor.comptime_splice_class_with_update.Result.Err.code", name: "code", mutable: false, ty: Int, origin: EnumVariantPayload }] })],
                 },
             ),
         ),
@@ -130,17 +36,11 @@ File {
                 fqn: "mir_refactor.comptime_splice_class_with_update.ENABLED",
                 source_path: "tests/fixtures/mir_refactor/comptime_splice_class_with_update.scoop",
                 kind: ConstVal,
-                ty: Some(
-                    TypeId(
-                        2,
-                    ),
-                ),
+                ty: Some(Bool),
                 initializer_transport: None,
                 has_initializer: true,
                 dependencies: [],
-                hidden_effects: EffectRow {
-                    terms: [],
-                },
+                hidden_effects: Pure,
             },
         ),
         Fun(
@@ -148,68 +48,22 @@ File {
                 span: 134..173,
                 fqn: "mir_refactor.comptime_splice_class_with_update.packageSelected",
                 name: "packageSelected",
-                ty: TypeId(
-                    3,
-                ),
+                ty: () -> Int / Pure,
                 params: [],
-                return_ty: TypeId(
-                    0,
-                ),
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 170..171,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 161..173,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h52568ed9c27b8f018981b98d175c4f98, span: 170..171, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h18eec54a39a29dea181e99eef9883dce, span: 161..173, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hcb066cea075f6820ce139fdff1d91bfd,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 170..171,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 163..171,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l0,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 170..171, kind: Assign { target: local#h52568ed9c27b8f018981b98d175c4f98, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 163..171, kind: Return { value: Some(Local(local#h52568ed9c27b8f018981b98d175c4f98)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hcb066cea075f6820ce139fdff1d91bfd,
+                    }
                 ),
             },
         ),
@@ -218,68 +72,22 @@ File {
                 span: 335..445,
                 fqn: "mir_refactor.comptime_splice_class_with_update.selectedBranch",
                 name: "selectedBranch",
-                ty: TypeId(
-                    3,
-                ),
+                ty: () -> Int / Pure,
                 params: [],
-                return_ty: TypeId(
-                    0,
-                ),
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 406..407,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 361..445,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#hf24b8562804f46d35411d0e1e72d2160, span: 406..407, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h2e40906f777a63d21091a7692e676cd7, span: 361..445, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h81d6ea59ae0627a955531edf24b2b168,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 406..407,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 399..407,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l0,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 406..407, kind: Assign { target: local#hf24b8562804f46d35411d0e1e72d2160, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 399..407, kind: Return { value: Some(Local(local#hf24b8562804f46d35411d0e1e72d2160)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h81d6ea59ae0627a955531edf24b2b168,
+                    }
                 ),
             },
         ),
@@ -288,260 +96,22 @@ File {
                 span: 447..565,
                 fqn: "mir_refactor.comptime_splice_class_with_update.unrolled",
                 name: "unrolled",
-                ty: TypeId(
-                    3,
-                ),
+                ty: () -> Int / Pure,
                 params: [],
-                return_ty: TypeId(
-                    0,
-                ),
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 473..489,
-                                name: Some(
-                                    "acc",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 488..489,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 535..542,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 541..542,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 535..542,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 541..542,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 535..542,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 541..542,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 467..565,
-                                name: Some(
-                                    "tmp7",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#hfba359c356dcdbb1986a475b75c2772b, span: 473..489, name: Some("acc"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h2827ac685b6f7b9ab4b6965d01eeac50, span: 488..489, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h77faf90a43b36de809f41aaa06aa2478, span: 535..542, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hf40f5f453f2d771d41f084dfbeb2fb5c, span: 541..542, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h03946e6653a987d7a748bfd8bc7da570, span: 535..542, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h92c6ab210af23538f594df90142a714c, span: 541..542, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h20f64539d0c008f9c8f446a74a569edf, span: 535..542, name: Some("tmp5"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h49de47e69af9e828db1bdc2ba7970791, span: 541..542, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he5215b315e27bc54b68c47bc01cc59c6, span: 467..565, name: Some("tmp7"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h0d91cec15ff53b839baef24b281f1507,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 488..489,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 473..489,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Local(
-                                                    l1,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 541..542,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 535..542,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l3,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 529..542,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Local(
-                                                    l2,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 541..542,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 535..542,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l5,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 529..542,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Local(
-                                                    l4,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 541..542,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 535..542,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l7,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 529..542,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Local(
-                                                    l6,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 553..563,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l0,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 488..489, kind: Assign { target: local#h2827ac685b6f7b9ab4b6965d01eeac50, value: Use(Const(Int)) } }, Statement { span: 473..489, kind: Assign { target: local#hfba359c356dcdbb1986a475b75c2772b, value: Use(Local(local#h2827ac685b6f7b9ab4b6965d01eeac50)) } }, Statement { span: 541..542, kind: Assign { target: local#hf40f5f453f2d771d41f084dfbeb2fb5c, value: Use(Const(Int)) } }, Statement { span: 535..542, kind: Assign { target: local#h77faf90a43b36de809f41aaa06aa2478, value: Binary { lhs: Local(local#hfba359c356dcdbb1986a475b75c2772b), op: Add, rhs: Local(local#hf40f5f453f2d771d41f084dfbeb2fb5c) } } }, Statement { span: 529..542, kind: Assign { target: local#hfba359c356dcdbb1986a475b75c2772b, value: Use(Local(local#h77faf90a43b36de809f41aaa06aa2478)) } }, Statement { span: 541..542, kind: Assign { target: local#h92c6ab210af23538f594df90142a714c, value: Use(Const(Int)) } }, Statement { span: 535..542, kind: Assign { target: local#h03946e6653a987d7a748bfd8bc7da570, value: Binary { lhs: Local(local#hfba359c356dcdbb1986a475b75c2772b), op: Add, rhs: Local(local#h92c6ab210af23538f594df90142a714c) } } }, Statement { span: 529..542, kind: Assign { target: local#hfba359c356dcdbb1986a475b75c2772b, value: Use(Local(local#h03946e6653a987d7a748bfd8bc7da570)) } }, Statement { span: 541..542, kind: Assign { target: local#h49de47e69af9e828db1bdc2ba7970791, value: Use(Const(Int)) } }, Statement { span: 535..542, kind: Assign { target: local#h20f64539d0c008f9c8f446a74a569edf, value: Binary { lhs: Local(local#hfba359c356dcdbb1986a475b75c2772b), op: Add, rhs: Local(local#h49de47e69af9e828db1bdc2ba7970791) } } }, Statement { span: 529..542, kind: Assign { target: local#hfba359c356dcdbb1986a475b75c2772b, value: Use(Local(local#h20f64539d0c008f9c8f446a74a569edf)) } }],
+                                terminator: Terminator { span: 553..563, kind: Return { value: Some(Local(local#hfba359c356dcdbb1986a475b75c2772b)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h0d91cec15ff53b839baef24b281f1507,
+                    }
                 ),
             },
         ),
@@ -550,163 +120,22 @@ File {
                 span: 567..650,
                 fqn: "mir_refactor.comptime_splice_class_with_update.spliceField",
                 name: "spliceField",
-                ty: TypeId(
-                    5,
-                ),
-                params: [
-                    Param {
-                        span: 583..584,
-                        name: "p",
-                        ty: TypeId(
-                            1,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    0,
-                ),
+                ty: (mir_refactor.comptime_splice_class_with_update.Point) -> Int / Pure,
+                params: [Param { span: 583..584, name: "p", ty: mir_refactor.comptime_splice_class_with_update.Point, local: local#hb43ddaae44d9ffe632f58fab86974dd5 }],
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 583..584,
-                                name: Some(
-                                    "p",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 611..648,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 611..618,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 621..648,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 598..650,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#hb43ddaae44d9ffe632f58fab86974dd5, span: 583..584, name: Some("p"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h2799694a408db111b83ff27f906f6f4d, span: 611..648, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h1a7e438535d7d3231ef249298c94624f, span: 611..618, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h8ac3e3d8db18e2baf65d5caab9985eac, span: 621..648, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hd2577248b7e8c2fe660a496036d42377, span: 598..650, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#ha20ac24fb20eb9926d70421909b468b1,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 611..618,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l0,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "x",
-                                                    receiver_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "mir_refactor.comptime_splice_class_with_update.Point.x",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 621..648,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l0,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "y",
-                                                    receiver_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "mir_refactor.comptime_splice_class_with_update.Point.y",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 611..648,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l2,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l3,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 604..648,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l1,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 611..618, kind: Assign { target: local#h1a7e438535d7d3231ef249298c94624f, value: MemberAccess { site_id: None, receiver: Local(local#hb43ddaae44d9ffe632f58fab86974dd5), member: MemberAccessMetadata { name: "x", receiver_ty: mir_refactor.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_refactor.comptime_splice_class_with_update.Point.x" }), hidden_effects: Pure } } } }, Statement { span: 621..648, kind: Assign { target: local#h8ac3e3d8db18e2baf65d5caab9985eac, value: MemberAccess { site_id: None, receiver: Local(local#hb43ddaae44d9ffe632f58fab86974dd5), member: MemberAccessMetadata { name: "y", receiver_ty: mir_refactor.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_refactor.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 611..648, kind: Assign { target: local#h2799694a408db111b83ff27f906f6f4d, value: Binary { lhs: Local(local#h1a7e438535d7d3231ef249298c94624f), op: Add, rhs: Local(local#h8ac3e3d8db18e2baf65d5caab9985eac) } } }],
+                                terminator: Terminator { span: 604..648, kind: Return { value: Some(Local(local#h2799694a408db111b83ff27f906f6f4d)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#ha20ac24fb20eb9926d70421909b468b1,
+                    }
                 ),
             },
         ),
@@ -715,74 +144,22 @@ File {
                 span: 652..703,
                 fqn: "mir_refactor.comptime_splice_class_with_update.className",
                 name: "className",
-                ty: TypeId(
-                    6,
-                ),
+                ty: () -> String / Pure,
                 params: [],
-                return_ty: TypeId(
-                    7,
-                ),
+                return_ty: String,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 689..701,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    7,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 676..703,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#hf8ee6ca342a4f0177dce93c89fad6c24, span: 689..701, name: Some("tmp0"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#h23743fd40a76fcb583aca49f8d3f45fa, span: 676..703, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hcabf3a44476180ad28874da90c3bc7d5,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 689..701,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: TypeMetadataLiteral(
-                                                TypeMetadataLiteral {
-                                                    source_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    source_fqn: Some(
-                                                        "mir_refactor.comptime_splice_class_with_update.Point",
-                                                    ),
-                                                    kind: TypeNameString,
-                                                },
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 682..701,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l0,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 689..701, kind: Assign { target: local#hf8ee6ca342a4f0177dce93c89fad6c24, value: TypeMetadataLiteral { source_ty: mir_refactor.comptime_splice_class_with_update.Point, source_fqn: Some("mir_refactor.comptime_splice_class_with_update.Point"), kind: TypeNameString } } }],
+                                terminator: Terminator { span: 682..701, kind: Return { value: Some(Local(local#hf8ee6ca342a4f0177dce93c89fad6c24)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hcabf3a44476180ad28874da90c3bc7d5,
+                    }
                 ),
             },
         ),
@@ -791,249 +168,22 @@ File {
                 span: 705..769,
                 fqn: "mir_refactor.comptime_splice_class_with_update.updateStruct",
                 name: "updateStruct",
-                ty: TypeId(
-                    8,
-                ),
-                params: [
-                    Param {
-                        span: 722..723,
-                        name: "p",
-                        ty: TypeId(
-                            1,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    1,
-                ),
+                ty: (mir_refactor.comptime_splice_class_with_update.Point) -> mir_refactor.comptime_splice_class_with_update.Point / Pure,
+                params: [Param { span: 722..723, name: "p", ty: mir_refactor.comptime_splice_class_with_update.Point, local: local#h62ab529d0afea17e91892fc9835ef94d }],
+                return_ty: mir_refactor.comptime_splice_class_with_update.Point,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 722..723,
-                                name: Some(
-                                    "p",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 754..758,
-                                name: Some(
-                                    "$with_base",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 764..765,
-                                name: Some(
-                                    "__with_update_value_0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 764..765,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 752..767,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 754..758,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 739..769,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h62ab529d0afea17e91892fc9835ef94d, span: 722..723, name: Some("p"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h5850dc785481d04b935b31739c165c4a, span: 754..758, name: Some("$with_base"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#hf3a1d5ab5a0a4fab1feb0aafe87c1522, span: 764..765, name: Some("__with_update_value_0"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hb1d08ee789fc60d8c46edb609ac25c54, span: 764..765, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h574fa7cbd8e19a3f1013bd62e3e0649d, span: 752..767, name: Some("tmp1"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#hfd5abfba437a1a6c455f4f5c7774a3a7, span: 754..758, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h7a536e7cc65c67ac925bde0624a56d08, span: 739..769, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h66b9e3b5b47fa04376222b492ae0c9c6,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 754..758,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Local(
-                                                    l0,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 764..765,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 764..765,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Local(
-                                                    l3,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 754..758,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l1,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "y",
-                                                    receiver_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "mir_refactor.comptime_splice_class_with_update.Point.y",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 752..767,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: StructLit {
-                                                fields: [
-                                                    StructLitField {
-                                                        span: 764..765,
-                                                        name: "x",
-                                                        value: Local(
-                                                            l2,
-                                                        ),
-                                                    },
-                                                    StructLitField {
-                                                        span: 754..758,
-                                                        name: "y",
-                                                        value: Local(
-                                                            l5,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    kind: Struct,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: Some(
-                                                                "x",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                        AggregateTransportField {
-                                                            index: 1,
-                                                            name: Some(
-                                                                "y",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 745..767,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l4,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 754..758, kind: Assign { target: local#h5850dc785481d04b935b31739c165c4a, value: Use(Local(local#h62ab529d0afea17e91892fc9835ef94d)) } }, Statement { span: 764..765, kind: Assign { target: local#hb1d08ee789fc60d8c46edb609ac25c54, value: Use(Const(Int)) } }, Statement { span: 764..765, kind: Assign { target: local#hf3a1d5ab5a0a4fab1feb0aafe87c1522, value: Use(Local(local#hb1d08ee789fc60d8c46edb609ac25c54)) } }, Statement { span: 754..758, kind: Assign { target: local#hfd5abfba437a1a6c455f4f5c7774a3a7, value: MemberAccess { site_id: None, receiver: Local(local#h5850dc785481d04b935b31739c165c4a), member: MemberAccessMetadata { name: "y", receiver_ty: mir_refactor.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_refactor.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 752..767, kind: Assign { target: local#h574fa7cbd8e19a3f1013bd62e3e0649d, value: StructLit { fields: [StructLitField { span: 764..765, name: "x", value: Local(local#hf3a1d5ab5a0a4fab1feb0aafe87c1522) }, StructLitField { span: 754..758, name: "y", value: Local(local#hfd5abfba437a1a6c455f4f5c7774a3a7) }], transport: AggregateTransportMetadata { aggregate_ty: mir_refactor.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }],
+                                terminator: Terminator { span: 745..767, kind: Return { value: Some(Local(local#h574fa7cbd8e19a3f1013bd62e3e0649d)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h66b9e3b5b47fa04376222b492ae0c9c6,
+                    }
                 ),
             },
         ),
@@ -1042,501 +192,22 @@ File {
                 span: 771..881,
                 fqn: "mir_refactor.comptime_splice_class_with_update.updateTuple",
                 name: "updateTuple",
-                ty: TypeId(
-                    9,
-                ),
-                params: [
-                    Param {
-                        span: 787..791,
-                        name: "pair",
-                        ty: TypeId(
-                            10,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    10,
-                ),
+                ty: ((mir_refactor.comptime_splice_class_with_update.Point, (Int, Int))) -> (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)) / Pure,
+                params: [Param { span: 787..791, name: "pair", ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)), local: local#h0e0edb7ef06f80f9f94c6965053d3422 }],
+                return_ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)),
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 787..791,
-                                name: Some(
-                                    "pair",
-                                ),
-                                ty: TypeId(
-                                    10,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 853..857,
-                                name: Some(
-                                    "$with_base",
-                                ),
-                                ty: TypeId(
-                                    10,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 866..867,
-                                name: Some(
-                                    "__with_update_value_1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 866..867,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 876..877,
-                                name: Some(
-                                    "__with_update_value_2",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 876..877,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 848..879,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    10,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 848..879,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 853..857,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 853..857,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 848..879,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    11,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 853..857,
-                                name: Some(
-                                    "tmp7",
-                                ),
-                                ty: TypeId(
-                                    12,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 853..857,
-                                name: Some(
-                                    "tmp8",
-                                ),
-                                ty: TypeId(
-                                    11,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 835..881,
-                                name: Some(
-                                    "tmp9",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h0e0edb7ef06f80f9f94c6965053d3422, span: 787..791, name: Some("pair"), ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)), source: SourceLocal }, LocalDecl { label: local#h5216c7912582ea76e498498c68172f49, span: 853..857, name: Some("$with_base"), ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)), source: SourceLocal }, LocalDecl { label: local#hac0975911e65d7276e0cff8116f42127, span: 866..867, name: Some("__with_update_value_1"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h767b480a1b79d1f8129f8c44ddad2e1f, span: 866..867, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h8ed7b337c89e13f0e2a0ac3e4787387a, span: 876..877, name: Some("__with_update_value_2"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h275b50575eeb8464913735c57b60ac13, span: 876..877, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he987a63492db8e119eeb902992b9fb04, span: 848..879, name: Some("tmp2"), ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)), source: CompilerTemporary }, LocalDecl { label: local#h83a488e2f5d451daf4da773b459d513a, span: 848..879, name: Some("tmp3"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#h81a015e4f39bda7937f71cd783712361, span: 853..857, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h963686a3b7c9b1023e6c18ccfa7eccf4, span: 853..857, name: Some("tmp5"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#h2344e49e308ac8af606b62f48856fb10, span: 848..879, name: Some("tmp6"), ty: (Int, Int), source: CompilerTemporary }, LocalDecl { label: local#h82128866c2990ba7c7b1fb64718c8244, span: 853..857, name: Some("tmp7"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#hc9043c1e8e5ebe47bb1a980e6f5d0be2, span: 853..857, name: Some("tmp8"), ty: (Int, Int), source: CompilerTemporary }, LocalDecl { label: local#h386ab12191cb9fe288a9ff405570425c, span: 835..881, name: Some("tmp9"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hb3cbf3128d8948f7cbdc87b0c88d19ca,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 853..857,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Local(
-                                                    l0,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 866..867,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 866..867,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Local(
-                                                    l3,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 876..877,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 876..877,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Use(
-                                                Local(
-                                                    l5,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 853..857,
-                                        kind: Assign {
-                                            target: l9,
-                                            value: TupleGet {
-                                                tuple: Local(
-                                                    l1,
-                                                ),
-                                                index: 0,
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 853..857,
-                                        kind: Assign {
-                                            target: l8,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l9,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "y",
-                                                    receiver_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "mir_refactor.comptime_splice_class_with_update.Point.y",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 848..879,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: StructLit {
-                                                fields: [
-                                                    StructLitField {
-                                                        span: 866..867,
-                                                        name: "x",
-                                                        value: Local(
-                                                            l2,
-                                                        ),
-                                                    },
-                                                    StructLitField {
-                                                        span: 853..857,
-                                                        name: "y",
-                                                        value: Local(
-                                                            l8,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    kind: Struct,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: Some(
-                                                                "x",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                        AggregateTransportField {
-                                                            index: 1,
-                                                            name: Some(
-                                                                "y",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 853..857,
-                                        kind: Assign {
-                                            target: l12,
-                                            value: TupleGet {
-                                                tuple: Local(
-                                                    l1,
-                                                ),
-                                                index: 1,
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 853..857,
-                                        kind: Assign {
-                                            target: l11,
-                                            value: TupleGet {
-                                                tuple: Local(
-                                                    l12,
-                                                ),
-                                                index: 1,
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 848..879,
-                                        kind: Assign {
-                                            target: l10,
-                                            value: MakeTuple {
-                                                elements: [
-                                                    Local(
-                                                        l4,
-                                                    ),
-                                                    Local(
-                                                        l11,
-                                                    ),
-                                                ],
-                                                transport: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        11,
-                                                    ),
-                                                    kind: Tuple,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                        AggregateTransportField {
-                                                            index: 1,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                12,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    12,
-                                                                ),
-                                                                kind: Reference,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 848..879,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: MakeTuple {
-                                                elements: [
-                                                    Local(
-                                                        l7,
-                                                    ),
-                                                    Local(
-                                                        l10,
-                                                    ),
-                                                ],
-                                                transport: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        10,
-                                                    ),
-                                                    kind: Tuple,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                1,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    1,
-                                                                ),
-                                                                kind: Struct,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                        AggregateTransportField {
-                                                            index: 1,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                11,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    11,
-                                                                ),
-                                                                kind: Tuple,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 841..879,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l6,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 853..857, kind: Assign { target: local#h5216c7912582ea76e498498c68172f49, value: Use(Local(local#h0e0edb7ef06f80f9f94c6965053d3422)) } }, Statement { span: 866..867, kind: Assign { target: local#h767b480a1b79d1f8129f8c44ddad2e1f, value: Use(Const(Int)) } }, Statement { span: 866..867, kind: Assign { target: local#hac0975911e65d7276e0cff8116f42127, value: Use(Local(local#h767b480a1b79d1f8129f8c44ddad2e1f)) } }, Statement { span: 876..877, kind: Assign { target: local#h275b50575eeb8464913735c57b60ac13, value: Use(Const(Int)) } }, Statement { span: 876..877, kind: Assign { target: local#h8ed7b337c89e13f0e2a0ac3e4787387a, value: Use(Local(local#h275b50575eeb8464913735c57b60ac13)) } }, Statement { span: 853..857, kind: Assign { target: local#h963686a3b7c9b1023e6c18ccfa7eccf4, value: TupleGet { tuple: Local(local#h5216c7912582ea76e498498c68172f49), index: 0 } } }, Statement { span: 853..857, kind: Assign { target: local#h81a015e4f39bda7937f71cd783712361, value: MemberAccess { site_id: None, receiver: Local(local#h963686a3b7c9b1023e6c18ccfa7eccf4), member: MemberAccessMetadata { name: "y", receiver_ty: mir_refactor.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_refactor.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 848..879, kind: Assign { target: local#h83a488e2f5d451daf4da773b459d513a, value: StructLit { fields: [StructLitField { span: 866..867, name: "x", value: Local(local#hac0975911e65d7276e0cff8116f42127) }, StructLitField { span: 853..857, name: "y", value: Local(local#h81a015e4f39bda7937f71cd783712361) }], transport: AggregateTransportMetadata { aggregate_ty: mir_refactor.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 853..857, kind: Assign { target: local#hc9043c1e8e5ebe47bb1a980e6f5d0be2, value: TupleGet { tuple: Local(local#h5216c7912582ea76e498498c68172f49), index: 1 } } }, Statement { span: 853..857, kind: Assign { target: local#h82128866c2990ba7c7b1fb64718c8244, value: TupleGet { tuple: Local(local#hc9043c1e8e5ebe47bb1a980e6f5d0be2), index: 1 } } }, Statement { span: 848..879, kind: Assign { target: local#h2344e49e308ac8af606b62f48856fb10, value: MakeTuple { elements: [Local(local#h8ed7b337c89e13f0e2a0ac3e4787387a), Local(local#h82128866c2990ba7c7b1fb64718c8244)], transport: AggregateTransportMetadata { aggregate_ty: (Int, Int), kind: Tuple, fields: [AggregateTransportField { index: 0, name: None, ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: None, ty: Any, transport: ValueTransportMetadata { source_ty: Any, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 848..879, kind: Assign { target: local#he987a63492db8e119eeb902992b9fb04, value: MakeTuple { elements: [Local(local#h83a488e2f5d451daf4da773b459d513a), Local(local#h2344e49e308ac8af606b62f48856fb10)], transport: AggregateTransportMetadata { aggregate_ty: (mir_refactor.comptime_splice_class_with_update.Point, (Int, Int)), kind: Tuple, fields: [AggregateTransportField { index: 0, name: None, ty: mir_refactor.comptime_splice_class_with_update.Point, transport: ValueTransportMetadata { source_ty: mir_refactor.comptime_splice_class_with_update.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }, AggregateTransportField { index: 1, name: None, ty: (Int, Int), transport: ValueTransportMetadata { source_ty: (Int, Int), kind: Tuple, requirements: MirTransportRequirements { trace: false, copy: true, drop: true }, boxing: None } }] } } } }],
+                                terminator: Terminator { span: 841..879, kind: Return { value: Some(Local(local#he987a63492db8e119eeb902992b9fb04)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hb3cbf3128d8948f7cbdc87b0c88d19ca,
+                    }
                 ),
             },
         ),
@@ -1545,623 +216,55 @@ File {
                 span: 883..969,
                 fqn: "mir_refactor.comptime_splice_class_with_update.updateEnum",
                 name: "updateEnum",
-                ty: TypeId(
-                    13,
-                ),
-                params: [
-                    Param {
-                        span: 898..899,
-                        name: "r",
-                        ty: TypeId(
-                            14,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    14,
-                ),
+                ty: (mir_refactor.comptime_splice_class_with_update.Result) -> mir_refactor.comptime_splice_class_with_update.Result / Pure,
+                params: [Param { span: 898..899, name: "r", ty: mir_refactor.comptime_splice_class_with_update.Result, local: local#hc0489bb296cafe867f042d0c83862d94 }],
+                return_ty: mir_refactor.comptime_splice_class_with_update.Result,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 898..899,
-                                name: Some(
-                                    "r",
-                                ),
-                                ty: TypeId(
-                                    14,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 932..936,
-                                name: Some(
-                                    "$with_base",
-                                ),
-                                ty: TypeId(
-                                    14,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 951..952,
-                                name: Some(
-                                    "__with_update_value_3",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 951..952,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 964..965,
-                                name: Some(
-                                    "__with_update_value_4",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 964..965,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    14,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 980..981,
-                                name: Some(
-                                    "__with_enum_field_5",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    14,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 932..936,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp7",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 982..983,
-                                name: Some(
-                                    "__with_enum_field_6",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 930..967,
-                                name: Some(
-                                    "tmp8",
-                                ),
-                                ty: TypeId(
-                                    14,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 917..969,
-                                name: Some(
-                                    "tmp9",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#hc0489bb296cafe867f042d0c83862d94, span: 898..899, name: Some("r"), ty: mir_refactor.comptime_splice_class_with_update.Result, source: SourceLocal }, LocalDecl { label: local#h0d3a6af7b9845296a3b295d5855cb312, span: 932..936, name: Some("$with_base"), ty: mir_refactor.comptime_splice_class_with_update.Result, source: SourceLocal }, LocalDecl { label: local#hd089633ce3cc1305b1482e93b8e05ac9, span: 951..952, name: Some("__with_update_value_3"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h496104a3508ddbd181d11df30b4424cc, span: 951..952, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he6246ee7c8c8bc399c537b9d3de30108, span: 964..965, name: Some("__with_update_value_4"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hbe0ac846ebf635fb7de7a7eb3e880f7b, span: 964..965, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h4678ff492e0903aceae817ba83d7a92f, span: 930..967, name: Some("tmp2"), ty: mir_refactor.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#h22bd7e3b6008e1d4571215b81a4352a9, span: 930..967, name: Some("tmp3"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h30d9565a861715a0697225b5ec69e3d4, span: 980..981, name: Some("__with_enum_field_5"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h231bb0e8d86838557fc1fcc89bf24377, span: 930..967, name: Some("tmp4"), ty: mir_refactor.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#hd2337a5fcb9995faf615be47bd26207e, span: 930..967, name: Some("tmp5"), ty: mir_refactor.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#h7e73e71056387bc05fc396bd1c4006cd, span: 932..936, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hcc3a4bab33157f1d763f53795598ada7, span: 930..967, name: Some("tmp7"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h40d5bb85f1c424c2234ad8f08296803d, span: 982..983, name: Some("__with_enum_field_6"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hae7bb57604697714a27895f37aa6e73b, span: 930..967, name: Some("tmp8"), ty: mir_refactor.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#he966abbf11ac10277446e60a6db74c68, span: 917..969, name: Some("tmp9"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h5e61efcc50cf0c564fdbd45242f7664e,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 932..936,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Local(
-                                                    l0,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 951..952,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 951..952,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Local(
-                                                    l3,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 964..965,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 964..965,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Use(
-                                                Local(
-                                                    l5,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 932..936,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: PatternMatch {
-                                                subject: Local(
-                                                    l1,
-                                                ),
-                                                pattern: Variant {
-                                                    name: "Ok",
-                                                    args: [
-                                                        Bind {
-                                                            name: "__with_enum_field_5",
-                                                            ty: TypeId(
-                                                                1,
-                                                            ),
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 930..967,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l7,
-                                        ),
-                                        then_target: bb3,
-                                        else_target: bb2,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 932..936, kind: Assign { target: local#h0d3a6af7b9845296a3b295d5855cb312, value: Use(Local(local#hc0489bb296cafe867f042d0c83862d94)) } }, Statement { span: 951..952, kind: Assign { target: local#h496104a3508ddbd181d11df30b4424cc, value: Use(Const(Int)) } }, Statement { span: 951..952, kind: Assign { target: local#hd089633ce3cc1305b1482e93b8e05ac9, value: Use(Local(local#h496104a3508ddbd181d11df30b4424cc)) } }, Statement { span: 964..965, kind: Assign { target: local#hbe0ac846ebf635fb7de7a7eb3e880f7b, value: Use(Const(Int)) } }, Statement { span: 964..965, kind: Assign { target: local#he6246ee7c8c8bc399c537b9d3de30108, value: Use(Local(local#hbe0ac846ebf635fb7de7a7eb3e880f7b)) } }, Statement { span: 932..936, kind: Assign { target: local#h22bd7e3b6008e1d4571215b81a4352a9, value: PatternMatch { subject: Local(local#h0d3a6af7b9845296a3b295d5855cb312), pattern: Variant { name: "Ok", args: [Bind { name: "__with_enum_field_5", ty: mir_refactor.comptime_splice_class_with_update.Point }] } } } }],
+                                terminator: Terminator { span: 930..967, kind: CondBr { cond: Local(local#h22bd7e3b6008e1d4571215b81a4352a9), then_target: bb#h67833a7a2fb7adeb478275c1fc446d2a, else_target: bb#h67833a7a2fb7adeb478275c1fc446d2a }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#hbf03b7739ac3e4041fafe70ff634e0f7,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 923..967,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l6,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 923..967, kind: Return { value: Some(Local(local#h4678ff492e0903aceae817ba83d7a92f)) }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h67833a7a2fb7adeb478275c1fc446d2a,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 932..936,
-                                        kind: Assign {
-                                            target: l12,
-                                            value: PatternMatch {
-                                                subject: Local(
-                                                    l1,
-                                                ),
-                                                pattern: Variant {
-                                                    name: "Err",
-                                                    args: [
-                                                        Bind {
-                                                            name: "__with_enum_field_6",
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 930..967,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l12,
-                                        ),
-                                        then_target: bb5,
-                                        else_target: bb4,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 932..936, kind: Assign { target: local#hcc3a4bab33157f1d763f53795598ada7, value: PatternMatch { subject: Local(local#h0d3a6af7b9845296a3b295d5855cb312), pattern: Variant { name: "Err", args: [Bind { name: "__with_enum_field_6", ty: Int }] } } } }],
+                                terminator: Terminator { span: 930..967, kind: CondBr { cond: Local(local#hcc3a4bab33157f1d763f53795598ada7), then_target: bb#h67833a7a2fb7adeb478275c1fc446d2a, else_target: bb#h67833a7a2fb7adeb478275c1fc446d2a }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h67833a7a2fb7adeb478275c1fc446d2a,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 980..981,
-                                        kind: Assign {
-                                            target: l8,
-                                            value: PatternExtract {
-                                                subject: Local(
-                                                    l1,
-                                                ),
-                                                path: [
-                                                    VariantField {
-                                                        variant: "Ok",
-                                                        field_index: 0,
-                                                    },
-                                                ],
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 932..936,
-                                        kind: Assign {
-                                            target: l11,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l8,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "y",
-                                                    receiver_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "mir_refactor.comptime_splice_class_with_update.Point.y",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 930..967,
-                                        kind: Assign {
-                                            target: l10,
-                                            value: StructLit {
-                                                fields: [
-                                                    StructLitField {
-                                                        span: 951..952,
-                                                        name: "x",
-                                                        value: Local(
-                                                            l2,
-                                                        ),
-                                                    },
-                                                    StructLitField {
-                                                        span: 932..936,
-                                                        name: "y",
-                                                        value: Local(
-                                                            l11,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        1,
-                                                    ),
-                                                    kind: Struct,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: Some(
-                                                                "x",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                        AggregateTransportField {
-                                                            index: 1,
-                                                            name: Some(
-                                                                "y",
-                                                            ),
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 930..967,
-                                        kind: Assign {
-                                            target: l9,
-                                            value: EnumVariant {
-                                                enum_ty: TypeId(
-                                                    14,
-                                                ),
-                                                variant_name: "Ok",
-                                                args: [
-                                                    CallArg {
-                                                        span: 930..967,
-                                                        name: None,
-                                                        value: Local(
-                                                            l10,
-                                                        ),
-                                                    },
-                                                ],
-                                                payload: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        14,
-                                                    ),
-                                                    kind: EnumPayload,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                1,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    1,
-                                                                ),
-                                                                kind: Struct,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 930..967,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: Use(
-                                                Local(
-                                                    l9,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 930..967,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 980..981, kind: Assign { target: local#h30d9565a861715a0697225b5ec69e3d4, value: PatternExtract { subject: Local(local#h0d3a6af7b9845296a3b295d5855cb312), path: [VariantField { variant: "Ok", field_index: 0 }] } } }, Statement { span: 932..936, kind: Assign { target: local#h7e73e71056387bc05fc396bd1c4006cd, value: MemberAccess { site_id: None, receiver: Local(local#h30d9565a861715a0697225b5ec69e3d4), member: MemberAccessMetadata { name: "y", receiver_ty: mir_refactor.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_refactor.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 930..967, kind: Assign { target: local#hd2337a5fcb9995faf615be47bd26207e, value: StructLit { fields: [StructLitField { span: 951..952, name: "x", value: Local(local#hd089633ce3cc1305b1482e93b8e05ac9) }, StructLitField { span: 932..936, name: "y", value: Local(local#h7e73e71056387bc05fc396bd1c4006cd) }], transport: AggregateTransportMetadata { aggregate_ty: mir_refactor.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 930..967, kind: Assign { target: local#h231bb0e8d86838557fc1fcc89bf24377, value: EnumVariant { enum_ty: mir_refactor.comptime_splice_class_with_update.Result, variant_name: "Ok", args: [CallArg { span: 930..967, name: None, value: Local(local#hd2337a5fcb9995faf615be47bd26207e) }], payload: AggregateTransportMetadata { aggregate_ty: mir_refactor.comptime_splice_class_with_update.Result, kind: EnumPayload, fields: [AggregateTransportField { index: 0, name: None, ty: mir_refactor.comptime_splice_class_with_update.Point, transport: ValueTransportMetadata { source_ty: mir_refactor.comptime_splice_class_with_update.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 930..967, kind: Assign { target: local#h4678ff492e0903aceae817ba83d7a92f, value: Use(Local(local#h231bb0e8d86838557fc1fcc89bf24377)) } }],
+                                terminator: Terminator { span: 930..967, kind: Goto { target: bb#hbf03b7739ac3e4041fafe70ff634e0f7 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h67833a7a2fb7adeb478275c1fc446d2a,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 930..967,
-                                    kind: Unreachable,
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 930..967, kind: Unreachable, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h67833a7a2fb7adeb478275c1fc446d2a,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 982..983,
-                                        kind: Assign {
-                                            target: l13,
-                                            value: PatternExtract {
-                                                subject: Local(
-                                                    l1,
-                                                ),
-                                                path: [
-                                                    VariantField {
-                                                        variant: "Err",
-                                                        field_index: 0,
-                                                    },
-                                                ],
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 930..967,
-                                        kind: Assign {
-                                            target: l14,
-                                            value: EnumVariant {
-                                                enum_ty: TypeId(
-                                                    14,
-                                                ),
-                                                variant_name: "Err",
-                                                args: [
-                                                    CallArg {
-                                                        span: 964..965,
-                                                        name: None,
-                                                        value: Local(
-                                                            l4,
-                                                        ),
-                                                    },
-                                                ],
-                                                payload: AggregateTransportMetadata {
-                                                    aggregate_ty: TypeId(
-                                                        14,
-                                                    ),
-                                                    kind: EnumPayload,
-                                                    fields: [
-                                                        AggregateTransportField {
-                                                            index: 0,
-                                                            name: None,
-                                                            ty: TypeId(
-                                                                0,
-                                                            ),
-                                                            transport: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    0,
-                                                                ),
-                                                                kind: Scalar,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: false,
-                                                                    copy: true,
-                                                                    drop: false,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 930..967,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: Use(
-                                                Local(
-                                                    l14,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 930..967,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 982..983, kind: Assign { target: local#h40d5bb85f1c424c2234ad8f08296803d, value: PatternExtract { subject: Local(local#h0d3a6af7b9845296a3b295d5855cb312), path: [VariantField { variant: "Err", field_index: 0 }] } } }, Statement { span: 930..967, kind: Assign { target: local#hae7bb57604697714a27895f37aa6e73b, value: EnumVariant { enum_ty: mir_refactor.comptime_splice_class_with_update.Result, variant_name: "Err", args: [CallArg { span: 964..965, name: None, value: Local(local#he6246ee7c8c8bc399c537b9d3de30108) }], payload: AggregateTransportMetadata { aggregate_ty: mir_refactor.comptime_splice_class_with_update.Result, kind: EnumPayload, fields: [AggregateTransportField { index: 0, name: None, ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 930..967, kind: Assign { target: local#h4678ff492e0903aceae817ba83d7a92f, value: Use(Local(local#hae7bb57604697714a27895f37aa6e73b)) } }],
+                                terminator: Terminator { span: 930..967, kind: Goto { target: bb#hbf03b7739ac3e4041fafe70ff634e0f7 }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h5e61efcc50cf0c564fdbd45242f7664e,
+                    }
                 ),
             },
         ),
     ],
 }
+

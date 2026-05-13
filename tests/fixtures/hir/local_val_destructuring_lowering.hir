@@ -6,10 +6,14 @@ File {
                 fqn: "fixtures.hir.Point",
                 name: "Point",
                 kind: Struct,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Field(
                         FieldDecl {
@@ -17,9 +21,7 @@ File {
                             fqn: "fixtures.hir.Point.x",
                             name: "x",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: BodyProperty,
                         },
                     ),
@@ -29,9 +31,7 @@ File {
                             fqn: "fixtures.hir.Point.y",
                             name: "y",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: BodyProperty,
                         },
                     ),
@@ -44,10 +44,14 @@ File {
                 fqn: "fixtures.hir.MaybeInt",
                 name: "MaybeInt",
                 kind: Enum,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     EnumVariant(
                         EnumVariantDecl {
@@ -60,9 +64,7 @@ File {
                                     fqn: "fixtures.hir.MaybeInt.Some.value",
                                     name: "value",
                                     mutable: false,
-                                    ty: TypeId(
-                                        5,
-                                    ),
+                                    ty: Int,
                                     origin: EnumVariantPayload,
                                 },
                             ],
@@ -73,7 +75,8 @@ File {
                             span: 137..141,
                             fqn: "fixtures.hir.MaybeInt.None",
                             name: "None",
-                            fields: [],
+                            fields: [
+                            ],
                         },
                     ),
                 ],
@@ -86,553 +89,462 @@ File {
                 span: 146..390,
                 fqn: "fixtures.hir.use",
                 name: "use",
-                ty: TypeId(
-                    11,
-                ),
+                ty: (fixtures.hir.MaybeInt) -> Int / Pure,
                 params: [
                     Param {
                         span: 154..159,
-                        id: S0,
+                        label: sym#h26ad90f77222f6ac6d30248ac901471a,
                         name: "maybe",
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: fixtures.hir.MaybeInt,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 171..390,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 177..206,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 177..206,
-                                        id: Some(
-                                            S1,
-                                        ),
-                                        name: Some(
-                                            "pair",
-                                        ),
+                                        label: sym#hd1351d66d76cae59df675d3f958820bf,
+                                        name: "pair",
                                         mutable: false,
-                                        ty: TypeId(
-                                            12,
-                                        ),
+                                        ty: (Int, Int),
                                         init: Some(
                                             Expr {
                                                 span: 200..206,
-                                                ty: TypeId(
-                                                    12,
-                                                ),
+                                                ty: (Int, Int),
                                                 kind: TupleLit {
                                                     elements: [
                                                         Expr {
                                                             span: 201..202,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                         Expr {
                                                             span: 204..205,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                     ],
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 211..228,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 211..228,
-                                        id: Some(
-                                            S2,
-                                        ),
-                                        name: Some(
-                                            "__destructure_subject_0",
-                                        ),
+                                        label: sym#h02362ad126b7a6a97d6b99e153f32ed4,
+                                        name: "__destructure_subject_0",
                                         mutable: false,
-                                        ty: TypeId(
-                                            12,
-                                        ),
+                                        ty: (Int, Int),
                                         init: Some(
                                             Expr {
                                                 span: 224..228,
-                                                ty: TypeId(
-                                                    12,
-                                                ),
+                                                ty: (Int, Int),
                                                 kind: VarRef(
                                                     Local {
-                                                        id: S1,
+                                                        label: sym#hd1351d66d76cae59df675d3f958820bf,
                                                         name: "pair",
                                                         decl_span: 181..185,
-                                                    },
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 211..228,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 211..228,
-                                        id: Some(
-                                            S3,
-                                        ),
-                                        name: Some(
-                                            "a",
-                                        ),
+                                        label: sym#h21c529cc9d97dd0efc2501f0fb6a868b,
+                                        name: "a",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 216..217,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
+                                                ty: Any,
                                                 kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 215..221,
-                                                        ty: TypeId(
-                                                            12,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S2,
-                                                                name: "__destructure_subject_0",
-                                                                decl_span: 391..392,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: MemberAccess {
-                                                        span: 216..217,
-                                                        name: "_0",
-                                                        resolved: None,
-                                                    },
+                                                    receiver:
+                                                        Expr {
+                                                            span: 215..221,
+                                                            ty: (Int, Int),
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h02362ad126b7a6a97d6b99e153f32ed4,
+                                                                    name: "__destructure_subject_0",
+                                                                    decl_span: 391..392,
+                                                                }
+                                                            ),
+                                                        }
+                                                    member:
+                                                        MemberAccess {
+                                                            span: 216..217,
+                                                            name: "_0",
+                                                            resolved: None,
+                                                        }
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 211..228,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 211..228,
-                                        id: Some(
-                                            S4,
-                                        ),
-                                        name: Some(
-                                            "b",
-                                        ),
+                                        label: sym#h39dbac72c146e03b5760405c431fdea7,
+                                        name: "b",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 219..220,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
+                                                ty: Any,
                                                 kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 215..221,
-                                                        ty: TypeId(
-                                                            12,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S2,
-                                                                name: "__destructure_subject_0",
-                                                                decl_span: 391..392,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: MemberAccess {
-                                                        span: 219..220,
-                                                        name: "_1",
-                                                        resolved: None,
-                                                    },
+                                                    receiver:
+                                                        Expr {
+                                                            span: 215..221,
+                                                            ty: (Int, Int),
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h02362ad126b7a6a97d6b99e153f32ed4,
+                                                                    name: "__destructure_subject_0",
+                                                                    decl_span: 391..392,
+                                                                }
+                                                            ),
+                                                        }
+                                                    member:
+                                                        MemberAccess {
+                                                            span: 219..220,
+                                                            name: "_1",
+                                                            resolved: None,
+                                                        }
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 234..273,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 234..273,
-                                        id: Some(
-                                            S5,
-                                        ),
-                                        name: Some(
-                                            "point",
-                                        ),
+                                        label: sym#haa625f28d4cd5273344434d628db8dbf,
+                                        name: "point",
                                         mutable: false,
-                                        ty: TypeId(
-                                            13,
-                                        ),
+                                        ty: fixtures.hir.Point,
                                         init: Some(
                                             Expr {
                                                 span: 253..273,
-                                                ty: TypeId(
-                                                    13,
-                                                ),
+                                                ty: fixtures.hir.Point,
                                                 kind: StructLit {
-                                                    ty: TypeId(
-                                                        13,
-                                                    ),
+                                                    ty: fixtures.hir.Point,
                                                     fields: [
                                                         StructLitField {
                                                             span: 261..265,
                                                             name: "x",
                                                             name_span: 261..262,
                                                             colon_span: 262..263,
-                                                            value: Expr {
-                                                                span: 264..265,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: VarRef(
-                                                                    Local {
-                                                                        id: S3,
-                                                                        name: "a",
-                                                                        decl_span: 216..217,
-                                                                    },
-                                                                ),
-                                                            },
+                                                            value:
+                                                                Expr {
+                                                                    span: 264..265,
+                                                                    ty: Int,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#h21c529cc9d97dd0efc2501f0fb6a868b,
+                                                                            name: "a",
+                                                                            decl_span: 216..217,
+                                                                        }
+                                                                    ),
+                                                                }
                                                         },
                                                         StructLitField {
                                                             span: 267..271,
                                                             name: "y",
                                                             name_span: 267..268,
                                                             colon_span: 268..269,
-                                                            value: Expr {
-                                                                span: 270..271,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: VarRef(
-                                                                    Local {
-                                                                        id: S4,
-                                                                        name: "b",
-                                                                        decl_span: 219..220,
-                                                                    },
-                                                                ),
-                                                            },
+                                                            value:
+                                                                Expr {
+                                                                    span: 270..271,
+                                                                    ty: Int,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#h39dbac72c146e03b5760405c431fdea7,
+                                                                            name: "b",
+                                                                            decl_span: 219..220,
+                                                                        }
+                                                                    ),
+                                                                }
                                                         },
                                                     ],
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 278..304,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 278..304,
-                                        id: Some(
-                                            S6,
-                                        ),
-                                        name: Some(
-                                            "__destructure_subject_1",
-                                        ),
+                                        label: sym#hfde860098a0dc9b63b0c3fe80ba8d4bd,
+                                        name: "__destructure_subject_1",
                                         mutable: false,
-                                        ty: TypeId(
-                                            13,
-                                        ),
+                                        ty: fixtures.hir.Point,
                                         init: Some(
                                             Expr {
                                                 span: 299..304,
-                                                ty: TypeId(
-                                                    13,
-                                                ),
+                                                ty: fixtures.hir.Point,
                                                 kind: VarRef(
                                                     Local {
-                                                        id: S5,
+                                                        label: sym#haa625f28d4cd5273344434d628db8dbf,
                                                         name: "point",
                                                         decl_span: 238..243,
-                                                    },
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 278..304,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 278..304,
-                                        id: Some(
-                                            S8,
-                                        ),
-                                        name: Some(
-                                            "x",
-                                        ),
+                                        label: sym#h22e1874c63a5f9c7ae95a62f176b5890,
+                                        name: "x",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 290..291,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
+                                                ty: Any,
                                                 kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 282..296,
-                                                        ty: TypeId(
-                                                            13,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S6,
-                                                                name: "__destructure_subject_1",
-                                                                decl_span: 393..394,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: MemberAccess {
-                                                        span: 290..291,
-                                                        name: "x",
-                                                        resolved: Some(
-                                                            Value {
-                                                                id: S7,
-                                                                fqn: "fixtures.hir.Point.x",
-                                                            },
-                                                        ),
-                                                    },
+                                                    receiver:
+                                                        Expr {
+                                                            span: 282..296,
+                                                            ty: fixtures.hir.Point,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#hfde860098a0dc9b63b0c3fe80ba8d4bd,
+                                                                    name: "__destructure_subject_1",
+                                                                    decl_span: 393..394,
+                                                                }
+                                                            ),
+                                                        }
+                                                    member:
+                                                        MemberAccess {
+                                                            span: 290..291,
+                                                            name: "x",
+                                                            resolved: Some(
+                                                                Value {
+                                                                    fqn: "fixtures.hir.Point.x",
+                                                                }
+                                                            ),
+                                                        }
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 278..304,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 278..304,
-                                        id: Some(
-                                            S10,
-                                        ),
-                                        name: Some(
-                                            "y",
-                                        ),
+                                        label: sym#h26ddaa05713d8bcd5f2a136255f2d38e,
+                                        name: "y",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 293..294,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
+                                                ty: Any,
                                                 kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 282..296,
-                                                        ty: TypeId(
-                                                            13,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S6,
-                                                                name: "__destructure_subject_1",
-                                                                decl_span: 393..394,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: MemberAccess {
-                                                        span: 293..294,
-                                                        name: "y",
-                                                        resolved: Some(
-                                                            Value {
-                                                                id: S9,
-                                                                fqn: "fixtures.hir.Point.y",
-                                                            },
-                                                        ),
-                                                    },
+                                                    receiver:
+                                                        Expr {
+                                                            span: 282..296,
+                                                            ty: fixtures.hir.Point,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#hfde860098a0dc9b63b0c3fe80ba8d4bd,
+                                                                    name: "__destructure_subject_1",
+                                                                    decl_span: 393..394,
+                                                                }
+                                                            ),
+                                                        }
+                                                    member:
+                                                        MemberAccess {
+                                                            span: 293..294,
+                                                            name: "y",
+                                                            resolved: Some(
+                                                                Value {
+                                                                    fqn: "fixtures.hir.Point.y",
+                                                                }
+                                                            ),
+                                                        }
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 310..382,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 310..382,
-                                        id: Some(
-                                            S12,
-                                        ),
-                                        name: Some(
-                                            "v",
-                                        ),
+                                        label: sym#h2f4c28204ba46b165b03093496283c78,
+                                        name: "v",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 323..382,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
+                                                ty: Int,
                                                 kind: When {
-                                                    subject: Expr {
-                                                        span: 329..334,
-                                                        ty: TypeId(
-                                                            10,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S0,
-                                                                name: "maybe",
-                                                                decl_span: 154..159,
-                                                            },
-                                                        ),
-                                                    },
+                                                    subject:
+                                                        Expr {
+                                                            span: 329..334,
+                                                            ty: fixtures.hir.MaybeInt,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h26ad90f77222f6ac6d30248ac901471a,
+                                                                    name: "maybe",
+                                                                    decl_span: 154..159,
+                                                                }
+                                                            ),
+                                                        }
                                                     arms: [
                                                         WhenArm {
                                                             span: 346..358,
-                                                            pat: Variant {
-                                                                span: 346..353,
-                                                                name_span: 346..350,
-                                                                name: "Some",
-                                                                args: [
-                                                                    Bind {
-                                                                        span: 351..352,
-                                                                        id: S11,
-                                                                        name: "n",
-                                                                    },
-                                                                ],
-                                                            },
+                                                            pat:
+                                                                Variant {
+                                                                    span: 346..353,
+                                                                    name_span: 346..350,
+                                                                    name: "Some",
+                                                                    args: [
+                                                                        Bind {
+                                                                            span: 351..352,
+                                                                            label: sym#h95034421f2129a3b1583af7feffecc07,
+                                                                            name: "n",
+                                                                        },
+                                                                    ],
+                                                                },
                                                             guard: None,
                                                             arrow_span: 354..356,
-                                                            body: Expr {
-                                                                span: 357..358,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: VarRef(
-                                                                    Local {
-                                                                        id: S11,
-                                                                        name: "n",
-                                                                        decl_span: 351..352,
-                                                                    },
-                                                                ),
-                                                            },
+                                                            body:
+                                                                Expr {
+                                                                    span: 357..358,
+                                                                    ty: Int,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#h95034421f2129a3b1583af7feffecc07,
+                                                                            name: "n",
+                                                                            decl_span: 351..352,
+                                                                        }
+                                                                    ),
+                                                                }
                                                         },
                                                         WhenArm {
                                                             span: 367..376,
-                                                            pat: Variant {
-                                                                span: 367..371,
-                                                                name_span: 367..371,
-                                                                name: "None",
-                                                                args: [],
-                                                            },
+                                                            pat:
+                                                                Variant {
+                                                                    span: 367..371,
+                                                                    name_span: 367..371,
+                                                                    name: "None",
+                                                                    args: [
+                                                                    ],
+                                                                },
                                                             guard: None,
                                                             arrow_span: 372..374,
-                                                            body: Expr {
-                                                                span: 375..376,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: Literal(
-                                                                    Int,
-                                                                ),
-                                                            },
+                                                            body:
+                                                                Expr {
+                                                                    span: 375..376,
+                                                                    ty: Int,
+                                                                    kind: Literal(Int),
+                                                                }
                                                         },
                                                     ],
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 387..388,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 387..388,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: VarRef(
                                             Local {
-                                                id: S3,
+                                                label: sym#h21c529cc9d97dd0efc2501f0fb6a868b,
                                                 name: "a",
                                                 decl_span: 216..217,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 146..390,
+            fqn: "fixtures.hir.use",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

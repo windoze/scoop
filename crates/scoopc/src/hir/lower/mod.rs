@@ -5375,8 +5375,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/minimal.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/hir/minimal.hir");
@@ -5393,8 +5393,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/handle_perform.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/handle_perform.hir");
@@ -5411,8 +5411,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/control_flow.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/control_flow.hir");
@@ -5429,8 +5429,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/member_access.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/member_access.hir");
@@ -5447,8 +5447,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/closure_non_capture.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/closure_non_capture.hir");
@@ -5465,8 +5465,8 @@ fun main(): Int {
             .join("../../tests/fixtures/hir/closure_capture_val.scoop");
         let file = SourceFile::load(&fixture_path).unwrap();
 
-        let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &file).unwrap();
-        let actual = format!("{:#?}\n", lowered.file);
+        let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+        let actual = output.stable_dump();
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/closure_capture_val.hir");

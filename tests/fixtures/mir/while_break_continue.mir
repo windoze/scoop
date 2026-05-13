@@ -5,255 +5,61 @@ File {
                 span: 11..112,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
+                ty: () -> Unit / Pure,
                 params: [],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 26..40,
-                                name: Some(
-                                    "x",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 39..40,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 51..55,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 63..93,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 67..71,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 73..82,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h3fde56cd551ff32697aa76abc9d3da5d, span: 26..40, name: Some("x"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hecd43f775f92d320b922f76e43d52b8e, span: 39..40, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h79db2eabcadde1495e0ebefb2c6d638e, span: 51..55, name: Some("tmp1"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#hb22876515ef65a425c5c79000dc0a9aa, span: 63..93, name: Some("tmp2"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#h4e85ff2fc20e8406ff7cac3cb4f6e169, span: 67..71, name: Some("tmp3"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h59d94d214f56408008d2a06dd7b351d4, span: 73..82, name: Some("tmp4"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h0616e78d9b3998805db027578fcf6f04,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 39..40,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 26..40,
-                                        kind: Assign {
-                                            target: l0,
-                                            value: Use(
-                                                Local(
-                                                    l1,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 44..110,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 39..40, kind: Assign { target: local#hecd43f775f92d320b922f76e43d52b8e, value: Use(Const(Int)) } }, Statement { span: 26..40, kind: Assign { target: local#h3fde56cd551ff32697aa76abc9d3da5d, value: Use(Local(local#hecd43f775f92d320b922f76e43d52b8e)) } }],
+                                terminator: Terminator { span: 44..110, kind: Goto { target: bb#h1432a6a0bffc0d5e4a16490bede2342d }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h1432a6a0bffc0d5e4a16490bede2342d,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 51..55,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Const(
-                                                    Bool(
-                                                        true,
-                                                    ),
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 44..110,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l2,
-                                        ),
-                                        then_target: bb2,
-                                        else_target: bb3,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 51..55, kind: Assign { target: local#h79db2eabcadde1495e0ebefb2c6d638e, value: Use(Const(Bool(true))) } }],
+                                terminator: Terminator { span: 44..110, kind: CondBr { cond: Local(local#h79db2eabcadde1495e0ebefb2c6d638e), then_target: bb#h448e64dc5c60c23a71ad2f9588532e6f, else_target: bb#h76b14803184bb381dc0c35e396f93272 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h448e64dc5c60c23a71ad2f9588532e6f,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 67..71,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Use(
-                                                Const(
-                                                    Bool(
-                                                        true,
-                                                    ),
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 63..93,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l4,
-                                        ),
-                                        then_target: bb4,
-                                        else_target: bb5,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 67..71, kind: Assign { target: local#h4e85ff2fc20e8406ff7cac3cb4f6e169, value: Use(Const(Bool(true))) } }],
+                                terminator: Terminator { span: 63..93, kind: CondBr { cond: Local(local#h4e85ff2fc20e8406ff7cac3cb4f6e169), then_target: bb#h5ec70dbc628a1f4ce2a597870807138f, else_target: bb#h448e64dc5c60c23a71ad2f9588532e6f }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h76b14803184bb381dc0c35e396f93272,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 11..112,
-                                    kind: Return {
-                                        value: None,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 11..112, kind: Return { value: None }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h5ec70dbc628a1f4ce2a597870807138f,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 75..80,
-                                    kind: Goto {
-                                        target: bb3,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 75..80, kind: Goto { target: bb#h76b14803184bb381dc0c35e396f93272 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h448e64dc5c60c23a71ad2f9588532e6f,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 63..93,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Transport {
-                                                value: Local(
-                                                    l0,
-                                                ),
-                                                transport: ValueTransportMetadata {
-                                                    source_ty: TypeId(
-                                                        5,
-                                                    ),
-                                                    kind: Scalar,
-                                                    requirements: MirTransportRequirements {
-                                                        trace: false,
-                                                        copy: true,
-                                                        drop: false,
-                                                    },
-                                                    boxing: Some(
-                                                        MirBoxingIntent {
-                                                            source_ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            target_ty: Some(
-                                                                TypeId(
-                                                                    0,
-                                                                ),
-                                                            ),
-                                                            reason: AnyErasure,
-                                                        },
-                                                    ),
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 63..93,
-                                    kind: Goto {
-                                        target: bb6,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 63..93, kind: Assign { target: local#hb22876515ef65a425c5c79000dc0a9aa, value: Transport { value: Local(local#h3fde56cd551ff32697aa76abc9d3da5d), transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: Some(MirBoxingIntent { source_ty: Int, target_ty: Some(Any), reason: AnyErasure }) } } } }],
+                                terminator: Terminator { span: 63..93, kind: Goto { target: bb#h6ca6946f156ef2274cf8d25e7c28f4d6 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h6ca6946f156ef2274cf8d25e7c28f4d6,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 98..106,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 98..106, kind: Goto { target: bb#h1432a6a0bffc0d5e4a16490bede2342d }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h0616e78d9b3998805db027578fcf6f04,
+                    }
                 ),
             },
         ),
     ],
 }
+

@@ -5,51 +5,22 @@ File {
                 span: 52..81,
                 fqn: "fixtures.mir_refactor.takesUnit",
                 name: "takesUnit",
-                ty: TypeId(
-                    0,
-                ),
-                params: [
-                    Param {
-                        span: 66..71,
-                        name: "value",
-                        ty: TypeId(
-                            1,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    1,
-                ),
+                ty: (Unit) -> Unit / Pure,
+                params: [Param { span: 66..71, name: "value", ty: Unit, local: local#h47ec69dac07a78cdca4066f5587ed518 }],
+                return_ty: Unit,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 66..71,
-                                name: Some(
-                                    "value",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h47ec69dac07a78cdca4066f5587ed518, span: 66..71, name: Some("value"), ty: Unit, source: SourceLocal }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hdbec744c80da355d46a51f2b90be204e,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 52..81,
-                                    kind: Return {
-                                        value: None,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 52..81, kind: Return { value: None }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hdbec744c80da355d46a51f2b90be204e,
+                    }
                 ),
             },
         ),
@@ -58,408 +29,25 @@ File {
                 span: 83..234,
                 fqn: "fixtures.mir_refactor.resumeUnit",
                 name: "resumeUnit",
-                ty: TypeId(
-                    2,
-                ),
-                params: [
-                    Param {
-                        span: 98..99,
-                        name: "k",
-                        ty: TypeId(
-                            3,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    1,
-                ),
+                ty: (scoop.core.Continuation<Unit, Unit, eff Pure>) -> Unit / scoop.core.Raise<scoop.core.RuntimeError>,
+                params: [Param { span: 98..99, name: "k", ty: scoop.core.Continuation<Unit, Unit, eff Pure>, local: local#h3c53e718ccc80c24ac1133cc3715686d }],
+                return_ty: Unit,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 98..99,
-                                name: Some(
-                                    "k",
-                                ),
-                                ty: TypeId(
-                                    3,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 171..181,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 171..181,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 186..198,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 195..197,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 203..214,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 203..214,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 219..232,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 229..231,
-                                name: Some(
-                                    "tmp7",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h3c53e718ccc80c24ac1133cc3715686d, span: 98..99, name: Some("k"), ty: scoop.core.Continuation<Unit, Unit, eff Pure>, source: SourceLocal }, LocalDecl { label: local#h59b934efa035c123cc91cadee696c087, span: 171..181, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#he3d14ae718d23bdf3c8781f7d1cf8afe, span: 171..181, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#hdba1116a33b8d20de967cc170ccac27b, span: 186..198, name: Some("tmp2"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h6ace3f5e5270c8109e5560045e30eb19, span: 195..197, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h16bc88d083aa2d7be9eae72c00088da0, span: 203..214, name: Some("tmp4"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h13c9d3c82d1a988742fcaa41fa09fe88, span: 203..214, name: Some("tmp5"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h8dac64d39675468ba685cc14441baf01, span: 219..232, name: Some("tmp6"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h7b4f6d758d52732107659b5e05effa8a, span: 229..231, name: Some("tmp7"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hf78b23b8d894f371514a5aeb5cdbe7f7,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 171..181,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 171..181,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Call {
-                                                site_id: site0,
-                                                kind: Resume {
-                                                    continuation: Local(
-                                                        l0,
-                                                    ),
-                                                    resume: ResumeMetadata {
-                                                        continuation_ty: TypeId(
-                                                            3,
-                                                        ),
-                                                        resume_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        answer_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        return_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        out_effects: EffectRow {
-                                                            terms: [],
-                                                        },
-                                                        runtime_error_effect_ty: Some(
-                                                            TypeId(
-                                                                4,
-                                                            ),
-                                                        ),
-                                                        suspends_outward: false,
-                                                    },
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 171..181,
-                                                        name: None,
-                                                        value: Local(
-                                                            l2,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: None,
-                                                    gc: None,
-                                                    thread_resume_payload: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: DeferredToEffectFacts,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: DeferredToEffectFacts,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 195..197,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 186..198,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Call {
-                                                site_id: site1,
-                                                kind: Resume {
-                                                    continuation: Local(
-                                                        l0,
-                                                    ),
-                                                    resume: ResumeMetadata {
-                                                        continuation_ty: TypeId(
-                                                            3,
-                                                        ),
-                                                        resume_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        answer_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        return_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        out_effects: EffectRow {
-                                                            terms: [],
-                                                        },
-                                                        runtime_error_effect_ty: Some(
-                                                            TypeId(
-                                                                4,
-                                                            ),
-                                                        ),
-                                                        suspends_outward: false,
-                                                    },
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 195..197,
-                                                        name: None,
-                                                        value: Local(
-                                                            l4,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: None,
-                                                    gc: None,
-                                                    thread_resume_payload: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: DeferredToEffectFacts,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: DeferredToEffectFacts,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 203..214,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 203..214,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: Call {
-                                                site_id: site2,
-                                                kind: Direct {
-                                                    callee_fqn: "fixtures.mir_refactor.takesUnit",
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 203..214,
-                                                        name: None,
-                                                        value: Local(
-                                                            l6,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: None,
-                                                    gc: None,
-                                                    thread_resume_payload: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: DeferredToEffectFacts,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: DeferredToEffectFacts,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 229..231,
-                                        kind: Assign {
-                                            target: l8,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 219..232,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: Call {
-                                                site_id: site3,
-                                                kind: Direct {
-                                                    callee_fqn: "fixtures.mir_refactor.takesUnit",
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 229..231,
-                                                        name: None,
-                                                        value: Local(
-                                                            l8,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            1,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: None,
-                                                    gc: None,
-                                                    thread_resume_payload: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: DeferredToEffectFacts,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: DeferredToEffectFacts,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 83..234,
-                                    kind: Return {
-                                        value: None,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 171..181, kind: Assign { target: local#he3d14ae718d23bdf3c8781f7d1cf8afe, value: Use(Const(Unit)) } }, Statement { span: 171..181, kind: Assign { target: local#h59b934efa035c123cc91cadee696c087, value: Call { site_id: site#h3b9c1dca7d6e94bf9e4b414a2eb10ecb, kind: Resume { continuation: Local(local#h3c53e718ccc80c24ac1133cc3715686d), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Unit, Unit, eff Pure>, resume_ty: Unit, answer_ty: Unit, return_ty: Unit, out_effects: Pure, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: false } }, args: [CallArg { span: 171..181, name: None, value: Local(local#he3d14ae718d23bdf3c8781f7d1cf8afe) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 195..197, kind: Assign { target: local#h6ace3f5e5270c8109e5560045e30eb19, value: Use(Const(Unit)) } }, Statement { span: 186..198, kind: Assign { target: local#hdba1116a33b8d20de967cc170ccac27b, value: Call { site_id: site#h3b99cca222f3f119ecff476819b8b7aa, kind: Resume { continuation: Local(local#h3c53e718ccc80c24ac1133cc3715686d), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Unit, Unit, eff Pure>, resume_ty: Unit, answer_ty: Unit, return_ty: Unit, out_effects: Pure, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: false } }, args: [CallArg { span: 195..197, name: None, value: Local(local#h6ace3f5e5270c8109e5560045e30eb19) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 203..214, kind: Assign { target: local#h13c9d3c82d1a988742fcaa41fa09fe88, value: Use(Const(Unit)) } }, Statement { span: 203..214, kind: Assign { target: local#h16bc88d083aa2d7be9eae72c00088da0, value: Call { site_id: site#hc68bf17c37b440809fdf851b5c5883e9, kind: Direct { callee_fqn: "fixtures.mir_refactor.takesUnit" }, args: [CallArg { span: 203..214, name: None, value: Local(local#h13c9d3c82d1a988742fcaa41fa09fe88) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 229..231, kind: Assign { target: local#h7b4f6d758d52732107659b5e05effa8a, value: Use(Const(Unit)) } }, Statement { span: 219..232, kind: Assign { target: local#h8dac64d39675468ba685cc14441baf01, value: Call { site_id: site#h853b930ec3f67578509625ec4ae2df40, kind: Direct { callee_fqn: "fixtures.mir_refactor.takesUnit" }, args: [CallArg { span: 229..231, name: None, value: Local(local#h7b4f6d758d52732107659b5e05effa8a) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 83..234, kind: Return { value: None }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hf78b23b8d894f371514a5aeb5cdbe7f7,
+                    }
                 ),
             },
         ),
     ],
 }
+

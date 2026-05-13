@@ -5,402 +5,61 @@ File {
                 span: 171..236,
                 fqn: "mir_refactor.not_null_assert.unwrap",
                 name: "unwrap",
-                ty: TypeId(
-                    0,
-                ),
-                params: [
-                    Param {
-                        span: 182..183,
-                        name: "x",
-                        ty: TypeId(
-                            1,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    2,
-                ),
+                ty: (Option<Int>) -> Int / scoop.core.Raise<scoop.core.RuntimeError>,
+                params: [Param { span: 182..183, name: "x", ty: Option<Int>, local: local#h7ca49d0960bb237b495d16d931a54ef4 }],
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 182..183,
-                                name: Some(
-                                    "x",
-                                ),
-                                ty: TypeId(
-                                    1,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 231..234,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 232..234,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    3,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 232..234,
-                                name: Some(
-                                    "__not_null_v",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 232..234,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    3,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 232..234,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 232..234,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 232..232,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 218..236,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    6,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h7ca49d0960bb237b495d16d931a54ef4, span: 182..183, name: Some("x"), ty: Option<Int>, source: SourceLocal }, LocalDecl { label: local#hb52d19e0a01dbe4207e54ff8a5460724, span: 231..234, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hef4c087088a00e9653dfdf73db8ddbf1, span: 232..234, name: Some("tmp1"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#hf6a8ac44c5a8c2e2002ac28d7f1f0d5c, span: 232..234, name: Some("__not_null_v"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hd3f4f835ab77ce0444da2ee1aa0d48cc, span: 232..234, name: Some("tmp2"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h9991c0185b1324c03fee0c811df3befe, span: 232..234, name: Some("tmp3"), ty: scoop.core.RuntimeError, source: CompilerTemporary }, LocalDecl { label: local#h9f5d78f3c490ba72f0e8929740d89ae1, span: 232..234, name: Some("tmp4"), ty: scoop.core.RuntimeError, source: CompilerTemporary }, LocalDecl { label: local#he361a244b20ccff34ddcef1e5870bd17, span: 232..232, name: Some("tmp5"), ty: Nothing, source: CompilerTemporary }, LocalDecl { label: local#h9409bc637c4af1c4be25ac7260abddde, span: 218..236, name: Some("tmp6"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#hedeb4ebb1be366ef303eba0633fb626c,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: PatternMatch {
-                                                subject: Local(
-                                                    l0,
-                                                ),
-                                                pattern: Variant {
-                                                    name: "Some",
-                                                    args: [
-                                                        Bind {
-                                                            name: "__not_null_v",
-                                                            ty: TypeId(
-                                                                2,
-                                                            ),
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 232..234,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l2,
-                                        ),
-                                        then_target: bb3,
-                                        else_target: bb2,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 232..234, kind: Assign { target: local#hef4c087088a00e9653dfdf73db8ddbf1, value: PatternMatch { subject: Local(local#h7ca49d0960bb237b495d16d931a54ef4), pattern: Variant { name: "Some", args: [Bind { name: "__not_null_v", ty: Int }] } } } }],
+                                terminator: Terminator { span: 232..234, kind: CondBr { cond: Local(local#hef4c087088a00e9653dfdf73db8ddbf1), then_target: bb#h22c47bfb39710c7bf68b0488222e244e, else_target: bb#ha8435a5c091688c011bb79f4a13a9857 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h97f631acd2401f13b1d46fa7218dc537,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 224..234,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l1,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 224..234, kind: Return { value: Some(Local(local#hb52d19e0a01dbe4207e54ff8a5460724)) }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#ha8435a5c091688c011bb79f4a13a9857,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: PatternMatch {
-                                                subject: Local(
-                                                    l0,
-                                                ),
-                                                pattern: Variant {
-                                                    name: "None",
-                                                    args: [],
-                                                },
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 232..234,
-                                    kind: CondBr {
-                                        cond: Local(
-                                            l4,
-                                        ),
-                                        then_target: bb5,
-                                        else_target: bb4,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 232..234, kind: Assign { target: local#hd3f4f835ab77ce0444da2ee1aa0d48cc, value: PatternMatch { subject: Local(local#h7ca49d0960bb237b495d16d931a54ef4), pattern: Variant { name: "None", args: [] } } } }],
+                                terminator: Terminator { span: 232..234, kind: CondBr { cond: Local(local#hd3f4f835ab77ce0444da2ee1aa0d48cc), then_target: bb#hc186c599b4f3965ecc26163a8f1d09c5, else_target: bb#he1b1275fa55d6cc53b1a568df3fe183b }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#h22c47bfb39710c7bf68b0488222e244e,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: PatternExtract {
-                                                subject: Local(
-                                                    l0,
-                                                ),
-                                                path: [
-                                                    VariantField {
-                                                        variant: "Some",
-                                                        field_index: 0,
-                                                    },
-                                                ],
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Local(
-                                                    l3,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 232..234,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 232..234, kind: Assign { target: local#hf6a8ac44c5a8c2e2002ac28d7f1f0d5c, value: PatternExtract { subject: Local(local#h7ca49d0960bb237b495d16d931a54ef4), path: [VariantField { variant: "Some", field_index: 0 }] } } }, Statement { span: 232..234, kind: Assign { target: local#hb52d19e0a01dbe4207e54ff8a5460724, value: Use(Local(local#hf6a8ac44c5a8c2e2002ac28d7f1f0d5c)) } }],
+                                terminator: Terminator { span: 232..234, kind: Goto { target: bb#h97f631acd2401f13b1d46fa7218dc537 }, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#he1b1275fa55d6cc53b1a568df3fe183b,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 231..234,
-                                    kind: Unreachable,
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 231..234, kind: Unreachable, unwind: NoUnwind },
                             },
                             BasicBlock {
+                                label: bb#hc186c599b4f3965ecc26163a8f1d09c5,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: TopLevelRef(
-                                                TopLevelRef {
-                                                    fqn: "scoop.core.RuntimeError",
-                                                    site_id: None,
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l5,
-                                            value: MemberAccess {
-                                                site_id: None,
-                                                receiver: Local(
-                                                    l6,
-                                                ),
-                                                member: MemberAccessMetadata {
-                                                    name: "NullAssertionFailed",
-                                                    receiver_ty: TypeId(
-                                                        4,
-                                                    ),
-                                                    resolved: Some(
-                                                        Value {
-                                                            fqn: "scoop.core.RuntimeError.NullAssertionFailed",
-                                                        },
-                                                    ),
-                                                    hidden_effects: EffectRow {
-                                                        terms: [],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 232..232,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: PerformResult {
-                                                op_fqn: "scoop.core.Raise.raise",
-                                                effect_ty: TypeId(
-                                                    7,
-                                                ),
-                                            },
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 232..232,
-                                    kind: Perform {
-                                        site_id: site0,
-                                        op_fqn: "scoop.core.Raise.raise",
-                                        metadata: PerformMetadata {
-                                            effect_ty: TypeId(
-                                                7,
-                                            ),
-                                            result_ty: TypeId(
-                                                5,
-                                            ),
-                                            payload_tuple_ty: Some(
-                                                TypeId(
-                                                    4,
-                                                ),
-                                            ),
-                                            payload_component_tys: [
-                                                TypeId(
-                                                    4,
-                                                ),
-                                            ],
-                                            payload_transport: [
-                                                ValueTransportMetadata {
-                                                    source_ty: TypeId(
-                                                        4,
-                                                    ),
-                                                    kind: EffectPayload,
-                                                    requirements: MirTransportRequirements {
-                                                        trace: true,
-                                                        copy: true,
-                                                        drop: true,
-                                                    },
-                                                    boxing: Some(
-                                                        MirBoxingIntent {
-                                                            source_ty: TypeId(
-                                                                4,
-                                                            ),
-                                                            target_ty: Some(
-                                                                TypeId(
-                                                                    4,
-                                                                ),
-                                                            ),
-                                                            reason: EffectPayload,
-                                                        },
-                                                    ),
-                                                },
-                                            ],
-                                            arg_mapping: [
-                                                0,
-                                            ],
-                                        },
-                                        args: [
-                                            PerformArg {
-                                                span: 232..234,
-                                                source_arg_index: 0,
-                                                name: None,
-                                                value: Local(
-                                                    l5,
-                                                ),
-                                            },
-                                        ],
-                                        resume_target: bb6,
-                                    },
-                                    unwind: Propagate,
-                                },
+                                stmts: [Statement { span: 232..234, kind: Assign { target: local#h9f5d78f3c490ba72f0e8929740d89ae1, value: TopLevelRef { fqn: "scoop.core.RuntimeError", site_id: None, hidden_effects: Pure } } }, Statement { span: 232..234, kind: Assign { target: local#h9991c0185b1324c03fee0c811df3befe, value: MemberAccess { site_id: None, receiver: Local(local#h9f5d78f3c490ba72f0e8929740d89ae1), member: MemberAccessMetadata { name: "NullAssertionFailed", receiver_ty: scoop.core.RuntimeError, resolved: Some(Value { fqn: "scoop.core.RuntimeError.NullAssertionFailed" }), hidden_effects: Pure } } } }, Statement { span: 232..232, kind: Assign { target: local#he361a244b20ccff34ddcef1e5870bd17, value: PerformResult { op_fqn: "scoop.core.Raise.raise", effect_ty: scoop.core.Raise<scoop.core.RuntimeError> } } }],
+                                terminator: Terminator { span: 232..232, kind: Perform { site_id: site#h2c9a3f7336f314bb6b6408c23aff26a0, op_fqn: "scoop.core.Raise.raise", metadata: PerformMetadata { effect_ty: scoop.core.Raise<scoop.core.RuntimeError>, op_type_args: [], result_ty: Nothing, payload_tuple_ty: Some(scoop.core.RuntimeError), payload_component_tys: [scoop.core.RuntimeError], payload_transport: [ValueTransportMetadata { source_ty: scoop.core.RuntimeError, kind: EffectPayload, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: scoop.core.RuntimeError, target_ty: Some(scoop.core.RuntimeError), reason: EffectPayload }) }], arg_mapping: [0] }, args: [PerformArg { span: 232..234, source_arg_index: 0, name: None, value: Local(local#h9991c0185b1324c03fee0c811df3befe) }], resume_target: bb#h22c47bfb39710c7bf68b0488222e244e }, unwind: Propagate },
                             },
                             BasicBlock {
+                                label: bb#h22c47bfb39710c7bf68b0488222e244e,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 232..234,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Local(
-                                                    l7,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 232..234,
-                                    kind: Goto {
-                                        target: bb1,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 232..234, kind: Assign { target: local#hb52d19e0a01dbe4207e54ff8a5460724, value: Use(Local(local#he361a244b20ccff34ddcef1e5870bd17)) } }],
+                                terminator: Terminator { span: 232..234, kind: Goto { target: bb#h97f631acd2401f13b1d46fa7218dc537 }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#hedeb4ebb1be366ef303eba0633fb626c,
+                    }
                 ),
             },
         ),
     ],
 }
+

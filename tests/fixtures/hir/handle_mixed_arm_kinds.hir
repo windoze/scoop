@@ -6,21 +6,25 @@ File {
                 fqn: "fixtures.hir.Yield",
                 name: "Yield",
                 kind: Effect,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Fun(
                         MemberFunDecl {
                             span: 62..77,
                             fqn: "fixtures.hir.Yield.next",
                             name: "next",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                5,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: Int,
                         },
                     ),
                 ],
@@ -32,21 +36,25 @@ File {
                 fqn: "fixtures.hir.Ask",
                 name: "Ask",
                 kind: Effect,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Fun(
                         MemberFunDecl {
                             span: 98..116,
                             fqn: "fixtures.hir.Ask.current",
                             name: "current",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                5,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: Int,
                         },
                     ),
                 ],
@@ -58,31 +66,32 @@ File {
                 fqn: "fixtures.hir.Boom",
                 name: "Boom",
                 kind: Effect,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Fun(
                         MemberFunDecl {
                             span: 138..166,
                             fqn: "fixtures.hir.Boom.boom",
                             name: "boom",
-                            type_params: [],
+                            type_params: [
+                            ],
                             params: [
                                 CtorParamDecl {
                                     span: 147..151,
                                     name: "code",
-                                    ty: TypeId(
-                                        5,
-                                    ),
+                                    ty: Int,
                                     has_default: false,
                                     property: None,
                                 },
                             ],
-                            return_ty: TypeId(
-                                3,
-                            ),
+                            return_ty: Nothing,
                         },
                     ),
                 ],
@@ -95,592 +104,651 @@ File {
                 span: 170..625,
                 fqn: "fixtures.hir.demo",
                 name: "demo",
-                ty: TypeId(
-                    10,
-                ),
+                ty: (Int) -> Int / Pure,
                 params: [
                     Param {
                         span: 179..183,
-                        id: S0,
+                        label: sym#h2c89d3ef06dabd1068ace8ef8661f374,
                         name: "mode",
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 195..625,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 201..612,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 201..612,
-                                        id: Some(
-                                            S7,
-                                        ),
-                                        name: Some(
-                                            "result",
-                                        ),
+                                        label: sym#h86581efb204d7ddec13111642bff80d0,
+                                        name: "result",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 219..612,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
+                                                ty: Int,
                                                 kind: Handle(
                                                     HandleExpr {
-                                                        body: Block {
-                                                            span: 226..470,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            stmts: [
-                                                                Stmt {
-                                                                    span: 236..464,
-                                                                    ty: TypeId(
-                                                                        2,
-                                                                    ),
-                                                                    kind: Expr(
-                                                                        Expr {
-                                                                            span: 236..464,
-                                                                            ty: TypeId(
-                                                                                5,
-                                                                            ),
-                                                                            kind: If {
-                                                                                cond: Expr {
-                                                                                    span: 240..249,
-                                                                                    ty: TypeId(
-                                                                                        4,
-                                                                                    ),
-                                                                                    kind: Binary {
-                                                                                        lhs: Expr {
-                                                                                            span: 240..244,
-                                                                                            ty: TypeId(
-                                                                                                5,
-                                                                                            ),
-                                                                                            kind: VarRef(
-                                                                                                Local {
-                                                                                                    id: S0,
-                                                                                                    name: "mode",
-                                                                                                    decl_span: 179..183,
-                                                                                                },
-                                                                                            ),
-                                                                                        },
-                                                                                        op: Eq,
-                                                                                        op_span: 245..247,
-                                                                                        rhs: Expr {
-                                                                                            span: 248..249,
-                                                                                            ty: TypeId(
-                                                                                                5,
-                                                                                            ),
-                                                                                            kind: Literal(
-                                                                                                Int,
-                                                                                            ),
-                                                                                        },
-                                                                                    },
-                                                                                },
-                                                                                then_branch: Expr {
-                                                                                    span: 251..318,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: Block(
-                                                                                        Block {
-                                                                                            span: 251..318,
-                                                                                            ty: TypeId(
-                                                                                                5,
-                                                                                            ),
-                                                                                            stmts: [
-                                                                                                Stmt {
-                                                                                                    span: 265..290,
-                                                                                                    ty: TypeId(
-                                                                                                        2,
-                                                                                                    ),
-                                                                                                    kind: Val(
-                                                                                                        ValDecl {
-                                                                                                            span: 265..290,
-                                                                                                            id: Some(
-                                                                                                                S1,
-                                                                                                            ),
-                                                                                                            name: Some(
-                                                                                                                "x",
-                                                                                                            ),
-                                                                                                            mutable: false,
-                                                                                                            ty: TypeId(
-                                                                                                                5,
-                                                                                                            ),
-                                                                                                            init: Some(
-                                                                                                                Expr {
-                                                                                                                    span: 278..290,
-                                                                                                                    ty: TypeId(
-                                                                                                                        5,
-                                                                                                                    ),
-                                                                                                                    kind: Perform {
-                                                                                                                        effect_ty: TypeId(
-                                                                                                                            11,
-                                                                                                                        ),
-                                                                                                                        op: EffectOpRef {
-                                                                                                                            span: 284..288,
-                                                                                                                            fqn: "fixtures.hir.Yield.next",
-                                                                                                                        },
-                                                                                                                        args: [],
-                                                                                                                    },
-                                                                                                                },
-                                                                                                            ),
-                                                                                                        },
-                                                                                                    ),
-                                                                                                },
-                                                                                                Stmt {
-                                                                                                    span: 303..308,
-                                                                                                    ty: TypeId(
-                                                                                                        2,
-                                                                                                    ),
-                                                                                                    kind: Expr(
-                                                                                                        Expr {
-                                                                                                            span: 303..308,
-                                                                                                            ty: TypeId(
-                                                                                                                5,
-                                                                                                            ),
-                                                                                                            kind: Binary {
-                                                                                                                lhs: Expr {
-                                                                                                                    span: 303..304,
-                                                                                                                    ty: TypeId(
-                                                                                                                        5,
-                                                                                                                    ),
-                                                                                                                    kind: VarRef(
-                                                                                                                        Local {
-                                                                                                                            id: S1,
-                                                                                                                            name: "x",
-                                                                                                                            decl_span: 269..270,
-                                                                                                                        },
-                                                                                                                    ),
-                                                                                                                },
-                                                                                                                op: Add,
-                                                                                                                op_span: 305..306,
-                                                                                                                rhs: Expr {
-                                                                                                                    span: 307..308,
-                                                                                                                    ty: TypeId(
-                                                                                                                        5,
-                                                                                                                    ),
-                                                                                                                    kind: Literal(
-                                                                                                                        Int,
-                                                                                                                    ),
-                                                                                                                },
-                                                                                                            },
-                                                                                                        },
-                                                                                                    ),
-                                                                                                },
-                                                                                            ],
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                                else_branch: Some(
-                                                                                    Expr {
-                                                                                        span: 324..464,
-                                                                                        ty: TypeId(
-                                                                                            5,
-                                                                                        ),
-                                                                                        kind: If {
-                                                                                            cond: Expr {
-                                                                                                span: 328..337,
-                                                                                                ty: TypeId(
-                                                                                                    4,
-                                                                                                ),
-                                                                                                kind: Binary {
-                                                                                                    lhs: Expr {
-                                                                                                        span: 328..332,
-                                                                                                        ty: TypeId(
-                                                                                                            5,
-                                                                                                        ),
+                                                        body:
+                                                            Block {
+                                                                span: 226..470,
+                                                                ty: Int,
+                                                                stmts: [
+                                                                    Stmt {
+                                                                        span: 236..464,
+                                                                        ty: Unit,
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 236..464,
+                                                                                ty: Int,
+                                                                                kind: If {
+                                                                                    cond:
+                                                                                        Expr {
+                                                                                            span: 240..249,
+                                                                                            ty: Bool,
+                                                                                            kind: Binary {
+                                                                                                lhs:
+                                                                                                    Expr {
+                                                                                                        span: 240..244,
+                                                                                                        ty: Int,
                                                                                                         kind: VarRef(
                                                                                                             Local {
-                                                                                                                id: S0,
+                                                                                                                label: sym#h2c89d3ef06dabd1068ace8ef8661f374,
                                                                                                                 name: "mode",
                                                                                                                 decl_span: 179..183,
-                                                                                                            },
+                                                                                                            }
                                                                                                         ),
-                                                                                                    },
-                                                                                                    op: Eq,
-                                                                                                    op_span: 333..335,
-                                                                                                    rhs: Expr {
-                                                                                                        span: 336..337,
-                                                                                                        ty: TypeId(
-                                                                                                            5,
-                                                                                                        ),
-                                                                                                        kind: Literal(
-                                                                                                            Int,
-                                                                                                        ),
-                                                                                                    },
-                                                                                                },
+                                                                                                    }
+                                                                                                op: Eq,
+                                                                                                op_span: 245..247,
+                                                                                                rhs:
+                                                                                                    Expr {
+                                                                                                        span: 248..249,
+                                                                                                        ty: Int,
+                                                                                                        kind: Literal(Int),
+                                                                                                    }
                                                                                             },
-                                                                                            then_branch: Expr {
-                                                                                                span: 339..407,
-                                                                                                ty: TypeId(
-                                                                                                    5,
-                                                                                                ),
-                                                                                                kind: Block(
-                                                                                                    Block {
-                                                                                                        span: 339..407,
-                                                                                                        ty: TypeId(
-                                                                                                            5,
-                                                                                                        ),
-                                                                                                        stmts: [
-                                                                                                            Stmt {
-                                                                                                                span: 353..379,
-                                                                                                                ty: TypeId(
-                                                                                                                    2,
-                                                                                                                ),
-                                                                                                                kind: Val(
-                                                                                                                    ValDecl {
-                                                                                                                        span: 353..379,
-                                                                                                                        id: Some(
-                                                                                                                            S2,
-                                                                                                                        ),
-                                                                                                                        name: Some(
-                                                                                                                            "y",
-                                                                                                                        ),
-                                                                                                                        mutable: false,
-                                                                                                                        ty: TypeId(
-                                                                                                                            5,
-                                                                                                                        ),
-                                                                                                                        init: Some(
-                                                                                                                            Expr {
-                                                                                                                                span: 366..379,
-                                                                                                                                ty: TypeId(
-                                                                                                                                    5,
-                                                                                                                                ),
-                                                                                                                                kind: Perform {
-                                                                                                                                    effect_ty: TypeId(
-                                                                                                                                        12,
-                                                                                                                                    ),
-                                                                                                                                    op: EffectOpRef {
-                                                                                                                                        span: 370..377,
-                                                                                                                                        fqn: "fixtures.hir.Ask.current",
-                                                                                                                                    },
-                                                                                                                                    args: [],
-                                                                                                                                },
-                                                                                                                            },
-                                                                                                                        ),
-                                                                                                                    },
-                                                                                                                ),
-                                                                                                            },
-                                                                                                            Stmt {
-                                                                                                                span: 392..397,
-                                                                                                                ty: TypeId(
-                                                                                                                    2,
-                                                                                                                ),
-                                                                                                                kind: Expr(
-                                                                                                                    Expr {
-                                                                                                                        span: 392..397,
-                                                                                                                        ty: TypeId(
-                                                                                                                            5,
-                                                                                                                        ),
-                                                                                                                        kind: Binary {
-                                                                                                                            lhs: Expr {
-                                                                                                                                span: 392..393,
-                                                                                                                                ty: TypeId(
-                                                                                                                                    5,
-                                                                                                                                ),
-                                                                                                                                kind: VarRef(
-                                                                                                                                    Local {
-                                                                                                                                        id: S2,
-                                                                                                                                        name: "y",
-                                                                                                                                        decl_span: 357..358,
-                                                                                                                                    },
-                                                                                                                                ),
-                                                                                                                            },
-                                                                                                                            op: Add,
-                                                                                                                            op_span: 394..395,
-                                                                                                                            rhs: Expr {
-                                                                                                                                span: 396..397,
-                                                                                                                                ty: TypeId(
-                                                                                                                                    5,
-                                                                                                                                ),
-                                                                                                                                kind: Literal(
-                                                                                                                                    Int,
-                                                                                                                                ),
-                                                                                                                            },
-                                                                                                                        },
-                                                                                                                    },
-                                                                                                                ),
-                                                                                                            },
-                                                                                                        ],
-                                                                                                    },
-                                                                                                ),
-                                                                                            },
-                                                                                            else_branch: Some(
-                                                                                                Expr {
-                                                                                                    span: 413..464,
-                                                                                                    ty: TypeId(
-                                                                                                        5,
-                                                                                                    ),
-                                                                                                    kind: Block(
-                                                                                                        Block {
-                                                                                                            span: 413..464,
-                                                                                                            ty: TypeId(
-                                                                                                                5,
-                                                                                                            ),
-                                                                                                            stmts: [
-                                                                                                                Stmt {
-                                                                                                                    span: 427..440,
-                                                                                                                    ty: TypeId(
-                                                                                                                        2,
-                                                                                                                    ),
-                                                                                                                    kind: Expr(
+                                                                                        }
+                                                                                    then_branch:
+                                                                                        Expr {
+                                                                                            span: 251..318,
+                                                                                            ty: Int,
+                                                                                            kind: Block(
+                                                                                                Block {
+                                                                                                    span: 251..318,
+                                                                                                    ty: Int,
+                                                                                                    stmts: [
+                                                                                                        Stmt {
+                                                                                                            span: 265..290,
+                                                                                                            ty: Unit,
+                                                                                                            kind: Val(
+                                                                                                                ValDecl {
+                                                                                                                    span: 265..290,
+                                                                                                                    label: sym#h587c7c91ce1874eaadbb8231b533232c,
+                                                                                                                    name: "x",
+                                                                                                                    mutable: false,
+                                                                                                                    ty: Int,
+                                                                                                                    init: Some(
                                                                                                                         Expr {
-                                                                                                                            span: 427..440,
-                                                                                                                            ty: TypeId(
-                                                                                                                                3,
-                                                                                                                            ),
+                                                                                                                            span: 278..290,
+                                                                                                                            ty: Int,
                                                                                                                             kind: Perform {
-                                                                                                                                effect_ty: TypeId(
-                                                                                                                                    13,
-                                                                                                                                ),
-                                                                                                                                op: EffectOpRef {
-                                                                                                                                    span: 432..436,
-                                                                                                                                    fqn: "fixtures.hir.Boom.boom",
-                                                                                                                                },
+                                                                                                                                effect_ty: fixtures.hir.Yield,
+                                                                                                                                op:
+                                                                                                                                    EffectOpRef {
+                                                                                                                                        span: 284..288,
+                                                                                                                                        fqn: "fixtures.hir.Yield.next",
+                                                                                                                                    }
                                                                                                                                 args: [
-                                                                                                                                    Positional(
-                                                                                                                                        Expr {
-                                                                                                                                            span: 437..439,
-                                                                                                                                            ty: TypeId(
-                                                                                                                                                5,
-                                                                                                                                            ),
-                                                                                                                                            kind: Literal(
-                                                                                                                                                Int,
-                                                                                                                                            ),
-                                                                                                                                        },
-                                                                                                                                    ),
                                                                                                                                 ],
                                                                                                                             },
-                                                                                                                        },
+                                                                                                                        }
                                                                                                                     ),
                                                                                                                 },
-                                                                                                                Stmt {
-                                                                                                                    span: 453..454,
-                                                                                                                    ty: TypeId(
-                                                                                                                        2,
-                                                                                                                    ),
-                                                                                                                    kind: Expr(
-                                                                                                                        Expr {
-                                                                                                                            span: 453..454,
-                                                                                                                            ty: TypeId(
-                                                                                                                                5,
-                                                                                                                            ),
-                                                                                                                            kind: Literal(
-                                                                                                                                Int,
-                                                                                                                            ),
-                                                                                                                        },
-                                                                                                                    ),
-                                                                                                                },
-                                                                                                            ],
+                                                                                                            ),
                                                                                                         },
-                                                                                                    ),
-                                                                                                },
+                                                                                                        Stmt {
+                                                                                                            span: 303..308,
+                                                                                                            ty: Unit,
+                                                                                                            kind: Expr(
+                                                                                                                Expr {
+                                                                                                                    span: 303..308,
+                                                                                                                    ty: Int,
+                                                                                                                    kind: Binary {
+                                                                                                                        lhs:
+                                                                                                                            Expr {
+                                                                                                                                span: 303..304,
+                                                                                                                                ty: Int,
+                                                                                                                                kind: VarRef(
+                                                                                                                                    Local {
+                                                                                                                                        label: sym#h587c7c91ce1874eaadbb8231b533232c,
+                                                                                                                                        name: "x",
+                                                                                                                                        decl_span: 269..270,
+                                                                                                                                    }
+                                                                                                                                ),
+                                                                                                                            }
+                                                                                                                        op: Add,
+                                                                                                                        op_span: 305..306,
+                                                                                                                        rhs:
+                                                                                                                            Expr {
+                                                                                                                                span: 307..308,
+                                                                                                                                ty: Int,
+                                                                                                                                kind: Literal(Int),
+                                                                                                                            }
+                                                                                                                    },
+                                                                                                                }
+                                                                                                            ),
+                                                                                                        },
+                                                                                                    ],
+                                                                                                }
                                                                                             ),
-                                                                                        },
-                                                                                    },
-                                                                                ),
-                                                                            },
-                                                                        },
-                                                                    ),
-                                                                },
-                                                            ],
-                                                        },
+                                                                                        }
+                                                                                    else_branch: Some(
+                                                                                        Expr {
+                                                                                            span: 324..464,
+                                                                                            ty: Int,
+                                                                                            kind: If {
+                                                                                                cond:
+                                                                                                    Expr {
+                                                                                                        span: 328..337,
+                                                                                                        ty: Bool,
+                                                                                                        kind: Binary {
+                                                                                                            lhs:
+                                                                                                                Expr {
+                                                                                                                    span: 328..332,
+                                                                                                                    ty: Int,
+                                                                                                                    kind: VarRef(
+                                                                                                                        Local {
+                                                                                                                            label: sym#h2c89d3ef06dabd1068ace8ef8661f374,
+                                                                                                                            name: "mode",
+                                                                                                                            decl_span: 179..183,
+                                                                                                                        }
+                                                                                                                    ),
+                                                                                                                }
+                                                                                                            op: Eq,
+                                                                                                            op_span: 333..335,
+                                                                                                            rhs:
+                                                                                                                Expr {
+                                                                                                                    span: 336..337,
+                                                                                                                    ty: Int,
+                                                                                                                    kind: Literal(Int),
+                                                                                                                }
+                                                                                                        },
+                                                                                                    }
+                                                                                                then_branch:
+                                                                                                    Expr {
+                                                                                                        span: 339..407,
+                                                                                                        ty: Int,
+                                                                                                        kind: Block(
+                                                                                                            Block {
+                                                                                                                span: 339..407,
+                                                                                                                ty: Int,
+                                                                                                                stmts: [
+                                                                                                                    Stmt {
+                                                                                                                        span: 353..379,
+                                                                                                                        ty: Unit,
+                                                                                                                        kind: Val(
+                                                                                                                            ValDecl {
+                                                                                                                                span: 353..379,
+                                                                                                                                label: sym#haba64141798870ff304422b95d9ca94d,
+                                                                                                                                name: "y",
+                                                                                                                                mutable: false,
+                                                                                                                                ty: Int,
+                                                                                                                                init: Some(
+                                                                                                                                    Expr {
+                                                                                                                                        span: 366..379,
+                                                                                                                                        ty: Int,
+                                                                                                                                        kind: Perform {
+                                                                                                                                            effect_ty: fixtures.hir.Ask,
+                                                                                                                                            op:
+                                                                                                                                                EffectOpRef {
+                                                                                                                                                    span: 370..377,
+                                                                                                                                                    fqn: "fixtures.hir.Ask.current",
+                                                                                                                                                }
+                                                                                                                                            args: [
+                                                                                                                                            ],
+                                                                                                                                        },
+                                                                                                                                    }
+                                                                                                                                ),
+                                                                                                                            },
+                                                                                                                        ),
+                                                                                                                    },
+                                                                                                                    Stmt {
+                                                                                                                        span: 392..397,
+                                                                                                                        ty: Unit,
+                                                                                                                        kind: Expr(
+                                                                                                                            Expr {
+                                                                                                                                span: 392..397,
+                                                                                                                                ty: Int,
+                                                                                                                                kind: Binary {
+                                                                                                                                    lhs:
+                                                                                                                                        Expr {
+                                                                                                                                            span: 392..393,
+                                                                                                                                            ty: Int,
+                                                                                                                                            kind: VarRef(
+                                                                                                                                                Local {
+                                                                                                                                                    label: sym#haba64141798870ff304422b95d9ca94d,
+                                                                                                                                                    name: "y",
+                                                                                                                                                    decl_span: 357..358,
+                                                                                                                                                }
+                                                                                                                                            ),
+                                                                                                                                        }
+                                                                                                                                    op: Add,
+                                                                                                                                    op_span: 394..395,
+                                                                                                                                    rhs:
+                                                                                                                                        Expr {
+                                                                                                                                            span: 396..397,
+                                                                                                                                            ty: Int,
+                                                                                                                                            kind: Literal(Int),
+                                                                                                                                        }
+                                                                                                                                },
+                                                                                                                            }
+                                                                                                                        ),
+                                                                                                                    },
+                                                                                                                ],
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    }
+                                                                                                else_branch: Some(
+                                                                                                    Expr {
+                                                                                                        span: 413..464,
+                                                                                                        ty: Int,
+                                                                                                        kind: Block(
+                                                                                                            Block {
+                                                                                                                span: 413..464,
+                                                                                                                ty: Int,
+                                                                                                                stmts: [
+                                                                                                                    Stmt {
+                                                                                                                        span: 427..440,
+                                                                                                                        ty: Unit,
+                                                                                                                        kind: Expr(
+                                                                                                                            Expr {
+                                                                                                                                span: 427..440,
+                                                                                                                                ty: Nothing,
+                                                                                                                                kind: Perform {
+                                                                                                                                    effect_ty: fixtures.hir.Boom,
+                                                                                                                                    op:
+                                                                                                                                        EffectOpRef {
+                                                                                                                                            span: 432..436,
+                                                                                                                                            fqn: "fixtures.hir.Boom.boom",
+                                                                                                                                        }
+                                                                                                                                    args: [
+                                                                                                                                        Positional(
+                                                                                                                                            Expr {
+                                                                                                                                                span: 437..439,
+                                                                                                                                                ty: Int,
+                                                                                                                                                kind: Literal(Int),
+                                                                                                                                            }
+                                                                                                                                        ),
+                                                                                                                                    ],
+                                                                                                                                },
+                                                                                                                            }
+                                                                                                                        ),
+                                                                                                                    },
+                                                                                                                    Stmt {
+                                                                                                                        span: 453..454,
+                                                                                                                        ty: Unit,
+                                                                                                                        kind: Expr(
+                                                                                                                            Expr {
+                                                                                                                                span: 453..454,
+                                                                                                                                ty: Int,
+                                                                                                                                kind: Literal(Int),
+                                                                                                                            }
+                                                                                                                        ),
+                                                                                                                    },
+                                                                                                                ],
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    }
+                                                                                                ),
+                                                                                            },
+                                                                                        }
+                                                                                    ),
+                                                                                },
+                                                                            }
+                                                                        ),
+                                                                    },
+                                                                ],
+                                                            }
                                                         arms: [
                                                             HandleArm {
                                                                 span: 486..542,
-                                                                op: HandleOp {
-                                                                    span: 486..498,
-                                                                    effect_ty: TypeId(
-                                                                        11,
-                                                                    ),
-                                                                    op: EffectOpRef {
-                                                                        span: 492..496,
-                                                                        fqn: "fixtures.hir.Yield.next",
-                                                                    },
-                                                                    binders: [],
-                                                                },
-                                                                continuation: S3,
-                                                                body: Expr {
-                                                                    span: 506..542,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    kind: Block(
-                                                                        Block {
-                                                                            span: 506..542,
-                                                                            ty: TypeId(
-                                                                                5,
-                                                                            ),
-                                                                            stmts: [
-                                                                                Stmt {
-                                                                                    span: 520..532,
-                                                                                    ty: TypeId(
-                                                                                        2,
-                                                                                    ),
-                                                                                    kind: Expr(
-                                                                                        Expr {
-                                                                                            span: 520..532,
-                                                                                            ty: TypeId(
-                                                                                                5,
-                                                                                            ),
-                                                                                            kind: Call {
-                                                                                                callee: Expr {
-                                                                                                    span: 520..528,
-                                                                                                    ty: TypeId(
-                                                                                                        0,
-                                                                                                    ),
-                                                                                                    kind: VarRef(
-                                                                                                        TopLevel {
-                                                                                                            id: S4,
-                                                                                                            fqn: "scoop.core.Continuation.resume",
-                                                                                                        },
-                                                                                                    ),
-                                                                                                },
-                                                                                                args: [
-                                                                                                    Positional(
+                                                                op:
+                                                                    HandleOp {
+                                                                        span: 486..498,
+                                                                        effect_ty: fixtures.hir.Yield,
+                                                                        op:
+                                                                            EffectOpRef {
+                                                                                span: 492..496,
+                                                                                fqn: "fixtures.hir.Yield.next",
+                                                                            }
+                                                                        binders: [
+                                                                        ],
+                                                                    }
+                                                                continuation: continuation#h781344154741f8314a542a3d12771467,
+                                                                body:
+                                                                    Expr {
+                                                                        span: 506..542,
+                                                                        ty: Int,
+                                                                        kind: Block(
+                                                                            Block {
+                                                                                span: 506..542,
+                                                                                ty: Int,
+                                                                                stmts: [
+                                                                                    Stmt {
+                                                                                        span: 520..532,
+                                                                                        ty: Unit,
+                                                                                        kind: Expr(
+                                                                                            Expr {
+                                                                                                span: 520..532,
+                                                                                                ty: Int,
+                                                                                                kind: Call {
+                                                                                                    callee:
                                                                                                         Expr {
-                                                                                                            span: 520..521,
-                                                                                                            ty: TypeId(
-                                                                                                                14,
-                                                                                                            ),
+                                                                                                            span: 520..528,
+                                                                                                            ty: Any,
                                                                                                             kind: VarRef(
-                                                                                                                Local {
-                                                                                                                    id: S3,
-                                                                                                                    name: "k",
-                                                                                                                    decl_span: 501..502,
-                                                                                                                },
+                                                                                                                TopLevel {
+                                                                                                                    fqn: "scoop.core.Continuation.resume",
+                                                                                                                }
                                                                                                             ),
-                                                                                                        },
-                                                                                                    ),
-                                                                                                    Positional(
-                                                                                                        Expr {
-                                                                                                            span: 529..531,
-                                                                                                            ty: TypeId(
-                                                                                                                5,
-                                                                                                            ),
-                                                                                                            kind: Literal(
-                                                                                                                Int,
-                                                                                                            ),
-                                                                                                        },
-                                                                                                    ),
-                                                                                                ],
-                                                                                            },
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                            ],
-                                                                        },
-                                                                    ),
-                                                                },
-                                                            },
+                                                                                                        }
+                                                                                                    args: [
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 520..521,
+                                                                                                                ty: scoop.core.Continuation<Int, Int, eff Pure>,
+                                                                                                                kind: VarRef(
+                                                                                                                    Local {
+                                                                                                                        label: sym#h0a04568165ca0bc9011ec3f4f59ca0d9,
+                                                                                                                        name: "k",
+                                                                                                                        decl_span: 501..502,
+                                                                                                                    }
+                                                                                                                ),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 529..531,
+                                                                                                                ty: Int,
+                                                                                                                kind: Literal(Int),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    ],
+                                                                                                },
+                                                                                            }
+                                                                                        ),
+                                                                                    },
+                                                                                ],
+                                                                            }
+                                                                        ),
+                                                                    }
+                                                            }
                                                             HandleArm {
                                                                 span: 551..572,
-                                                                op: HandleOp {
-                                                                    span: 551..564,
-                                                                    effect_ty: TypeId(
-                                                                        12,
-                                                                    ),
-                                                                    op: EffectOpRef {
-                                                                        span: 555..562,
-                                                                        fqn: "fixtures.hir.Ask.current",
-                                                                    },
-                                                                    binders: [],
-                                                                },
-                                                                continuation: S5,
-                                                                body: Expr {
-                                                                    span: 571..572,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    kind: Literal(
-                                                                        Int,
-                                                                    ),
-                                                                },
-                                                            },
+                                                                op:
+                                                                    HandleOp {
+                                                                        span: 551..564,
+                                                                        effect_ty: fixtures.hir.Ask,
+                                                                        op:
+                                                                            EffectOpRef {
+                                                                                span: 555..562,
+                                                                                fqn: "fixtures.hir.Ask.current",
+                                                                            }
+                                                                        binders: [
+                                                                        ],
+                                                                    }
+                                                                continuation: continuation#h0003de5fea418d67d3d025aea46ea271,
+                                                                body:
+                                                                    Expr {
+                                                                        span: 571..572,
+                                                                        ty: Int,
+                                                                        kind: Literal(Int),
+                                                                    }
+                                                            }
                                                             HandleArm {
                                                                 span: 581..606,
-                                                                op: HandleOp {
-                                                                    span: 581..601,
-                                                                    effect_ty: TypeId(
-                                                                        13,
-                                                                    ),
-                                                                    op: EffectOpRef {
-                                                                        span: 586..590,
-                                                                        fqn: "fixtures.hir.Boom.boom",
-                                                                    },
-                                                                    binders: [
-                                                                        HandleBinder {
-                                                                            span: 591..600,
-                                                                            id: S6,
-                                                                            name: "code",
-                                                                            ty: TypeId(
-                                                                                5,
-                                                                            ),
-                                                                        },
-                                                                    ],
-                                                                },
-                                                                body: Expr {
-                                                                    span: 605..606,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    kind: Literal(
-                                                                        Int,
-                                                                    ),
-                                                                },
-                                                            },
+                                                                op:
+                                                                    HandleOp {
+                                                                        span: 581..601,
+                                                                        effect_ty: fixtures.hir.Boom,
+                                                                        op:
+                                                                            EffectOpRef {
+                                                                                span: 586..590,
+                                                                                fqn: "fixtures.hir.Boom.boom",
+                                                                            }
+                                                                        binders: [
+                                                                            HandleBinder {
+                                                                                span: 591..600,
+                                                                                label: sym#ha5fb09d2632fed39ffec0b9bcc733e8d,
+                                                                                name: "code",
+                                                                                ty: Int,
+                                                                            },
+                                                                        ],
+                                                                    }
+                                                                body:
+                                                                    Expr {
+                                                                        span: 605..606,
+                                                                        ty: Int,
+                                                                        kind: Literal(Int),
+                                                                    }
+                                                            }
                                                         ],
                                                         finally: None,
-                                                    },
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 617..623,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 617..623,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: VarRef(
                                             Local {
-                                                id: S7,
+                                                label: sym#h86581efb204d7ddec13111642bff80d0,
                                                 name: "result",
                                                 decl_span: 205..211,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 98..116,
+            fqn: "fixtures.hir.Ask.current",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 138..166,
+            fqn: "fixtures.hir.Boom.boom",
+            return_ty: Nothing,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 62..77,
+            fqn: "fixtures.hir.Yield.next",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 170..625,
+            fqn: "fixtures.hir.demo",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 278..290,
+            kind: EffectOp,
+        },
+        TypedCallSiteContract {
+            span: 366..379,
+            kind: EffectOp,
+        },
+        TypedCallSiteContract {
+            span: 427..440,
+            kind: EffectOp,
+        },
+        TypedCallSiteContract {
+            span: 520..532,
+            kind: ContinuationResume,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 278..290,
+            kind: EffectOp,
+            effect_ty: fixtures.hir.Yield,
+            op_fqn: "fixtures.hir.Yield.next",
+            result_ty: Int,
+            payload_ty: Unit,
+            arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 366..379,
+            kind: EffectOp,
+            effect_ty: fixtures.hir.Ask,
+            op_fqn: "fixtures.hir.Ask.current",
+            result_ty: Int,
+            payload_ty: Unit,
+            arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 427..440,
+            kind: EffectOp,
+            effect_ty: fixtures.hir.Boom,
+            op_fqn: "fixtures.hir.Boom.boom",
+            result_ty: Nothing,
+            payload_ty: Int,
+            arg_mapping: [0],
+        },
+        CallSiteContract {
+            span: 520..532,
+            kind: ContinuationResume,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Int, Int, eff Pure>,
+            resume_ty: Int,
+            answer_ty: Int,
+            out_effects: Pure,
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+        ContinuationResumeSiteContract {
+            span: 520..532,
+            receiver_route: CallArg { index: 0 },
+            payload_arg_indices: [1],
+            receiver_ty: scoop.core.Continuation<Int, Int, eff Pure>,
+            resume_ty: Int,
+            answer_ty: Int,
+            return_ty: Int,
+            out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
+        },
+    ],
+    perform_sites: [
+        PerformSiteContract {
+            span: 278..290,
+            effect_ty: fixtures.hir.Yield,
+            op_fqn: "fixtures.hir.Yield.next",
+            result_ty: Int,
+            payload_ty: Unit,
+            payload_components: [
+            ],
+            arg_mapping: [],
+        },
+        PerformSiteContract {
+            span: 366..379,
+            effect_ty: fixtures.hir.Ask,
+            op_fqn: "fixtures.hir.Ask.current",
+            result_ty: Int,
+            payload_ty: Unit,
+            payload_components: [
+            ],
+            arg_mapping: [],
+        },
+        PerformSiteContract {
+            span: 427..440,
+            effect_ty: fixtures.hir.Boom,
+            op_fqn: "fixtures.hir.Boom.boom",
+            result_ty: Nothing,
+            payload_ty: Int,
+            payload_components: [
+                Int,
+            ],
+            arg_mapping: [0],
+        },
+    ],
+    handle_sites: [
+        HandleSiteContract {
+            span: 219..612,
+            result_ty: Int,
+            body_result_ty: Int,
+            arm_contracts: [
+                HandleArmSiteContract {
+                    op_fqn: "fixtures.hir.Yield.next",
+                    handled_effect_ty: fixtures.hir.Yield,
+                    payload_ty: Unit,
+                    payload_components: [
+                    ],
+                    body_ty: Int,
+                    kind: EscapeContinuation,
+                },
+                HandleArmSiteContract {
+                    op_fqn: "fixtures.hir.Ask.current",
+                    handled_effect_ty: fixtures.hir.Ask,
+                    payload_ty: Unit,
+                    payload_components: [
+                    ],
+                    body_ty: Int,
+                    kind: EscapeContinuation,
+                },
+                HandleArmSiteContract {
+                    op_fqn: "fixtures.hir.Boom.boom",
+                    handled_effect_ty: fixtures.hir.Boom,
+                    payload_ty: Int,
+                    payload_components: [
+                        Int,
+                    ],
+                    body_ty: Int,
+                    kind: NonResuming,
+                },
+            ],
+            finally_result_ty: None,
+        },
     ],
 }

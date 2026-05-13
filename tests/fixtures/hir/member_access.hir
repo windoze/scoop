@@ -6,9 +6,12 @@ File {
                 fqn: "a.Point",
                 name: "Point",
                 kind: Class,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 constructors: [
                     CtorDecl {
                         span: 43..55,
@@ -17,13 +20,9 @@ File {
                             CtorParamDecl {
                                 span: 48..49,
                                 name: "x",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Var,
-                                ),
+                                property: Some(Var),
                             },
                         ],
                         delegation: None,
@@ -36,9 +35,7 @@ File {
                             fqn: "a.Point.x",
                             name: "x",
                             mutable: true,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -47,11 +44,11 @@ File {
                             span: 60..80,
                             fqn: "a.Point.inc",
                             name: "inc",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                5,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: Int,
                         },
                     ),
                 ],
@@ -64,202 +61,230 @@ File {
                 span: 84..153,
                 fqn: "a.use",
                 name: "use",
-                ty: TypeId(
-                    11,
-                ),
+                ty: (a.Point) -> Int / Pure,
                 params: [
                     Param {
                         span: 92..93,
-                        id: S0,
+                        label: sym#h976ae2f220143d30638f5a6385309c5f,
                         name: "p",
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: a.Point,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 107..153,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 111..127,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 111..127,
-                                        id: Some(
-                                            S2,
-                                        ),
-                                        name: Some(
-                                            "y",
-                                        ),
+                                        label: sym#h45df086e1f952d54d17b7f0950fec045,
+                                        name: "y",
                                         mutable: false,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 124..127,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
+                                                ty: Int,
                                                 kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 124..125,
-                                                        ty: TypeId(
-                                                            10,
-                                                        ),
-                                                        kind: VarRef(
-                                                            Local {
-                                                                id: S0,
-                                                                name: "p",
-                                                                decl_span: 92..93,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: MemberAccess {
-                                                        span: 126..127,
-                                                        name: "x",
-                                                        resolved: Some(
-                                                            Value {
-                                                                id: S1,
-                                                                fqn: "a.Point.x",
-                                                            },
-                                                        ),
-                                                    },
+                                                    receiver:
+                                                        Expr {
+                                                            span: 124..125,
+                                                            ty: a.Point,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h976ae2f220143d30638f5a6385309c5f,
+                                                                    name: "p",
+                                                                    decl_span: 92..93,
+                                                                }
+                                                            ),
+                                                        }
+                                                    member:
+                                                        MemberAccess {
+                                                            span: 126..127,
+                                                            name: "x",
+                                                            resolved: Some(
+                                                                Value {
+                                                                    fqn: "a.Point.x",
+                                                                }
+                                                            ),
+                                                        }
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 130..137,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Assign {
-                                    lhs: Expr {
-                                        span: 130..133,
-                                        ty: TypeId(
-                                            0,
-                                        ),
-                                        kind: MemberAccess {
-                                            receiver: Expr {
-                                                span: 130..131,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S0,
-                                                        name: "p",
-                                                        decl_span: 92..93,
-                                                    },
-                                                ),
+                                    lhs:
+                                        Expr {
+                                            span: 130..133,
+                                            ty: Any,
+                                            kind: MemberAccess {
+                                                receiver:
+                                                    Expr {
+                                                        span: 130..131,
+                                                        ty: a.Point,
+                                                        kind: VarRef(
+                                                            Local {
+                                                                label: sym#h976ae2f220143d30638f5a6385309c5f,
+                                                                name: "p",
+                                                                decl_span: 92..93,
+                                                            }
+                                                        ),
+                                                    }
+                                                member:
+                                                    MemberAccess {
+                                                        span: 132..133,
+                                                        name: "x",
+                                                        resolved: Some(
+                                                            Value {
+                                                                fqn: "a.Point.x",
+                                                            }
+                                                        ),
+                                                    }
                                             },
-                                            member: MemberAccess {
-                                                span: 132..133,
-                                                name: "x",
-                                                resolved: Some(
-                                                    Value {
-                                                        id: S1,
-                                                        fqn: "a.Point.x",
-                                                    },
-                                                ),
-                                            },
-                                        },
-                                    },
+                                        }
                                     eq_span: 134..135,
-                                    rhs: Expr {
-                                        span: 136..137,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: Literal(
-                                            Int,
-                                        ),
-                                    },
+                                    rhs:
+                                        Expr {
+                                            span: 136..137,
+                                            ty: Int,
+                                            kind: Literal(Int),
+                                        }
                                 },
                             },
                             Stmt {
                                 span: 140..147,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 140..147,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 140..145,
-                                                ty: TypeId(
-                                                    0,
-                                                ),
-                                                kind: VarRef(
-                                                    TopLevel {
-                                                        id: S3,
-                                                        fqn: "a.Point.inc",
-                                                    },
-                                                ),
-                                            },
+                                            callee:
+                                                Expr {
+                                                    span: 140..145,
+                                                    ty: Any,
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "a.Point.inc",
+                                                        }
+                                                    ),
+                                                }
                                             args: [
                                                 Positional(
                                                     Expr {
                                                         span: 140..141,
-                                                        ty: TypeId(
-                                                            10,
-                                                        ),
+                                                        ty: a.Point,
                                                         kind: VarRef(
                                                             Local {
-                                                                id: S0,
+                                                                label: sym#h976ae2f220143d30638f5a6385309c5f,
                                                                 name: "p",
                                                                 decl_span: 92..93,
-                                                            },
+                                                            }
                                                         ),
-                                                    },
+                                                    }
                                                 ),
                                             ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 150..151,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 150..151,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: VarRef(
                                             Local {
-                                                id: S2,
+                                                label: sym#h45df086e1f952d54d17b7f0950fec045,
                                                 name: "y",
                                                 decl_span: 115..116,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 60..80,
+            fqn: "a.Point.inc",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 84..153,
+            fqn: "a.use",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 140..147,
+            kind: Virtual,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 140..147,
+            kind: Virtual,
+            dispatch_owner_fqn: "a.Point",
+            dispatch_member_name: "inc",
+            dispatch_member_fqn: "a.Point.inc",
+            receiver_ty: a.Point,
+            target_fqn: "a.Point.inc",
+            target_decl_span: Some(64..67),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Receiver],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+        AssignPlaceContract {
+            span: 130..137,
+            kind: Member,
+            receiver_ty: a.Point,
+            owner_fqn: Some("a.Point"),
+            member_fqn: "a.Point.x",
+            member_name: "x",
+            member_span: 132..133,
+            resolved: Some(Value { id: S1, fqn: "a.Point.x" }),
+            place_ty: Int,
+            value_ty: Int,
+            mutable: true,
+            write_barrier: StorageSlot(Int),
+            unsafe_required: false,
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

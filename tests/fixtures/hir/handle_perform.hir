@@ -5,138 +5,177 @@ File {
                 span: 36..125,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 47..125,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 51..123,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 51..123,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: Handle(
                                             HandleExpr {
-                                                body: Block {
-                                                    span: 58..88,
-                                                    ty: TypeId(
-                                                        5,
-                                                    ),
-                                                    stmts: [
-                                                        Stmt {
-                                                            span: 64..78,
-                                                            ty: TypeId(
-                                                                2,
-                                                            ),
-                                                            kind: Expr(
-                                                                Expr {
-                                                                    span: 64..78,
-                                                                    ty: TypeId(
-                                                                        3,
-                                                                    ),
-                                                                    kind: Perform {
-                                                                        effect_ty: TypeId(
-                                                                            11,
-                                                                        ),
-                                                                        op: EffectOpRef {
-                                                                            span: 70..75,
-                                                                            fqn: "scoop.core.Raise.raise",
+                                                body:
+                                                    Block {
+                                                        span: 58..88,
+                                                        ty: Int,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 64..78,
+                                                                ty: Unit,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 64..78,
+                                                                        ty: Nothing,
+                                                                        kind: Perform {
+                                                                            effect_ty: scoop.core.Raise<Int>,
+                                                                            op:
+                                                                                EffectOpRef {
+                                                                                    span: 70..75,
+                                                                                    fqn: "scoop.core.Raise.raise",
+                                                                                }
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 76..77,
+                                                                                        ty: Int,
+                                                                                        kind: Literal(Int),
+                                                                                    }
+                                                                                ),
+                                                                            ],
                                                                         },
-                                                                        args: [
-                                                                            Positional(
-                                                                                Expr {
-                                                                                    span: 76..77,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: Literal(
-                                                                                        Int,
-                                                                                    ),
-                                                                                },
-                                                                            ),
-                                                                        ],
-                                                                    },
-                                                                },
-                                                            ),
-                                                        },
-                                                        Stmt {
-                                                            span: 83..84,
-                                                            ty: TypeId(
-                                                                2,
-                                                            ),
-                                                            kind: Expr(
-                                                                Expr {
-                                                                    span: 83..84,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    kind: Literal(
-                                                                        Int,
-                                                                    ),
-                                                                },
-                                                            ),
-                                                        },
-                                                    ],
-                                                },
+                                                                    }
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 83..84,
+                                                                ty: Unit,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 83..84,
+                                                                        ty: Int,
+                                                                        kind: Literal(Int),
+                                                                    }
+                                                                ),
+                                                            },
+                                                        ],
+                                                    }
                                                 arms: [
                                                     HandleArm {
                                                         span: 100..119,
-                                                        op: HandleOp {
-                                                            span: 100..114,
-                                                            effect_ty: TypeId(
-                                                                11,
-                                                            ),
-                                                            op: EffectOpRef {
-                                                                span: 106..111,
-                                                                fqn: "scoop.core.Raise.raise",
-                                                            },
-                                                            binders: [
-                                                                HandleBinder {
-                                                                    span: 112..113,
-                                                                    id: S0,
-                                                                    name: "e",
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                },
-                                                            ],
-                                                        },
-                                                        body: Expr {
-                                                            span: 118..119,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
-                                                    },
+                                                        op:
+                                                            HandleOp {
+                                                                span: 100..114,
+                                                                effect_ty: scoop.core.Raise<Int>,
+                                                                op:
+                                                                    EffectOpRef {
+                                                                        span: 106..111,
+                                                                        fqn: "scoop.core.Raise.raise",
+                                                                    }
+                                                                binders: [
+                                                                    HandleBinder {
+                                                                        span: 112..113,
+                                                                        label: sym#h7cfa49477069afe79ffbcbc6fd360b08,
+                                                                        name: "e",
+                                                                        ty: Int,
+                                                                    },
+                                                                ],
+                                                            }
+                                                        body:
+                                                            Expr {
+                                                                span: 118..119,
+                                                                ty: Int,
+                                                                kind: Literal(Int),
+                                                            }
+                                                    }
                                                 ],
                                                 finally: None,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 36..125,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 64..78,
+            kind: EffectOp,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 64..78,
+            kind: EffectOp,
+            effect_ty: scoop.core.Raise<Int>,
+            op_fqn: "scoop.core.Raise.raise",
+            result_ty: Nothing,
+            payload_ty: Int,
+            arg_mapping: [0],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+        PerformSiteContract {
+            span: 64..78,
+            effect_ty: scoop.core.Raise<Int>,
+            op_fqn: "scoop.core.Raise.raise",
+            result_ty: Nothing,
+            payload_ty: Int,
+            payload_components: [
+                Int,
+            ],
+            arg_mapping: [0],
+        },
+    ],
+    handle_sites: [
+        HandleSiteContract {
+            span: 51..123,
+            result_ty: Int,
+            body_result_ty: Int,
+            arm_contracts: [
+                HandleArmSiteContract {
+                    op_fqn: "scoop.core.Raise.raise",
+                    handled_effect_ty: scoop.core.Raise<Int>,
+                    payload_ty: Int,
+                    payload_components: [
+                        Int,
+                    ],
+                    body_ty: Int,
+                    kind: NonResuming,
+                },
+            ],
+            finally_result_ty: None,
+        },
     ],
 }

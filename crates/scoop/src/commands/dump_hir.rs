@@ -1,6 +1,6 @@
 //! `scoop dump-hir` 子命令。
 //!
-//! 当前阶段（TODO T0701）：输出 HIR 的 Debug 视图，用于后续 HIR/MIR/LLVM 迭代调试。
+//! 输出 typed HIR 的稳定文本视图，用于 fixtures、CLI 与阶段回归检查。
 
 use std::path::PathBuf;
 
@@ -16,7 +16,7 @@ fn load_hir_for_dump(
         .map_err(miette::Report::from)
 }
 
-/// 读取输入文件并打印 HIR（Debug）。
+/// 读取输入文件并打印 HIR 稳定文本视图。
 pub(super) fn render_dump_output(
     input: PathBuf,
     session_options: SessionOptions,

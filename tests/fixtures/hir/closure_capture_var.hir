@@ -5,404 +5,418 @@ File {
                 span: 11..147,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    10,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 22..147,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 26..35,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 26..35,
-                                        id: Some(
-                                            S0,
-                                        ),
-                                        name: Some(
-                                            "x",
-                                        ),
+                                        label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                        name: "x",
                                         mutable: true,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         init: Some(
                                             Expr {
                                                 span: 34..35,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
-                                                kind: Literal(
-                                                    Int,
-                                                ),
-                                            },
+                                                ty: Int,
+                                                kind: Literal(Int),
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 38..78,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 38..78,
-                                        id: Some(
-                                            S1,
-                                        ),
-                                        name: Some(
-                                            "f",
-                                        ),
+                                        label: sym#hbbbbcc37f96d50142b42180f53f2ebe7,
+                                        name: "f",
                                         mutable: false,
-                                        ty: TypeId(
-                                            11,
-                                        ),
+                                        ty: () -> Any / Pure,
                                         init: Some(
                                             Expr {
                                                 span: 57..78,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
+                                                ty: () -> Int / Pure,
                                                 kind: Closure(
                                                     ClosureExpr {
                                                         span: 57..78,
-                                                        id: C0,
+                                                        label: closure#h29fc23992a1c40848316b75026dde560,
+                                                        at_safe_span: None,
                                                         captures: [
                                                             Capture {
-                                                                id: S0,
+                                                                label: sym#h23fb423ac54f15e8187948757c6419fa,
                                                                 name: "x",
                                                                 decl_span: 30..31,
                                                                 mutable: true,
                                                             },
                                                         ],
-                                                        params: [],
-                                                        body: Expr {
-                                                            span: 57..78,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Block(
-                                                                Block {
-                                                                    span: 57..78,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    stmts: [
-                                                                        Stmt {
-                                                                            span: 63..68,
-                                                                            ty: TypeId(
-                                                                                2,
-                                                                            ),
-                                                                            kind: Assign {
-                                                                                lhs: Expr {
-                                                                                    span: 63..64,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                                eq_span: 65..66,
-                                                                                rhs: Expr {
-                                                                                    span: 67..68,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
+                                                        params: [
+                                                        ],
+                                                        body:
+                                                            Expr {
+                                                                span: 57..78,
+                                                                ty: Int,
+                                                                kind: Block(
+                                                                    Block {
+                                                                        span: 57..78,
+                                                                        ty: Int,
+                                                                        stmts: [
+                                                                            Stmt {
+                                                                                span: 63..68,
+                                                                                ty: Unit,
+                                                                                kind: Assign {
+                                                                                    lhs:
+                                                                                        Expr {
+                                                                                            span: 63..64,
+                                                                                            ty: Int,
+                                                                                            kind: VarRef(
+                                                                                                Local {
+                                                                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                    name: "x",
+                                                                                                    decl_span: 30..31,
+                                                                                                }
+                                                                                            ),
+                                                                                        }
+                                                                                    eq_span: 65..66,
+                                                                                    rhs:
+                                                                                        Expr {
+                                                                                            span: 67..68,
+                                                                                            ty: Int,
+                                                                                            kind: VarRef(
+                                                                                                Local {
+                                                                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                    name: "x",
+                                                                                                    decl_span: 30..31,
+                                                                                                }
+                                                                                            ),
+                                                                                        }
                                                                                 },
                                                                             },
-                                                                        },
-                                                                        Stmt {
-                                                                            span: 73..74,
-                                                                            ty: TypeId(
-                                                                                2,
-                                                                            ),
-                                                                            kind: Expr(
-                                                                                Expr {
-                                                                                    span: 73..74,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                            ),
-                                                                        },
-                                                                    ],
-                                                                },
-                                                            ),
-                                                        },
-                                                    },
+                                                                            Stmt {
+                                                                                span: 73..74,
+                                                                                ty: Unit,
+                                                                                kind: Expr(
+                                                                                    Expr {
+                                                                                        span: 73..74,
+                                                                                        ty: Int,
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                name: "x",
+                                                                                                decl_span: 30..31,
+                                                                                            }
+                                                                                        ),
+                                                                                    }
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    }
+                                                                ),
+                                                            }
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 81..121,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Val(
                                     ValDecl {
                                         span: 81..121,
-                                        id: Some(
-                                            S2,
-                                        ),
-                                        name: Some(
-                                            "g",
-                                        ),
+                                        label: sym#h9c4590161c2f9f206d742d7fba5884ac,
+                                        name: "g",
                                         mutable: false,
-                                        ty: TypeId(
-                                            11,
-                                        ),
+                                        ty: () -> Any / Pure,
                                         init: Some(
                                             Expr {
                                                 span: 100..121,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
+                                                ty: () -> Int / Pure,
                                                 kind: Closure(
                                                     ClosureExpr {
                                                         span: 100..121,
-                                                        id: C1,
+                                                        label: closure#h548f4c7eba9ede93515d9504ed9f5de4,
+                                                        at_safe_span: None,
                                                         captures: [
                                                             Capture {
-                                                                id: S0,
+                                                                label: sym#h23fb423ac54f15e8187948757c6419fa,
                                                                 name: "x",
                                                                 decl_span: 30..31,
                                                                 mutable: true,
                                                             },
                                                         ],
-                                                        params: [],
-                                                        body: Expr {
-                                                            span: 100..121,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Block(
-                                                                Block {
-                                                                    span: 100..121,
-                                                                    ty: TypeId(
-                                                                        5,
-                                                                    ),
-                                                                    stmts: [
-                                                                        Stmt {
-                                                                            span: 106..111,
-                                                                            ty: TypeId(
-                                                                                2,
-                                                                            ),
-                                                                            kind: Assign {
-                                                                                lhs: Expr {
-                                                                                    span: 106..107,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                                eq_span: 108..109,
-                                                                                rhs: Expr {
-                                                                                    span: 110..111,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
+                                                        params: [
+                                                        ],
+                                                        body:
+                                                            Expr {
+                                                                span: 100..121,
+                                                                ty: Int,
+                                                                kind: Block(
+                                                                    Block {
+                                                                        span: 100..121,
+                                                                        ty: Int,
+                                                                        stmts: [
+                                                                            Stmt {
+                                                                                span: 106..111,
+                                                                                ty: Unit,
+                                                                                kind: Assign {
+                                                                                    lhs:
+                                                                                        Expr {
+                                                                                            span: 106..107,
+                                                                                            ty: Int,
+                                                                                            kind: VarRef(
+                                                                                                Local {
+                                                                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                    name: "x",
+                                                                                                    decl_span: 30..31,
+                                                                                                }
+                                                                                            ),
+                                                                                        }
+                                                                                    eq_span: 108..109,
+                                                                                    rhs:
+                                                                                        Expr {
+                                                                                            span: 110..111,
+                                                                                            ty: Int,
+                                                                                            kind: VarRef(
+                                                                                                Local {
+                                                                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                    name: "x",
+                                                                                                    decl_span: 30..31,
+                                                                                                }
+                                                                                            ),
+                                                                                        }
                                                                                 },
                                                                             },
-                                                                        },
-                                                                        Stmt {
-                                                                            span: 116..117,
-                                                                            ty: TypeId(
-                                                                                2,
-                                                                            ),
-                                                                            kind: Expr(
-                                                                                Expr {
-                                                                                    span: 116..117,
-                                                                                    ty: TypeId(
-                                                                                        5,
-                                                                                    ),
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            id: S0,
-                                                                                            name: "x",
-                                                                                            decl_span: 30..31,
-                                                                                        },
-                                                                                    ),
-                                                                                },
-                                                                            ),
-                                                                        },
-                                                                    ],
-                                                                },
-                                                            ),
-                                                        },
-                                                    },
+                                                                            Stmt {
+                                                                                span: 116..117,
+                                                                                ty: Unit,
+                                                                                kind: Expr(
+                                                                                    Expr {
+                                                                                        span: 116..117,
+                                                                                        ty: Int,
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                                                                name: "x",
+                                                                                                decl_span: 30..31,
+                                                                                            }
+                                                                                        ),
+                                                                                    }
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    }
+                                                                ),
+                                                            }
+                                                    }
                                                 ),
-                                            },
+                                            }
                                         ),
                                     },
                                 ),
                             },
                             Stmt {
                                 span: 124..129,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Assign {
-                                    lhs: Expr {
-                                        span: 124..125,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: VarRef(
-                                            Local {
-                                                id: S0,
-                                                name: "x",
-                                                decl_span: 30..31,
-                                            },
-                                        ),
-                                    },
+                                    lhs:
+                                        Expr {
+                                            span: 124..125,
+                                            ty: Int,
+                                            kind: VarRef(
+                                                Local {
+                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                    name: "x",
+                                                    decl_span: 30..31,
+                                                }
+                                            ),
+                                        }
                                     eq_span: 126..127,
-                                    rhs: Expr {
-                                        span: 128..129,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: VarRef(
-                                            Local {
-                                                id: S0,
-                                                name: "x",
-                                                decl_span: 30..31,
-                                            },
-                                        ),
-                                    },
+                                    rhs:
+                                        Expr {
+                                            span: 128..129,
+                                            ty: Int,
+                                            kind: VarRef(
+                                                Local {
+                                                    label: sym#h23fb423ac54f15e8187948757c6419fa,
+                                                    name: "x",
+                                                    decl_span: 30..31,
+                                                }
+                                            ),
+                                        }
                                 },
                             },
                             Stmt {
                                 span: 132..135,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 132..135,
-                                        ty: TypeId(
-                                            0,
-                                        ),
+                                        ty: Any,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 132..133,
-                                                ty: TypeId(
-                                                    11,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S1,
-                                                        name: "f",
-                                                        decl_span: 42..43,
-                                                    },
-                                                ),
-                                            },
-                                            args: [],
+                                            callee:
+                                                Expr {
+                                                    span: 132..133,
+                                                    ty: () -> Any / Pure,
+                                                    kind: VarRef(
+                                                        Local {
+                                                            label: sym#hbbbbcc37f96d50142b42180f53f2ebe7,
+                                                            name: "f",
+                                                            decl_span: 42..43,
+                                                        }
+                                                    ),
+                                                }
+                                            args: [
+                                            ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 138..141,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 138..141,
-                                        ty: TypeId(
-                                            0,
-                                        ),
+                                        ty: Any,
                                         kind: Call {
-                                            callee: Expr {
-                                                span: 138..139,
-                                                ty: TypeId(
-                                                    11,
-                                                ),
-                                                kind: VarRef(
-                                                    Local {
-                                                        id: S2,
-                                                        name: "g",
-                                                        decl_span: 85..86,
-                                                    },
-                                                ),
-                                            },
-                                            args: [],
+                                            callee:
+                                                Expr {
+                                                    span: 138..139,
+                                                    ty: () -> Any / Pure,
+                                                    kind: VarRef(
+                                                        Local {
+                                                            label: sym#h9c4590161c2f9f206d742d7fba5884ac,
+                                                            name: "g",
+                                                            decl_span: 85..86,
+                                                        }
+                                                    ),
+                                                }
+                                            args: [
+                                            ],
                                         },
-                                    },
+                                    }
                                 ),
                             },
                             Stmt {
                                 span: 144..145,
-                                ty: TypeId(
-                                    2,
-                                ),
+                                ty: Unit,
                                 kind: Expr(
                                     Expr {
                                         span: 144..145,
-                                        ty: TypeId(
-                                            5,
-                                        ),
+                                        ty: Int,
                                         kind: VarRef(
                                             Local {
-                                                id: S0,
+                                                label: sym#h23fb423ac54f15e8187948757c6419fa,
                                                 name: "x",
                                                 decl_span: 30..31,
-                                            },
+                                            }
                                         ),
-                                    },
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 11..147,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 132..135,
+            kind: FunValue,
+        },
+        TypedCallSiteContract {
+            span: 138..141,
+            kind: FunValue,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 132..135,
+            kind: FunValue,
+            callee_ty: () -> Any / Pure,
+            return_ty: Any,
+            arg_binding: [],
+        },
+        CallSiteContract {
+            span: 138..141,
+            kind: FunValue,
+            callee_ty: () -> Any / Pure,
+            return_ty: Any,
+            arg_binding: [],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+        AssignPlaceContract {
+            span: 63..68,
+            kind: Local,
+            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
+            name: "x",
+            decl_span: 30..31,
+            place_ty: Int,
+            value_ty: Int,
+            mutable: true,
+            write_barrier: NotRequired,
+            unsafe_required: false,
+        },
+        AssignPlaceContract {
+            span: 106..111,
+            kind: Local,
+            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
+            name: "x",
+            decl_span: 30..31,
+            place_ty: Int,
+            value_ty: Int,
+            mutable: true,
+            write_barrier: NotRequired,
+            unsafe_required: false,
+        },
+        AssignPlaceContract {
+            span: 124..129,
+            kind: Local,
+            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
+            name: "x",
+            decl_span: 30..31,
+            place_ty: Int,
+            value_ty: Int,
+            mutable: true,
+            write_barrier: NotRequired,
+            unsafe_required: false,
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

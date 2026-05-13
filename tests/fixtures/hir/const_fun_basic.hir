@@ -6,85 +6,69 @@ File {
                 fqn: "a.add",
                 name: "add",
                 is_const: true,
-                ty: TypeId(
-                    10,
-                ),
+                ty: (Int, Int) -> Int / Pure,
                 params: [
                     Param {
                         span: 25..26,
-                        id: S0,
+                        label: sym#h8bd8edb8f9d7c0c3e5c6652dba5fb51d,
                         name: "a",
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                     },
                     Param {
                         span: 33..34,
-                        id: S1,
+                        label: sym#h7805f48bdee841ef9d5eb055d6a8d813,
                         name: "b",
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 46..64,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 50..62,
-                                ty: TypeId(
-                                    3,
-                                ),
+                                ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
                                             span: 57..62,
-                                            ty: TypeId(
-                                                5,
-                                            ),
+                                            ty: Int,
                                             kind: Binary {
-                                                lhs: Expr {
-                                                    span: 57..58,
-                                                    ty: TypeId(
-                                                        5,
-                                                    ),
-                                                    kind: VarRef(
-                                                        Local {
-                                                            id: S0,
-                                                            name: "a",
-                                                            decl_span: 25..26,
-                                                        },
-                                                    ),
-                                                },
+                                                lhs:
+                                                    Expr {
+                                                        span: 57..58,
+                                                        ty: Int,
+                                                        kind: VarRef(
+                                                            Local {
+                                                                label: sym#h8bd8edb8f9d7c0c3e5c6652dba5fb51d,
+                                                                name: "a",
+                                                                decl_span: 25..26,
+                                                            }
+                                                        ),
+                                                    }
                                                 op: Add,
                                                 op_span: 59..60,
-                                                rhs: Expr {
-                                                    span: 61..62,
-                                                    ty: TypeId(
-                                                        5,
-                                                    ),
-                                                    kind: VarRef(
-                                                        Local {
-                                                            id: S1,
-                                                            name: "b",
-                                                            decl_span: 33..34,
-                                                        },
-                                                    ),
-                                                },
+                                                rhs:
+                                                    Expr {
+                                                        span: 61..62,
+                                                        ty: Int,
+                                                        kind: VarRef(
+                                                            Local {
+                                                                label: sym#h7805f48bdee841ef9d5eb055d6a8d813,
+                                                                name: "b",
+                                                                decl_span: 33..34,
+                                                            }
+                                                        ),
+                                                    }
                                             },
-                                        },
+                                        }
                                     ),
                                 },
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
@@ -93,78 +77,106 @@ File {
                 span: 66..104,
                 fqn: "a.main",
                 name: "main",
-                ty: TypeId(
-                    11,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    5,
-                ),
+                ty: () -> Int / Pure,
+                params: [
+                ],
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 82..104,
-                        ty: TypeId(
-                            2,
-                        ),
+                        ty: Unit,
                         stmts: [
                             Stmt {
                                 span: 86..102,
-                                ty: TypeId(
-                                    3,
-                                ),
+                                ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
                                             span: 93..102,
-                                            ty: TypeId(
-                                                5,
-                                            ),
+                                            ty: Int,
                                             kind: Call {
-                                                callee: Expr {
-                                                    span: 93..96,
-                                                    ty: TypeId(
-                                                        0,
-                                                    ),
-                                                    kind: VarRef(
-                                                        TopLevel {
-                                                            id: S2,
-                                                            fqn: "a.add",
-                                                        },
-                                                    ),
-                                                },
+                                                callee:
+                                                    Expr {
+                                                        span: 93..96,
+                                                        ty: Any,
+                                                        kind: VarRef(
+                                                            TopLevel {
+                                                                fqn: "a.add",
+                                                            }
+                                                        ),
+                                                    }
                                                 args: [
                                                     Positional(
                                                         Expr {
                                                             span: 97..98,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                     ),
                                                     Positional(
                                                         Expr {
                                                             span: 100..101,
-                                                            ty: TypeId(
-                                                                5,
-                                                            ),
-                                                            kind: Literal(
-                                                                Int,
-                                                            ),
-                                                        },
+                                                            ty: Int,
+                                                            kind: Literal(Int),
+                                                        }
                                                     ),
                                                 ],
                                             },
-                                        },
+                                        }
                                     ),
                                 },
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 11..64,
+            fqn: "a.add",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 66..104,
+            fqn: "a.main",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 93..102,
+            kind: DirectTopLevel,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 93..102,
+            kind: DirectTopLevel,
+            target_fqn: "a.add",
+            target_decl_span: Some(21..24),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Explicit(CallArgElementContract { arg_index: 1, spread: false })],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

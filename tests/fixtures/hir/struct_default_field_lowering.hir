@@ -6,9 +6,12 @@ File {
                 fqn: "fixtures.hir.Point",
                 name: "Point",
                 kind: Struct,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 constructors: [
                     CtorDecl {
                         span: 55..71,
@@ -17,13 +20,9 @@ File {
                             CtorParamDecl {
                                 span: 60..61,
                                 name: "x",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: true,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                         ],
                         delegation: None,
@@ -36,9 +35,7 @@ File {
                             fqn: "fixtures.hir.Point.x",
                             name: "x",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -48,9 +45,7 @@ File {
                             fqn: "fixtures.hir.Point.y",
                             name: "y",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: BodyProperty,
                         },
                     ),
@@ -62,158 +57,148 @@ File {
         Val(
             ValDecl {
                 span: 100..131,
-                id: Some(
-                    S2,
-                ),
-                name: Some(
-                    "point",
-                ),
+                label: sym#hc7af2b4d9065422359848dc4bd557463,
+                name: "point",
                 mutable: false,
-                ty: TypeId(
-                    10,
-                ),
+                ty: fixtures.hir.Point,
                 init: Some(
                     Expr {
                         span: 119..131,
-                        ty: TypeId(
-                            10,
-                        ),
+                        ty: fixtures.hir.Point,
                         kind: Block(
                             Block {
                                 span: 119..131,
-                                ty: TypeId(
-                                    10,
-                                ),
+                                ty: fixtures.hir.Point,
                                 stmts: [
                                     Stmt {
                                         span: 119..131,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Val(
                                             ValDecl {
                                                 span: 119..131,
-                                                id: Some(
-                                                    S1,
-                                                ),
-                                                name: Some(
-                                                    "y",
-                                                ),
+                                                label: sym#he03a6d685bf4b15c48fabdbad35cf092,
+                                                name: "y",
                                                 mutable: false,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
+                                                ty: Int,
                                                 init: Some(
                                                     Expr {
                                                         span: 129..130,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                        ty: Int,
+                                                        kind: Literal(Int),
+                                                    }
                                                 ),
                                             },
                                         ),
                                     },
                                     Stmt {
                                         span: 119..131,
-                                        ty: TypeId(
-                                            2,
-                                        ),
+                                        ty: Unit,
                                         kind: Val(
                                             ValDecl {
                                                 span: 119..131,
-                                                id: Some(
-                                                    S0,
-                                                ),
-                                                name: Some(
-                                                    "x",
-                                                ),
+                                                label: sym#he10f36a030321beb3c71d927c24db344,
+                                                name: "x",
                                                 mutable: false,
-                                                ty: TypeId(
-                                                    5,
-                                                ),
+                                                ty: Int,
                                                 init: Some(
                                                     Expr {
                                                         span: 69..70,
-                                                        ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Literal(
-                                                            Int,
-                                                        ),
-                                                    },
+                                                        ty: Int,
+                                                        kind: Literal(Int),
+                                                    }
                                                 ),
                                             },
                                         ),
                                     },
                                     Stmt {
                                         span: 119..131,
-                                        ty: TypeId(
-                                            10,
-                                        ),
+                                        ty: fixtures.hir.Point,
                                         kind: Expr(
                                             Expr {
                                                 span: 119..131,
-                                                ty: TypeId(
-                                                    10,
-                                                ),
+                                                ty: fixtures.hir.Point,
                                                 kind: StructLit {
-                                                    ty: TypeId(
-                                                        10,
-                                                    ),
+                                                    ty: fixtures.hir.Point,
                                                     fields: [
                                                         StructLitField {
                                                             span: 119..131,
                                                             name: "x",
                                                             name_span: 119..131,
                                                             colon_span: 119..131,
-                                                            value: Expr {
-                                                                span: 60..61,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: VarRef(
-                                                                    Local {
-                                                                        id: S0,
-                                                                        name: "x",
-                                                                        decl_span: 60..61,
-                                                                    },
-                                                                ),
-                                                            },
+                                                            value:
+                                                                Expr {
+                                                                    span: 60..61,
+                                                                    ty: Int,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#he10f36a030321beb3c71d927c24db344,
+                                                                            name: "x",
+                                                                            decl_span: 60..61,
+                                                                        }
+                                                                    ),
+                                                                }
                                                         },
                                                         StructLitField {
                                                             span: 119..131,
                                                             name: "y",
                                                             name_span: 119..131,
                                                             colon_span: 119..131,
-                                                            value: Expr {
-                                                                span: 82..83,
-                                                                ty: TypeId(
-                                                                    5,
-                                                                ),
-                                                                kind: VarRef(
-                                                                    Local {
-                                                                        id: S1,
-                                                                        name: "y",
-                                                                        decl_span: 82..83,
-                                                                    },
-                                                                ),
-                                                            },
+                                                            value:
+                                                                Expr {
+                                                                    span: 82..83,
+                                                                    ty: Int,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#he03a6d685bf4b15c48fabdbad35cf092,
+                                                                            name: "y",
+                                                                            decl_span: 82..83,
+                                                                        }
+                                                                    ),
+                                                                }
                                                         },
                                                     ],
                                                 },
-                                            },
+                                            }
                                         ),
                                     },
                                 ],
-                            },
+                            }
                         ),
-                    },
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    top_level_init_roots: [
+        TopLevelInitRootContract {
+            span: 100..131,
+            fqn: "fixtures.hir.point",
+            kind: RuntimeImmutableVal,
+            ty: fixtures.hir.Point,
+            initializer_ty: fixtures.hir.Point,
+            has_initializer: true,
+            dependencies: [
+            ],
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }

@@ -7,9 +7,7 @@ File {
                     fqn: "mir_refactor.top_level_roots.Alias",
                     name: "Alias",
                     type_params: [],
-                    ty: TypeId(
-                        0,
-                    ),
+                    ty: Int,
                 },
             ),
         ),
@@ -23,63 +21,8 @@ File {
                     type_params: [],
                     supertypes: [],
                     interfaces: [],
-                    constructors: [
-                        CtorMetadata {
-                            span: 93..117,
-                            kind: Primary,
-                            params: [
-                                CtorParamMetadata {
-                                    span: 98..99,
-                                    name: "x",
-                                    ty: TypeId(
-                                        0,
-                                    ),
-                                    has_default: false,
-                                    property: Some(
-                                        Val,
-                                    ),
-                                },
-                                CtorParamMetadata {
-                                    span: 110..111,
-                                    name: "y",
-                                    ty: TypeId(
-                                        0,
-                                    ),
-                                    has_default: false,
-                                    property: Some(
-                                        Val,
-                                    ),
-                                },
-                            ],
-                            delegation: None,
-                        },
-                    ],
-                    members: [
-                        Field(
-                            FieldMetadata {
-                                span: 98..99,
-                                fqn: "mir_refactor.top_level_roots.Point.x",
-                                name: "x",
-                                mutable: false,
-                                ty: TypeId(
-                                    0,
-                                ),
-                                origin: PrimaryCtorParam,
-                            },
-                        ),
-                        Field(
-                            FieldMetadata {
-                                span: 110..111,
-                                fqn: "mir_refactor.top_level_roots.Point.y",
-                                name: "y",
-                                mutable: false,
-                                ty: TypeId(
-                                    0,
-                                ),
-                                origin: PrimaryCtorParam,
-                            },
-                        ),
-                    ],
+                    constructors: [CtorMetadata { span: 93..117, kind: Primary, params: [CtorParamMetadata { span: 98..99, name: "x", ty: Int, has_default: false, property: Some(Val) }, CtorParamMetadata { span: 110..111, name: "y", ty: Int, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 98..99, fqn: "mir_refactor.top_level_roots.Point.x", name: "x", mutable: false, ty: Int, origin: PrimaryCtorParam }), Field(FieldMetadata { span: 110..111, fqn: "mir_refactor.top_level_roots.Point.y", name: "y", mutable: false, ty: Int, origin: PrimaryCtorParam })],
                 },
             ),
         ),
@@ -93,32 +36,7 @@ File {
                     supertypes: [],
                     interfaces: [],
                     initializer_root: "mir_refactor.top_level_roots.Registry",
-                    members: [
-                        Field(
-                            FieldMetadata {
-                                span: 291..296,
-                                fqn: "mir_refactor.top_level_roots.Registry.count",
-                                name: "count",
-                                mutable: false,
-                                ty: TypeId(
-                                    0,
-                                ),
-                                origin: BodyProperty,
-                            },
-                        ),
-                        Fun(
-                            MemberFunMetadata {
-                                span: 316..345,
-                                fqn: "mir_refactor.top_level_roots.Registry.touch",
-                                name: "touch",
-                                type_params: [],
-                                params: [],
-                                return_ty: TypeId(
-                                    0,
-                                ),
-                            },
-                        ),
-                    ],
+                    members: [Field(FieldMetadata { span: 291..296, fqn: "mir_refactor.top_level_roots.Registry.count", name: "count", mutable: false, ty: Int, origin: BodyProperty }), Fun(MemberFunMetadata { span: 316..345, fqn: "mir_refactor.top_level_roots.Registry.touch", name: "touch", type_params: [], params: [], return_ty: Int })],
                 },
             ),
         ),
@@ -128,17 +46,11 @@ File {
                 fqn: "mir_refactor.top_level_roots.Base",
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
                 kind: ConstVal,
-                ty: Some(
-                    TypeId(
-                        0,
-                    ),
-                ),
+                ty: Some(Int),
                 initializer_transport: None,
                 has_initializer: true,
                 dependencies: [],
-                hidden_effects: EffectRow {
-                    terms: [],
-                },
+                hidden_effects: Pure,
             },
         ),
         InitializerRoot(
@@ -146,25 +58,12 @@ File {
                 span: 172..206,
                 fqn: "mir_refactor.top_level_roots.Counter",
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
-                kind: RuntimeMutableVar {
-                    storage: Global,
-                },
-                ty: Some(
-                    TypeId(
-                        0,
-                    ),
-                ),
+                kind: RuntimeMutableVar { storage: Global },
+                ty: Some(Int),
                 initializer_transport: None,
                 has_initializer: true,
-                dependencies: [
-                    InitializerDependency {
-                        fqn: "mir_refactor.top_level_roots.Runtime",
-                        kind: TopLevelValue,
-                    },
-                ],
-                hidden_effects: EffectRow {
-                    terms: [],
-                },
+                dependencies: [InitializerDependency { fqn: "mir_refactor.top_level_roots.Runtime", kind: TopLevelValue }],
+                hidden_effects: Pure,
             },
         ),
         InitializerRoot(
@@ -176,15 +75,8 @@ File {
                 ty: None,
                 initializer_transport: None,
                 has_initializer: true,
-                dependencies: [
-                    InitializerDependency {
-                        fqn: "mir_refactor.top_level_roots.Runtime",
-                        kind: TopLevelValue,
-                    },
-                ],
-                hidden_effects: EffectRow {
-                    terms: [],
-                },
+                dependencies: [InitializerDependency { fqn: "mir_refactor.top_level_roots.Runtime", kind: TopLevelValue }],
+                hidden_effects: Pure,
             },
         ),
         InitializerRoot(
@@ -193,22 +85,11 @@ File {
                 fqn: "mir_refactor.top_level_roots.Runtime",
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
                 kind: RuntimeImmutableVal,
-                ty: Some(
-                    TypeId(
-                        0,
-                    ),
-                ),
+                ty: Some(Int),
                 initializer_transport: None,
                 has_initializer: true,
-                dependencies: [
-                    InitializerDependency {
-                        fqn: "mir_refactor.top_level_roots.Base",
-                        kind: TopLevelValue,
-                    },
-                ],
-                hidden_effects: EffectRow {
-                    terms: [],
-                },
+                dependencies: [InitializerDependency { fqn: "mir_refactor.top_level_roots.Base", kind: TopLevelValue }],
+                hidden_effects: Pure,
             },
         ),
         ExternGlobal(
@@ -216,9 +97,7 @@ File {
                 span: 208..263,
                 fqn: "mir_refactor.top_level_roots.NativeCounter",
                 source_path: "tests/fixtures/mir_refactor/top_level_roots.scoop",
-                ty: TypeId(
-                    0,
-                ),
+                ty: Int,
                 mutable: true,
                 symbol: "native_counter",
                 linkage: External,
@@ -232,31 +111,22 @@ File {
                 span: 349..362,
                 fqn: "mir_refactor.top_level_roots.main",
                 name: "main",
-                ty: TypeId(
-                    1,
-                ),
+                ty: () -> Unit / Pure,
                 params: [],
-                return_ty: TypeId(
-                    2,
-                ),
+                return_ty: Unit,
                 body: Some(
                     Body {
                         locals: [],
                         blocks: [
                             BasicBlock {
+                                label: bb#h47754e209508dd9a75de48cf7e49bc9e,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator {
-                                    span: 349..362,
-                                    kind: Return {
-                                        value: None,
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                terminator: Terminator { span: 349..362, kind: Return { value: None }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h47754e209508dd9a75de48cf7e49bc9e,
+                    }
                 ),
             },
         ),
@@ -265,89 +135,25 @@ File {
                 span: 316..345,
                 fqn: "mir_refactor.top_level_roots.Registry.touch",
                 name: "touch",
-                ty: TypeId(
-                    3,
-                ),
-                params: [
-                    Param {
-                        span: 272..280,
-                        name: "this",
-                        ty: TypeId(
-                            4,
-                        ),
-                        local: l0,
-                    },
-                ],
-                return_ty: TypeId(
-                    0,
-                ),
+                ty: (mir_refactor.top_level_roots.Registry) -> Int / Pure,
+                params: [Param { span: 272..280, name: "this", ty: mir_refactor.top_level_roots.Registry, local: local#h41635e9b8fb4e419109778011e2952fa }],
+                return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [
-                            LocalDecl {
-                                span: 272..280,
-                                name: Some(
-                                    "this",
-                                ),
-                                ty: TypeId(
-                                    4,
-                                ),
-                                source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 342..343,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 333..345,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                        ],
+                        locals: [LocalDecl { label: local#h41635e9b8fb4e419109778011e2952fa, span: 272..280, name: Some("this"), ty: mir_refactor.top_level_roots.Registry, source: SourceLocal }, LocalDecl { label: local#hb1236399cd4928d4c19cdf5d73008ca2, span: 342..343, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h20358707a3da56890d1e4cc62d80fc4c, span: 333..345, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
+                                label: bb#h5f50390578cda6a53686f04fe9d86935,
                                 is_cleanup: false,
-                                stmts: [
-                                    Statement {
-                                        span: 342..343,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                ],
-                                terminator: Terminator {
-                                    span: 335..343,
-                                    kind: Return {
-                                        value: Some(
-                                            Local(
-                                                l1,
-                                            ),
-                                        ),
-                                    },
-                                    unwind: NoUnwind,
-                                },
+                                stmts: [Statement { span: 342..343, kind: Assign { target: local#hb1236399cd4928d4c19cdf5d73008ca2, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 335..343, kind: Return { value: Some(Local(local#hb1236399cd4928d4c19cdf5d73008ca2)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb0,
-                    },
+                        start: bb#h5f50390578cda6a53686f04fe9d86935,
+                    }
                 ),
             },
         ),
     ],
 }
+

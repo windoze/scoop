@@ -5,10 +5,9 @@ File {
                 span: 194..215,
                 fqn: "fixtures.hir_decls.Alias",
                 name: "Alias",
-                type_params: [],
-                ty: TypeId(
-                    5,
-                ),
+                type_params: [
+                ],
+                ty: Int,
             },
         ),
         Nominal(
@@ -17,21 +16,25 @@ File {
                 fqn: "fixtures.hir_decls.Named",
                 name: "Named",
                 kind: Interface,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     Fun(
                         MemberFunDecl {
                             span: 239..257,
                             fqn: "fixtures.hir_decls.Named.name",
                             name: "name",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                1,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
                         },
                     ),
                 ],
@@ -43,16 +46,13 @@ File {
                 fqn: "fixtures.hir_decls.Person",
                 name: "Person",
                 kind: Class,
-                type_params: [],
+                type_params: [
+                ],
                 supertypes: [
                     SupertypeDecl {
                         span: 289..294,
-                        fqn: Some(
-                            "fixtures.hir_decls.Named",
-                        ),
-                        ty: TypeId(
-                            10,
-                        ),
+                        fqn: Some("fixtures.hir_decls.Named"),
+                        ty: fixtures.hir_decls.Named,
                         ctor_arg_count: 0,
                     },
                 ],
@@ -67,13 +67,9 @@ File {
                             CtorParamDecl {
                                 span: 278..280,
                                 name: "id",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                         ],
                         delegation: None,
@@ -85,25 +81,19 @@ File {
                             CtorParamDecl {
                                 span: 354..356,
                                 name: "id",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
                                 property: None,
                             },
                             CtorParamDecl {
                                 span: 363..368,
                                 name: "label",
-                                ty: TypeId(
-                                    1,
-                                ),
+                                ty: String,
                                 has_default: false,
                                 property: None,
                             },
                         ],
-                        delegation: Some(
-                            This,
-                        ),
+                        delegation: Some(This),
                     },
                 ],
                 members: [
@@ -113,9 +103,7 @@ File {
                             fqn: "fixtures.hir_decls.Person.id",
                             name: "id",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -125,9 +113,7 @@ File {
                             fqn: "fixtures.hir_decls.Person.title",
                             name: "title",
                             mutable: false,
-                            ty: TypeId(
-                                1,
-                            ),
+                            ty: String,
                             origin: BodyProperty,
                         },
                     ),
@@ -139,11 +125,11 @@ File {
                             span: 396..434,
                             fqn: "fixtures.hir_decls.Person.name",
                             name: "name",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                1,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
                         },
                     ),
                 ],
@@ -155,9 +141,12 @@ File {
                 fqn: "fixtures.hir_decls.Point",
                 name: "Point",
                 kind: Struct,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 constructors: [
                     CtorDecl {
                         span: 450..474,
@@ -166,24 +155,16 @@ File {
                             CtorParamDecl {
                                 span: 455..456,
                                 name: "x",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                             CtorParamDecl {
                                 span: 467..468,
                                 name: "y",
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 has_default: false,
-                                property: Some(
-                                    Val,
-                                ),
+                                property: Some(Val),
                             },
                         ],
                         delegation: None,
@@ -196,9 +177,7 @@ File {
                             fqn: "fixtures.hir_decls.Point.x",
                             name: "x",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -208,9 +187,7 @@ File {
                             fqn: "fixtures.hir_decls.Point.y",
                             name: "y",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: PrimaryCtorParam,
                         },
                     ),
@@ -223,10 +200,14 @@ File {
                 fqn: "fixtures.hir_decls.Choice",
                 name: "Choice",
                 kind: Enum,
-                type_params: [],
-                supertypes: [],
-                interfaces: [],
-                constructors: [],
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
                 members: [
                     EnumVariant(
                         EnumVariantDecl {
@@ -239,9 +220,7 @@ File {
                                     fqn: "fixtures.hir_decls.Choice.Some.value",
                                     name: "value",
                                     mutable: false,
-                                    ty: TypeId(
-                                        5,
-                                    ),
+                                    ty: Int,
                                     origin: EnumVariantPayload,
                                 },
                             ],
@@ -252,7 +231,8 @@ File {
                             span: 519..523,
                             fqn: "fixtures.hir_decls.Choice.None",
                             name: "None",
-                            fields: [],
+                            fields: [
+                            ],
                         },
                     ),
                 ],
@@ -264,8 +244,10 @@ File {
                 fqn: "fixtures.hir_decls.Registry",
                 name: "Registry",
                 kind: Object,
-                supertypes: [],
-                interfaces: [],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
                 initializer_root: "fixtures.hir_decls.Registry",
                 members: [
                     Field(
@@ -274,9 +256,7 @@ File {
                             fqn: "fixtures.hir_decls.Registry.count",
                             name: "count",
                             mutable: false,
-                            ty: TypeId(
-                                5,
-                            ),
+                            ty: Int,
                             origin: BodyProperty,
                         },
                     ),
@@ -285,11 +265,11 @@ File {
                             span: 572..612,
                             fqn: "fixtures.hir_decls.Registry.name",
                             name: "name",
-                            type_params: [],
-                            params: [],
-                            return_ty: TypeId(
-                                1,
-                            ),
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
                         },
                     ),
                 ],
@@ -301,18 +281,15 @@ File {
                 fqn: "fixtures.hir_decls.last",
                 name: "last",
                 mutable: false,
-                type_params: [],
-                receiver_ty: TypeId(
-                    1,
-                ),
-                ty: TypeId(
-                    5,
-                ),
+                type_params: [
+                ],
+                receiver_ty: String,
+                ty: Int,
                 getter: Some(
                     AccessorContract {
                         span: 641..650,
                         fqn: "fixtures.hir_decls.last",
-                    },
+                    }
                 ),
                 setter: None,
             },
@@ -324,48 +301,34 @@ File {
                 span: 616..650,
                 fqn: "fixtures.hir_decls.last",
                 name: "last",
-                ty: TypeId(
-                    11,
-                ),
+                ty: (String) -> Int / Pure,
                 params: [
                     Param {
                         span: 620..626,
-                        id: S0,
+                        label: sym#h6712a93ae4ddababd6c005150c5fe0f8,
                         name: "this",
-                        ty: TypeId(
-                            1,
-                        ),
+                        ty: String,
                     },
                 ],
-                return_ty: TypeId(
-                    5,
-                ),
+                return_ty: Int,
                 body: Some(
                     Block {
                         span: 649..650,
-                        ty: TypeId(
-                            5,
-                        ),
+                        ty: Int,
                         stmts: [
                             Stmt {
                                 span: 649..650,
-                                ty: TypeId(
-                                    5,
-                                ),
+                                ty: Int,
                                 kind: Expr(
                                     Expr {
                                         span: 649..650,
-                                        ty: TypeId(
-                                            5,
-                                        ),
-                                        kind: Literal(
-                                            Int,
-                                        ),
-                                    },
+                                        ty: Int,
+                                        kind: Literal(Int),
+                                    }
                                 ),
                             },
                         ],
-                    },
+                    }
                 ),
             },
         ),
@@ -374,23 +337,86 @@ File {
                 span: 652..665,
                 fqn: "fixtures.hir_decls.main",
                 name: "main",
-                ty: TypeId(
-                    12,
-                ),
-                params: [],
-                return_ty: TypeId(
-                    2,
-                ),
+                ty: () -> Unit / Pure,
+                params: [
+                ],
+                return_ty: Unit,
                 body: Some(
                     Block {
                         span: 663..665,
-                        ty: TypeId(
-                            2,
-                        ),
-                        stmts: [],
-                    },
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
                 ),
             },
         ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 239..257,
+            fqn: "fixtures.hir_decls.Named.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 396..434,
+            fqn: "fixtures.hir_decls.Person.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 572..612,
+            fqn: "fixtures.hir_decls.Registry.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 616..650,
+            fqn: "fixtures.hir_decls.last",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 652..665,
+            fqn: "fixtures.hir_decls.main",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    top_level_init_roots: [
+        TopLevelInitRootContract {
+            span: 527..614,
+            fqn: "fixtures.hir_decls.Registry",
+            kind: ObjectSingleton,
+            ty: None,
+            initializer_ty: None,
+            has_initializer: true,
+            dependencies: [
+            ],
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
     ],
 }
