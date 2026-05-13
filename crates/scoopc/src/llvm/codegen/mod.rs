@@ -59,7 +59,10 @@ use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::stable_id::{StableHashScope, stable_hash64};
+use crate::stable_id::{
+    NoTypeParamResolver, PrivateSymbolMangler, StableClosureKey, StableConeKey, StableDefKey,
+    StableDefNamespace, StableHashScope, StableInstanceKey, StableTemplateKey, stable_hash64,
+};
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
@@ -354,6 +357,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     host: &'a HostTargetInfo,
     source_map: &'a SourceMap,
     entry_source_id: SourceId,
+    stable_cone_key: &'a StableConeKey,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
@@ -423,6 +427,10 @@ struct FunctionBodyCodegenCx<'ctx> {
     explicit_frame_slot_mirrors: HashMap<usize, Vec<PointerValue<'ctx>>>,
     current_fun_return_ty: Option<CgTy>,
     current_callable_fqn: Option<String>,
+    current_stable_owner_key: Option<StableDefKey>,
+    current_stable_closure_path_prefix: Option<String>,
+    next_stable_child_closure_index: usize,
+    stable_closure_paths: HashMap<hir::ClosureId, String>,
     loop_context_stack: Vec<LoopContext<'ctx>>,
     return_context: Option<ReturnContext<'ctx>>,
     current_sret_return_ptr: Option<PointerValue<'ctx>>,
@@ -654,6 +662,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) host: &'a HostTargetInfo,
     pub(super) source_map: &'a SourceMap,
     pub(super) entry_source_id: SourceId,
+    pub(super) stable_cone_key: &'a StableConeKey,
     pub(super) types: &'a TypeStore,
     pub(super) struct_layouts: &'a hir::StructLayoutIndex,
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
@@ -705,6 +714,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             host,
             source_map,
             entry_source_id,
+            stable_cone_key,
             types,
             struct_layouts,
             enum_layouts,
@@ -743,6 +753,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             host,
             source_map,
             entry_source_id,
+            stable_cone_key,
             types,
             struct_layouts,
             enum_layouts,
@@ -922,11 +933,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cloned()
         {
             return Ok(Some(symbol));
-        }
-        if matches!(kind, CallableCarrierKind::ClosureObject)
-            && is_direct_hir_closure_carrier_alias(callable_fqn)
-        {
-            return Ok(None);
         }
         if self.callable_carrier_contract_enabled() {
             if self
@@ -1844,6 +1850,165 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 统一 nested/wrapper codegen 的构造路径，避免再次手写整套编译单元输入拼装。
     fn fresh_child_codegen(&self) -> Self {
         Self::new(self.shared)
+    }
+
+    fn stable_def_key_for_current_cone(
+        &self,
+        namespace: StableDefNamespace,
+        owner_path: &str,
+        declaration_kind: &str,
+    ) -> StableDefKey {
+        StableDefKey::new(
+            self.stable_cone_key.clone(),
+            namespace,
+            owner_path,
+            declaration_kind,
+            None,
+        )
+    }
+
+    fn enter_root_callable_identity(
+        &mut self,
+        callable_fqn: String,
+        stable_owner_key: StableDefKey,
+    ) {
+        self.function_cx.current_callable_fqn = Some(callable_fqn);
+        self.function_cx.current_stable_owner_key = Some(stable_owner_key);
+        self.function_cx.current_stable_closure_path_prefix = None;
+        self.function_cx.next_stable_child_closure_index = 0;
+        self.function_cx.stable_closure_paths.clear();
+    }
+
+    fn enter_nested_closure_identity(
+        &mut self,
+        callable_fqn: String,
+        stable_owner_key: StableDefKey,
+        stable_closure_path: &str,
+    ) {
+        self.function_cx.current_callable_fqn = Some(callable_fqn);
+        self.function_cx.current_stable_owner_key = Some(stable_owner_key);
+        self.function_cx.current_stable_closure_path_prefix = Some(stable_closure_path.to_string());
+        self.function_cx.next_stable_child_closure_index = 0;
+        self.function_cx.stable_closure_paths.clear();
+    }
+
+    fn current_stable_owner_key(
+        &self,
+        at: crate::span::Span,
+        kind: &'static str,
+    ) -> Result<StableDefKey, LlvmEmitError> {
+        self.function_cx.current_stable_owner_key.clone().ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            },
+        )
+    }
+
+    fn next_stable_child_closure_path(&mut self, closure_id: hir::ClosureId) -> String {
+        if let Some(existing) = self.function_cx.stable_closure_paths.get(&closure_id) {
+            return existing.clone();
+        }
+        let ordinal = self.function_cx.next_stable_child_closure_index;
+        self.function_cx.next_stable_child_closure_index += 1;
+        let path = match &self.function_cx.current_stable_closure_path_prefix {
+            Some(prefix) => format!("{prefix}.$lambda{ordinal}"),
+            None => format!("$lambda{ordinal}"),
+        };
+        self.function_cx
+            .stable_closure_paths
+            .insert(closure_id, path.clone());
+        path
+    }
+
+    fn stable_closure_key_for_hir_closure(
+        &mut self,
+        at: crate::span::Span,
+        closure: &hir::ClosureExpr,
+    ) -> Result<StableClosureKey, LlvmEmitError> {
+        let owner_key = self.current_stable_owner_key(at, "stable closure owner key")?;
+        let lexical_path = self.next_stable_child_closure_path(closure.id);
+        Ok(StableClosureKey::new(&owner_key, lexical_path))
+    }
+
+    pub(in crate::llvm::codegen) fn stable_closure_key_for_materialized_callable(
+        &self,
+        callable_fqn: &str,
+        at: crate::span::Span,
+    ) -> Result<StableClosureKey, LlvmEmitError> {
+        let Some((_, mir_fun)) = self.materialized_mir_callable(callable_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "materialized MIR closure stable key",
+                at: at.into(),
+            });
+        };
+        if !mir_fun.name.starts_with("$lambda") {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "materialized MIR closure stable key",
+                at: at.into(),
+            });
+        }
+        let mut owner_callable_fqn = callable_fqn;
+        while let Some((parent, _)) = owner_callable_fqn.rsplit_once(".$lambda") {
+            owner_callable_fqn = parent;
+        }
+        let owner_fun = self.hir_fun_for_callable_fqn(owner_callable_fqn).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "materialized MIR closure owner",
+                at: at.into(),
+            },
+        )?;
+        let lexical_path = stable_closure_lexical_path_in_fun(owner_fun, mir_fun.span)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "无法为 materialized MIR closure `{callable_fqn}` 从 HIR body 恢复稳定 lexical path"
+                ),
+            })?;
+
+        if let Some(pass_view) = self.materialized_pass_view()
+            && let Some(owner) = pass_view.owner_of_callable(owner_callable_fqn)
+            && (!owner.type_args.is_empty() || !owner.eff_args.is_empty())
+        {
+            let template = StableTemplateKey::new(self.stable_def_key_for_current_cone(
+                StableDefNamespace::Fun,
+                &owner.template.fqn,
+                "top_level_fun",
+            ));
+            let stable_instance = StableInstanceKey::from_type_arguments(
+                template,
+                &pass_view.materialized().types,
+                &owner.type_args,
+                &owner.eff_args,
+                &NoTypeParamResolver,
+            )
+            .map_err(|err| LlvmEmitError::Frontend {
+                message: format!(
+                    "无法为 materialized MIR closure `{callable_fqn}` 构造 stable instance key: {err}"
+                ),
+            })?;
+            return Ok(StableClosureKey::new(&stable_instance, lexical_path));
+        }
+
+        let owner_key = self.stable_def_key_for_current_cone(
+            StableDefNamespace::Fun,
+            &owner_fun.fqn,
+            "top_level_fun",
+        );
+        Ok(StableClosureKey::new(&owner_key, lexical_path))
+    }
+
+    fn direct_hir_closure_callable_fqn(
+        &self,
+        at: crate::span::Span,
+        closure: &hir::ClosureExpr,
+    ) -> Result<String, LlvmEmitError> {
+        let owner_fqn = self.function_cx.current_callable_fqn.as_deref().ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "closure callable owner fqn",
+                at: at.into(),
+            },
+        )?;
+        Ok(format!("{owner_fqn}.$lambda{}", closure.id.as_u32()))
     }
 
     fn take_function_body_cx(&mut self) -> FunctionBodyCodegenCx<'ctx> {
@@ -4071,6 +4236,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|init| init.span)
             .unwrap_or(value.span);
         self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
+        self.enter_root_callable_identity(
+            top_level_immutable_value_init_fn_name(&value.fqn),
+            self.stable_def_key_for_current_cone(
+                StableDefNamespace::TopLevelInit,
+                &value.fqn,
+                "top_level_init",
+            ),
+        );
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
@@ -4488,7 +4661,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.current_source_id = self.source_id_for_path(fun.source_path.as_path(), fun.span)?;
-        self.function_cx.current_callable_fqn = Some(fun.fqn.clone());
+        self.enter_root_callable_identity(
+            fun.fqn.clone(),
+            self.stable_def_key_for_current_cone(
+                StableDefNamespace::Fun,
+                &fun.fqn,
+                "top_level_fun",
+            ),
+        );
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
@@ -8585,12 +8765,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-fn is_direct_hir_closure_carrier_alias(callable_fqn: &str) -> bool {
-    callable_fqn
-        .strip_prefix("scoop.lambda$")
-        .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|ch| ch.is_ascii_digit()))
-}
-
 fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
     match err {
         StringLiteralParseError::Invalid => "包含无效引号、转义或 Unicode 码点",
@@ -8602,6 +8776,22 @@ fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
 #[allow(dead_code)]
 fn top_level_callee_resume_entry_fn_name(fun_fqn: &str) -> String {
     format!("__scoop_callee_resume__{fun_fqn}")
+}
+
+pub(crate) fn private_closure_body_fn_name(closure_key: &StableClosureKey) -> String {
+    PrivateSymbolMangler.mangle("closure_body", closure_key)
+}
+
+pub(crate) fn private_closure_resume_fn_name(closure_key: &StableClosureKey) -> String {
+    PrivateSymbolMangler.mangle("closure_resume", closure_key)
+}
+
+pub(crate) fn private_closure_env_type_name(closure_key: &StableClosureKey) -> String {
+    PrivateSymbolMangler.mangle("closure_env", closure_key)
+}
+
+pub(crate) fn private_closure_env_type_desc_name(closure_key: &StableClosureKey) -> String {
+    PrivateSymbolMangler.mangle("closure_env_type_desc", closure_key)
 }
 
 fn top_level_immutable_value_init_fn_name(value_fqn: &str) -> String {
@@ -8626,6 +8816,253 @@ fn top_level_var_global_name(var_fqn: &str) -> String {
 
 fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
     ptr.as_value_ref() as usize
+}
+
+// Walk HIR in lexical order so materialized-MIR closure helpers can recover the
+// same `$lambdaN.$lambdaM` path without reusing `ClosureId` or old symbol text.
+fn stable_closure_lexical_path_in_fun(
+    fun: &hir::FunDecl,
+    target_span: crate::span::Span,
+) -> Option<String> {
+    let body = fun.body.as_ref()?;
+    let mut next_closure_index = 0;
+    stable_closure_lexical_path_in_block(body, target_span, None, &mut next_closure_index)
+}
+
+fn stable_closure_lexical_path_in_block(
+    block: &hir::Block,
+    target_span: crate::span::Span,
+    prefix: Option<&str>,
+    next_closure_index: &mut usize,
+) -> Option<String> {
+    for stmt in &block.stmts {
+        if let Some(path) =
+            stable_closure_lexical_path_in_stmt(stmt, target_span, prefix, next_closure_index)
+        {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn stable_closure_lexical_path_in_stmt(
+    stmt: &hir::Stmt,
+    target_span: crate::span::Span,
+    prefix: Option<&str>,
+    next_closure_index: &mut usize,
+) -> Option<String> {
+    match &stmt.kind {
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => None,
+        hir::StmtKind::Expr(expr) => {
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }
+        hir::StmtKind::Val(val) => val.init.as_ref().and_then(|expr| {
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }),
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            stable_closure_lexical_path_in_expr(lhs, target_span, prefix, next_closure_index)
+                .or_else(|| {
+                    stable_closure_lexical_path_in_expr(
+                        rhs,
+                        target_span,
+                        prefix,
+                        next_closure_index,
+                    )
+                })
+        }
+        hir::StmtKind::While { cond, body } => {
+            stable_closure_lexical_path_in_expr(cond, target_span, prefix, next_closure_index)
+                .or_else(|| {
+                    stable_closure_lexical_path_in_block(
+                        body,
+                        target_span,
+                        prefix,
+                        next_closure_index,
+                    )
+                })
+        }
+        hir::StmtKind::Return { value } => value.as_ref().and_then(|expr| {
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }),
+    }
+}
+
+fn stable_closure_lexical_path_in_expr(
+    expr: &hir::Expr,
+    target_span: crate::span::Span,
+    prefix: Option<&str>,
+    next_closure_index: &mut usize,
+) -> Option<String> {
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::ClassLiteral(_)
+        | hir::ExprKind::Todo(_) => None,
+        hir::ExprKind::StructLit { fields, .. } => fields.iter().find_map(|field| {
+            stable_closure_lexical_path_in_expr(
+                &field.value,
+                target_span,
+                prefix,
+                next_closure_index,
+            )
+        }),
+        hir::ExprKind::TupleLit { elements } => elements.iter().find_map(|element| {
+            stable_closure_lexical_path_in_expr(element, target_span, prefix, next_closure_index)
+        }),
+        hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+            let hir::InterpolatedStringPart::Expr { expr } = part else {
+                return None;
+            };
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }),
+        hir::ExprKind::Unary { expr, .. }
+        | hir::ExprKind::TypeCheck { expr, .. }
+        | hir::ExprKind::Cast { expr, .. }
+        | hir::ExprKind::MemberAccess { receiver: expr, .. } => {
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            stable_closure_lexical_path_in_expr(lhs, target_span, prefix, next_closure_index)
+                .or_else(|| {
+                    stable_closure_lexical_path_in_expr(
+                        rhs,
+                        target_span,
+                        prefix,
+                        next_closure_index,
+                    )
+                })
+        }
+        hir::ExprKind::Block(block) => {
+            stable_closure_lexical_path_in_block(block, target_span, prefix, next_closure_index)
+        }
+        hir::ExprKind::Closure(closure) => {
+            let path = stable_closure_child_path(prefix, *next_closure_index);
+            *next_closure_index += 1;
+            if closure.span == target_span {
+                return Some(path);
+            }
+            let mut nested_closure_index = 0;
+            stable_closure_lexical_path_in_expr(
+                &closure.body,
+                target_span,
+                Some(path.as_str()),
+                &mut nested_closure_index,
+            )
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => stable_closure_lexical_path_in_expr(cond, target_span, prefix, next_closure_index)
+            .or_else(|| {
+                stable_closure_lexical_path_in_expr(
+                    then_branch,
+                    target_span,
+                    prefix,
+                    next_closure_index,
+                )
+            })
+            .or_else(|| {
+                else_branch.as_ref().and_then(|expr| {
+                    stable_closure_lexical_path_in_expr(
+                        expr,
+                        target_span,
+                        prefix,
+                        next_closure_index,
+                    )
+                })
+            }),
+        hir::ExprKind::When { subject, arms } => {
+            stable_closure_lexical_path_in_expr(subject, target_span, prefix, next_closure_index)
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| {
+                                stable_closure_lexical_path_in_expr(
+                                    guard,
+                                    target_span,
+                                    prefix,
+                                    next_closure_index,
+                                )
+                            })
+                            .or_else(|| {
+                                stable_closure_lexical_path_in_expr(
+                                    &arm.body,
+                                    target_span,
+                                    prefix,
+                                    next_closure_index,
+                                )
+                            })
+                    })
+                })
+        }
+        hir::ExprKind::Call { callee, args } => {
+            stable_closure_lexical_path_in_expr(callee, target_span, prefix, next_closure_index)
+                .or_else(|| {
+                    args.iter().find_map(|arg| {
+                        stable_closure_lexical_path_in_call_arg(
+                            arg,
+                            target_span,
+                            prefix,
+                            next_closure_index,
+                        )
+                    })
+                })
+        }
+        hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| {
+            stable_closure_lexical_path_in_call_arg(arg, target_span, prefix, next_closure_index)
+        }),
+        hir::ExprKind::Handle(handle) => stable_closure_lexical_path_in_block(
+            &handle.body,
+            target_span,
+            prefix,
+            next_closure_index,
+        )
+        .or_else(|| {
+            handle.arms.iter().find_map(|arm| {
+                stable_closure_lexical_path_in_expr(
+                    &arm.body,
+                    target_span,
+                    prefix,
+                    next_closure_index,
+                )
+            })
+        })
+        .or_else(|| {
+            handle.finally.as_ref().and_then(|block| {
+                stable_closure_lexical_path_in_block(block, target_span, prefix, next_closure_index)
+            })
+        }),
+    }
+}
+
+fn stable_closure_lexical_path_in_call_arg(
+    arg: &hir::CallArg,
+    target_span: crate::span::Span,
+    prefix: Option<&str>,
+    next_closure_index: &mut usize,
+) -> Option<String> {
+    match arg {
+        hir::CallArg::Positional(expr) => {
+            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
+        }
+        hir::CallArg::Named { value, .. } => {
+            stable_closure_lexical_path_in_expr(value, target_span, prefix, next_closure_index)
+        }
+    }
+}
+
+fn stable_closure_child_path(prefix: Option<&str>, ordinal: usize) -> String {
+    match prefix {
+        Some(prefix) => format!("{prefix}.$lambda{ordinal}"),
+        None => format!("$lambda{ordinal}"),
+    }
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

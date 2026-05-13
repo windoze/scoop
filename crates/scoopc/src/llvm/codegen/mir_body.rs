@@ -100,7 +100,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn materialized_mir_callable(&self, fqn: &str) -> Option<(&TypeStore, &crate::mir::FunDecl)> {
+    pub(in crate::llvm::codegen) fn materialized_mir_callable(
+        &self,
+        fqn: &str,
+    ) -> Option<(&TypeStore, &crate::mir::FunDecl)> {
         let pass_view = self.materialized_pass_view()?;
         let fqn_is_generic_template_with_instances = pass_view.instances().any(|family| {
             family.key().template.fqn == fqn
@@ -132,6 +135,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .find(|fun| fun.fqn == fqn && fun.body.is_some())
             })?;
         Some((&pass_view.materialized().types, mir_fun))
+    }
+
+    fn materialized_mir_closure_body_symbol(
+        &self,
+        callable_fqn: &str,
+        at: crate::span::Span,
+    ) -> Result<String, LlvmEmitError> {
+        Ok(private_closure_body_fn_name(
+            &self.stable_closure_key_for_materialized_callable(callable_fqn, at)?,
+        ))
     }
 
     fn inferred_materialized_direct_call_fqn(
@@ -201,19 +214,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(fn_ptr)
-            && existing.count_basic_blocks() > 0
-        {
-            return Ok(existing);
-        }
-
-        let saved_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
         let (mir_types, mir_fun) =
             self.materialized_mir_callable(fn_ptr)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -226,6 +226,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
+        let body_symbol = self.materialized_mir_closure_body_symbol(fn_ptr, mir_fun.span)?;
+        if let Some(existing) = self.module.get_function(&body_symbol)
+            && existing.count_basic_blocks() > 0
+        {
+            return Ok(existing);
+        }
+
+        let saved_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
         let mut child = self.fresh_child_codegen();
         child.current_source_id = child.materialized_mir_callable_source_id(fn_ptr, span)?;
         let llvm_fun = child.declare_materialized_mir_closure_fun(span, mir_fun, mir_types)?;
@@ -251,9 +265,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Some(hir_fun);
         }
         let base = mir_direct_call_base_fqn(fqn);
-        (base != fqn)
-            .then(|| self.fun_index.get(base).copied())
-            .flatten()
+        if base != fqn {
+            if let Some(hir_fun) = self.fun_index.get(base).copied() {
+                return Some(hir_fun);
+            }
+            if let Some(pass_view) = self.materialized_pass_view()
+                && let Some(owner) = pass_view.owner_of_callable(base)
+                && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
+                    fun.fqn == owner.template.fqn
+                        && fun.source_path == owner.template.source_path
+                        && fun.span == owner.template.decl_span
+                })
+            {
+                return Some(hir_fun);
+            }
+        }
+        None
     }
 
     pub(super) fn materialized_mir_callable_source_id(
@@ -305,7 +332,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         return_ty: TypeId,
         mir_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(&mir_fun.fqn) {
+        let body_symbol = self.materialized_mir_closure_body_symbol(mir_fun.fqn.as_str(), span)?;
+        if let Some(existing) = self.module.get_function(&body_symbol) {
             return Ok(existing);
         }
         if param_tys.len() != mir_fun.params.len() {
@@ -355,7 +383,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_param_tys, false),
         };
         let llvm_fun =
-            self.declare_compiler_private_helper_function(&mir_fun.fqn, fn_ty, Linkage::Internal);
+            self.declare_compiler_private_helper_function(&body_symbol, fn_ty, Linkage::Internal);
         llvm_fun.set_call_conventions(0);
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -637,7 +665,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?
                     .into_pointer_value();
-                let env_ty = self.mir_closure_env_object_type(span, fn_ptr, &capture_field_cgs)?;
+                let closure_key =
+                    self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
+                let env_ty =
+                    self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
                 let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
                 let env_ptr = self.builder.build_pointer_cast(
                     env_arg,
@@ -7063,11 +7094,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if capture_field_cgs.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let env_ty = self.mir_closure_env_object_type(span, fn_ptr, &capture_field_cgs)?;
+            let closure_key = self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
+            let env_ty =
+                self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
             let env_size_v = self.context.i64_type().const_int(env_size_bytes, false);
             let env_desc =
-                self.get_or_create_mir_closure_env_type_desc_global(span, fn_ptr, env_ty)?;
+                self.get_or_create_mir_closure_env_type_desc_global(span, &closure_key, env_ty)?;
             let env_desc_i8 = self.builder.build_pointer_cast(
                 env_desc.as_pointer_value(),
                 self.llvm_i8_ptr_type(),
@@ -7158,7 +7191,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Refactor callable carriers publish their own dynamic entry shell; do
             // not define a fallback lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
-        } else if let Some(plain_entry) = self.module.get_function(fn_ptr) {
+        } else if let Some(plain_entry) = self
+            .module
+            .get_function(&self.materialized_mir_closure_body_symbol(fn_ptr, span)?)
+        {
             plain_entry.as_global_value().as_pointer_value()
         } else {
             self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?
@@ -7596,10 +7632,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn mir_closure_env_object_type(
         &mut self,
         at: crate::span::Span,
-        fn_ptr: &str,
+        closure_key: &StableClosureKey,
         field_cgs: &[CgTy],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!("scoop.mir.lambda_env${}", sanitize_llvm_ident(fn_ptr));
+        let name = private_closure_env_type_name(closure_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }
@@ -7660,19 +7696,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn get_or_create_mir_closure_env_type_desc_global(
         &mut self,
         at: crate::span::Span,
-        fn_ptr: &str,
+        closure_key: &StableClosureKey,
         env_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let fn_san = sanitize_llvm_ident(fn_ptr);
-        let global_name = format!("__scoop_type_desc_mir_closure_env__{fn_san}");
+        let global_name = private_closure_env_type_desc_name(closure_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
         let trace_start_offset_bytes = self.target_data.offset_of_element(&env_ty, 1).unwrap_or(0);
+        let canonical_name = closure_key.env_canonical_name();
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &global_name,
+            canonical_name: &canonical_name,
             obj_ty: env_ty,
             trace_start_offset_bytes,
             parent: None,

@@ -14,6 +14,7 @@ use crate::parser::ParseError;
 use crate::resolve::ResolveError;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::StableConeKey;
 use crate::ty::{BuiltinTypes, TypeStore};
 use crate::typecheck::{
     AnnotationError, ExprTypeError, PropertyDeclError, StructDeclError, TypeEnvError,
@@ -309,6 +310,12 @@ impl From<ExprTypeError> for HirLowerError {
 #[derive(Debug)]
 pub struct LoweredHir {
     pub file: File,
+    /// 当前 lowering 的 authoritative cone identity。
+    ///
+    /// 用途：
+    /// - 让后续 LLVM / RTTI / stable-id 迁移继续沿用 lowering 已解析好的 cone 语义身份；
+    /// - 避免 backend 再从 source path 临时猜一个 cone key。
+    pub stable_cone_key: StableConeKey,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///
     /// 说明：
@@ -470,6 +477,7 @@ impl LoweredHir {
     pub(crate) fn clone_hir_compat_scaffold_without_materialized_mir(&self) -> Self {
         Self {
             file: self.file.clone(),
+            stable_cone_key: self.stable_cone_key.clone(),
             member_funs: self.member_funs.clone(),
             materialized_mir: None,
             types: self.types.clone(),

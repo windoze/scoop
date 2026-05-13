@@ -2447,12 +2447,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         self.codegen
             .register_plain_callable_carrier_fallback(kind, callable_fqn)?;
-        if matches!(kind, CallableCarrierKind::ClosureObject)
-            && let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn)
-        {
-            self.codegen
-                .register_plain_callable_carrier_fallback(kind, &alias)?;
-        }
         Ok(())
     }
 
@@ -2540,16 +2534,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             &symbol_name,
             carrier_layouts,
         )?;
-        if let Some(alias) = direct_hir_closure_carrier_alias(callable_fqn) {
-            self.register_callable_carrier_target_contract(
-                CallableCarrierKind::ClosureObject,
-                &alias,
-                callable_layout,
-                callable_layout.step_schema(),
-                &symbol_name,
-                carrier_layouts,
-            )?;
-        }
         Ok(())
     }
 
@@ -7000,14 +6984,6 @@ fn expected_source_types_for_carrier(
     }
 }
 
-fn direct_hir_closure_carrier_alias(root_fqn: &str) -> Option<String> {
-    let (_, suffix) = root_fqn.rsplit_once(".$lambda")?;
-    suffix
-        .chars()
-        .all(|ch| ch.is_ascii_digit())
-        .then(|| format!("scoop.lambda${suffix}"))
-}
-
 fn render_resume_packing_ids(interface_ids: &[ResumeInterfaceId]) -> String {
     format!(
         "[{}]",
@@ -7348,6 +7324,7 @@ mod tests {
             host: &target_info,
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
+            stable_cone_key: &lowered.stable_cone_key,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,
@@ -7427,6 +7404,7 @@ mod tests {
             host: &target_info,
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
+            stable_cone_key: &lowered.stable_cone_key,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,
@@ -7505,6 +7483,7 @@ mod tests {
             host: &target_info,
             source_map: &inputs.source_map,
             entry_source_id: inputs.entry_source_id,
+            stable_cone_key: &lowered.stable_cone_key,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,

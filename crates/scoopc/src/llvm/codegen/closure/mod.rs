@@ -16,34 +16,59 @@ struct ClosureBodyCodegenSpec<'ctx, 'spec> {
     receiver_binding: Option<&'spec (hir::SymbolId, String, TypeId)>,
     param_bindings: &'spec [(hir::SymbolId, String, TypeId)],
     capture_bindings: &'spec [(hir::SymbolId, String, TypeId)],
+    callable_fqn: &'spec str,
+    root_stable_owner_key: &'spec StableDefKey,
+    stable_closure_key: &'spec StableClosureKey,
     llvm_fun: FunctionValue<'ctx>,
     callee_suspend_plan: Option<&'spec CalleeSuspendPlan>,
     callee_resume_entry_fn: Option<FunctionValue<'ctx>>,
 }
 
+struct DirectHirClosureIdentity {
+    callable_fqn: String,
+    stable_key: StableClosureKey,
+    body_symbol: String,
+    resume_symbol: String,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn declare_closure_callee_resume_entry(
+    fn direct_hir_closure_identity(
         &mut self,
         at: crate::span::Span,
         closure: &hir::ClosureExpr,
+    ) -> Result<DirectHirClosureIdentity, LlvmEmitError> {
+        let callable_fqn = self.direct_hir_closure_callable_fqn(at, closure)?;
+        let stable_key = self.stable_closure_key_for_hir_closure(at, closure)?;
+        let body_symbol = private_closure_body_fn_name(&stable_key);
+        let resume_symbol = private_closure_resume_fn_name(&stable_key);
+        Ok(DirectHirClosureIdentity {
+            callable_fqn,
+            stable_key,
+            body_symbol,
+            resume_symbol,
+        })
+    }
+
+    fn declare_closure_callee_resume_entry(
+        &mut self,
+        at: crate::span::Span,
+        resume_symbol: &str,
         return_cg: CgTy,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.declare_callee_resume_entry_function(
-            at,
-            &closure_callee_resume_entry_fn_name(closure.id),
-            return_cg,
-        )
+        self.declare_callee_resume_entry_function(at, resume_symbol, return_cg)
     }
 
     fn build_closure_callee_suspend_plan(
         &self,
         closure: &hir::ClosureExpr,
+        callable_fqn: &str,
         return_ty: TypeId,
         receiver_binding: Option<&(hir::SymbolId, String, TypeId)>,
         param_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Option<CalleeSuspendPlan> {
         self.build_closure_callee_suspend_plan_impl(
             closure,
+            callable_fqn,
             return_ty,
             receiver_binding,
             param_bindings,
@@ -76,7 +101,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let fun_name = format!("scoop.lambda${}", closure.id.as_u32());
+        let closure_identity = self.direct_hir_closure_identity(span, closure)?;
+        let root_stable_owner_key =
+            self.current_stable_owner_key(span, "stable closure owner key")?;
 
         // 2) 确保 closure 函数本体存在（module-level function）。
         //
@@ -89,7 +116,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
 
-        let llvm_fun = if let Some(existing) = self.module.get_function(&fun_name) {
+        let llvm_fun = if let Some(existing) =
+            self.module.get_function(&closure_identity.body_symbol)
+        {
             existing
         } else {
             let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
@@ -101,18 +130,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })?;
             let callee_suspend_plan = self.build_closure_callee_suspend_plan(
                 closure,
+                closure_identity.callable_fqn.as_str(),
                 fun_ty.return_ty,
                 receiver_binding.as_ref(),
                 &param_bindings,
             );
             let callee_resume_entry_fn = if callee_suspend_plan.is_some() {
-                Some(self.declare_closure_callee_resume_entry(span, closure, ret_cg)?)
+                Some(self.declare_closure_callee_resume_entry(
+                    span,
+                    &closure_identity.resume_symbol,
+                    ret_cg,
+                )?)
             } else {
                 None
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-            let uses_explicit_effect_hidden_abi =
-                self.callable_uses_explicit_effect_hidden_abi(&fun_name);
+            let uses_explicit_effect_hidden_abi = self
+                .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str());
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
                 1 + fun_ty.params.len()
                     + usize::from(fun_ty.receiver.is_some())
@@ -153,8 +187,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             };
 
-            let llvm_fun =
-                self.declare_compiler_private_helper_function(&fun_name, fn_ty, Linkage::Internal);
+            let llvm_fun = self.declare_compiler_private_helper_function(
+                &closure_identity.body_symbol,
+                fn_ty,
+                Linkage::Internal,
+            );
             llvm_fun.set_call_conventions(0);
             if let Some(result_ty) = hidden_sret_result_ty {
                 self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
@@ -188,6 +225,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     receiver_binding: receiver_binding.as_ref(),
                     param_bindings: &param_bindings,
                     capture_bindings: &capture_bindings,
+                    callable_fqn: closure_identity.callable_fqn.as_str(),
+                    root_stable_owner_key: &root_stable_owner_key,
+                    stable_closure_key: &closure_identity.stable_key,
                     llvm_fun,
                     callee_suspend_plan: callee_suspend_plan.as_ref(),
                     callee_resume_entry_fn,
@@ -283,13 +323,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 capture_bindings.push((cap.id, cap.name.clone(), ty_id));
             }
 
-            let env_ty = self.llvm_closure_env_type(span, closure.id, &capture_bindings)?;
+            let env_ty =
+                self.llvm_closure_env_type(span, &closure_identity.stable_key, &capture_bindings)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
 
             let size_v = self.context.i64_type().const_int(env_size_bytes, false);
 
-            let env_desc =
-                self.get_or_create_closure_env_type_desc_global(span, closure.id, env_ty)?;
+            let env_desc = self.get_or_create_closure_env_type_desc_global(
+                span,
+                &closure_identity.stable_key,
+                env_ty,
+            )?;
             let env_desc_i8 = self.builder.build_pointer_cast(
                 env_desc.as_pointer_value(),
                 self.llvm_i8_ptr_type(),
@@ -397,7 +441,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let fn_ptr = self.callable_carrier_target_fn_ptr(
             CallableCarrierKind::ClosureObject,
-            &fun_name,
+            closure_identity.callable_fqn.as_str(),
             llvm_fun.as_global_value().as_pointer_value(),
         )?;
         let fn_i8 = self
@@ -505,8 +549,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(spec.llvm_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(spec.llvm_fun)?;
-        self.function_cx.current_callable_fqn =
-            Some(format!("scoop.lambda${}", closure.id.as_u32()));
+        self.enter_nested_closure_identity(
+            spec.callable_fqn.to_string(),
+            spec.root_stable_owner_key.clone(),
+            spec.stable_closure_key.lexical_path(),
+        );
 
         self.function_cx.env.push_scope();
 
@@ -521,9 +568,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
-        let callable_fqn = format!("scoop.lambda${}", closure.id.as_u32());
         let uses_explicit_effect_hidden_abi =
-            self.callable_uses_explicit_effect_hidden_abi(&callable_fqn);
+            self.callable_uses_explicit_effect_hidden_abi(spec.callable_fqn);
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 spec.llvm_fun
@@ -559,8 +605,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?
                 .into_pointer_value();
 
-            let env_ty =
-                self.llvm_closure_env_type(closure.span, closure.id, spec.capture_bindings)?;
+            let env_ty = self.llvm_closure_env_type(
+                closure.span,
+                spec.stable_closure_key,
+                spec.capture_bindings,
+            )?;
             let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let env_ptr = self
                 .builder
@@ -698,10 +747,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn llvm_closure_env_type(
         &mut self,
         at: crate::span::Span,
-        closure_id: hir::ClosureId,
+        closure_key: &StableClosureKey,
         capture_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!("scoop.lambda_env${}", closure_id.as_u32());
+        let name = private_closure_env_type_name(closure_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }
@@ -763,10 +812,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         fallback
     }
-}
-
-pub(in crate::llvm::codegen) fn closure_callee_resume_entry_fn_name(
-    closure_id: hir::ClosureId,
-) -> String {
-    format!("scoop.lambda_resume${}", closure_id.as_u32())
 }

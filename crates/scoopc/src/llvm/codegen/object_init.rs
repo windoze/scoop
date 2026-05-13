@@ -210,6 +210,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(crate::span::Span::new(0, 0));
 
         self.current_source_id = self.source_id_for_path(obj.source_path.as_path(), err_span)?;
+        self.enter_root_callable_identity(
+            object_init_fn_name(&obj.fqn),
+            self.stable_def_key_for_current_cone(
+                StableDefNamespace::ObjectInit,
+                &obj.fqn,
+                "object_init",
+            ),
+        );
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");

@@ -324,6 +324,14 @@ impl StableClosureKey {
             lexical_path,
         }
     }
+
+    pub fn lexical_path(&self) -> &str {
+        &self.lexical_path
+    }
+
+    pub fn env_canonical_name(&self) -> String {
+        canonical_record("closure_env", [self.canonical_text()])
+    }
 }
 
 impl StableCanonicalKey for StableClosureKey {

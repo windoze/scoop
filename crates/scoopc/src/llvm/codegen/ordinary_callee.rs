@@ -365,12 +365,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn build_closure_callee_suspend_plan_impl(
         &self,
         closure: &hir::ClosureExpr,
+        callable_fqn: &str,
         return_ty: TypeId,
         receiver_binding: Option<&(hir::SymbolId, String, TypeId)>,
         param_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Option<CalleeSuspendPlan> {
-        let callable_fqn = format!("scoop.lambda${}", closure.id.as_u32());
-        if !self.callable_needs_callee_resume_shell(&callable_fqn) {
+        if !self.callable_needs_callee_resume_shell(callable_fqn) {
             return None;
         }
         let hir::ExprKind::Block(block) = &closure.body.kind else {
@@ -390,7 +390,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_ordinary_callee_suspend_plan_for_callable(
             block,
             return_ty,
-            Some(&callable_fqn),
+            Some(callable_fqn),
             &extra_locals,
         )
     }

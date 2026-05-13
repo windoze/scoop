@@ -2432,6 +2432,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     Ok(LoweredHir {
         file,
+        stable_cone_key,
         member_funs,
         materialized_mir: None,
         types,
@@ -2780,6 +2781,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
 
     Ok(LoweredHir {
         file: file_hir,
+        stable_cone_key,
         member_funs,
         materialized_mir: None,
         types,
@@ -3459,6 +3461,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
 
     Ok(LoweredHir {
         file: File { decls, items },
+        stable_cone_key,
         member_funs,
         materialized_mir: None,
         types,

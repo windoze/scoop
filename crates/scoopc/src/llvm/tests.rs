@@ -483,6 +483,15 @@ fn stable_id_symbol_has_hash128_suffix(name: &str) -> bool {
     hash.len() == 32 && hash.chars().all(|ch| ch.is_ascii_hexdigit())
 }
 
+fn stable_id_symbol_has_private_role(name: &str, role: &str) -> bool {
+    name.starts_with(&format!("__scoop_priv0__{role}__h"))
+        && stable_id_symbol_has_hash128_suffix(name)
+}
+
+fn stable_id_symbol_looks_like_private_closure_body(name: &str) -> bool {
+    stable_id_symbol_has_private_role(name, "closure_body")
+}
+
 fn stable_id_ir_contains_hidden_init_call(ir: &str) -> bool {
     ir.lines().any(|line| {
         line.contains(" call ")
@@ -673,6 +682,43 @@ fn llvm_raw_add_function_none_callsites() -> Vec<String> {
     hits
 }
 
+fn llvm_legacy_closure_private_naming_hits() -> Vec<String> {
+    let llvm_codegen_root = stable_id_repo_root().join("crates/scoopc/src/llvm/codegen");
+    let mut files = Vec::new();
+    stable_id_collect_audit_files(
+        "crates/scoopc/src/llvm/codegen",
+        &llvm_codegen_root,
+        &mut files,
+    );
+    let legacy_needles = [
+        "scoop.lambda$",
+        "scoop.lambda_resume$",
+        "scoop.lambda_env$",
+        "scoop.mir.lambda_env$",
+        "__scoop_type_desc_mir_closure_env__",
+        "direct_hir_closure_carrier_alias",
+        "is_direct_hir_closure_carrier_alias",
+    ];
+
+    let mut hits = Vec::new();
+    for (_, path) in files {
+        let Ok(contents) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (line_number, line) in contents.lines().enumerate() {
+            if legacy_needles.iter().any(|needle| line.contains(needle)) {
+                hits.push(format!(
+                    "{}:{}: {}",
+                    stable_id_relative_repo_path(&path),
+                    line_number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+    hits
+}
+
 fn stable_id_line_contains_prefix_digits_suffix(line: &str, prefix: &str, suffix: &str) -> bool {
     let bytes = line.as_bytes();
     let prefix_bytes = prefix.as_bytes();
@@ -842,12 +888,89 @@ fn function_declaration_helpers_emit_explicit_linkage() {
 }
 
 #[test]
+fn stable_id_private_closure_symbol_helpers_use_hash128_namespaces() {
+    let owner = crate::stable_id::StableDefKey::new(
+        crate::stable_id::StableConeKey::new("demo", "0.1.0"),
+        crate::stable_id::StableDefNamespace::Fun,
+        "demo.main",
+        "top_level_fun",
+        None,
+    );
+    let closure = crate::stable_id::StableClosureKey::new(&owner, "$lambda0.$lambda1");
+
+    let body = crate::llvm::codegen::private_closure_body_fn_name(&closure);
+    let resume = crate::llvm::codegen::private_closure_resume_fn_name(&closure);
+    let env = crate::llvm::codegen::private_closure_env_type_name(&closure);
+    let env_desc = crate::llvm::codegen::private_closure_env_type_desc_name(&closure);
+
+    assert!(stable_id_symbol_has_private_role(&body, "closure_body"));
+    assert!(stable_id_symbol_has_private_role(&resume, "closure_resume"));
+    assert!(stable_id_symbol_has_private_role(&env, "closure_env"));
+    assert!(stable_id_symbol_has_private_role(
+        &env_desc,
+        "closure_env_type_desc"
+    ));
+}
+
+#[test]
 fn function_declaration_inventory_eliminates_raw_add_function_none_callsites() {
     let hits = llvm_raw_add_function_none_callsites();
     assert!(
         hits.is_empty(),
         "LLVM declaration path 不应再直接留下 raw `module.add_function(..., None)`：\n{}",
         hits.join("\n")
+    );
+}
+
+#[test]
+fn stable_id_source_inventory_removes_legacy_closure_private_naming_from_codegen() {
+    let hits = llvm_legacy_closure_private_naming_hits();
+    assert!(
+        hits.is_empty(),
+        "closure private naming 生产代码不应再残留 legacy ClosureId/alias 路径：\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn materialized_mir_closure_private_symbols_use_stable_hash_namespaces() {
+    let source = SourceFile::new_virtual(
+        "<mem>/stable_id_materialized_closure.scoop",
+        r#"
+package a
+
+fun make(x: Int): () -> Int {
+    return { x }
+}
+
+fun main(): Int {
+    return make(1)()
+}
+"#,
+    );
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    for legacy in [
+        "scoop.mir.lambda_env$",
+        "__scoop_type_desc_mir_closure_env__",
+    ] {
+        assert!(
+            !ir.contains(legacy),
+            "materialized MIR closure env naming 不应再回到 legacy spelling `{legacy}`\n{ir}"
+        );
+    }
+
+    assert_ir_contains_internal_or_private_helper_family(
+        &ir,
+        "materialized MIR closure body",
+        stable_id_symbol_looks_like_private_closure_body,
+    );
+
+    assert!(
+        ir.contains("__scoop_priv0__closure_env__h")
+            && ir.contains("__scoop_priv0__closure_env_type_desc__h"),
+        "materialized MIR closure env/type-desc 应使用 stable private symbol 家族\n{ir}"
     );
 }
 
@@ -1018,6 +1141,25 @@ fun main(): Int {
             entry_ir.lines().next().expect("expected entry header"),
         ),
         "source-level entry implementation 应使用 internal/private linkage"
+    );
+
+    for legacy in [
+        "scoop.lambda$",
+        "scoop.lambda_resume$",
+        "scoop.lambda_env$",
+        "scoop.mir.lambda_env$",
+        "__scoop_type_desc_mir_closure_env__",
+    ] {
+        assert!(
+            !ir.contains(legacy),
+            "closure private naming 不应再回到 legacy ClosureId spelling `{legacy}`\n{ir}"
+        );
+    }
+
+    assert!(
+        ir.contains("__scoop_priv0__closure_env__h")
+            && ir.contains("__scoop_priv0__closure_env_type_desc__h"),
+        "closure env type/type-desc 应使用 stable private symbol 家族\n{ir}"
     );
 
     assert_ir_contains_internal_or_private_helper_family(

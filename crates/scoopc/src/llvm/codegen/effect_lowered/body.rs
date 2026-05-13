@@ -44,7 +44,7 @@ use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, TypeDescriptorSpec,
-    sanitize_llvm_ident,
+    private_closure_env_type_name, sanitize_llvm_ident,
 };
 use super::types::{
     ProgramAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
@@ -1553,7 +1553,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fn_ptr: &str,
         field_cgs: &[CgTy],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let name = format!("scoop.mir.lambda_env${}", sanitize_llvm_ident(fn_ptr));
+        let closure_key = self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
+        let name = private_closure_env_type_name(&closure_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }

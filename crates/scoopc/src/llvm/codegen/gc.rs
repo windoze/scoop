@@ -1713,19 +1713,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn get_or_create_closure_env_type_desc_global(
         &mut self,
         at: crate::span::Span,
-        closure_id: hir::ClosureId,
+        closure_key: &StableClosureKey,
         env_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let global_name = format!("__scoop_type_desc_closure_env__{}", closure_id.as_u32());
+        let global_name = private_closure_env_type_desc_name(closure_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
 
         let trace_start_offset_bytes = self.target_data.offset_of_element(&env_ty, 1).unwrap_or(0);
+        let canonical_name = closure_key.env_canonical_name();
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &format!("scoop.lambda_env${}", closure_id.as_u32()),
+            canonical_name: &canonical_name,
             obj_ty: env_ty,
             trace_start_offset_bytes,
             parent: None,

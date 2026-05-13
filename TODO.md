@@ -861,7 +861,7 @@
 
 ## P3：迁移 private LLVM naming source
 
-### [TODO] P3-T01：用 `StableClosureKey` 替换 closure private naming，并清理旧 alias 兼容层
+### [DONE] P3-T01：用 `StableClosureKey` 替换 closure private naming，并清理旧 alias 兼容层
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P3
@@ -900,7 +900,40 @@
   - closure private naming 已彻底脱离 `ClosureId` 分配顺序。
 - 依赖：P2-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/hir/lower/mod.rs`
+    - `crates/scoopc/src/hir/lower/types.rs`
+    - `crates/scoopc/src/llvm/emit.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/ordinary_callee.rs`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/codegen/object_init.rs`
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+  - 核心决策：
+    - 把 `LoweredHir.stable_cone_key` 贯穿到 LLVM codegen 输入，避免 backend 为 stable-id 继续从 path/span 临时猜 cone identity；closure stable owner key 现在直接基于当前 cone 的 authoritative semantic key 构造。
+    - direct-HIR closure 路径新增 root/nested identity 跟踪：顶层函数、object init、top-level init 进入 codegen 时建立 `StableDefKey`，嵌套 closure 复用同一 owner key 加 `$lambdaN...` 词法路径；closure body / resume / env / env type-desc 统一改走 `PrivateSymbolMangler`。
+    - 为 materialized MIR / effect-lowered closure 增加一条共享 lexical-path 恢复路径：从 owner HIR body 按词法顺序重建 closure 的 `$lambdaN.$lambdaM` 路径，再与 owner 的 `StableDefKey` / `StableInstanceKey` 组装成同一份 `StableClosureKey`。这样 materialized-MIR closure body/env/type-desc 与 effect-lowered closure env transport 也不再依赖 `ClosureId`、`scoop.mir.lambda_env$...` 或 `__scoop_type_desc_mir_closure_env__...`。
+    - 删除 `direct_hir_closure_carrier_alias` / `is_direct_hir_closure_carrier_alias` 兼容层，callable carrier contract 不再把 direct HIR closure 重新映射回 `scoop.lambda$<n>` 旧族名。
+    - 保持 ordinary callee / pass-MIR fallback 的行为语义不变：materialized-MIR closure body symbol 虽已切到 stable private name，但 fallback 获取函数指针时继续优先复用已声明 symbol，仅在确实缺符号时才触发 body 定义，避免把既有不支持的 pass-MIR body 形态错误地提前 materialize 成新回归。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialized_mir_closure_private_symbols_use_stable_hash_namespaces -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_call_without_outward_effect_stays_on_direct_call_surface -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_closure_env_transport -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 生产级 `crates/scoopc/src/llvm/codegen` 精确 grep：`scoop\.lambda\$[0-9]+`、`scoop\.lambda_resume\$[0-9]+`、`scoop\.lambda_env\$[0-9]+`、`scoop\.mir\.lambda_env\$`、`__scoop_type_desc_mir_closure_env__` 均为 0 命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P3 / `STABLE_ID.md` §6.5、§8.5：closure private body/resume/env/type-desc 现在统一以 `StableClosureKey` 为 authoritative identity，并由 `PrivateSymbolMangler` 生成 private LLVM naming。
+    - 对应 `PLAN.md` P3 的 alias 清理目标与 `STABLE_ID.md` §3.4.3：旧 `scoop.lambda$<n>` / `scoop.lambda_resume$<n>` / `scoop.lambda_env$<n>` 以及 direct-HIR closure carrier alias 已退出 production LLVM codegen 路径；materialized-MIR / effect-lowered closure env 也不再残留 `scoop.mir.lambda_env$...` / `__scoop_type_desc_mir_closure_env__...` 旧族名。
 
 ### [TODO] P3-T02：用 stable schema key / canonical type hash 替换 effect helper 与 transport type 的 private naming
 
