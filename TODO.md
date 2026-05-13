@@ -1002,7 +1002,7 @@
     - 对应 `PLAN.md` P3：closure 之外剩余的 effect helper / continuation helper / transport type private naming 已统一迁移到 stable schema key / canonical type hash，不再受 `StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`TypeId` 或 pretty type text 控制。
     - 对应 `STABLE_ID.md` §3.4.4 / §3.4.6 / §6.7 / §8.5：`resume`、`surface_resume`、`dynamic/direct invoke`、owner dispatch、task/thread transport thunk、plain/closure adapter、effect transport box/type 等 production effect lowering helper 已改走 `PrivateSymbolMangler` + stable key；旧 `__schemaN` / `kN` / `t<TypeId>__...` spelling 已退出 production LLVM naming 路径。
 
-### [TODO] P3-T02R：Review private naming 迁移，确认 dense id 已退出 LLVM private symbol 控制路径
+### [DONE] P3-T02R：Review private naming 迁移，确认 dense id 已退出 LLVM private symbol 控制路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P3
@@ -1018,7 +1018,38 @@
   - 可以明确写出：dense id 已退出 private LLVM naming 的 authoritative path。
 - 依赖：P3-T02
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/stable_naming.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `crates/scoop/src/commands/build.rs`
+    - `TODO.md`
+  - 核心决策：
+    - review 过程中先发现 `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs` 仍通过 `ProgramLayoutView::step_stem()` 把 `StepSchemaId` 退回到 `__schemaN` / `schemaN` 命名 stem，并进一步驱动 step/storage/case/vtable/frame/continuation 的 LLVM type/global 名字；这与 `P3-T02R` 完成条件直接冲突，因此先修复这一阻塞再继续 review。
+    - 在 `effect_lowered::stable_naming` 新增复用 `PrivateSymbolMangler` hash 主体的 private type-name helper；step/storage/complete/case/vtable/frame/continuation 的 LLVM type 名和内部 anchor/global 名现在都基于 stable effect key、stable callable version key 或 per-case stable key 生成，不再依赖 `StepSchemaId`、`CaseTag` 或旧 readable stem 回退。
+    - 新增 `stable_id_source_inventory_removes_legacy_effect_private_naming_fallbacks_from_codegen`，把 `step_stem` / `schemaN` / `caseN` / `{stem}` 旧模板拼接固化为防回流检查；同时把相关 LLVM / build 行为测试迁移到“hashed private family + IR 结构/调用关系”断言模型，避免继续锁死旧 private/type spelling。
+    - 明确 review 后仍允许保留数字、但不属于 authoritative private naming 的场景：
+      - LLVM basic block label（如 `mir.bb0`、`plain.bb0`）
+      - SSA/局部临时名与显式 root slot 序号（如 `%tmp42`、`%explicit_root_frame_slot_15`）
+      - 语义性数字常量与索引（如 runtime tag 值、`extractvalue`/GEP field index、layout offset/alignment/size 常量）
+      - 这些数字不再决定 linker-visible/private symbol、private type name 或 compiler-private global name 的 authoritative identity。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_ -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc effect_contract_struct_types_are_registered_for_effect_codegen -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoop build_emit_llvm_dynamic_entry_publication_keeps_plain_carrier_targets_buildable -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc materialized_mir_closure_private_symbols_use_stable_hash_namespaces -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composed_continuation_resume_publishes_internal_outcome_surface_and_owner_core -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoop --all-targets -- -D warnings`
+    - 生产级 `crates/scoopc/src/llvm/codegen` 精确 grep：`scoop\.lambda\$[0-9]+`、`scoop\.lambda_resume\$[0-9]+`、`scoop\.lambda_env\$[0-9]+`、`scoop\.mir\.lambda_env\$`、`__scoop_type_desc_mir_closure_env__`、`__schema[0-9]+`、`__k[0-9]+`、`t[0-9]+__` 均为 0 命中。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P3 的 review 目标：closure/effect/transport private naming 的剩余 dense-id 控制路径已复核并收口；private LLVM type/global/function 命名继续与 P2 的 internal/private linkage 保持一致。
+    - 对应 `STABLE_ID.md` §5.1、§6.5-§6.8、§8.5：`ClosureId`、`StepSchemaId`、`ContinuationSchemaId`、`CaseTag`、`TypeId` 已退出 private LLVM symbol/type/global authoritative naming path；剩余数字仅保留在 IR-local 或语义性 ordinal/offset 场景，不再承担外部 identity 责任。
 
 ## P4：迁移 exported ABI naming
 

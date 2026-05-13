@@ -35,9 +35,7 @@ use crate::stable_id::canonical_record;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::types::IntTy;
-use super::super::{
-    CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen, sanitize_llvm_ident,
-};
+use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
 use super::stable_naming;
 use super::types::{
     ProgramAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
@@ -77,10 +75,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-struct ProgramLayoutView {
-    callable_stems_by_step_schema: BTreeMap<StepSchemaId, String>,
-}
-
 type BoundaryOperandKey = (StepSchemaId, crate::mir::SiteId);
 type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, RefactorCallBoundaryOperandLayout>;
 type PerformBoundaryOperandLayouts =
@@ -108,95 +102,64 @@ struct MaterializedDynamicCallSite {
     carrier_source_ty: Option<TypeId>,
 }
 
-impl ProgramLayoutView {
-    fn new(program: &LateLoweredProgram) -> Result<Self, LlvmEmitError> {
-        let mut step_types_by_schema = BTreeMap::new();
-        for step_type in program.step_types() {
-            if step_types_by_schema
-                .insert(step_type.step_schema(), step_type)
-                .is_some()
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 遇到重复 StepSchemaId {}",
-                    step_type.step_schema().as_u32()
-                )));
-            }
+fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(), LlvmEmitError> {
+    let mut step_types_by_schema = BTreeMap::new();
+    for step_type in program.step_types() {
+        if step_types_by_schema
+            .insert(step_type.step_schema(), step_type)
+            .is_some()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 遇到重复 StepSchemaId {}",
+                step_type.step_schema().as_u32()
+            )));
         }
-
-        let mut root_counts = HashMap::new();
-        for callable in program.callables() {
-            *root_counts.entry(callable.root_fqn()).or_insert(0usize) += 1;
-        }
-
-        let mut callables_by_step_schema = BTreeMap::new();
-        let mut callable_stems_by_step_schema = BTreeMap::new();
-        for callable in program.callables() {
-            let Some(step_schema) = callable.body_step_schema() else {
-                continue;
-            };
-            if callables_by_step_schema
-                .insert(step_schema, callable)
-                .is_some()
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
-                    step_schema.as_u32(),
-                    callable.root_fqn()
-                )));
-            }
-
-            let base = sanitize_llvm_ident(callable.root_fqn());
-            let stem = if root_counts.get(callable.root_fqn()).copied().unwrap_or(0) > 1 {
-                format!("{base}__schema{}", step_schema.as_u32())
-            } else {
-                base
-            };
-            callable_stems_by_step_schema.insert(step_schema, stem);
-        }
-
-        for step_schema in step_types_by_schema.keys().copied() {
-            callable_stems_by_step_schema
-                .entry(step_schema)
-                .or_insert_with(|| format!("schema{}", step_schema.as_u32()));
-        }
-
-        let mut continuation_objects_by_id = BTreeMap::new();
-        for object in program.continuation_objects() {
-            if continuation_objects_by_id
-                .insert(object.object_id(), object)
-                .is_some()
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 遇到重复 continuation object {}",
-                    object.object_id().as_u32()
-                )));
-            }
-        }
-
-        let mut resume_packings_by_id = BTreeMap::new();
-        for interface in program.resume_packings() {
-            if resume_packings_by_id
-                .insert(interface.interface_id(), interface)
-                .is_some()
-            {
-                return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 遇到重复 resume packing {}",
-                    interface.interface_id().as_u32()
-                )));
-            }
-        }
-
-        Ok(Self {
-            callable_stems_by_step_schema,
-        })
     }
 
-    fn step_stem(&self, step_schema: StepSchemaId) -> &str {
-        self.callable_stems_by_step_schema
-            .get(&step_schema)
-            .map(String::as_str)
-            .unwrap_or("schema")
+    let mut callables_by_step_schema = BTreeMap::new();
+    for callable in program.callables() {
+        let Some(step_schema) = callable.body_step_schema() else {
+            continue;
+        };
+        if callables_by_step_schema
+            .insert(step_schema, callable)
+            .is_some()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
+                step_schema.as_u32(),
+                callable.root_fqn()
+            )));
+        }
     }
+
+    let mut continuation_objects_by_id = BTreeMap::new();
+    for object in program.continuation_objects() {
+        if continuation_objects_by_id
+            .insert(object.object_id(), object)
+            .is_some()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 遇到重复 continuation object {}",
+                object.object_id().as_u32()
+            )));
+        }
+    }
+
+    let mut resume_packings_by_id = BTreeMap::new();
+    for interface in program.resume_packings() {
+        if resume_packings_by_id
+            .insert(interface.interface_id(), interface)
+            .is_some()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 遇到重复 resume packing {}",
+                interface.interface_id().as_u32()
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
@@ -205,7 +168,6 @@ struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     source_types: &'a TypeStore,
     pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
-    view: ProgramLayoutView,
     source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
 }
 
@@ -217,13 +179,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
     ) -> Result<Self, LlvmEmitError> {
+        validate_program_layout_inventory(program)?;
         Ok(Self {
             codegen,
             program,
             source_types,
             pass_view,
             effect_facts,
-            view: ProgramLayoutView::new(program)?,
             source_value_layouts: BTreeMap::new(),
         })
     }
@@ -385,14 +347,33 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             step_type,
             &format!("step schema {}", step_type.step_schema().as_u32()),
         )?;
-        let stem = self.view.step_stem(step_type.step_schema()).to_string();
-        let step_type_name = format!("scoop.refactor.Step__{stem}");
-        let storage_type_name = format!("scoop.refactor.StepStorage__{stem}");
-        let step_anchor_name = format!("__scoop_refactor_step_layout__{stem}");
-        let complete_tag_name = format!("__scoop_refactor_step_case_tag__{stem}__complete");
-        let complete_payload_name = format!("scoop.refactor.StepComplete__{stem}");
-        let complete_payload_anchor =
-            format!("__scoop_refactor_step_variant_payload__{stem}__complete");
+        let step_type_name = stable_naming::private_type_name_from_key_text(
+            "Step",
+            "refactor_step_type",
+            &stable_effect_key_text,
+        )?;
+        let storage_type_name = stable_naming::private_type_name_from_key_text(
+            "StepStorage",
+            "refactor_step_storage",
+            &stable_effect_key_text,
+        )?;
+        let step_anchor_name = stable_naming::private_name_from_key_text(
+            "refactor_step_layout",
+            &stable_effect_key_text,
+        );
+        let complete_tag_name = stable_naming::private_name_from_key_text(
+            "refactor_step_case_tag_complete",
+            &stable_effect_key_text,
+        );
+        let complete_payload_name = stable_naming::private_type_name_from_key_text(
+            "StepComplete",
+            "refactor_step_complete_type",
+            &stable_effect_key_text,
+        )?;
+        let complete_payload_anchor = stable_naming::private_name_from_key_text(
+            "refactor_step_variant_payload_complete",
+            &stable_effect_key_text,
+        );
 
         let complete_payload_layout = self.source_value_layout(step_type.complete_ty())?;
         let complete_payload_abi = *complete_payload_layout.abi();
@@ -418,17 +399,29 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let mut case_layouts = BTreeMap::new();
         let mut payload_tys = vec![complete_payload_ty];
         for case in step_type.cases() {
-            let case_payload_name = format!(
-                "scoop.refactor.StepCase__{stem}__case{}",
-                case.case_tag().as_u32()
+            let case_key_text = stable_naming::step_case_key_text(
+                self.codegen.stable_cone_key,
+                self.source_types,
+                self.program,
+                case,
+                &format!(
+                    "step schema {} case {}",
+                    step_type.step_schema().as_u32(),
+                    case.case_tag().as_u32()
+                ),
+            )?;
+            let case_payload_name = stable_naming::private_type_name_from_key_text(
+                "StepCase",
+                "refactor_step_case_type",
+                &case_key_text,
+            )?;
+            let case_payload_anchor = stable_naming::private_name_from_key_text(
+                "refactor_step_variant_payload_case",
+                &case_key_text,
             );
-            let case_payload_anchor = format!(
-                "__scoop_refactor_step_variant_payload__{stem}__case{}",
-                case.case_tag().as_u32()
-            );
-            let case_tag_name = format!(
-                "__scoop_refactor_step_case_tag__{stem}__case{}",
-                case.case_tag().as_u32()
+            let case_tag_name = stable_naming::private_name_from_key_text(
+                "refactor_step_case_tag_case",
+                &case_key_text,
             );
             let payload_layout = self.source_value_layout(case.payload_tuple_ty())?;
             let payload_abi = *payload_layout.abi();
@@ -486,11 +479,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
     ) -> Result<RefactorResumeInterfaceLayout<'ctx>, LlvmEmitError> {
         let step_schema = interface.return_step_schema();
-        let stem = self.view.step_stem(step_schema).to_string();
-        let effect_stem = sanitize_llvm_ident(interface.effect_family().effect_fqn());
-        let vtable_type_name = format!("scoop.refactor.ResumeVtable__{stem}__{effect_stem}");
-        let vtable_anchor_name =
-            format!("__scoop_refactor_resume_vtable_layout__{stem}__{effect_stem}");
         let return_step_ty = step_layouts
             .get(&step_schema)
             .ok_or_else(|| {
@@ -515,6 +503,22 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 step_schema.as_u32()
             ))
         })?;
+        let vtable_key_text = canonical_record(
+            "resume_vtable",
+            [
+                step_layout.stable_effect_key_text().to_string(),
+                interface.effect_family().effect_fqn().to_string(),
+            ],
+        );
+        let vtable_type_name = stable_naming::private_type_name_from_key_text(
+            "ResumeVtable",
+            "refactor_resume_vtable_type",
+            &vtable_key_text,
+        )?;
+        let vtable_anchor_name = stable_naming::private_name_from_key_text(
+            "refactor_resume_vtable_layout",
+            &vtable_key_text,
+        );
         let expected_case_tags = step_type
             .cases()
             .iter()
@@ -911,9 +915,22 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
     ) -> Result<RefactorFrameLayout<'ctx>, LlvmEmitError> {
-        let stem = self.view.step_stem(callable.step_schema()).to_string();
-        let frame_type_name = format!("scoop.refactor.Frame__{stem}");
-        let frame_anchor_name = format!("__scoop_refactor_frame_layout__{stem}");
+        let stable_callable_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            callable.body_version_key(),
+            &format!("frame callable `{}`", callable.root_fqn()),
+        )?;
+        let frame_type_name = stable_naming::private_type_name_from_key_text(
+            "Frame",
+            "refactor_frame_type",
+            &stable_callable_key_text,
+        )?;
+        let frame_anchor_name = stable_naming::private_name_from_key_text(
+            "refactor_frame_layout",
+            &stable_callable_key_text,
+        );
         let header_ty = self.codegen.llvm_gc_object_header_type();
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into()];
         let mut fields = vec![RefactorFrameFieldLayout::new(
@@ -973,12 +990,22 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     object.object_id().as_u32()
                 ))
             })?;
-        let stem = self
-            .view
-            .step_stem(owner_callable.step_schema())
-            .to_string();
-        let cont_type_name = format!("scoop.refactor.Continuation__{stem}");
-        let cont_anchor_name = format!("__scoop_refactor_continuation_layout__{stem}");
+        let stable_owner_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.program,
+            owner_callable.body_version_key(),
+            &format!("continuation object {}", object.object_id().as_u32()),
+        )?;
+        let cont_type_name = stable_naming::private_type_name_from_key_text(
+            "Continuation",
+            "refactor_continuation_type",
+            &stable_owner_key_text,
+        )?;
+        let cont_anchor_name = stable_naming::private_name_from_key_text(
+            "refactor_continuation_layout",
+            &stable_owner_key_text,
+        );
         let header_ty = self.codegen.llvm_gc_object_header_type();
         let gc_ref_ty = self.codegen.llvm_gc_i8_ptr_type();
         let resumed_ty = self.codegen.context.i32_type();
@@ -8535,20 +8562,13 @@ mod tests {
                     );
                 }
 
+                let ir = module.print_to_string().to_string();
                 assert!(
-                    module
-                        .get_global("__scoop_refactor_step_case_tag__fixtures_build_main__complete")
-                        .is_none()
-                );
-                assert!(
-                    module
-                        .get_function("__scoop_refactor_direct_invoke__fixtures_build_main")
-                        .is_none()
-                );
-                assert!(
-                    module
-                        .get_function("__scoop_refactor_dynamic_invoke__fixtures_build_main")
-                        .is_none()
+                    !ir.contains("__scoop_priv0__refactor_step_case_tag_complete__h")
+                        && !ir.contains("__scoop_priv0__refactor_direct_invoke__h")
+                        && !ir.contains("__scoop_priv0__refactor_dynamic_invoke__h")
+                        && !ir.contains("%scoop.refactor.Step__h"),
+                    "plain callable 不应发布 effect-step type/case-tag/dynamic-entry 家族：\n{ir}"
                 );
             },
         );

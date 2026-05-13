@@ -488,6 +488,11 @@ fn stable_id_symbol_has_private_role(name: &str, role: &str) -> bool {
         && stable_id_symbol_has_hash128_suffix(name)
 }
 
+fn stable_id_type_name_has_hashed_family(name: &str, family: &str) -> bool {
+    name.starts_with(&format!("scoop.refactor.{family}__h"))
+        && stable_id_symbol_has_hash128_suffix(name)
+}
+
 fn stable_id_symbol_looks_like_private_closure_body(name: &str) -> bool {
     stable_id_symbol_has_private_role(name, "closure_body")
 }
@@ -933,6 +938,37 @@ fn stable_id_source_inventory_removes_legacy_closure_private_naming_from_codegen
 }
 
 #[test]
+fn stable_id_source_inventory_removes_legacy_effect_private_naming_fallbacks_from_codegen() {
+    let layout_source = include_str!("codegen/effect_lowered/layout.rs");
+
+    for needle in [
+        "step_stem(",
+        "format!(\"{base}__schema{}\"",
+        "format!(\"schema{}\", step_schema.as_u32())",
+        "scoop.refactor.Step__{stem}",
+        "scoop.refactor.StepStorage__{stem}",
+        "__scoop_refactor_step_layout__{stem}",
+        "__scoop_refactor_step_case_tag__{stem}__complete",
+        "scoop.refactor.StepComplete__{stem}",
+        "__scoop_refactor_step_variant_payload__{stem}__complete",
+        "scoop.refactor.StepCase__{stem}__case{}",
+        "__scoop_refactor_step_variant_payload__{stem}__case{}",
+        "__scoop_refactor_step_case_tag__{stem}__case{}",
+        "scoop.refactor.ResumeVtable__{stem}__{effect_stem}",
+        "__scoop_refactor_resume_vtable_layout__{stem}__{effect_stem}",
+        "scoop.refactor.Frame__{stem}",
+        "__scoop_refactor_frame_layout__{stem}",
+        "scoop.refactor.Continuation__{stem}",
+        "__scoop_refactor_continuation_layout__{stem}",
+    ] {
+        assert!(
+            !layout_source.contains(needle),
+            "effect private naming 生产代码不应再残留 legacy stem/schema fallback：{needle}"
+        );
+    }
+}
+
+#[test]
 fn materialized_mir_closure_private_symbols_use_stable_hash_namespaces() {
     let source = SourceFile::new_virtual(
         "<mem>/stable_id_materialized_closure.scoop",
@@ -1132,16 +1168,20 @@ fun main(): Int {
         audit.summary()
     );
 
-    let entry_ir = function_ir_matching(&ir, "source-level entry impl", |header, _function| {
+    let entry_ir = function_ir_matching(&ir, "source-level entry impl", |header, function| {
         llvm_function_header_uses_internal_or_private_linkage(header)
-            && header.contains("__scoop_priv0__refactor_direct_invoke__h")
-            && header.contains("%scoop.refactor.Step__a_entry @")
+            && stable_id_symbol_has_private_role(
+                llvm_function_symbol_name(function),
+                "refactor_direct_invoke",
+            )
     });
+    let entry_step_ty = llvm_function_return_named_struct_type(entry_ir)
+        .expect("expected hashed refactor Step return type for source-level entry impl");
     assert!(
         llvm_function_header_uses_internal_or_private_linkage(
             entry_ir.lines().next().expect("expected entry header"),
-        ),
-        "source-level entry implementation 应使用 internal/private linkage"
+        ) && stable_id_type_name_has_hashed_family(entry_step_ty, "Step"),
+        "source-level entry implementation 应使用 internal/private linkage + hashed Step family:\n{entry_ir}"
     );
 
     for legacy in [
@@ -2644,32 +2684,53 @@ fun main(): Int {
         .expect("refactor effect codegen 应注册共享的 composite transport descriptor 类型");
     assert_eq!(composite_transport.count_fields(), 11);
 
+    let ir = module.print_to_string().to_string();
+
     let step = context
-        .get_struct_type("scoop.refactor.Step__a_go")
-        .expect("默认单文件 refactor path 应为 outward callable 注册 Step shell");
+        .get_struct_type(llvm_named_struct_name_matching(
+            &ir,
+            "hashed Step shell",
+            |name, _| stable_id_type_name_has_hashed_family(name, "Step"),
+        ))
+        .expect("默认单文件 refactor path 应为 outward callable 注册 hashed Step shell");
     assert_eq!(step.count_fields(), 2);
 
     let step_complete = context
-        .get_struct_type("scoop.refactor.StepComplete__a_go")
-        .expect("refactor Step 应发布 complete payload shell");
+        .get_struct_type(llvm_named_struct_name_matching(
+            &ir,
+            "hashed Step complete payload shell",
+            |name, _| stable_id_type_name_has_hashed_family(name, "StepComplete"),
+        ))
+        .expect("refactor Step 应发布 hashed complete payload shell");
     assert_eq!(step_complete.count_fields(), 1);
 
     let resume_vtable = context
-        .get_struct_type("scoop.refactor.ResumeVtable__a_go__a_Ping")
-        .expect("refactor continuation 应发布 authoritative surface-resume vtable");
+        .get_struct_type(llvm_named_struct_name_matching(
+            &ir,
+            "hashed surface-resume vtable",
+            |name, _| stable_id_type_name_has_hashed_family(name, "ResumeVtable"),
+        ))
+        .expect("refactor continuation 应发布 authoritative hashed surface-resume vtable");
     assert_eq!(resume_vtable.count_fields(), 1);
 
     let continuation = context
-        .get_struct_type("scoop.refactor.Continuation__a_go")
-        .expect("默认单文件 refactor path 应为 handled perform 注册 continuation object");
+        .get_struct_type(llvm_named_struct_name_matching(
+            &ir,
+            "hashed continuation object",
+            |name, _| stable_id_type_name_has_hashed_family(name, "Continuation"),
+        ))
+        .expect("默认单文件 refactor path 应为 handled perform 注册 hashed continuation object");
     assert!(
         continuation.count_fields() >= 10,
         "continuation object 至少应包含 header/resumed/state/effect_ctx/state_ref/step_fn/resume transport/captured suspend-state/vtable 字段"
     );
 
-    let ir = module.print_to_string().to_string();
     assert!(
-        ir.contains("surface_resume_owner_dispatch")
+        !ir.contains("%scoop.refactor.Step__a_go")
+            && !ir.contains("%scoop.refactor.StepComplete__a_go")
+            && !ir.contains("%scoop.refactor.ResumeVtable__a_go__a_Ping")
+            && !ir.contains("%scoop.refactor.Continuation__a_go")
+            && ir.contains("surface_resume_owner_dispatch")
             && ir.contains("continuation_layout")
             && ir.contains("type_desc"),
         "默认单文件 refactor path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor 家族，而不是把旧 kN/type-desc 拼写写死在测试里:\n{ir}"
@@ -3384,13 +3445,20 @@ fun main(): Int {
 
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let lambda_ir = function_ir_matching(&ir, "outward closure body helper", |header, function| {
-        !header.contains("@main(")
-            && (header.contains("lambda") || header.contains("closure"))
-            && !function.contains("switch i32 %refactor_step_tag")
-            && function.contains("store i32 1")
-            && function.contains("i64 41")
-    });
+    let lambda_ir = function_ir_matching(
+        &ir,
+        "outward closure direct invoke helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_has_private_role(
+                    llvm_function_symbol_name(function),
+                    "refactor_direct_invoke",
+                )
+                && !function.contains("switch i32 %refactor_step_tag")
+                && function.contains("store i32 1")
+                && function.contains("i64 41")
+        },
+    );
     let entry_ir = function_ir_matching(
         &ir,
         "entry helper for outward closure call",
@@ -3405,12 +3473,14 @@ fun main(): Int {
         entry_ir.contains("switch i32 %refactor_step_tag"),
         "outward-effect closure call 应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
     );
+    let lambda_step_ty = llvm_function_return_named_struct_type(lambda_ir)
+        .expect("expected hashed Step return type for outward closure body helper");
     assert!(
-        lambda_ir.contains("%scoop.refactor.Step__a_entry__lambda0")
+        stable_id_type_name_has_hashed_family(lambda_step_ty, "Step")
             && entry_ir.lines().any(|line| {
                 line.contains(" call ")
                     && line.contains("@__scoop_priv0__refactor_direct_invoke__h")
-                    && line.contains("%scoop.refactor.Step__a_entry__lambda0")
+                    && line.contains(&format!("%{lambda_step_ty}"))
             }),
         "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry:\n{entry_ir}"
     );
@@ -5242,21 +5312,26 @@ fun main(): Int {
     let explode_ir = function_ir_matching(
         &ir,
         "tuple-shaped direct invoke helper for explode()",
-        |header, _| {
+        |header, function| {
             !header.contains("@main(")
-                && header.contains("direct_invoke")
-                && header.contains("%scoop.refactor.Step__fixtures_t5000j1d_explode")
+                && stable_id_symbol_has_private_role(
+                    llvm_function_symbol_name(function),
+                    "refactor_direct_invoke",
+                )
                 && header.contains("({ %fixtures.t5000j1d.MyOpt, i64 } %0)")
         },
     );
     let explode_symbol = llvm_function_symbol_name(explode_ir);
+    let explode_step_ty = llvm_function_return_named_struct_type(explode_ir)
+        .expect("expected hashed Step return type for tuple-shaped direct invoke helper");
 
     assert!(
-        ir.lines().any(|line| {
-            line.contains("call %scoop.refactor.Step__fixtures_t5000j1d_explode")
-                && llvm_line_mentions_symbol(line, explode_symbol)
-                && line.contains("({ %fixtures.t5000j1d.MyOpt, i64 }")
-        }),
+        stable_id_type_name_has_hashed_family(explode_step_ty, "Step")
+            && ir.lines().any(|line| {
+                line.contains(&format!("call %{explode_step_ty}"))
+                    && llvm_line_mentions_symbol(line, explode_symbol)
+                    && line.contains("({ %fixtures.t5000j1d.MyOpt, i64 }")
+            }),
         "tuple-arg effect-step callable 应继续以 tuple-shaped direct invoke surface 传递参数，而不是回退到旧 wrapper/拆散 carrier\n{ir}"
     );
 }
@@ -5751,6 +5826,40 @@ fn llvm_function_symbol_name(function_ir: &str) -> &str {
             .map(|(name, _)| name)
             .expect("expected opening paren in function symbol")
     }
+}
+
+fn llvm_function_return_named_struct_type(function_ir: &str) -> Option<&str> {
+    let header = function_ir.lines().next()?;
+    let before_symbol = header.split_once(" @")?.0;
+    before_symbol.split_whitespace().last()?.strip_prefix('%')
+}
+
+fn llvm_named_struct_name_matching<'ir, F>(
+    ir: &'ir str,
+    description: &str,
+    predicate: F,
+) -> &'ir str
+where
+    F: Fn(&str, &str) -> bool,
+{
+    let named_structs = ir
+        .lines()
+        .filter_map(|line| {
+            let (name, _) = line.strip_prefix('%')?.split_once(" = type ")?;
+            Some((name, line))
+        })
+        .collect::<Vec<_>>();
+    named_structs
+        .iter()
+        .find_map(|(name, line)| predicate(name, line).then_some(*name))
+        .unwrap_or_else(|| {
+            let available = named_structs
+                .iter()
+                .map(|(name, _)| (*name).to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!("expected named struct matching {description}; available structs:\n{available}")
+        })
 }
 
 fn stable_id_symbol_is_user_callable(symbol_name: &str) -> bool {

@@ -961,18 +961,17 @@ public fun main() / Pure! {
 
         let ll = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ll.contains("define i64 @fixtures.build.Base.ping(")
-                && ll.contains("define i64 @fixtures.build.Derived.ping(")
-                && ll.contains("define i64 @\"fixtures.build.makeClosure.$lambda0\"("),
+            ll.contains("define internal i64 @fixtures.build.Base.ping(")
+                && ll.contains("define internal i64 @fixtures.build.Derived.ping(")
+                && ll.contains("define internal ptr addrspace(1) @fixtures.build.makeClosure(")
+                && ll.contains("define internal i64 @__scoop_priv0__closure_body__h"),
             "metadata-only plain carrier targets 也必须有已发布的 plain callable body:\n{ll}"
         );
         assert!(
-            !ll.contains("__scoop_refactor_vtable_dynamic_entry__fixtures_build_Base_ping")
-                && !ll.contains("__scoop_refactor_itable_dynamic_entry__fixtures_build_Base_ping")
-                && !ll.contains(
-                    "__scoop_refactor_closure_dynamic_entry__fixtures_build_makeClosure__lambda0"
-                )
-                && !ll.contains("%scoop.refactor.Step__"),
+            !ll.contains("__scoop_priv0__refactor_vtable_dynamic_entry__h")
+                && !ll.contains("__scoop_priv0__refactor_itable_dynamic_entry__h")
+                && !ll.contains("__scoop_priv0__refactor_closure_dynamic_entry__h")
+                && !ll.contains("%scoop.refactor.Step__h"),
             "NoOutward carrier target 不应重新发布 effect-step dynamic entry 或 Step shell:\n{ll}"
         );
     }

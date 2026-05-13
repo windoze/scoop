@@ -27,6 +27,27 @@ pub(super) fn private_name_from_key_text(role: &str, key_text: &str) -> String {
     PrivateSymbolMangler.mangle(role, &CanonicalTextKey(key_text.to_string()))
 }
 
+fn private_hash_suffix_from_key_text(role: &str, key_text: &str) -> Result<String, LlvmEmitError> {
+    let private_name = private_name_from_key_text(role, key_text);
+    private_name
+        .rsplit_once("__h")
+        .map(|(_, suffix)| suffix.to_string())
+        .ok_or_else(|| {
+            frontend_error(format!(
+                "private name `{private_name}` 缺少 stable hash suffix"
+            ))
+        })
+}
+
+pub(super) fn private_type_name_from_key_text(
+    family: &str,
+    role: &str,
+    key_text: &str,
+) -> Result<String, LlvmEmitError> {
+    let hash = private_hash_suffix_from_key_text(role, key_text)?;
+    Ok(format!("scoop.refactor.{family}__h{hash}"))
+}
+
 pub(super) fn callable_version_key_text(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
@@ -176,15 +197,11 @@ pub(super) fn effect_transport_box_names(
         )?],
     );
     let layout_anchor_name = private_name_from_key_text("refactor_effect_transport_box", &key_text);
-    let hash = layout_anchor_name
-        .rsplit_once("__h")
-        .map(|(_, suffix)| suffix)
-        .ok_or_else(|| {
-            frontend_error(format!(
-                "effect transport box anchor `{layout_anchor_name}` 缺少 private hash suffix"
-            ))
-        })?;
-    let type_name = format!("scoop.refactor.EffectTransportBox__h{hash}");
+    let type_name = private_type_name_from_key_text(
+        "EffectTransportBox",
+        "refactor_effect_transport_box",
+        &key_text,
+    )?;
     Ok((type_name, layout_anchor_name))
 }
 
