@@ -1,52 +1,37 @@
-# 本次执行计划
+## 当前执行计划
 
-说明：不记录不可验证的内部思维细节；这里记录可执行计划、关键判断依据、进度与变更。
+1. 已完成：读取 `TODO.md` 并定位当前任务为 `P7-T01R`（第一个未标记 `[DONE]` 的条目）。
+2. 检查最新提交信息，确认是否存在与 `P7-T01R` 直接相关且明确未完成的问题；若存在，将其纳入当前 review 范围或按要求补充为前置任务。
+3. 阅读 `P7-T01R` 引用的 `PLAN.md` §5/§6 与 `STABLE_ID.md` §10/§11/§12，整理最终签收需要逐项覆盖的结论。
+4. 复查仓库当前状态，并按 `P7-T01R` 要求重跑 `P7-T01` 的关键审计与回归；若 review 暴露新的真实 blocker，则先修复或在 `TODO.md` 插入最小前置任务并停止。
+5. 若 review 结论成立，则更新 `memory/claude_plan.md`、把 `P7-T01R` 标记为 `[DONE]` 并补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+6. 以 `P7-T01R` 对应信息提交 Git，然后停止，不进入下一任务。
 
-## 初始计划
+## 约束与执行原则
 
-1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务；以它作为本次唯一执行目标。
-2. 读取最近的提交信息，确认是否存在与该任务直接相关且明确未完成的事项；若有，将其视为当前任务的一部分或作为前置依赖写回 `TODO.md`。
-3. 阅读当前任务在 `TODO.md` 中的完整要求、依赖、验证标准，以及必要时参考 `PLAN.md` 的阶段背景。
-4. 检查实现现状，仅聚焦当前任务直接相关的代码与测试，避免开放式问题扫描。
-5. 若可直接完成：实施代码修改，补充或更新测试，并运行任务要求的验证命令。
-6. 若遇到阻塞当前任务的真实缺口或规格不匹配：先修复；若本次无法直接修复，则在 `TODO.md` 中插入最小必要前置任务，保持当前任务未完成，并停止继续推进。
-7. 任务完成后：
-   - 将该任务标题改为 `[DONE]`。
-   - 更新 `TODO.md` 中的完成记录。
-   - 仅当阶段计划确实变化时更新 `PLAN.md`。
-   - 提交本次变更，提交信息使用任务号前缀。
-8. 完成一个任务后立即停止，不继续下一个任务。
+- 只完成 `TODO.md` 中第一个未完成任务。
+- 不做开放式历史问题排查；仅处理当前任务直接相关或阻塞当前任务的问题。
+- 如果存在规格不匹配、缺失能力或实现边界缺口，不使用 workaround；要么直接修复，要么在 `TODO.md` 中加入前置任务并停止。
+- 执行过程中若计划改变或关键步骤完成，及时更新本文件。
 
-## 进度记录
+## 当前进展
 
-- 已创建本计划文件，下一步读取 `TODO.md` 并识别当前应执行任务。
-- 已识别第一个未完成任务为 `P7-T01A`：收口剩余 object/top-level init compiler-private function/global 命名到 `PrivateSymbolMangler`。
-- 最近提交为 `[P7-T01R] Add init naming prerequisite`，与当前任务直接相关，说明该任务是最终 review 的前置补遗，而非可跳过问题。
-- 下一步聚焦读取以下实现与测试入口：
-  - `crates/scoopc/src/llvm/codegen/object_init.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `crates/scoopc/src/llvm/tests.rs`
-  - 如有必要，再读取 `PrivateSymbolMangler` 的 authoritative API 定义与现有调用点。
-- 关键澄清：`package.name` 与 `package.objectId.name` 这类源码 FQN 的确天然不同，不会相互冲突；本任务仍需保留 `role / namespace / declaration_kind`，因为同一 owner FQN 会派生多个 compiler-private 实体（init helper、bridge、guard、instance slot、backing global 等），不能只靠 FQN 文本命名。
-- 已开始实施：
-  - `object_init.rs` 已把 object init function/bridge/guard/instance/property global 迁到 `PrivateSymbolMangler`。
-  - `mod.rs` 已把 top-level immutable init function/bridge/guard/value global 与 top-level var global 迁到 `PrivateSymbolMangler`。
-  - `llvm/tests.rs` 已新增 production source inventory，并把定向测试收紧到新 private role family。
-  - `tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop` 已从旧固定名字切到 hashed regex。
-  - `crates/scoop_runtime/tests/once_guard_cross_dylib.rs` 已把示例 guard symbol 改成新的 representative private family。
-- 下一步：运行 `cargo fmt`，然后按 `TODO.md` 指定顺序执行定向测试、全量 `scoopc` 测试与 `clippy`，若失败则修复后再回写 `TODO.md` 与提交。
-- 验证已完成且通过：
-  - `cargo fmt`
-  - `cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
-  - `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
-  - `cargo test -p scoopc top_level_immutable_init_emits_explicit_root_frame_descriptor -- --nocapture`
-  - `cargo test -p scoopc direct_hir_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref -- --nocapture`
-  - `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
-  - `cargo test -p scoopc class_init_order_fixture_collects_class_init_println_call_bindings -- --nocapture`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop`
+- 已确认当前任务：`P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移`。
+- 已核对最新提交 `[P7-T01A] Mangle init private symbols`，未发现提交正文中声明的未完成直接后续项；当前 review 范围维持 `P7-T01R` 本身。
+- 已复核 `PLAN.md` §5/§6 与 `STABLE_ID.md` §10/§11/§12，确认最终签收需要覆盖 8 条完成标准、grep 审计与“无功能漂移”矩阵。
+- 已完成第一轮定向验证：
+  - `checkout_root` / `distinct_virtual_cones` 通过。
+  - `stable_id_audit_grep_inventory_scans_repo_roots` 通过，且 `__schema[0-9]+`、`__k[0-9]+`、`t[0-9]+__` 为 0 命中；旧 `scoop.lambda*` 命中仅剩测试清单。
+  - `external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke`、`stable_id_source_inventory`、init/object/class 相关 LLVM 回归、`once_guard_is_canonical_across_dylibs` 全部通过。
+- 已完成 `P7-T01` 的全量行为/fixture/spec/lint 矩阵：
   - `cargo test -p scoopc`
-  - `cargo clippy -p scoopc --all-targets -- -D warnings`
-  - `cargo test -p scoop_runtime once_guard_is_canonical_across_dylibs -- --nocapture`
-- 已回写 `TODO.md`：`P7-T01A` 标记为 `[DONE]`，完成记录已补齐。
-- 下一步：检查工作区 diff，按任务要求提交一次原子 commit，然后停止，不继续 `P7-T01R`。
+  - `cargo test -p scoop_runtime`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 以及 review 需要的 build/run-pass 定向回归
+- review 过程中发现新的真实 blocker，因此不能签收 `P7-T01R`：
+  - `crates/scoopc/src/llvm/codegen/mod.rs`、`gc.rs`、`mir_body.rs`、`ty.rs`、`composite_transport.rs` 仍有 active production private LLVM type/global naming 直接由 `sanitize_llvm_ident(...)`、`TypeStore::display()` 或 raw `TypeId` / `source_ty.as_u32()` 控制。
+  - 这与 `STABLE_ID.md` §5.1 第 5/7 条及 `PLAN.md` §6 第 1/7 条冲突，因此已在 `TODO.md` 新增前置任务 `P7-T01B`，并把 `P7-T01R` 依赖更新为 `P7-T01A + P7-T01B`。
+- 下一步：整理本次 blocker 发现、提交 `TODO.md` 与 `memory/claude_plan.md`，然后停止，等待下一次调用执行 `P7-T01B`。

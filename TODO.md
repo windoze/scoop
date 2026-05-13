@@ -1742,6 +1742,64 @@
     - 对应 `PLAN.md` P2 / P7 与 `STABLE_ID.md` §5.1、§7.3、§7.4、§8.5：remaining object/top-level init compiler-private function/global 已全部收口到统一 private mangler，且继续保持 internal/private linkage，不再依赖 legacy FQN 拼接进入全局命名空间。
     - 对应 `STABLE_ID.md` §10：object/top-level init 相关 LLVM/build/runtime 回归现在锁定的是 private role family、调用关系、descriptor/global 角色与 linkage 语义，而不是 `__scoop_object_init__...` / `__scoop_top_level_var__...` 旧 textual spelling；`P7-T01R` 现在可以在此基线上继续做最终签收。
 
+### [TODO] P7-T01B：收口剩余 sanitize/type-display/TypeId 驱动的 private LLVM type/global 命名
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §6
+  - [`STABLE_ID.md`](./STABLE_ID.md) §5.1、§7.3、§8.5、§10
+- 背景：
+  - `P7-T01R` review 复核发现，production code 中仍有一批 active compiler-private LLVM type/global 名称直接由 `sanitize_llvm_ident(...)`、`TypeStore::display()` 或 raw `TypeId` 数字驱动，尚未统一进入 stable private naming。
+  - 当前已确认入口至少包括：
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+      - `llvm_boxed_enum_type`
+      - `get_or_create_boxed_enum_type_desc_global`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+      - `get_or_create_class_type_desc_global`
+      - `llvm_object_singleton_type`
+      - `get_or_create_object_singleton_type_desc_global`
+      - `get_or_create_itable_global_from_entries`
+      - `get_or_create_class_vtable_global`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+      - `mir_capture_box_object_type`
+      - `mir_value_box_object_type`
+      - `get_or_create_mir_capture_box_type_desc_global`
+      - `get_or_create_mir_value_box_type_desc_global`
+    - `crates/scoopc/src/llvm/codegen/ty.rs`
+      - `llvm_class_payload_type`
+      - `llvm_class_object_type`
+      - `llvm_enum_boxed_payload_struct_type`
+      - `llvm_enum_boxed_payload_object_type`
+      - `get_or_create_enum_boxed_payload_type_desc_global`
+    - `crates/scoopc/src/llvm/codegen/composite_transport.rs`
+      - `composite_transport_descriptor_global_name`
+  - 这些路径与 `STABLE_ID.md` §5.1 第 5/7 条及 `PLAN.md` §6 第 1/7 条直接冲突：`sanitize_llvm_ident()` 仍在承担唯一性，且部分命名仍混入 `TypeStore::display()` / `descriptor.source_ty.as_u32()`。
+- 目标：
+  - 把 remaining runtime metadata / type-desc / transport private LLVM type/global 命名统一迁到 stable semantic key + `PrivateSymbolMangler`（或等价 authoritative stable helper），同时保持 internal/private linkage 与 RTTI/GC/layout 语义不变。
+- 必须实现的内容：
+  1. 收口上述 runtime boxed enum、class/object type desc、itable/vtable、MIR capture-box/value-box、composite transport descriptor 的 active production naming。
+  2. 新命名不得再由 `sanitize_llvm_ident()`、`TypeStore::display()` 或 raw `TypeId` / `source_ty.as_u32()` 承担唯一性主体；若保留可读文本，只能作为 prefix。
+  3. 为这些 private type/global family 增加或扩充 stable-id source inventory / IR 回归，防止 sanitize/type-display/TypeId 命名回流。
+  4. 按同根问题成组处理 sibling case，不能只修某一种 type-desc 或 transport 名称。
+- 必须遵从的约束：
+  - 不得改变 RTTI `type_id` / `interface_id`、GC bitmap、layout、itable/vtable slot、transport contract 或运行时 ABI 语义。
+  - 不得把 exported ABI symbol、`main`、runtime/native import 误并入 private naming 清理范围。
+  - 对 capture/value box 与 composite transport，不得把旧 `TypeId` / pretty text 只“换个壳”继续当唯一性主体；必须改到 authoritative stable key。
+- 验证：
+  1. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  2. `cargo test -p scoopc runtime_type_primitives -- --nocapture`
+  3. `cargo test -p scoopc composite_transport -- --nocapture`
+  4. `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+  5. `cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
+  6. `cargo test -p scoopc refactor_llvm_enum_payload_transport -- --nocapture`
+  7. `cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+  8. `cargo test -p scoopc`
+  9. `cargo clippy -p scoopc --all-targets -- -D warnings`
+- 完成条件：
+  - remaining runtime metadata / type-desc / transport private LLVM type/global naming 不再由 sanitize/type-display/raw `TypeId` 控制；之后 `P7-T01R` 才能对 `PLAN.md` §6 第 1/7 条做最终签收。
+- 依赖：P7-T01A
+- 完成记录：
+  - 待填。
+
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 
 - 参考：
@@ -1758,6 +1816,6 @@
   - 在完成记录中给出一份最终结论清单，对应 `PLAN.md` §6 的 8 条完成标准逐项签收。
 - 完成条件：
   - 可以明确写出：stable-id 整改已经闭合，后续若还有工作，只属于增量优化或新需求，而不再是本轮 identity 治理主线。
-- 依赖：P7-T01、P7-T01A
+- 依赖：P7-T01、P7-T01A、P7-T01B
 - 完成记录：
   - 待填。
