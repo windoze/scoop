@@ -17,7 +17,10 @@ use thiserror::Error;
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
-use crate::stable_id::{stable_rtti_interface_id, stable_rtti_type_id};
+use crate::stable_id::{
+    NoTypeParamResolver, canonical_nominal_type_key, stable_rtti_interface_id, stable_rtti_type_id,
+    stable_rtti_type_id_for_type,
+};
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 use crate::typecheck::is_type_assignable;
 use crate::typecheck::{TypeEnv, TypeEnvError, TypeLowerError, TypeLowering, TypeSymbolKind};
@@ -61,10 +64,10 @@ pub type InterfaceIndex = HashMap<String, InterfaceInfo>;
 pub struct ClassItableEntry {
     pub interface_fqn: String,
     pub interface_id: u64,
-    /// 该 entry 对应的“具体 interface 实例”canonical name，例如 `foo.Readable<String>`。
+    /// 该 entry 对应的“具体 interface 实例”可读名字，例如 `foo.Readable<String>`。
     pub interface_type_name: String,
     pub interface_type_id: u64,
-    /// 该具体 interface 实例在运行期可匹配的 target 集（按前端 assignable 规则预计算）。
+    /// 该具体 interface 实例在运行期可匹配的 target 集可读名字（按前端 assignable 规则预计算）。
     pub runtime_match_type_names: Vec<String>,
     pub runtime_match_type_ids: Vec<u64>,
     pub method_impl_fqns: Vec<String>,
@@ -101,6 +104,10 @@ pub enum ItableLayoutError {
     #[error("无法为 itable metadata 找到源文件内容：{path}")]
     #[diagnostic(code(scoop::itable::missing_source_file))]
     MissingSourceFile { path: String },
+
+    #[error("无法为 itable runtime metadata 计算 stable type id：{message}")]
+    #[diagnostic(code(scoop::itable::stable_type_id))]
+    StableTypeId { message: String },
 }
 
 #[derive(Debug, Clone)]
@@ -385,7 +392,8 @@ fn build_base_class_itables(
             }
 
             let interface_type_name = iface_fqn.clone();
-            let interface_type_id = stable_rtti_type_id(&interface_type_name);
+            let interface_type_key = canonical_nominal_type_key(&interface_type_name);
+            let interface_type_id = stable_rtti_type_id(interface_type_key.as_str());
             entries.push(ClassItableEntry {
                 interface_fqn: iface_fqn,
                 interface_id,
@@ -522,6 +530,18 @@ fn collect_concrete_interface_closure(
     Ok(out)
 }
 
+fn stable_runtime_type_id_for_lower(
+    lower: &TypeLowering<'_>,
+    ty: TypeId,
+    context: &str,
+) -> Result<u64, ItableLayoutError> {
+    stable_rtti_type_id_for_type(lower.types(), ty, &NoTypeParamResolver).map_err(|err| {
+        ItableLayoutError::StableTypeId {
+            message: format!("{context}: {err}"),
+        }
+    })
+}
+
 fn build_precise_class_itable_entries(
     concrete_class: &ConcreteClassTarget,
     classes: &HashMap<String, ClassDeclInfo>,
@@ -599,23 +619,27 @@ fn build_precise_class_itable_entries(
         }
 
         let interface_type_name = lower.fmt_type(iface_ty);
-        let interface_type_id = stable_rtti_type_id(&interface_type_name);
+        let interface_type_id =
+            stable_runtime_type_id_for_lower(lower, iface_ty, "具体 interface 实例")?;
 
-        let mut runtime_match_type_names: Vec<String> = concrete_interface_targets
+        let mut runtime_matches = concrete_interface_targets
             .iter()
             .copied()
             .filter(|target| is_type_assignable(iface_ty, *target, lower, builtins))
-            .map(|target| lower.fmt_type(target))
-            .collect();
-        if runtime_match_type_names.is_empty() {
-            runtime_match_type_names.push(interface_type_name.clone());
+            .map(|target| {
+                Ok((
+                    lower.fmt_type(target),
+                    stable_runtime_type_id_for_lower(lower, target, "runtime-match target")?,
+                ))
+            })
+            .collect::<Result<Vec<_>, ItableLayoutError>>()?;
+        if runtime_matches.is_empty() {
+            runtime_matches.push((interface_type_name.clone(), interface_type_id));
         }
-        runtime_match_type_names.sort();
-        runtime_match_type_names.dedup();
-        let runtime_match_type_ids = runtime_match_type_names
-            .iter()
-            .map(|name| stable_rtti_type_id(name))
-            .collect();
+        runtime_matches.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0).then_with(|| lhs.1.cmp(&rhs.1)));
+        runtime_matches.dedup();
+        let (runtime_match_type_names, runtime_match_type_ids): (Vec<_>, Vec<_>) =
+            runtime_matches.into_iter().unzip();
 
         entries.push(ClassItableEntry {
             interface_fqn: nominal.fqn,

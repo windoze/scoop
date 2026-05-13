@@ -12575,7 +12575,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: layout_anchor_name,
+            type_id_key: layout_anchor_name,
             obj_ty: struct_ty,
             trace_start_offset_bytes,
             parent: None,

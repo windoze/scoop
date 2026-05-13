@@ -1263,7 +1263,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let TypeDescriptorSpec {
             at,
             global_name,
-            canonical_name,
+            type_id_key,
             obj_ty,
             trace_start_offset_bytes,
             parent,
@@ -1315,7 +1315,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i8_ptr_ty.const_null().into(), // trace_fn
             i8_ptr_ty.const_null().into(), // release_fn
             i64_ty
-                .const_int(stable_rtti_type_id(canonical_name), false)
+                .const_int(stable_rtti_type_id(type_id_key), false)
                 .into(),
             parent_ptr.into(),
             itable_ptr.into(),
@@ -1355,7 +1355,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &desc_name,
-            canonical_name: global_name,
+            type_id_key: global_name,
             obj_ty: wrapper_ty,
             trace_start_offset_bytes: 0,
             parent: None,
@@ -1397,7 +1397,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &class.fqn,
+            type_id_key: &class.fqn,
             obj_ty,
             trace_start_offset_bytes,
             parent,
@@ -1442,7 +1442,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: object_fqn,
+            type_id_key: object_fqn,
             obj_ty,
             trace_start_offset_bytes: 0,
             parent: None,
@@ -1704,7 +1704,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: GLOBAL_NAME,
-            canonical_name: "scoop.runtime.ScoopClosure",
+            type_id_key: "scoop.runtime.ScoopClosure",
             obj_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -1729,7 +1729,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &canonical_name,
+            type_id_key: &canonical_name,
             obj_ty: env_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -1752,7 +1752,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: GLOBAL_NAME,
-            canonical_name: "scoop.core.String",
+            type_id_key: "scoop.core.String",
             obj_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -1786,7 +1786,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: GLOBAL_NAME,
-            canonical_name: "scoop.runtime.BoxedUnit",
+            type_id_key: "scoop.runtime.BoxedUnit",
             obj_ty,
             trace_start_offset_bytes: 0,
             parent: None,
@@ -1814,7 +1814,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &format!(
+            type_id_key: &format!(
                 "scoop.runtime.BoxedInt{}_{}",
                 payload.bits,
                 if payload.signed { "i" } else { "u" }

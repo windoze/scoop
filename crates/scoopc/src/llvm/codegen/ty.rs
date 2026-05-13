@@ -903,7 +903,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &canonical_name,
+            type_id_key: &canonical_name,
             obj_ty: payload_obj_ty,
             trace_start_offset_bytes,
             parent: None,

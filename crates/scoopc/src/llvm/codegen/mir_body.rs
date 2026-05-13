@@ -7715,7 +7715,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &canonical_name,
+            type_id_key: &canonical_name,
             obj_ty: env_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -7730,27 +7730,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_ty: TypeId,
         box_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(value_ty)
-            .ok_or_else(|| {
-                frontend_error(
-                    "MIR capture box type descriptor 缺少 codegen type store".to_string(),
-                )
-            })?;
-        let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box type descriptor")?,
-        );
+        let base_type_key =
+            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box type descriptor")?;
+        let key = CanonicalTextKey::new(base_type_key.clone());
         let global_name = PrivateSymbolMangler.mangle("mir_capture_box_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
         let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
-        let value_name = sanitize_llvm_ident(&types.display(value_ty).to_string());
-        let canonical_name = format!("__scoop_type_desc_mir_capture_box__{value_name}");
+        let type_id_key = stable_rtti_derived_type_key("mir_capture_box_type_desc", &base_type_key);
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &canonical_name,
+            type_id_key: type_id_key.as_str(),
             obj_ty: box_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -7765,27 +7757,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_ty: TypeId,
         box_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(source_ty)
-            .ok_or_else(|| {
-                frontend_error("MIR value box type descriptor 缺少 codegen type store".to_string())
-            })?;
-        let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box type descriptor")?,
-        );
+        let base_type_key =
+            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box type descriptor")?;
+        let key = CanonicalTextKey::new(base_type_key.clone());
         let global_name = PrivateSymbolMangler.mangle("mir_value_box_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
         let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
-        let canonical_name = format!("scoop.runtime.ValueBox<{}>", types.display(source_ty));
+        let type_id_key = stable_rtti_derived_type_key("mir_value_box_type_desc", &base_type_key);
         let itable = self
             .get_or_create_mir_value_box_itable_global(at, source_ty)?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &canonical_name,
+            type_id_key: type_id_key.as_str(),
             obj_ty: box_ty,
             trace_start_offset_bytes,
             parent: None,
@@ -7849,7 +7836,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 let interface_type_name = iface.fqn.clone();
-                let interface_type_id = stable_rtti_type_id(&interface_type_name);
+                let interface_ty = self.types.find_nominal_ref_by_fqn(&iface.fqn).ok_or_else(|| {
+                    frontend_error(format!(
+                        "MIR value box interface `{}` missing nominal TypeId",
+                        iface.fqn
+                    ))
+                })?;
+                let interface_type_id = stable_rtti_type_id_for_type(
+                    self.types,
+                    interface_ty,
+                    &NoTypeParamResolver,
+                )
+                .map_err(|err| {
+                    frontend_error(format!(
+                        "MIR value box interface `{}` 无法构造 stable RTTI type id: {err}",
+                        iface.fqn
+                    ))
+                })?;
                 Ok(crate::itable::ClassItableEntry {
                     interface_fqn: iface.fqn.clone(),
                     interface_id: iface.interface_id,

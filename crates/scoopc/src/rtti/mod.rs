@@ -6,8 +6,8 @@
 //!
 //! 约束（v0）：
 //! - `dump_file_rtti` 仍只枚举“当前输入文件内可直接命名的非参数化 struct”；
-//! - `dump_type_rtti` 则允许查询参数化 nominal，并使用 `TypeStore::display` 产出的
-//!   canonical name 计算稳定 `type_id`；
+//! - `dump_type_rtti` 则允许查询参数化 nominal，并把 `TypeStore::display()` 仅作为可读
+//!   `name`，真正的稳定 `type_id` 统一来自 canonical type key；
 //! - 其它类型只提供 size/align（或按指针大小占位）；
 //! - 目标平台布局暂用 host pointer size/align（与 typecheck/layout 一致，T0803 再替换为 target machine）。
 
@@ -25,7 +25,7 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{ImportTable, Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::stable_id::stable_rtti_type_id;
+use crate::stable_id::{NoTypeParamResolver, stable_rtti_type_id_for_type};
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
@@ -61,9 +61,9 @@ pub enum RttiKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TypeRtti {
-    /// 稳定的可读名字（当前使用 `TypeStore::display` 产出的 canonical name）。
+    /// 稳定的可读名字（当前使用 `TypeStore::display` 输出给用户）。
     pub name: String,
-    /// 稳定 type id（v0：sha256(name) 的前 8 字节，小端解释）。
+    /// 稳定 type id（v0：sha256(canonical type key) 的前 8 字节，小端解释）。
     pub type_id: u64,
     pub kind: RttiKind,
     pub size: u64,
@@ -125,6 +125,10 @@ pub enum RttiError {
     #[error("struct RTTI 生成缺少声明：{fqn}")]
     #[diagnostic(code(scoop::rtti::missing_struct_decl))]
     MissingStructDecl { fqn: String },
+
+    #[error("无法为 RTTI 类型 `{name}` 计算 stable type id：{reason}")]
+    #[diagnostic(code(scoop::rtti::stable_type_id))]
+    StableTypeId { name: String, reason: String },
 }
 
 /// 计算输入文件内“可生成 RTTI 的类型表”，并返回稳定输出结构。
@@ -310,9 +314,18 @@ impl RttiContext {
             })))
     }
 
+    fn stable_query_type_id(&self, ty: TypeId, name: &str) -> Result<u64, RttiError> {
+        stable_rtti_type_id_for_type(&self.types, ty, &NoTypeParamResolver).map_err(|err| {
+            RttiError::StableTypeId {
+                name: name.to_string(),
+                reason: err.to_string(),
+            }
+        })
+    }
+
     fn type_rtti(&mut self, ty: TypeId) -> Result<TypeRtti, RttiError> {
         let name = self.types.display(ty).to_string();
-        let type_id = stable_rtti_type_id(&name);
+        let type_id = self.stable_query_type_id(ty, &name)?;
         let layout = self.type_layout(ty)?;
 
         let kind_snapshot = self.types.kind(ty).clone();
@@ -842,6 +855,7 @@ fn parse_int_width_suffix(name: &str) -> Option<(bool, u16)> {
 mod tests {
     use super::*;
     use crate::rtti::type_desc;
+    use crate::stable_id::stable_rtti_type_id;
 
     #[test]
     fn rtti_struct_field_offsets_basic() {
@@ -884,9 +898,22 @@ struct Pair<T>(val first: T, val second: T)
         );
 
         let rtti = dump_type_rtti(&sess, &src, "Pair<Int>").unwrap();
+        let mut expected_types = TypeStore::new();
+        let builtins = expected_types.intern_builtins();
+        let expected_ty =
+            expected_types.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                fqn: "rtti.Pair".to_string(),
+                args: vec![builtins.int],
+                eff: None,
+            })));
         assert_eq!(rtti.kind, RttiKind::Struct);
         assert_eq!(rtti.name, "rtti.Pair<Int>");
-        assert_eq!(rtti.type_id, stable_rtti_type_id("rtti.Pair<Int>"));
+        assert_eq!(
+            rtti.type_id,
+            stable_rtti_type_id_for_type(&expected_types, expected_ty, &NoTypeParamResolver)
+                .unwrap()
+        );
+        assert_ne!(rtti.type_id, stable_rtti_type_id(&rtti.name));
 
         let ptr = std::mem::size_of::<usize>() as u64;
         assert_eq!(rtti.align, ptr);
@@ -935,10 +962,7 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         let readable = dump_type_rtti(&sess, &src, "Readable<String>").unwrap();
         assert_eq!(readable.kind, RttiKind::Ref);
         assert_eq!(readable.name, "rtti.Readable<String>");
-        assert_eq!(
-            readable.type_id,
-            stable_rtti_type_id("rtti.Readable<String>")
-        );
+        assert_ne!(readable.type_id, stable_rtti_type_id(&readable.name));
 
         let disposable_raise =
             dump_type_rtti(&sess, &src, "Disposable<eff Raise<RuntimeError>>").unwrap();
@@ -946,7 +970,7 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         assert!(disposable_raise.name.contains("Disposable<eff"));
         assert!(disposable_raise.name.contains("Raise"));
         assert!(disposable_raise.name.contains("RuntimeError"));
-        assert_eq!(
+        assert_ne!(
             disposable_raise.type_id,
             stable_rtti_type_id(&disposable_raise.name)
         );

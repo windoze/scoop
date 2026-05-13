@@ -62,7 +62,8 @@ use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
     AbiMangler, CanonicalTextKey, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey,
     StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
-    canonical_callable_signature_key, canonical_record, canonical_type_text, stable_rtti_type_id,
+    canonical_callable_signature_key, canonical_record, canonical_type_text,
+    stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -730,7 +731,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
 pub(super) struct TypeDescriptorSpec<'ctx, 'a> {
     pub(super) at: crate::span::Span,
     pub(super) global_name: &'a str,
-    pub(super) canonical_name: &'a str,
+    pub(super) type_id_key: &'a str,
     pub(super) obj_ty: StructType<'ctx>,
     pub(super) trace_start_offset_bytes: u64,
     pub(super) parent: Option<GlobalValue<'ctx>>,
@@ -1938,6 +1939,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         canonical_type_text(types, ty, &NoTypeParamResolver).map_err(|err| {
             LlvmEmitError::Frontend {
                 message: format!("{context} 无法构造 stable canonical type key: {err}"),
+            }
+        })
+    }
+
+    fn stable_rtti_type_id_for_codegen(
+        &self,
+        ty: TypeId,
+        context: &str,
+    ) -> Result<u64, LlvmEmitError> {
+        let types =
+            self.codegen_type_store_for_type_id(ty)
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!("{context} 缺少 codegen type store"),
+                })?;
+        stable_rtti_type_id_for_type(types, ty, &NoTypeParamResolver).map_err(|err| {
+            LlvmEmitError::Frontend {
+                message: format!("{context} 无法构造 stable RTTI type id: {err}"),
             }
         })
     }
@@ -7502,8 +7520,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
                 // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
                 if self.interfaces.contains_key(&nominal.fqn) {
-                    let target_type_id =
-                        stable_rtti_type_id(&self.types.display(target_ty).to_string());
+                    let target_type_id = self.stable_rtti_type_id_for_codegen(
+                        target_ty,
+                        "interface runtime-match target",
+                    )?;
                     return self.codegen_itable_contains_runtime_type_id(at, obj, target_type_id);
                 }
 
@@ -8842,14 +8862,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         object_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let type_store = self
-            .codegen_type_store_for_type_id(enum_ty)
-            .ok_or_else(|| LlvmEmitError::Frontend {
-                message: "boxed enum type descriptor 缺少 codegen type store".to_string(),
-            })?;
-        let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum type descriptor")?,
-        );
+        let base_type_key =
+            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum type descriptor")?;
+        let key = CanonicalTextKey::new(base_type_key.clone());
         let global_name = PrivateSymbolMangler.mangle("boxed_enum_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
@@ -8858,10 +8873,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .target_data
             .offset_of_element(&object_ty, 1)
             .unwrap_or(0);
+        let type_id_key = stable_rtti_derived_type_key("boxed_enum_type_desc", &base_type_key);
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
             global_name: &global_name,
-            canonical_name: &format!("scoop.runtime.BoxedEnum<{}>", type_store.display(enum_ty)),
+            type_id_key: type_id_key.as_str(),
             obj_ty: object_ty,
             trace_start_offset_bytes,
             parent: None,

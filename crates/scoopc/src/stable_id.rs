@@ -54,6 +54,10 @@ impl CanonicalTextKey {
     pub fn new(text: impl Into<String>) -> Self {
         Self(text.into())
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl StableCanonicalKey for CanonicalTextKey {
@@ -846,6 +850,44 @@ pub fn stable_rtti_type_id(canonical_name: &str) -> u64 {
     stable_hash64(StableHashScope::RttiV0, canonical_name)
 }
 
+/// Canonical RTTI identity key for a semantic type.
+pub fn stable_rtti_type_key_for_type<R>(
+    types: &TypeStore,
+    ty: TypeId,
+    type_params: &R,
+) -> Result<CanonicalTextKey, CanonicalEncodingError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    canonical_type_text(types, ty, type_params).map(CanonicalTextKey::new)
+}
+
+/// Stable RTTI type-id derived from semantic canonical type text.
+pub fn stable_rtti_type_id_for_type<R>(
+    types: &TypeStore,
+    ty: TypeId,
+    type_params: &R,
+) -> Result<u64, CanonicalEncodingError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    let key = stable_rtti_type_key_for_type(types, ty, type_params)?;
+    Ok(stable_rtti_type_id(key.as_str()))
+}
+
+/// Derived RTTI/type-descriptor keys keep wrapper roles distinct from the wrapped type itself.
+pub fn stable_rtti_derived_type_key(role: &str, base_type_key: &str) -> CanonicalTextKey {
+    CanonicalTextKey::new(canonical_record(
+        "rtti_desc",
+        [role.to_string(), base_type_key.to_string()],
+    ))
+}
+
+/// Canonical RTTI identity key for a bare nominal type with no type/effect arguments.
+pub fn canonical_nominal_type_key(fqn: &str) -> CanonicalTextKey {
+    CanonicalTextKey::new(canonical_nominal_text(fqn, None, None))
+}
+
 /// Shared RTTI interface-id helper for interface declaration identities.
 pub fn stable_rtti_interface_id(canonical_name: &str) -> u64 {
     stable_hash64(StableHashScope::RttiV0, canonical_name)
@@ -963,24 +1005,20 @@ where
         nominal: &NominalType,
         depth: usize,
     ) -> Result<String, CanonicalEncodingError> {
-        let mut encoded = format!("N({}", nominal.fqn);
-        if !nominal.args.is_empty() || nominal.eff.is_some() {
-            encoded.push('<');
-            let args = self.encode_type_list(&nominal.args, depth + 1)?;
-            if !args.is_empty() {
-                encoded.push_str(&args);
-            }
-            if let Some(eff) = &nominal.eff {
-                if !args.is_empty() {
-                    encoded.push(';');
-                }
-                encoded.push_str("eff=");
-                encoded.push_str(&self.encode_effect_row(eff, depth + 1)?);
-            }
-            encoded.push('>');
-        }
-        encoded.push(')');
-        Ok(encoded)
+        let args = if nominal.args.is_empty() {
+            None
+        } else {
+            Some(self.encode_type_list(&nominal.args, depth + 1)?)
+        };
+        let eff = match &nominal.eff {
+            Some(eff) => Some(self.encode_effect_row(eff, depth + 1)?),
+            None => None,
+        };
+        Ok(canonical_nominal_text(
+            &nominal.fqn,
+            args.as_deref(),
+            eff.as_deref(),
+        ))
     }
 
     fn encode_union(
@@ -1037,6 +1075,28 @@ fn hex_lower(bytes: &[u8]) -> String {
         out.push(HEX[(byte & 0x0f) as usize] as char);
     }
     out
+}
+
+fn canonical_nominal_text(fqn: &str, args: Option<&str>, eff: Option<&str>) -> String {
+    let mut encoded = format!("N({fqn}");
+    if args.is_some() || eff.is_some() {
+        encoded.push('<');
+        if let Some(args) = args
+            && !args.is_empty()
+        {
+            encoded.push_str(args);
+        }
+        if let Some(eff) = eff {
+            if args.is_some_and(|args| !args.is_empty()) {
+                encoded.push(';');
+            }
+            encoded.push_str("eff=");
+            encoded.push_str(eff);
+        }
+        encoded.push('>');
+    }
+    encoded.push(')');
+    encoded
 }
 
 pub(crate) fn canonical_record<I>(tag: &str, parts: I) -> String
@@ -1210,6 +1270,27 @@ mod tests {
             stable_hash64(StableHashScope::AbiV0, canonical),
             stable_hash64(StableHashScope::DumpV0, canonical)
         );
+    }
+
+    #[test]
+    fn stable_rtti_derived_type_keys_keep_wrapper_roles_distinct() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let base = stable_rtti_type_key_for_type(&types, builtins.int, &NoTypeParamResolver)
+            .expect("builtin type should have a canonical RTTI key");
+        let value_box = stable_rtti_derived_type_key("mir_value_box_type_desc", base.as_str());
+        let capture_box = stable_rtti_derived_type_key("mir_capture_box_type_desc", base.as_str());
+
+        assert_eq!(base.as_str(), "V(Int)");
+        assert_ne!(
+            stable_rtti_type_id(base.as_str()),
+            stable_rtti_type_id(value_box.as_str())
+        );
+        assert_ne!(
+            stable_rtti_type_id(value_box.as_str()),
+            stable_rtti_type_id(capture_box.as_str())
+        );
+        assert!(value_box.as_str().contains("mir_value_box_type_desc"));
     }
 
     #[test]

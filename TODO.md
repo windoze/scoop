@@ -1830,7 +1830,7 @@
     - 对应 `PLAN.md` §6 第 1/7 条：remaining runtime metadata、transport descriptor 与 private LLVM type/global naming 已统一走 authoritative stable private naming，`sanitize_llvm_ident()` / `TypeStore::display()` / raw `TypeId` 不再承担 private identity 主体。
     - 对应 `STABLE_ID.md` §5.1、§7.3、§8.5、§10：private LLVM metadata/type family 现已按 semantic key + hashed private namespace 发布，同时继续保持原有 RTTI/GC/layout/itable/vtable/transport ABI 语义不变，并有常驻 source inventory / IR 回归防止旧 naming source 回流。
 
-### [TODO] P7-T01C：收口剩余 RTTI / runtime-match type_id 对 pretty text / sanitize 的依赖
+### [DONE] P7-T01C：收口剩余 RTTI / runtime-match type_id 对 pretty text / sanitize 的依赖
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6
@@ -1873,7 +1873,35 @@
   - RTTI `type_id`、interface runtime-match type-id 与 derived runtime type-desc identity 已不再由 `TypeStore::display()` / `sanitize_llvm_ident()` 直接控制；随后 `P7-T01R` 才能继续做最终签收。
 - 依赖：P7-T01B
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/typecheck/lower.rs`
+    - `crates/scoopc/src/itable.rs`
+    - `crates/scoopc/src/rtti/mod.rs`
+    - `crates/scoopc/src/rtti/type_desc.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/ty.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 在 `stable_id.rs` 新增 RTTI 专用 canonical helper：`stable_rtti_type_key_for_type`、`stable_rtti_type_id_for_type`、`stable_rtti_derived_type_key`、`canonical_nominal_type_key`。RTTI query / runtime-match / derived type-desc 现在统一复用 canonical type encoder，而不是再把 `TypeStore::display()`、`sanitize_llvm_ident()` 或裸 nominal 文本直接当作 hash 输入。
+    - `rtti/mod.rs` 现在显式把 `TypeStore::display()` 只保留为 `TypeRtti.name` 的可读输出；`type_id` 改由 semantic canonical type key 计算。`itable.rs` 的 precise class itable metadata 与 `mir_body.rs` 的 value-box interface metadata 也同步切到 canonical type id，确保 parameterized interface runtime-match 与 RTTI query 走同一 identity 规则。
+    - `TypeDescriptorSpec` 明确改名为 `type_id_key`，避免再把“可读 descriptor 名字”和“真正参与 `stable_rtti_type_id(...)` 的 identity key”混用。boxed enum / MIR capture-box / MIR value-box descriptor 现在都以“wrapper role + canonical payload/source type key”生成派生 type-id key，既脱离 display/sanitize，又不会与被包装源类型本身发生 identity 坍缩。
+    - 扩充了 `stable_id_source_inventory` 与 RTTI dump 回归：source inventory 现在会阻止 `stable_rtti_type_id(self.types.display(...))`、`stable_rtti_type_id(interface_type_name)`、`stable_rtti_type_id(runtime_match_type_names)` 以及 `BoxedEnum<pretty>` / `ValueBox<pretty>` / capture-box sanitize 文本重新回流；RTTI dump 测试则显式验证 parameterized query / runtime-match metadata 的 `type_id` 已与 display name 分离，但 query 与 type-desc metadata 仍保持一致。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc dump_rtti -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` §6 与 `STABLE_ID.md` §3.3 / §3.4.6 / §3.4.7 / §7.1 / §8.4：remaining RTTI query、interface runtime-match type-id、boxed enum / MIR capture-box / MIR value-box derived type-desc identity 已全部切到 canonical semantic key，不再由 pretty text / sanitize 直接控制。
+    - 对应 `STABLE_ID.md` §5.1 / §10：可读 RTTI/type-desc 名称与真正 hash 输入现在已显式分离，且有常驻 source inventory / RTTI dump / LLVM metadata 回归防止旧输入源回流；`P7-T01R` 可以继续做最终全量签收。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 

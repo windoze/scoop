@@ -22,8 +22,8 @@ use crate::resolve::{Index, ModifierSet, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::stable_id::{
-    StableClosureKey, StableDefKey, StableDefNamespace, stable_rtti_interface_id,
-    stable_rtti_type_id,
+    StableClosureKey, StableDefKey, StableDefNamespace, canonical_nominal_type_key,
+    stable_rtti_interface_id, stable_rtti_type_id,
 };
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -844,9 +844,13 @@ fn build_class_itables(
             entries.push(ItableEntry {
                 interface_id,
                 interface_name: iface_name.clone(),
-                interface_type_id: stable_rtti_type_id(&iface_name),
+                interface_type_id: stable_rtti_type_id(
+                    canonical_nominal_type_key(&iface_name).as_str(),
+                ),
                 interface_type_name: iface_name.clone(),
-                runtime_match_type_ids: vec![stable_rtti_type_id(&iface_name)],
+                runtime_match_type_ids: vec![stable_rtti_type_id(
+                    canonical_nominal_type_key(&iface_name).as_str(),
+                )],
                 runtime_match_type_names: vec![iface_name],
                 method_slots: mapped,
             });
@@ -2079,10 +2083,12 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             .iter()
             .find(|e| e.interface_name == "rtti.Readable")
             .expect("StringReadable should expose a Readable itable entry");
+        let readable_query = crate::rtti::dump_type_rtti(&sess, &src, "Readable<String>").unwrap();
         assert_eq!(readable_entry.interface_type_name, "rtti.Readable<String>");
-        assert_eq!(
+        assert_eq!(readable_entry.interface_type_id, readable_query.type_id);
+        assert_ne!(
             readable_entry.interface_type_id,
-            stable_rtti_type_id("rtti.Readable<String>")
+            stable_rtti_type_id(&readable_entry.interface_type_name)
         );
         assert!(
             readable_entry
@@ -2104,7 +2110,9 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             readable_entry
                 .runtime_match_type_names
                 .iter()
-                .map(|name| stable_rtti_type_id(name))
+                .map(|name| crate::rtti::dump_type_rtti(&sess, &src, name)
+                    .unwrap()
+                    .type_id)
                 .collect::<Vec<_>>()
         );
 
@@ -2114,7 +2122,9 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             .iter()
             .find(|e| e.interface_name == "rtti.Disposable")
             .expect("PureManaged should expose a Disposable itable entry");
+        let pure_query = crate::rtti::dump_type_rtti(&sess, &src, "Disposable<eff Pure>").unwrap();
         assert_eq!(pure_entry.interface_type_name, "rtti.Disposable<eff Pure>");
+        assert_eq!(pure_entry.interface_type_id, pure_query.type_id);
         assert!(
             pure_entry
                 .runtime_match_type_names
@@ -2134,6 +2144,10 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             .iter()
             .find(|e| e.interface_name == "rtti.Disposable")
             .expect("RaiseManaged should expose a Disposable itable entry");
+        let raise_query =
+            crate::rtti::dump_type_rtti(&sess, &src, "Disposable<eff Raise<RuntimeError>>")
+                .unwrap();
+        assert_eq!(raise_entry.interface_type_id, raise_query.type_id);
         assert!(
             raise_entry.interface_type_name.contains("Raise")
                 && raise_entry.interface_type_name.contains("RuntimeError")

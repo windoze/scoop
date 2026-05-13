@@ -1041,6 +1041,32 @@ fn stable_id_source_inventory_removes_legacy_metadata_private_naming_from_codege
 }
 
 #[test]
+fn stable_id_source_inventory_removes_display_driven_rtti_identity_inputs() {
+    for source in [
+        include_str!("../rtti/mod.rs"),
+        include_str!("../rtti/type_desc.rs"),
+        include_str!("../itable.rs"),
+        include_str!("mod.rs"),
+        include_str!("codegen/mir_body.rs"),
+    ] {
+        for needle in [
+            "let type_id = stable_rtti_type_id(&name);",
+            "stable_rtti_type_id(&self.types.display(target_ty).to_string())",
+            "stable_rtti_type_id(&interface_type_name)",
+            ".map(|name| stable_rtti_type_id(name))",
+            "\"scoop.runtime.BoxedEnum<{}>\"",
+            "\"scoop.runtime.ValueBox<{}>\"",
+            "\"__scoop_type_desc_mir_capture_box__{value_name}\"",
+        ] {
+            assert!(
+                !source.contains(needle),
+                "RTTI/type-id 生产代码不应再让 display/sanitize 文本直接承担 identity 输入：{needle}"
+            );
+        }
+    }
+}
+
+#[test]
 fn materialized_mir_closure_private_symbols_use_stable_hash_namespaces() {
     let source = SourceFile::new_virtual(
         "<mem>/stable_id_materialized_closure.scoop",
