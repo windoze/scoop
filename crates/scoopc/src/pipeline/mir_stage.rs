@@ -489,6 +489,7 @@ fun main() {}
         let output = run_fixture("mir_refactor", "assignment_places.scoop");
         let dump = output.stable_dump();
         for forbidden in [
+            "assign lhs missing local",
             "assign lhs lowering pending",
             "assign place contract missing",
             "assign place local missing",
@@ -608,6 +609,7 @@ fun main() {}
             "call callee lowering pending",
             "ctor call lowering pending",
             "sizeOf intrinsic requires value or type arg",
+            "nameOf intrinsic requires type arg",
         ] {
             assert!(
                 !dump.contains(forbidden),

@@ -3718,12 +3718,13 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         // 说明：使用 push-based builder 语义承载元素顺序。
         let builder_decl_span = Span::new(span.start, span.start);
+        let build_call_span = Span::new(span.end, span.end);
         let builder_id = self.intern_local_symbol(builder_decl_span, false);
         let builder_name = "__array_builder".to_string();
 
         let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
         let new_callee = Expr {
-            span,
+            span: builder_decl_span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(new_fqn.clone()),
@@ -3731,7 +3732,7 @@ impl<'a> HirLowering<'a> {
             }),
         };
         let new_call = Expr {
-            span,
+            span: builder_decl_span,
             ty: self.builtins.any,
             kind: ExprKind::Call {
                 callee: Box::new(new_callee),
@@ -3756,6 +3757,7 @@ impl<'a> HirLowering<'a> {
         });
 
         for element_expr in elements {
+            let push_call_span = element_expr.span;
             let builder_ref = Expr {
                 span: builder_decl_span,
                 ty: self.builtins.any,
@@ -3768,7 +3770,7 @@ impl<'a> HirLowering<'a> {
 
             let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
             let push_callee = Expr {
-                span,
+                span: push_call_span,
                 ty: self.builtins.any,
                 kind: ExprKind::VarRef(ValueRef::TopLevel {
                     id: self.symbols.intern_top_level(push_fqn.clone()),
@@ -3776,7 +3778,7 @@ impl<'a> HirLowering<'a> {
                 }),
             };
             let push_call = Expr {
-                span,
+                span: push_call_span,
                 ty: self.builtins.unit,
                 kind: ExprKind::Call {
                     callee: Box::new(push_callee),
@@ -3799,7 +3801,7 @@ impl<'a> HirLowering<'a> {
         }
         .to_string();
         let build_callee = Expr {
-            span,
+            span: build_call_span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(build_fqn.clone()),
@@ -3816,7 +3818,7 @@ impl<'a> HirLowering<'a> {
             }),
         };
         let build_call = Expr {
-            span,
+            span: build_call_span,
             ty: result_ty,
             kind: ExprKind::Call {
                 callee: Box::new(build_callee),
@@ -3953,13 +3955,14 @@ impl<'a> HirLowering<'a> {
         elements: &[&ast::Expr],
     ) -> Expr {
         let builder_decl_span = Span::new(span.start, span.start);
+        let build_call_span = Span::new(span.end, span.end);
         let builder_id = self.intern_local_symbol(builder_decl_span, false);
         let builder_name = "__vararg_builder".to_string();
 
         // val __vararg_builder = __scoop_array_builder_new()
         let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
         let new_callee = Expr {
-            span,
+            span: builder_decl_span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(new_fqn.clone()),
@@ -3967,7 +3970,7 @@ impl<'a> HirLowering<'a> {
             }),
         };
         let new_call = Expr {
-            span,
+            span: builder_decl_span,
             ty: self.builtins.any,
             kind: ExprKind::Call {
                 callee: Box::new(new_callee),
@@ -3994,6 +3997,7 @@ impl<'a> HirLowering<'a> {
         // __scoop_array_builder_push(builder, element) for each element
         for element in elements {
             let element_expr = self.lower_expr(pkg_prefix, element);
+            let push_call_span = element_expr.span;
             let builder_ref = Expr {
                 span: builder_decl_span,
                 ty: self.builtins.any,
@@ -4006,7 +4010,7 @@ impl<'a> HirLowering<'a> {
 
             let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
             let push_callee = Expr {
-                span,
+                span: push_call_span,
                 ty: self.builtins.any,
                 kind: ExprKind::VarRef(ValueRef::TopLevel {
                     id: self.symbols.intern_top_level(push_fqn.clone()),
@@ -4014,7 +4018,7 @@ impl<'a> HirLowering<'a> {
                 }),
             };
             let push_call = Expr {
-                span,
+                span: push_call_span,
                 ty: self.builtins.unit,
                 kind: ExprKind::Call {
                     callee: Box::new(push_callee),
@@ -4043,7 +4047,7 @@ impl<'a> HirLowering<'a> {
         };
         let build_fqn = Self::ARRAY_BUILDER_BUILD_ARRAY_FQN.to_string();
         let build_callee = Expr {
-            span,
+            span: build_call_span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(build_fqn.clone()),
@@ -4051,7 +4055,7 @@ impl<'a> HirLowering<'a> {
             }),
         };
         let build_call = Expr {
-            span,
+            span: build_call_span,
             ty: self.builtins.any,
             kind: ExprKind::Call {
                 callee: Box::new(build_callee),

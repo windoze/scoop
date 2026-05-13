@@ -211,7 +211,7 @@
 
 ## P1：删除旧主线 residual producer 与 `LegacyOnly` 依赖
 
-### [TODO] P1-T01：删除 `mir/lower.rs` 中 assign/call/ctor/intrinsic legacy producer
+### [DONE] P1-T01：删除 `mir/lower.rs` 中 assign/call/ctor/intrinsic legacy producer
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -266,9 +266,31 @@
 - 依赖：`P0-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/mir/lower.rs`，删除 assignment / ordinary call / ctor / reflection intrinsic 的 legacy `Todo` producer；`lower_assign_stmt(...)` 现在只走 typed place contract，`lower_call_expr(...)` 现在优先消费 typed call-site contract，并在 contract 缺失时显式暴露 impossible-state panic，而不再生成六个 legacy reason。
+    - 更新 `crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/mir/lower.rs::lower_for_dump(...)`，让 dump/materialize 路径构造 `MirLoweringFacts` 时同步导入 typed call-site / assign-place contract，避免删除 legacy branch 后这些调试/测试入口失去 contract 来源。
+    - 更新 `crates/scoopc/src/pipeline/hir_stage.rs`，补 local callable value 的 `FunValue` contract 发布、顶层 `val` 多文件 source-path 解析，以及缺失 typed call-site contract 的 HIR-stage hard error。
+    - 更新 `crates/scoopc/src/hir/lower/expr.rs`，为 array-builder / vararg-builder 合成 helper calls 分配可区分的 call span，修复多个 compiler-generated intrinsic 调用共用同一 `CallSite(span)` 导致 typed contract 互相覆盖的问题。
+    - 更新 `crates/scoopc/src/pipeline/mir_stage.rs` forbidden-list 断言，并同步 `PIPELINE_GAPS.md` §1.6、§1.7、§6.3 的状态与结论。
   - 核心决策：
+    - 不把 dump/materialize 全量切到 `MirSiteContractSource::RefactorTyped`；本任务只把 typed call/assign contract 注入这些入口，保留 `P1-T02` 仍需处理的 resume/dispatch legacy 路径，避免超前改动阶段边界。
+    - typed call-site contract 缺失现在在 typed HIR stage 直接失败；唯一允许无显式 call contract 的保留形状是 unresolved enum/`Option` variant ctor/value path，而不是 class ctor / callable value / reflection intrinsic。
+    - 对 compiler-generated array-builder/vararg-builder calls 采用“修正 call-site identity”而不是在 MIR lowering 新增 FQN 猜测 fallback：同一合成 block 内的 `new/push/build` helper 现在使用可区分的 span，从根源消除 typed contract 覆盖。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_call_contracts_record_callable_provenance`
+    - `cargo test -p scoopc refactor_hir_class_literal_and_intrinsic_contracts`
+    - `cargo test -p scoopc refactor_hir_preflight_checks_completeness_fixtures_and_mir_smoke`
+    - `cargo test -p scoopc refactor_mir_place_contract`
+    - `cargo test -p scoopc refactor_mir_call_contract`
+    - `cargo test -p scoopc dump_mir_lowers_safe_member_access_option_result_without_ctor_todo`
+    - `cargo test -p scoopc dump_mir_publishes_member_write_contract_for_escape_continuation_cell`
+    - `cargo test -p scoopc materialize_for_dump_dedups_repeated_instance_requests`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/assignment_places.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/call_contracts.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg 'assign lhs missing local|assign lhs lowering pending|call callee lowering pending|ctor call lowering pending|sizeOf intrinsic requires value or type arg|nameOf intrinsic requires type arg' crates/scoopc/src`：命中仅剩 `mir/placeholder_inventory.rs`、`pipeline/hir_preflight.rs`、`pipeline/mir_stage.rs` 与 `mir/mod.rs` / `mir/materialize.rs` / `mir/lower.rs` / `pipeline/hir_stage.rs` 的 synthetic verifier or test scaffolding；`mir/lower.rs` active production path 已无上述 producer。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P1 第 1、2、4、6 项：assign/call/ctor/reflection intrinsic legacy producer 已从 active lowering path 移除，dump/materialize 入口同步接入 typed call/assign contract，相关 smoke/forbidden 断言已更新。
+    - `PIPELINE_GAPS.md` 已回写 §1.6、§1.7、§6.3：这些 gap 不再描述 active `mir/lower.rs` producer；剩余 legacy reason 清理明确留给 `P1-T02` 的 inventory / guard / synthetic-test residual 收尾。
 
 ### [TODO] P1-T02：删除 resume/dispatch legacy producer，并清空 active `LegacyOnly` 依赖
 

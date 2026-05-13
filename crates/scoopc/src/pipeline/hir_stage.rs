@@ -7,7 +7,7 @@ use crate::ast;
 use crate::hir::{
     AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, Decl, DispatchCallKind, Expr,
     ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item, LoweredHir, Stmt,
-    StmtKind, ValueRef,
+    StmtKind, ValDecl, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -836,7 +836,7 @@ pub struct TypedHirEffectContracts {
 }
 
 impl TypedHirEffectContracts {
-    fn from_lowered_hir(
+    pub(crate) fn from_lowered_hir(
         lowered_hir: &LoweredHir,
         source_path: &Path,
     ) -> Result<Self, HirStageError> {
@@ -1310,8 +1310,11 @@ impl<'a> ContractCollector<'a> {
                 self.collect_fun(fun)?;
             }
             Item::Val(val) => {
+                let source_path = self
+                    .top_level_val_source_path(val)
+                    .unwrap_or_else(|| source_path.to_path_buf());
                 if let Some(init) = &val.init {
-                    self.collect_expr(source_path, init)?;
+                    self.collect_expr(&source_path, init)?;
                 }
             }
             Item::Todo { .. } => {}
@@ -1333,6 +1336,28 @@ impl<'a> ContractCollector<'a> {
             allowed_effects,
             effects_closed,
         ));
+    }
+
+    fn top_level_val_source_path(&self, val: &ValDecl) -> Option<PathBuf> {
+        self.lowered_hir
+            .top_level_vars
+            .values()
+            .find(|global| global.span == val.span)
+            .map(|global| global.source_path.clone())
+            .or_else(|| {
+                self.lowered_hir
+                    .top_level_consts
+                    .values()
+                    .find(|konst| konst.span == val.span)
+                    .map(|konst| konst.source_path.clone())
+            })
+            .or_else(|| {
+                self.lowered_hir
+                    .top_level_immutable_values
+                    .values()
+                    .find(|value| value.span == val.span)
+                    .map(|value| value.source_path.clone())
+            })
     }
 
     fn collect_fun(&mut self, fun: &FunDecl) -> Result<(), HirStageError> {
@@ -1631,7 +1656,9 @@ impl<'a> ContractCollector<'a> {
                 return_ty: expr.ty,
                 arg_binding: arg_binding.clone(),
             })
-        } else if is_function_ty(&self.lowered_hir.types, callee.ty) {
+        } else if is_function_ty(&self.lowered_hir.types, callee.ty)
+            || matches!(callee.kind, ExprKind::VarRef(ValueRef::Local { .. }))
+        {
             Some(TypedCallSiteContract::FunValue {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
@@ -1645,9 +1672,35 @@ impl<'a> ContractCollector<'a> {
             self.call_site_kinds
                 .insert(call_site.clone(), contract.kind());
             self.call_site_contracts.insert(call_site, contract);
+            return Ok(());
         }
 
-        Ok(())
+        if self.call_may_lower_without_typed_contract(expr, callee) {
+            return Ok(());
+        }
+
+        Err(HirStageError::new(
+            source_path.to_path_buf(),
+            expr.span,
+            "call expression missing typed call-site contract",
+            "typed HIR call contract",
+        ))
+    }
+
+    fn call_may_lower_without_typed_contract(&self, expr: &Expr, callee: &Expr) -> bool {
+        if !matches!(callee.kind, ExprKind::UnresolvedIdent { .. }) {
+            return false;
+        }
+
+        match self.lowered_hir.types.kind(expr.ty) {
+            TypeKind::Value(ValueTypeKind::Option(_)) => true,
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
+                .lowered_hir
+                .nominal_kinds
+                .get(&nominal.fqn)
+                .is_some_and(|kind| *kind == ast::TypeKind::Enum),
+            _ => false,
+        }
     }
 
     fn call_arg_binding_contract(

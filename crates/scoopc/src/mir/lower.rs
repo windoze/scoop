@@ -210,8 +210,11 @@ fn call_arg_binding_has_receiver(binding: &CallArgBindingContract) -> bool {
 }
 
 impl MirLoweringFacts {
-    pub(crate) fn from_lowered_hir(lowered: &hir::LoweredHir) -> Self {
-        Self::from_hir_side_tables_and_resume_spans(
+    pub(crate) fn from_lowered_hir(
+        lowered: &hir::LoweredHir,
+        default_source_path: &std::path::Path,
+    ) -> Result<Self, hir::HirLowerError> {
+        let mut facts = Self::from_hir_side_tables_and_resume_spans(
             &lowered.dispatch_call_sites,
             lowered
                 .continuation_resume_call_sites
@@ -230,7 +233,18 @@ impl MirLoweringFacts {
         .with_nominal_kinds(lowered)
         .with_class_ctor_call_sites(lowered)
         .with_continuation_identity_return_funs(lowered)
-        .with_class_ctor_hidden_effects(lowered)
+        .with_class_ctor_hidden_effects(lowered);
+
+        let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
+            .map_err(hir::HirLowerError::from)?;
+        facts
+            .refactor_call_sites
+            .extend(contracts.call_site_contracts().clone());
+        facts
+            .refactor_assign_places
+            .extend(contracts.assign_place_contracts().clone());
+
+        Ok(facts)
     }
 
     pub(crate) fn from_refactor_typed_handoff(
@@ -584,30 +598,12 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
-    fn class_ctor_call_info(
-        &self,
-        source_path: &std::path::Path,
-        call_span: Span,
-    ) -> Option<&hir::CtorCallInfo> {
-        self.class_ctor_call_sites
-            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
-    }
-
     fn top_level_fun_call_binding(
         &self,
         source_path: &std::path::Path,
         call_span: Span,
     ) -> Option<&ast::TopLevelFunCallBinding> {
         self.top_level_fun_call_sites
-            .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
-    }
-
-    fn call_arg_binding(
-        &self,
-        source_path: &std::path::Path,
-        call_span: Span,
-    ) -> Option<&CallArgBindingContract> {
-        self.call_arg_bindings
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
@@ -1109,7 +1105,7 @@ fn top_level_binding_matches_callee(
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredMir, MirLowerError> {
     let mut lowered_hir = hir::lower_typed_for_dump(session, source)?;
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path())?;
 
     let file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -2387,83 +2383,7 @@ impl<'a> FnLowering<'a> {
 
     /// 降低一个赋值语句。
     fn lower_assign_stmt(&mut self, span: Span, lhs: &hir::Expr, rhs: &hir::Expr) {
-        if self.facts.uses_refactor_typed_contracts() {
-            self.lower_assign_stmt_with_place_contract(span, lhs, rhs);
-            return;
-        }
-
-        match &lhs.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                let Some(target) = self.symbol_locals.get(id).copied() else {
-                    self.push_stmt(span, StatementKind::Todo("assign lhs missing local"));
-                    return;
-                };
-
-                let value = self.lower_expr_to_local(rhs);
-                if self.current_is_terminated() {
-                    return;
-                }
-                if self.boxed_symbols.contains(id) {
-                    let tmp = self.push_temp_local(span, self.builtins.unit);
-                    self.assign(
-                        span,
-                        tmp,
-                        Rvalue::CaptureBoxSet {
-                            box_operand: Operand::Local(target),
-                            value: Operand::Local(value),
-                            contract: self.capture_box_contract(
-                                self.body.locals[target.as_u32() as usize].ty,
-                                self.body.locals[value.as_u32() as usize].ty,
-                            ),
-                        },
-                    );
-                } else {
-                    self.assign_use_to_local(span, target, Operand::Local(value));
-                }
-            }
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                let value_local = self.lower_expr_to_local(rhs);
-                if self.current_is_terminated() {
-                    return;
-                }
-                let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
-                let value = self.operand_for_target_ty(span, Operand::Local(value_local), value_ty);
-                self.push_stmt(
-                    span,
-                    StatementKind::StoreTopLevelVar {
-                        fqn: fqn.clone(),
-                        value,
-                        value_ty,
-                    },
-                );
-            }
-            hir::ExprKind::MemberAccess { receiver, member } => {
-                let receiver_local = self.lower_expr_to_local(receiver);
-                if self.current_is_terminated() {
-                    return;
-                }
-                let value_local = self.lower_expr_to_local(rhs);
-                if self.current_is_terminated() {
-                    return;
-                }
-                let receiver_ty = self.body.locals[receiver_local.as_u32() as usize].ty;
-                let value_ty = self.body.locals[value_local.as_u32() as usize].ty;
-                let value = self.operand_for_target_ty(span, Operand::Local(value_local), value_ty);
-                self.push_stmt(
-                    span,
-                    StatementKind::StoreMember {
-                        receiver: Operand::Local(receiver_local),
-                        member: self.lower_member_access_metadata(member, receiver_ty),
-                        value,
-                        value_ty,
-                        continuation_route: self.extract_stored_continuation_route(rhs),
-                    },
-                );
-            }
-            _ => {
-                self.push_stmt(span, StatementKind::Todo("assign lhs lowering pending"));
-            }
-        }
+        self.lower_assign_stmt_with_place_contract(span, lhs, rhs);
     }
 
     fn lower_assign_stmt_with_place_contract(
@@ -4744,17 +4664,11 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        if self.facts.uses_refactor_typed_contracts()
-            && self.lower_refactor_typed_call_expr(span, result, callee, args)
-        {
+        if self.lower_refactor_typed_call_expr(span, result, callee, args) {
             return result;
         }
 
         if self.lower_dispatch_call_expr(span, result, callee, args) {
-            return result;
-        }
-
-        if self.lower_reflection_intrinsic_call_expr(span, result, args) {
             return result;
         }
 
@@ -4787,151 +4701,11 @@ impl<'a> FnLowering<'a> {
             return result;
         }
 
-        let unresolved_class_ctor_fqn = match self.types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => Some(nominal.fqn.clone()),
-            _ => None,
-        };
-        if let hir::ExprKind::UnresolvedIdent { .. } = &callee.kind
-            && let Some(callee_fqn) = unresolved_class_ctor_fqn
-        {
-            let Some(args) = self.lower_call_args(args) else {
-                return result;
-            };
-            let site_id = SiteId::from_raw(u32::MAX);
-            let hidden_effects = self
-                .facts
-                .class_ctor_hidden_effects(self.source_path.as_path(), span);
-            let ctor = self
-                .facts
-                .class_ctor_call_info(self.source_path.as_path(), span)
-                .filter(|info| info.class_fqn == callee_fqn)
-                .map(|info| ClassCtorCallMetadata {
-                    selected_ctor_span: info.ctor_span,
-                    ordered_param_count: info.arg_mapping.len(),
-                })
-                .unwrap_or(ClassCtorCallMetadata {
-                    selected_ctor_span: None,
-                    ordered_param_count: args.len(),
-                });
-            self.assign(
-                span,
-                result,
-                Rvalue::ClassCtor {
-                    site_id,
-                    class_fqn: callee_fqn,
-                    ctor,
-                    args,
-                    hidden_effects,
-                },
-            );
-            return result;
-        }
-
-        let callee_local = self.lower_expr_to_local(callee);
-        if self.current_is_terminated() {
-            return result;
-        }
-        let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
-        let mut callee_origin = self.value_origins.get(&callee_local).cloned();
-        if callee_origin.is_none() && matches!(callee.kind, hir::ExprKind::Call { .. }) {
-            callee_origin = Some(ValueOrigin::UnknownCallable);
-        }
-        let callee_can_lower = self.is_callable_value_ty(callee_ty)
-            || matches!(
-                callee_origin,
-                Some(
-                    ValueOrigin::Closure { .. }
-                        | ValueOrigin::TopLevelRef { .. }
-                        | ValueOrigin::MemberAccess { .. }
-                        | ValueOrigin::UnknownCallable
-                        | ValueOrigin::UnresolvedName { .. }
-                )
-            );
-        if !callee_can_lower {
-            self.assign(span, result, Rvalue::Todo("call callee lowering pending"));
-            return result;
-        }
-
-        let kind = match callee_origin.as_ref() {
-            Some(ValueOrigin::TopLevelRef { fqn }) => CallKind::Direct {
-                callee_fqn: fqn.clone(),
-            },
-            Some(ValueOrigin::Closure { fn_ptr }) => CallKind::Closure {
-                callee: Operand::Local(callee_local),
-                fn_ptr: fn_ptr.clone(),
-            },
-            Some(ValueOrigin::UnresolvedName { .. }) => {
-                self.assign(span, result, Rvalue::Todo("ctor call lowering pending"));
-                return result;
-            }
-            Some(ValueOrigin::MemberAccess { .. }) | Some(ValueOrigin::UnknownCallable) | None => {
-                CallKind::FunValue {
-                    callee: Operand::Local(callee_local),
-                }
-            }
-        };
-        let arg_binding = self
-            .facts
-            .call_arg_binding(self.source_path.as_path(), span);
-        let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
-        let direct_arg_binding =
-            arg_binding.filter(|binding| !call_arg_binding_has_receiver(binding));
-        let expected_tys = match &kind {
-            CallKind::Direct { callee_fqn } => self
-                .top_level_fun_param_tys
-                .get(callee_fqn)
-                .map(|param_tys| {
-                    param_tys
-                        .iter()
-                        .copied()
-                        .map(Some)
-                        .chain(std::iter::repeat(None))
-                        .take(args.len())
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_else(|| vec![None; args.len()]),
-            CallKind::Closure { .. } | CallKind::FunValue { .. } => {
-                self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len(), arg_binding)
-            }
-            CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => {
-                vec![None; args.len()]
-            }
-        };
-        let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
-            return result;
-        };
-        let args = self.canonicalize_call_args_from_binding(
-            args,
-            if matches!(kind, CallKind::Direct { .. }) {
-                direct_arg_binding
-            } else {
-                arg_binding
-            },
-        );
-        let terminates_current_block = matches!(
-            &kind,
-            CallKind::Direct { callee_fqn } if callee_fqn == "scoop.core.panic"
-        );
-
-        let site_id = self.fresh_site_id();
-        let gc_intrinsic_callee =
-            gc_intrinsic_callee_from_origin(callee_origin.as_ref()).map(str::to_string);
-        let transport =
-            self.call_transport_metadata(result_ty, &kind, &args, gc_intrinsic_callee.as_deref());
-        self.assign(
-            span,
-            result,
-            Rvalue::Call {
-                site_id,
-                kind,
-                args,
-                transport,
-            },
-        );
-        if terminates_current_block {
-            self.set_terminator(self.current_bb, span, TerminatorKind::Unreachable);
-        }
-        result
+        panic!(
+            "typed call-site contract missing before MIR lowering at {} {span:?}: {:?}",
+            self.source_path.display(),
+            callee.kind
+        )
     }
 
     fn call_result_ty_from_callee(&self, span: Span, callee: &hir::Expr) -> Option<TypeId> {
@@ -4946,68 +4720,6 @@ impl<'a> FnLowering<'a> {
         match self.types.kind(callee.ty) {
             TypeKind::Ref(RefTypeKind::Function(fun)) => Some(fun.return_ty),
             _ => None,
-        }
-    }
-
-    fn lower_reflection_intrinsic_call_expr(
-        &mut self,
-        span: Span,
-        result: LocalId,
-        args: &[hir::CallArg],
-    ) -> bool {
-        let Some(binding) = self
-            .facts
-            .top_level_fun_call_binding(self.source_path.as_path(), span)
-        else {
-            return false;
-        };
-        if !binding.is_intrinsic {
-            return false;
-        }
-        match intrinsic_base_fqn(&binding.fqn) {
-            "scoop.core.sizeOf" => {
-                let value_ty = match args {
-                    [hir::CallArg::Positional(value)] => Some(value.ty),
-                    [] => binding.type_args.first().copied(),
-                    _ => None,
-                };
-                let Some(value_ty) = value_ty else {
-                    self.assign(
-                        span,
-                        result,
-                        Rvalue::Todo("sizeOf intrinsic requires value or type arg"),
-                    );
-                    return true;
-                };
-                self.assign(span, result, Rvalue::SizeOf { value_ty });
-                true
-            }
-            "scoop.core.nameOf" => {
-                let source_ty = match args {
-                    [hir::CallArg::Positional(value)] => Some(value.ty),
-                    [] => binding.type_args.first().copied(),
-                    _ => None,
-                };
-                let Some(source_ty) = source_ty else {
-                    self.assign(
-                        span,
-                        result,
-                        Rvalue::Todo("nameOf intrinsic requires type arg"),
-                    );
-                    return true;
-                };
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::TypeMetadataLiteral(TypeMetadataLiteral {
-                        source_ty,
-                        source_fqn: self.nominal_fqn_for_ty(source_ty),
-                        kind: TypeMetadataLiteralKind::TypeNameString,
-                    }),
-                );
-                true
-            }
-            _ => false,
         }
     }
 

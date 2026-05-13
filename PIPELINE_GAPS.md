@@ -55,15 +55,15 @@
 
 ### 1.6 赋值 LHS 只覆盖 local、top-level 和 member access
 
-- 状态：`LegacyOnly`。
-- 结论：这里不应再被理解成“旧路径专属缺口”，而应视为待删除的 residual producer。`mir/lower.rs` 里仍保留 `assign lhs missing local` / `assign lhs lowering pending` 的遗留分支；只要 refactor 编译还能走到这里，就是实现错误。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:112-129`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`lower_assign_stmt(...)` 现在已收紧为只消费 typed place contract；`assign lhs missing local` / `assign lhs lowering pending` 不再存在于 active MIR lowering path。剩余 legacy reason 仅保留在 placeholder inventory、preflight 禁词和 synthetic verifier/materializer 负例里，待 `P1-T02` 一并清理 active residual。
+- 证据：`crates/scoopc/src/mir/lower.rs:2385-2476`，`crates/scoopc/src/pipeline/hir_stage.rs:1510-1685`，`crates/scoopc/src/pipeline/mir_stage.rs:488-565`。
 
 ### 1.7 callable callee / ctor callee provenance 不完整会生成 Todo
 
-- 状态：`LegacyOnly`。
-- 结论：这类 placeholder 仍有 inventory 记录，但它们不是“允许存在的旧路径能力”，而是待删除的 legacy producer。默认主线必须完全依赖 typed call-site / selected ctor contract；任何实际命中都说明 contract 发布或 routing 仍有漏洞。
-- 证据：`crates/scoopc/src/mir/placeholder_inventory.rs:139-156`。
+- 状态：`Closed/Re-scoped`。
+- 结论：普通 direct/closure/fun-value/ctor 调用与 reflection runtime intrinsic 现在都必须先发布 typed call-site contract，缺失时会在 typed HIR stage 直接报错，而不会再由 `mir/lower.rs` 生成 `call callee lowering pending` / `ctor call lowering pending` / reflection Todo。为避免 compiler-generated helper calls 继续因同一 `CallSite(span)` 互相覆盖，array-builder/vararg builder 合成调用现在也发布可区分的 call span。
+- 证据：`crates/scoopc/src/pipeline/hir_stage.rs:1510-1685`，`crates/scoopc/src/hir/lower/expr.rs:3712-4065`，`crates/scoopc/src/mir/lower.rs:3965-4707`，`crates/scoopc/src/pipeline/mir_stage.rs:605-731`。
 
 ### 1.8 dynamic dispatch callee 拆解失败会生成 Todo
 
@@ -314,8 +314,8 @@
 ### 6.3 runtime reflection 路径 `nameOf<T>()` / `getPlatform()` 缺 codegen lowering
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`nameOf<T>()` 与 `getPlatform()` 现在都有 runtime lowering；`getPlatform()` 也有 IR 级断言确保不会退回 declaration-only call。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:2294-2307`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2311-2342`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1657-1665`，`tests/fixtures/run-pass/name_of_runtime_basic.scoop:1-14`，`tests/fixtures/run-pass/get_platform_runtime_basic.scoop:1-16`，`crates/scoopc/src/llvm/tests.rs:406-430`。
+- 结论：`nameOf<T>()` 与 `getPlatform()` 现在都有 runtime lowering；同时 MIR lowering 侧已删除 `sizeOf` / `nameOf` legacy Todo fallback，只再接受 typed intrinsic contract。`getPlatform()` 仍有 IR 级断言确保不会退回 declaration-only call。
+- 证据：`crates/scoopc/src/mir/lower.rs:3965-4023`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2294-2307`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2311-2342`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1657-1665`，`tests/fixtures/run-pass/name_of_runtime_basic.scoop:1-14`，`tests/fixtures/run-pass/get_platform_runtime_basic.scoop:1-16`，`crates/scoopc/src/llvm/tests.rs:406-430`。
 
 ### 6.4 `@Extern` global variable 没有 extern storage/linkage model
 

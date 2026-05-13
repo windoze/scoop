@@ -2801,7 +2801,20 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = super::MirLoweringFacts::from_lowered_hir(&lowered_hir);
+    let default_contract_source_path = request_source_paths
+        .first()
+        .map(PathBuf::as_path)
+        .or_else(|| compilation_unit.first().map(|(source, _)| source.path()))
+        .ok_or_else(|| {
+            materialize_err(MirMaterializeError::Frontend {
+                message: "materialize compilation unit must contain at least one source file"
+                    .to_string(),
+            })
+        })?;
+    let facts = super::MirLoweringFacts::from_lowered_hir(
+        &lowered_hir,
+        default_contract_source_path,
+    )?;
     let generic_file = super::lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,
@@ -10587,7 +10600,7 @@ fun entry(): Int {
         );
 
         let builtins = lowered_hir.types.intern_builtins();
-        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
         let generic_file = lower_hir_file_for_dump_with_facts(
             builtins,
             &mut lowered_hir.types,
@@ -11071,7 +11084,7 @@ fun main(): Int {
         let interfaces = lowered_hir.interfaces.clone();
         let class_itables = lowered_hir.class_itables.clone();
         let builtins = lowered_hir.types.intern_builtins();
-        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source_path.as_path()).unwrap();
         let mut generic_file = lower_hir_file_for_dump_with_facts(
             builtins,
             &mut lowered_hir.types,
@@ -12060,7 +12073,7 @@ fun main() {
         let interfaces = lowered_hir.interfaces.clone();
         let class_itables = lowered_hir.class_itables.clone();
         let builtins = lowered_hir.types.intern_builtins();
-        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir);
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
         let generic_file = lower_hir_file_for_dump_with_facts(
             builtins,
             &mut lowered_hir.types,
