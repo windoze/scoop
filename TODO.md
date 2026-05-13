@@ -1830,6 +1830,51 @@
     - 对应 `PLAN.md` §6 第 1/7 条：remaining runtime metadata、transport descriptor 与 private LLVM type/global naming 已统一走 authoritative stable private naming，`sanitize_llvm_ident()` / `TypeStore::display()` / raw `TypeId` 不再承担 private identity 主体。
     - 对应 `STABLE_ID.md` §5.1、§7.3、§8.5、§10：private LLVM metadata/type family 现已按 semantic key + hashed private namespace 发布，同时继续保持原有 RTTI/GC/layout/itable/vtable/transport ABI 语义不变，并有常驻 source inventory / IR 回归防止旧 naming source 回流。
 
+### [TODO] P7-T01C：收口剩余 RTTI / runtime-match type_id 对 pretty text / sanitize 的依赖
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §6
+  - [`STABLE_ID.md`](./STABLE_ID.md) §3.3、§3.4.6、§3.4.7、§5.1、§7.1、§8.4、§10
+- 背景：
+  - `P7-T01R` 复核发现，active production code 中仍有一类 external identity 直接或间接由 `TypeStore::display()` / `sanitize_llvm_ident()` 驱动，尚未统一走 `stable_id` 的 canonical type encoder。
+  - 当前已确认入口至少包括：
+    - `crates/scoopc/src/rtti/mod.rs`
+      - `type_rtti()` 先用 `self.types.display(ty)` 生成 `name`，再直接 `stable_rtti_type_id(&name)`。
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+      - `codegen_ref_is_instance_of_nonnull()` 在 interface runtime-match 路径中直接 `stable_rtti_type_id(&self.types.display(target_ty).to_string())`。
+      - `get_or_create_boxed_enum_type_desc_global()` 把 `format!("scoop.runtime.BoxedEnum<{}>", type_store.display(enum_ty))` 作为 type descriptor `canonical_name`。
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+      - `get_or_create_mir_capture_box_type_desc_global()` 仍以 `sanitize_llvm_ident(&types.display(value_ty).to_string())` 构造 descriptor `canonical_name`。
+      - `get_or_create_mir_value_box_type_desc_global()` 仍以 `format!("scoop.runtime.ValueBox<{}>", types.display(source_ty))` 构造 descriptor `canonical_name`。
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+      - `get_or_create_type_descriptor_global()` 当前仍把 `canonical_name` 直接喂给 `stable_rtti_type_id(...)`，导致上述 display/sanitize 文本继续承担 RTTI `type_id` 身份输入。
+  - 这直接违反了 `STABLE_ID.md` 对“`TypeStore::display()` / `sanitize_llvm_ident()` 只能作为可读文本，不能承担 identity 责任”的要求，因此 `P7-T01R` 不能在该缺口未收口前签收。
+- 目标：
+  - 把 remaining RTTI / runtime-match / derived type-desc `type_id` 输入统一迁到 authoritative semantic canonical key，同时把“可读 display name”和“真正参与 hash 的 canonical key”彻底分开。
+- 必须实现的内容：
+  1. 为 RTTI `type_id` / runtime-match type-id 补齐统一的 semantic canonical key helper，直接复用 `stable_id` 的 canonical type encoder，而不是 `TypeStore::display()` / `sanitize_llvm_ident()`。
+  2. 调整 `rtti/mod.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/mir_body.rs`、`llvm/codegen/gc.rs` 中相关 call site；必要时为 `TypeDescriptorSpec` / `get_or_create_type_descriptor_global()` 显式拆分：
+     - 供外部显示的 readable name
+     - 供 `stable_rtti_type_id(...)` 使用的 canonical identity key
+  3. 按同根问题成组处理 sibling case，至少覆盖：generic/parameterized RTTI query、interface runtime-match type-id、boxed enum / MIR capture-box / MIR value-box descriptor 路径；不得只修单一 descriptor 名称。
+  4. 扩充 `stable_id_source_inventory`、RTTI dump 测试与相关 LLVM/runtime metadata 回归，防止 `stable_rtti_type_id(types.display(...))`、`sanitize_llvm_ident(display)` 再次回流为 external identity 输入。
+- 必须遵从的约束：
+  - 不得改变 RTTI dump 的人类可读展示目标，除非变化仅限 identity 字段从 pretty text 输入改到 semantic canonical key。
+  - 不得改变 GC bitmap、layout、itable/vtable slot、runtime-match 语义或运行时 ABI。
+  - 不得把 readable label 和 identity key 再次混用；若某处仍需要保留可读名，必须与 hash 输入显式分离。
+- 验证：
+  1. `cargo test -p scoopc dump_rtti -- --nocapture`
+  2. `cargo test -p scoopc runtime_type_primitives -- --nocapture`
+  3. `cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+  4. `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+  5. `cargo test -p scoopc`
+  6. `cargo clippy -p scoopc --all-targets -- -D warnings`
+- 完成条件：
+  - RTTI `type_id`、interface runtime-match type-id 与 derived runtime type-desc identity 已不再由 `TypeStore::display()` / `sanitize_llvm_ident()` 直接控制；随后 `P7-T01R` 才能继续做最终签收。
+- 依赖：P7-T01B
+- 完成记录：
+  - 待填。
+
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 
 - 参考：
@@ -1846,6 +1891,6 @@
   - 在完成记录中给出一份最终结论清单，对应 `PLAN.md` §6 的 8 条完成标准逐项签收。
 - 完成条件：
   - 可以明确写出：stable-id 整改已经闭合，后续若还有工作，只属于增量优化或新需求，而不再是本轮 identity 治理主线。
-- 依赖：P7-T01、P7-T01A、P7-T01B
+- 依赖：P7-T01、P7-T01A、P7-T01B、P7-T01C
 - 完成记录：
   - 待填。

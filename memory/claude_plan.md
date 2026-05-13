@@ -1,34 +1,20 @@
 ## 本次执行计划
 
-1. 读取 `TODO.md`，确认第一个未完成任务（仅标题前缀带 `[DONE]` 的任务才算完成）。
-2. 查看最近一次提交，判断是否存在与该任务直接相关且明确标注未完成的内容；如有，则将其视为当前任务的一部分或在 `TODO.md` 中补充为前置依赖。
-3. 阅读当前任务及其依赖涉及的代码、测试、文档，确认约束、验收标准与现状。
-4. 实现当前任务；若遇到阻塞当前任务且必须先修复的问题，则在 `TODO.md` 中以最小必要粒度添加前置任务并停止在该前置整理完成处。
-5. 运行与当前任务直接相关的验证，包括必要的测试、格式化、lint；修复执行中发现的直接相关问题。
-6. 更新 `memory/claude_plan.md` 记录关键进展与计划变更。
-7. 按要求更新 `TODO.md`：将已完成任务标题加上 `[DONE]`，补全完成记录；仅当阶段计划确有变化时才更新 `PLAN.md`。
-8. 检查工作区变更，使用清晰的提交信息创建一次 git 提交，然后停止，不进入下一个任务。
+1. 读取 `TODO.md`，确认当前首个未完成任务；初始识别为 `P7-T01R`。
+2. 对照 `PLAN.md` §6 的 8 条完成标准，以及 `P7-T01` / `P7-T01A` / `P7-T01B` 的完成记录，整理本轮最终验收清单。
+3. 复查 stable-id 审计入口与当前工作区状态，运行 `P7-T01R` 需要的最终审计 / 回归命令，确认没有新的 namespace、identity 或语义漂移问题。
+4. 若复核通过，则在 `TODO.md` 中将 `P7-T01R` 标记为 `[DONE]` 并补全完成记录；若发现阻塞性缺口，则把最小必要前置任务写回 `TODO.md`，保持 `P7-T01R` 未完成，并让新前置任务成为新的首个未完成项。
+5. 更新本文件记录关键结论，随后提交本次结果并停止。
 
 ## 进度记录
 
-- 已创建本次执行计划。
-- 已读取 `TODO.md`，确认首个未完成任务为 `P7-T01B：收口剩余 sanitize/type-display/TypeId 驱动的 private LLVM type/global 命名`。
-- 已检查最近一次提交：`[P7-T01R] Add private metadata naming prerequisite`。该提交用于把当前任务显式补为前置依赖，当前无需再新增前置任务即可进入实现分析。
-- 下一步：阅读 `P7-T01B` 涉及的代码入口与 stable-id/private mangler 基础设施，确认现有命名来源与可复用 helper，再实施最小但成组闭合的改动。
-- 已完成实现主线改动：
-  - 为 `PrivateSymbolMangler` 增加可复用的 private type-name 生成能力，并引入 `CanonicalTextKey` 作为 ad-hoc canonical key 包装。
-  - 已将 boxed-enum、class/object runtime metadata、itable/vtable、MIR capture/value box、enum boxed payload、composite transport descriptor 的 private LLVM type/global naming 改到 stable semantic key + hashed private family。
-  - 已同步更新一批 LLVM/pipeline/fixture 测试，使其验证 private family / 结构语义，而不再绑定旧 sanitize/type-display/TypeId 拼写。
-- 已完成验证：
-  - `cargo fmt`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc runtime_type_primitives -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc composite_transport -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc refactor_llvm_enum_payload_transport -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
-  - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
-- 已回写 `TODO.md`：`P7-T01B` 已标记为 `[DONE]`，并补全改动范围、核心决策、验证结果与对应闭合说明。
-- 下一步：检查最终 diff，按任务要求提交本次所有未提交改动，然后停止。
+- 已读取 `TODO.md`，初始确认首个未完成任务为 `P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移`。
+- 已检查最近一次提交：`[P7-T01B] Mangle private metadata type globals`。提交信息未声明新的未完成缺口，因此进入最终 review / 验收分析。
+- 已对照 `PLAN.md` §6 与 `P7-T01` / `P7-T01A` / `P7-T01B` 完成记录复核关键收口点，并对仓库执行了定向 grep / 代码阅读。
+- 复核中确认新的阻塞性缺口：active RTTI / runtime-match identity 仍有路径让 `TypeStore::display()` / `sanitize_llvm_ident()` 承担 authoritative hash 输入，具体证据包括：
+  - `crates/scoopc/src/rtti/mod.rs:314-315`：`type_rtti()` 直接 `stable_rtti_type_id(&self.types.display(ty).to_string())`。
+  - `crates/scoopc/src/llvm/codegen/mod.rs:7505-7506`：interface runtime-match 直接 `stable_rtti_type_id(&self.types.display(target_ty).to_string())`。
+  - `crates/scoopc/src/llvm/codegen/mod.rs:8861-8864`、`crates/scoopc/src/llvm/codegen/mir_body.rs:7748-7753, 7781-7788`、`crates/scoopc/src/llvm/codegen/gc.rs:1263-1319`：若干 derived type descriptor 仍用 display/sanitize 生成的 `canonical_name` 参与 `stable_rtti_type_id(...)`。
+- 该缺口直接阻塞 `P7-T01R` 的“external surface 已脱离 pretty text 直接控制”与 `PLAN.md` §6 第 7/8 条签收，因此不能在本次 invocation 中把 `P7-T01R` 标记完成。
+- 已在 `TODO.md` 新增最小必要前置任务 `P7-T01C：收口剩余 RTTI / runtime-match type_id 对 pretty text / sanitize 的依赖`，并将 `P7-T01R` 的依赖更新为包含 `P7-T01C`。
+- 下一步：检查最终 diff，提交本次 blocker 记录与任务重排，然后停止；下一次 invocation 将从新的首个未完成任务 `P7-T01C` 开始。
