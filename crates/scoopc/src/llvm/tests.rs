@@ -504,11 +504,10 @@ fn stable_id_symbol_looks_like_private_closure_body(name: &str) -> bool {
 fn stable_id_ir_contains_hidden_init_call(ir: &str) -> bool {
     ir.lines().any(|line| {
         line.contains(" call ")
-            && (line.contains("__scoop_object_init__")
-                || line.contains("__scoop_refactor_hidden_object_init_bridge__")
-                || line.contains("__scoop_top_level_val_init__")
-                || line.contains("__scoop_refactor_hidden_top_level_init_bridge__")
-                || line.contains("__scoop_priv0__"))
+            && (line.contains("__scoop_priv0__object_init__h")
+                || line.contains("__scoop_priv0__hidden_object_init_bridge__h")
+                || line.contains("__scoop_priv0__top_level_val_init__h")
+                || line.contains("__scoop_priv0__hidden_top_level_init_bridge__h"))
     })
 }
 
@@ -804,8 +803,9 @@ fn stable_id_audit_external_symbol_classifier_distinguishes_roles() {
         StableIdExternalSymbolRole::UserAbi
     );
     for helper in [
-        "__scoop_refactor_hidden_object_init_bridge__a.Boot",
-        "__scoop_top_level_val_init__a.Seed",
+        "__scoop_priv0__hidden_object_init_bridge__h0123456789abcdef0123456789abcdef",
+        "__scoop_priv0__top_level_val_init__h0123456789abcdef0123456789abcdef",
+        "__scoop_priv0__object_instance__h0123456789abcdef0123456789abcdef",
         "scoop.lambda$0",
         "scoop.lambda_resume$0",
         "scoop.lambda_env$0",
@@ -969,6 +969,32 @@ fn stable_id_source_inventory_removes_legacy_effect_private_naming_fallbacks_fro
             !layout_source.contains(needle),
             "effect private naming 生产代码不应再残留 legacy stem/schema fallback：{needle}"
         );
+    }
+}
+
+#[test]
+fn stable_id_source_inventory_removes_legacy_init_private_naming_from_codegen() {
+    for source in [
+        include_str!("codegen/object_init.rs"),
+        include_str!("mod.rs"),
+    ] {
+        for needle in [
+            "__scoop_object_init__",
+            "__scoop_refactor_hidden_object_init_bridge__",
+            "__scoop_object_guard__",
+            "__scoop_object_instance__",
+            "__scoop_object_prop__",
+            "__scoop_top_level_val_init__",
+            "__scoop_refactor_hidden_top_level_init_bridge__",
+            "__scoop_top_level_val_guard__",
+            "__scoop_top_level_val__",
+            "__scoop_top_level_var__",
+        ] {
+            assert!(
+                !source.contains(needle),
+                "object/top-level init 生产代码不应再残留 legacy private naming：{needle}"
+            );
+        }
     }
 }
 
@@ -2640,10 +2666,15 @@ fun main(): Int {
                 && function_ir_calls_symbol(function, helper_symbol)
         },
     );
+    let object_init_symbol = llvm_function_symbol_name(object_init_ir);
 
     assert!(
         function_ir_calls_symbol(object_init_ir, helper_symbol),
         "direct-HIR reachability 也必须保留 object init body 对 helper 的调用:\n{object_init_ir}"
+    );
+    assert!(
+        stable_id_symbol_has_private_role(object_init_symbol, "object_init"),
+        "object init helper 应收口到 object_init private role，实际符号: {object_init_symbol}"
     );
     assert!(
         ir.lines()
@@ -4197,6 +4228,10 @@ fun main(): Int {
         "object 单例槽应保存 GC-managed receiver 指针，而不是把某个固定全局名当金标准\n{ir}"
     );
     assert!(
+        stable_id_symbol_has_private_role(singleton_slot_symbol, "object_instance"),
+        "object singleton slot 应使用 object_instance private role，实际符号: {singleton_slot_symbol}"
+    );
+    assert!(
         ir.contains("@scoop_alloc_typed"),
         "object 单例值应通过 typed alloc 生成真实 Ref 对象"
     );
@@ -5568,9 +5603,14 @@ fun main() {
                 && function_ir_explicit_root_descriptor(function).is_some()
         },
     );
+    let init_symbol = llvm_function_symbol_name(init_ir);
     let init_desc = function_ir_explicit_root_descriptor(init_ir)
         .expect("top-level immutable init helper should store an explicit-root descriptor");
 
+    assert!(
+        stable_id_symbol_has_private_role(init_symbol, "top_level_val_init"),
+        "top-level immutable init helper 应使用 top_level_val_init private role，实际符号: {init_symbol}"
+    );
     assert!(
         llvm_ir_defines_global(&ir, init_desc),
         "expected top-level immutable initializer to emit a descriptor global\n{ir}"

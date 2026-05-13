@@ -16,7 +16,9 @@ use std::process::Command;
 
 use libc::c_void;
 
-const GUARD_SYMBOL: &str = "__scoop_object_guard__fixtures.once_guard.Object";
+// 这里只需要一个稳定的 compiler-private guard symbol 样例，验证 runtime 按符号名
+// canonicalize guard address；它不依赖某个具体 object FQN 的旧拼写。
+const GUARD_SYMBOL: &str = "__scoop_priv0__object_guard__h0123456789abcdef0123456789abcdef";
 
 struct Dylib {
     handle: *mut c_void,

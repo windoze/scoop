@@ -109,7 +109,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let name = refactor_hidden_object_init_bridge_fn_name(object_fqn);
+        let stable_key = self.stable_object_init_key(object_fqn);
+        let name = private_object_init_bridge_fn_name(&stable_key);
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
             self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
@@ -171,7 +172,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let name = object_init_fn_name(object_fqn);
+        let stable_key = self.stable_object_init_key(object_fqn);
+        let name = private_object_init_fn_name(&stable_key);
         let fn_ty = self.context.void_type().fn_type(&[], false);
 
         let llvm_fun =
@@ -210,14 +212,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(crate::span::Span::new(0, 0));
 
         self.current_source_id = self.source_id_for_path(obj.source_path.as_path(), err_span)?;
-        self.enter_root_callable_identity(
-            object_init_fn_name(&obj.fqn),
-            self.stable_def_key_for_current_cone(
-                StableDefNamespace::ObjectInit,
-                &obj.fqn,
-                "object_init",
-            ),
-        );
+        let stable_key = self.stable_object_init_key(&obj.fqn);
+        self.enter_root_callable_identity(private_object_init_fn_name(&stable_key), stable_key);
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
@@ -264,7 +260,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // properties 仍保存在独立的全局槽里，因此这里的实例对象只承载 header/type-desc 身份。
         let _ = self.allocate_object_singleton_instance(err_span, &obj.fqn)?;
         let instance_global = self.declare_object_instance_global(&obj.fqn);
-        let instance_name = object_instance_global_name(&obj.fqn);
+        let instance_name =
+            private_object_instance_global_name(&self.stable_object_init_key(&obj.fqn));
         self.register_global_root_if_needed(
             err_span,
             instance_global,
@@ -307,7 +304,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             v,
                         )?;
                         let storage_ty = self.llvm_basic_type_of(init.span, prop_cg)?;
-                        let global_name = object_prop_global_name(&prop_fqn);
+                        let global_name = private_object_prop_global_name(
+                            &self.stable_object_property_key(&prop_fqn),
+                        );
                         self.register_global_root_if_needed(
                             init.span,
                             global,
@@ -336,7 +335,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn declare_object_init_guard(&self, object_fqn: &str) -> GlobalValue<'ctx> {
-        let name = object_guard_global_name(object_fqn);
+        let stable_key = self.stable_object_init_key(object_fqn);
+        let name = private_object_guard_global_name(&stable_key);
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
         }
@@ -351,7 +351,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn declare_object_instance_global(&self, object_fqn: &str) -> GlobalValue<'ctx> {
-        let name = object_instance_global_name(object_fqn);
+        let stable_key = self.stable_object_init_key(object_fqn);
+        let name = private_object_instance_global_name(&stable_key);
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
         }
@@ -450,6 +451,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn stable_object_init_key(&self, object_fqn: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(
+            StableDefNamespace::ObjectInit,
+            object_fqn,
+            "object_init",
+        )
+    }
+
+    fn stable_object_property_key(&self, prop_fqn: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(StableDefNamespace::Value, prop_fqn, "object_property")
+    }
+
     fn declare_object_property_global(
         &mut self,
         at: crate::span::Span,
@@ -460,7 +473,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let name = object_prop_global_name(prop_fqn);
+        let stable_key = self.stable_object_property_key(prop_fqn);
+        let name = private_object_prop_global_name(&stable_key);
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(Some(existing));
         }
@@ -485,22 +499,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-fn object_init_fn_name(object_fqn: &str) -> String {
-    format!("__scoop_object_init__{object_fqn}")
+fn private_object_init_fn_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("object_init", stable_key)
 }
 
-fn refactor_hidden_object_init_bridge_fn_name(object_fqn: &str) -> String {
-    format!("__scoop_refactor_hidden_object_init_bridge__{object_fqn}")
+fn private_object_init_bridge_fn_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("hidden_object_init_bridge", stable_key)
 }
 
-fn object_guard_global_name(object_fqn: &str) -> String {
-    format!("__scoop_object_guard__{object_fqn}")
+fn private_object_guard_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("object_guard", stable_key)
 }
 
-fn object_instance_global_name(object_fqn: &str) -> String {
-    format!("__scoop_object_instance__{object_fqn}")
+fn private_object_instance_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("object_instance", stable_key)
 }
 
-fn object_prop_global_name(prop_fqn: &str) -> String {
-    format!("__scoop_object_prop__{prop_fqn}")
+fn private_object_prop_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("object_prop", stable_key)
 }

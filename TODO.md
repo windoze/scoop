@@ -1662,7 +1662,7 @@
     - 对应 `STABLE_ID.md` §11：完整 grep 清单已重跑并分类，旧 effect helper 名字模式已清零，残余命中均已证明属于内部 handle、健康基线负向断言或审计测试文本，而不是 active external leakage。
     - 对应 `PLAN.md` §6 / `STABLE_ID.md` §10-§12：在当次全量 `scoopc` / runtime / fixture / spec-fixture / workspace / clippy 矩阵通过后进入最终 review；随后 `P7-T01R` 预检查发现 object/top-level init 仍残留 legacy private naming，因此需先完成补遗任务 `P7-T01A`，再做最终签收。
 
-### [TODO] P7-T01A：收口剩余 object/top-level init compiler-private function/global 命名到 `PrivateSymbolMangler`
+### [DONE] P7-T01A：收口剩余 object/top-level init compiler-private function/global 命名到 `PrivateSymbolMangler`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P2、§6
@@ -1711,7 +1711,36 @@
   - object/top-level init 相关 compiler-private function/global 的 active production 命名已统一走 `PrivateSymbolMangler`，不再残留上述 legacy family；随后才能继续执行 `P7-T01R`。
 - 依赖：P7-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/object_init.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`
+    - `crates/scoop_runtime/tests/once_guard_cross_dylib.rs`
+  - 核心决策：
+    - object init bridge/init function/guard/instance/property global 与 top-level immutable init bridge/init function/guard/value global、top-level var global，现统一通过 `PrivateSymbolMangler` 生成 `__scoop_priv0__<role>__h<hash128>` 名字；保留可读 role，但唯一性完全转交 stable hash。
+    - stable key 仍显式保留 `namespace` / `declaration_kind`，不是因为 `package.name` 与 `package.objectId.name` 这类源码 FQN 会冲突，而是因为同一 owner FQN 会派生多个 compiler-private 实体（init helper、bridge、guard、instance slot、backing global 等），不能只靠 FQN 文本区分。
+    - 本轮收口的 role family 固定为：`object_init`、`hidden_object_init_bridge`、`object_guard`、`object_instance`、`object_prop`、`top_level_val_init`、`hidden_top_level_init_bridge`、`top_level_val_guard`、`top_level_val`、`top_level_var`；从而在不再依赖旧 FQN 拼接的前提下，保留 helper/global 家族可读性与现有测试语义。
+    - 测试面新增 `stable_id_source_inventory_removes_legacy_init_private_naming_from_codegen`，并把相关 LLVM/build/runtime 回归改到新 private role family：
+      - LLVM 定向测试现在显式验证 `object_instance` / `object_init` / `top_level_val_init` role。
+      - `unsafe_atomic_int_top_level_storage_llvm.scoop` 从旧固定名字迁到 hashed regex，继续验证 top-level atomic storage 直接命中静态槽。
+      - `once_guard_cross_dylib.rs` 改用 representative 的新 `object_guard` private family，避免 runtime 回归继续示范旧 spelling。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc external_symbol_audit_closure_effect_and_hidden_init_helpers_smoke -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc stable_id_source_inventory -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc top_level_immutable_init_emits_explicit_root_frame_descriptor -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc direct_hir_reachability_emits_object_init_helper_dependency_for_hir_top_level_ref -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc class_init_order_fixture_collects_class_init_println_call_bindings -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/build`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_init_order_primary_secondary_basic.scoop`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `cargo test -p scoop_runtime once_guard_is_canonical_across_dylibs -- --nocapture`
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P2 / P7 与 `STABLE_ID.md` §5.1、§7.3、§7.4、§8.5：remaining object/top-level init compiler-private function/global 已全部收口到统一 private mangler，且继续保持 internal/private linkage，不再依赖 legacy FQN 拼接进入全局命名空间。
+    - 对应 `STABLE_ID.md` §10：object/top-level init 相关 LLVM/build/runtime 回归现在锁定的是 private role family、调用关系、descriptor/global 角色与 linkage 语义，而不是 `__scoop_object_init__...` / `__scoop_top_level_var__...` 旧 textual spelling；`P7-T01R` 现在可以在此基线上继续做最终签收。
 
 ### [TODO] P7-T01R：Review 全量收口结果，确认 stable-id 方案已闭合且未带来功能漂移
 

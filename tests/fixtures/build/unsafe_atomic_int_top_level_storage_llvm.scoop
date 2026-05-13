@@ -1,12 +1,12 @@
 // EXPECT: pass
 // ARGS: --emit-llvm --opt-level 0
-// BUILD-LLVM-CONTAINS: @__scoop_top_level_var__fixtures.build.ready = internal global i64 0
-// BUILD-LLVM-CONTAINS: @__scoop_top_level_var__fixtures.build.tlsReady = internal thread_local global i64 0
-// BUILD-LLVM-CONTAINS: load atomic i64, ptr @__scoop_top_level_var__fixtures.build.ready
-// BUILD-LLVM-CONTAINS: store atomic i64 1, ptr @__scoop_top_level_var__fixtures.build.ready
-// BUILD-LLVM-CONTAINS: cmpxchg ptr @__scoop_top_level_var__fixtures.build.ready
-// BUILD-LLVM-CONTAINS: store atomic i64 3, ptr @__scoop_top_level_var__fixtures.build.tlsReady
-// BUILD-LLVM-CONTAINS: load atomic i64, ptr @__scoop_top_level_var__fixtures.build.tlsReady
+// BUILD-LLVM-REGEX: @__scoop_priv0__top_level_var__h[0-9a-f]{32} = internal global i64 0
+// BUILD-LLVM-REGEX: @__scoop_priv0__top_level_var__h[0-9a-f]{32} = internal thread_local global i64 0
+// BUILD-LLVM-REGEX: load atomic i64, ptr @__scoop_priv0__top_level_var__h[0-9a-f]{32}
+// BUILD-LLVM-REGEX: store atomic i64 1, ptr @__scoop_priv0__top_level_var__h[0-9a-f]{32}
+// BUILD-LLVM-REGEX: cmpxchg ptr @__scoop_priv0__top_level_var__h[0-9a-f]{32}
+// BUILD-LLVM-REGEX: store atomic i64 3, ptr @__scoop_priv0__top_level_var__h[0-9a-f]{32}
+// BUILD-LLVM-REGEX: load atomic i64, ptr @__scoop_priv0__top_level_var__h[0-9a-f]{32}
 //
 // 目标：top-level `@Global/@ThreadLocal __AtomicInt` 作为 lvalue 传给 `__atomicInt*`
 // 时，必须直接在静态存储上发出 atomic 指令，而不是先退化成普通 `load`。

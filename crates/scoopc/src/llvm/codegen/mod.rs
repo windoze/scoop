@@ -1901,6 +1901,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    fn stable_top_level_immutable_value_key(&self, value_fqn: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(
+            StableDefNamespace::Value,
+            value_fqn,
+            "top_level_value",
+        )
+    }
+
+    fn stable_top_level_init_key(&self, value_fqn: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(
+            StableDefNamespace::TopLevelInit,
+            value_fqn,
+            "top_level_init",
+        )
+    }
+
+    fn stable_top_level_var_key(&self, var_fqn: &str) -> StableDefKey {
+        self.stable_def_key_for_current_cone(StableDefNamespace::Value, var_fqn, "top_level_var")
+    }
+
     fn stable_def_key_for_callable_signature(
         &self,
         owner_path: &str,
@@ -3532,7 +3552,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         v: &hir::TopLevelVar,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let name = top_level_var_global_name(&v.fqn);
+        let name = private_top_level_var_global_name(&self.stable_top_level_var_key(&v.fqn));
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(existing);
         }
@@ -4264,7 +4284,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn declare_top_level_immutable_value_guard(&self, value_fqn: &str) -> GlobalValue<'ctx> {
-        let name = top_level_immutable_value_guard_global_name(value_fqn);
+        let name = private_top_level_immutable_value_guard_global_name(
+            &self.stable_top_level_init_key(value_fqn),
+        );
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
         }
@@ -4342,7 +4364,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let name = top_level_immutable_value_global_name(&value.fqn);
+        let name = private_top_level_immutable_value_global_name(
+            &self.stable_top_level_immutable_value_key(&value.fqn),
+        );
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(Some(existing));
         }
@@ -4372,7 +4396,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let name = top_level_immutable_value_init_fn_name(value_fqn);
+        let name = private_top_level_immutable_value_init_fn_name(
+            &self.stable_top_level_init_key(value_fqn),
+        );
         let fn_ty = self.context.void_type().fn_type(&[], false);
         let llvm_fun =
             self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
@@ -4404,7 +4430,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let name = refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn);
+        let name = private_top_level_immutable_value_init_bridge_fn_name(
+            &self.stable_top_level_init_key(value_fqn),
+        );
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
             self.declare_compiler_private_helper_function(&name, fn_ty, Linkage::Internal);
@@ -4464,13 +4492,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|init| init.span)
             .unwrap_or(value.span);
         self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
+        let stable_key = self.stable_top_level_init_key(&value.fqn);
         self.enter_root_callable_identity(
-            top_level_immutable_value_init_fn_name(&value.fqn),
-            self.stable_def_key_for_current_cone(
-                StableDefNamespace::TopLevelInit,
-                &value.fqn,
-                "top_level_init",
-            ),
+            private_top_level_immutable_value_init_fn_name(&stable_key),
+            stable_key,
         );
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
@@ -4533,7 +4558,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _stored =
                 self.store_local_value(init.span, global.as_pointer_value(), value_cg, init_value)?;
             let storage_ty = self.llvm_basic_type_of(init.span, value_cg)?;
-            let global_name = top_level_immutable_value_global_name(&value.fqn);
+            let global_name = private_top_level_immutable_value_global_name(
+                &self.stable_top_level_immutable_value_key(&value.fqn),
+            );
             self.register_global_root_if_needed(init.span, global, &global_name, storage_ty)?;
         }
 
@@ -9020,24 +9047,24 @@ pub(crate) fn private_closure_env_type_desc_name(closure_key: &StableClosureKey)
     PrivateSymbolMangler.mangle("closure_env_type_desc", closure_key)
 }
 
-fn top_level_immutable_value_init_fn_name(value_fqn: &str) -> String {
-    format!("__scoop_top_level_val_init__{value_fqn}")
+fn private_top_level_immutable_value_init_fn_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("top_level_val_init", stable_key)
 }
 
-fn refactor_hidden_top_level_immutable_value_init_bridge_fn_name(value_fqn: &str) -> String {
-    format!("__scoop_refactor_hidden_top_level_init_bridge__{value_fqn}")
+fn private_top_level_immutable_value_init_bridge_fn_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("hidden_top_level_init_bridge", stable_key)
 }
 
-fn top_level_immutable_value_guard_global_name(value_fqn: &str) -> String {
-    format!("__scoop_top_level_val_guard__{value_fqn}")
+fn private_top_level_immutable_value_guard_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("top_level_val_guard", stable_key)
 }
 
-fn top_level_immutable_value_global_name(value_fqn: &str) -> String {
-    format!("__scoop_top_level_val__{value_fqn}")
+fn private_top_level_immutable_value_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("top_level_val", stable_key)
 }
 
-fn top_level_var_global_name(var_fqn: &str) -> String {
-    format!("__scoop_top_level_var__{var_fqn}")
+fn private_top_level_var_global_name(stable_key: &StableDefKey) -> String {
+    PrivateSymbolMangler.mangle("top_level_var", stable_key)
 }
 
 fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
