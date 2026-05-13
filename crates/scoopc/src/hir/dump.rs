@@ -8,11 +8,11 @@ use crate::ty::TypeStore;
 
 use super::{
     AccessorContract, Block, CallArg, Capture, ClassLiteralExpr, ClosureExpr, CtorDecl,
-    CtorParamDecl, Decl, DeclMember, DeclTypeParam, EffectOpRef, EnumVariantDecl,
-    ExtensionPropertyDecl, Expr, ExprKind, FieldDecl, File, FunDecl, HandleArm, HandleArmKind,
-    HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart, Item, LiteralKind, MemberAccess,
-    MemberFunDecl, MemberRef, NominalDecl, ObjectDecl, Param, PropertyDecl, Stmt, StmtKind,
-    StructLitField, SupertypeDecl, SymbolId, TypeAliasDecl, ValueRef, ValDecl, WhenArm, WhenPat,
+    CtorParamDecl, Decl, DeclMember, DeclTypeParam, EffectOpRef, EnumVariantDecl, Expr, ExprKind,
+    ExtensionPropertyDecl, FieldDecl, File, FunDecl, HandleArm, HandleArmKind, HandleBinder,
+    HandleExpr, HandleOp, InterpolatedStringPart, Item, LiteralKind, MemberAccess, MemberFunDecl,
+    MemberRef, NominalDecl, ObjectDecl, Param, PropertyDecl, Stmt, StmtKind, StructLitField,
+    SupertypeDecl, SymbolId, TypeAliasDecl, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 pub(crate) fn stable_dump_file(file: &File, types: &TypeStore, source_path: &Path) -> String {
@@ -488,7 +488,12 @@ impl<'a> HirDumpRenderer<'a> {
                 self.out.pop_indent();
                 self.line("},");
             }
-            ExprKind::Binary { lhs, op, op_span, rhs } => {
+            ExprKind::Binary {
+                lhs,
+                op,
+                op_span,
+                rhs,
+            } => {
                 self.line("kind: Binary {");
                 self.out.push_indent();
                 self.render_expr_field(owner, "lhs", lhs);
@@ -587,7 +592,11 @@ impl<'a> HirDumpRenderer<'a> {
                 self.out.pop_indent();
                 self.line("},");
             }
-            ExprKind::Perform { effect_ty, op, args } => {
+            ExprKind::Perform {
+                effect_ty,
+                op,
+                args,
+            } => {
                 self.line("kind: Perform {");
                 self.out.push_indent();
                 self.field_type("effect_ty", *effect_ty);
@@ -650,7 +659,10 @@ impl<'a> HirDumpRenderer<'a> {
     }
 
     fn render_closure_expr(&mut self, owner: &str, closure: &ClosureExpr) {
-        let closure_owner = format!("{owner}/closure:{}..{}", closure.span.start, closure.span.end);
+        let closure_owner = format!(
+            "{owner}/closure:{}..{}",
+            closure.span.start, closure.span.end
+        );
         self.open_struct("ClosureExpr");
         self.field_debug("span", &closure.span);
         self.field_label("label", self.synthetic_label("closure", closure.span));
@@ -1178,7 +1190,10 @@ fn collect_block_symbol_spans(block: &Block, spans: &mut HashMap<SymbolId, crate
 
 fn collect_stmt_symbol_spans(stmt: &Stmt, spans: &mut HashMap<SymbolId, crate::span::Span>) {
     match &stmt.kind {
-        StmtKind::Empty | StmtKind::Break { .. } | StmtKind::Continue { .. } | StmtKind::Todo(_) => {}
+        StmtKind::Empty
+        | StmtKind::Break { .. }
+        | StmtKind::Continue { .. }
+        | StmtKind::Todo(_) => {}
         StmtKind::Expr(expr) => collect_expr_symbol_spans(expr, spans),
         StmtKind::Val(val) => {
             if let Some(id) = val.id {

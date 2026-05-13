@@ -800,6 +800,16 @@ pub fn stable_hash64(scope: StableHashScope, canonical_text: &str) -> u64 {
     u64::from_le_bytes(bytes)
 }
 
+/// Shared RTTI type-id helper for descriptor names and runtime-match type names.
+pub fn stable_rtti_type_id(canonical_name: &str) -> u64 {
+    stable_hash64(StableHashScope::RttiV0, canonical_name)
+}
+
+/// Shared RTTI interface-id helper for interface declaration identities.
+pub fn stable_rtti_interface_id(canonical_name: &str) -> u64 {
+    stable_hash64(StableHashScope::RttiV0, canonical_name)
+}
+
 /// Overload suffixes stay short, but now hash the shared stable template key.
 pub fn stable_template_symbol_suffix(template: &StableTemplateKey) -> String {
     format!(

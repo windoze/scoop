@@ -14,6 +14,7 @@
 
 mod dump;
 mod lower;
+mod stable_closure;
 pub(crate) use dump::stable_dump_file;
 pub use lower::mangle_nominal_fqn;
 
@@ -39,6 +40,9 @@ pub(crate) use lower::{
     LoweringInputs, canonical_generic_fun_signature_key,
     canonical_generic_property_getter_signature_key,
     generic_template_symbol_suffixes_for_compilation_unit,
+};
+pub(crate) use stable_closure::{
+    stable_closure_lexical_path_in_expr, stable_closure_lexical_path_in_fun,
 };
 
 pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(

@@ -1,7 +1,7 @@
 //! interface dispatch table（itable）布局（T1507c3 / T1508c）。
 //!
 //! 目标：
-//! - 为 interface 分配稳定 `interface_id`（hash64(FQN)）并生成 method slot 表（声明顺序）。
+//! - 为 interface 分配稳定 `interface_id`（共享 RTTI helper）并生成 method slot 表（声明顺序）。
 //! - 为每个 class 生成 itable entries：`interface_id -> slot -> impl_member_fqn`。
 //!
 //! 说明（v0 简化）：
@@ -17,7 +17,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
-use crate::stable_id::{StableHashScope, stable_hash64};
+use crate::stable_id::{stable_rtti_interface_id, stable_rtti_type_id};
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 use crate::typecheck::is_type_assignable;
 use crate::typecheck::{TypeEnv, TypeEnvError, TypeLowerError, TypeLowering, TypeSymbolKind};
@@ -335,10 +335,7 @@ fn build_base_class_itables(
         for iface_fqn in ifaces {
             let (interface_id, method_slots) = match interfaces.get(&iface_fqn) {
                 Some(info) => (info.interface_id, info.method_slots.clone()),
-                None => (
-                    stable_hash64(StableHashScope::RttiV0, &iface_fqn),
-                    Vec::new(),
-                ),
+                None => (stable_rtti_interface_id(&iface_fqn), Vec::new()),
             };
 
             // slot -> impl_member_fqn：保持与 slot index 对齐。
@@ -388,7 +385,7 @@ fn build_base_class_itables(
             }
 
             let interface_type_name = iface_fqn.clone();
-            let interface_type_id = stable_hash64(StableHashScope::RttiV0, &interface_type_name);
+            let interface_type_id = stable_rtti_type_id(&interface_type_name);
             entries.push(ClassItableEntry {
                 interface_fqn: iface_fqn,
                 interface_id,
@@ -560,10 +557,7 @@ fn build_precise_class_itable_entries(
         };
         let (interface_id, method_slots) = match interfaces.get(&nominal.fqn) {
             Some(info) => (info.interface_id, info.method_slots.clone()),
-            None => (
-                stable_hash64(StableHashScope::RttiV0, &nominal.fqn),
-                Vec::new(),
-            ),
+            None => (stable_rtti_interface_id(&nominal.fqn), Vec::new()),
         };
 
         let mut impls: Vec<String> = vec![String::new(); method_slots.len()];
@@ -605,7 +599,7 @@ fn build_precise_class_itable_entries(
         }
 
         let interface_type_name = lower.fmt_type(iface_ty);
-        let interface_type_id = stable_hash64(StableHashScope::RttiV0, &interface_type_name);
+        let interface_type_id = stable_rtti_type_id(&interface_type_name);
 
         let mut runtime_match_type_names: Vec<String> = concrete_interface_targets
             .iter()
@@ -620,7 +614,7 @@ fn build_precise_class_itable_entries(
         runtime_match_type_names.dedup();
         let runtime_match_type_ids = runtime_match_type_names
             .iter()
-            .map(|name| stable_hash64(StableHashScope::RttiV0, name))
+            .map(|name| stable_rtti_type_id(name))
             .collect();
 
         entries.push(ClassItableEntry {
@@ -780,7 +774,7 @@ fn collect_interfaces_in_type_decl(
             type_fqn.clone(),
             InterfaceInfo {
                 fqn: type_fqn.clone(),
-                interface_id: stable_hash64(StableHashScope::RttiV0, &type_fqn),
+                interface_id: stable_rtti_interface_id(&type_fqn),
                 super_interfaces,
                 method_slots,
             },

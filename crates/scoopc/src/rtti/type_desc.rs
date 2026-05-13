@@ -21,7 +21,10 @@ use crate::parser::ParseError;
 use crate::resolve::{Index, ModifierSet, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::stable_id::{StableHashScope, stable_hash64};
+use crate::stable_id::{
+    StableClosureKey, StableDefKey, StableDefNamespace, stable_rtti_interface_id,
+    stable_rtti_type_id,
+};
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -294,9 +297,8 @@ pub fn dump_file_type_desc(
     let symbol_tys = collect_symbol_types(&lowered.file);
     let fallback_any = builtin_any_type_id(&lowered.types);
     let fallback_unit = builtin_unit_type_id(&lowered.types);
-    let mut closures: Vec<hir::ClosureExpr> = Vec::new();
-    collect_closures_in_file(&lowered.file, &mut closures);
-    for c in closures {
+    for closure in collect_stable_closure_envs(&lowered) {
+        let c = closure.closure;
         if c.captures.is_empty() {
             continue;
         }
@@ -322,13 +324,11 @@ pub fn dump_file_type_desc(
 
         let (trace_start, bitmap) =
             trace_bitmap_for_payload_fields(target, &lowered.types, &capture_tys);
+        let canonical_name = closure.stable_key.env_canonical_name();
         out.push(TypeDesc {
-            name: format!("scoop.lambda_env${}", c.id.as_u32()),
+            name: canonical_name.clone(),
             kind: TypeDescKind::ClosureEnv,
-            type_id: stable_hash64(
-                StableHashScope::RttiV0,
-                &format!("scoop.lambda_env${}", c.id.as_u32()),
-            ),
+            type_id: stable_rtti_type_id(&canonical_name),
             parent: None,
             parent_chain: Vec::new(),
             trace_start_offset_bytes: trace_start,
@@ -812,10 +812,7 @@ fn build_class_itables(
                     (iface.interface_id, iface.method_slots.clone())
                 } else {
                     // best-effort：interface decl 不在本次 scan 中时，仍保留 id 与空 slots，便于 debug。
-                    (
-                        stable_hash64(StableHashScope::RttiV0, &iface_name),
-                        Vec::new(),
-                    )
+                    (stable_rtti_interface_id(&iface_name), Vec::new())
                 };
 
             let mut mapped: Vec<ItableMethodSlot> = Vec::new();
@@ -847,9 +844,9 @@ fn build_class_itables(
             entries.push(ItableEntry {
                 interface_id,
                 interface_name: iface_name.clone(),
-                interface_type_id: stable_hash64(StableHashScope::RttiV0, &iface_name),
+                interface_type_id: stable_rtti_type_id(&iface_name),
                 interface_type_name: iface_name.clone(),
-                runtime_match_type_ids: vec![stable_hash64(StableHashScope::RttiV0, &iface_name)],
+                runtime_match_type_ids: vec![stable_rtti_type_id(&iface_name)],
                 runtime_match_type_names: vec![iface_name],
                 method_slots: mapped,
             });
@@ -1000,7 +997,7 @@ fn collect_interfaces_in_type_decl(
 
         out.push(InterfaceDesc {
             name: type_fqn.clone(),
-            interface_id: stable_hash64(StableHashScope::RttiV0, &type_fqn),
+            interface_id: stable_rtti_interface_id(&type_fqn),
             super_interfaces,
             method_slots,
         });
@@ -1112,7 +1109,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.core.String".to_string(),
         kind: TypeDescKind::Builtin,
-        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.core.String"),
+        type_id: stable_rtti_type_id("scoop.core.String"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: header_size,
@@ -1126,7 +1123,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.runtime.BoxedUnit".to_string(),
         kind: TypeDescKind::Builtin,
-        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.runtime.BoxedUnit"),
+        type_id: stable_rtti_type_id("scoop.runtime.BoxedUnit"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: 0,
@@ -1143,7 +1140,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         out.push(TypeDesc {
             name: name.clone(),
             kind: TypeDescKind::Builtin,
-            type_id: stable_hash64(StableHashScope::RttiV0, &name),
+            type_id: stable_rtti_type_id(&name),
             parent: None,
             parent_chain: Vec::new(),
             trace_start_offset_bytes: header_size,
@@ -1161,7 +1158,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     out.push(TypeDesc {
         name: "scoop.runtime.ScoopClosure".to_string(),
         kind: TypeDescKind::ClosureObject,
-        type_id: stable_hash64(StableHashScope::RttiV0, "scoop.runtime.ScoopClosure"),
+        type_id: stable_rtti_type_id("scoop.runtime.ScoopClosure"),
         parent: None,
         parent_chain: Vec::new(),
         trace_start_offset_bytes: header_size,
@@ -1244,7 +1241,7 @@ fn class_type_desc(
     Ok(Some(TypeDesc {
         name: base.fqn.clone(),
         kind: TypeDescKind::Class,
-        type_id: stable_hash64(StableHashScope::RttiV0, &base.fqn),
+        type_id: stable_rtti_type_id(&base.fqn),
         parent,
         parent_chain: chain,
         trace_start_offset_bytes: trace_start,
@@ -1448,21 +1445,98 @@ fn collect_symbol_types_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolI
     }
 }
 
-fn collect_closures_in_file(file: &hir::File, out: &mut Vec<hir::ClosureExpr>) {
-    for item in &file.items {
-        match item {
-            hir::Item::Fun(fun) => {
-                if let Some(body) = fun.body.as_ref() {
-                    collect_closures_in_block(body, out);
-                }
-            }
-            hir::Item::Val(v) => {
-                if let Some(init) = v.init.as_ref() {
-                    collect_closures_in_expr(init, out);
-                }
-            }
-            hir::Item::Todo { .. } => {}
-        }
+struct StableClosureEnvDesc {
+    closure: hir::ClosureExpr,
+    stable_key: StableClosureKey,
+}
+
+fn collect_stable_closure_envs(lowered: &hir::LoweredHir) -> Vec<StableClosureEnvDesc> {
+    let mut out = Vec::new();
+
+    for item in &lowered.file.items {
+        let hir::Item::Fun(fun) = item else {
+            continue;
+        };
+        let owner = StableDefKey::new(
+            lowered.stable_cone_key.clone(),
+            StableDefNamespace::Fun,
+            &fun.fqn,
+            "top_level_fun",
+            None,
+        );
+        collect_stable_closure_envs_in_fun(fun, &owner, &mut out);
+    }
+
+    let mut member_funs: Vec<&hir::FunDecl> = lowered.member_funs.iter().collect();
+    member_funs.sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    for fun in member_funs {
+        let owner = StableDefKey::new(
+            lowered.stable_cone_key.clone(),
+            StableDefNamespace::Fun,
+            &fun.fqn,
+            "top_level_fun",
+            None,
+        );
+        collect_stable_closure_envs_in_fun(fun, &owner, &mut out);
+    }
+
+    let mut top_level_values: Vec<&hir::TopLevelImmutableValue> =
+        lowered.top_level_immutable_values.values().collect();
+    top_level_values.sort_by(|left, right| left.fqn.cmp(&right.fqn));
+    for value in top_level_values {
+        let Some(init) = value.init.as_ref() else {
+            continue;
+        };
+        let owner = StableDefKey::new(
+            lowered.stable_cone_key.clone(),
+            StableDefNamespace::TopLevelInit,
+            &value.fqn,
+            "top_level_init",
+            None,
+        );
+        collect_stable_closure_envs_in_expr_root(init, &owner, &mut out);
+    }
+
+    out
+}
+
+fn collect_stable_closure_envs_in_fun(
+    fun: &hir::FunDecl,
+    owner: &StableDefKey,
+    out: &mut Vec<StableClosureEnvDesc>,
+) {
+    let Some(body) = fun.body.as_ref() else {
+        return;
+    };
+    let mut closures = Vec::new();
+    collect_closures_in_block(body, &mut closures);
+    for closure in closures {
+        let Some(lexical_path) = hir::stable_closure_lexical_path_in_fun(fun, closure.span) else {
+            continue;
+        };
+        out.push(StableClosureEnvDesc {
+            closure,
+            stable_key: StableClosureKey::new(owner, lexical_path),
+        });
+    }
+}
+
+fn collect_stable_closure_envs_in_expr_root(
+    expr: &hir::Expr,
+    owner: &StableDefKey,
+    out: &mut Vec<StableClosureEnvDesc>,
+) {
+    let mut closures = Vec::new();
+    collect_closures_in_expr(expr, &mut closures);
+    for closure in closures {
+        let Some(lexical_path) = hir::stable_closure_lexical_path_in_expr(expr, closure.span)
+        else {
+            continue;
+        };
+        out.push(StableClosureEnvDesc {
+            closure,
+            stable_key: StableClosureKey::new(owner, lexical_path),
+        });
     }
 }
 
@@ -1758,6 +1832,11 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
+    use crate::stable_id::{
+        StableClosureKey, StableConeKey, StableDefKey, StableDefNamespace,
+        stable_rtti_interface_id, stable_rtti_type_id,
+    };
+
     #[test]
     fn dump_rtti_type_desc_class_parent_chain_and_bitmap() {
         let sess = Session::new().unwrap();
@@ -1897,7 +1976,7 @@ class BarImpl : IBar {
             .expect("Derived should implement IFoo via Base");
         assert_eq!(
             foo_entry.interface_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
+            stable_rtti_interface_id("rtti.IFoo")
         );
         assert_eq!(foo_entry.method_slots.len(), 1);
         assert_eq!(foo_entry.method_slots[0].slot, 0);
@@ -1923,7 +2002,7 @@ class BarImpl : IBar {
             .expect("BarImpl should implement IFoo via IBar");
         assert_eq!(
             foo_entry.interface_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
+            stable_rtti_interface_id("rtti.IFoo")
         );
         assert_eq!(foo_entry.method_slots.len(), 1);
         assert_eq!(foo_entry.method_slots[0].impl_in, "rtti.BarImpl");
@@ -1936,7 +2015,7 @@ class BarImpl : IBar {
             .expect("BarImpl should implement IBar directly");
         assert_eq!(
             bar_entry.interface_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.IBar")
+            stable_rtti_interface_id("rtti.IBar")
         );
         assert_eq!(bar_entry.method_slots.len(), 1);
         assert_eq!(bar_entry.method_slots[0].slot, 0);
@@ -2003,7 +2082,7 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
         assert_eq!(readable_entry.interface_type_name, "rtti.Readable<String>");
         assert_eq!(
             readable_entry.interface_type_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.Readable<String>")
+            stable_rtti_type_id("rtti.Readable<String>")
         );
         assert!(
             readable_entry
@@ -2025,7 +2104,7 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
             readable_entry
                 .runtime_match_type_names
                 .iter()
-                .map(|name| stable_hash64(StableHashScope::RttiV0, name))
+                .map(|name| stable_rtti_type_id(name))
                 .collect::<Vec<_>>()
         );
 
@@ -2099,7 +2178,18 @@ fun main() {
             .find(|t| t.kind == TypeDescKind::ClosureEnv)
             .expect("should contain at least one closure env desc");
 
-        assert!(env.name.starts_with("scoop.lambda_env$"));
+        let owner = StableDefKey::new(
+            StableConeKey::for_virtual_source_path(src.path()),
+            StableDefNamespace::Fun,
+            "a.main",
+            "top_level_fun",
+            None,
+        );
+        let expected_env_name = StableClosureKey::new(&owner, "$lambda0").env_canonical_name();
+
+        assert_eq!(env.name, expected_env_name);
+        assert_eq!(env.type_id, stable_rtti_type_id(&expected_env_name));
+        assert!(!env.name.contains("scoop.lambda_env$"));
         assert_eq!(env.trace_bitmap_u64, vec![1u64]);
     }
 
@@ -2131,10 +2221,7 @@ interface IBar : IFoo {
             .iter()
             .find(|i| i.name == "rtti.IFoo")
             .expect("should contain rtti.IFoo");
-        assert_eq!(
-            foo.interface_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.IFoo")
-        );
+        assert_eq!(foo.interface_id, stable_rtti_interface_id("rtti.IFoo"));
         assert_eq!(foo.super_interfaces, Vec::<String>::new());
         assert_eq!(foo.method_slots.len(), 2);
         assert_eq!(foo.method_slots[0].slot, 0);
@@ -2149,10 +2236,7 @@ interface IBar : IFoo {
             .iter()
             .find(|i| i.name == "rtti.IBar")
             .expect("should contain rtti.IBar");
-        assert_eq!(
-            bar.interface_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.IBar")
-        );
+        assert_eq!(bar.interface_id, stable_rtti_interface_id("rtti.IBar"));
         assert_eq!(bar.super_interfaces, vec!["rtti.IFoo".to_string()]);
         assert_eq!(bar.method_slots.len(), 1);
         assert_eq!(bar.method_slots[0].slot, 0);

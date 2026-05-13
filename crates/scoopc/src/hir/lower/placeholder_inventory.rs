@@ -271,7 +271,9 @@ fn assert_pipeline_hir_stage_does_not_use_legacy_dump_fallback() {
         "refactor typed HIR stage must not carry the legacy dump-only HIR fallback"
     );
     assert!(
-        hir_stage.contains("crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path())"),
+        hir_stage.contains(
+            "crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path())"
+        ),
         "refactor stable dump should render the stage-owned typed HIR file"
     );
 }

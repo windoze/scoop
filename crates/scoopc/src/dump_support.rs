@@ -125,7 +125,9 @@ pub(crate) fn normalize_dump_path(path: &Path) -> String {
         .unwrap_or(manifest_dir);
 
     let relative = if path.is_absolute() {
-        path.strip_prefix(workspace_root).unwrap_or(path).to_path_buf()
+        path.strip_prefix(workspace_root)
+            .unwrap_or(path)
+            .to_path_buf()
     } else {
         path.to_path_buf()
     };
@@ -169,7 +171,10 @@ mod tests {
     #[test]
     fn normalize_dump_path_keeps_workspace_relative_fixture_paths() {
         let input = std::path::Path::new("crates/scoop/../../tests/fixtures/mir/example.scoop");
-        assert_eq!(normalize_dump_path(input), "tests/fixtures/mir/example.scoop");
+        assert_eq!(
+            normalize_dump_path(input),
+            "tests/fixtures/mir/example.scoop"
+        );
     }
 
     #[test]

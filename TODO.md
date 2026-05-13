@@ -1457,7 +1457,7 @@
 
 ## P6：收尾 RTTI / JSON / shared hash helper
 
-### [TODO] P6-T01：统一 RTTI / interface hash helper，并修复 closure env identity 来源
+### [DONE] P6-T01：统一 RTTI / interface hash helper，并修复 closure env identity 来源
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P6
@@ -1495,7 +1495,36 @@
   - RTTI / interface / type identity 已统一收口，closure env 不再依赖 `ClosureId` 分配顺序。
 - 依赖：P5-T02R
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/stable_id.rs`
+    - `crates/scoopc/src/hir/mod.rs`
+    - `crates/scoopc/src/hir/stable_closure.rs`
+    - `crates/scoopc/src/rtti/mod.rs`
+    - `crates/scoopc/src/rtti/type_desc.rs`
+    - `crates/scoopc/src/itable.rs`
+    - `crates/scoopc/src/llvm/codegen/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+    - `crates/scoopc/src/llvm/codegen/gc.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 新增共享 HIR closure lexical-path helper（`crates/scoopc/src/hir/stable_closure.rs`），把 materialized MIR closure 与 RTTI closure-env 都收口到同一份 `$lambdaN(. $lambdaM)*` authoritative 规则，不再让 RTTI 侧单独发明一套 closure identity 恢复逻辑。
+    - `dump-rtti` closure env 现在按 root owner 的 `StableDefKey` + lexical path 构造 `StableClosureKey`，并使用 `StableClosureKey::env_canonical_name()` 作为 canonical name；`type_id` 同步改走 shared `stable_rtti_type_id(...)`，不再输出/哈希 `scoop.lambda_env$<ClosureId>`。
+    - 在 `stable_id.rs` 增加 shared RTTI helper：`stable_rtti_type_id(...)` 与 `stable_rtti_interface_id(...)`。`rtti/mod.rs`、`rtti/type_desc.rs`、`itable.rs`、以及 LLVM sibling case（`llvm/codegen/mod.rs`、`mir_body.rs`、`gc.rs`）中的 RTTI/interface/runtime-match id 生成点全部改为复用这组 helper，避免继续散落 `stable_hash64(StableHashScope::RttiV0, ...)` 分叉调用。
+    - 对 interface/runtime-match 输入规范的最终决定是：descriptor `type_id`、`interface_type_id`、`runtime_match_type_ids` 统一消费 canonical RTTI type name，经 `stable_rtti_type_id(...)` 生成；`interface_id` 统一消费 canonical interface FQN，经 `stable_rtti_interface_id(...)` 生成。保持 shared `rtti0:` scope，不额外引入与现有 runtime contract 不一致的 ad hoc 子前缀。
+    - `.cone` / JSON 健康 schema 仅做防回归审计，继续复用既有 `path_free` 基线测试，不重写 `api.scoopir` / `PRE_SPECIALIZE.json` / `SYMBOL_VISIBILITY.json` / `ANNOTATION_CLASSES.json` 结构。
+  - 验证结果：
+    - `cargo fmt`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc dump_rtti -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc path_free -- --nocapture`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo test -p scoopc`
+    - `LLVM_CONFIG_PATH="/opt/homebrew/Cellar/llvm@21/21.1.8/bin/llvm-config" cargo clippy -p scoopc --all-targets -- -D warnings`
+    - 精确搜索摘要：
+      - `fn stable_hash64`：仅剩 `crates/scoopc/src/stable_id.rs`
+      - `ClosureId|scoop\.lambda_env\$`：`crates/scoopc/src/rtti`、`crates/scoopc/src/itable.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` 中均为 0 命中
+      - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留 `ClosureId` 内部命中，但仅用于 codegen-time lexical-path cache，不属于 RTTI identity path
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P6：RTTI / interface id / type id 已统一经 shared helper 生成；closure env 的 canonical name / `type_id` 已从 `ClosureId` 迁出；健康 `.cone` / JSON surface 继续停留在“防回归而非重写”的边界内。
+    - 对应 `STABLE_ID.md` §3.3 / §8.4：`dump-rtti` closure env 现在显式走 `StableClosureKey -> canonical name -> shared RTTI hash helper`，不再把 dense id 当作 RTTI hash 输入；interface / runtime-match 同类 surface 也已统一到 shared helper，而不是各模块自带 `stable_hash64` 调用。
 
 ### [TODO] P6-T01R：Review RTTI 与 JSON 收口，确认剩余外部 surface 已只需最终验收
 

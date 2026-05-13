@@ -1315,10 +1315,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i8_ptr_ty.const_null().into(), // trace_fn
             i8_ptr_ty.const_null().into(), // release_fn
             i64_ty
-                .const_int(
-                    stable_hash64(StableHashScope::RttiV0, canonical_name),
-                    false,
-                )
+                .const_int(stable_rtti_type_id(canonical_name), false)
                 .into(),
             parent_ptr.into(),
             itable_ptr.into(),

@@ -61,8 +61,8 @@ use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{
     AbiMangler, NoTypeParamResolver, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
-    StableConeKey, StableDefKey, StableDefNamespace, StableHashScope,
-    canonical_callable_signature_key, stable_hash64,
+    StableConeKey, StableDefKey, StableDefNamespace, canonical_callable_signature_key,
+    stable_rtti_type_id,
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
@@ -2115,7 +2115,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             },
         )?;
-        let lexical_path = stable_closure_lexical_path_in_fun(owner_fun, mir_fun.span)
+        let lexical_path = hir::stable_closure_lexical_path_in_fun(owner_fun, mir_fun.span)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "无法为 materialized MIR closure `{callable_fqn}` 从 HIR body 恢复稳定 lexical path"
@@ -7384,10 +7384,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
                 // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
                 if self.interfaces.contains_key(&nominal.fqn) {
-                    let target_type_id = stable_hash64(
-                        StableHashScope::RttiV0,
-                        &self.types.display(target_ty).to_string(),
-                    );
+                    let target_type_id =
+                        stable_rtti_type_id(&self.types.display(target_ty).to_string());
                     return self.codegen_itable_contains_runtime_type_id(at, obj, target_type_id);
                 }
 
@@ -8978,15 +8976,6 @@ fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {
 
 // Walk HIR in lexical order so materialized-MIR closure helpers can recover the
 // same `$lambdaN.$lambdaM` path without reusing `ClosureId` or old symbol text.
-fn stable_closure_lexical_path_in_fun(
-    fun: &hir::FunDecl,
-    target_span: crate::span::Span,
-) -> Option<String> {
-    let body = fun.body.as_ref()?;
-    let mut next_closure_index = 0;
-    stable_closure_lexical_path_in_block(body, target_span, None, &mut next_closure_index)
-}
-
 fn callable_export_readable_path(owner_path: &str) -> &str {
     let base = owner_path
         .rsplit_once("::<")
@@ -8995,242 +8984,6 @@ fn callable_export_readable_path(owner_path: &str) -> &str {
     base.split_once("$overload$")
         .map(|(base, _)| base)
         .unwrap_or(base)
-}
-
-fn stable_closure_lexical_path_in_block(
-    block: &hir::Block,
-    target_span: crate::span::Span,
-    prefix: Option<&str>,
-    next_closure_index: &mut usize,
-) -> Option<String> {
-    for stmt in &block.stmts {
-        if let Some(path) =
-            stable_closure_lexical_path_in_stmt(stmt, target_span, prefix, next_closure_index)
-        {
-            return Some(path);
-        }
-    }
-    None
-}
-
-fn stable_closure_lexical_path_in_stmt(
-    stmt: &hir::Stmt,
-    target_span: crate::span::Span,
-    prefix: Option<&str>,
-    next_closure_index: &mut usize,
-) -> Option<String> {
-    match &stmt.kind {
-        hir::StmtKind::Empty
-        | hir::StmtKind::Break { .. }
-        | hir::StmtKind::Continue { .. }
-        | hir::StmtKind::Todo(_) => None,
-        hir::StmtKind::Expr(expr) => {
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }
-        hir::StmtKind::Val(val) => val.init.as_ref().and_then(|expr| {
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }),
-        hir::StmtKind::Assign { lhs, rhs, .. } => {
-            stable_closure_lexical_path_in_expr(lhs, target_span, prefix, next_closure_index)
-                .or_else(|| {
-                    stable_closure_lexical_path_in_expr(
-                        rhs,
-                        target_span,
-                        prefix,
-                        next_closure_index,
-                    )
-                })
-        }
-        hir::StmtKind::While { cond, body } => {
-            stable_closure_lexical_path_in_expr(cond, target_span, prefix, next_closure_index)
-                .or_else(|| {
-                    stable_closure_lexical_path_in_block(
-                        body,
-                        target_span,
-                        prefix,
-                        next_closure_index,
-                    )
-                })
-        }
-        hir::StmtKind::Return { value } => value.as_ref().and_then(|expr| {
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }),
-    }
-}
-
-fn stable_closure_lexical_path_in_expr(
-    expr: &hir::Expr,
-    target_span: crate::span::Span,
-    prefix: Option<&str>,
-    next_closure_index: &mut usize,
-) -> Option<String> {
-    match &expr.kind {
-        hir::ExprKind::Missing
-        | hir::ExprKind::Literal(_)
-        | hir::ExprKind::VarRef(_)
-        | hir::ExprKind::UnresolvedIdent { .. }
-        | hir::ExprKind::ClassLiteral(_)
-        | hir::ExprKind::Todo(_) => None,
-        hir::ExprKind::StructLit { fields, .. } => fields.iter().find_map(|field| {
-            stable_closure_lexical_path_in_expr(
-                &field.value,
-                target_span,
-                prefix,
-                next_closure_index,
-            )
-        }),
-        hir::ExprKind::TupleLit { elements } => elements.iter().find_map(|element| {
-            stable_closure_lexical_path_in_expr(element, target_span, prefix, next_closure_index)
-        }),
-        hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
-            let hir::InterpolatedStringPart::Expr { expr } = part else {
-                return None;
-            };
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }),
-        hir::ExprKind::Unary { expr, .. }
-        | hir::ExprKind::TypeCheck { expr, .. }
-        | hir::ExprKind::Cast { expr, .. }
-        | hir::ExprKind::MemberAccess { receiver: expr, .. } => {
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }
-        hir::ExprKind::Binary { lhs, rhs, .. } => {
-            stable_closure_lexical_path_in_expr(lhs, target_span, prefix, next_closure_index)
-                .or_else(|| {
-                    stable_closure_lexical_path_in_expr(
-                        rhs,
-                        target_span,
-                        prefix,
-                        next_closure_index,
-                    )
-                })
-        }
-        hir::ExprKind::Block(block) => {
-            stable_closure_lexical_path_in_block(block, target_span, prefix, next_closure_index)
-        }
-        hir::ExprKind::Closure(closure) => {
-            let path = stable_closure_child_path(prefix, *next_closure_index);
-            *next_closure_index += 1;
-            if closure.span == target_span {
-                return Some(path);
-            }
-            let mut nested_closure_index = 0;
-            stable_closure_lexical_path_in_expr(
-                &closure.body,
-                target_span,
-                Some(path.as_str()),
-                &mut nested_closure_index,
-            )
-        }
-        hir::ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => stable_closure_lexical_path_in_expr(cond, target_span, prefix, next_closure_index)
-            .or_else(|| {
-                stable_closure_lexical_path_in_expr(
-                    then_branch,
-                    target_span,
-                    prefix,
-                    next_closure_index,
-                )
-            })
-            .or_else(|| {
-                else_branch.as_ref().and_then(|expr| {
-                    stable_closure_lexical_path_in_expr(
-                        expr,
-                        target_span,
-                        prefix,
-                        next_closure_index,
-                    )
-                })
-            }),
-        hir::ExprKind::When { subject, arms } => {
-            stable_closure_lexical_path_in_expr(subject, target_span, prefix, next_closure_index)
-                .or_else(|| {
-                    arms.iter().find_map(|arm| {
-                        arm.guard
-                            .as_ref()
-                            .and_then(|guard| {
-                                stable_closure_lexical_path_in_expr(
-                                    guard,
-                                    target_span,
-                                    prefix,
-                                    next_closure_index,
-                                )
-                            })
-                            .or_else(|| {
-                                stable_closure_lexical_path_in_expr(
-                                    &arm.body,
-                                    target_span,
-                                    prefix,
-                                    next_closure_index,
-                                )
-                            })
-                    })
-                })
-        }
-        hir::ExprKind::Call { callee, args } => {
-            stable_closure_lexical_path_in_expr(callee, target_span, prefix, next_closure_index)
-                .or_else(|| {
-                    args.iter().find_map(|arg| {
-                        stable_closure_lexical_path_in_call_arg(
-                            arg,
-                            target_span,
-                            prefix,
-                            next_closure_index,
-                        )
-                    })
-                })
-        }
-        hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| {
-            stable_closure_lexical_path_in_call_arg(arg, target_span, prefix, next_closure_index)
-        }),
-        hir::ExprKind::Handle(handle) => stable_closure_lexical_path_in_block(
-            &handle.body,
-            target_span,
-            prefix,
-            next_closure_index,
-        )
-        .or_else(|| {
-            handle.arms.iter().find_map(|arm| {
-                stable_closure_lexical_path_in_expr(
-                    &arm.body,
-                    target_span,
-                    prefix,
-                    next_closure_index,
-                )
-            })
-        })
-        .or_else(|| {
-            handle.finally.as_ref().and_then(|block| {
-                stable_closure_lexical_path_in_block(block, target_span, prefix, next_closure_index)
-            })
-        }),
-    }
-}
-
-fn stable_closure_lexical_path_in_call_arg(
-    arg: &hir::CallArg,
-    target_span: crate::span::Span,
-    prefix: Option<&str>,
-    next_closure_index: &mut usize,
-) -> Option<String> {
-    match arg {
-        hir::CallArg::Positional(expr) => {
-            stable_closure_lexical_path_in_expr(expr, target_span, prefix, next_closure_index)
-        }
-        hir::CallArg::Named { value, .. } => {
-            stable_closure_lexical_path_in_expr(value, target_span, prefix, next_closure_index)
-        }
-    }
-}
-
-fn stable_closure_child_path(prefix: Option<&str>, ordinal: usize) -> String {
-    match prefix {
-        Some(prefix) => format!("{prefix}.$lambda{ordinal}"),
-        None => format!("$lambda{ordinal}"),
-    }
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

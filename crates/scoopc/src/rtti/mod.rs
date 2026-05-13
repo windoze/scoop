@@ -25,7 +25,7 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{ImportTable, Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::stable_id::{StableHashScope, stable_hash64};
+use crate::stable_id::stable_rtti_type_id;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
@@ -312,7 +312,7 @@ impl RttiContext {
 
     fn type_rtti(&mut self, ty: TypeId) -> Result<TypeRtti, RttiError> {
         let name = self.types.display(ty).to_string();
-        let type_id = stable_hash64(StableHashScope::RttiV0, &name);
+        let type_id = stable_rtti_type_id(&name);
         let layout = self.type_layout(ty)?;
 
         let kind_snapshot = self.types.kind(ty).clone();
@@ -886,10 +886,7 @@ struct Pair<T>(val first: T, val second: T)
         let rtti = dump_type_rtti(&sess, &src, "Pair<Int>").unwrap();
         assert_eq!(rtti.kind, RttiKind::Struct);
         assert_eq!(rtti.name, "rtti.Pair<Int>");
-        assert_eq!(
-            rtti.type_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.Pair<Int>")
-        );
+        assert_eq!(rtti.type_id, stable_rtti_type_id("rtti.Pair<Int>"));
 
         let ptr = std::mem::size_of::<usize>() as u64;
         assert_eq!(rtti.align, ptr);
@@ -940,7 +937,7 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         assert_eq!(readable.name, "rtti.Readable<String>");
         assert_eq!(
             readable.type_id,
-            stable_hash64(StableHashScope::RttiV0, "rtti.Readable<String>")
+            stable_rtti_type_id("rtti.Readable<String>")
         );
 
         let disposable_raise =
@@ -951,7 +948,7 @@ class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
         assert!(disposable_raise.name.contains("RuntimeError"));
         assert_eq!(
             disposable_raise.type_id,
-            stable_hash64(StableHashScope::RttiV0, &disposable_raise.name)
+            stable_rtti_type_id(&disposable_raise.name)
         );
 
         let dump = type_desc::dump_file_type_desc(&sess, &src).unwrap();
