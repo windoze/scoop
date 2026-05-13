@@ -28,20 +28,20 @@ LateLoweredProgram
       body_version_key: instance=a.apply allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t384 params=[t90, t5] return=t5
+      ordinary_signature: fn_ty=((Int) -> Int / Pure, Int) -> Int / Pure params=[(Int) -> Int / Pure, Int] return=Int
       plain_source_slices:
-        - bb0 stmts[0..1] + term
+        - bb#h09123e72b5ffaeb2c32941aa098951b3 stmts[0..1] + term
       plain_call_sites:
-        - site0 FunValue target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=t5 callee_step_schema=<none> resolved_cases=[] anchor=bb0 stmt0 dispatch=PlainCall
+        - site#hb79a983c8e6822cbea521081a641a6b5 FunValue target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=Int callee_step_schema=<none> resolved_cases=[] anchor=bb#h09123e72b5ffaeb2c32941aa098951b3 stmt0 dispatch=PlainCall
       plain_local_effect_control: <none>
       effect_step_handoff: <none>
     - root: a.id
       body_version_key: instance=a.id allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t90 params=[t5] return=t5
+      ordinary_signature: fn_ty=(Int) -> Int / Pure params=[Int] return=Int
       plain_source_slices:
-        - bb0 stmts[0..0] + term
+        - bb#heabdbcbc7571dd13d88896b260630826 stmts[0..0] + term
       plain_call_sites:
         <none>
       plain_local_effect_control: <none>
@@ -50,9 +50,9 @@ LateLoweredProgram
       body_version_key: instance=a.main allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t140 params=[] return=t5
+      ordinary_signature: fn_ty=() -> Int / Pure params=[] return=Int
       plain_source_slices:
-        - bb0 stmts[0..5] + term
+        - bb#hdf1b9496ba2b5839af976a6bd07f2452 stmts[0..5] + term
       plain_call_sites:
         <none>
       plain_local_effect_control: <none>
@@ -61,9 +61,9 @@ LateLoweredProgram
       body_version_key: instance=a.main.$lambda0 allowed_row=Pure impl_plan=NoOutward needs_reentry=false
       resolved_outward_cases: []
       abi: Plain
-      ordinary_signature: fn_ty=t0 params=[t2, t5] return=t5
+      ordinary_signature: fn_ty=Any params=[Unit, Int] return=Int
       plain_source_slices:
-        - bb0 stmts[0..1] + term
+        - bb#h2dc8f8530359036716670923509bfdb9 stmts[0..1] + term
       plain_call_sites:
         <none>
       plain_local_effect_control: <none>

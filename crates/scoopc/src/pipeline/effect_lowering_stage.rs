@@ -405,7 +405,8 @@ fun leaf(): Unit / Ping {
         assert!(o0.contains("opt_level: O0"));
         assert!(o0.contains("impl_plan=CanonicalFull"));
         assert!(o2.contains("opt_level: O2"));
-        assert!(o2.contains("impl_plan=SingleCase(c0)"));
+        assert!(o2.contains("impl_plan=SingleCase("));
+        assert!(o2.contains("sample.Ping.hit"));
     }
 
     #[test]
@@ -420,11 +421,12 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("abi: Plain"));
         assert!(dump.contains("plain_call_sites:"));
         assert!(dump.contains("target=run callee_abi=EffectStep"));
-        assert!(dump.contains("callee_step_schema=s1"));
-        assert!(dump.contains("resolved_cases=[c1]"));
+        assert!(dump.contains("callee_step_schema=step#h"));
+        assert!(dump.contains("resolved_cases=[case#h"));
         assert!(dump.contains("dispatch=EffectStepDispatch"));
-        assert!(dump.contains("plain_local_effect_control: s0"));
-        assert!(dump.contains("consumed_runtime_error_case: in c1 op=scoop.core.Raise.raise"));
+        assert!(dump.contains("plain_local_effect_control: step#h"));
+        assert!(dump.contains("consumed_runtime_error_case: in case#h"));
+        assert!(dump.contains("scoop.core.Raise.raise"));
     }
 
     #[test]
@@ -447,13 +449,12 @@ fun leaf(): Unit / Ping {
             "authoritative dispatch contract 应先于 packing layer 出现\n{dump}"
         );
         for needle in [
-            "continuation_schema: k0 source=ContinuationObjectMethod",
-            "surface_case ko0 case=c0 reachability=Reachable",
-            "surface_case ko0 case=c1 reachability=Reachable",
-            "internal_method ko0 case=c0 packed_by=ri0 reachability=Reachable",
-            "internal_method ko0 case=c1 packed_by=ri1 reachability=Reachable",
-            "resume_packing_interface: ri0",
-            "resume_packing_interface: ri1",
+            "continuation_schema: cont#h",
+            "source=ContinuationObjectMethod",
+            "surface_case cont_obj#h",
+            "internal_method cont_obj#h",
+            "packed_by=packing#h",
+            "resume_packing_interface: packing#h",
         ] {
             assert!(
                 dump.contains(needle),
@@ -471,10 +472,14 @@ fun leaf(): Unit / Ping {
         let dump = super::run(effect_facts_output).unwrap().stable_dump();
 
         for needle in [
-            "continuation_schema: k0 source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site0 arm#0 handled_case=c0",
-            "continuation_schema: k3 source=OwnerTrampolineMixed",
-            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(c1) needs_reentry=true ko1 site9",
+            "continuation_schema: cont#h",
+            "source=HandleContinuationBinderOnly",
+            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(",
+            "cont_obj#h",
+            "site#h",
+            "arm#0 handled_case=case#h",
+            "source=OwnerTrampolineMixed",
+            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(",
         ] {
             assert!(
                 dump.contains(needle),

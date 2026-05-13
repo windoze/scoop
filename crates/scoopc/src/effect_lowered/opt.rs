@@ -81,7 +81,11 @@ pub(crate) fn optimize_program_with_options(
             continuation_objects,
             optimized_callables,
         )
-        .with_stable_instance_keys(program.stable_instance_keys().clone());
+        .with_stable_instance_keys(program.stable_instance_keys().clone())
+        .with_dump_metadata(
+            program.dump_type_texts().clone(),
+            program.dump_body_labels_map().clone(),
+        );
     }
 
     let live_methods_by_interface = collect_live_methods_by_interface(optimized_objects.values());
@@ -152,6 +156,10 @@ pub(crate) fn optimize_program_with_options(
         callables,
     )
     .with_stable_instance_keys(program.stable_instance_keys().clone())
+    .with_dump_metadata(
+        program.dump_type_texts().clone(),
+        program.dump_body_labels_map().clone(),
+    )
 }
 
 struct OptimizedCallable {

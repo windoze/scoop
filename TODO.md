@@ -1329,7 +1329,7 @@
     - 对应 `PLAN.md` P5 / `STABLE_ID.md` §3.2.1-§3.2.3、§8.2：HIR / MIR / materialized MIR 的对外文本协议已从 raw `Debug`、allocator-derived label 与 `TypeId`/`SymbolId`/`ClosureId` 表面完全迁出。
     - 对应 `PLAN.md` P5 的 fixture 验收：`tests/fixtures/hir/**`、`tests/fixtures/mir/**`、`tests/fixtures/mir_refactor/**` 已一次性刷新到新的稳定协议，后续 P5-T02 可继续处理 effect facts / effect lowered textual surface。
 
-### [TODO] P5-T02：重写 effect facts / effect lowered dump renderer，并刷新相关 snapshot
+### [DONE] P5-T02：重写 effect facts / effect lowered dump renderer，并刷新相关 snapshot
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / P5
@@ -1368,7 +1368,47 @@
   - effect facts / effect lowered dump 已彻底脱离 allocator-derived 协议。
 - 依赖：P5-T01
 - 完成记录：
-  - 待填。
+  - 改动范围：
+    - `crates/scoopc/src/effect_facts/dump.rs`
+    - `crates/scoopc/src/effect_lowered/builder.rs`
+    - `crates/scoopc/src/effect_lowered/dump.rs`
+    - `crates/scoopc/src/effect_lowered/ir.rs`
+    - `crates/scoopc/src/effect_lowered/materialize.rs`
+    - `crates/scoopc/src/effect_lowered/opt.rs`
+    - `crates/scoopc/src/mir/dump.rs`
+    - `crates/scoopc/src/mir/mod.rs`
+    - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+    - `crates/scoopc/src/pipeline/effect_lowering_stage.rs`
+    - `tests/fixtures/effect_facts/*.effectfacts`
+    - `tests/fixtures/effect_lowered/*.effectlowered`
+  - 核心决策：
+    - 复用 MIR dump 现有的 `local` / `bb` / `site` 稳定标签算法，对外暴露 `BodyLabels` / `build_body_labels_for_dump(...)`，避免 effect dumps 再各自维护一套 source-anchor 派生逻辑。
+    - `effect_facts` dump 新增上下文型 renderer：`step_schema#N` / `continuation_schema#N` / `case#N` 改成基于 schema 内容、owner root、concrete op 的稳定 `step#h...` / `cont#h...` / `case#h...`，body 内 `bbN` / `siteN` 改成与 MIR 一致的稳定 local labels。
+    - `LateLoweredProgram` 增加 dump 元数据承载（类型文本缓存 + body label inventory），由 builder 构建、optimizer 保留；`effect_lowered` dump 因此可以把 `t/s/k/c/ri/ko/st/bd/fs/local/bb/site` 全部迁到语义类型文本与稳定 `*#h...` 标签，而不回退到 dense id。
+    - wrapper projection / handle binder / resume boundary / runtime-error boundary 等路径都显式改成用 authoritative schema / publication contract 推导 textual identity，不保留“冲突时退回旧 dense id”的旁路。
+    - 对应 textual 变化类别主要包括：
+      - `TypeId(tN)` / `tN` -> 语义类型文本
+      - `step_schema#N` / `sN` -> `step#h...`
+      - `continuation_schema#N` / `kN` -> `cont#h...`
+      - `case#N` / `cN` -> `case#h...=<concrete op>`
+      - `riN` / `koN` -> `packing#h...` / `cont_obj#h...`
+      - `stN` / `bdN` / `fsN` -> `state#h...` / `boundary#h...` / `slot#h...`
+      - `localN` / `bbN` / `siteN` -> 稳定 `local#h...` / `bb#h...` / `site#h...`
+  - 验证结果：
+    - `cargo fmt`
+    - `cargo test -p scoopc`
+    - `cargo test -p scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`
+    - `cargo clippy -p scoop --all-targets -- -D warnings`
+    - 精确文本审计：
+      - `tests/fixtures/effect_facts/*.effectfacts` 中 `step_schema#0`、`continuation_schema#0`、`case#0`、`k0`、`ri0`、`ko0`、`st0`、`bd0`、`fs0`、`local0`、`bb0`、`site0` 均无命中。
+      - `tests/fixtures/effect_lowered/*.effectlowered` 中同样无上述旧协议命中。
+      - `crates/scoopc/src/effect_facts/dump.rs` / `crates/scoopc/src/effect_lowered/dump.rs` 中也已无对应旧 textual protocol 直出。
+  - 与 `PLAN.md` / `STABLE_ID.md` 对应闭合：
+    - 对应 `PLAN.md` P5 / `STABLE_ID.md` §3.2.4、§3.2.5、§8.2：effect facts 与 late-lowered active dump/fixture surface 已从 allocator 顺序、raw `Debug` id、`TypeId`/schema dense id 表面迁出。
+    - 现在 HIR / MIR / IR / effect facts / effect lowered 五类 active textual surface 都有独立稳定 renderer，P5-T02R 可直接做全面 review，而不是再修 renderer 基础设施。
 
 ### [TODO] P5-T02R：Review dump / fixture 迁移，确认所有 textual surface 已与 raw `Debug` 脱钩
 

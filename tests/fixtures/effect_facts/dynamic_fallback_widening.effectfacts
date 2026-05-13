@@ -6,36 +6,36 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.callValue
 step_schemas:
-  step_schema#0:
+  step#h13433fb4d7751d2dc5ef3fa5d72d34d7:
     invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
     complete_ty: Unit
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/dynamic_fallback_widening.scoop:89..169::sample.callValue
     cases:
-      - case#0: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
-      - case#1: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=continuation_schema#0
-      - case#2: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#1
-  step_schema#1:
+      - case#hc686a042857d2a8013321a78df990379: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=cont#heff227115cecb22cb01e65c03eaf3436
+      - case#h81272d1890acbd5d98731b451e1b7cff: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=cont#heff227115cecb22cb01e65c03eaf3436
+      - case#hfbcca4e970f9c799c90888ff96727545: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h4fc1318dde8f5672754e6cb1a2a38664
+  step#he679877ca4c8a7a16bc599f9cf964851:
     invoke_args_tuple_ty: Unit
     complete_ty: Unit
     continuation_obj_ty: scoop.__compiler.ContinuationObject@CallSurface::Unit::Unit::(sample.Alpha + sample.Beta)
     cases:
-      - case#0: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2
-      - case#1: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=continuation_schema#2
+      - case#h265f7635734707f917cf0145e2915255: op=sample.Alpha.go payload_tuple_ty=Unit continuation_schema=cont#hb853efc84e674a53a12e9bc4fbb71665
+      - case#h97bcc406efddc82dd44e39c164e506d8: op=sample.Beta.go payload_tuple_ty=Unit continuation_schema=cont#hb853efc84e674a53a12e9bc4fbb71665
 continuation_schemas:
-  continuation_schema#0:
+  cont#heff227115cecb22cb01e65c03eaf3436:
     resume_tuple_ty: Unit
     answer_ty: Unit
-    out_step_schema: step_schema#0
+    out_step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
     surface_ty: scoop.core.Continuation<Unit, Unit, eff (sample.Alpha + sample.Beta)>
-  continuation_schema#1:
+  cont#h4fc1318dde8f5672754e6cb1a2a38664:
     resume_tuple_ty: Nothing
     answer_ty: Unit
-    out_step_schema: step_schema#0
+    out_step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
     surface_ty: scoop.core.Continuation<Nothing, Unit, eff (sample.Alpha + sample.Beta)>
-  continuation_schema#2:
+  cont#hb853efc84e674a53a12e9bc4fbb71665:
     resume_tuple_ty: Unit
     answer_ty: Unit
-    out_step_schema: step_schema#1
+    out_step_schema: step#he679877ca4c8a7a16bc599f9cf964851
     surface_ty: scoop.core.Continuation<Unit, Unit, eff (sample.Alpha + sample.Beta)>
 callable_facts:
   sample.callValue:
@@ -43,26 +43,26 @@ callable_facts:
     declared_row: (sample.Alpha + sample.Beta)
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: () -> Unit / (sample.Alpha + sample.Beta)
-    step_schema: step_schema#0
-    resolved_outward_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+    step_schema: step#h13433fb4d7751d2dc5ef3fa5d72d34d7
+    resolved_outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
     needs_reentry: true
     impl_plan: CanonicalFull
 body_facts:
   sample.callValue:
     blocks:
-      bb0:
-        ambient_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
-        outward_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+      bb#hdcc8569388d2f34c837e0d82a738103b:
+        ambient_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
+        outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site0:
+      site#h134c59a4c04e4bb18a4abea659260a3b:
         kind: Call
         call_kind: FunValue
         target_mode: DynamicFallback
         target: DynamicFallback
         callee_abi_kind: EffectStep
         invoke_args_tuple_ty: Unit
-        callee_schema: step_schema#1
-        resolved_cases: [case#0=sample.Alpha.go, case#1=sample.Beta.go]
+        callee_schema: step#he679877ca4c8a7a16bc599f9cf964851
+        resolved_cases: [case#h265f7635734707f917cf0145e2915255=sample.Alpha.go, case#h97bcc406efddc82dd44e39c164e506d8=sample.Beta.go]
         precision: SignatureFallback

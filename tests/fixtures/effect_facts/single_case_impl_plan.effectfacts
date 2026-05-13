@@ -6,23 +6,23 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.leaf
 step_schemas:
-  step_schema#0:
+  step#hcbd1322c68f58d649907d61473992c02:
     invoke_args_tuple_ty: Unit
     complete_ty: Unit
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/single_case_impl_plan.scoop:53..95::sample.leaf
     cases:
-      - case#0: op=sample.Ping.hit payload_tuple_ty=Unit continuation_schema=continuation_schema#0
-      - case#1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=continuation_schema#1
+      - case#hd906f5f4f51fc476c59f7200b187aaf9: op=sample.Ping.hit payload_tuple_ty=Unit continuation_schema=cont#h5c7031434853490f607111d60935ef69
+      - case#h9bf60939ec0ff89d0a7561f7a33a5f1f: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h98095cf2cc77e63df7f0ae64ab3419b0
 continuation_schemas:
-  continuation_schema#0:
+  cont#h5c7031434853490f607111d60935ef69:
     resume_tuple_ty: Unit
     answer_ty: Unit
-    out_step_schema: step_schema#0
+    out_step_schema: step#hcbd1322c68f58d649907d61473992c02
     surface_ty: scoop.core.Continuation<Unit, Unit, eff sample.Ping>
-  continuation_schema#1:
+  cont#h98095cf2cc77e63df7f0ae64ab3419b0:
     resume_tuple_ty: Nothing
     answer_ty: Unit
-    out_step_schema: step_schema#0
+    out_step_schema: step#hcbd1322c68f58d649907d61473992c02
     surface_ty: scoop.core.Continuation<Nothing, Unit, eff sample.Ping>
 callable_facts:
   sample.leaf:
@@ -30,26 +30,26 @@ callable_facts:
     declared_row: sample.Ping
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
-    step_schema: step_schema#0
-    resolved_outward_cases: [case#0=sample.Ping.hit]
+    step_schema: step#hcbd1322c68f58d649907d61473992c02
+    resolved_outward_cases: [case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit]
     needs_reentry: true
-    impl_plan: SingleCase(case#0=sample.Ping.hit)
+    impl_plan: SingleCase(case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit)
 body_facts:
   sample.leaf:
     blocks:
-      bb0:
-        ambient_cases: [case#0=sample.Ping.hit]
-        outward_cases: [case#0=sample.Ping.hit]
+      bb#ha394e35f43f26fb3fc7412ccd4957136:
+        ambient_cases: [case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit]
+        outward_cases: [case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit]
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb1:
-        ambient_cases: [case#0=sample.Ping.hit]
+      bb#h41bf9de9f76ce5d8ec9e8fb4ea9e8915:
+        ambient_cases: [case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit]
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site0:
+      site#hb5615a385eb59aafd0b527f65855b18e:
         kind: Perform
-        emitted_case: case#0=sample.Ping.hit
+        emitted_case: case#hd906f5f4f51fc476c59f7200b187aaf9=sample.Ping.hit
         payload_tuple_ty: Unit
-        captured_cont_schema: continuation_schema#0
+        captured_cont_schema: cont#h5c7031434853490f607111d60935ef69

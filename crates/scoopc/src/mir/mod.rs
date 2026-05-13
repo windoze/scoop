@@ -41,8 +41,10 @@ use crate::stable_id::StableConeKey;
 use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
-pub(crate) use dump::{stable_dump_file, stable_dump_materialized};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
+pub(crate) use dump::{
+    BodyLabels, build_body_labels_for_dump, stable_dump_file, stable_dump_materialized,
+};
 pub use escape::{
     CallableEscapeFacts, ClosureEscapeFact, ContinuationEscapeFact, EscapeStatus,
     MaterializedEscapeFacts,

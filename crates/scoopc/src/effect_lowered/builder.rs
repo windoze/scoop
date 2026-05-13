@@ -1,11 +1,12 @@
 use std::collections::{BTreeSet, HashMap};
+use std::path::Path;
 
 use crate::effect_facts::{
     CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
 use crate::mir::{
     BasicBlockId, Body, FunDecl, Item, MaterializedMir, MaterializedMirPassView, Rvalue,
-    StatementKind,
+    StatementKind, build_body_labels_for_dump,
 };
 use crate::ty::TypeStore;
 
@@ -81,6 +82,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         )?;
         let materialized = pass_view.materialized();
         let mut stable_instance_keys = materialized.stable_instance_keys().clone();
+        let mut dump_body_labels =
+            HashMap::<LateLoweredBodyVersionKey, crate::mir::BodyLabels>::new();
 
         let mut continuation_objects = Vec::with_capacity(effect_facts.callable_facts().len());
         let mut callables = Vec::with_capacity(effect_facts.callable_facts().len());
@@ -107,6 +110,12 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 callable_facts.impl_plan(),
                 callable_facts.needs_reentry(),
             );
+            if let Some(body) = family.root_body().and_then(|fun| fun.body.as_ref()) {
+                dump_body_labels.insert(
+                    body_version_key.clone(),
+                    build_body_labels_for_dump(&root_fqn, body, types),
+                );
+            }
 
             if matches!(callable_facts.call_abi_kind(), CallableAbiKind::Plain) {
                 let fun = family
@@ -322,10 +331,11 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             );
         }
 
-        Ok(
+        let program =
             LateLoweredProgram::new(step_types, resume_packings, continuation_objects, callables)
-                .with_stable_instance_keys(stable_instance_keys),
-        )
+                .with_stable_instance_keys(stable_instance_keys);
+        let dump_type_texts = collect_program_dump_type_texts(&program, types);
+        Ok(program.with_dump_metadata(dump_type_texts, dump_body_labels))
     }
 }
 
@@ -821,4 +831,462 @@ fn build_plain_call_sites(
         }
     }
     Ok(call_sites)
+}
+
+fn collect_program_dump_type_texts(
+    program: &LateLoweredProgram,
+    types: &TypeStore,
+) -> HashMap<crate::ty::TypeId, String> {
+    let mut out = HashMap::new();
+
+    for step_type in program.step_types() {
+        record_step_type_types(&mut out, types, step_type);
+    }
+    for interface in program.resume_packings() {
+        record_effect_family_key_types(&mut out, types, interface.effect_family());
+        for method in interface.methods() {
+            record_resume_method_types(&mut out, types, method);
+        }
+    }
+    for object in program.continuation_objects() {
+        record_body_version_key_types(&mut out, types, object.owner_version_key());
+        record_type_text(&mut out, types, object.continuation_obj_ty());
+        for surface_resume in object.surface_resumes() {
+            record_surface_resume_types(&mut out, types, surface_resume);
+        }
+        for method in object.methods() {
+            record_continuation_method_types(&mut out, types, method);
+        }
+    }
+    for entry in program.surface_resume_dispatch_inventory() {
+        let contract = entry.contract();
+        record_type_text(&mut out, types, contract.resume_tuple_ty());
+        record_type_text(&mut out, types, contract.answer_ty());
+        for projection in entry.wrapper_projections() {
+            record_type_text(&mut out, types, projection.complete().owner_answer_ty());
+            record_type_text(&mut out, types, projection.complete().wrapper_answer_ty());
+            record_surface_resume_wrapper_complete_payload_source_types(
+                &mut out,
+                types,
+                projection.complete().payload_source(),
+            );
+            for case in projection.outward_cases() {
+                record_type_text(&mut out, types, case.owner_payload_tuple_ty());
+                record_type_text(&mut out, types, case.wrapper_payload_tuple_ty());
+            }
+        }
+    }
+    for callable in program.callables() {
+        record_body_version_key_types(&mut out, types, callable.body_version_key());
+        if let Some(plain) = callable.plain_abi() {
+            record_type_text(&mut out, types, plain.function_ty());
+            for &param in plain.param_tys() {
+                record_type_text(&mut out, types, param);
+            }
+            record_type_text(&mut out, types, plain.return_ty());
+            for call_site in plain.call_sites() {
+                record_call_site_facts_types(&mut out, types, call_site.facts());
+            }
+        }
+        if let Some(effect_step) = callable.effect_step_abi() {
+            record_type_text(
+                &mut out,
+                types,
+                effect_step.dynamic_invoke_entry().invoke_args_tuple_ty(),
+            );
+            record_state_graph_types(&mut out, types, effect_step.state_graph());
+            record_frame_schema_types(&mut out, types, effect_step.frame_schema());
+            for boundary in effect_step.boundary_map().entries() {
+                if let Some(lowering) = boundary.lowering() {
+                    record_boundary_lowering_types(&mut out, types, lowering);
+                }
+            }
+        }
+        if let Some(local) = callable.plain_local_effect_control() {
+            record_state_graph_types(&mut out, types, local.state_graph());
+            record_frame_schema_types(&mut out, types, local.frame_schema());
+            for boundary in local.boundary_map().entries() {
+                if let Some(lowering) = boundary.lowering() {
+                    record_boundary_lowering_types(&mut out, types, lowering);
+                }
+            }
+        }
+    }
+
+    out
+}
+
+fn record_type_text(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    ty: crate::ty::TypeId,
+) {
+    out.entry(ty)
+        .or_insert_with(|| normalize_display_text(types.display(ty).to_string()));
+}
+
+fn normalize_display_text(text: String) -> String {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let Some(workspace_root) = manifest_dir.parent().and_then(Path::parent) else {
+        return text;
+    };
+    let prefix = format!("{}/", workspace_root.display());
+    text.replace(&prefix, "")
+}
+
+fn record_effect_row_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    row: &crate::ty::EffectRow,
+) {
+    for &term in &row.terms {
+        record_type_text(out, types, term);
+    }
+}
+
+fn record_instance_key_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    key: &crate::mir::InstanceKey,
+) {
+    for &ty in &key.type_args {
+        record_type_text(out, types, ty);
+    }
+    for row in &key.eff_args {
+        record_effect_row_types(out, types, row);
+    }
+}
+
+fn record_effect_family_key_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    key: &crate::effect_facts::EffectFamilyKey,
+) {
+    for &ty in key.type_args() {
+        record_type_text(out, types, ty);
+    }
+}
+
+fn record_concrete_op_key_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    key: &crate::effect_facts::ConcreteOpKey,
+) {
+    record_instance_key_types(out, types, key.instance_key());
+    record_effect_family_key_types(out, types, key.effect_family());
+}
+
+fn record_body_version_key_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    key: &LateLoweredBodyVersionKey,
+) {
+    record_instance_key_types(out, types, key.surface_instance());
+    record_effect_row_types(out, types, key.allowed_row());
+}
+
+fn record_step_type_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    step_type: &crate::effect_lowered::ir::LateLoweredStepType,
+) {
+    record_type_text(out, types, step_type.invoke_args_tuple_ty());
+    record_type_text(out, types, step_type.complete_ty());
+    record_type_text(out, types, step_type.continuation_obj_ty());
+    for case in step_type.cases() {
+        record_step_case_types(out, types, case);
+    }
+}
+
+fn record_step_case_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    case: &crate::effect_lowered::ir::LateLoweredStepCase,
+) {
+    record_concrete_op_key_types(out, types, case.concrete_op_key());
+    record_type_text(out, types, case.payload_tuple_ty());
+    record_continuation_contract_types(out, types, case.continuation_contract());
+}
+
+fn record_resume_method_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    method: &crate::effect_lowered::ir::LateLoweredResumeMethod,
+) {
+    record_concrete_op_key_types(out, types, method.concrete_op_key());
+    record_type_text(out, types, method.resume_tuple_ty());
+    record_type_text(out, types, method.answer_ty());
+    record_type_text(out, types, method.surface_ty());
+}
+
+fn record_surface_resume_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    surface_resume: &crate::effect_lowered::ir::LateLoweredContinuationSurfaceResume,
+) {
+    record_concrete_op_key_types(out, types, surface_resume.concrete_op_key());
+    record_type_text(out, types, surface_resume.resume_tuple_ty());
+    record_type_text(out, types, surface_resume.answer_ty());
+    record_type_text(out, types, surface_resume.surface_ty());
+}
+
+fn record_continuation_method_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    method: &crate::effect_lowered::ir::LateLoweredContinuationMethod,
+) {
+    record_concrete_op_key_types(out, types, method.concrete_op_key());
+    record_type_text(out, types, method.resume_tuple_ty());
+    record_type_text(out, types, method.answer_ty());
+    record_type_text(out, types, method.surface_ty());
+}
+
+fn record_continuation_contract_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    contract: crate::effect_lowered::ir::LateLoweredContinuationContract,
+) {
+    record_type_text(out, types, contract.resume_tuple_ty());
+    record_type_text(out, types, contract.answer_ty());
+    record_type_text(out, types, contract.surface_ty());
+}
+
+fn record_call_target_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    target: &crate::effect_facts::CallSiteTarget,
+) {
+    match target {
+        crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
+            record_instance_key_types(out, types, instance);
+        }
+        crate::effect_facts::CallSiteTarget::CandidateSet(instances) => {
+            for instance in instances {
+                record_instance_key_types(out, types, instance);
+            }
+        }
+        crate::effect_facts::CallSiteTarget::DynamicFallback => {}
+    }
+}
+
+fn record_call_site_facts_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    facts: &crate::effect_facts::CallSiteEffectFacts,
+) {
+    record_call_target_types(out, types, facts.target());
+    record_type_text(out, types, facts.invoke_args_tuple_ty());
+}
+
+fn record_state_graph_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    state_graph: &LateLoweredStateGraph,
+) {
+    for state in state_graph.states() {
+        if let crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+            contract,
+            ..
+        } = state.terminator()
+        {
+            record_handle_dispatch_contract_types(out, types, contract);
+        }
+        if let crate::effect_lowered::ir::LateLoweredStateTerminator::Return {
+            payload_source,
+            ..
+        } = state.terminator()
+        {
+            record_completion_payload_source_types(out, types, payload_source);
+        }
+        if let crate::effect_lowered::ir::LateLoweredStateTerminator::LocalRuntimeError {
+            payload_tuple_ty,
+            ..
+        } = state.terminator()
+        {
+            record_type_text(out, types, *payload_tuple_ty);
+        }
+    }
+}
+
+fn record_frame_schema_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    frame_schema: &LateLoweredFrameSchema,
+) {
+    for slot in frame_schema.slots() {
+        record_type_text(out, types, slot.ty());
+    }
+    for binding in frame_schema.completion_payload_bindings() {
+        record_completion_payload_source_types(out, types, binding.payload_source());
+    }
+}
+
+fn record_handle_dispatch_contract_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
+) {
+    if let Some(source) = contract.body_completion_payload_source() {
+        record_completion_payload_source_types(out, types, source);
+    }
+    for arm in contract.handled_arms() {
+        record_type_text(out, types, arm.payload_tuple_ty());
+        record_completion_payload_source_types(out, types, arm.completion_payload_source());
+    }
+    for transport in contract.pending_payload_transports() {
+        record_type_text(out, types, transport.payload_tuple_ty());
+    }
+    for emission in contract.outward_emissions() {
+        record_step_case_emission_types(out, types, emission);
+    }
+}
+
+fn record_boundary_lowering_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    lowering: &crate::effect_lowered::ir::LateLoweredBoundaryLowering,
+) {
+    match lowering {
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Call(lowering) => {
+            record_call_site_facts_types(out, types, lowering.facts());
+            if let Some(source) = lowering.operand_contract().carrier_source() {
+                record_operand_source_types(out, types, source);
+            }
+            for source in lowering.operand_contract().arg_sources() {
+                record_operand_source_types(out, types, source);
+            }
+            if let Some(runtime_error_case) = lowering.consumed_runtime_error_case() {
+                record_concrete_op_key_types(
+                    out,
+                    types,
+                    runtime_error_case.input_concrete_op_key(),
+                );
+                record_type_text(out, types, runtime_error_case.payload_tuple_ty());
+            }
+            record_step_dispatch_plan_types(out, types, lowering.dispatch());
+            for composition in lowering.continuation_compositions() {
+                record_continuation_contract_types(
+                    out,
+                    types,
+                    composition.callee_continuation_contract(),
+                );
+                record_continuation_contract_types(
+                    out,
+                    types,
+                    composition.caller_continuation_contract(),
+                );
+                record_type_text(out, types, composition.caller_result_ty());
+            }
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::ClassCtor(lowering) => {
+            for emission in lowering.emitted_steps() {
+                record_step_case_emission_types(out, types, emission);
+            }
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Perform(lowering) => {
+            record_type_text(out, types, lowering.facts().payload_tuple_ty());
+            for source in lowering.operand_contract().payload_sources() {
+                record_operand_source_types(out, types, source);
+            }
+            record_step_case_emission_types(out, types, lowering.emitted_step());
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Resume(lowering) => {
+            record_type_text(out, types, lowering.facts().resume_tuple_ty());
+            record_type_text(out, types, lowering.facts().answer_ty());
+            record_operand_source_types(
+                out,
+                types,
+                lowering.operand_contract().continuation_source(),
+            );
+            for source in lowering.operand_contract().arg_sources() {
+                record_operand_source_types(out, types, source);
+            }
+            record_step_dispatch_plan_types(out, types, lowering.dispatch());
+            for composition in lowering.continuation_compositions() {
+                record_continuation_contract_types(
+                    out,
+                    types,
+                    composition.callee_continuation_contract(),
+                );
+                record_continuation_contract_types(
+                    out,
+                    types,
+                    composition.caller_continuation_contract(),
+                );
+                record_type_text(out, types, composition.caller_result_ty());
+            }
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::RuntimeError(lowering) => {
+            record_step_case_emission_types(out, types, lowering.emitted_step());
+        }
+        crate::effect_lowered::ir::LateLoweredBoundaryLowering::Handle(lowering) => {
+            record_type_text(out, types, lowering.facts().result_ty());
+            for arm in lowering.facts().arm_facts() {
+                record_type_text(out, types, arm.payload_tuple_ty());
+            }
+            for emission in lowering.outward_emissions() {
+                record_step_case_emission_types(out, types, emission);
+            }
+        }
+    }
+}
+
+fn record_step_dispatch_plan_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    dispatch: &crate::effect_lowered::ir::LateLoweredStepDispatchPlan,
+) {
+    record_type_text(out, types, dispatch.complete().answer_ty());
+    for forwarding in dispatch.outward_cases() {
+        record_concrete_op_key_types(out, types, forwarding.input_concrete_op_key());
+        record_step_case_emission_types(out, types, forwarding.emission());
+    }
+}
+
+fn record_step_case_emission_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    emission: &crate::effect_lowered::ir::LateLoweredStepCaseEmission,
+) {
+    record_concrete_op_key_types(out, types, emission.concrete_op_key());
+    record_type_text(out, types, emission.payload_tuple_ty());
+    record_continuation_contract_types(out, types, emission.continuation_contract());
+}
+
+fn record_operand_source_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    source: &crate::effect_lowered::ir::LateLoweredOperandSource,
+) {
+    record_type_text(out, types, source.source_ty());
+}
+
+fn record_completion_payload_source_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    source: &crate::effect_lowered::ir::LateLoweredCompletionPayloadSource,
+) {
+    match source {
+        crate::effect_lowered::ir::LateLoweredCompletionPayloadSource::Unit { complete_ty } => {
+            record_type_text(out, types, *complete_ty);
+        }
+        crate::effect_lowered::ir::LateLoweredCompletionPayloadSource::Operand(source) => {
+            record_operand_source_types(out, types, source);
+        }
+    }
+}
+
+fn record_surface_resume_wrapper_complete_payload_source_types(
+    out: &mut HashMap<crate::ty::TypeId, String>,
+    types: &TypeStore,
+    source: &crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperCompletePayloadSource,
+) {
+    match source {
+        crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperCompletePayloadSource::OwnerComplete { answer_ty } => {
+            record_type_text(out, types, *answer_ty);
+        }
+        crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
+            record_completion_payload_source_types(out, types, source);
+        }
+    }
 }

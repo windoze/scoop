@@ -4,28 +4,27 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::dump_support::{
-    IndentWriter, LocalEntityKey, format_debug, format_effect_row, format_type,
-    normalize_dump_path,
+    IndentWriter, LocalEntityKey, format_debug, format_effect_row, format_type, normalize_dump_path,
 };
 use crate::stable_id::{StableCanonicalKey, StableSymbolKey};
 use crate::ty::TypeStore;
 
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportMetadata,
-    ArrayElementTransportMetadata, BasicBlock, BasicBlockId, Body, CallAbiHandoffMetadata,
-    CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata, ConstValue,
-    CtorMetadata, CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
-    EnumVariantMetadata, ExternGlobalRoot, ExtensionPropertyMetadata, FieldMetadata, File,
-    FunDecl, GcIntrinsicTransportMetadata, HandlerArm, InitializerDependency, InitializerRoot,
-    Item, LocalDecl, LocalId, MaterializedMir,
-    MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot, MirBoxingIntent,
-    MirTransportRequirements, NominalMetadata, ObjectMetadata, Operand, Param, Pattern,
-    PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata, ResumeMetadata, Rvalue,
-    RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult, RuntimePatternTypeTestMetadata,
-    RuntimeTypeDescriptorKey, RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch,
-    RuntimeTypeTestMetadata, SiteId, Statement, StatementKind, StoredContinuationRoutePublication,
-    StoredContinuationValueRoute, StructLitField, SupertypeMetadata, Terminator, TerminatorKind,
-    TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction, ValueTransportMetadata,
+    ArrayElementTransportMetadata, BasicBlock, BasicBlockId, Body, CallAbiHandoffMetadata, CallArg,
+    CallKind, CallTransportMetadata, CaptureBoxTransportMetadata, ConstValue, CtorMetadata,
+    CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
+    EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
+    GcIntrinsicTransportMetadata, HandlerArm, InitializerDependency, InitializerRoot, Item,
+    LocalDecl, LocalId, MaterializedMir, MemberAccessMetadata, MemberFunMetadata, MemberTarget,
+    MetadataRoot, MirBoxingIntent, MirTransportRequirements, NominalMetadata, ObjectMetadata,
+    Operand, Param, Pattern, PatternBindingStep, PerformArg, PerformMetadata, PropertyMetadata,
+    ResumeMetadata, RuntimeCastFailure, RuntimeCastMetadata, RuntimeCastResult,
+    RuntimePatternTypeTestMetadata, RuntimeTypeDescriptorKey, RuntimeTypeDescriptorKind,
+    RuntimeTypeParameterizedMatch, RuntimeTypeTestMetadata, Rvalue, SiteId, Statement,
+    StatementKind, StoredContinuationRoutePublication, StoredContinuationValueRoute,
+    StructLitField, SupertypeMetadata, Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata,
+    TypeMetadataLiteral, UnwindAction, ValueTransportMetadata,
 };
 
 pub(crate) fn stable_dump_file(file: &File, types: &TypeStore) -> String {
@@ -41,13 +40,16 @@ pub(crate) fn stable_dump_materialized(materialized: &MaterializedMir) -> String
     renderer.line("instances: [");
     renderer.out.push_indent();
     let mut instances = materialized.instance_keys.iter().collect::<Vec<_>>();
-    instances.sort_by_key(|instance| renderer.materialized_instance_display(materialized, instance));
+    instances
+        .sort_by_key(|instance| renderer.materialized_instance_display(materialized, instance));
     for instance in instances {
         let stable_key = materialized
             .authoritative_stable_instance_key(instance)
             .expect("materialized instance must have a stable key");
         let display = renderer.materialized_instance_display(materialized, instance);
-        let exported = materialized.instance_exported_fun_symbol(instance).unwrap_or_default();
+        let exported = materialized
+            .instance_exported_fun_symbol(instance)
+            .unwrap_or_default();
         let label = crate::stable_id::stable_dump_label("instance", &stable_key.canonical_text());
         renderer.line(&format!(
             "MaterializedInstance {{ label: {}, display_fqn: {}, exported_symbol: {} }},",
@@ -72,10 +74,36 @@ struct MirDumpRenderer<'a> {
     out: IndentWriter,
 }
 
-struct BodyLabels {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct BodyLabels {
     locals: Vec<String>,
     blocks: Vec<String>,
     sites: HashMap<SiteId, String>,
+}
+
+impl BodyLabels {
+    pub(crate) fn local_label(&self, local: LocalId) -> String {
+        self.locals[local.as_u32() as usize].clone()
+    }
+
+    pub(crate) fn block_label(&self, block: BasicBlockId) -> String {
+        self.blocks[block.as_u32() as usize].clone()
+    }
+
+    pub(crate) fn site_label(&self, site: SiteId) -> String {
+        self.sites
+            .get(&site)
+            .cloned()
+            .unwrap_or_else(|| format!("site_missing#{}", site.as_u32()))
+    }
+}
+
+pub(crate) fn build_body_labels_for_dump(
+    owner: &str,
+    body: &Body,
+    types: &TypeStore,
+) -> BodyLabels {
+    MirDumpRenderer::new(types).build_body_labels(owner, body)
 }
 
 struct BodyRenderCtx<'a> {
@@ -151,7 +179,10 @@ impl<'a> MirDumpRenderer<'a> {
                     .collect(),
             ),
         );
-        self.field_raw("hidden_effects", &format_effect_row(self.types, &root.hidden_effects));
+        self.field_raw(
+            "hidden_effects",
+            &format_effect_row(self.types, &root.hidden_effects),
+        );
         self.close_struct(",");
     }
 
@@ -314,11 +345,15 @@ impl<'a> MirDumpRenderer<'a> {
         self.field_raw("ty", &self.type_text(prop.ty));
         self.field_option_text(
             "getter",
-            prop.getter.as_ref().map(|accessor| self.accessor_text(accessor)),
+            prop.getter
+                .as_ref()
+                .map(|accessor| self.accessor_text(accessor)),
         );
         self.field_option_text(
             "setter",
-            prop.setter.as_ref().map(|accessor| self.accessor_text(accessor)),
+            prop.setter
+                .as_ref()
+                .map(|accessor| self.accessor_text(accessor)),
         );
         self.close_struct(",");
     }
@@ -352,7 +387,12 @@ impl<'a> MirDumpRenderer<'a> {
         } else {
             self.field_raw(
                 "params",
-                &self.list_text(fun.params.iter().map(|param| self.param_without_body_text(param)).collect()),
+                &self.list_text(
+                    fun.params
+                        .iter()
+                        .map(|param| self.param_without_body_text(param))
+                        .collect(),
+                ),
             );
             self.field_raw("return_ty", &self.type_text(fun.return_ty));
             self.field_raw("body", "None");
@@ -394,7 +434,8 @@ impl<'a> MirDumpRenderer<'a> {
         self.field_raw(
             "stmts",
             &self.list_text(
-                block.stmts
+                block
+                    .stmts
                     .iter()
                     .map(|stmt| self.statement_text(ctx, stmt))
                     .collect(),
@@ -453,8 +494,15 @@ impl<'a> MirDumpRenderer<'a> {
                 } else {
                     "block"
                 };
-                LocalEntityKey::new(owner, Path::new(""), block.terminator.span, "block", readable, ordinal)
-                    .label("bb")
+                LocalEntityKey::new(
+                    owner,
+                    Path::new(""),
+                    block.terminator.span,
+                    "block",
+                    readable,
+                    ordinal,
+                )
+                .label("bb")
             })
             .collect::<Vec<_>>();
 
@@ -485,9 +533,7 @@ impl<'a> MirDumpRenderer<'a> {
             if let Some((site_id, kind)) = self.terminator_site(&block.terminator.kind) {
                 let signature = format!(
                     "site|{owner}|{}|{}|{}",
-                    block.terminator.span.start,
-                    block.terminator.span.end,
-                    kind,
+                    block.terminator.span.start, block.terminator.span.end, kind,
                 );
                 let ordinal = next_ordinal(&mut site_counts, &signature);
                 let label = LocalEntityKey::new(
@@ -503,7 +549,11 @@ impl<'a> MirDumpRenderer<'a> {
             }
         }
 
-        BodyLabels { locals, blocks, sites }
+        BodyLabels {
+            locals,
+            blocks,
+            sites,
+        }
     }
 
     fn rvalue_site(&self, value: &Rvalue) -> Option<(SiteId, &'static str)> {
@@ -563,7 +613,14 @@ impl<'a> MirDumpRenderer<'a> {
         let stmt_bits = block
             .stmts
             .iter()
-            .map(|stmt| format!("{}..{}:{}", stmt.span.start, stmt.span.end, self.statement_tag(&stmt.kind)))
+            .map(|stmt| {
+                format!(
+                    "{}..{}:{}",
+                    stmt.span.start,
+                    stmt.span.end,
+                    self.statement_tag(&stmt.kind)
+                )
+            })
             .collect::<Vec<_>>()
             .join("|");
         format!(
@@ -714,7 +771,11 @@ impl<'a> MirDumpRenderer<'a> {
                     ),
                 ],
             ),
-            StatementKind::StoreTopLevelVar { fqn, value, value_ty } => self.inline_struct(
+            StatementKind::StoreTopLevelVar {
+                fqn,
+                value,
+                value_ty,
+            } => self.inline_struct(
                 "StoreTopLevelVar",
                 vec![
                     ("fqn", format_debug(fqn)),
@@ -741,12 +802,16 @@ impl<'a> MirDumpRenderer<'a> {
         match kind {
             TerminatorKind::Return { value } => self.inline_struct(
                 "Return",
-                vec![("value", self.option_text(value.as_ref().map(|value| self.operand_text(ctx, value))))],
+                vec![(
+                    "value",
+                    self.option_text(value.as_ref().map(|value| self.operand_text(ctx, value))),
+                )],
             ),
             TerminatorKind::ResumeUnwind => "ResumeUnwind".to_string(),
-            TerminatorKind::Goto { target } => {
-                self.inline_struct("Goto", vec![("target", self.block_label(&ctx.labels, *target))])
-            }
+            TerminatorKind::Goto { target } => self.inline_struct(
+                "Goto",
+                vec![("target", self.block_label(&ctx.labels, *target))],
+            ),
             TerminatorKind::CondBr {
                 cond,
                 then_target,
@@ -774,9 +839,16 @@ impl<'a> MirDumpRenderer<'a> {
                     ("metadata", self.perform_metadata_text(ctx, metadata)),
                     (
                         "args",
-                        self.list_text(args.iter().map(|arg| self.perform_arg_text(ctx, arg)).collect()),
+                        self.list_text(
+                            args.iter()
+                                .map(|arg| self.perform_arg_text(ctx, arg))
+                                .collect(),
+                        ),
                     ),
-                    ("resume_target", self.block_label(&ctx.labels, *resume_target)),
+                    (
+                        "resume_target",
+                        self.block_label(&ctx.labels, *resume_target),
+                    ),
                 ],
             ),
             TerminatorKind::Handle {
@@ -795,7 +867,11 @@ impl<'a> MirDumpRenderer<'a> {
                     ("metadata", self.handle_metadata_text(metadata)),
                     (
                         "arms",
-                        self.list_text(arms.iter().map(|arm| self.handler_arm_text(ctx, arm)).collect()),
+                        self.list_text(
+                            arms.iter()
+                                .map(|arm| self.handler_arm_text(ctx, arm))
+                                .collect(),
+                        ),
                     ),
                     ("has_finally", has_finally.to_string()),
                     ("body_target", self.block_label(&ctx.labels, *body_target)),
@@ -811,8 +887,7 @@ impl<'a> MirDumpRenderer<'a> {
                     (
                         "finally_target",
                         self.option_text(
-                            finally_target
-                                .map(|target| self.block_label(&ctx.labels, target)),
+                            finally_target.map(|target| self.block_label(&ctx.labels, target)),
                         ),
                     ),
                     ("exit_target", self.block_label(&ctx.labels, *exit_target)),
@@ -900,7 +975,9 @@ impl<'a> MirDumpRenderer<'a> {
                 vec![
                     (
                         "site_id",
-                        self.option_text(site_id.map(|site_id| self.site_label(&ctx.labels, site_id))),
+                        self.option_text(
+                            site_id.map(|site_id| self.site_label(&ctx.labels, site_id)),
+                        ),
                     ),
                     ("receiver", self.operand_text(ctx, receiver)),
                     ("member", self.member_access_metadata_text(member)),
@@ -918,12 +995,13 @@ impl<'a> MirDumpRenderer<'a> {
                     ("variant_name", format_debug(variant_name)),
                     (
                         "args",
-                        self.list_text(args.iter().map(|arg| self.call_arg_text(ctx, arg)).collect()),
+                        self.list_text(
+                            args.iter()
+                                .map(|arg| self.call_arg_text(ctx, arg))
+                                .collect(),
+                        ),
                     ),
-                    (
-                        "payload",
-                        self.aggregate_transport_text(Some(ctx), payload),
-                    ),
+                    ("payload", self.aggregate_transport_text(Some(ctx), payload)),
                 ],
             ),
             Rvalue::ClassCtor {
@@ -940,7 +1018,11 @@ impl<'a> MirDumpRenderer<'a> {
                     ("ctor", format_debug(ctor)),
                     (
                         "args",
-                        self.list_text(args.iter().map(|arg| self.call_arg_text(ctx, arg)).collect()),
+                        self.list_text(
+                            args.iter()
+                                .map(|arg| self.call_arg_text(ctx, arg))
+                                .collect(),
+                        ),
                     ),
                     (
                         "hidden_effects",
@@ -960,17 +1042,29 @@ impl<'a> MirDumpRenderer<'a> {
                     ("kind", self.call_kind_text(ctx, kind)),
                     (
                         "args",
-                        self.list_text(args.iter().map(|arg| self.call_arg_text(ctx, arg)).collect()),
+                        self.list_text(
+                            args.iter()
+                                .map(|arg| self.call_arg_text(ctx, arg))
+                                .collect(),
+                        ),
                     ),
                     ("transport", self.call_transport_text(ctx, transport)),
                 ],
             ),
-            Rvalue::MakeTuple { elements, transport } => self.inline_struct(
+            Rvalue::MakeTuple {
+                elements,
+                transport,
+            } => self.inline_struct(
                 "MakeTuple",
                 vec![
                     (
                         "elements",
-                        self.list_text(elements.iter().map(|operand| self.operand_text(ctx, operand)).collect()),
+                        self.list_text(
+                            elements
+                                .iter()
+                                .map(|operand| self.operand_text(ctx, operand))
+                                .collect(),
+                        ),
                     ),
                     (
                         "transport",
@@ -983,7 +1077,12 @@ impl<'a> MirDumpRenderer<'a> {
                 vec![
                     (
                         "fields",
-                        self.list_text(fields.iter().map(|field| self.struct_lit_field_text(ctx, field)).collect()),
+                        self.list_text(
+                            fields
+                                .iter()
+                                .map(|field| self.struct_lit_field_text(ctx, field))
+                                .collect(),
+                        ),
                     ),
                     (
                         "transport",
@@ -1068,7 +1167,11 @@ impl<'a> MirDumpRenderer<'a> {
                     ("subject", self.operand_text(ctx, subject)),
                     (
                         "path",
-                        self.list_text(path.iter().map(|step| self.pattern_step_text(step)).collect()),
+                        self.list_text(
+                            path.iter()
+                                .map(|step| self.pattern_step_text(step))
+                                .collect(),
+                        ),
                     ),
                 ],
             ),
@@ -1100,7 +1203,9 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn operand_text(&self, ctx: &BodyRenderCtx<'_>, operand: &Operand) -> String {
         match operand {
-            Operand::Local(local) => self.inline_enum("Local", self.local_label(&ctx.labels, *local)),
+            Operand::Local(local) => {
+                self.inline_enum("Local", self.local_label(&ctx.labels, *local))
+            }
             Operand::Const(value) => self.inline_enum("Const", self.const_text(value)),
         }
     }
@@ -1123,7 +1228,10 @@ impl<'a> MirDumpRenderer<'a> {
             "CallArg",
             vec![
                 ("span", format_debug(&arg.span)),
-                ("name", self.option_text(arg.name.as_ref().map(format_debug))),
+                (
+                    "name",
+                    self.option_text(arg.name.as_ref().map(format_debug)),
+                ),
                 ("value", self.operand_text(ctx, &arg.value)),
             ],
         )
@@ -1135,7 +1243,10 @@ impl<'a> MirDumpRenderer<'a> {
             vec![
                 ("span", format_debug(&arg.span)),
                 ("source_arg_index", arg.source_arg_index.to_string()),
-                ("name", self.option_text(arg.name.as_ref().map(format_debug))),
+                (
+                    "name",
+                    self.option_text(arg.name.as_ref().map(format_debug)),
+                ),
                 ("value", self.operand_text(ctx, &arg.value)),
             ],
         )
@@ -1148,7 +1259,10 @@ impl<'a> MirDumpRenderer<'a> {
                 ("fqn", format_debug(&top.fqn)),
                 (
                     "site_id",
-                    self.option_text(top.site_id.map(|site_id| self.site_label(&ctx.labels, site_id))),
+                    self.option_text(
+                        top.site_id
+                            .map(|site_id| self.site_label(&ctx.labels, site_id)),
+                    ),
                 ),
                 (
                     "hidden_effects",
@@ -1230,7 +1344,11 @@ impl<'a> MirDumpRenderer<'a> {
                 ),
                 (
                     "runtime_error_effect_ty",
-                    self.option_text(metadata.runtime_error_effect_ty.map(|ty| self.type_text(ty))),
+                    self.option_text(
+                        metadata
+                            .runtime_error_effect_ty
+                            .map(|ty| self.type_text(ty)),
+                    ),
                 ),
                 ("suspends_outward", metadata.suspends_outward.to_string()),
             ],
@@ -1258,7 +1376,12 @@ impl<'a> MirDumpRenderer<'a> {
                 ("op_fqn", format_debug(&arm.op_fqn)),
                 (
                     "op_type_args",
-                    self.list_text(arm.op_type_args.iter().map(|&ty| self.type_text(ty)).collect()),
+                    self.list_text(
+                        arm.op_type_args
+                            .iter()
+                            .map(|&ty| self.type_text(ty))
+                            .collect(),
+                    ),
                 ),
                 ("binder_count", arm.binder_count.to_string()),
                 (
@@ -1304,7 +1427,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("effect_ty", self.type_text(metadata.effect_ty)),
                 (
                     "op_type_args",
-                    self.list_text(metadata.op_type_args.iter().map(|&ty| self.type_text(ty)).collect()),
+                    self.list_text(
+                        metadata
+                            .op_type_args
+                            .iter()
+                            .map(|&ty| self.type_text(ty))
+                            .collect(),
+                    ),
                 ),
                 ("result_ty", self.type_text(metadata.result_ty)),
                 (
@@ -1333,7 +1462,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ),
                 (
                     "arg_mapping",
-                    self.list_text(metadata.arg_mapping.iter().map(|idx| idx.to_string()).collect()),
+                    self.list_text(
+                        metadata
+                            .arg_mapping
+                            .iter()
+                            .map(|idx| idx.to_string())
+                            .collect(),
+                    ),
                 ),
             ],
         )
@@ -1347,7 +1482,12 @@ impl<'a> MirDumpRenderer<'a> {
                 ("receiver_ty", self.type_text(metadata.receiver_ty)),
                 (
                     "resolved",
-                    self.option_text(metadata.resolved.as_ref().map(|resolved| self.member_target_text(resolved))),
+                    self.option_text(
+                        metadata
+                            .resolved
+                            .as_ref()
+                            .map(|resolved| self.member_target_text(resolved)),
+                    ),
                 ),
                 (
                     "hidden_effects",
@@ -1359,8 +1499,12 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn member_target_text(&self, target: &MemberTarget) -> String {
         match target {
-            MemberTarget::Value { fqn } => self.inline_struct("Value", vec![("fqn", format_debug(fqn))]),
-            MemberTarget::Fun { fqn } => self.inline_struct("Fun", vec![("fqn", format_debug(fqn))]),
+            MemberTarget::Value { fqn } => {
+                self.inline_struct("Value", vec![("fqn", format_debug(fqn))])
+            }
+            MemberTarget::Fun { fqn } => {
+                self.inline_struct("Fun", vec![("fqn", format_debug(fqn))])
+            }
             MemberTarget::ExtensionValue { fqn } => {
                 self.inline_struct("ExtensionValue", vec![("fqn", format_debug(fqn))])
             }
@@ -1378,9 +1522,13 @@ impl<'a> MirDumpRenderer<'a> {
         match route {
             StoredContinuationRoutePublication::None => "None".to_string(),
             StoredContinuationRoutePublication::Ambiguous => "Ambiguous".to_string(),
-            StoredContinuationRoutePublication::Unique(route) => {
-                self.inline_struct("Unique", vec![("route", self.stored_continuation_value_route_text(ctx, route))])
-            }
+            StoredContinuationRoutePublication::Unique(route) => self.inline_struct(
+                "Unique",
+                vec![(
+                    "route",
+                    self.stored_continuation_value_route_text(ctx, route),
+                )],
+            ),
         }
     }
 
@@ -1392,11 +1540,20 @@ impl<'a> MirDumpRenderer<'a> {
         self.inline_struct(
             "StoredContinuationValueRoute",
             vec![
-                ("source_local", self.local_label(&ctx.labels, route.source_local)),
+                (
+                    "source_local",
+                    self.local_label(&ctx.labels, route.source_local),
+                ),
                 ("source_ty", self.type_text(route.source_ty)),
                 (
                     "path",
-                    self.list_text(route.path.iter().map(|step| self.pattern_step_text(step)).collect()),
+                    self.list_text(
+                        route
+                            .path
+                            .iter()
+                            .map(|step| self.pattern_step_text(step))
+                            .collect(),
+                    ),
                 ),
             ],
         )
@@ -1425,7 +1582,10 @@ impl<'a> MirDumpRenderer<'a> {
             Pattern::Else => "Else".to_string(),
             Pattern::Or { pats } => self.inline_struct(
                 "Or",
-                vec![("pats", self.list_text(pats.iter().map(|pat| self.pattern_text(pat)).collect()))],
+                vec![(
+                    "pats",
+                    self.list_text(pats.iter().map(|pat| self.pattern_text(pat)).collect()),
+                )],
             ),
             Pattern::Wildcard => "Wildcard".to_string(),
             Pattern::Rest => "Rest".to_string(),
@@ -1451,7 +1611,10 @@ impl<'a> MirDumpRenderer<'a> {
                 "Variant",
                 vec![
                     ("name", format_debug(name)),
-                    ("args", self.list_text(args.iter().map(|pat| self.pattern_text(pat)).collect())),
+                    (
+                        "args",
+                        self.list_text(args.iter().map(|pat| self.pattern_text(pat)).collect()),
+                    ),
                 ],
             ),
             Pattern::IntLit { raw } => {
@@ -1475,7 +1638,10 @@ impl<'a> MirDumpRenderer<'a> {
             vec![
                 ("source_ty", self.type_text(metadata.source_ty)),
                 ("target_ty", self.type_text(metadata.target_ty)),
-                ("descriptor", self.runtime_type_descriptor_key_text(&metadata.descriptor)),
+                (
+                    "descriptor",
+                    self.runtime_type_descriptor_key_text(&metadata.descriptor),
+                ),
                 ("static_fold", format_debug(&metadata.static_fold)),
                 (
                     "parameterized",
@@ -1485,16 +1651,16 @@ impl<'a> MirDumpRenderer<'a> {
         )
     }
 
-    fn runtime_pattern_type_test_text(
-        &self,
-        metadata: &RuntimePatternTypeTestMetadata,
-    ) -> String {
+    fn runtime_pattern_type_test_text(&self, metadata: &RuntimePatternTypeTestMetadata) -> String {
         self.inline_struct(
             "RuntimePatternTypeTestMetadata",
             vec![
                 ("subject_ty", self.type_text(metadata.subject_ty)),
                 ("target_ty", self.type_text(metadata.target_ty)),
-                ("descriptor", self.runtime_type_descriptor_key_text(&metadata.descriptor)),
+                (
+                    "descriptor",
+                    self.runtime_type_descriptor_key_text(&metadata.descriptor),
+                ),
                 ("match_kind", format_debug(&metadata.match_kind)),
                 ("static_fold", format_debug(&metadata.static_fold)),
                 (
@@ -1571,7 +1737,10 @@ impl<'a> MirDumpRenderer<'a> {
             } => self.inline_struct(
                 "Function",
                 vec![
-                    ("receiver", self.option_text(receiver.map(|ty| self.type_text(ty)))),
+                    (
+                        "receiver",
+                        self.option_text(receiver.map(|ty| self.type_text(ty))),
+                    ),
                     (
                         "params",
                         self.list_text(params.iter().map(|&ty| self.type_text(ty)).collect()),
@@ -1581,10 +1750,9 @@ impl<'a> MirDumpRenderer<'a> {
                     ("effects_closed", effects_closed.to_string()),
                 ],
             ),
-            RuntimeTypeParameterizedMatch::Option { payload_ty } => self.inline_struct(
-                "Option",
-                vec![("payload_ty", self.type_text(*payload_ty))],
-            ),
+            RuntimeTypeParameterizedMatch::Option { payload_ty } => {
+                self.inline_struct("Option", vec![("payload_ty", self.type_text(*payload_ty))])
+            }
             RuntimeTypeParameterizedMatch::Tuple { element_tys } => self.inline_struct(
                 "Tuple",
                 vec![(
@@ -1619,10 +1787,16 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn runtime_cast_failure_text(&self, failure: &RuntimeCastFailure) -> String {
         match failure {
-            RuntimeCastFailure::Raise { effect_ty, error_fqn } => self.inline_struct(
+            RuntimeCastFailure::Raise {
+                effect_ty,
+                error_fqn,
+            } => self.inline_struct(
                 "Raise",
                 vec![
-                    ("effect_ty", self.option_text(effect_ty.map(|ty| self.type_text(ty)))),
+                    (
+                        "effect_ty",
+                        self.option_text(effect_ty.map(|ty| self.type_text(ty))),
+                    ),
                     ("error_fqn", format_debug(error_fqn)),
                 ],
             ),
@@ -1775,9 +1949,15 @@ impl<'a> MirDumpRenderer<'a> {
             "AggregateTransportField",
             vec![
                 ("index", field.index.to_string()),
-                ("name", self.option_text(field.name.as_ref().map(format_debug))),
+                (
+                    "name",
+                    self.option_text(field.name.as_ref().map(format_debug)),
+                ),
                 ("ty", self.type_text(field.ty)),
-                ("transport", self.value_transport_text(ctx, &field.transport)),
+                (
+                    "transport",
+                    self.value_transport_text(ctx, &field.transport),
+                ),
             ],
         )
     }
@@ -1834,7 +2014,10 @@ impl<'a> MirDumpRenderer<'a> {
                 ("decl_span", format_debug(&capture.decl_span)),
                 ("mutable", capture.mutable.to_string()),
                 ("source_local", source_local),
-                ("transport", self.value_transport_text(ctx, &capture.transport)),
+                (
+                    "transport",
+                    self.value_transport_text(ctx, &capture.transport),
+                ),
             ],
         )
     }
@@ -1851,7 +2034,10 @@ impl<'a> MirDumpRenderer<'a> {
                 ("array_ty", self.type_text(metadata.array_ty)),
                 ("element_ty", self.type_text(metadata.element_ty)),
                 ("mutable", metadata.mutable.to_string()),
-                ("element", self.value_transport_text(Some(ctx), &metadata.element)),
+                (
+                    "element",
+                    self.value_transport_text(Some(ctx), &metadata.element),
+                ),
             ],
         )
     }
@@ -1874,7 +2060,10 @@ impl<'a> MirDumpRenderer<'a> {
                     "token_ty",
                     self.option_text(metadata.token_ty.map(|ty| self.type_text(ty))),
                 ),
-                ("subject", self.value_transport_text(Some(ctx), &metadata.subject)),
+                (
+                    "subject",
+                    self.value_transport_text(Some(ctx), &metadata.subject),
+                ),
             ],
         )
     }
@@ -1903,11 +2092,18 @@ impl<'a> MirDumpRenderer<'a> {
         )
     }
 
-    fn call_transport_text(&self, ctx: &BodyRenderCtx<'_>, metadata: &CallTransportMetadata) -> String {
+    fn call_transport_text(
+        &self,
+        ctx: &BodyRenderCtx<'_>,
+        metadata: &CallTransportMetadata,
+    ) -> String {
         self.inline_struct(
             "CallTransportMetadata",
             vec![
-                ("result", self.value_transport_text(Some(ctx), &metadata.result)),
+                (
+                    "result",
+                    self.value_transport_text(Some(ctx), &metadata.result),
+                ),
                 (
                     "aggregate_return",
                     self.option_text(
@@ -1920,12 +2116,20 @@ impl<'a> MirDumpRenderer<'a> {
                 (
                     "array",
                     self.option_text(
-                        metadata.array.as_ref().map(|array| self.array_transport_text(ctx, array)),
+                        metadata
+                            .array
+                            .as_ref()
+                            .map(|array| self.array_transport_text(ctx, array)),
                     ),
                 ),
                 (
                     "gc",
-                    self.option_text(metadata.gc.as_ref().map(|gc| self.gc_transport_text(ctx, gc))),
+                    self.option_text(
+                        metadata
+                            .gc
+                            .as_ref()
+                            .map(|gc| self.gc_transport_text(ctx, gc)),
+                    ),
                 ),
                 (
                     "thread_resume_payload",
@@ -1961,7 +2165,10 @@ impl<'a> MirDumpRenderer<'a> {
             "SupertypeMetadata",
             vec![
                 ("span", format_debug(&metadata.span)),
-                ("fqn", self.option_text(metadata.fqn.as_ref().map(format_debug))),
+                (
+                    "fqn",
+                    self.option_text(metadata.fqn.as_ref().map(format_debug)),
+                ),
                 ("ty", self.type_text(metadata.ty)),
                 ("ctor_arg_count", metadata.ctor_arg_count.to_string()),
             ],
@@ -1976,7 +2183,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("kind", format_debug(&metadata.kind)),
                 (
                     "params",
-                    self.list_text(metadata.params.iter().map(|param| self.ctor_param_text(param)).collect()),
+                    self.list_text(
+                        metadata
+                            .params
+                            .iter()
+                            .map(|param| self.ctor_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 (
                     "delegation",
@@ -1994,15 +2207,22 @@ impl<'a> MirDumpRenderer<'a> {
                 ("name", format_debug(&param.name)),
                 ("ty", self.type_text(param.ty)),
                 ("has_default", param.has_default.to_string()),
-                ("property", self.option_text(param.property.as_ref().map(format_debug))),
+                (
+                    "property",
+                    self.option_text(param.property.as_ref().map(format_debug)),
+                ),
             ],
         )
     }
 
     fn decl_member_metadata_text(&self, member: &DeclMemberMetadata) -> String {
         match member {
-            DeclMemberMetadata::Field(field) => self.inline_enum("Field", self.field_metadata_text(field)),
-            DeclMemberMetadata::Property(prop) => self.inline_enum("Property", self.property_metadata_text(prop)),
+            DeclMemberMetadata::Field(field) => {
+                self.inline_enum("Field", self.field_metadata_text(field))
+            }
+            DeclMemberMetadata::Property(prop) => {
+                self.inline_enum("Property", self.property_metadata_text(prop))
+            }
             DeclMemberMetadata::Fun(fun) => self.inline_enum("Fun", self.member_fun_text(fun)),
             DeclMemberMetadata::EnumVariant(variant) => {
                 self.inline_enum("EnumVariant", self.enum_variant_text(variant))
@@ -2018,12 +2238,19 @@ impl<'a> MirDumpRenderer<'a> {
 
     fn metadata_root_text(&self, root: &MetadataRoot) -> String {
         match root {
-            MetadataRoot::TypeAlias(alias) => self.inline_enum("TypeAlias", self.type_alias_metadata_text(alias)),
-            MetadataRoot::Nominal(nominal) => self.inline_enum("Nominal", self.nominal_metadata_text(nominal)),
-            MetadataRoot::Object(object) => self.inline_enum("Object", self.object_metadata_text(object)),
-            MetadataRoot::ExtensionProperty(prop) => {
-                self.inline_enum("ExtensionProperty", self.extension_property_metadata_text(prop))
+            MetadataRoot::TypeAlias(alias) => {
+                self.inline_enum("TypeAlias", self.type_alias_metadata_text(alias))
             }
+            MetadataRoot::Nominal(nominal) => {
+                self.inline_enum("Nominal", self.nominal_metadata_text(nominal))
+            }
+            MetadataRoot::Object(object) => {
+                self.inline_enum("Object", self.object_metadata_text(object))
+            }
+            MetadataRoot::ExtensionProperty(prop) => self.inline_enum(
+                "ExtensionProperty",
+                self.extension_property_metadata_text(prop),
+            ),
         }
     }
 
@@ -2036,7 +2263,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("name", format_debug(&alias.name)),
                 (
                     "type_params",
-                    self.list_text(alias.type_params.iter().map(|param| self.decl_type_param_text(param)).collect()),
+                    self.list_text(
+                        alias
+                            .type_params
+                            .iter()
+                            .map(|param| self.decl_type_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 ("ty", self.type_text(alias.ty)),
             ],
@@ -2053,11 +2286,23 @@ impl<'a> MirDumpRenderer<'a> {
                 ("kind", format_debug(&nominal.kind)),
                 (
                     "type_params",
-                    self.list_text(nominal.type_params.iter().map(|param| self.decl_type_param_text(param)).collect()),
+                    self.list_text(
+                        nominal
+                            .type_params
+                            .iter()
+                            .map(|param| self.decl_type_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 (
                     "supertypes",
-                    self.list_text(nominal.supertypes.iter().map(|supertype| self.supertype_metadata_text(supertype)).collect()),
+                    self.list_text(
+                        nominal
+                            .supertypes
+                            .iter()
+                            .map(|supertype| self.supertype_metadata_text(supertype))
+                            .collect(),
+                    ),
                 ),
                 (
                     "interfaces",
@@ -2065,11 +2310,23 @@ impl<'a> MirDumpRenderer<'a> {
                 ),
                 (
                     "constructors",
-                    self.list_text(nominal.constructors.iter().map(|ctor| self.ctor_metadata_text(ctor)).collect()),
+                    self.list_text(
+                        nominal
+                            .constructors
+                            .iter()
+                            .map(|ctor| self.ctor_metadata_text(ctor))
+                            .collect(),
+                    ),
                 ),
                 (
                     "members",
-                    self.list_text(nominal.members.iter().map(|member| self.decl_member_metadata_text(member)).collect()),
+                    self.list_text(
+                        nominal
+                            .members
+                            .iter()
+                            .map(|member| self.decl_member_metadata_text(member))
+                            .collect(),
+                    ),
                 ),
             ],
         )
@@ -2085,7 +2342,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("kind", format_debug(&object.kind)),
                 (
                     "supertypes",
-                    self.list_text(object.supertypes.iter().map(|supertype| self.supertype_metadata_text(supertype)).collect()),
+                    self.list_text(
+                        object
+                            .supertypes
+                            .iter()
+                            .map(|supertype| self.supertype_metadata_text(supertype))
+                            .collect(),
+                    ),
                 ),
                 (
                     "interfaces",
@@ -2094,7 +2357,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("initializer_root", format_debug(&object.initializer_root)),
                 (
                     "members",
-                    self.list_text(object.members.iter().map(|member| self.decl_member_metadata_text(member)).collect()),
+                    self.list_text(
+                        object
+                            .members
+                            .iter()
+                            .map(|member| self.decl_member_metadata_text(member))
+                            .collect(),
+                    ),
                 ),
             ],
         )
@@ -2110,12 +2379,31 @@ impl<'a> MirDumpRenderer<'a> {
                 ("mutable", prop.mutable.to_string()),
                 (
                     "type_params",
-                    self.list_text(prop.type_params.iter().map(|param| self.decl_type_param_text(param)).collect()),
+                    self.list_text(
+                        prop.type_params
+                            .iter()
+                            .map(|param| self.decl_type_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 ("receiver_ty", self.type_text(prop.receiver_ty)),
                 ("ty", self.type_text(prop.ty)),
-                ("getter", self.option_text(prop.getter.as_ref().map(|accessor| self.accessor_text(accessor)))),
-                ("setter", self.option_text(prop.setter.as_ref().map(|accessor| self.accessor_text(accessor)))),
+                (
+                    "getter",
+                    self.option_text(
+                        prop.getter
+                            .as_ref()
+                            .map(|accessor| self.accessor_text(accessor)),
+                    ),
+                ),
+                (
+                    "setter",
+                    self.option_text(
+                        prop.setter
+                            .as_ref()
+                            .map(|accessor| self.accessor_text(accessor)),
+                    ),
+                ),
             ],
         )
     }
@@ -2144,8 +2432,22 @@ impl<'a> MirDumpRenderer<'a> {
                 ("mutable", prop.mutable.to_string()),
                 ("ty", self.type_text(prop.ty)),
                 ("has_backing_field", prop.has_backing_field.to_string()),
-                ("getter", self.option_text(prop.getter.as_ref().map(|accessor| self.accessor_text(accessor)))),
-                ("setter", self.option_text(prop.setter.as_ref().map(|accessor| self.accessor_text(accessor)))),
+                (
+                    "getter",
+                    self.option_text(
+                        prop.getter
+                            .as_ref()
+                            .map(|accessor| self.accessor_text(accessor)),
+                    ),
+                ),
+                (
+                    "setter",
+                    self.option_text(
+                        prop.setter
+                            .as_ref()
+                            .map(|accessor| self.accessor_text(accessor)),
+                    ),
+                ),
             ],
         )
     }
@@ -2169,11 +2471,21 @@ impl<'a> MirDumpRenderer<'a> {
                 ("name", format_debug(&fun.name)),
                 (
                     "type_params",
-                    self.list_text(fun.type_params.iter().map(|param| self.decl_type_param_text(param)).collect()),
+                    self.list_text(
+                        fun.type_params
+                            .iter()
+                            .map(|param| self.decl_type_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 (
                     "params",
-                    self.list_text(fun.params.iter().map(|param| self.ctor_param_text(param)).collect()),
+                    self.list_text(
+                        fun.params
+                            .iter()
+                            .map(|param| self.ctor_param_text(param))
+                            .collect(),
+                    ),
                 ),
                 ("return_ty", self.type_text(fun.return_ty)),
             ],
@@ -2189,7 +2501,13 @@ impl<'a> MirDumpRenderer<'a> {
                 ("name", format_debug(&variant.name)),
                 (
                     "fields",
-                    self.list_text(variant.fields.iter().map(|field| self.field_metadata_text(field)).collect()),
+                    self.list_text(
+                        variant
+                            .fields
+                            .iter()
+                            .map(|field| self.field_metadata_text(field))
+                            .collect(),
+                    ),
                 ),
             ],
         )
@@ -2265,7 +2583,8 @@ impl<'a> MirDumpRenderer<'a> {
     }
 
     fn option_text(&self, value: Option<String>) -> String {
-        value.map(|value| format!("Some({value})"))
+        value
+            .map(|value| format!("Some({value})"))
             .unwrap_or_else(|| "None".to_string())
     }
 

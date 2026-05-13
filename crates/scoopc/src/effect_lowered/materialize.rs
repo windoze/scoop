@@ -6875,14 +6875,16 @@ fun main(): Int {
         let dump = output.program().stable_dump();
 
         assert!(dump.contains("wrapper_projection:"));
-        assert!(dump.contains("underlying_route: continuation_schema=k3"));
-        assert!(dump.contains("owner_step_schema: s1"));
-        assert!(dump.contains("wrapper_step_schema: s4"));
+        assert!(dump.contains("underlying_route: continuation_schema=cont#h"));
+        assert!(dump.contains("owner_step_schema: step#h"));
+        assert!(dump.contains("wrapper_step_schema: step#h"));
         assert!(
-            dump.lines()
-                .any(|line| line.contains("owner c2 op=scoop.core.Raise.raise<")
+            dump.lines().any(|line| {
+                line.contains("owner case#h")
+                    && line.contains("op=scoop.core.Raise.raise<")
                     && line.contains("payload_tuple_ty=")
-                    && line.contains(" -> wrapper c0")),
+                    && line.contains(" -> wrapper case#h")
+            }),
             "shared wrapper projection 应直接暴露 owner -> wrapper 映射\n{dump}"
         );
     }
@@ -6936,10 +6938,9 @@ fun main(): Int {
                 if matches!(source.value(), LateLoweredOperandValueSource::Local(_))
         ));
         let dump = output.program().stable_dump();
-        assert!(
-            dump.contains("complete: owner_answer_ty=t2 -> wrapper_answer_ty=t5 payload=local")
-        );
-        assert!(dump.contains("completion_payload: local"));
+        assert!(dump.contains("complete: owner_answer_ty="));
+        assert!(dump.contains("payload=local#h"));
+        assert!(dump.contains("completion_payload: local#h"));
     }
 
     #[test]
@@ -7354,8 +7355,9 @@ fun main(): Int {
         let dump = output.program().stable_dump();
 
         assert!(dump.contains("resume_payload_bindings:"));
-        assert!(dump.contains("bd0 resume=st2"));
-        assert!(dump.contains("home=slot"));
+        assert!(dump.contains("boundary#h"));
+        assert!(dump.contains("resume=state#h"));
+        assert!(dump.contains("home=slot#h"));
     }
 
     #[test]
@@ -7418,7 +7420,7 @@ fun main(): Int {
 
         assert!(dump.contains("completion_payload_bindings:"));
         assert!(dump.contains("root: run"));
-        assert!(dump.contains("payload=local"));
+        assert!(dump.contains("payload=local#h"));
     }
 
     #[test]

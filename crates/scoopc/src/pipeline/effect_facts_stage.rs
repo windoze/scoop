@@ -516,7 +516,8 @@ fun callInterface(i: IFace): Int {
         assert!(o0.contains("opt_level: O0"));
         assert!(o0.contains("impl_plan: CanonicalFull"));
         assert!(o2.contains("opt_level: O2"));
-        assert!(o2.contains("impl_plan: SingleCase(case#0=sample.Ping.hit)"));
+        assert!(o2.contains("impl_plan: SingleCase("));
+        assert!(o2.contains("sample.Ping.hit"));
     }
 
     #[test]

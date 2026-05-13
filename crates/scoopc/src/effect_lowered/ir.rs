@@ -27,6 +27,8 @@ pub struct LateLoweredProgram {
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
+    dump_type_texts: HashMap<TypeId, String>,
+    dump_body_labels: HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels>,
 }
 
 impl LateLoweredProgram {
@@ -45,6 +47,8 @@ impl LateLoweredProgram {
             surface_resume_dispatch_inventory,
             callables,
             stable_instance_keys: HashMap::new(),
+            dump_type_texts: HashMap::new(),
+            dump_body_labels: HashMap::new(),
         }
     }
 
@@ -53,6 +57,16 @@ impl LateLoweredProgram {
         stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     ) -> Self {
         self.stable_instance_keys = stable_instance_keys;
+        self
+    }
+
+    pub(crate) fn with_dump_metadata(
+        mut self,
+        dump_type_texts: HashMap<TypeId, String>,
+        dump_body_labels: HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels>,
+    ) -> Self {
+        self.dump_type_texts = dump_type_texts;
+        self.dump_body_labels = dump_body_labels;
         self
     }
 
@@ -69,6 +83,8 @@ impl LateLoweredProgram {
             surface_resume_dispatch_inventory,
             callables: self.callables.clone(),
             stable_instance_keys: self.stable_instance_keys.clone(),
+            dump_type_texts: self.dump_type_texts.clone(),
+            dump_body_labels: self.dump_body_labels.clone(),
         }
     }
 
@@ -165,6 +181,27 @@ impl LateLoweredProgram {
 
     pub fn stable_instance_keys(&self) -> &HashMap<InstanceKey, StableInstanceKey> {
         &self.stable_instance_keys
+    }
+
+    pub(crate) fn dump_type_text(&self, ty: TypeId) -> Option<&str> {
+        self.dump_type_texts.get(&ty).map(String::as_str)
+    }
+
+    pub(crate) fn dump_type_texts(&self) -> &HashMap<TypeId, String> {
+        &self.dump_type_texts
+    }
+
+    pub(crate) fn dump_body_labels(
+        &self,
+        version_key: &LateLoweredBodyVersionKey,
+    ) -> Option<&crate::mir::BodyLabels> {
+        self.dump_body_labels.get(version_key)
+    }
+
+    pub(crate) fn dump_body_labels_map(
+        &self,
+    ) -> &HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels> {
+        &self.dump_body_labels
     }
 
     pub fn len(&self) -> usize {
@@ -5613,12 +5650,11 @@ mod tests {
             "continuation_objects:",
             "authoritative_surface_resume_dispatch_inventory:",
             "resume_packing_interfaces:",
-            "implemented_packings: [ri0]",
+            "implemented_packings: [packing#h",
             "authoritative_surface_resumes:",
             "authoritative_internal_methods:",
-            "resume_packing_interfaces: [ri0]",
-            "case=c0 packed_by=ri0",
-            "case=c1 packed_by=ri0",
+            "resume_packing_interfaces: [packing#h",
+            "packed_by=packing#h",
             "concrete_op=sample.Ping.hit",
             "concrete_op=sample.Ping.pong",
         ] {
@@ -5746,7 +5782,7 @@ mod tests {
         assert!(dump.contains("plain_source_slices:"));
         assert!(dump.contains("plain_call_sites:"));
         assert!(!dump.contains("dynamic_invoke_entry:"));
-        assert!(!dump.contains("continuation_object: ko"));
+        assert!(!dump.contains("continuation_object: cont_obj#h"));
         assert!(!dump.contains("boundary_map:"));
     }
 
@@ -5808,7 +5844,7 @@ mod tests {
                     }
                 ))
         );
-        assert!(dump.contains("plain_local_effect_control: s"));
+        assert!(dump.contains("plain_local_effect_control: step#h"));
         assert!(dump.contains("lowering: Perform"));
         assert!(dump.contains("lowering: Resume"));
     }
