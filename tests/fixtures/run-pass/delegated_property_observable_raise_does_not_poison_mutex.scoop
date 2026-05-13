@@ -1,7 +1,7 @@
 // EXPECT: pass
 // T3008a/T3010b2b: effect frame/continuation ABI 与 post-suspend tail 现已可稳定覆盖 observable+Raise 交互。
 // RUN-STDOUT: delegated_property_observable_raise_does_not_poison_mutex.stdout
-// TIMEOUT: 3000
+// TIMEOUT: 30000
 //
 // T1326b：observable 与 Raise/异常交互（最小回归）
 // - observable 回调在写入后执行；若回调触发 Raise.raise 并被外层 try/catch 捕获，

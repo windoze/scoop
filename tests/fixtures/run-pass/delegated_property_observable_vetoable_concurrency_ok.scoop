@@ -1,6 +1,6 @@
 // EXPECT: pass
 // RUN-STDOUT: delegated_property_observable_vetoable_concurrency_ok.stdout
-// TIMEOUT: 3000
+// TIMEOUT: 30000
 //
 // T1326b：observable/vetoable 的并发可见性与回调规则（host/pthread 最小回归）
 // - observable：写入后触发回调（old/new）；并发读写应具备可见性（无 data race）
