@@ -21,6 +21,7 @@
 | `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
 | `P4-T01a` | P4 前置 I | [DONE] 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
 | `P4-T01b` | P4 前置 I | [DONE] vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
+| `P4-T01c-pre1` | P4 前置 I | 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
 | `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
@@ -574,7 +575,7 @@
 >
 > 硬约束（"零编译器后门"，non-generic 维度）：本前置阶段必须保证，未来再加任何新的非 generic 内建 method（含 interface override 与独立 method）都不会再要求改编译器；只动 sysroot 即可。generic-by-T 维度的后门（不可避免）由 P4 前置 II 收敛为可枚举 intrinsic 表。
 >
-> 顺序约束：P4-T01a → P4-T01b → P4-T01c → P4-T01d → P4-T01e → P4-T01。五个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
+> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01。六个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
 
 ### [DONE] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
 
@@ -696,6 +697,37 @@
     - 对应 `PLAN.md` P4 前置 I 第 2 项：user struct/class/generic class 的 interface impl 现在可以通过统一的 metadata-driven itable dispatch 走完整 caller-side marshal；value type 不再依赖 thunk，generic class 的 concrete method instance 也能被发布到 fun_index / class_itables / runtime dispatch metadata。
     - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有删除 `ToString`/scalar/string 的 by-name intercept；这些删除动作仍按顺序留给后续 `P4-T01`。
 
+### [TODO] P4-T01c-pre1：为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写
+
+- 参考：
+  - `crates/scoopc/src/sysroot/mod.rs`
+  - `crates/scoopc/src/session/mod.rs`
+  - `crates/scoop/src/fixtures/mod.rs`
+  - `crates/scoop/src/commands/build.rs`
+- 起因 / 阻塞说明：
+  - `P4-T01c` 的验收要求里明确需要一个“把 sysroot 现有 `class Array<T>` / `class MutableArray<T>` 重写为 `@Intrinsic class ... { bodied methods }` 的本任务专用 fixture”。
+  - 当前 fixture / driver 路径始终加载工作区默认 sysroot，且没有 overlay / replace 机制；若在 fixture 源里再次声明 `scoop.core.Array` / `scoop.core.MutableArray`，会直接与默认 sysroot 中同名定义冲突。
+  - 在没有 sysroot overlay 能力前，只能退而求其次改用别的 FQN（例如 `Container<T>`）或只做 Rust owner test；这都会直接缩窄 `P4-T01c` 已写定的 fixture 形状，违反“不得通过更容易的表示或 fixture shape 绕过问题”的约束。
+- 目标：
+  - 为 fixture / build 路径补一条最小的 sysroot overlay 能力，使 `P4-T01c` 可以用真实 `scoop.core.Array` / `MutableArray` FQN 做 task-specific fixture，而不复制整份 sysroot，也不污染默认 sysroot。
+- 必须实现的内容：
+  1. 为测试/fixture 路径提供“在默认 sysroot 之上覆写指定文件”的能力；overlay 后仍应保留其余默认 sysroot 内容。
+  2. 该能力必须同时覆盖：
+     - `scoopc` 前端默认 support-source 加载路径；
+     - `scoop run` / `scoop build` 经 fixture harness 触发的 CLI 路径。
+  3. overlay 后的 `core.scoop` 若出现 bodied `@Intrinsic struct/class`，必须能进入 compilable sysroot source 集合，而不是继续停留在 signature-only sysroot 索引里。
+  4. 不得要求 fixture 复制整份 `sysroot/` 目录；overlay 只应表达“改写哪些文件”。
+- 必须遵从的约束：
+  - 不得通过把 `P4-T01c` 的 Array/MutableArray fixture 换成不同 FQN 的“等价样例”来规避该前置。
+  - 不得引入只为单个 fixture 生效的 ad-hoc 路径；overlay 机制必须是可复用、可审计的测试基础设施。
+- 验证：
+  1. 新增一条 fixture / owner test，证明 overlay `core.scoop` 后可以成功覆盖默认 `scoop.core.Array` 声明，而未覆盖的 sysroot 符号仍保持可见。
+  2. `cargo run -p scoop -- test --fixtures <新增的 sysroot overlay fixture>`
+  3. `cargo test -p scoopc llvm_tests -- --nocapture`
+- 完成条件：
+  - `P4-T01c` 可以在不复制整份 sysroot、也不缩窄 fixture 形状的前提下，为 `Array<T>` / `MutableArray<T>` 编写 task-specific overlay fixture。
+- 依赖：`P4-T01b`
+
 ### [TODO] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
 
 - 参考：
@@ -741,7 +773,7 @@
   - 上述 fixture 双锁机制覆盖到 generic class 这一最复杂形态；
   - P4 前置 II 可以在此基础上扩展 method-level `@Intrinsic("name")` surface；
   - P4-T01 在 P4 前置 I/II 都完成后只需"sysroot 改写 + 删旧 by-name 特判"，编译器侧不再需要为单个 non-generic interface 加任何配套改动。
-- 依赖：`P4-T01b`
+- 依赖：`P4-T01c-pre1`
 
 ## P4 前置 II：intrinsic 表 IR-emission 与 runtime 收缩（Array/MutableArray 起步）
 
