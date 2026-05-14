@@ -1607,7 +1607,7 @@
   - 不得用“这些 sentinel 本来就不会触发”替代真实分类说明。
   - 不得留下模糊的 `UnsupportedMainBody` 用户可见路径。
 - 验证：
-  1. `cargo test --all`
+  1. `cargo test --all --all-targets`
   2. `cargo run -p scoop -- test`
   3. `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`
   4. `cargo test -p scoopc llvm_tests`
