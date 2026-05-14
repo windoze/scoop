@@ -6270,11 +6270,15 @@ mod tests {
                 matches!(
                     boundary.lowering(),
                     Some(LateLoweredBoundaryLowering::Call(lowering))
-                        if lowering.facts().kind() == crate::effect_facts::CallSiteKind::Closure
+                        if matches!(
+                            lowering.facts().kind(),
+                            crate::effect_facts::CallSiteKind::Closure
+                                | crate::effect_facts::CallSiteKind::FunValue
+                        )
                             && lowering.facts().target_mode() == CallTargetMode::KnownInstance
                 )
             })
-            .expect("fixture 应包含 known-instance closure call boundary");
+            .expect("fixture 应包含 known-instance closure/fun-value call boundary");
         let LateLoweredBoundaryLowering::Call(lowering) = closure_boundary
             .lowering()
             .expect("closure boundary 应发布 lowering contract")
@@ -6415,9 +6419,29 @@ fun main(): Int {
             .effect_facts()
             .body(main_family.key())
             .expect("main body facts should exist");
-        let call_facts = match body_facts.site(SiteId::from_raw(1)) {
+        let helper_call_site = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            site_id,
+                            kind: crate::mir::CallKind::Direct { callee_fqn },
+                            ..
+                        },
+                    ..
+                } if callee_fqn == "a.helper" => Some(*site_id),
+                _ => None,
+            })
+            .expect("helper(...) call 应被发布为 direct call site");
+        let call_facts = match body_facts.site(helper_call_site) {
             Some(crate::effect_facts::SiteEffectFacts::Call(facts)) => facts,
-            other => panic!("site1 应为 call facts，实际为: {other:?}"),
+            other => panic!(
+                "helper call site {} 应为 call facts，实际为: {other:?}",
+                helper_call_site.as_u32()
+            ),
         };
         let arg_local = body
             .blocks
@@ -6427,7 +6451,7 @@ fun main(): Int {
                 StatementKind::Assign {
                     value: Rvalue::Call { site_id, args, .. },
                     ..
-                } if *site_id == SiteId::from_raw(1) => match args.as_slice() {
+                } if *site_id == helper_call_site => match args.as_slice() {
                     [
                         CallArg {
                             value: Operand::Local(local),
@@ -6438,7 +6462,7 @@ fun main(): Int {
                 },
                 _ => None,
             })
-            .expect("site1 应发布单一 local arg");
+            .expect("helper call site 应发布单一 local arg");
 
         let nominal_direct_supertypes =
             crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
@@ -6623,10 +6647,10 @@ fun main(): Int {
             "effect_multi_escape_indirect_direct_while.scoop",
         ));
         let callable = callable(&output, "main");
-        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
         let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
         else {
-            panic!("main site0 应保持 HandleDispatch terminator");
+            panic!("main 顶层 handle 应保持 HandleDispatch terminator");
         };
         let binder = contract.handled_arms()[0]
             .continuation_binder()
@@ -6660,7 +6684,7 @@ fun main(): Int {
                 .iter()
                 .map(|(site_id, _)| site_id.as_u32())
                 .collect::<Vec<_>>(),
-            vec![25, 30, 35, 40]
+            vec![26, 31, 36, 41]
         );
         for (_site_id, route) in resume_routes {
             assert_eq!(route.continuation_schema(), binder.continuation_schema());
@@ -6673,7 +6697,7 @@ fun main(): Int {
                     handled_case,
                     ..
                 } if *owner_continuation_object == callable.continuation_object()
-                    && site_id.as_u32() == 0
+                    && site_id.as_u32() == 1
                     && *arm_ordinal == 0
                     && *handled_case == contract.handled_arms()[0].handled_case()
             ));
@@ -6736,10 +6760,10 @@ fun main(): Int {
             "effect_multi_escape_indirect_direct_while.scoop",
         ));
         let callable = callable(&output, "main");
-        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
         let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
         else {
-            panic!("main site0 应保持 HandleDispatch terminator");
+            panic!("main 顶层 handle 应保持 HandleDispatch terminator");
         };
         let binder = contract.handled_arms()[0]
             .continuation_binder()
@@ -6784,7 +6808,7 @@ fun main(): Int {
                 handled_case,
                 ..
             } if *owner_continuation_object == callable.continuation_object()
-                && site_id.as_u32() == 0
+                && site_id.as_u32() == 1
                 && *arm_ordinal == 0
                 && *handled_case == contract.handled_arms()[0].handled_case()
         ));
@@ -6898,10 +6922,10 @@ fun main(): Int {
             "effect_multi_escape_indirect_direct_while.scoop",
         ));
         let callable = callable(&output, "main");
-        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+        let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
         let LateLoweredStateTerminator::HandleDispatch { contract, .. } = handle_state.terminator()
         else {
-            panic!("main site0 应保持 HandleDispatch terminator");
+            panic!("main 顶层 handle 应保持 HandleDispatch terminator");
         };
         let arm_source = contract.handled_arms()[0].completion_payload_source();
         let resume_schema = callable
@@ -7148,10 +7172,10 @@ fun main(): Int {
                     boundary.source(),
                     crate::effect_lowered::ir::LateLoweredBoundarySource::RuntimeError {
                         origin_site
-                    } if origin_site == SiteId::from_raw(25)
+                    } if origin_site == SiteId::from_raw(26)
                 )
             })
-            .expect("site25 的 paired runtime-error boundary 应存在");
+            .expect("首个 resume site 的 paired runtime-error boundary 应存在");
         let resume_binding = main
             .frame_schema()
             .resume_payload_binding(resume_boundary.boundary_id())

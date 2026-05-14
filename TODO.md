@@ -1424,7 +1424,7 @@
       delegated property / closure FunValue env 视图」的最后 typed-contract gap 已闭合，
       为 P6-T03 重写账本提供真实闭合状态。
 
-### [TODO] P6-T03：重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态
+### [DONE] P6-T03：重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -1464,9 +1464,62 @@
 - 依赖：`P6-T02A`
 - 完成记录：
   - 改动范围：
+    - `PIPELINE_GAPS.md`：把 status header 改写为 P6-T03 终态账本；明确所有 `§...`
+      编号要么 `Closed/Re-scoped`、`Historical`，要么落到 frontend gate；同时把
+      `UnsupportedMainBody` 解读为 contract-violation / impossible-state sentinel，
+      不再视作 feature gap 列表，并补全终态主线/guard 总览。
+    - `crates/scoopc/src/effect_facts/builder.rs`：把测试 fixture `sample_source` 中
+      的 `scoop.core.Raise.raise(...)` / `scoop.core.Continuation<...>` 等 FQN
+      调用统一改写为 `import scoop.core.*` 后的短名，让 6 个 effect-facts builder
+      单测真正通过 typed call-site contract，而不是绕过它。
+    - `crates/scoopc/src/effect_lowered/materialize.rs`、
+      `crates/scoopc/src/llvm/codegen/effect_lowered/layout.rs`：刷新依赖 P6-T02A
+      合成 span 后 site-id 序列的快照断言（顶层 `HandleDispatch` 由 site0 → site1，
+      escape resume 由 [25,30,35,40] → [26,31,36,41]），并把
+      `effect_resume_if_else_branch_single_perform` 的 runtime-error boundary
+      lookup 改成不依赖具体 site 编号的 shape-based 查找。
+    - `crates/scoopc/src/effect_lowered/materialize.rs`：把
+      `refactor_effect_lowered_boundary_operand_contract_publishes_known_closure_env_sources`
+      的 known-instance 闭包匹配同时接受 `CallSiteKind::Closure` 与
+      `CallSiteKind::FunValue`，与 P6-T02A 后 closure-FunValue 共用 known-instance
+      env-source 的 contract 一致。
+    - `crates/scoopc/src/mir/lower.rs`：把两个内嵌 fixture 单测改成与无 `package`
+      声明 / 显式 `package sample` 的真实 FQN 一致（`main` vs `sample.main`）。
+    - `crates/scoopc/src/llvm/tests.rs`：`managed_function_emits_explicit_root_frame_descriptor`
+      改成断言唯一合并 root（参数即返回值）的 `[1 x i32] [i32 16]`，与当前
+      managed function shadow stack contract 保持一致。
+    - `crates/scoopc/src/mir/escape.rs`、`crates/scoopc/src/mir/closure_simplify.rs`：
+      escape 分析现在把 `CallKind::FunValue` 中实际 alias 回本地 closure 的 callee
+      当成 `LocalClosureCall`，closure simplify 据此识别 `FunValue` 形态的本地闭包
+      调用，恢复 P6-T02A 之前对“非逃逸 Unit-env 局部闭包”的 inline 优化覆盖。
   - 核心决策：
+    - 不再保留任何 `Open` / `Partial` 状态；终态账本只允许 `Closed/Re-scoped`、
+      `Historical` 与 `FrontendReject` 三类 status。
+    - active codegen inventory 已严格收敛为“仍承担 executable guard / frontend gate
+      语义”的条目；纯 regression coverage 全部下沉到 fixture / LLVM IR 单测。
+    - 单测 fixture 不再使用未支持的 FQN call 语法（如 `scoop.core.Raise.raise(...)`），
+      统一通过 `import scoop.core.*` + 短名表达，与所有 production fixtures 对齐。
+    - 对 P6-T02A 引入的合成 span 序列做 minimal 替换：site-id 仅按真实可观察序列
+      重写一次，shape-based 查找（runtime-error boundary）继续保留。
+    - `CallKind::FunValue { callee }` 现在被 escape 分析视作 known-instance closure
+      call，不再无差别地标为 `Escaping`，确保 closure simplify、`§3.11` closure env
+      contract、`§4.5` array composite transport 的非逃逸优化与现有 fixture 保持一致。
   - 验证结果：
+    - `cargo test -p scoopc --lib codegen_gap_inventory`：14 passed。
+    - `cargo test -p scoopc --lib refactor_mir_placeholder_inventory`：1 passed。
+    - `cargo test -p scoopc --lib llvm::tests::`：110 passed。
+    - `cargo test -p scoopc --lib`：837 passed（之前 21 项 baseline 失败已全部修复）。
+    - `cargo run -p scoop -- test`：1232 fixtures PASS（1269 checks）。
+    - `cargo clippy --all-targets -- -D warnings`：0 warning。
+    - `rg 'LegacyOnly|assign lhs lowering pending|call callee lowering pending|resume lowering requires canonical callee shape'`
+      在 `crates/scoopc/src` / `crates/scoop/src` / `tests/fixtures` 命中 0 次；
+      `UnsupportedMainBody` 仅作为 LLVM backend impossible-state guard 出现，符合
+      `PIPELINE_GAPS §0` 重新定义的语义。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - `PLAN.md` §5/P6 阶段所述「重写账本与 inventory，使其与真实能力一致」已落地。
+    - `PIPELINE_GAPS.md` 终态账本与 `codegen_gap_inventory.rs` 列出的 active gap id
+      一致；`§3.4`/`§3.7`/`§4.2`/`§5.2`/`§5.6`/`§5.7`/`§6.1`-`§6.5` 的 regression-only
+      coverage 留在 fixture 与 LLVM IR 单测里，不再保留 active codegen inventory entry。
 
 ## P7：执行 full regression 与最终审计
 

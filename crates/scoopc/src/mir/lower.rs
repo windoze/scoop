@@ -6926,7 +6926,7 @@ fun readValue(x: Any): Int {
             .items
             .iter()
             .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun),
+                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
                 _ => None,
             })
             .expect("expected main MIR root");
@@ -6993,6 +6993,8 @@ fun readValue(x: Any): Int {
         let source = SourceFile::new_virtual(
             "<mem>/mir_nested_uint8_array_expected_type.scoop",
             r#"
+package sample
+
 import scoop.core.*
 
 fun takeByte(xs: Array<UInt8>): UInt8 {

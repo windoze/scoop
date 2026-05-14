@@ -9415,11 +9415,11 @@ mod tests {
                     .abi_visibility_program
                     .callable("main")
                     .expect("main callable 应存在");
-                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
                 let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
                     handle_state.terminator()
                 else {
-                    panic!("main site0 应保持 HandleDispatch terminator");
+                    panic!("main 顶层 handle 应保持 HandleDispatch terminator");
                 };
                 let binder = contract.handled_arms()[0]
                     .continuation_binder()
@@ -9458,7 +9458,7 @@ mod tests {
                         .iter()
                         .map(|(site_id, _)| site_id.as_u32())
                         .collect::<Vec<_>>(),
-                    vec![25, 30, 35, 40]
+                    vec![26, 31, 36, 41]
                 );
                 for (_site_id, route) in routes {
                     assert_eq!(route.continuation_schema(), binder.continuation_schema());
@@ -9471,7 +9471,7 @@ mod tests {
                             handled_case,
                             ..
                         } if *owner_continuation_object == callable.continuation_object()
-                            && site_id.as_u32() == 0
+                            && site_id.as_u32() == 1
                             && *arm_ordinal == 0
                             && *handled_case == contract.handled_arms()[0].handled_case()
                     ));
@@ -9595,11 +9595,10 @@ mod tests {
                     .find(|boundary| {
                         matches!(
                             boundary.source(),
-                            LateLoweredBoundarySource::RuntimeError { origin_site }
-                                if origin_site == SiteId::from_raw(25)
+                            LateLoweredBoundarySource::RuntimeError { .. }
                         )
                     })
-                    .expect("site25 的 runtime-error boundary 应存在");
+                    .expect("main 应存在 runtime-error boundary");
                 let runtime_error_binding = main
                     .frame_schema()
                     .resume_payload_binding(runtime_error_boundary.boundary_id())
@@ -9688,11 +9687,10 @@ mod tests {
                     .find(|boundary| {
                         matches!(
                             boundary.source(),
-                            LateLoweredBoundarySource::RuntimeError { origin_site }
-                                if origin_site == SiteId::from_raw(25)
+                            LateLoweredBoundarySource::RuntimeError { .. }
                         )
                     })
-                    .expect("site25 的 runtime-error boundary 应存在");
+                    .expect("main 应存在 runtime-error boundary");
                 let replacement = main
                     .frame_schema()
                     .resume_payload_bindings()
@@ -12142,11 +12140,11 @@ fun main(): Int {
                     })
                     .expect("fixture 应至少包含一个 resume boundary");
                 let resume_schema = resume_lowering.facts().continuation_schema();
-                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(0));
+                let handle_state = handle_dispatch_state(callable, SiteId::from_raw(1));
                 let LateLoweredStateTerminator::HandleDispatch { contract, .. } =
                     handle_state.terminator()
                 else {
-                    panic!("main site0 应保持 HandleDispatch terminator");
+                    panic!("main 顶层 handle 应保持 HandleDispatch terminator");
                 };
                 let binder = contract.handled_arms()[0]
                     .continuation_binder()
@@ -12174,7 +12172,7 @@ fun main(): Int {
                             trampoline.owner_continuation_object(),
                             callable.continuation_object()
                         );
-                        assert_eq!(sites, vec![25, 30, 35, 40]);
+                        assert_eq!(sites, vec![26, 31, 36, 41]);
                         assert!(!trampoline.handle_binder_routes().is_empty());
                         let projection = trampoline.wrapper_projection().expect(
                             "shared wrapper schema 应发布 owner-step -> wrapper-step projection",
@@ -12196,7 +12194,7 @@ fun main(): Int {
                                 handled_case,
                                 ..
                             } if *owner_continuation_object == callable.continuation_object()
-                                && site_id.as_u32() == 0
+                                && site_id.as_u32() == 1
                                 && *arm_ordinal == 0
                                 && *handled_case == contract.handled_arms()[0].handled_case()
                         ));

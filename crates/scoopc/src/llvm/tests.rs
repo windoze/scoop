@@ -4896,13 +4896,13 @@ fun main() {
     );
     assert!(
         llvm_ir_global_definition(&ir, keep_offsets)
-            .is_some_and(|line| line.contains("internal constant [2 x i32]")),
-        "keep() 现在会同时发布参数 root 与 return slot root\n{ir}"
+            .is_some_and(|line| line.contains("internal constant [1 x i32]")),
+        "keep() 应发布唯一的合并 root（参数即返回值）\n{ir}"
     );
     assert!(
         llvm_ir_global_definition(&ir, keep_offsets)
-            .is_some_and(|line| { line.contains("internal constant [2 x i32] [i32 16, i32 24]") }),
-        "keep() 的显式 root frame 偏移应从 header 后开始并覆盖参数/返回值 home slot\n{ir}"
+            .is_some_and(|line| { line.contains("internal constant [1 x i32] [i32 16]") }),
+        "keep() 的显式 root frame 偏移应从 header 后开始并覆盖唯一 home slot\n{ir}"
     );
 }
 

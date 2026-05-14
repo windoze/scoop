@@ -1,16 +1,17 @@
 # PIPELINE_GAPS
 
-## 状态更新（2026-05-14）
+## 状态更新（2026-05-14，P6-T03 终态）
 
-- 本文件已按当前代码、fixture 与 LLVM IR 单测重写，目标从“历史差距审计日志”改为“当前 live gap 账本 + legacy gap id 映射”。
-- `LlvmEmitError::UnsupportedMainBody` / “暂不支持的 main 代码生成节点”已经是 LLVM backend 的通用 unsupported/assertion 桶，不再等价于“当前仍未实现的 feature 列表”。
-- 机器可消费的 owner/gap id 仍保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。其中 `PIPELINE_GAPS §...` 继续作为稳定 bucket id；但 active codegen inventory 现在只保留仍有 executable guard / frontend gate 语义的条目，纯 regression coverage 留在 fixture / LLVM IR 单测里。
-- 当前 `UnsupportedMainBody` 症状最集中的模块是 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`。其中相当一部分报错反映的是 typed contract 漂移、routing 失配或内部不变量断言，而不是缺少某个 LLVM primitive。
-- 当前仍值得跟踪的主线与 guard，主要是以下几类：
-- pre-MIR / MIR placeholder 主线已收口；当前主要剩 regression guard 与更下游的 contract drift，而不是新的 live lowering gap。
-- raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind 仍依赖更早 verifier 或 routing。
-- effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；对应 gap id 仅保留 guard / drift audit 语义。
-- aggregate/composite 主线上的 enum/array boxing、shared descriptor transport、closure env/capture transport 与 cross-thread composite payload reuse 已收口；相关编号现在只剩 guard / frontend gate 语义。
+- 本文件作为 P6-T03 收尾的**终态账本**：所有 `PIPELINE_GAPS §...` 编号要么已 `Closed/Re-scoped`，要么已 `Historical`，要么落到前端显式 `FrontendReject` gate 上。本轮没有任何 `Open` 或 `Partial` 编号留在主线。
+- `LlvmEmitError::UnsupportedMainBody` / “暂不支持的 main 代码生成节点”是 LLVM backend 的通用 contract-violation / impossible-state assertion 桶，不再等价于“当前仍未实现的 feature 列表”；新出现的命中应一律按 contract drift / compiler bug sentinel 处理。
+- 机器可消费的 owner/gap id 保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。`PIPELINE_GAPS §...` 继续作为稳定 bucket id；active codegen inventory 现在只保留仍有 executable guard / frontend gate 语义的条目，已转为纯 regression coverage 的编号（`§3.4`、`§3.7`、`§4.2`、`§5.2`、`§5.6`、`§5.7`、`§6.x`）只在 fixture / LLVM IR 单测里留有验证。
+- 当前 `UnsupportedMainBody` 症状最集中的模块仍是 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`；这些位置上残留的报错都是 typed contract 漂移、routing 失配或内部不变量断言，而不是缺少某个 LLVM primitive。
+- 终态主线与 guard 总览：
+- pre-MIR / MIR placeholder 主线已收口；只剩 `§2.3`、`§2.7` 的 upstream contract guard，不允许再当成 production 输入校验入口使用。
+- raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind / dispatch / resume 已由 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 raw-route gate 拒绝在 body emission 之前。
+- effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；`§3.12`、`§5.1`、`§5.3`、`§5.4` 仅保留 guard / drift audit 语义。
+- aggregate/composite 主线上的 enum/array boxing、shared descriptor transport、closure env/capture transport 与 cross-thread composite payload reuse 已收口；相关编号现在只剩 guard 语义。
+- 前端 gate（`§7.1` or-pattern binder、`§7.2` function-type runtime cast、`§7.5` struct mutable field、`§7.6` GC pin/handle support surface）继续与 backend 能力同步：放开任意一项前必须同步补齐 MIR contract / layout / runtime 语义。
 
 ## 如何阅读
 

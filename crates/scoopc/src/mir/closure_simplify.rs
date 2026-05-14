@@ -254,13 +254,18 @@ fn try_expand_non_escaping_closure_call(
     let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
-    let CallKind::Closure { callee, fn_ptr } = kind else {
-        return None;
+    let (callee, expected_fn_ptr): (&Operand, Option<&str>) = match kind {
+        CallKind::Closure { callee, fn_ptr } => (callee, Some(fn_ptr.as_str())),
+        CallKind::FunValue { callee } => (callee, None),
+        _ => return None,
     };
     let provenance = block_provenance.provenance_of_operand(callee)?;
-    if provenance.fn_ptr != *fn_ptr {
+    if let Some(expected) = expected_fn_ptr
+        && provenance.fn_ptr != expected
+    {
         return None;
     }
+    let fn_ptr = provenance.fn_ptr.as_str();
     proven_non_escaping_single_call_closure(facts, provenance.origin, fn_ptr)?;
 
     let closure = snapshot.callable(fn_ptr)?;

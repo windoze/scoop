@@ -3456,29 +3456,31 @@ mod tests {
             r#"
 package sample
 
+import scoop.core.*
+
 effect Flag {
     fun ping(): Unit
 }
 
 fun <T> pureUnit(_witness: T): Unit {}
 
-fun <T> raiseString(_witness: T): Unit / scoop.core.Raise<String> {
-    scoop.core.Raise.raise("boom")
+fun <T> raiseString(_witness: T): Unit / Raise<String> {
+    Raise.raise("boom")
 }
 
-fun <T> raiseInt(_witness: T): Unit / scoop.core.Raise<Int> {
-    scoop.core.Raise.raise(1)
+fun <T> raiseInt(_witness: T): Unit / Raise<Int> {
+    Raise.raise(1)
 }
 
 fun <T> pingFlag(_witness: T): Unit / Flag {
     Flag.ping()
 }
 
-fun <T> resumeZero(_witness: T, k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / scoop.core.Raise<scoop.core.RuntimeError> {
+fun <T> resumeZero(_witness: T, k: Continuation<Unit, Unit, eff Pure>): Unit / Raise<RuntimeError> {
     k.resume()
 }
 
-fun exercise(k: scoop.core.Continuation<Unit, Unit, eff Pure>): Unit / (Flag + scoop.core.Raise<String> + scoop.core.Raise<Int> + scoop.core.Raise<scoop.core.RuntimeError>) {
+fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String> + Raise<Int> + Raise<RuntimeError>) {
     pureUnit(())
     raiseString(())
     raiseInt(())

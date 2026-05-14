@@ -459,7 +459,17 @@ fn analyze_call_kind_uses(
             facts,
         ),
         CallKind::FunValue { callee } => {
-            mark_operand_use(callee, OperandUse::Escaping, aliases, facts);
+            let resolved_fn_ptr = local_closure_fn_ptr_for_operand(callee, aliases, facts);
+            if let Some(fn_ptr) = resolved_fn_ptr.as_deref() {
+                mark_operand_use(
+                    callee,
+                    OperandUse::LocalClosureCall { fn_ptr },
+                    aliases,
+                    facts,
+                );
+            } else {
+                mark_operand_use(callee, OperandUse::Escaping, aliases, facts);
+            }
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
@@ -561,6 +571,24 @@ fn mark_operand_use(
             }
         }
     }
+}
+
+/// 当 `CallKind::FunValue` 的 callee 实际上能 alias 回本函数内的某个 `MakeClosure`
+/// 结果时，把它当成本地 closure 调用：返回该 closure 的 fn_ptr 字符串，否则 `None`。
+fn local_closure_fn_ptr_for_operand(
+    operand: &Operand,
+    aliases: &HashMap<LocalId, EscapeOrigin>,
+    facts: &CallableEscapeFacts,
+) -> Option<String> {
+    let Operand::Local(local) = operand else {
+        return None;
+    };
+    let origin = aliases.get(local).copied()?;
+    let EscapeOrigin::Closure(origin_local) = origin else {
+        return None;
+    };
+    let fact = facts.closures_by_local.get(&origin_local)?;
+    Some(fact.fn_ptr.clone())
 }
 
 fn mark_origin_escaped(origin: LocalId, facts: &mut CallableEscapeFacts) {
