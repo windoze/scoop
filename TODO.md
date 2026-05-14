@@ -932,7 +932,7 @@
     - 对应 `PLAN.md` P4 第 3、4、6 项：`ResumeUnwind` cleanup/unwind contract 与 `main(args)` plain routing 已通过已实现代码和回归验证收口；inventory/gap audit 现在将 `§5.3`、`§5.4` 视为 closed guard，而非默认主线 blocker。
     - `PIPELINE_GAPS.md` 已回写 `§5.3` 为 `Closed/Re-scoped`；`§5.4` 保持 closed 状态并在本任务中完成复核。`PLAN.md` 阶段顺序未改变，因此无需额外修改。
 
-### [TODO] P4-T03：隔离 array literal synthetic helper call-site identity，修复 enum ctor contract 污染
+### [DONE] P4-T03：隔离 array literal synthetic helper call-site identity，修复 enum ctor contract 污染
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -966,9 +966,24 @@
 - 依赖：`P4-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/hir/lower/mod.rs`，新增独立的 synthetic helper call-site span 分配器，让 array-builder helper call-site identity 与既有 synthetic local decl span 方案解耦。
+    - 更新 `crates/scoopc/src/hir/lower/expr.rs`，让 `build_array_lit_expr(...)` 与 `synth_array_lit_from_exprs(...)` 生成的 `__scoop_array_builder_new/push/build*` helper calls 使用稳定且互不复用的 synthetic call-site span，不再复用元素表达式的用户 span。
+    - 更新 `crates/scoopc/src/mir/lower.rs`，新增 `refactor_mir_array_literal_helper_calls_keep_distinct_call_contracts` 回归，直接锁定 `__scoop_array_builder_push` 仍是双参数 helper call，且数组元素里的 enum ctor 继续保持 `Rvalue::EnumVariant`。
+    - 更新 `tests/fixtures/mir_refactor/aggregate_transport.mir`，同步 direct MIR golden 到新的 helper call-site identity。
+    - 更新 `PIPELINE_GAPS.md`，关闭 `§1.13`，并把 `§4.4` / `§4.5` 的描述收紧为“剩余的是 composite transport/backend gap，而不是上游 helper contract 污染”。
   - 核心决策：
+    - 不在 backend 接受单参数 `__scoop_array_builder_push` 或猜测缺失 builder 参数；根因修复必须发生在 typed HIR call-site identity 发布阶段。
+    - synthetic helper call-site span 使用独立计数器与独立 span 区间，而不是复用元素 span，也不与 synthetic local decl span 共用同一分配器；这样既消除 helper/元素 contract 覆盖，又避免无关 local identity 策略被一起改写。
+    - direct MIR 继续作为最早的可执行防线：数组元素中的 enum variant ctor 若再被 helper contract 污染，应先在 MIR 回归里暴露，而不是等 composite transport/LLVM 才出现 `array_builder_push` 症状。
   - 验证结果：
+    - `cargo test -p scoopc refactor_mir_array_literal_helper_calls_keep_distinct_call_contracts -- --nocapture`
+    - `cargo test -p scoopc refactor_mir_aggregate_transport_records_composite_contracts -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_array_composite_transport -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P5 的前置收口要求：array literal synthetic helper call-site pollution 已被前移修复，`P5-T01` 现在可以拿到未被 helper 覆盖的 enum ctor / tuple payload / array builder contract 作为 authoritative input。
+    - `PIPELINE_GAPS.md` 已回写 `§1.13` 为 `Closed/Re-scoped`；`§4.4` / `§4.5` 保持 `Open`，但其描述现在只再表示真实 composite transport/backend residual，而不再夹带上游 call-site identity 污染。
 
 ## P5：统一 aggregate / composite transport
 
@@ -986,21 +1001,21 @@
   - `crates/scoopc/src/llvm/codegen/control_flow.rs`
   - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
-- 当前阻塞：
-   - 若不先完成 `P4-T03`，array literal 中的 enum ctor / composite element call-site contract 会被 synthetic builder helper 污染，导致本任务入口用例无法稳定进入正确的 composite transport/backend path。
-  - 现有测试入口：
-    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`
-    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_value_boxing_transport`
-    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_enum_payload_transport`
-    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_array_composite_transport`
-    - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_cross_thread_resume_payload_transport`
-  - 现有 fixture：
-    - `tests/fixtures/mir_refactor/aggregate_transport.scoop`
-    - `tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`
-    - `tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`
-    - `tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`
-    - `tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`
-    - `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`
+- 前置已闭合：
+  - `P4-T03` 已修复 array literal synthetic helper call-site 污染；本任务入口现在可以稳定拿到未被 helper 覆盖的 enum ctor / composite element contract。
+- 现有测试入口：
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_value_boxing_transport`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_enum_payload_transport`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_array_composite_transport`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_cross_thread_resume_payload_transport`
+- 现有 fixture：
+  - `tests/fixtures/mir_refactor/aggregate_transport.scoop`
+  - `tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`
+  - `tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`
+  - `tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`
+  - `tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`
+  - `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`
 - 必须实现的内容：
   1. 抽出或收口 single-source composite transport contract。
      - inline vs boxed

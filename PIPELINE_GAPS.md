@@ -7,7 +7,7 @@
 - 机器可消费的 owner/gap id 仍保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。其中 `PIPELINE_GAPS §...` 继续作为稳定 bucket id；部分 bucket 当前已关闭、改道或仅剩 guard 语义。
 - 当前 `UnsupportedMainBody` 症状最集中的模块是 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`。其中相当一部分报错反映的是 typed contract 漂移、routing 失配或内部不变量断言，而不是缺少某个 LLVM primitive。
 - 当前仍值得跟踪的主线与 guard，主要是以下几类：
-- pre-MIR / MIR placeholder 与 handoff contract 仍有少量 open item。
+- pre-MIR / MIR placeholder 主线已收口；当前主要剩 regression guard 与更下游的 contract drift，而不是新的 live lowering gap。
 - raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind 仍依赖更早 verifier 或 routing。
 - effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；对应 gap id 仅保留 guard / drift audit 语义。
 - aggregate/composite 相关的 live hole 主要落在 enum 边角布局与 array/composite transport，而不是“完全没有 boxing”。
@@ -95,9 +95,9 @@
 
 ### 1.13 array literal synthetic helper call-site identity 会污染元素 call contract
 
-- 状态：`Open`。
-- 结论：`synth_array_lit_from_exprs(...)` 当前把 synthetic `__scoop_array_builder_push` helper call 的 span 直接复用为元素表达式 span；在 typed call-site contract 以 source identity 关联时，这会让 helper contract 覆盖元素自身的 enum ctor / direct-call contract。其直接症状是：array literal 元素 `Hit(Point(...))` / `Pair((...))` 会先在 direct MIR 中被误降成单参数 `scoop.core.__scoop_array_builder_push(...)`，返回元素类型本身，随后真正的 builder push 再把这个错误结果继续 push，导致 `§4.4` / `§4.5` 的 composite transport 入口在到达 backend 前就已经失真。
-- 证据：`crates/scoopc/src/hir/lower/expr.rs:4043-4081`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs:1105-1143`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2766-2773`。
+- 状态：`Closed/Re-scoped`。
+- 结论：array literal / synthetic vararg builder helper calls 现在会使用独立且稳定的 synthetic call-site span，不再复用元素表达式的用户 span。typed call-site contract 因此不再把 `__scoop_array_builder_push` helper contract 覆盖到元素自身的 enum ctor / direct-call 上；direct MIR 中 `Hit(Point(...))` / `Pair((...))` 会继续保持真实元素形状，而 `§4.4` / `§4.5` 现在只再表示剩余的 composite transport/backend residual。
+- 证据：`crates/scoopc/src/hir/lower/mod.rs`，`crates/scoopc/src/hir/lower/expr.rs`，`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`。
 
 ## 2. MIR Handoff / Materialization 缺口
 
@@ -251,13 +251,13 @@
 ### 4.4 nested enum / tuple / struct payload 有 unsupported repr
 
 - 状态：`Open`。
-- 结论：nested enum 的某些 repr 以及 tuple/struct/non-scalar payload 仍未统一走 boxed path；ctor 与 pattern extraction 两侧都保留 explicit unsupported。
+- 结论：array literal synthetic helper call-site 污染已收口；当前剩余问题是真实的 nested enum repr 与 tuple/struct/non-scalar payload composite transport 仍未统一走 boxed/shared contract，ctor 与 pattern extraction 两侧都保留 explicit unsupported。
 - 证据：`crates/scoopc/src/llvm/codegen/enum_lowering.rs:418-427`，`crates/scoopc/src/llvm/codegen/control_flow.rs:1217-1239`，`crates/scoopc/src/llvm/codegen/control_flow.rs:1364-1372`。
 
 ### 4.5 Array get/set 对 composite element 支持不足
 
 - 状态：`Open`。
-- 结论：这是当前 aggregate/composite 主线上最清晰的 live gap。refactor `Array.get` / `MutableArray.set` 仍要求 composite transport metadata；缺 metadata 或退回 `u64` 路径时，composite element 仍 unsupported。
+- 结论：这是当前 aggregate/composite 主线上最清晰的 live gap。array literal helper 现在已经能把未污染的 enum/tuple/class element contract 稳定送到 backend；剩余问题是 refactor `Array.get` / `MutableArray.set` 仍要求完整 composite transport metadata，缺 metadata 或退回 `u64` 路径时 composite element 仍 unsupported。
 - 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3020-3028`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3194-3208`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3742-3745`。
 
 ## 5. Effect Refactor / Late-Lowered State Graph 缺口
@@ -378,8 +378,8 @@
 1. pre-MIR / MIR handoff contract 已基本收紧；后续只需继续保持 `§2.3` / `§2.7` 的 guard-only 语义，不要再让 `UnsupportedMainBody` 承担 production 输入校验角色。
 2. raw MIR residual effect/control routing 已收口；后续保持 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 gate-only 语义，避免这些 shape 回流到 plain/materialized MIR emitter。
 3. effect-refactor 的 ABI/routing 主线已收口；后续保持 `§3.12`、`§5.1`、`§5.3`、`§5.4` 的 guard-only 语义，确保 actual outward effect set 继续决定 callable ABI。
-4. 在继续 P5 composite transport 前，先修 `§1.13` 的 synthetic helper call-site 污染，保证 array literal 元素中的 enum ctor / tuple payload contract 能以真实形状到达 MIR/LLVM。
-5. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
+4. `§1.13` 已收口；后续继续保留 array literal synthetic helper call-site identity 的 regression guard，避免 composite transport 入口再次在 backend 前失真。
+5. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`；它们现在拿到的 enum/array upstream contract 已经是稳定的 authoritative input。
 6. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
 
 ## 9. 建议验证矩阵

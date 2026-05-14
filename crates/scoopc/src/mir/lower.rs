@@ -6889,7 +6889,7 @@ fun readValue(x: Any): Int {
             .items
             .iter()
             .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun),
                 _ => None,
             })
             .expect("expected main MIR root");
@@ -6980,7 +6980,7 @@ fun main(): Int {
             .items
             .iter()
             .find_map(|item| match item {
-                Item::Fun(fun) if fun.fqn == "main" => Some(fun),
+                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun),
                 _ => None,
             })
             .expect("expected main MIR root");
@@ -7051,6 +7051,112 @@ fun main(): Int {
         assert_eq!(
             seen_uint8_pushes, 3,
             "expected UInt8 builder push sites for if / when / call-arg nested array literals"
+        );
+    }
+
+    #[test]
+    fn refactor_mir_array_literal_helper_calls_keep_distinct_call_contracts() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/mir_array_literal_helper_call_contracts.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Item {
+    Hit(val point: Point),
+    Pair(val payload: (Point, Int)),
+}
+
+fun main(): Int {
+    val items: MutableArray<Item> = [Hit(Point(1, 2)), Pair((Point(3, 4), 5))]
+    return when (items.get(0)) {
+        Hit(point) -> point.x + point.y
+        Pair(payload) -> payload._0.x + payload._0.y + payload._1
+    }
+}
+"#,
+        );
+
+        let lowered = lower_for_dump(&sess, &source).unwrap();
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "sample.main" => Some(fun),
+                _ => None,
+            })
+            .expect("expected main MIR root");
+        let body = fun.body.as_ref().expect("main should have a MIR body");
+
+        let mut builder_pushes = 0;
+        let mut saw_hit_variant = false;
+        let mut saw_pair_variant = false;
+
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            let StatementKind::Assign { value, .. } = &stmt.kind else {
+                continue;
+            };
+            match value {
+                Rvalue::Call {
+                    kind: CallKind::Direct { callee_fqn },
+                    args,
+                    transport,
+                    ..
+                } if callee_fqn == ARRAY_BUILDER_PUSH_FQN => {
+                    builder_pushes += 1;
+                    assert_eq!(
+                        args.len(),
+                        2,
+                        "array builder push helper must keep builder + element args instead of stealing an element contract"
+                    );
+                    let value_local = match args.get(1).map(|arg| &arg.value) {
+                        Some(Operand::Local(local)) => *local,
+                        _ => panic!("array builder push element should stay in a local"),
+                    };
+                    assert_eq!(
+                        lowered
+                            .types
+                            .display(body.locals[value_local.as_u32() as usize].ty)
+                            .to_string(),
+                        "sample.Item",
+                        "array builder push element local should keep the enum element surface"
+                    );
+                    let array = transport
+                        .array
+                        .as_ref()
+                        .expect("array builder push should publish array transport metadata");
+                    assert_eq!(
+                        lowered.types.display(array.element_ty).to_string(),
+                        "sample.Item",
+                        "array builder push element type should remain the enum surface"
+                    );
+                }
+                Rvalue::EnumVariant { variant_name, .. } if variant_name == "Hit" => {
+                    saw_hit_variant = true;
+                }
+                Rvalue::EnumVariant { variant_name, .. } if variant_name == "Pair" => {
+                    saw_pair_variant = true;
+                }
+                _ => {}
+            }
+        }
+
+        assert_eq!(
+            builder_pushes, 2,
+            "expected exactly two builder push helper calls for the two array literal elements"
+        );
+        assert!(
+            saw_hit_variant,
+            "enum element `Hit(...)` should remain an EnumVariant rvalue instead of being mis-lowered as array builder helper"
+        );
+        assert!(
+            saw_pair_variant,
+            "enum element `Pair(...)` should remain an EnumVariant rvalue instead of being mis-lowered as array builder helper"
         );
     }
 

@@ -183,6 +183,8 @@ struct HirLowering<'a> {
     lambda_this_decl_span: Option<Span>,
     /// 合成局部绑定计数器：用于给 lowering 生成的临时局部变量分配唯一 decl span / 名字。
     next_synthetic_local: usize,
+    /// 合成 helper call-site 计数器：用于给 synthetic helper call 分配稳定且不与用户源码冲突的 span。
+    next_synthetic_call_site: usize,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
@@ -321,6 +323,7 @@ impl<'a> HirLowering<'a> {
             next_closure: 0,
             lambda_this_decl_span: None,
             next_synthetic_local: 0,
+            next_synthetic_call_site: 0,
             types,
             builtins,
             type_param_scopes: Vec::new(),
@@ -490,7 +493,7 @@ impl<'a> HirLowering<'a> {
         let index = self.next_synthetic_local;
         self.next_synthetic_local = self.next_synthetic_local.saturating_add(1);
 
-        // 刻意把合成 span 放到文件末尾之后，避免与真实源码 decl span 冲突。
+        // 刻意把合成 span 放到文件末尾之后，避免与真实源码 decl span / call-site 冲突。
         let base = self
             .source
             .text()
@@ -501,6 +504,22 @@ impl<'a> HirLowering<'a> {
         let name = format!("{prefix}_{index}");
         let _ = anchor; // 目前仅保留参数，便于后续若需改成“锚定到原语句附近”时不改调用点。
         (span, id, name)
+    }
+
+    fn fresh_synthetic_call_site_span(&mut self, anchor: Span) -> Span {
+        let index = self.next_synthetic_call_site;
+        self.next_synthetic_call_site = self.next_synthetic_call_site.saturating_add(1);
+
+        // helper call-site 需要与既有 synthetic local span 稳定隔离，避免仅因 call-site identity
+        // 修复而重排大量临时 local span / snapshot。
+        let base = self
+            .source
+            .text()
+            .len()
+            .saturating_add(1 << 20)
+            .saturating_add(index.saturating_mul(2));
+        let _ = anchor;
+        Span::new(base, base.saturating_add(1))
     }
 
     fn with_foreign_ast_context<T>(
