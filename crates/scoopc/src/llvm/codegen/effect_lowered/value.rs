@@ -97,9 +97,9 @@ fn call_args_mention_local(args: &[mir::CallArg], local: LocalId) -> bool {
 fn call_kind_mentions_local(kind: &mir::CallKind, local: LocalId) -> bool {
     match kind {
         mir::CallKind::Direct { .. } => false,
-        mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee } => {
-            operand_mentions_local(callee, local)
-        }
+        mir::CallKind::Closure { callee, .. }
+        | mir::CallKind::FunValue { callee }
+        | mir::CallKind::FunPtr { callee } => operand_mentions_local(callee, local),
         mir::CallKind::Virtual { receiver, .. } | mir::CallKind::Interface { receiver, .. } => {
             operand_mentions_local(receiver, local)
         }
@@ -1584,6 +1584,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             mir::CallKind::Direct { callee_fqn } => callee_fqn,
             mir::CallKind::Closure { .. }
             | mir::CallKind::FunValue { .. }
+            | mir::CallKind::FunPtr { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
                 return self.codegen.codegen_mir_refactor_plain_dynamic_call(

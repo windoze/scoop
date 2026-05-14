@@ -661,6 +661,7 @@ fn call_kind_is_inlineable(
         CallKind::FunValue { callee } | CallKind::Closure { callee, .. } => {
             operand_direct_call_provenance(callee, direct_call_param_provenance).is_some()
         }
+        CallKind::FunPtr { .. } => false,
         CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => false,
     }
 }
@@ -809,7 +810,9 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
 fn collect_call_kind_uses(kind: &CallKind, out: &mut HashSet<LocalId>) {
     match kind {
         CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => {
             collect_operand_use(callee, out);
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
@@ -1151,6 +1154,9 @@ fn remap_call_kind(
             local_map,
             direct_call_param_provenance,
         ),
+        CallKind::FunPtr { callee } => Some(CallKind::FunPtr {
+            callee: remap_operand(callee, local_operands, local_map)?,
+        }),
         CallKind::Closure { callee, fn_ptr } => {
             if let Some(kind) = remap_known_callable_call_kind(
                 callee,

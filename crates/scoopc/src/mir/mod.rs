@@ -645,6 +645,7 @@ impl File {
             CallKind::Direct { callee_fqn } => gc_intrinsic_operation(callee_fqn),
             CallKind::Closure { .. }
             | CallKind::FunValue { .. }
+            | CallKind::FunPtr { .. }
             | CallKind::Virtual { .. }
             | CallKind::Interface { .. }
             | CallKind::Resume { .. } => None,
@@ -753,6 +754,7 @@ impl File {
             CallKind::Direct { callee_fqn } => is_cross_thread_resume_intrinsic(callee_fqn),
             CallKind::Closure { .. }
             | CallKind::FunValue { .. }
+            | CallKind::FunPtr { .. }
             | CallKind::Virtual { .. }
             | CallKind::Interface { .. }
             | CallKind::Resume { .. } => false,
@@ -1026,6 +1028,7 @@ impl File {
             CallKind::Direct { .. }
             | CallKind::Closure { .. }
             | CallKind::FunValue { .. }
+            | CallKind::FunPtr { .. }
             | CallKind::Virtual { .. }
             | CallKind::Interface { .. }
             | CallKind::Resume { .. } => Ok(()),
@@ -2160,7 +2163,7 @@ pub enum HandlerArmKind {
 ///
 /// 注意：
 /// - 这里刻意只表达语言级调用形态，不表达 LLVM vtable/itable/statepoint 等后端细节；
-/// - direct / closure / fun-value / virtual / interface / resume 共用同一调用层级，
+/// - direct / closure / fun-value / funptr / virtual / interface / resume 共用同一调用层级，
 ///   避免后续 pass 再回到 HIR 或 LLVM codegen 现场恢复控制转移语义。
 #[derive(Debug, Clone)]
 pub enum CallKind {
@@ -2172,6 +2175,8 @@ pub enum CallKind {
     Closure { callee: Operand, fn_ptr: String },
     /// 调用一个函数值，但当前还不足以把它恢复成更具体的 direct/closure 形态。
     FunValue { callee: Operand },
+    /// 调用一个 native `FunPtr<F>`；MIR 显式保留该种类，避免后续阶段再从 carrier/source type 末端回推 ABI family。
+    FunPtr { callee: Operand },
     /// class virtual dispatch（语言级“按 receiver 动态分派到 class override”）。
     Virtual {
         receiver: Operand,

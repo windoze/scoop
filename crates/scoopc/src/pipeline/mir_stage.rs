@@ -740,6 +740,49 @@ fun main() {}
     }
 
     #[test]
+    fn refactor_mir_funptr_calls_lower_to_explicit_funptr_kind() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_mir_funptr.scoop",
+            r#"package sample
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("native_get_funptr")
+fun getFunPtr(): FunPtr<(Int) -> Int>
+
+fun use(): Int {
+    val fp: FunPtr<(Int) -> Int> = @Unsafe do { getFunPtr() }
+    return @Unsafe do { fp(41) }
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = super::run(typed_hir_output).expect("FunPtr source should lower to MIR");
+        let body = validated_callable_body(&output, "sample.use");
+
+        assert!(
+            body.blocks
+                .iter()
+                .flat_map(|block| block.stmts.iter())
+                .any(|stmt| matches!(
+                    &stmt.kind,
+                    StatementKind::Assign {
+                        value: Rvalue::Call {
+                            kind: CallKind::FunPtr { .. },
+                            ..
+                        },
+                        ..
+                    }
+                )),
+            "FunPtr call should lower to explicit CallKind::FunPtr"
+        );
+    }
+
+    #[test]
     fn refactor_mir_ctor_default_args_lower_to_ordered_class_ctor() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(

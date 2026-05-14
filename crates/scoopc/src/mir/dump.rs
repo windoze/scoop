@@ -584,6 +584,11 @@ impl<'a> MirDumpRenderer<'a> {
             } => Some((*site_id, "call_fun_value")),
             Rvalue::Call {
                 site_id,
+                kind: CallKind::FunPtr { .. },
+                ..
+            } => Some((*site_id, "call_fun_ptr")),
+            Rvalue::Call {
+                site_id,
                 kind: CallKind::Virtual { .. },
                 ..
             } => Some((*site_id, "call_virtual")),
@@ -1286,6 +1291,9 @@ impl<'a> MirDumpRenderer<'a> {
             ),
             CallKind::FunValue { callee } => {
                 self.inline_struct("FunValue", vec![("callee", self.operand_text(ctx, callee))])
+            }
+            CallKind::FunPtr { callee } => {
+                self.inline_struct("FunPtr", vec![("callee", self.operand_text(ctx, callee))])
             }
             CallKind::Virtual { receiver, dispatch } => self.inline_struct(
                 "Virtual",

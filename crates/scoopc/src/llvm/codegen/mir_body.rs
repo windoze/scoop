@@ -130,7 +130,8 @@ fn ensure_raw_mir_call_kind_is_route_safe(
     match kind {
         crate::mir::CallKind::Direct { .. }
         | crate::mir::CallKind::Closure { .. }
-        | crate::mir::CallKind::FunValue { .. } => Ok(()),
+        | crate::mir::CallKind::FunValue { .. }
+        | crate::mir::CallKind::FunPtr { .. } => Ok(()),
         crate::mir::CallKind::Virtual { .. }
         | crate::mir::CallKind::Interface { .. }
         | crate::mir::CallKind::Resume { .. } => Err(raw_mir_route_gate_error(
@@ -1040,7 +1041,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.cg_ty_of(fun.return_ty)
             }
             crate::mir::CallKind::Closure { callee, .. }
-            | crate::mir::CallKind::FunValue { callee } => {
+            | crate::mir::CallKind::FunValue { callee }
+            | crate::mir::CallKind::FunPtr { callee } => {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
                     .or_else(|| self.mir_operand_function_type(body, mir_types, callee))?;
@@ -4807,18 +4809,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_closure_call(span, callee, fn_ptr, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunValue { callee } => {
-                if let Some(fun_ty) = self.mir_operand_funptr_function_type(body, mir_types, callee)
-                {
-                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(&fun_ty);
-                    return self.codegen_mir_funptr_value_call(
-                        span,
-                        callee,
-                        args,
-                        &fun_ty,
-                        callable_abi.uses_effect_bridge_abi(),
-                        (body, mir_types, slots),
-                    );
-                }
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -4826,6 +4816,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?;
                 self.codegen_mir_fun_value_call(span, callee, args, &fun_ty, slots)
+            }
+            crate::mir::CallKind::FunPtr { callee } => {
+                let fun_ty = self
+                    .mir_operand_funptr_function_type(body, mir_types, callee)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "pass MIR FunPtr callee type",
+                        at: span.into(),
+                    })?;
+                self.codegen_mir_funptr_value_call(
+                    span,
+                    callee,
+                    args,
+                    &fun_ty,
+                    (body, mir_types, slots),
+                )
             }
             crate::mir::CallKind::Virtual { .. }
             | crate::mir::CallKind::Interface { .. }
@@ -5303,7 +5308,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee: &crate::mir::Operand,
         args: &[crate::mir::CallArg],
         fun_ty: &crate::ty::FunctionType,
-        call_may_suspend: bool,
         mir_ctx: (&crate::mir::Body, &TypeStore, &[MirLocalSlot<'ctx>]),
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (_body, mir_types, slots) = mir_ctx;
@@ -5332,17 +5336,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `FunPtr<F>` follows the target's native function-pointer ABI instead of the
         // ordinary managed-call sret policy.
         let hidden_sret_result_ty = None;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-            expected_arity
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(call_may_suspend) as usize,
-        );
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(expected_arity + usize::from(hidden_sret_result_ty.is_some()));
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
-        }
-        if call_may_suspend {
-            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
         }
         if let Some(receiver_ty) = fun_ty.receiver {
             llvm_param_tys.push(self.llvm_param_ty(span, receiver_ty)?);
@@ -5376,22 +5374,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_int_to_ptr(casted_addr, fun_ptr_ty, "pass_mir_funptr_typed")?;
 
-        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
-            args.len()
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(call_may_suspend) as usize,
-        );
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(args.len() + usize::from(hidden_sret_result_ty.is_some()));
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(span, "pass_mir_funptr_call_sret", ret_cg)?;
-            llvm_args.push(slot.into());
-            Some(slot)
-        } else {
-            None
-        };
-        let effect_outcome_slot = if call_may_suspend {
-            let slot = self.alloc_effect_outcome_slot(span, "pass_mir_funptr_call")?;
-            llvm_args.push(self.current_effect_ctx_arg().into());
-            llvm_args.push(self.llvm_gc_i8_ptr_type().const_null().into());
             llvm_args.push(slot.into());
             Some(slot)
         } else {
@@ -5431,14 +5417,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        if let Some(outcome_slot) = effect_outcome_slot {
-            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                outcome_slot,
-                "pass_mir_funptr_call_effect",
-            )?;
-        }
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -5715,23 +5693,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunValue { callee } => {
-                if let Some(fun_ty) = self.mir_operand_funptr_function_type(body, mir_types, callee)
-                {
-                    if !fun_ty.effects.is_pure() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor plain FunPtr call effect-typed surface requires adapter",
-                            at: span.into(),
-                        });
-                    }
-                    return self.codegen_mir_funptr_value_call(
-                        span,
-                        callee,
-                        args,
-                        &fun_ty,
-                        false,
-                        (body, mir_types, slots),
-                    );
-                }
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -5759,6 +5720,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
+            }
+            crate::mir::CallKind::FunPtr { callee } => {
+                let fun_ty = self
+                    .mir_operand_funptr_function_type(body, mir_types, callee)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain FunPtr callee type",
+                        at: span.into(),
+                    })?;
+                if !fun_ty.effects.is_pure() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "refactor plain FunPtr call effect-typed surface requires adapter",
+                        at: span.into(),
+                    });
+                }
+                self.codegen_mir_funptr_value_call(
+                    span,
+                    callee,
+                    args,
+                    &fun_ty,
+                    (body, mir_types, slots),
+                )
             }
             crate::mir::CallKind::Virtual { receiver, dispatch } => {
                 let target = self.resolve_plain_virtual_dispatch_target(dispatch, args.len())?;
@@ -7873,8 +7855,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &receiver_arg.value,
             call_args,
             &fun_ty,
-            self.funptr_callable_abi_identity_from_fun_ty(&fun_ty)
-                .uses_effect_bridge_abi(),
             (body, mir_types, slots),
         )
     }
@@ -8872,7 +8852,8 @@ fn collect_mir_call_kind_uses(kind: &crate::mir::CallKind, out: &mut HashSet<cra
     match kind {
         crate::mir::CallKind::Direct { .. } => {}
         crate::mir::CallKind::Closure { callee, .. }
-        | crate::mir::CallKind::FunValue { callee } => collect_mir_operand_use(callee, out),
+        | crate::mir::CallKind::FunValue { callee }
+        | crate::mir::CallKind::FunPtr { callee } => collect_mir_operand_use(callee, out),
         crate::mir::CallKind::Virtual { receiver, .. }
         | crate::mir::CallKind::Interface { receiver, .. } => {
             collect_mir_operand_use(receiver, out);

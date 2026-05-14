@@ -1,54 +1,48 @@
-# 执行计划
+## 当前执行计划
 
-注意：我不会写出逐字的内部私有推理，但会持续在这里维护可审查的高层计划、关键判断、阻塞项与进度更新。
+说明：我不会写入逐字逐句的内部推理，但会在此维护完整的可执行计划、关键判断依据摘要、进度更新和阻塞信息。
 
-## 初始计划
+1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务。
+2. 读取与该任务直接相关的说明文件（必要时包含 `PLAN.md`、相关源码/测试/夹具），确认范围、依赖和验证要求。
+3. 检查最近提交是否直接提到与当前任务相关且未完成的问题；若该问题阻塞当前任务，则先在 `TODO.md` 中作为前置任务显式记录。
+4. 实施当前任务要求的最小正确改动，不做规避性实现，不偏离规范。
+5. 运行与任务直接相关的验证；若任务涉及通用质量门禁，则补充运行格式化、测试与 `cargo clippy --all-targets -- -D warnings`。
+6. 如遇阻塞：不把当前任务标记完成；在 `TODO.md` 中插入最小必要前置任务并更新依赖/顺序；仅在阶段计划变化时更新 `PLAN.md`。
+7. 若任务完成：把该任务标题改为 `[DONE]`，补全完成记录；必要时更新 `PLAN.md`（仅限阶段级变化）。
+8. 检查工作区变更，按任务要求创建一次原子提交，然后停止，不继续下一个任务。
 
-1. 读取 `TODO.md`，定位第一个标题未标记为 `[DONE]` 的任务，并确认其依赖、验收标准与完成记录要求。
-2. 检查最近提交信息，判断是否存在与该任务直接相关且明确未完成的问题；若存在，将其视为当前任务的一部分或按要求补录为前置任务。
-3. 阅读与当前任务直接相关的代码、测试、文档与计划文件，仅收集完成该任务所需的上下文，避免无关范围扩张。
-4. 如任务可直接完成：实施最小且正确的修改，补充或更新测试，并运行任务要求的验证命令。
-5. 如遇到阻塞当前任务的真实缺陷、缺失特性或规范不匹配：先精确定义问题，再按要求更新 `TODO.md`（必要时也更新 `PLAN.md`），把阻塞项作为最小前置任务插入正确顺序，然后停止。
-6. 任务完成后：
-   - 更新 `memory/claude_plan.md` 记录结果与验证情况。
-   - 在 `TODO.md` 中将当前任务标题显式改为 `[DONE]`，并完善完成记录。
-   - 仅在阶段级计划确实变化时更新 `PLAN.md`。
-   - 进行 git 提交，提交信息遵循仓库风格并包含任务号。
-7. 完成一个任务后立即停止，不继续下一个任务。
+## 进度日志
 
-## 执行约束
-
-- 以 `TODO.md` 作为任务顺序与完成状态的唯一事实来源。
-- 不以变通方案、夹具特判或缩小范围来绕过规范缺口。
-- 若发现阻塞问题，只添加最少必要的前置任务，不为方便而拆分当前任务。
-- 代码修改尽量小而正确；测试和验证必须覆盖当前任务的真实行为。
-- 不回退或覆盖我未创建的现有改动。
-
-## 进度
-
-- 已创建初始计划文件。
-- 已读取 `TODO.md`，确认首个未完成任务为 `P1-T01`：建立 callable ABI identity，并让 `ExternFun.abi` 真正进入 lowering 的 source of truth。
-- 已检查最近提交：最近正式提交停在 `[P0-T01]`，未发现提交说明中直接点名的 `P1-T01` 未完成项。
-- 已确认工作树存在大量与 `P1-T01` 相关的未提交改动，需按“上次执行中断后的续作”处理：理解现状、补完缺口、完成验证后原子提交全部未提交文件。
-- 已审阅关键入口，当前工作树中已出现 `P1-T01` 主体结构：
-  - `hir::CallableAbiIdentity` 已新增到共享层；
-  - `ExternFun.abi -> callable_abi_identity()` 已进入 `hir_stage` 与 LLVM codegen；
-  - typed call contract 已为 direct/member/extension/fun value/funptr/closure 携带 `abi_identity`；
-  - declaration path 与 direct call / MIR direct call 已开始按 `abi_identity` 决定 native/ordinary/effect-step 路径。
-- 待确认项：
-  - 当前实现是否已完整满足 `P1-T01` 验收而无需继续补丁；
-  - 是否仍存在阻碍本任务闭合的残余 ABI 猜测路径；
-  - 验证命令是否全部通过，尤其是 `refactor_hir_call_contracts_surface_ok`、`unsafe_funptr_extern_call_basic`、`cargo test -p scoopc llvm_tests -- --nocapture`。
-- 验证结果：
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop` 通过。
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop` 通过。
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop` 通过。
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop` 通过。
-  - `cargo test -p scoopc llvm_tests -- --nocapture` 在当前 harness 下未命中任何测试（`0 passed; 841 filtered out`），因此补跑了：
-    - `cargo test -p scoopc refactor_hir_call_contracts_record_callable_provenance -- --nocapture`
-    - `cargo test -p scoopc refactor_hir_rejects_effectful_funptr_signature_before_hir -- --nocapture`
-    - `cargo test -p scoopc abi_baseline_native_funptr_aggregate_return_uses_native_result_abi -- --nocapture`
-    三条均通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 已将 `TODO.md` 中的 `P1-T01` 标记为 `[DONE]` 并补写完成记录。
-- 下一步：检查最终 diff / git status，随后以 `P1-T01` 任务号提交当前全部未提交文件并停止。
+- 已初始化计划文件，下一步读取 `TODO.md` 并锁定首个未完成任务。
+- 已读取 `TODO.md`，首个未完成任务为 `P1-T02`：收紧 `FunPtr<F>` 合同，明确其为 pure-only native surface。
+- 下一步：检查最近提交是否存在与 `P1-T02` 直接相关且未完成的问题；随后读取 `PLAN.md` / `MANAGED_ABI.md` 对应章节和实现入口文件，确认改动范围与验证口径。
+- 已确认最新提交 `[P1-T01]` 没有额外声明与 `P1-T02` 直接相关的未完成事项。
+- 当前代码现状摘要：
+  - 前端已经通过 `check_funptr_signature_contract` 拒绝 effectful `FunPtr<F>`；
+  - `sysroot/unsafe.scoop` 也已把 `FunPtr` 文档写成 pure-only native leaf token；
+  - 但 MIR/handoff 仍主要把 `FunPtr` 调用压成 `CallKind::FunValue`，effect-facts / effect-lowered / LLVM funptr lowering 继续以“兼容 effect/state-machine 的通用 callable-value 形状”消费它；
+  - `codegen_funptr_value_call_impl` / `codegen_mir_funptr_value_call` 仍保留 `call_may_suspend` 参数与 explicit effect hidden ABI 分支，虽然当前总是传 `false`。
+- 计划中的实现收口：
+  1. 把 `FunPtr` 调用在 MIR/handoff 上显式化，避免继续仅靠 `callee_ty`/carrier source type 临场识别；
+  2. 删除 funptr lowering 上无实际意义的 effect hidden ABI / suspend 路径，使其 API 只表达 native-only 调用；
+  3. 视需要补强 typed contract / MIR 测试，明确 `FunPtr` 只发布 native ABI family；
+  4. 完成后运行 `P1-T02` 指定 fixture，并补充相关单测/质量门禁。
+- 已完成的关键实现：
+  - 新增 MIR `CallKind::FunPtr` 与 effect-facts `CallSiteKind::FunPtr`，把 native `FunPtr` 调用从 generic `FunValue` 路线中显式拆出；
+  - 新增 `FunPtrCallSpec`，删除 LLVM funptr lowering 上遗留的 `call_may_suspend` / explicit effect hidden ABI / outcome-slot 分支；
+  - 更新 HIR stable dump、MIR lowering、effect-facts、effect-lowered 与 raw/refactor LLVM call path 的相应消费者；
+  - 新增 MIR 单测与 effect-facts 单测，固定 `FunPtr` native-only handoff。
+- 已完成验证：
+  - `cargo test -p scoopc funptr -- --nocapture`
+  - `cargo test -p scoopc refactor_hir_call_contracts_record_callable_provenance -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+  - `cargo clippy --all-targets -- -D warnings`
+- 当前剩余步骤：
+  1. 检查 git diff / status，整理提交内容；
+  2. 回写 `TODO.md` 完成记录（已完成）；
+  3. 创建 `P1-T02` 提交并停止。

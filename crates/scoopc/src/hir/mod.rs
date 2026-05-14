@@ -1102,7 +1102,7 @@ impl CallableAbiIdentity {
         }
     }
 
-    pub const fn funptr(_call_may_suspend: bool) -> Self {
+    pub const fn funptr() -> Self {
         Self::NativeExtern
     }
 

@@ -3431,6 +3431,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             CallSiteKind::Closure
             | CallSiteKind::FunValue
+            | CallSiteKind::FunPtr
             | CallSiteKind::Virtual
             | CallSiteKind::Interface => {
                 let carrier = lowering.operand_contract().carrier_source().ok_or_else(|| {
@@ -4464,6 +4465,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         if !matches!(
                             kind,
                             MirCallKind::FunValue { .. }
+                                | MirCallKind::FunPtr { .. }
                                 | MirCallKind::Closure { .. }
                                 | MirCallKind::Virtual { .. }
                                 | MirCallKind::Interface { .. }
@@ -4590,7 +4592,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let args_layout = self.source_value_layout(facts.invoke_args_tuple_ty())?;
         let args_abi = *args_layout.abi();
         let carrier = match call_kind {
-            MirCallKind::FunValue { .. } | MirCallKind::Closure { .. } => {
+            MirCallKind::FunValue { .. }
+            | MirCallKind::FunPtr { .. }
+            | MirCallKind::Closure { .. } => {
                 if !matches!(
                     facts.target_mode(),
                     CallTargetMode::DynamicFallback | CallTargetMode::KnownInstance
@@ -5612,6 +5616,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let expected_kind = match call_kind {
             MirCallKind::Closure { .. } => CallSiteKind::Closure,
             MirCallKind::FunValue { .. } => CallSiteKind::FunValue,
+            MirCallKind::FunPtr { .. } => CallSiteKind::FunPtr,
             MirCallKind::Virtual { .. } => CallSiteKind::Virtual,
             MirCallKind::Interface { .. } => CallSiteKind::Interface,
             other => {
@@ -5667,9 +5672,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         kind: &MirCallKind,
     ) -> Option<TypeId> {
         match kind {
-            MirCallKind::Closure { callee, .. } | MirCallKind::FunValue { callee } => {
-                self.materialized_operand_source_ty(body, callee)
-            }
+            MirCallKind::Closure { callee, .. }
+            | MirCallKind::FunValue { callee }
+            | MirCallKind::FunPtr { callee } => self.materialized_operand_source_ty(body, callee),
             MirCallKind::Virtual { receiver, .. } | MirCallKind::Interface { receiver, .. } => {
                 self.materialized_operand_source_ty(body, receiver)
             }
@@ -8342,6 +8347,7 @@ mod tests {
                         || !matches!(
                             kind,
                             MirCallKind::FunValue { .. }
+                                | MirCallKind::FunPtr { .. }
                                 | MirCallKind::Closure { .. }
                                 | MirCallKind::Virtual { .. }
                                 | MirCallKind::Interface { .. }

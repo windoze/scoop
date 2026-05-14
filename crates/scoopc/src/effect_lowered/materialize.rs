@@ -3595,9 +3595,9 @@ fn call_args_mention_local(args: &[CallArg], local: LocalId) -> bool {
 fn call_kind_mentions_local(kind: &CallKind, local: LocalId) -> bool {
     match kind {
         CallKind::Direct { .. } => false,
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
-            operand_mentions_local(callee, local)
-        }
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => operand_mentions_local(callee, local),
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             operand_mentions_local(receiver, local)
         }
@@ -4143,6 +4143,9 @@ fn call_kind_matches_facts(kind: &CallKind, facts: &CallSiteEffectFacts) -> bool
         ) | (
             CallKind::FunValue { .. },
             crate::effect_facts::CallSiteKind::FunValue
+        ) | (
+            CallKind::FunPtr { .. },
+            crate::effect_facts::CallSiteKind::FunPtr
         ) | (
             CallKind::Virtual { .. },
             crate::effect_facts::CallSiteKind::Virtual
@@ -4718,9 +4721,11 @@ fn build_call_boundary_operand_contract(
             let statement_index = source_slice.start_statement_index() + offset as u32;
             let carrier_source = match kind {
                 CallKind::Direct { .. } => None,
-                CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => Some(
-                    operand_source_with_inferred_ty(root_fqn, site_id, "Call", body, callee, None)?,
-                ),
+                CallKind::Closure { callee, .. }
+                | CallKind::FunValue { callee }
+                | CallKind::FunPtr { callee } => Some(operand_source_with_inferred_ty(
+                    root_fqn, site_id, "Call", body, callee, None,
+                )?),
                 CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
                     Some(operand_source_with_inferred_ty(
                         root_fqn, site_id, "Call", body, receiver, None,

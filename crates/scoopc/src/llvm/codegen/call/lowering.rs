@@ -751,7 +751,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     );
                 }
                 CallableCallee::FunPtr(fun_ty) => {
-                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(&fun_ty);
                     let callee_value = self.codegen_expr(callee)?;
                     let (funptr_addr, funptr_int_ty) =
                         callee_value
@@ -763,10 +762,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_funptr_value_call(
                         funptr_addr,
                         funptr_int_ty,
-                        CallableValueCallSpec {
+                        FunPtrCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty: &fun_ty,
                             args,
                         },
@@ -838,12 +836,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_funptr_value_call(
                         loaded,
                         int_ty,
-                        CallableValueCallSpec {
+                        FunPtrCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: self
-                                .funptr_callable_abi_identity(local.call_may_suspend)
-                                .uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -1089,14 +1084,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "funptr top-level cg type",
                                 at: callee.span.into(),
                             })?;
-                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(fun_ty);
                     return self.codegen_funptr_value_call(
                         funptr_addr,
                         funptr_int_ty,
-                        CallableValueCallSpec {
+                        FunPtrCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -1820,12 +1813,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         funptr_addr: IntValue<'ctx>,
         funptr_int_ty: IntTy,
-        call: CallableValueCallSpec<'_>,
+        call: FunPtrCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let CallableValueCallSpec {
+        let FunPtrCallSpec {
             span,
             callee_span,
-            call_may_suspend,
             fun_ty,
             args,
         } = call;
@@ -1848,17 +1840,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // managed direct calls.
         let hidden_sret_result_ty = None;
 
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-            expected_arity
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(call_may_suspend) as usize,
-        );
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(expected_arity + usize::from(hidden_sret_result_ty.is_some()));
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
-        }
-        if call_may_suspend {
-            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
         }
         if let Some(receiver_ty) = fun_ty.receiver {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
@@ -1893,22 +1879,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_int_to_ptr(casted_addr, fun_ptr_ty, "funptr_typed")?;
 
-        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
-            args.len()
-                + usize::from(hidden_sret_result_ty.is_some())
-                + self.explicit_effect_hidden_abi_param_count(call_may_suspend) as usize,
-        );
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(args.len() + usize::from(hidden_sret_result_ty.is_some()));
         let sret_result_slot = if hidden_sret_result_ty.is_some() {
             let slot = self.create_entry_alloca(callee_span, "funptr_call_sret", ret_cg)?;
-            llvm_args.push(slot.into());
-            Some(slot)
-        } else {
-            None
-        };
-        let effect_outcome_slot = if call_may_suspend {
-            let slot = self.alloc_effect_outcome_slot(span, "funptr_call")?;
-            llvm_args.push(self.current_effect_ctx_arg().into());
-            llvm_args.push(self.llvm_gc_i8_ptr_type().const_null().into());
             llvm_args.push(slot.into());
             Some(slot)
         } else {
@@ -1949,14 +1923,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        if let Some(outcome_slot) = effect_outcome_slot {
-            self.maybe_record_active_suspend_site_effect_outcome(span, outcome_slot);
-            self.emit_ordinary_call_effect_propagation_check_from_outcome(
-                span,
-                outcome_slot,
-                "funptr_call_effect",
-            )?;
-        }
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),

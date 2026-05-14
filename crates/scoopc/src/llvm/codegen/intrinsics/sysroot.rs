@@ -100,12 +100,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_funptr_value_call(
             loaded,
             int_ty,
-            CallableValueCallSpec {
+            FunPtrCallSpec {
                 span,
                 callee_span,
-                call_may_suspend: self
-                    .funptr_callable_abi_identity_from_fun_ty(fun_ty)
-                    .uses_effect_bridge_abi(),
                 fun_ty,
                 args: call_args,
             },

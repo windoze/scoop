@@ -579,6 +579,7 @@ impl<'a> ReachabilityCollector<'a> {
                 .is_some_and(|fun| fun.body.is_none()),
             mir::CallKind::Closure { .. } => false,
             mir::CallKind::FunValue { .. } => false,
+            mir::CallKind::FunPtr { .. } => false,
             mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. }
             | mir::CallKind::Resume { .. } => true,
@@ -737,7 +738,9 @@ impl<'a> ReachabilityCollector<'a> {
                 self.scan_mir_operand(callee);
                 self.enqueue_fun(fn_ptr.clone());
             }
-            mir::CallKind::FunValue { callee } => self.scan_mir_operand(callee),
+            mir::CallKind::FunValue { callee } | mir::CallKind::FunPtr { callee } => {
+                self.scan_mir_operand(callee)
+            }
             mir::CallKind::Virtual { receiver, .. } | mir::CallKind::Interface { receiver, .. } => {
                 self.scan_mir_operand(receiver);
             }

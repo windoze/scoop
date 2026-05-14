@@ -191,6 +191,14 @@ struct CallableValueCallSpec<'a> {
     args: &'a [hir::CallArg],
 }
 
+#[derive(Clone, Copy)]
+struct FunPtrCallSpec<'a> {
+    span: crate::span::Span,
+    callee_span: crate::span::Span,
+    fun_ty: &'a crate::ty::FunctionType,
+    args: &'a [hir::CallArg],
+}
+
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
@@ -5346,7 +5354,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         funptr_addr: inkwell::values::IntValue<'ctx>,
         funptr_int_ty: IntTy,
-        call: CallableValueCallSpec<'_>,
+        call: FunPtrCallSpec<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.codegen_funptr_value_call_impl(funptr_addr, funptr_int_ty, call)
     }
@@ -5447,17 +5455,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
     ) -> hir::CallableAbiIdentity {
         self.managed_callable_abi_identity_from_fun_ty_impl(fun_ty)
-    }
-
-    fn funptr_callable_abi_identity(&self, call_may_suspend: bool) -> hir::CallableAbiIdentity {
-        self.funptr_callable_abi_identity_impl(call_may_suspend)
-    }
-
-    fn funptr_callable_abi_identity_from_fun_ty(
-        &self,
-        fun_ty: &crate::ty::FunctionType,
-    ) -> hir::CallableAbiIdentity {
-        self.funptr_callable_abi_identity_from_fun_ty_impl(fun_ty)
     }
 
     fn callable_needs_callee_resume_shell(&self, callable_fqn: &str) -> bool {

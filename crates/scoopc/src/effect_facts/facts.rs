@@ -178,6 +178,7 @@ pub enum CallSiteKind {
     Direct,
     Closure,
     FunValue,
+    FunPtr,
     Virtual,
     Interface,
 }

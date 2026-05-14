@@ -1180,6 +1180,22 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                     EffectPrecision::SignatureFallback,
                 ))
             }
+            CallKind::FunPtr { callee } => {
+                let callee_ty = operand_ty(self.body(), types, callee);
+                if let Some(contract) = function_surface_contract_from_ty(types, callee_ty) {
+                    debug_assert!(
+                        contract.declared_row.is_pure(),
+                        "non-pure FunPtr should have been rejected before MIR/effect facts"
+                    );
+                }
+                Ok(CallSiteEffectFacts::new_plain(
+                    CallSiteKind::FunPtr,
+                    CallSiteTarget::DynamicFallback,
+                    invoke_args_tuple_ty,
+                    CaseSet::new(self.callable_step_schema, Vec::new()),
+                    EffectPrecision::Precise,
+                ))
+            }
             CallKind::Virtual { dispatch, .. } => self.build_dispatch_call_site(
                 types,
                 CallSiteKind::Virtual,
@@ -2689,6 +2705,7 @@ fn static_callee_fqns(fun: &MirFunDecl) -> Vec<&str> {
                 CallKind::Direct { callee_fqn } => callees.push(callee_fqn.as_str()),
                 CallKind::Closure { fn_ptr, .. } => callees.push(fn_ptr.as_str()),
                 CallKind::FunValue { .. }
+                | CallKind::FunPtr { .. }
                 | CallKind::Virtual { .. }
                 | CallKind::Interface { .. }
                 | CallKind::Resume { .. } => {}
@@ -2832,9 +2849,9 @@ fn call_kind_mentions_local_for_hidden_namespace(
 ) -> bool {
     match kind {
         CallKind::Direct { .. } => false,
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
-            operand_mentions_local_for_hidden_namespace(callee, local)
-        }
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => operand_mentions_local_for_hidden_namespace(callee, local),
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             operand_mentions_local_for_hidden_namespace(receiver, local)
         }
@@ -3434,8 +3451,8 @@ mod tests {
 
     use super::{MaterializedEffectFactsBuilder, continuation_object_ty};
     use crate::effect_facts::{
-        CallSiteKind, CallSiteTarget, CallTargetMode, CanonicalMirQuerySurface, EffectPrecision,
-        ImplPlan, NestedHandleClassification, SiteEffectFacts,
+        CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind, CanonicalMirQuerySurface,
+        EffectPrecision, ImplPlan, NestedHandleClassification, SiteEffectFacts,
     };
     use crate::mir::{
         BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TemplateKey, TerminatorKind,
@@ -3613,6 +3630,26 @@ fun exercise(
     val d: Int = face.foo()
     val e: Int = k.resume(3)
     return a + b + c + d + e
+}
+"#,
+        )
+    }
+
+    fn funptr_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/effect_facts_funptr_sites.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("native_get_funptr")
+fun getFunPtr(): FunPtr<(Int) -> Int>
+
+fun use(): Int {
+    val fp: FunPtr<(Int) -> Int> = @Unsafe do { getFunPtr() }
+    return @Unsafe do { fp(41) }
 }
 "#,
         )
@@ -3822,7 +3859,9 @@ fun pureHelper(): Unit {}
                         resume_site_id = Some(*site_id);
                         resume_block_id = Some(BasicBlockId::from_raw(block_index as u32));
                     }
-                    CallKind::Closure { .. } | CallKind::FunValue { .. } => {}
+                    CallKind::Closure { .. }
+                    | CallKind::FunValue { .. }
+                    | CallKind::FunPtr { .. } => {}
                 }
             }
         }
@@ -4023,6 +4062,57 @@ fun pureHelper(): Unit {}
                 .expect("resume block facts 应存在")
                 .has_suspend_boundary()
         );
+    }
+
+    #[test]
+    fn refactor_funptr_call_sites_stay_plain_native_dynamic_fallbacks() {
+        let (materialized, facts) = build_facts_for_source(funptr_source());
+        let (key, _) = callable_facts_for(&facts, "sample.use");
+        let pass_view = materialized.pass_view();
+        let body = pass_view
+            .instance(key)
+            .and_then(|family| family.root_body())
+            .and_then(|fun| fun.body.as_ref())
+            .expect("use 应有 canonical body");
+        let body_facts = facts.body(key).expect("use 应有 body facts");
+
+        let funptr_site_id = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| {
+                let StatementKind::Assign { value, .. } = &stmt.kind else {
+                    return None;
+                };
+                let Rvalue::Call {
+                    site_id,
+                    kind: CallKind::FunPtr { .. },
+                    ..
+                } = value
+                else {
+                    return None;
+                };
+                Some(*site_id)
+            })
+            .expect("use 应包含显式 FunPtr call site");
+
+        let SiteEffectFacts::Call(funptr_facts) = body_facts
+            .site(funptr_site_id)
+            .expect("FunPtr site 应可通过 SiteId 查询")
+        else {
+            panic!("FunPtr site 应产生 CallSiteEffectFacts");
+        };
+
+        assert_eq!(funptr_facts.kind(), CallSiteKind::FunPtr);
+        assert_eq!(funptr_facts.callee_abi_kind(), CallableAbiKind::Plain);
+        assert_eq!(funptr_facts.target_mode(), CallTargetMode::DynamicFallback);
+        assert!(matches!(
+            funptr_facts.target(),
+            CallSiteTarget::DynamicFallback
+        ));
+        assert_eq!(funptr_facts.precision(), EffectPrecision::Precise);
+        assert!(funptr_facts.callee_step_schema().is_none());
+        assert!(funptr_facts.resolved_cases().is_empty());
     }
 
     #[test]

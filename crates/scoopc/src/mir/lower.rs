@@ -3780,8 +3780,7 @@ impl<'a> FnLowering<'a> {
                 );
                 true
             }
-            TypedCallSiteContract::FunValue { arg_binding, .. }
-            | TypedCallSiteContract::FunPtr { arg_binding, .. } => {
+            TypedCallSiteContract::FunValue { arg_binding, .. } => {
                 self.lower_refactor_callable_value_call_expr(
                     span,
                     result,
@@ -3789,6 +3788,16 @@ impl<'a> FnLowering<'a> {
                     args,
                     arg_binding.as_ref(),
                     false,
+                );
+                true
+            }
+            TypedCallSiteContract::FunPtr { arg_binding, .. } => {
+                self.lower_refactor_funptr_call_expr(
+                    span,
+                    result,
+                    callee,
+                    args,
+                    arg_binding.as_ref(),
                 );
                 true
             }
@@ -3980,6 +3989,49 @@ impl<'a> FnLowering<'a> {
             Rvalue::Call {
                 site_id,
                 kind,
+                args,
+                transport,
+            },
+        );
+    }
+
+    fn lower_refactor_funptr_call_expr(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+        arg_binding: Option<&CallArgBindingContract>,
+    ) {
+        let callee_local = self.lower_expr_to_local(callee);
+        if self.current_is_terminated() {
+            return;
+        }
+        let callee_ty = self.body.locals[callee_local.as_u32() as usize].ty;
+        let arg_binding = Self::active_hir_call_arg_binding(args, arg_binding);
+        let expected_tys =
+            self.source_arg_expected_tys_for_callee_ty(callee_ty, args.len(), arg_binding);
+        let Some(args) = self.lower_call_args_with_expected(args, &expected_tys) else {
+            return;
+        };
+        let args = self.canonicalize_call_args_from_binding(args, arg_binding);
+        let transport = self.call_transport_metadata(
+            self.body.locals[result.as_u32() as usize].ty,
+            &CallKind::FunPtr {
+                callee: Operand::Local(callee_local),
+            },
+            &args,
+            None,
+        );
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind: CallKind::FunPtr {
+                    callee: Operand::Local(callee_local),
+                },
                 args,
                 transport,
             },
@@ -4351,6 +4403,7 @@ impl<'a> FnLowering<'a> {
                 CallKind::Direct { callee_fqn } => callee_fqn.as_str(),
                 CallKind::Closure { .. }
                 | CallKind::FunValue { .. }
+                | CallKind::FunPtr { .. }
                 | CallKind::Virtual { .. }
                 | CallKind::Interface { .. }
                 | CallKind::Resume { .. } => return None,

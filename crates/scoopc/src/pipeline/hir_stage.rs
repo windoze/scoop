@@ -1386,7 +1386,7 @@ impl<'a> ContractCollector<'a> {
     }
 
     fn funptr_callable_abi_identity_for_ty(&self, _ty: TypeId) -> CallableAbiIdentity {
-        CallableAbiIdentity::funptr(false)
+        CallableAbiIdentity::funptr()
     }
 
     fn top_level_val_source_path(&self, val: &ValDecl) -> Option<PathBuf> {
@@ -2912,23 +2912,24 @@ fn format_call_site_contract(
         TypedCallSiteContract::Closure {
             callee_ty,
             return_ty,
+            abi_identity,
             arg_binding,
-            ..
         }
         | TypedCallSiteContract::FunValue {
             callee_ty,
             return_ty,
+            abi_identity,
             arg_binding,
-            ..
         }
         | TypedCallSiteContract::FunPtr {
             callee_ty,
             return_ty,
+            abi_identity,
             arg_binding,
-            ..
         } => {
             let _ = writeln!(out, "            callee_ty: {},", types.display(*callee_ty));
             let _ = writeln!(out, "            return_ty: {},", types.display(*return_ty));
+            let _ = writeln!(out, "            abi_identity: {:?},", abi_identity);
             if let Some(binding) = arg_binding {
                 let _ = writeln!(out, "            arg_binding: {:?},", binding.params());
             }

@@ -1126,7 +1126,9 @@ fn collect_call_kind_uses(
 ) {
     match kind {
         CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => {
             collect_operand_use(callee, defs, uses_before_def, read_states, state_id);
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {

@@ -471,6 +471,9 @@ fn analyze_call_kind_uses(
                 mark_operand_use(callee, OperandUse::Escaping, aliases, facts);
             }
         }
+        CallKind::FunPtr { callee } => {
+            mark_operand_use(callee, OperandUse::Escaping, aliases, facts);
+        }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
         }

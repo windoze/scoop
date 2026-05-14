@@ -4118,6 +4118,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             kind,
             mir::CallKind::Closure { .. }
                 | mir::CallKind::FunValue { .. }
+                | mir::CallKind::FunPtr { .. }
                 | mir::CallKind::Virtual { .. }
                 | mir::CallKind::Interface { .. }
         ) {
@@ -11540,7 +11541,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 mir::CallKind::Closure { callee, .. } | mir::CallKind::FunValue { callee },
                 RefactorDynamicInvokeCarrierLayout::ClosureObject(_),
             ) => (callee, CgTy::Ref),
-            (mir::CallKind::FunValue { callee }, RefactorDynamicInvokeCarrierLayout::FunPtr(_)) => {
+            (mir::CallKind::FunPtr { callee }, RefactorDynamicInvokeCarrierLayout::FunPtr(_)) => {
                 let source_ty = self.body_operand_source_ty(callee).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "refactor funptr carrier source type",

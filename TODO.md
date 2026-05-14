@@ -223,7 +223,7 @@
     - 对应 `PLAN.md` P1 第 1-4 项：callable ABI identity 已成为 HIR/LLVM 共用的内部 contract；declaration path、direct call 与 MIR direct call 不再靠 `extern_funs.contains_key(fqn)` 或分散的 effect/native 布尔链临时拼 ABI。
     - `MANAGED_ABI.md` §4.4 / §5.4 现已与实现对齐：ABI 身份是一等信息，`FunPtr<F>` 在当前阶段明确是 pure-only native callable token；`ManagedExtern` 仍只作为 `ExternAbi::Scoop` 的预留 family，并未在本任务提前落地用户可见 surface。
 
-### [TODO] P1-T02：收紧 `FunPtr<F>` 合同：pure-only native surface
+### [DONE] P1-T02：收紧 `FunPtr<F>` 合同：pure-only native surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1
@@ -253,6 +253,34 @@
 - 完成条件：
   - `FunPtr` 已不再只靠 `FunctionType` 隐式承担 ABI family。
 - 依赖：`P1-T01`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/hir/mod.rs`
+    - `crates/scoopc/src/pipeline/{hir_stage.rs,mir_stage.rs}`
+    - `crates/scoopc/src/mir/{mod.rs,lower.rs,dump.rs,summary.rs,escape.rs,closure_simplify.rs,inline.rs,materialize.rs}`
+    - `crates/scoopc/src/effect_facts/{facts.rs,builder.rs}`
+    - `crates/scoopc/src/effect_lowered/{frame.rs,segment.rs,materialize.rs}`
+    - `crates/scoopc/src/llvm/codegen/{mod.rs,mir_body.rs,intrinsics/sysroot.rs,effect_lowered/layout.rs,effect_lowered/body.rs,effect_lowered/value.rs,call/lowering.rs,call/abi.rs}`
+    - `crates/scoopc/src/llvm/reachability.rs`
+    - `TODO.md`
+  - 核心决策：
+    - 在 MIR 中新增显式 `CallKind::FunPtr`，并在 effect-facts 中新增对应的 `CallSiteKind::FunPtr`；`FunPtr` 调用不再伪装成通用 `FunValue`，从 typed contract 往后都显式发布 native-only route。
+    - 新增 `FunPtrCallSpec`，把 `codegen_funptr_value_call_impl` / `codegen_mir_funptr_value_call` 上遗留的 `call_may_suspend`、explicit effect hidden ABI 参数和 outcome-slot 逻辑全部删掉，使 `FunPtr` lowering 只表达 plain native function-pointer call。
+    - 现有 `TypedCallSiteContract::FunPtr` 继续发布 `CallableAbiIdentity::NativeExtern`，并通过新的 MIR `CallKind::FunPtr` 完成“ABI family 不再只靠 `FunctionType` 隐式承担”的 handoff；`hir_stage` stable dump 现在也会把 callable-value / `FunPtr` 的 `abi_identity` 打出来，便于审计。
+    - `funPtrToUIntPtr` / `uintPtrToFunPtr` 仍然只做地址 round-trip；ABI family 不存进 token 本身，而是由 typed contract / MIR `CallKind::FunPtr` 在调用路径上重新显式附着。P2 继续负责把 direct `@Extern` 与 native `FunPtr` 收口到同一个 classifier / callconv / boundary scaffold。
+  - 验证结果：
+    - `cargo test -p scoopc funptr -- --nocapture`
+    - `cargo test -p scoopc refactor_hir_call_contracts_record_callable_provenance -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P1 第 3-4 项：`FunPtr` 现在不再通过 generic `FunValue` / effect-step 兼容形状向后传递，而是以显式 native-only handoff 进入 MIR、effect-facts 和 LLVM lowering；后续 P2 可以直接基于这条 route 去统一 native classifier，而不必再从 carrier type 或 effect 布尔值反推。
+    - `MANAGED_ABI.md` §5.4 / §6.2a 先前已经要求 `FunPtr<F>` 只承载 native surface、effect ABI 永远不应混入 `FunPtr` 调用、`UIntPtr <-> FunPtr` round-trip 仅保留地址事实；本任务把实现补齐到该描述，因此无需额外文档回写。
 
 ## P2：统一 native surface
 

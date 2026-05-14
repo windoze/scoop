@@ -134,20 +134,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.managed_callable_abi_identity_impl(!fun_ty.effects.is_pure())
     }
 
-    pub(in crate::llvm::codegen) fn funptr_callable_abi_identity_impl(
-        &self,
-        _call_may_suspend: bool,
-    ) -> hir::CallableAbiIdentity {
-        hir::CallableAbiIdentity::NativeExtern
-    }
-
-    pub(in crate::llvm::codegen) fn funptr_callable_abi_identity_from_fun_ty_impl(
-        &self,
-        _fun_ty: &crate::ty::FunctionType,
-    ) -> hir::CallableAbiIdentity {
-        self.funptr_callable_abi_identity_impl(false)
-    }
-
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
     /// 其遗留声明入口就必须预留显式 hidden ABI，而不能再从 HIR `effectful` 布尔值反推。
     pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_impl(

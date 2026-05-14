@@ -647,9 +647,9 @@ fn call_args_mention_local_for_hidden_namespace(args: &[CallArg], local: LocalId
 fn call_kind_mentions_local_for_hidden_namespace(kind: &CallKind, local: LocalId) -> bool {
     match kind {
         CallKind::Direct { .. } => false,
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
-            operand_mentions_local_for_hidden_namespace(callee, local)
-        }
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => operand_mentions_local_for_hidden_namespace(callee, local),
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             operand_mentions_local_for_hidden_namespace(receiver, local)
         }

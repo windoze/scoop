@@ -257,6 +257,7 @@ fn try_expand_non_escaping_closure_call(
     let (callee, expected_fn_ptr): (&Operand, Option<&str>) = match kind {
         CallKind::Closure { callee, fn_ptr } => (callee, Some(fn_ptr.as_str())),
         CallKind::FunValue { callee } => (callee, None),
+        CallKind::FunPtr { .. } => return None,
         _ => return None,
     };
     let provenance = block_provenance.provenance_of_operand(callee)?;
@@ -472,7 +473,9 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
 fn collect_call_kind_uses(kind: &CallKind, out: &mut HashSet<LocalId>) {
     match kind {
         CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => {
             collect_operand_use(callee, out);
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {

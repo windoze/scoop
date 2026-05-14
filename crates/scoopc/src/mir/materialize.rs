@@ -1917,15 +1917,17 @@ fn validate_materialized_call_kind(
                 root_sets.generic_templates,
             )
         }
-        CallKind::FunValue { callee } => validate_materialized_operand(
-            materialized,
-            fqn,
-            block,
-            span,
-            "function value callee",
-            locals,
-            callee,
-        ),
+        CallKind::FunValue { callee } | CallKind::FunPtr { callee } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "callable-value callee",
+                locals,
+                callee,
+            )
+        }
         CallKind::Virtual { receiver, dispatch } | CallKind::Interface { receiver, dispatch } => {
             validate_materialized_operand(
                 materialized,
@@ -7835,7 +7837,9 @@ impl MirInstanceMaterializer {
                     *fn_ptr = rewritten;
                 }
             }
-            CallKind::FunValue { callee } => *callee = self.rewrite_operand(callee.clone()),
+            CallKind::FunValue { callee } | CallKind::FunPtr { callee } => {
+                *callee = self.rewrite_operand(callee.clone())
+            }
             CallKind::Virtual { receiver, dispatch } => {
                 *receiver = self.rewrite_operand(receiver.clone());
                 dispatch.receiver_ty = substitute_type_and_effect_params(
@@ -9349,7 +9353,9 @@ fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<LocalId>) {
 fn collect_call_kind_local_references(kind: &CallKind, out: &mut HashSet<LocalId>) {
     match kind {
         CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+        CallKind::Closure { callee, .. }
+        | CallKind::FunValue { callee }
+        | CallKind::FunPtr { callee } => {
             collect_operand_local_reference(callee, out);
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {

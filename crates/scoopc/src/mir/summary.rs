@@ -474,6 +474,14 @@ fn observe_rvalue(
                     );
                     *base_outward_effect = true;
                 }
+                CallKind::FunPtr { callee } => {
+                    observe_operand(
+                        callee,
+                        OperandUsage::DirectCallee,
+                        state,
+                        param_use_summaries,
+                    );
+                }
                 CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
                     observe_operand(receiver, OperandUsage::Escape, state, param_use_summaries);
                     *base_outward_effect = true;
