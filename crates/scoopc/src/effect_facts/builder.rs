@@ -511,12 +511,14 @@ impl RegionCaseContribution {
 }
 
 impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         type_ctx: &'a EffectFactsTypeContext,
         schema_pool: &'b mut EffectFactsSchemaPool<'a>,
         owner_by_callable_fqn: &'a HashMap<String, InstanceKey>,
         callable_facts: &'a HashMap<InstanceKey, CallableEffectFacts>,
         raw_fun_by_fqn: &'a HashMap<String, MirFunDecl>,
+        top_level_value_surface_contracts: &'a HashMap<String, SurfaceCallableContract>,
         callable_fun: &'a MirFunDecl,
         callable_step_schema: StepSchemaId,
     ) -> Result<Self, EffectFactsError> {
@@ -540,6 +542,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             owner_by_callable_fqn,
             callable_facts,
             raw_fun_by_fqn,
+            top_level_value_surface_contracts,
             callable_fun,
             callable_step_schema,
             current_case_index,
@@ -1494,6 +1497,10 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         types: &TypeStore,
         callable_fqn: &str,
     ) -> Option<SurfaceCallableContract> {
+        if let Some(contract) = self.top_level_value_surface_contracts.get(callable_fqn) {
+            return Some(contract.clone());
+        }
+
         self.body().blocks.iter().find_map(|block| {
             block.stmts.iter().find_map(|stmt| {
                 let StatementKind::Assign { target, value } = &stmt.kind else {
@@ -1710,6 +1717,7 @@ struct BodyFactsBuilder<'a, 'b> {
     owner_by_callable_fqn: &'a HashMap<String, InstanceKey>,
     callable_facts: &'a HashMap<InstanceKey, CallableEffectFacts>,
     raw_fun_by_fqn: &'a HashMap<String, MirFunDecl>,
+    top_level_value_surface_contracts: &'a HashMap<String, SurfaceCallableContract>,
     callable_fun: &'a MirFunDecl,
     callable_step_schema: StepSchemaId,
     current_case_index: HashMap<ConcreteOpKey, CurrentBodyCaseInfo>,
@@ -1780,6 +1788,10 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         )?;
         let owner_by_callable_fqn = collect_callable_owner_map(self.materialized);
         let raw_fun_by_fqn = collect_raw_fun_by_fqn(&self.materialized.file);
+        let top_level_value_surface_contracts = collect_top_level_value_surface_contracts(
+            &self.materialized.types,
+            self.materialized.top_level_value_tys(),
+        );
 
         let mut callable_facts = HashMap::with_capacity(callable_seeds.len());
         let mut bodies = HashMap::with_capacity(callable_seeds.len());
@@ -1822,6 +1834,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
                     &owner_by_callable_fqn,
                     &callable_facts,
                     &raw_fun_by_fqn,
+                    &top_level_value_surface_contracts,
                     &seed.root_fun,
                     *callable_step_schemas
                         .get(&seed.key)
@@ -2876,6 +2889,16 @@ fn collect_raw_fun_by_fqn(file: &MirFile) -> HashMap<String, MirFunDecl> {
             MirItem::Fun(fun) => Some((fun.fqn.clone(), fun.clone())),
             _ => None,
         })
+        .collect()
+}
+
+fn collect_top_level_value_surface_contracts(
+    types: &TypeStore,
+    top_level_value_tys: &HashMap<String, TypeId>,
+) -> HashMap<String, SurfaceCallableContract> {
+    top_level_value_tys
+        .iter()
+        .filter_map(|(fqn, ty)| function_surface_contract_from_ty(types, *ty).map(|contract| (fqn.clone(), contract)))
         .collect()
 }
 

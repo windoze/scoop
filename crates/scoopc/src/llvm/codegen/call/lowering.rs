@@ -23,6 +23,122 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn try_codegen_builtin_member_call_short_circuit(
+        &mut self,
+        span: crate::span::Span,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+            return Ok(None);
+        };
+
+        if let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() {
+            if fqn == "scoop.core.GC.handleNew" {
+                return self
+                    .codegen_sysroot_gc_handle_new(span, member.span, args, expected)
+                    .map(Some);
+            }
+            if fqn == "scoop.core.GC.handleGet" {
+                return self.codegen_sysroot_gc_handle_get(span, member.span, args).map(Some);
+            }
+            if fqn == "scoop.core.GC.handleDrop" {
+                return self.codegen_sysroot_gc_handle_drop(span, member.span, args).map(Some);
+            }
+            if fqn == "scoop.core.GC.pin" {
+                return self.codegen_sysroot_gc_pin(span, member.span, args, expected).map(Some);
+            }
+            if fqn == "scoop.core.GC.unpin" {
+                return self.codegen_sysroot_gc_unpin(span, member.span, args).map(Some);
+            }
+        }
+
+        if member.name == "trimIndent" {
+            return self.codegen_string_trim_indent(span, receiver, args).map(Some);
+        }
+        if member.name == "toInt" {
+            let recv_ty = match &receiver.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                    .function_cx
+                    .env
+                    .get(*id)
+                    .and_then(|local| local.hir_ty)
+                    .unwrap_or(receiver.ty),
+                _ => receiver.ty,
+            };
+            if matches!(
+                self.types.kind(recv_ty),
+                TypeKind::Value(ValueTypeKind::Char)
+            ) {
+                return self.codegen_char_method_to_int(receiver).map(Some);
+            }
+            if matches!(
+                self.types.kind(recv_ty),
+                TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+            ) {
+                let recv = self.codegen_expr(receiver)?;
+                return self.codegen_float_to_int_value(span, receiver.span, recv).map(Some);
+            }
+            return self.codegen_string_method(span, receiver, &member.name, args).map(Some);
+        }
+        if matches!(
+            member.name.as_str(),
+            "length"
+                | "concat"
+                | "isEmpty"
+                | "replace"
+                | "charAt"
+                | "repeat"
+                | "compareTo"
+                | "byteLength"
+                | "getByte"
+                | "unsafeSliceBytes"
+        ) {
+            return self.codegen_string_method(span, receiver, &member.name, args).map(Some);
+        }
+        if member.name == "toString" {
+            return self.codegen_to_string_method(span, receiver).map(Some);
+        }
+        if member.name == "hash" {
+            let recv_ty = match &receiver.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                    .function_cx
+                    .env
+                    .get(*id)
+                    .and_then(|local| local.hir_ty)
+                    .unwrap_or(receiver.ty),
+                _ => receiver.ty,
+            };
+            return match self.types.kind(recv_ty) {
+                TypeKind::Value(ValueTypeKind::Char) => {
+                    self.codegen_char_method_hash(span, receiver).map(Some)
+                }
+                TypeKind::Value(ValueTypeKind::Int) => {
+                    self.codegen_int_method_hash(span, receiver).map(Some)
+                }
+                TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32) => {
+                    let recv = self.codegen_expr(receiver)?;
+                    self.codegen_float_hash_value(receiver.span, recv).map(Some)
+                }
+                _ => self.codegen_string_method(span, receiver, "hash", args).map(Some),
+            };
+        }
+        if matches!(member.name.as_str(), "abs" | "isNaN" | "isInfinite") {
+            let recv = self.codegen_expr(receiver)?;
+            return match member.name.as_str() {
+                "abs" => self.codegen_float_abs_value(receiver.span, recv).map(Some),
+                "isNaN" => self.codegen_float_is_nan_value(receiver.span, recv).map(Some),
+                "isInfinite" => {
+                    self.codegen_float_is_infinite_value(receiver.span, recv).map(Some)
+                }
+                _ => unreachable!("filtered by matches!"),
+            };
+        }
+
+        Ok(None)
+    }
+
     pub(in crate::llvm::codegen) fn load_class_vtable_slot_fn_ptr_i8_impl(
         &mut self,
         _at: crate::span::Span,
@@ -557,6 +673,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "Continuation.resume lowering",
                 at: span.into(),
             });
+        }
+
+        if let Some(value) =
+            self.try_codegen_builtin_member_call_short_circuit(span, callee, args, expected)?
+        {
+            return Ok(value);
         }
 
         enum CallableCallee {

@@ -183,8 +183,8 @@
 ### 3.7 `TopLevelRef` raw MIR 不覆盖普通函数引用
 
 - 状态：`Closed/Re-scoped`。
-- 结论：默认主线下顶层 callable value / `FunPtr` 已有 run-pass 覆盖；剩余风险只在“raw MIR 仍直接发射未规范化的函数引用”时出现，不再是默认 blocker。
-- 证据：`tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop:1-33`。
+- 结论：默认主线下顶层 callable value / `FunPtr`、pattern binder 提取出的 callable，以及 `make(1)()` / `choose(mode)()` 这类“调用返回的 callable”都已在 typed HIR + materialized effect-facts handoff 上保留真实 callable surface；剩余风险只允许作为 regression audit，防止 raw MIR 再次晚期重建未规范化函数引用，而不再是默认 blocker。
+- 证据：`crates/scoopc/src/typecheck/expr/call.rs`，`crates/scoopc/src/hir/lower/expr.rs`，`crates/scoopc/src/effect_facts/builder.rs`，`tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`，`tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`，`crates/scoopc/src/llvm/tests.rs`。
 
 ### 3.8 MIR pattern `is Type` 只支持 ref/string
 
@@ -218,9 +218,9 @@
 
 ### 3.13 `StoreMember` continuation route ambiguous 会失败
 
-- 状态：`Open`。
-- 结论：这是 upstream MIR contract gap，而不是 LLVM 想当然补上的逻辑；`Ambiguous` route 仍必须在更早阶段拆解或拒绝。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:8328-8403`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`StoreMember` 的 continuation route 现在已经明确冻结为 upstream MIR contract：`Ambiguous` 会在 production MIR verifier/materialized validation 上被拒绝，raw LLVM 只接受 `None/Unique`，且会继续校验 unique route 的 source-local/source-ty 一致性；LLVM emitter 不再现场猜测 route。
+- 证据：`crates/scoopc/src/mir/mod.rs`，`crates/scoopc/src/mir/materialize.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`tests/fixtures/mir_refactor/assignment_places.scoop`。
 
 ## 4. Aggregate / Enum / Array / Boxing 缺口
 

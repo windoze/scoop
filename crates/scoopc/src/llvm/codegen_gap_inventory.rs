@@ -118,12 +118,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.7",
-        "CG-T03",
-        "CG-T03 / MIR-T07R",
-        RawMirLlvm,
-        true,
-        true,
-        "pass MIR TopLevelRef function reference"
+        "P3-T03",
+        "P3-T03 / top-level callable regression guard",
+        FixtureRegression,
+        false,
+        false,
+        "top-level callable value / FunPtr regression guard"
     ),
     gap!(
         "PIPELINE_GAPS §3.8",
@@ -172,12 +172,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.13",
-        "CG-T06",
-        "CG-T06",
+        "P3-T03",
+        "P3-T03 / StoreMember continuation contract guard",
         UpstreamMirContract,
         true,
-        true,
-        "pass MIR ambiguous member continuation route"
+        false,
+        "typed StoreMember continuation route must be unique before handoff"
     ),
     gap!(
         "PIPELINE_GAPS §4.1",
@@ -528,6 +528,31 @@ mod tests {
             );
             assert_eq!(entry.trigger, trigger);
         }
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_p3_t03_regression_and_storemember_gaps_as_closed_guards() {
+        let function_ref = codegen_gap_entry("PIPELINE_GAPS §3.7")
+            .expect("§3.7 regression guard should remain tracked in inventory");
+        assert_eq!(function_ref.owner_task, "P3-T03");
+        assert_eq!(function_ref.route, CodegenGapRoute::FixtureRegression);
+        assert!(!function_ref.needs_upstream_contract);
+        assert!(!function_ref.production_blocker);
+        assert_eq!(
+            function_ref.trigger,
+            "top-level callable value / FunPtr regression guard"
+        );
+
+        let store_member = codegen_gap_entry("PIPELINE_GAPS §3.13")
+            .expect("§3.13 guard should remain tracked in inventory");
+        assert_eq!(store_member.owner_task, "P3-T03");
+        assert_eq!(store_member.route, CodegenGapRoute::UpstreamMirContract);
+        assert!(store_member.needs_upstream_contract);
+        assert!(!store_member.production_blocker);
+        assert_eq!(
+            store_member.trigger,
+            "typed StoreMember continuation route must be unique before handoff"
+        );
     }
 
     #[test]

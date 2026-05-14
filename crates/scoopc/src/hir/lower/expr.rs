@@ -807,6 +807,14 @@ impl<'a> HirLowering<'a> {
                     self.try_lower_default_args_call_expr(pkg_prefix, e.span, callee, args)
                 {
                     (kind, typechecked_call_ty.unwrap_or(ty))
+                } else if let Some((kind, ty)) = self.try_lower_retained_builtin_member_call_expr(
+                    pkg_prefix,
+                    e.span,
+                    callee,
+                    args,
+                    call_ty,
+                ) {
+                    (kind, ty)
                 } else {
                     // class ctor call 仍会被降低为 `UnresolvedIdent`，
                     // 但 codegen 需要知道 typecheck 已选中的 ctor 目标与参数绑定。
@@ -2859,6 +2867,48 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
             _ => callee,
         }
+    }
+
+    fn try_lower_retained_builtin_member_call_expr(
+        &mut self,
+        pkg_prefix: &str,
+        _call_span: Span,
+        callee: &ast::Expr,
+        args: &[ast::Expr],
+        call_ty: TypeId,
+    ) -> Option<(ExprKind, TypeId)> {
+        let callee = self.transparent_call_callee(callee);
+        let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+            return None;
+        };
+        if !self.should_keep_member_call_as_member_access(receiver, member) {
+            return None;
+        }
+
+        // `String.length()` 继续保留 member-access callee 形状，但 call site 需要一个真实的
+        // callable-typed callee，而不是把 `length` 误记成 `Int`。
+        if self.source.slice(member.span) != "length" || !args.is_empty() {
+            return None;
+        }
+
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        let callee_ty = self
+            .types
+            .ty_function(None, Vec::new(), call_ty, EffectRow::pure(), true);
+        let (kind, _) =
+            self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member, callee_ty);
+        let callee = Expr {
+            span: callee.span,
+            ty: callee_ty,
+            kind,
+        };
+        Some((
+            ExprKind::Call {
+                callee: Box::new(callee),
+                args: Vec::new(),
+            },
+            call_ty,
+        ))
     }
 
     /// 尝试从 callee 表达式中提取“顶层函数 FQN”（用于向实参传播期望类型）。

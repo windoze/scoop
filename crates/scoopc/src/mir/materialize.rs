@@ -148,6 +148,7 @@ pub struct MaterializedMir {
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
+    top_level_value_tys: HashMap<String, TypeId>,
     stable_cone_key: StableConeKey,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     stable_template_keys: HashMap<TemplateKey, StableTemplateKey>,
@@ -191,6 +192,10 @@ impl MaterializedMir {
 
     pub fn stable_instance_keys(&self) -> &HashMap<InstanceKey, StableInstanceKey> {
         &self.stable_instance_keys
+    }
+
+    pub(crate) fn top_level_value_tys(&self) -> &HashMap<String, TypeId> {
+        &self.top_level_value_tys
     }
 
     pub(crate) fn stable_cone_key(&self) -> &StableConeKey {
@@ -5332,6 +5337,25 @@ impl MirInstanceMaterializer {
         Ok(materializer)
     }
 
+    fn collect_top_level_value_tys(&self) -> HashMap<String, TypeId> {
+        let mut tys = self
+            .top_level_consts
+            .iter()
+            .map(|(fqn, value)| (fqn.clone(), value.ty))
+            .collect::<HashMap<_, _>>();
+        tys.extend(
+            self.top_level_immutable_values
+                .iter()
+                .map(|(fqn, value)| (fqn.clone(), value.ty)),
+        );
+        tys.extend(
+            self.top_level_vars
+                .iter()
+                .map(|(fqn, value)| (fqn.clone(), value.ty)),
+        );
+        tys
+    }
+
     fn load_site_instance_bindings(
         &mut self,
         typecheck_types: &TypeStore,
@@ -6554,12 +6578,14 @@ impl MirInstanceMaterializer {
             &pass_callable_families,
             &pass_instance_keys,
         );
+        let top_level_value_tys = self.collect_top_level_value_tys();
 
         let mut materialized = MaterializedMir {
             file,
             types: self.types,
             instance_keys,
             summaries,
+            top_level_value_tys,
             stable_cone_key: self.stable_cone_key,
             stable_instance_keys,
             stable_template_keys: self.stable_template_keys,
@@ -10045,6 +10071,7 @@ mod tests {
             types,
             instance_keys,
             summaries,
+            top_level_value_tys: HashMap::new(),
             stable_cone_key: StableConeKey::new("tests", "0.0.0"),
             stable_instance_keys: HashMap::new(),
             stable_template_keys: HashMap::new(),

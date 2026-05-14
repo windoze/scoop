@@ -7002,6 +7002,94 @@ fun <eff E = Pure> wrap(): Int / E {
     }
 
     #[test]
+    fn typed_hir_preserves_function_typed_nested_call_callee() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_nested_callable_call.scoop",
+            r#"
+package fixtures.hirreview
+
+fun make(x: Int): () -> Int {
+    return { x }
+}
+
+fun main(): Int {
+    return make(1)()
+}
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src)
+            .expect("nested callable call should lower to typed HIR");
+        let main = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.hirreview.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.hirreview.main");
+        let body = main.body.as_ref().expect("main 应有函数体");
+        let call_expr = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Return { value: Some(expr) } => Some(expr),
+                _ => None,
+            })
+            .expect("main 应包含返回调用");
+        let ExprKind::Call { callee, .. } = &call_expr.kind else {
+            panic!("期望外层表达式被 lower 为调用，实际为 {:?}", call_expr.kind);
+        };
+        assert!(
+            matches!(lowered.types.kind(callee.ty), TypeKind::Ref(RefTypeKind::Function(_))),
+            "调用返回的 callable 在 typed HIR 中应保留函数类型，实际为 {}",
+            lowered.types.display(callee.ty)
+        );
+    }
+
+    #[test]
+    fn typed_hir_top_level_immutable_receiver_closure_keeps_length_as_call_in_side_table() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>/hir_top_level_receiver_closure_side_table.scoop",
+            r#"
+import scoop.core.*
+
+val topNamed: String.(Int) -> Int = { n: Int -> this.length() + n }
+"#,
+        );
+
+        let lowered = lower_typed_for_dump(&sess, &src)
+            .expect("top-level receiver closure should lower to typed HIR");
+        let value = lowered
+            .top_level_immutable_values
+            .get("topNamed")
+            .expect("topNamed 应进入 top_level_immutable_values side table");
+        let init = value.init.as_ref().expect("topNamed 应有 initializer");
+        let ExprKind::Closure(closure) = &init.kind else {
+            panic!("topNamed initializer 应为 closure，实际为 {:?}", init.kind);
+        };
+        let ExprKind::Binary { lhs, .. } = &closure.body.kind else {
+            panic!("receiver closure body 应为 binary，实际为 {:?}", closure.body.kind);
+        };
+        let ExprKind::Call { callee, args } = &lhs.kind else {
+            panic!("length 调用应保留为 Call，实际为 {:?}", lhs.kind);
+        };
+        assert!(args.is_empty(), "String.length() 不应携带实参: {args:?}");
+        let ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            panic!("length 调用 callee 应为 MemberAccess，实际为 {:?}", callee.kind);
+        };
+        assert_eq!(member.name, "length");
+        assert!(
+            matches!(lowered.types.kind(callee.ty), TypeKind::Ref(RefTypeKind::Function(_))),
+            "length callee 在 side table 中应是函数类型，实际为 {}",
+            lowered.types.display(callee.ty)
+        );
+    }
+
+    #[test]
     fn typed_hir_continuation_resume_unit_sugar_canonicalizes_zero_arg_and_explicit_unit() {
         let sess = Session::new().unwrap();
         let src = SourceFile::new_virtual(

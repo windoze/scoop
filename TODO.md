@@ -716,7 +716,7 @@
     - 对应 `PLAN.md` P3 第 3、4 项：ctor selected binding 与 default-arg canonicalization 已上移到 typed contract；backend 不再承担补参、arity 容错或 ctor 猜测职责。
     - `PIPELINE_GAPS.md` 已回写 `§3.9`、`§3.10` 为 `Closed/Re-scoped`，并通过 `codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 将它们冻结为 upstream typed-contract drift guard，而不再是默认主线 live gap。
 
-### [TODO] P3-T03：收口 `StoreMember` continuation route 与 raw function-ref normalization regression
+### [DONE] P3-T03：收口 `StoreMember` continuation route 与 raw function-ref normalization regression
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -757,9 +757,35 @@
 - 依赖：`P3-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/typecheck/expr/call.rs`，把“调用返回的 callable”分支从直接调用底层 `infer_expr_type(...)` 改为 `inputs.infer(...)`，确保 `make(1)()` / `choose(mode)()` 这类 nested callable callee 的函数类型会写回 `inferred_expr_tys`，不再在 typed HIR lowering 中退成 `Any`。
+    - 更新 `crates/scoopc/src/hir/lower/expr.rs`，对保留 member-access 形状的 `String.length()` call 显式保留 callable-typed callee；更新 `crates/scoopc/src/hir/lower/mod.rs`，新增 `typed_hir_preserves_function_typed_nested_call_callee` 与 `typed_hir_top_level_immutable_receiver_closure_keeps_length_as_call_in_side_table` 回归，锁定 nested callable callee 与 top-level immutable receiver closure side table 形状。
+    - 更新 `crates/scoopc/src/mir/materialize.rs` 与 `crates/scoopc/src/effect_facts/builder.rs`，让 `MaterializedMir` 显式保留顶层 value 类型索引，并在 effect-facts stage 用该索引为 `topNamed` / `topPatternF` / `topFp` 这类顶层 callable value / `FunPtr` 构建 surface contract，而不再假设 materialized snapshot 里仍留有 generic `InitializerRoot`。
+    - 更新 `crates/scoopc/src/llvm/codegen/call/lowering.rs`，把 builtin member-call short-circuit（`length` / `concat` / `toInt` / `hash` / `toString` 等）前移到 generic callable-callee 分支之前，避免 top-level immutable receiver closure 在旧 HIR init path 中把 `this.length` 错当成裸 `MemberAccess` 值去发射。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_gap_audit.rs` 与 `PIPELINE_GAPS.md`，将 `§3.7` 回写为 `P3-T03` owner 的 regression guard，并将 `§3.13` 回写为 closed/re-scoped 的 upstream contract guard。
   - 核心决策：
+    - 不在 HIR stage 或 LLVM emitter 上为 nested callable 临时猜类型；直接在 typecheck 阶段补全 `inferred_expr_tys` 发布，使 `make(1)()` / `choose(mode)()` 这类 call-of-call 继续走统一 callable contract 主线。
+    - 不把 `String.length()` 改写成新的 synthetic top-level FQN 或额外 wrapper；保持“member-access callee + callable surface”这一既有建模，只修正 typed HIR lowering 与 HIR call lowering 的消费顺序。
+    - 对顶层 callable value / `FunPtr` 的 surface contract 不再回 generic MIR 根列表搜索，因为 production materialized snapshot 天然不会保留 `InitializerRoot`；authoritative 信息应来自 materializer 已持有的顶层 value 类型索引。
+    - `StoreMember` 的 `Ambiguous` route 本轮不新增 workaround；沿用 production MIR verifier / materialized validation / raw codegen gate 的现有分层约束，并在文档与 inventory 中正式闭合 `§3.13`。
+    - `cargo test -p scoopc llvm::tests -- --nocapture` 仍有 3 个现存失败：`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`、`closure_call_without_outward_effect_stays_on_direct_call_surface`、`managed_function_emits_explicit_root_frame_descriptor`；它们分别落在后续 `P4` callable ABI / adapter 与 explicit-root-frame 相关收尾，不属于 `P3-T03` 的直接 blocker，因此未改动 TODO 顺序。
   - 验证结果：
+    - `cargo test -p scoopc refactor_mir_member_access_codegen -- --nocapture`
+    - `cargo test -p scoopc refactor_mir_store_member_codegen -- --nocapture`
+    - `cargo test -p scoopc typed_hir_preserves_function_typed_nested_call_callee -- --nocapture`
+    - `cargo test -p scoopc typed_hir_top_level_immutable_receiver_closure_keeps_length_as_call_in_side_table -- --nocapture`
+    - `cargo test -p scoopc materialized_mir_closure_private_symbols_use_stable_hash_namespaces -- --nocapture`
+    - `cargo test -p scoopc callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir -- --nocapture`
+    - `cargo test -p scoopc callable_value_pattern_binder_receiver_named_args_fixture_codegen_succeeds -- --nocapture`
+    - `cargo test -p scoopc higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval -- --nocapture`
+    - `cargo test -p scoopc higher_order_effectful_function_value_uses_schema_aware_carrier_adapter -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/assignment_places.scoop`
+    - `cargo test -p scoopc llvm::tests -- --nocapture`：当前与本任务直接相关的 5 个历史失败已消失，但仍剩 3 个后续任务范围内的现存失败（见上）。
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P3 第 5-6 项：`StoreMember` continuation route 现在由 upstream MIR verifier / materialized validation 明确要求 `Unique/None`，`Ambiguous` 不再被 LLVM emitter 现场兜底；`§3.7` 继续只保留 regression audit 责任，并且顶层 callable value / `FunPtr` / nested callable callee / pattern binder 路径都已被 run-pass 与 IR 回归重新锁定。
+    - `PIPELINE_GAPS.md` 已回写 `§3.7` 与 `§3.13`：前者保持 `Closed/Re-scoped` 且不再是 production blocker，后者从 `Open` 收口为 `Closed/Re-scoped` 的 upstream contract guard。
 
 ## P4：收口 effect-refactor ABI、adapter 与 unwind/main 路由
 
