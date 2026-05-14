@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: extern_fun_scoop_abi_basic.ast
+
+package fixtures.parse
+
+import scoop.core.*
+
+@Extern("managed_echo", abi = "scoop")
+fun managedEcho(value: String): String

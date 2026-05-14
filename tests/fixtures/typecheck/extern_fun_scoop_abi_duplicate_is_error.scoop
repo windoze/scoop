@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_annotation_arg_duplicate
+// EXPECT-ERROR: `@Extern` 参数 `abi` 重复指定
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_add", abi = "scoop", abi = "c")
+fun managedAdd(x: Int): Int

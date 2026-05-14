@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported
+// EXPECT-ERROR: `abi = "scoop"` 当前不支持 `@CallingConvention`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_add", abi = "scoop")
+@CallingConvention("cdecl")
+fun managedAdd(x: Int): Int

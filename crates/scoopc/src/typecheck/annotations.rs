@@ -21,12 +21,13 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::hir::ExternAbi;
 use crate::resolve::ImportTable;
 use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
-use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{
@@ -68,6 +69,23 @@ struct AnnotationCheckContext<'a> {
     file: &'a ast::File,
     index: &'a Index,
     env: &'a TypeEnv,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExternAnnotationTarget {
+    Function,
+    NonFunction,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExternFunctionSite {
+    TopLevel,
+    Member,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ParsedExternAnnotationArgs {
+    abi: ExternAbi,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -182,10 +200,35 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`（字符串字面量）")]
+    #[error(
+        "`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`、`abi`（字符串字面量；`abi` 仅限函数声明）"
+    )]
     #[diagnostic(code(scoop::typecheck::extern_annotation_args_invalid))]
     ExternAnnotationArgsInvalid {
         #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 参数 `{param}` 重复指定")]
+    #[diagnostic(code(scoop::typecheck::extern_annotation_arg_duplicate))]
+    ExternAnnotationArgDuplicate {
+        param: &'static str,
+        #[label("这里重复指定")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("暂不支持的 `@Extern` ABI：{name}（当前仅支持 \"c\" / \"scoop\"）")]
+    #[diagnostic(code(scoop::typecheck::extern_annotation_abi_not_supported))]
+    ExternAnnotationAbiNotSupported {
+        name: String,
+        #[label("这里的 ABI 名称无效")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 的 `abi` 参数当前只支持函数声明")]
+    #[diagnostic(code(scoop::typecheck::extern_annotation_abi_only_supported_on_functions))]
+    ExternAnnotationAbiOnlySupportedOnFunctions {
+        #[label("这里不能写 `abi = ...`")]
         span: miette::SourceSpan,
     },
 
@@ -249,6 +292,37 @@ pub enum AnnotationError {
     #[diagnostic(code(scoop::typecheck::extern_fun_eff_param_not_allowed))]
     ExternFunEffParamNotAllowed {
         #[label("普通 `@Extern` ABI 不能依赖 effect 多态")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`abi = \"scoop\"` 当前不支持 `@CallingConvention`；Managed ABI 不是 machine calling convention 扩展点"
+    )]
+    #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported))]
+    ExternFunScoopAbiCallingConventionNotSupported {
+        #[label("这里的 `@CallingConvention` 对 `abi = \"scoop\"` 无效")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`abi = \"scoop\"` 当前只支持无 receiver 的顶层函数")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_requires_top_level_fun))]
+    ExternFunScoopAbiRequiresTopLevelFun {
+        #[label("这里不在当前 v1 支持范围内")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`abi = \"scoop\"` 当前不支持泛型函数")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_generics_not_supported))]
+    ExternFunScoopAbiGenericsNotSupported {
+        #[label("这里的类型参数不在当前 v1 支持范围内")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`abi = \"scoop\"` v1 暂不支持 function value / continuation 跨边界：{found}")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_callable_surface_not_supported))]
+    ExternFunScoopAbiCallableSurfaceNotSupported {
+        found: String,
+        #[label("这里的类型仍不在当前 v1 支持范围内")]
         span: miette::SourceSpan,
     },
 
@@ -554,6 +628,7 @@ pub fn check_file_annotations(
                     file_allows_intrinsic,
                     fun,
                     &mut lower,
+                    ExternFunctionSite::TopLevel,
                 )?;
                 check_param_list_annotations(ctx, &mut lower, builtins, &fun.params)?;
             }
@@ -766,6 +841,7 @@ fn check_type_decl_annotations(
                     file_allows_intrinsic,
                     fun,
                     lower,
+                    ExternFunctionSite::Member,
                 )?;
                 check_param_list_annotations(ctx, lower, builtins, &fun.params)?;
             }
@@ -935,6 +1011,7 @@ fn check_object_decl_annotations(
                     file_allows_intrinsic,
                     fun,
                     lower,
+                    ExternFunctionSite::Member,
                 )?;
             }
             ast::TypeMember::Type(nested) => {
@@ -2041,9 +2118,12 @@ fn check_builtin_annotations_on_fun_decl(
     file_allows_intrinsic: bool,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
+    fun_site: ExternFunctionSite,
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
     let fun_name = source.slice(fun.name.span).to_string();
+    let mut extern_abi = None;
+    let mut calling_convention_span = None;
 
     // 1) `@Unsafe/@NoGC/@Intrinsic` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数（见 TODO T1020）。
     for ann in &fun.annotations {
@@ -2051,9 +2131,20 @@ fn check_builtin_annotations_on_fun_decl(
             continue;
         };
         match kind {
-            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Extern => {
+                extern_abi = Some(
+                    check_extern_builtin_annotation_args(
+                        source,
+                        ann,
+                        ExternAnnotationTarget::Function,
+                    )?
+                    .abi,
+                );
+            }
             BuiltinAnnotationKind::CallingConvention => {
-                check_calling_convention_builtin_annotation_args(source, ann)?
+                check_calling_convention_builtin_annotation_args(source, ann)?;
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                calling_convention_span = Some(name_span);
             }
             BuiltinAnnotationKind::AllowIntrinsic => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
@@ -2110,10 +2201,11 @@ fn check_builtin_annotations_on_fun_decl(
         });
     }
 
-    // 3) `@Extern`：ordinary FFI boundary 必须是 effect-impermeable。
+    // 3) `@Extern`：当前 v1 边界必须是 effect-impermeable。
     //
     // 说明：
-    // - ordinary `@Extern` 调用只负责“进入 native -> 返回普通 ABI 结果”；
+    // - `ExternAbi::C` 调用只负责“进入 native -> 返回普通 ABI 结果”；
+    // - `ExternAbi::Scoop` v1 仍未定义 outward effect / continuation ABI；
     // - outward/inward effect、continuation、non-local control 都不得通过该边界传播；
     // - 返回 `FunPtr<F>` / `UIntPtr` / stable handle 等 token 也不放宽上述规则；这些值只是
     //   原始地址/身份 token，而不是 effect/control bridge。
@@ -2121,14 +2213,29 @@ fn check_builtin_annotations_on_fun_decl(
         check_extern_fun_effect_contract(fun)?;
     }
 
-    // 4) `@Extern`：native callable surface 必须走当前发布的 value contract。
-    //
-    // 说明：
-    // - `@Extern` 与 native `FunPtr` 共享同一份 front-end gate；
-    // - 允许通过 `Ptr<T>` / `UIntPtr` / `FunPtr<F>` token、tuple、`@CLayout` struct 等 current v1 surface 过边界；
-    // - GC-managed ref / ordinary nominal aggregate 等不再继续通过“GC-free 近似”被默认放行。
     if flags.is_extern {
-        check_extern_fun_signature_matches_native_abi(source, fun, lower)?;
+        match extern_abi.unwrap_or_default() {
+            ExternAbi::C => {
+                // `@Extern`：native callable surface 必须走当前发布的 value contract。
+                //
+                // 说明：
+                // - `@Extern` 与 native `FunPtr` 共享同一份 front-end gate；
+                // - 允许通过 `Ptr<T>` / `UIntPtr` / `FunPtr<F>` token、tuple、`@CLayout` struct 等 current v1 surface 过边界；
+                // - GC-managed ref / ordinary nominal aggregate 等不再继续通过“GC-free 近似”被默认放行。
+                check_extern_fun_signature_matches_native_abi(source, fun, lower)?;
+            }
+            ExternAbi::Scoop => {
+                if let Some(span) = calling_convention_span {
+                    return Err(
+                        AnnotationError::ExternFunScoopAbiCallingConventionNotSupported {
+                            span: span.into(),
+                        },
+                    );
+                }
+                check_extern_fun_scoop_v1_decl_shape(fun, fun_site)?;
+                check_extern_fun_signature_matches_scoop_abi_v1(source, fun, lower)?;
+            }
+        }
     }
 
     Ok(())
@@ -2150,6 +2257,92 @@ fn check_extern_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), Annotation
     }
 
     Ok(())
+}
+
+fn check_extern_fun_scoop_v1_decl_shape(
+    fun: &ast::FunDecl,
+    fun_site: ExternFunctionSite,
+) -> Result<(), AnnotationError> {
+    if fun_site != ExternFunctionSite::TopLevel || fun.receiver.is_some() {
+        let span = fun
+            .receiver
+            .as_ref()
+            .map(|receiver| receiver.span())
+            .unwrap_or(fun.name.span);
+        return Err(AnnotationError::ExternFunScoopAbiRequiresTopLevelFun { span: span.into() });
+    }
+
+    if let Some(type_param) = fun.type_params.first() {
+        return Err(AnnotationError::ExternFunScoopAbiGenericsNotSupported {
+            span: type_param.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_extern_fun_signature_matches_scoop_abi_v1(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    for p in &fun.params {
+        let Some(ty_ref) = p.ty.as_ref() else {
+            continue;
+        };
+        check_extern_abi_type_ref_matches_scoop_abi_v1(source, ty_ref, lower)?;
+    }
+
+    if let Some(ret_ty_ref) = fun.return_ty.as_ref() {
+        check_extern_abi_type_ref_matches_scoop_abi_v1(source, ret_ty_ref, lower)?;
+    }
+
+    Ok(())
+}
+
+fn check_extern_abi_type_ref_matches_scoop_abi_v1(
+    _source: &SourceFile,
+    ty_ref: &ast::TypeRef,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    let ty = match lower.lower_type_ref(ty_ref) {
+        Ok(ty) => ty,
+        Err(_e) => return Ok(()),
+    };
+
+    if scoop_abi_v1_type_is_supported(ty, lower) {
+        return Ok(());
+    }
+
+    Err(
+        AnnotationError::ExternFunScoopAbiCallableSurfaceNotSupported {
+            found: lower.fmt_type(ty),
+            span: ty_ref.span().into(),
+        },
+    )
+}
+
+fn scoop_abi_v1_type_is_supported(ty: TypeId, lower: &mut TypeLowering<'_>) -> bool {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Function(_)) => false,
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            !is_continuation_nominal(nominal.fqn.as_str())
+        }
+        TypeKind::Ref(_) | TypeKind::Param(_) => true,
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            scoop_abi_v1_type_is_supported(inner, lower)
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
+            .iter()
+            .copied()
+            .all(|element| scoop_abi_v1_type_is_supported(element, lower)),
+        TypeKind::Value(_) => true,
+        TypeKind::StarProjection(_) => false,
+    }
+}
+
+fn is_continuation_nominal(fqn: &str) -> bool {
+    fqn == "scoop.core.Continuation"
 }
 
 fn check_extern_fun_signature_matches_native_abi(
@@ -2245,7 +2438,13 @@ fn check_builtin_annotations_on_top_level_val_decl(
             continue;
         };
         match kind {
-            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Extern => {
+                check_extern_builtin_annotation_args(
+                    source,
+                    ann,
+                    ExternAnnotationTarget::NonFunction,
+                )?;
+            }
             BuiltinAnnotationKind::Deprecated
             | BuiltinAnnotationKind::Suppress
             | BuiltinAnnotationKind::Experimental => {}
@@ -2598,15 +2797,18 @@ fn annotation_use_resolves_to_fqn(
 fn check_extern_builtin_annotation_args(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
-) -> Result<(), AnnotationError> {
+    target: ExternAnnotationTarget,
+) -> Result<ParsedExternAnnotationArgs, AnnotationError> {
     if ann.args.is_empty() {
-        return Ok(());
+        return Ok(ParsedExternAnnotationArgs::default());
     }
 
     let mut positional: Option<Span> = None;
     let mut name_arg: Option<Span> = None;
     let mut lib_arg: Option<Span> = None;
+    let mut abi_arg: Option<Span> = None;
     let mut seen_named = false;
+    let mut parsed = ParsedExternAnnotationArgs::default();
 
     for arg in &ann.args {
         // 允许两种“命名参数”写法：
@@ -2658,7 +2860,8 @@ fn check_extern_builtin_annotation_args(
         match key {
             "name" => {
                 if name_arg.is_some() {
-                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                    return Err(AnnotationError::ExternAnnotationArgDuplicate {
+                        param: "name",
                         span: key_span.into(),
                     });
                 }
@@ -2666,11 +2869,40 @@ fn check_extern_builtin_annotation_args(
             }
             "lib" => {
                 if lib_arg.is_some() {
-                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                    return Err(AnnotationError::ExternAnnotationArgDuplicate {
+                        param: "lib",
                         span: key_span.into(),
                     });
                 }
                 lib_arg = Some(key_span);
+            }
+            "abi" => {
+                if abi_arg.is_some() {
+                    return Err(AnnotationError::ExternAnnotationArgDuplicate {
+                        param: "abi",
+                        span: key_span.into(),
+                    });
+                }
+                if target != ExternAnnotationTarget::Function {
+                    return Err(
+                        AnnotationError::ExternAnnotationAbiOnlySupportedOnFunctions {
+                            span: key_span.into(),
+                        },
+                    );
+                }
+                let Some(abi_name) = extract_string_literal_text(source, value) else {
+                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                        span: value.span.into(),
+                    });
+                };
+                let Some(abi) = ExternAbi::parse(&abi_name) else {
+                    return Err(AnnotationError::ExternAnnotationAbiNotSupported {
+                        name: abi_name,
+                        span: value.span.into(),
+                    });
+                };
+                abi_arg = Some(key_span);
+                parsed.abi = abi;
             }
             _ => {
                 return Err(AnnotationError::ExternAnnotationArgsInvalid {
@@ -2687,7 +2919,7 @@ fn check_extern_builtin_annotation_args(
         });
     }
 
-    Ok(())
+    Ok(parsed)
 }
 
 fn check_builtin_annotations_on_type_decl(
@@ -2796,7 +3028,13 @@ fn check_builtin_annotations_on_object_decl(
             continue;
         };
         match kind {
-            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Extern => {
+                check_extern_builtin_annotation_args(
+                    source,
+                    ann,
+                    ExternAnnotationTarget::NonFunction,
+                )?;
+            }
             BuiltinAnnotationKind::Intrinsic => {
                 check_intrinsic_builtin_annotation_gate(
                     source,

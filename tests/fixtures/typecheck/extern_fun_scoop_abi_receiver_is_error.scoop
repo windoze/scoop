@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_requires_top_level_fun
+// EXPECT-ERROR: `abi = "scoop"` 当前只支持无 receiver 的顶层函数
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_trim", abi = "scoop")
+fun String.managedTrim(): String

@@ -4442,6 +4442,35 @@ mod tests {
     }
 
     #[test]
+    fn refactor_hir_collects_scoop_extern_abi_metadata() {
+        let sess = refactor_session();
+        let src = SourceFile::new_virtual(
+            "<mem>/refactor_hir_collects_scoop_extern_abi_metadata.scoop",
+            r#"
+package fixtures.hir
+
+import scoop.core.*
+
+@Extern("managed_echo", abi = "scoop")
+fun managedEcho(value: String): String
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &src);
+        let extern_fun = lowered
+            .extern_funs
+            .get("fixtures.hir.managedEcho")
+            .expect("expected extern fun side-table entry");
+
+        assert_eq!(extern_fun.abi, crate::hir::ExternAbi::Scoop);
+        assert_eq!(extern_fun.symbol, "managed_echo");
+        assert_eq!(
+            extern_fun.callable_abi_identity(),
+            crate::hir::CallableAbiIdentity::ManagedExtern
+        );
+    }
+
+    #[test]
     fn refactor_hir_comptime_expands_block_if_for_and_package_if() {
         let sess = refactor_session();
         let src = SourceFile::new_virtual(

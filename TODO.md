@@ -424,7 +424,7 @@
 
 ## P3：落地 `ExternAbi::Scoop`
 
-### [TODO] P3-T01：扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"`
+### [DONE] P3-T01：扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -453,6 +453,34 @@
 - 完成条件：
   - `ExternAbi::Scoop` 已能稳定进入 HIR side table。
 - 依赖：`P2-T02`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/hir/{mod.rs,lower/util.rs,lower/mod.rs}`
+    - `crates/scoopc/src/typecheck/annotations.rs`
+    - `tests/fixtures/parse/extern_fun_scoop_abi_basic.{scoop,ast}`
+    - `tests/fixtures/typecheck/extern_fun_scoop_abi_*`
+    - `memory/claude_plan.md`
+    - `TODO.md`
+  - 核心决策：
+    - 在共享 HIR 层把 `ExternAbi` 扩展为 `C` / `Scoop`，并让 `CallableAbiIdentity::from_extern_abi(...)` 正式区分 `NativeExtern` 与 `ManagedExtern`；`hir::lower::util` 现在会从 `@Extern(..., abi = "...")` 直接产出 `ExternFun.abi`，省略时默认仍是 `C`。
+    - `@Extern` 参数校验已正式接受 `abi = "scoop"`，并补上无效 ABI 名、重复 `abi`、以及 `abi` 与位置/命名参数异常混用的前端诊断；`abi` 目前只允许用于函数声明，避免把尚未定义的 surface 扩展到 extern val/object。
+    - `abi = "scoop"` 的 v1 前端门禁先在本任务收紧为：Pure-only、无 receiver 的顶层函数、无泛型、无 direct function-value / continuation surface；同时明确 `@CallingConvention` 对 Managed ABI 当前无效，会在前端直接拒绝，而不会默默忽略。
+    - 本任务只打通语法、typecheck 与 HIR side table；没有提前修改 `ExternAbi::Scoop` 的 LLVM declaration / call lowering，这部分仍由 `P3-T02` 继续完成。
+  - 验证结果：
+    - `cargo test -p scoopc refactor_hir_collects_scoop_extern_abi_metadata -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/parse/extern_fun_scoop_abi_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_invalid_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_duplicate_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_positional_after_named_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_calling_convention_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_receiver_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_generics_not_supported_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_callable_surface_not_supported_is_error.scoop`
+    - `cargo fmt --all`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P3 第 1 项：`@Extern` 现已具备显式 ABI 字段，前端/HIR 可以稳定区分 `C` 与 `Scoop`，并把 ABI 身份写进 `ExternFun.abi` side table。
+    - `MANAGED_ABI.md` §4.2 / §4.3 / §5.2 的 v1 边界已与实现对齐：`abi = "scoop"` 当前只是 managed extern metadata + front-end gate，不是 machine calling convention 扩展点，也尚未在本任务提前接入 native leaf lowering。
 
 ### [TODO] P3-T02：接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归
 

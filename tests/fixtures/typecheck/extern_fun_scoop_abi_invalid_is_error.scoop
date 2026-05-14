@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_annotation_abi_not_supported
+// EXPECT-ERROR: 暂不支持的 `@Extern` ABI：swift
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_add", abi = "swift")
+fun managedAdd(x: Int): Int

@@ -1077,7 +1077,7 @@ pub type WhenPatBindingTypeIndex = HashMap<WhenPatBindingSite, TypeId>;
 ///
 /// 说明：
 /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
-/// - 当前阶段（T1006）仅支持 C ABI；
+/// - 当前阶段前端/HIR 已支持 `C` 与 `Scoop` 两类 extern ABI 元数据；
 /// - `symbol` 为最终参与链接的符号名（例如 `@Extern("puts")` / `@Extern("scoop_println")`）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallableAbiIdentity {
@@ -1091,6 +1091,7 @@ impl CallableAbiIdentity {
     pub const fn from_extern_abi(abi: ExternAbi) -> Self {
         match abi {
             ExternAbi::C => Self::NativeExtern,
+            ExternAbi::Scoop => Self::ManagedExtern,
         }
     }
 
@@ -1125,7 +1126,8 @@ pub struct ExternFun {
     pub symbol: String,
     /// `@CallingConvention("...")`（可选）：用于覆盖默认 C ABI（spec §15.5.4）。
     ///
-    /// 说明：当前阶段后端只保证 `c/cdecl`；其它 calling convention 的支持留待后续扩展。
+    /// 说明：当前阶段后端只保证 `ExternAbi::C` 下的 `c/cdecl`；`ExternAbi::Scoop` 会在前端直接拒绝
+    /// `@CallingConvention`，其它 calling convention 的支持留待后续扩展。
     pub calling_convention: Option<String>,
     /// `@Extern(lib = "...")`（可选）：需要链接的外部库名（传递给链接器作为 `-l<name>`）。
     ///
@@ -1140,10 +1142,29 @@ impl ExternFun {
     }
 }
 
-/// `@Extern` 的 ABI 约定（当前阶段只落地 C ABI）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// `@Extern` 的 ABI 约定。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExternAbi {
+    #[default]
     C,
+    Scoop,
+}
+
+impl ExternAbi {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "c" => Some(Self::C),
+            "scoop" => Some(Self::Scoop),
+            _ => None,
+        }
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::C => "c",
+            Self::Scoop => "scoop",
+        }
+    }
 }
 
 /// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。

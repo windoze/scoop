@@ -2024,6 +2024,7 @@ pub(super) fn collect_extern_funs(source: &SourceFile, file: &ast::File) -> Exte
 struct ExternAnnotationArgs {
     name: Option<String>,
     lib: Option<String>,
+    abi: ExternAbi,
 }
 
 fn parse_extern_annotation_args(
@@ -2057,6 +2058,13 @@ fn parse_extern_annotation_args(
             match key {
                 "name" => out.name = parse_string_literal_utf8(text).ok(),
                 "lib" => out.lib = parse_string_literal_utf8(text).ok(),
+                "abi" => {
+                    if let Ok(name) = parse_string_literal_utf8(text)
+                        && let Some(abi) = ExternAbi::parse(&name)
+                    {
+                        out.abi = abi;
+                    }
+                }
                 _ => {}
             }
             continue;
@@ -2101,7 +2109,7 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<ExternF
         let symbol = args.name.unwrap_or_else(|| name.to_string());
 
         return Some(ExternFun {
-            abi: ExternAbi::C,
+            abi: args.abi,
             symbol,
             calling_convention: calling_convention.clone(),
             lib: args.lib,

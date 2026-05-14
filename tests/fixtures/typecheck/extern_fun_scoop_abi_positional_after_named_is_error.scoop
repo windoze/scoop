@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_annotation_args_invalid
+// EXPECT-ERROR: `@Extern` 仅支持
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern(abi = "scoop", "managed_add")
+fun managedAdd(x: Int): Int

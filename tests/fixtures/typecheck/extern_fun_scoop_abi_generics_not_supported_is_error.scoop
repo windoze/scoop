@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_generics_not_supported
+// EXPECT-ERROR: `abi = "scoop"` 当前不支持泛型函数
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_id", abi = "scoop")
+fun <T> managedId(value: T): T

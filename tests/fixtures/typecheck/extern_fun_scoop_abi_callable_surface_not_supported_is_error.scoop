@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_callable_surface_not_supported
+// EXPECT-ERROR: function value / continuation 跨边界
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_apply", abi = "scoop")
+fun managedApply(callback: (Int) -> Int): Int
