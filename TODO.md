@@ -19,6 +19,11 @@
 | `P2-T02` | P2 | [DONE] 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
 | `P3-T01` | P3 | [DONE] 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
 | `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
+| `P4-T01a` | P4 前置 I | 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
+| `P4-T01b` | P4 前置 I | vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
+| `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
+| `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
+| `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -561,6 +566,255 @@
     - 对应 `PLAN.md` P3 第 3-5 项：`ExternAbi::Scoop` 现已具备 external linkage 下的 ordinary managed declaration / call lowering，aggregate return 走 hidden sret，且 ABI-specific `unsafe` / `@NoGC` 语义已在前端与调用门禁完成收口。
     - `MANAGED_ABI.md` §3 / §5.2 / §5.4 / §6 / §10.1 / §10.2 已与实现对齐：managed extern 不再复用 native leaf scaffold，`FunPtr` 继续保持 native-only，binary-boundary 上的 `Pure` / no outward suspend 约束维持不变。
 
+## P4 前置 I：内建类型 interface 实现机制
+
+> 起因与设计基线：[`PLAN.md`](./PLAN.md) §5 / "P4 前置 I. 内建类型 interface 实现机制"。
+>
+> 目标是把内建类型从"扩展函数 + codegen by-name 拦截"升级为**一等的 struct/class implementer**：唯一的特殊性是 layout 由编译器内置，其它（method body / interface impl / vtable / itable）和用户自定义类型完全同构。
+>
+> 硬约束（"零编译器后门"，non-generic 维度）：本前置阶段必须保证，未来再加任何新的非 generic 内建 method（含 interface override 与独立 method）都不会再要求改编译器；只动 sysroot 即可。generic-by-T 维度的后门（不可避免）由 P4 前置 II 收敛为可枚举 intrinsic 表。
+>
+> 顺序约束：P4-T01a → P4-T01b → P4-T01c → P4-T01d → P4-T01e → P4-T01。五个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
+
+### [TODO] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
+  - `sysroot/core.scoop` 中关于"当前阶段 typecheck 尚未支持普通成员函数调用（class/interface methods）"的注释
+- 目标：
+  - 让 user 与 sysroot 的 declarer 共享同一前端路径调用 instance method，不再依赖扩展函数承接 instance method 语义。
+  - 必须 cover generic class（这是 P4-T01b/c 在 Array/MutableArray 这类 `@Intrinsic class` 上验证机制的前提）。
+- 当前实现入口：
+  - `crates/scoopc/src/typecheck/expr/call.rs::infer_member_call_expr_type`
+  - `crates/scoopc/src/resolve/scopes.rs`（builtin allowlist / member call 解析）
+  - `crates/scoopc/src/hir/lower/expr.rs::should_keep_member_call_as_member_access`
+  - `crates/scoopc/src/hir/lower/mod.rs`（instance method → top-level fun lowering）
+  - `crates/scoopc/src/itable.rs`、`crates/scoopc/src/vtable.rs`（method 收集）
+- 必须实现的内容：
+  1. typecheck 接受 struct body 内 `fun` 声明并视作 instance method（含 `override`）；class body 内同理。
+  2. typecheck 接受 generic class（如 `class Box<T>`）body 内 `fun` 声明，receiver type 含 type parameter 的 instance method 解析正确。
+  3. typecheck 解析 `receiver.method()` 时优先解析到 struct/class body 内的 method，再 fall back 到扩展函数（保留扩展函数路径，与本任务并存，不删除）。
+  4. HIR lower 把 struct/class body method lower 为 top-level fun，FQN 为 `<TypeFqn>.<methodName>`，与现有扩展函数 lowering 一致；这样 `fun_index` 自然消费、`itable.rs` 自然按 FQN 命中。
+  5. monomorphization 对 generic class instance method 正确生成特化版本（与现有 `fun <T> Box<T>.method()` 扩展函数 lowering 路径对齐）。
+- 必须遵从的约束：
+  - 不得删除任何现有扩展函数路径或既有 by-name 特判。本任务只**新增** instance method 路径。
+  - 不得修改 `sysroot/core.scoop` / `sysroot/scalar.scoop` 中关于内建类型的现有声明。
+  - 不得修改 `sysroot/core.scoop` 中 Array / MutableArray 的现有 declaration-only 形式。
+- 验证：
+  1. 新增 fixture：用户自定义 `struct Foo { fun bar(): Int { ... } }` + `f.bar()` 通过编译并 run-pass。
+  2. 新增 fixture：用户自定义 `class Bar { fun baz(): Int { ... } }` + `b.baz()` 通过编译并 run-pass。
+  3. 新增 fixture：用户自定义 `class Box<T> { fun get(): T { ... } }` + `box.get()` 通过编译并 run-pass。
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：所有现有 pass fixture 不退化。
+  5. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定测试不退化。
+- 完成条件：
+  - 用户自定义 struct/class（含 generic class）能用常规 `receiver.method()` 调用 instance method；既有扩展函数路径与现有内建类型 lowering 不变。
+- 依赖：`P3-T02`
+
+### [TODO] P4-T01b：vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
+  - `crates/scoopc/src/itable.rs::{collect_classes_in_type_decl,collect_runtime_interfaces_and_class_itables_with_env,build_precise_class_itable_entries}`
+  - `crates/scoopc/src/vtable.rs`
+  - `crates/scoopc/src/llvm/codegen/call/lowering.rs::{try_codegen_class_vtable_call,try_codegen_interface_itable_call_impl,load_interface_itable_slot_fn_ptr_i8_impl}`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs::{codegen_mir_composite_value_box,mir_value_box_itable_entries,get_or_create_mir_value_box_itable_global}`
+- 目标：
+  - 让 vtable / itable 在 P4-T01a 的 instance method 路径上正确收集 method（含 `override`）。
+  - 让 interface call 的 caller side 完全按 itable slot 元数据 marshal 参数（class 类型按 ptr、value 类型按 by-value 与 method signature 一致），不为 value type 合成 box thunk。
+  - 让"用户自定义 struct/class（含 generic class）实现 interface" 走完整 itable dispatch 路径。
+- 当前实现入口：
+  - 同上"参考"
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/{body.rs,value.rs}` 中 `ToString.toString` / scalar `toString` ext 的 FQN intercept（**不在本任务删除**，留给 P4-T01）
+- 必须实现的内容：
+  1. 把 itable / vtable 收集扩展到 struct/class body 内的 method declarations（与 P4-T01a lowering 出的 FQN 对齐）；保持现有扩展函数命中路径不变。
+  2. 在 `mir_value_box` 路径上验证：用户自定义 struct value type 实现 interface 时，box 内 itable slot 直接指向 struct body method symbol，不经过合成 thunk；如果当前实现已是 thunk-less，加 IR 锁定测试以防回归。
+  3. interface call caller side：按 itable slot 元数据中的 method signature marshal 参数。如果当前 caller 假设固定 by-ptr 形态导致需要 thunk，把 caller 改造为 metadata-driven marshal（这是"零编译器后门"的核心动作）。
+  4. user 自定义 generic class 实现 interface 后的 itable 在 monomorphization 后正确出现在 `fun_index`、`class_itables`、`runtime interfaces` 三处 metadata。
+- 必须遵从的约束：
+  - 不得动 `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext` / `codegen_mir_transport_to_string` 等 by-name intercept；它们留给 P4-T01 删除。
+  - 不得修改 `sysroot/core.scoop` 中内建类型现有声明；不得引入"内建类型 only" 的新代码路径。
+  - 不得为本阶段引入新的 by-name 分支；新增机制必须与用户自定义类型同构。
+- 验证：
+  1. 新增 fixture：用户自定义 `interface I { fun m(): Int }` + 用户自定义 struct（value type）实现 `I` + 用 `I` 类型变量持有 + `(it as I).m()` 走 itable dispatch 通过 run-pass。
+  2. 新增 fixture：用户自定义 `interface I` + 用户自定义 class（GC type）实现 `I` 通过 run-pass。
+  3. 新增 fixture：用户自定义 `interface I` + 用户自定义 generic `class Box<T>` 实现 `I` 通过 run-pass。
+  4. 新增 IR 锁定测试：上述 user struct value type → I 的 itable global 不包含合成 box thunk 符号；slot 直接指向 user struct body method symbol。
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：所有现有 pass fixture 不退化。
+- 完成条件：
+  - vtable / itable 收集与 interface call caller side 完全 metadata-driven，不依赖任何 by-name 内建分支或合成 thunk。
+- 依赖：`P4-T01a`
+
+### [TODO] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
+  - `sysroot/core.scoop` 中 `@Intrinsic enum Option<T>` / `@Intrinsic` 现有用法
+  - `crates/scoopc/src/typecheck/annotations.rs`（`@Intrinsic` 的现有 surface）
+  - `crates/scoopc/src/sysroot/mod.rs`（compilable sysroot file gate）
+  - `crates/scoopc/src/llvm/codegen/ty.rs`（builtin layout cg_ty_of 识别）
+- 目标：
+  - 让 `@Intrinsic struct/class` 含 method body 这种 sysroot 写法走完整编译管线：parser / typecheck / HIR / MIR / codegen 全链路。
+  - layout 仍由编译器内置识别（与 sysroot 现状一致），但 method 部分照常走 P4-T01a/b 打通的路径。
+  - **body 内允许声明任意 instance method（含 `override` 与不含 `override`）**：未来想给内建类型加非 interface method（例如 `Int.toBinaryString(): String`）时，直接写在 sysroot 的 `@Intrinsic struct/class` body 内即可，不需要走扩展函数，也不需要改编译器。
+  - 把"零编译器后门"约束锁进 fixture：未来再加任何内建 interface 或非 interface 的内建 method 都不再要求改编译器。
+- 当前实现入口：
+  - 同上"参考"
+- 必须实现的内容：
+  1. parser / typecheck 接受 `@Intrinsic struct/class { ... method body ... }` 形式：
+     - body 内**不允许**声明 fields（layout 由编译器内置）；
+     - body 内**允许**声明任意 instance method：含 `override`（实现 super interface 的 method）与**不含 `override`**（独立的内建类型新功能 method，例如未来的 `fun Int.toBinaryString(): String`）；
+     - 现有 `@Intrinsic` 应用到 fun / enum 的语义保持不变。
+  2. `@AllowIntrinsic` gate 覆盖到 struct/class：sysroot 文件天然过 gate；user 文件需显式 `@file:AllowIntrinsic`。
+  3. 编译器对 `@Intrinsic struct/class` 的特殊处理只剩两件：
+     - layout 由编译器内置（不读 body fields，因为禁止声明 fields）；
+     - HIR/MIR/codegen 路径与用户自定义 struct/class 完全一致。
+  4. generic `@Intrinsic class`（如 `Array<T>` / `MutableArray<T>`）：layout 内置识别要正确处理 type parameter；method body 走 P4-T01a 打通的 generic class instance method 路径。
+  5. **不动** `Int` / `String` / `Char` / `Float32` / `Float64` 现有 sysroot 声明（仍是 declaration-only `struct Int : Hashable, ToString`）；不动 scalar `toString` 现有 codegen 路径。这些搬迁动作留给 P4-T01。
+- 必须遵从的约束：
+  - 不得为本阶段在 codegen 中新增任何"按 builtin FQN 决定 method body / dispatch"的路径。
+  - 不得让 `@Intrinsic struct/class` 退化成"declaration-only" 的轻量版本；method body 路径必须真打通（即使本阶段没有任何 sysroot 文件实际使用 method body）。
+  - 不得修改 `runtime/c/scoop_runtime.c` 添加新 helper；本阶段不涉及 runtime 改动。
+- 验证：
+  1. 新增 fixture：测试用 `@file:AllowIntrinsic` + `@Intrinsic struct Dummy : DummyIface { override fun m(): Int { ... } }` 的小 program，layout 由编译器内置识别（用一个不与 Int/Bool/Char/Float 冲突的测试专用 builtin name，或者临时挂在 Dummy 上做"无 fields 即视为 zero-sized" 兜底；具体策略由 P4-T01c 实现侧决定但需在 fixture 中显式锁定），通过 typecheck / lower / codegen。
+  2. 新增 fixture：`@file:AllowIntrinsic` + `@Intrinsic struct/class` body 内**只声明不带 `override` 的独立 instance method**（不实现任何 interface），调用通过编译并 run-pass —— 锁定"未来给内建类型加非 interface method 不必走扩展函数"这条 surface。
+  3. 新增 fixture：`@file:AllowIntrinsic` + `@Intrinsic class Container<T> : DummyIter { override fun ...(): ... { ... } }`（dummy interface，不动 sysroot Iterable，因为 Iterable 暂不做），通过 typecheck / lower / codegen 并 run-pass。
+  4. 新增 fixture：把 sysroot 现有 `class Array<T>` / `class MutableArray<T>` 用 `@Intrinsic class Array<T> : DummyIter { ... }` 形式重写**为本任务专用 fixture**（不动 sysroot 真实 Array/MutableArray）；验证机制可落到已有 generic class 的 layout 上。
+  5. 新增 user-side fail fixture：user 文件未加 `@file:AllowIntrinsic` 但写 `@Intrinsic struct/class`，必须前端拒绝。
+  6. 新增 fail fixture：`@Intrinsic struct/class` body 内声明 fields，必须前端拒绝。
+  7. 编译器源代码 grep 验证（在 fixture 注释中说明检查项，必要时通过 CI lint 锁）：本任务结束后，编译器没有为新内建 interface 加任何 by-name 分支。
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：现有 pass fixture 不退化。
+  9. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定测试不退化。
+- 完成条件：
+  - `@Intrinsic struct/class`（含 generic class）含 method body 完整走完整编译管线；
+  - 上述 fixture 双锁机制覆盖到 generic class 这一最复杂形态；
+  - P4 前置 II 可以在此基础上扩展 method-level `@Intrinsic("name")` surface；
+  - P4-T01 在 P4 前置 I/II 都完成后只需"sysroot 改写 + 删旧 by-name 特判"，编译器侧不再需要为单个 non-generic interface 加任何配套改动。
+- 依赖：`P4-T01b`
+
+## P4 前置 II：intrinsic 表 IR-emission 与 runtime 收缩（Array/MutableArray 起步）
+
+> 起因与设计基线：[`PLAN.md`](./PLAN.md) §5 / "P4 前置 II. intrinsic 表 IR-emission 与 runtime 收缩（Array/MutableArray 起步）"。
+>
+> P4 前置 I 把 non-generic 内建 method 的"零编译器后门"约束做完了。但 generic class 的 instance method 没法用 Scoop 写"按 T 选哪条 lowering 路径"（Scoop 没有 typecase / reflect），这是**真正不可避免**的后门。本阶段把它收敛为**唯一可枚举的 intrinsic 表**，并把 `Array<T>` / `MutableArray<T>` 的基础访问从 runtime helper 改为 IR-direct emission，恢复 LLVM 优化路径，同时删除对应的 runtime helper。
+>
+> **设计约束**：intrinsic 表的 entry **默认 IR-emission**；只有真正涉及 GC heap allocation / write barrier / move-GC composite copy 等无法纯 IR 表达的 GC-adjacent 协作时，才下放为 RuntimeCall。
+>
+> **长期方向（仅作背景）**：runtime 最终只保留 GC 实现与 GC-adjacent 功能（GC handle / pin、thread registration / cleanup），便于移植到 WASM / JVM 或切换 GC（如 BoehmGC）。其它内容（`exit(3)` / `print/println` / scalar helper 等）作为 v2+ backlog 逐步以 IR / Scoop ABI FFI 形式迁出，本阶段只处理 Array / MutableArray。
+
+### [TODO] P4-T01d：引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 II"
+  - `crates/scoopc/src/typecheck/annotations.rs`（现有 `@Intrinsic` 应用到 fun / enum / struct / class 的 surface）
+  - `crates/scoopc/src/llvm/codegen/intrinsics/`（intrinsic lowering 现有架构）
+- 目标：
+  - 让 generic-by-T 分流后门有唯一、可枚举、文档化的承载（method-level `@Intrinsic("name")` declaration + 编译器内置表）。
+  - 表的 lowering 默认 **IR-emission**：直接生成 GEP / load / store / branch / phi 等基础 IR，让 LLVM 完整看穿；只有真正 GC-adjacent 协作（GC heap allocation / write barrier / descriptor-driven copy 等）才下放为 RuntimeCall entry。
+  - 本任务只做"机制层"：surface + 表数据结构 + 一个 dummy IrEmission entry + 一个 dummy RuntimeCall entry 验证两条通路。`Array` / `MutableArray` 的实际填充留给 P4-T01e。
+- 当前实现入口：
+  - `crates/scoopc/src/typecheck/annotations.rs`
+  - `crates/scoopc/src/hir/lower/`（method-level annotation 处理）
+  - `crates/scoopc/src/llvm/codegen/intrinsics/`（新增 intrinsic 表实现）
+  - `crates/scoopc/src/sysroot/mod.rs`（`@AllowIntrinsic` gate 已覆盖 fun / type-level，需扩到 method-level）
+- 必须实现的内容：
+  1. parser / typecheck 接受 method-level `@Intrinsic("name")` declaration：
+     - method 必须 body-less；
+     - `"name"` 必须命中编译器内置 intrinsic 表，否则前端报错（明确诊断）；
+     - 受 `@AllowIntrinsic` gate 约束（user 文件没 `@file:AllowIntrinsic` 则前端拒绝）。
+  2. 编译器内置 intrinsic 表数据结构：
+     - 每条 entry 标注 lowering 模式（`IrEmission` / `RuntimeCall`）；
+     - `IrEmission` entry 持有 lowering rule 函数，直接 emit IR；
+     - `RuntimeCall` entry 持有 runtime symbol + signature + "为什么不能用 IR 表达"的明确理由（写进表内作为审计依据，CI / lint 可机器读取）。
+  3. 把 type-level `@Intrinsic` 的 layout 内置识别与 method-level `@Intrinsic("name")` 的 lowering 路径解耦：
+     - type-level `@Intrinsic` 仍只决定 layout / fields gating；
+     - method-level `@Intrinsic("name")` 单独决定 method lowering；
+     - 一个 type 上可以混合"普通 method body"与"`@Intrinsic("name")` body-less method"。
+  4. 监听 codegen 调用流程，让 `@Intrinsic("name")` method call 在 codegen 时按表查找并执行对应 lowering rule。
+  5. 现有 type-level `@Intrinsic` 用法不变（fun / enum / struct / class）。
+- 必须遵从的约束：
+  - 不得让 user 文件能声明任意 `@Intrinsic("name")`：name 必须在编译器表里枚举。
+  - `RuntimeCall` entry **默认禁用**：表初始版本中不能没有 IrEmission 与 RuntimeCall 各一条 dummy entry 用于 fixture，但**不得**有任何"未给出'为什么不能 IR 表达'理由"的 RuntimeCall entry。
+  - 不得删除既有 `@Intrinsic` 应用到 fun / enum / struct / class 的语义。
+  - 不得把任何现有 codegen by-name 分支改名换姓塞进 intrinsic 表（必须是真正的"按 T 分流"语义，不是其它内建特判的伪装）。
+- 验证：
+  1. 新增 fixture：`@file:AllowIntrinsic` + 测试用 `@Intrinsic class Vec<T> { @Intrinsic("dummy_ir") fun foo(): Int }`，dummy_ir 在表中标记为 IrEmission（emit 一个常量），通过 typecheck / lower / codegen 与 run-pass。
+  2. 新增 fixture：测试用 `@Intrinsic("dummy_runtime") fun bar(): Int`，dummy_runtime 在表中标记为 RuntimeCall（接到一个测试专用 runtime symbol），通过 typecheck / lower / codegen 与 run-pass。
+  3. 新增 fail fixture：声明 `@Intrinsic("not_in_table") fun foo()`，前端必须拒绝并给出明确诊断。
+  4. 新增 fail fixture：声明 `@Intrinsic("dummy_ir") fun foo() { /* body */ }`（body 不为空），前端必须拒绝。
+  5. 新增 fail fixture：user 文件没 `@file:AllowIntrinsic` 但写 `@Intrinsic("dummy_ir") fun foo()`，前端必须拒绝。
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：现有 pass fixture 不退化。
+  7. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定测试不退化。
+- 完成条件：
+  - method-level `@Intrinsic("name")` surface 可用；
+  - intrinsic 表数据结构落地，IrEmission / RuntimeCall 双通路验证通过；
+  - 表内每条 entry 都可被外部审计（含 lowering 模式、runtime 理由）。
+- 依赖：`P4-T01c`
+
+### [TODO] P4-T01e：用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 II"
+  - `runtime/c/scoop_array.c`（`ScoopArray` layout 与 helper）
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`（`SCOOP_ARRAY_*` constants）
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs::{declare_runtime_array_len,declare_runtime_array_get_*,declare_runtime_array_set_*}`
+  - `crates/scoopc/src/llvm/codegen/intrinsics/containers.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`（当前 array helper callsite）
+  - `crates/scoopc/src/opt/bce.rs`（与 array_get IR-direct 协同的 BCE pass）
+- 目标：
+  - 把 `Array<T>` / `MutableArray<T>` 改写为 `@Intrinsic class` 含 `@Intrinsic("...")` method declaration 形式，作为 P4-T01d 机制的 first user。
+  - 让 `array_size` / `array_get` / `array_set` / `array_data_ptr` 等基础访问 IR-direct emission，恢复 LLVM LICM / CSE / BCE / 自动向量化 等优化路径。
+  - 删除已被替代的 runtime helper，substrate 收缩。
+  - 保留：`array_alloc` / `array_builder_grow` / `write_barrier` / `composite_copy` 等真正 GC-adjacent 协作的 helper（作为 RuntimeCall entry）。
+- 当前实现入口：
+  - 同上"参考"
+  - `sysroot/core.scoop`（`class Array<T>` / `class MutableArray<T>` 现有 declaration）
+- 必须实现的内容：
+  1. 在编译器 intrinsic 表中加入以下 IrEmission entry：
+     - `array_size`：emit `ScoopArray.len` field load。
+     - `array_get`：emit bounds check（与 BCE 标 unchecked 协同）+ GEP 到 `data + idx * elem_size_bytes` + load（按 T 的实际 LLVM type，不再 widen 到 i64）。
+     - `array_set`：emit bounds check + GEP + store + write barrier intrinsic（仅当 T 为 ref kind）。
+     - `array_data_ptr`：emit GEP 到 `ScoopArray.data` 字段（用于 builder / iterator 内部）。
+     - 其它必要的小原语视实现需要补充（例如 `array_elem_kind` / `array_elem_size` 若 codegen 内联 BCE 之外仍需读这些 self-describing 字段；尽量让 lowering 在编译期已知 T 的情况下消除这类读取）。
+  2. 在编译器 intrinsic 表中加入以下 RuntimeCall entry（保留原 helper）：
+     - `array_alloc`：调用 `gc_alloc_typed` + 初始化 `ScoopArray` 字段；reasons 字段写明"涉及 GC heap allocation"。
+     - `array_builder_grow`：调用 `scoop_array_builder_*`；reasons 字段写明"涉及 GC heap allocation + 旧数据迁移"。
+     - `write_barrier`：调用 generational GC 的 card mark；reasons 字段写明"GC-adjacent，需写 card 表"。
+     - `composite_copy`：调用 `scoop_composite_copy`；reasons 字段写明"descriptor-driven 循环，含 GC slot 协调"。
+  3. 把 `sysroot/core.scoop` 的 `Array<T>` / `MutableArray<T>` 改写为 `@Intrinsic class` 含 `@Intrinsic("array_size")` / `@Intrinsic("array_get")` / `@Intrinsic("array_set")` 等 method declaration 形式：
+     - 如果 sysroot 现有扩展函数（`fun <T> Array<T>.size(): Int` 等）直接保留作为 user-facing API 桥接，仍可工作；
+     - 也可以同步迁成 method 形式 + 删除扩展函数（取实施时较干净的形态）。
+  4. 把 `crates/scoopc/src/llvm/codegen/intrinsics/containers.rs` / `effect_lowered/value.rs` 中按 receiver type 名字分流到 `scoop_array_get_*` / `scoop_array_set_*` / `scoop_array_len` 的代码迁到 intrinsic 表 entry；callsite 走 `@Intrinsic("array_*")` lowering 路径。
+  5. 删除以下 runtime helper（同步 declaration、symbol、C 实现）：
+     - `runtime/c/scoop_array.c::scoop_array_get_u64`
+     - `runtime/c/scoop_array.c::scoop_array_get_ref`
+     - `runtime/c/scoop_array.c::scoop_array_get_composite`
+     - `runtime/c/scoop_array.c::scoop_array_set_u64`
+     - `runtime/c/scoop_array.c::scoop_array_set_ref`
+     - `runtime/c/scoop_array.c::scoop_array_set_composite`
+     - `runtime/c/scoop_array.c::scoop_array_len`
+     - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 与 `runtime_abi.rs` 中对应 constant / declare。
+  6. 保留并文档化 v1 substrate 边界：`scoop_array_builder_*` / `scoop_array_alloc`（如有） / `scoop_composite_copy` / write barrier 等仍属于 substrate；其它 array 路径已 IR-direct。
+- 必须遵从的约束：
+  - 不得为本任务在 codegen 中保留任何"按 receiver FQN 是否为 Array / MutableArray"的旧 by-name 分支；callsite lowering 必须按 method declaration 上的 `@Intrinsic("name")` 标签查表。
+  - 不得把 IrEmission entry 改回 RuntimeCall（即使遇到优化或 GC 边界问题）；遇到此类问题应从 RuntimeCall 列表里增加新的细粒度 helper（写明理由），而不是把 IrEmission entry 整个倒回。
+  - 不得在本任务里顺手处理其它 runtime helper（`exit`、`print/println`、scalar helper、string helper 等），它们留 v2+ 或后续阶段。
+  - 删除 runtime helper 时必须验证仓库内已无 declaration / call site 残留（grep 锁）。
+- 验证：
+  1. 新增 fixture：`for i in 0..n { sum += arr.get(i) }` 在 `--opt-level=2` 下 LLVM IR 中能 LICM `arr.size()`、能与 BCE 协同把 bounds check 消除（fixture 锁 IR 形态）。
+  2. 新增 fixture：`val a = arr.get(0); val b = arr.get(0)` 编译后 LLVM 能 CSE 成单次 load（fixture 锁 IR 形态）。
+  3. 新增 fixture：simple `for i in 0..n { sum += arr.get(i) }`（T = Int）在合适机器上能被 LLVM 自动向量化（fixture 不锁机器码，仅锁"loop body 中无 opaque function call"）。
+  4. 新增 fixture：`MutableArray<ClassT>.set(i, value)` 触发 write barrier（runtime call site 仍存在，fixture 锁 IR 形态包含 barrier call）。
+  5. 新增 fixture：`MutableArray<StructT>.set(i, value)`（composite element）正确走 RuntimeCall composite_copy（fixture 锁 IR 形态包含 composite_copy call + run-pass 验证语义）。
+  6. 现有所有 array 相关 pass fixture 不退化。
+  7. 仓库 grep：`scoop_array_get_u64` / `scoop_array_get_ref` / `scoop_array_get_composite` / `scoop_array_set_u64` / `scoop_array_set_ref` / `scoop_array_set_composite` / `scoop_array_len` 在编译器源码与 runtime/c 中均无残留。
+  8. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定测试不退化（涉及 array 的需更新为 IR-direct 形态）。
+  9. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：所有现有 pass fixture 不退化。
+  10. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <array-fixtures>`：write barrier 与 move-GC composite copy 的 RuntimeCall 通路正确。
+- 完成条件：
+  - `Array` / `MutableArray` 基础访问 IR-direct，LLVM 优化路径完整可用；
+  - 上述 array runtime helper 已删除，substrate 收缩动作完成；
+  - intrinsic 表已有真实 first user，"零编译器后门（generic 维度）"约束以可枚举 entry 形式落实。
+- 依赖：`P4-T01d`
+
 ## P4：string cone tracer bullet
 
 ### [TODO] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
@@ -571,39 +825,50 @@
 - 目标：
   - 先用最小且高频的 string helper 证明“编译器已按 ABI 而不是按名字工作”。
   - 第一批目标限定为标量/简单自返 helpers，避免一开始就把所有 string 逻辑绑在一起。
+  - 实现路径以 P4 前置（P4-T01a/b/c）已铺好的"内建类型作为一等 struct/class implementer"机制为基础：把 `Int` / `Bool` / `Char` / `Float32` / `Float64` / `String` 这几个内建类型从 declaration-only `struct/class : Hashable, ToString` 改为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }` 形式，method body 在 sysroot 内用 Scoop 写出（`@Extern(abi = "scoop")` wrapper 调 runtime helper）。
+  - 本任务不动 `Hashable.hash` 这一侧；只迁 `ToString.toString`。`Hashable` 等其它内建 interface 留以后做（按"零编译器后门"约束，未来加这些 interface 不再要求改编译器）。
 - 当前实现入口：
-  - `sysroot/core.scoop`
-  - `crates/scoopc/src/resolve/scopes.rs`
-  - `crates/scoopc/src/typecheck/expr/call.rs`
+  - `sysroot/core.scoop`（内建类型 declaration-only 形式）
+  - `crates/scoopc/src/resolve/scopes.rs`（`toString` 的 builtin allowlist）
+  - `crates/scoopc/src/typecheck/expr/call.rs`（内建 `toString` 直接返回 String 的 synthetic contract）
+  - `crates/scoopc/src/hir/lower/expr.rs::should_keep_member_call_as_member_access`（`toString` keep-list）
   - `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs::{try_codegen_tostring_iface_builtin,codegen_sysroot_to_string_ext}`
   - `crates/scoopc/src/llvm/codegen/effect_lowered/body.rs::lower_builtin_to_string_call`
   - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs::{lower_refactor_core_to_string_call,refactor_core_print_to_string}`
+  - `crates/scoopc/src/llvm/codegen/mir_body.rs::codegen_mir_transport_to_string`
   - `runtime/c/scoop_runtime.c` 中 `scoop_{bool,char,int,float32,float64}_to_string`
 - 必须实现的内容：
-  1. 先迁：
+  1. 在 sysroot 中把以下内建类型改写为 `@Intrinsic struct/class with body methods`（依赖 P4-T01c 已完成的 surface），override `ToString.toString`：
      - `Int.toString`
      - `Bool.toString`
      - `Char.toString`
      - `Float32.toString`
      - `Float64.toString`
      - `String.toString`
-  2. 对应清理以下层的名字特判：
-     - resolver builtin allowlist；
-     - typecheck 中的内建 member 直接返回类型；
-     - codegen builtin intercept；
-     - effect-lowered `toString` runtime route。
-  3. 保持 `ToString.toString` interface dispatch 对用户类型仍可用，但 builtin scalar 不再靠 FQN/runtime intercept 直达。
-  4. 同步检查 `print/println` 链路，确保它们最终也不再依赖旧的 scalar `toString` runtime intercept。
+  2. method body 用 Scoop 写出：
+     - `Bool.toString` / `String.toString` 用纯 Scoop 表达（`if (this) "true" else "false"` / `return this`）；
+     - `Int.toString` / `Char.toString` / `Float64.toString` / `Float32.toString` 调用 `@Extern(abi = "scoop")` wrapper（`scoopAbiIntToString` 等），wrapper 链接到 runtime 中已有的 `scoop_{int,char,float64,float32}_to_string`。
+  3. 对应清理以下层的名字特判（这些都是 P4-T01a/b/c 之后已经"对内建类型不再被需要"的旁路）：
+     - resolver `toString` builtin allowlist；
+     - typecheck 中内建 `toString` 的 synthetic 直接返回类型；
+     - HIR `should_keep_member_call_as_member_access` 中 `toString` keep-list 条目；
+     - `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext`；
+     - `effect_lowered/{body.rs,value.rs}` 中 `ToString.toString` / scalar `toString` ext 拦截；
+     - `codegen_mir_transport_to_string` 中按 `CgTy` 派生 runtime helper 名字的分支。
+  4. `ToString.toString` interface dispatch 对用户类型仍可用（这条由 P4-T01a/b/c 已经保证）；本任务删除的所有路径都必须有对应的"用户类型也走过这条路径"证据，否则不能删。
+  5. 同步检查 `print/println` 链路，确保它们最终也不再依赖旧的 scalar `toString` runtime intercept。
 - 必须遵从的约束：
-  - 不得留下“新 `ExternAbi::Scoop` 路径已接通，但旧 `try_codegen_tostring_iface_builtin` 仍完整保留”的双轨。
+  - 不得绕过 P4 前置的机制：不得为了图省事保留任何"内建类型 only" 的代码路径（哪怕是为了过渡）。
+  - 不得留下"新机制已接通，但旧 `try_codegen_tostring_iface_builtin` 仍完整保留"的双轨。
   - 不得回退 `Float.toString` 现有 IR / run-pass coverage。
+  - 不得在本任务里顺手处理 `Hashable.hash` / `Char.hash` / `Float*.hash` / `String.hash` 等其它内建 interface method；它们留以后做，且按"零编译器后门"约束届时不再要求改编译器。
 - 验证：
   1. 现有 `llvm/tests.rs` 中 `Float64.toString` / `Float32.toString` / `ToString.toString` 相关单测
   2. 新增 `managed_abi` 版 scalar toString build/run-pass fixture
   3. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <scalar-tostring-fixtures>`
 - 完成条件：
   - 第一批标量 `toString` helper 已不再依赖 compiler/runtime FQN intercept。
-- 依赖：`P3-T02`
+- 依赖：`P4-T01e`（顺序约束：scalar toString 不直接依赖 P4 前置 II 的 generic intrinsic 表机制，但顺序排在其后避免 intrinsic 机制半完成时穿插对内建类型的 sysroot 改写）
 
 ### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 
