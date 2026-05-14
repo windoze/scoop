@@ -3,7 +3,7 @@
 > 生成时间：2026-05-14  
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/PLAN-pipeline-gaps.md`、`docs/archive/plans/TODO-pipeline-gaps.md`  
-> 当前状态：`ExternAbi::Scoop` 仍未落地；native `@Extern` 与 `FunPtr` 已在参数/返回 lowering 上部分对齐，但 ABI identity、native boundary scaffold、surface gate 仍分裂；`string cone` 仅完成部分 sysroot 化。  
+> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 及 ABI-specific binary-boundary contract；native `@Extern` 与 `FunPtr` 已在参数/返回 lowering 上部分对齐，但 ABI identity、native boundary scaffold、surface gate 仍分裂；`string cone` 仅完成部分 sysroot 化。  
 > 行号说明：下文以当前文件路径和函数名为准；后续若行号漂移，优先按文件路径、符号名和 fixture 名定位。
 
 ## 0. 工作原则
@@ -20,6 +20,7 @@
   - 不支持 effect row 参数；
   - 不支持 outward suspend / continuation crossing；
   - 不支持 generics / closure/function-value crossing。
+- `@Extern` 的 `@Unsafe` / `@NoGC` 语义由 ABI 决定：默认/`abi = "c"` 隐含两者，`abi = "scoop"` 不隐含两者；无论哪种 ABI，`@Extern` 都不允许再显式叠加 `@Unsafe` / `@NoGC`。
 - native surface 与 managed external surface 的验证都必须同时覆盖：
   - 直接调用；
   - 间接调用 / token round-trip；
@@ -32,11 +33,11 @@
 
 ## 1. 当前判断
 
-- `ExternAbi::Scoop` 仍未实现。
-  - `crates/scoopc/src/hir/mod.rs` 中 `ExternAbi` 只有 `C`；
-  - `crates/scoopc/src/typecheck/annotations.rs` 的 `@Extern` 只接受 `name` / `lib` 参数；
-  - `crates/scoopc/src/hir/lower/util.rs::extern_fun_of_decl()` 仍写死 `ExternAbi::C`；
-  - codegen 侧主要通过 `extern_funs.contains_key(fqn)` 判定 native leaf，而不是消费 `ExternFun.abi`。
+- `ExternAbi::Scoop` 已完成 front-end / HIR / declaration / call lowering 接线。
+  - `crates/scoopc/src/hir/mod.rs` 中 `ExternAbi` 已区分 `C` / `Scoop`；
+  - `crates/scoopc/src/typecheck/annotations.rs` 已接受 `abi = "scoop"` 并施加 v1 front-end gate，同时固定 `@Extern` 的 ABI-specific `@Unsafe` / `@NoGC` 合同；
+  - `crates/scoopc/src/hir/lower/util.rs::extern_fun_of_decl()` 已把 ABI 写入 `ExternFun.abi`；
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` 与 `crates/scoopc/src/llvm/tests.rs` 已锁定 managed external call 不再回退到 native leaf scaffold。
 - native `@Extern` 与 `FunPtr` 的参数/返回 ABI 已经部分对齐，但 contract 仍是“半统一”。
   - 已对齐的部分：
     - direct `@Extern` 与 `FunPtr` 都使用 native param lowering；
@@ -76,7 +77,7 @@
 
 | Gap | 当前状态 | 本轮动作 | 归属阶段 |
 |---|---|---|---|
-| `ExternAbi::Scoop` 语法 / HIR / codegen 缺失 | Open | 新增 `abi = "scoop"` front-end surface，扩展 `ExternAbi` 与 declaration/call lowering | P3 |
+| `ExternAbi::Scoop` declaration / call lowering 与 ABI-specific contract 缺失 | Done | 已完成 managed extern declaration/call lowering，并收口 `unsafe` / `@NoGC` 语义 | P3 |
 | `ExternFun.abi` 已有字段但没有 consumer | Partial | 让 `ExternFun.abi` 成为 declaration / call lowering 的 source of truth | P1 |
 | `FunctionType` 与 callable ABI identity 混在一起 | Open | 引入显式 ABI family / callable identity，并贯穿 typed call contract 与 LLVM lowering | P1 |
 | native `@Extern` 与 `FunPtr` 只在参数/返回 ABI 上部分对齐 | Partial | 建立单一 native ABI classifier，统一 declaration / direct call / indirect call / MIR path | P2 |
@@ -322,6 +323,7 @@
 
 1. 扩展 `@Extern` 语法和 front-end 校验，支持显式 ABI 字段。
    - 建议沿用 `MANAGED_ABI.md` 的 `abi = "scoop"`；
+   - `abi` 省略时默认仍是 `c`；
    - 若实现中选择其它等价 surface，必须保证 HIR 能稳定区分 `C` 与 `Scoop`。
 2. 扩展 `ExternAbi`、`ExternFun` lowering 与相关 diagnostics：
    - `ExternAbi::C`
@@ -351,6 +353,8 @@
 - 不得把 `@Extern("...", abi = "scoop")` 解释成“仍然是 native leaf，只是不插 `enter_native`”。
 - 不得让 `ExternAbi::Scoop` 复用 `ExternAbi::C` 的 GC-free gate。
 - `ExternAbi::Scoop` 必须以 ABI family 分流，而不是再通过 helper FQN 名字决定 whether managed。
+- `abi = "scoop"` 不得要求 `unsafe context`，也不得在 `@NoGC` 中被视为 leaf。
+- `@Extern` 无论 ABI 为何都必须拒绝显式 `@Unsafe` / `@NoGC`；`abi = "c"` 由 ABI 隐含两者，`abi = "scoop"` 则都不隐含。
 
 阶段输出：
 
@@ -476,7 +480,7 @@
    - `ExternAbi::Scoop` 已覆盖的 helper 不得再残留 resolver/typecheck/codegen/runtime 多份同名特判；
    - 若仍保留少量 substrate helper，应在文档中列出 authoritative list。
 4. 给后续 v2+ 留清晰边界：
-   - managed external function pointer；
+   - dedicated managed import/export surface（例如 `import function` / `import interface`），而不是 `FunPtr` ABI 扩展；
    - generics；
    - outward effect / continuation ABI；
    - ABI version / feature bitmap。

@@ -1,0 +1,9 @@
+package fixtures.run_pass_cone.managed_abi_string_gc
+
+import scoop.core.*
+
+public fun helper(): String / Pure! {
+    val message: String = f"managed-{42}"
+    __scoop_gc_collect()
+    return message
+}

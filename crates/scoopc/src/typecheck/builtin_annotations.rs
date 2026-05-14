@@ -142,7 +142,9 @@ pub(crate) fn file_allows_intrinsic(source: &SourceFile, anns: &[ast::Annotation
 ///
 /// 说明：
 /// - 该结构只表达“出现过与否”，不携带参数（例如 `@Extern("puts")` 的符号名）；
-/// - `@Extern` 在语义上隐含 `@NoGC`（spec §15.8.3），因此这里会把 `is_nogc` 置为 `true`。
+/// - `@Extern` 是否能在 `@NoGC` 上下文中调用，当前需要结合 ABI 判断：native `@Extern`
+///   仍可视为 leaf，但 `abi = "scoop"` 走 ordinary managed call，不能在这里只靠布尔折叠成
+///   `is_nogc = true`。
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct BuiltinAnnotationFlags {
     pub(crate) is_unsafe: bool,
@@ -170,11 +172,6 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
                 None => {}
             }
-        }
-
-        // spec §15.8.3：`@Extern` 默认视为 `@NoGC`。
-        if out.is_extern {
-            out.is_nogc = true;
         }
 
         out

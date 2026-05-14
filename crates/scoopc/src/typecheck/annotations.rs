@@ -304,6 +304,22 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`abi = \"c\"` 的 `@Extern` 已隐含 `{annotation}`，不允许重复标注")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_c_abi_modifier_redundant))]
+    ExternFunCAbiModifierRedundant {
+        annotation: String,
+        #[label("这里的注解语义已由 C ABI 隐含")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`abi = \"scoop\"` 的 `@Extern` 不支持 `{annotation}`")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_modifier_not_supported))]
+    ExternFunScoopAbiModifierNotSupported {
+        annotation: String,
+        #[label("这里的注解与 Managed ABI 语义冲突")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`abi = \"scoop\"` 当前只支持无 receiver 的顶层函数")]
     #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_requires_top_level_fun))]
     ExternFunScoopAbiRequiresTopLevelFun {
@@ -2201,20 +2217,23 @@ fn check_builtin_annotations_on_fun_decl(
         });
     }
 
-    // 3) `@Extern`：当前 v1 边界必须是 effect-impermeable。
-    //
-    // 说明：
-    // - `ExternAbi::C` 调用只负责“进入 native -> 返回普通 ABI 结果”；
-    // - `ExternAbi::Scoop` v1 仍未定义 outward effect / continuation ABI；
-    // - outward/inward effect、continuation、non-local control 都不得通过该边界传播；
-    // - 返回 `FunPtr<F>` / `UIntPtr` / stable handle 等 token 也不放宽上述规则；这些值只是
-    //   原始地址/身份 token，而不是 effect/control bridge。
     if flags.is_extern {
-        check_extern_fun_effect_contract(fun)?;
-    }
+        let extern_abi = extern_abi.unwrap_or_default();
 
-    if flags.is_extern {
-        match extern_abi.unwrap_or_default() {
+        // 3) `@Extern`：`@Unsafe/@NoGC` 由 ABI 决定，不能再显式叠加。
+        check_extern_fun_modifier_contract(source, &fun.annotations, extern_abi)?;
+
+        // 4) `@Extern`：当前 v1 边界必须是 effect-impermeable。
+        //
+        // 说明：
+        // - `ExternAbi::C` 调用只负责“进入 native -> 返回普通 ABI 结果”；
+        // - `ExternAbi::Scoop` v1 仍未定义 outward effect / continuation ABI；
+        // - outward/inward effect、continuation、non-local control 都不得通过该边界传播；
+        // - 返回 `FunPtr<F>` / `UIntPtr` / stable handle 等 token 也不放宽上述规则；这些值只是
+        //   原始地址/身份 token，而不是 effect/control bridge。
+        check_extern_fun_effect_contract(fun)?;
+
+        match extern_abi {
             ExternAbi::C => {
                 // `@Extern`：native callable surface 必须走当前发布的 value contract。
                 //
@@ -2253,6 +2272,37 @@ fn check_extern_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), Annotation
     {
         return Err(AnnotationError::ExternFunEffectsNotAllowed {
             span: effects.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_extern_fun_modifier_contract(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+    extern_abi: ExternAbi,
+) -> Result<(), AnnotationError> {
+    for ann in annotations {
+        let Some(kind) = builtin_annotation_kind(source, ann) else {
+            continue;
+        };
+        let annotation = match kind {
+            BuiltinAnnotationKind::Unsafe | BuiltinAnnotationKind::NoGC => {
+                format!("@{}", kind.name())
+            }
+            _ => continue,
+        };
+        let (_, name_span) = annotation_name_and_span(source, ann);
+        return Err(match extern_abi {
+            ExternAbi::C => AnnotationError::ExternFunCAbiModifierRedundant {
+                annotation,
+                span: name_span.into(),
+            },
+            ExternAbi::Scoop => AnnotationError::ExternFunScoopAbiModifierNotSupported {
+                annotation,
+                span: name_span.into(),
+            },
         });
     }
 

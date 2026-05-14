@@ -4022,6 +4022,117 @@ fun main(): Int {
     );
 }
 
+fn assert_managed_extern_direct_call_uses_ordinary_managed_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>/managed_extern_string_return.scoop",
+        r#"
+package fixtures.managed_abi
+
+import scoop.core.*
+
+@Extern("managed_string_helper", abi = "scoop")
+fun managedStringHelper(): String
+
+fun main() {
+    val keep: String = f"keep-{41}"
+    val message: String = managedStringHelper()
+    println(keep)
+    println(message)
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let call_ir = function_ir_matching(
+        &ir,
+        "managed extern ordinary direct call helper",
+        |_, function| function.contains("call ptr addrspace(1) @managed_string_helper()"),
+    );
+
+    assert!(
+        call_ir.contains("call ptr addrspace(1) @managed_string_helper()"),
+        "`ExternAbi::Scoop` 直接调用应走 ordinary managed return 路径:\n{call_ir}"
+    );
+    assert!(
+        !call_ir.contains("@scoop_enter_native") && !call_ir.contains("@scoop_leave_native"),
+        "`ExternAbi::Scoop` 不得复用 native boundary scaffold:\n{call_ir}"
+    );
+
+    let decl_line = llvm_declaration_line_matching(&ir, "managed extern declaration", |line| {
+        line.contains("@managed_string_helper()")
+    });
+    assert!(
+        decl_line.starts_with("declare ptr addrspace(1) @managed_string_helper()"),
+        "`ExternAbi::Scoop` declaration 应使用 ordinary managed String surface，而不是 native leaf declaration:\n{decl_line}\n{ir}"
+    );
+    if let Some(attr_group) = llvm_attribute_group_for_declaration(&ir, decl_line) {
+        assert!(
+            !attr_group.contains("\"gc-leaf-function\""),
+            "managed extern declaration 不应带 gc-leaf-function:\ndecl: {decl_line}\nattrs: {attr_group}"
+        );
+    }
+}
+
+fn assert_managed_extern_aggregate_return_uses_hidden_sret_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>/managed_extern_aggregate_return.scoop",
+        r#"
+package fixtures.managed_abi
+
+import scoop.core.*
+
+@Extern("managed_make_pair", abi = "scoop")
+fun managedMakePair(seed: Int): (Int, Int)
+
+fun main(): Int {
+    val pair: (Int, Int) = managedMakePair(7)
+    println(pair._0)
+    println(pair._1)
+    return 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let call_ir = function_ir_matching(
+        &ir,
+        "managed extern hidden-sret aggregate helper",
+        |_, function| {
+            function.contains("call_sret = alloca")
+                && function.contains("@managed_make_pair")
+                && function.contains("call void @managed_make_pair(")
+        },
+    );
+
+    assert!(
+        call_ir.contains("call_sret = alloca")
+            && call_ir.contains("call void @managed_make_pair(")
+            && call_ir.contains(" sret("),
+        "managed extern aggregate return 应走 ordinary hidden sret，而不是 native aggregate return:\n{call_ir}"
+    );
+    assert!(
+        !call_ir.contains("call { i64, i64 } @managed_make_pair"),
+        "managed extern aggregate return 不得复用 native direct aggregate result ABI:\n{call_ir}"
+    );
+
+    let decl_line =
+        llvm_declaration_line_matching(&ir, "managed extern hidden-sret declaration", |line| {
+            line.contains("@managed_make_pair(")
+        });
+    assert!(
+        decl_line.starts_with("declare void @managed_make_pair(") && decl_line.contains(" sret("),
+        "managed extern aggregate declaration 应发布 hidden sret surface:\n{decl_line}\n{ir}"
+    );
+    if let Some(attr_group) = llvm_attribute_group_for_declaration(&ir, decl_line) {
+        assert!(
+            !attr_group.contains("\"gc-leaf-function\""),
+            "managed extern aggregate declaration 不应带 gc-leaf-function:\ndecl: {decl_line}\nattrs: {attr_group}"
+        );
+    }
+}
+
 // P0-T01 ABI baseline audit：集中冻结 current two-surface callable contract + compiled string helper。
 #[test]
 fn abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence() {
@@ -4041,6 +4152,16 @@ fn native_callable_funptr_indirect_call_uses_enter_leave_native_boundary() {
 #[test]
 fn native_callable_direct_and_indirect_aggregate_return_share_target_abi() {
     assert_native_callable_aggregate_direct_indirect_parity_contract();
+}
+
+#[test]
+fn managed_extern_direct_call_uses_ordinary_managed_contract() {
+    assert_managed_extern_direct_call_uses_ordinary_managed_contract();
+}
+
+#[test]
+fn managed_extern_aggregate_return_uses_hidden_sret_contract() {
+    assert_managed_extern_aggregate_return_uses_hidden_sret_contract();
 }
 
 #[test]

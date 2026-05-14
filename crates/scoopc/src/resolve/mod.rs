@@ -311,7 +311,9 @@ pub struct TypeParamSig {
 ///
 /// 说明：
 /// - 仅覆盖 `@Unsafe/@NoGC/@Extern/@Intrinsic` 四个会影响早期 typecheck 的注解；
-/// - `@Extern` 在语义上隐含 `@NoGC`（spec §15.8.3），因此这里会折叠到 `is_nogc = true`。
+/// - `@Extern` 是否可视为 `@NoGC` 需要结合 ABI 判断：native `@Extern` 仍可按 leaf 处理，
+///   但 `abi = "scoop"` 走 ordinary managed call，因此这里不再把两者统一折叠到
+///   `is_nogc = true`。
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct BuiltinFunFlags {
     pub is_unsafe: bool,
@@ -340,11 +342,6 @@ fn builtin_fun_flags_from_annotations(
             ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => out.is_intrinsic = true,
             _ => {}
         }
-    }
-
-    // spec §15.8.3：`@Extern` 默认视为 `@NoGC`。
-    if out.is_extern {
-        out.is_nogc = true;
     }
 
     out

@@ -411,7 +411,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@NoGC` 上下文禁止调用非 `@NoGC/@Extern` 函数：{callee}")]
+    #[error("`@NoGC` 上下文禁止调用非 `@NoGC` / native `@Extern` 函数：{callee}")]
     #[diagnostic(code(scoop::typecheck::nogc_call_forbidden))]
     NoGcCallForbidden {
         callee: String,

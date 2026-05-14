@@ -1,0 +1,20 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: declare void @managed_make_pair(ptr sret(
+// BUILD-LLVM-CONTAINS: call void @managed_make_pair(
+// BUILD-LLVM-CONTAINS: call_sret = alloca
+// BUILD-LLVM-NOT-CONTAINS: call { i64, i64 } @managed_make_pair
+
+package fixtures.build
+
+import scoop.core.*
+
+@Extern("managed_make_pair", abi = "scoop")
+fun managedMakePair(seed: Int): (Int, Int)
+
+fun main(): Int {
+    val pair: (Int, Int) = managedMakePair(7)
+    println(pair._0)
+    println(pair._1)
+    return 0
+}

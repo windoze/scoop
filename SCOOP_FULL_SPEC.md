@@ -2287,7 +2287,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | Annotation | Target | Description |
 |---|---|---|
 | `@Intrinsic` | Functions, types | Implementation provided by the compiler/runtime |
-| `@Extern(lib?, name?)` | Functions, global variables | Links to an external symbol (function or variable), optionally specifying the library and symbol name (see §15.5.1). Treated as `@NoGC` and requires an unsafe context to call/access (see §15.8 and §15.9) |
+| `@Extern(lib?, name?, abi?)` | Functions, global variables | Links to an external symbol (function or variable), optionally specifying the library, symbol name, and, for functions, the ABI family (see §15.5.1). If `abi` is omitted it defaults to `c`; `abi = "c"` requires an unsafe context and is treated as `@NoGC`, while `abi = "scoop"` uses the managed external ABI and implies neither (see §15.8 and §15.9) |
 | `@Deprecated(message, replaceWith)` | Functions, types, properties | Marks declaration as deprecated; compiler emits warning on use |
 | `@Inline` | Functions | Hint to inline the function body at call sites |
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
@@ -2298,7 +2298,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@ThreadLocal` | Global variables | Declares a mutable global GC-free variable as thread-local storage (TLS) (see §15.5.3) |
 | `@Global` | Global variables | Declares a mutable global GC-free variable as process-global storage (see §15.5.3) |
 | `@CallingConvention(name)` | Functions, type aliases | Specifies the calling convention for FFI / function pointers (see §15.5.4) |
-| `@NoGC` | Functions | Requires the function to be allocation-free (no GC-managed heap allocations) and restricts calls to other `@NoGC` / `@Extern` functions (see §15.8) |
+| `@NoGC` | Functions | Requires the function to be allocation-free (no GC-managed heap allocations) and restricts calls to other `@NoGC` / `@Extern(abi = "c")` functions (see §15.8) |
 | `@Unsafe` | Functions, expressions | Enables unsafe raw memory operations (pointer arithmetic, unchecked loads/stores) within an unsafe context (see §15.9) |
 | `@Safe` | Functions, expressions | Marks a region as safe (unsafe primitives forbidden) even inside an enclosing unsafe context (see §15.9.5) |
 | `@Target(targets...)` | Annotation classes | Restricts which declaration kinds an annotation can appear on |
@@ -2332,17 +2332,21 @@ annotation class Column(val name: String)
 
 #### 15.5.1 `@Extern` (External Symbols and Libraries)
 
-`@Extern` declares that a function or global variable is defined outside of Scoop (typically in C) and will be resolved by the linker.
+`@Extern` declares that a function or global variable is defined outside of the current Scoop compilation unit and will be resolved by the linker. The optional `abi` parameter selects the external ABI family: `c` (default) or `scoop`.
 
 ```kotlin
 @Extern(lib = "mylib", name = "myfunc")
 fun myFunc(): Int
+
+@Extern(name = "managed_helper", abi = "scoop")
+fun managedHelper(x: Int): String
 ```
 
 Parameters:
 
 - `name`: the symbol name in the native object/library. If omitted (empty string), the compiler uses the Scoop declaration name.
 - `lib`: an optional native library name. If specified, the compiler must pass a link directive for that library when producing an executable (exact flags are implementation-defined; library search paths are out of scope for this specification).
+- `abi`: an optional ABI family selector. If omitted it defaults to `c`. `abi = "c"` uses the native C ABI. `abi = "scoop"` uses the managed external ABI and is currently defined only for function declarations.
 
 `@Extern` may also be applied to global variables (GC-free types only):
 
@@ -2357,13 +2361,26 @@ Rules:
 - An `@Extern` variable declaration must not have an initializer (it is a declaration, not a definition).
 - Accessing an `@Extern` variable requires an unsafe context (see §15.9.1).
 - `@Extern` may be combined with `@ThreadLocal` to refer to an externally-defined TLS variable.
-- Ordinary `@Extern` function declarations are **effect-impermeable**:
-  - they must not declare effect-row parameters (`<eff E = ...>`),
-  - their effect row must be omitted or explicitly `Pure` / `Pure!`, and
-  - they communicate only through ordinary ABI argument/result slots.
-- The receiver, parameters, and return type of an ordinary `@Extern` function must be **GC-free value types**. This excludes `Continuation<...>` and other GC-managed control objects from the ordinary C ABI surface.
-- Effects, continuation resumption, and longjmp-like non-local control must not unwind through an ordinary `@Extern` call. Returning or accepting raw tokens such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw` does not relax this rule; they carry ordinary values/addresses only, not an effect/control bridge.
-- For long-lived callback / reactor / wake-token round-trips, ordinary `@Extern` signatures should pass the word-sized token `GcHandle.raw: UIntPtr`, and Scoop code should reconstruct `GcHandle { raw: raw }` before calling `GC.handleGet` / `GC.handleDrop`. `Pinned` itself is not the ordinary `@Extern` token surface.
+- An `@Extern` function declaration must not explicitly carry `@Unsafe` or `@NoGC`; those semantics are determined by the selected ABI.
+- If `abi` is omitted, it defaults to `c`.
+- `@Extern(abi = "c")` function declarations:
+  - require an unsafe context to call,
+  - are treated as `@NoGC` for call-graph restrictions,
+  - are **effect-impermeable**:
+    - they must not declare effect-row parameters (`<eff E = ...>`),
+    - their effect row must be omitted or explicitly `Pure` / `Pure!`, and
+    - they communicate only through ordinary ABI argument/result slots.
+  - must use **GC-free value types** for the receiver, parameters, and return type. This excludes `Continuation<...>` and other GC-managed control objects from the ordinary C ABI surface.
+  - must not rely on effects, continuation resumption, or longjmp-like non-local control unwinding through the native call boundary. Returning or accepting raw tokens such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw` does not relax this rule; they carry ordinary values/addresses only, not an effect/control bridge.
+- `@Extern(abi = "scoop")` function declarations:
+  - do not require an unsafe context to call,
+  - are not treated as `@NoGC`,
+  - use the ordinary managed argument/result surface and may pass GC references and ordinary aggregates,
+  - are currently restricted to top-level, non-generic, `Pure` functions with no effect-row parameters and no closure/function-value/continuation/outward-suspend crossing,
+  - do not support `@CallingConvention`, and
+  - model binary boundaries such as DLL/so import-export, rather than ordinary calls between source cones in the same build.
+- For long-lived callback / reactor / wake-token round-trips, ordinary C ABI `@Extern` signatures should pass the word-sized token `GcHandle.raw: UIntPtr`, and Scoop code should reconstruct `GcHandle { raw: raw }` before calling `GC.handleGet` / `GC.handleDrop`. `Pinned` itself is not the ordinary C ABI `@Extern` token surface.
+- Global variables continue to use the C ABI rules only; `abi = "scoop"` is not currently defined for globals.
 
 #### 15.5.2 `@CLayout` (C-compatible Struct Layout)
 
@@ -2416,7 +2433,7 @@ Initialization of global variables is implementation-defined. This specification
 
 #### 15.5.4 `@CallingConvention` (Calling Convention)
 
-`@CallingConvention(name)` specifies the calling convention used for a function or function pointer type.
+`@CallingConvention(name)` specifies the calling convention used for a native/C-ABI external function or function pointer type.
 
 ```kotlin
 @CallingConvention("stdcall")
@@ -2424,7 +2441,7 @@ Initialization of global variables is implementation-defined. This specification
 fun messageBoxA(hwnd: UIntPtr, text: Ptr<Byte>, caption: Ptr<Byte>, flags: UInt32): Int
 ```
 
-The set of supported calling convention names is implementation-defined. The default calling convention is the platform C ABI.
+The set of supported calling convention names is implementation-defined. The default calling convention is the platform C ABI. `@CallingConvention` does not switch a declaration into managed external ABI mode, has no separate `abi` parameter, and is invalid on `@Extern(..., abi = "scoop")`. `FunPtr<F>` remains a native/C-ABI callable token.
 
 ### 15.6 Compile-time Annotation Access
 
@@ -2595,11 +2612,11 @@ The `@NoGC` annotation marks a function as safe to run in contexts where **GC-ma
 A `@NoGC` function may only call:
 
 - Other `@NoGC` functions
-- `@Extern` functions
+- `@Extern(abi = "c")` functions
 
 This restriction is transitive: calling into non-`@NoGC` Scoop code is forbidden.
 
-Note: calling an `@Extern` function still requires an unsafe context (see §15.9). Use an `@Unsafe do { ... }` block to localize the unsafe call when needed.
+Note: calling an `@Extern(abi = "c")` function still requires an unsafe context (see §15.9). Use an `@Unsafe do { ... }` block to localize the unsafe call when needed. Managed external calls (`abi = "scoop"`) are ordinary managed calls and are therefore not automatically admitted to `@NoGC` code.
 
 #### 15.8.2 Allocation restrictions
 
@@ -2611,35 +2628,37 @@ The compiler must reject a `@NoGC` function if it contains any operation that ca
 - Creating a heap-allocated closure object (when a lambda capture cannot be proven to be allocation-free)
 - Creating GC-managed arrays or other heap objects (library-defined)
 
-Calls to `@Extern` functions are permitted (and must occur in an unsafe context; see §15.9), but the call boundary must still obey the above rules (e.g., argument passing must not require boxing or allocating temporary heap objects).
+Calls to `@Extern(abi = "c")` functions are permitted (and must occur in an unsafe context; see §15.9), but the call boundary must still obey the above rules (e.g., argument passing must not require boxing or allocating temporary heap objects).
 
 The `@NoGC` annotation is a **compiler-checked guarantee**. If the compiler cannot prove that the function is allocation-free, it must report an error.
 
 `@NoGC` only constrains allocations performed by the annotated function and its (statically permitted) callees. It does not, by itself, guarantee that the GC will not run due to other threads or explicit runtime triggers (implementation-defined).
 
-#### 15.8.3 `@Extern` is implicitly `@NoGC`
+#### 15.8.3 Only `@Extern(abi = "c")` is implicitly `@NoGC`
 
-By default, a function annotated `@Extern` is treated as if it were also annotated `@NoGC` for the purposes of type checking and call restrictions.
+By default, a function annotated `@Extern` is treated as if it were also annotated `@NoGC` for the purposes of type checking and call restrictions only when its ABI family is `c` (including omitted `abi`, which defaults to `c`). `@Extern(abi = "scoop")` is not implicitly `@NoGC` because it uses the ordinary managed call path.
+
+An `@Extern` declaration must not explicitly add `@NoGC`; the `@NoGC` behavior is ABI-driven rather than an independent modifier on external declarations.
 
 Rationale:
 
 - FFI boundaries are opaque to the compiler.
-- Treating `@Extern` as `@NoGC` by default enables low-level runtime code (including the GC) to call OS / libc functions without accidentally depending on GC-managed allocation.
+- Treating C-ABI `@Extern` as `@NoGC` by default enables low-level runtime code (including the GC) to call OS / libc functions without accidentally depending on GC-managed allocation.
 
-If an external function needs to interact with GC-managed objects, it must do so via the standard GC interop mechanisms:
+If a C-ABI external function needs to interact with GC-managed objects, it must do so via the standard GC interop mechanisms:
 
 - For **short-lived** raw pointers into GC-managed memory: use pinning (`GC.pin` / `GC.unpin`, §15.10).
 - For **long-lived** references that must survive safepoints: use stable GC handles (`GC.handleNew` / `GC.handleGet` / `GC.handleDrop`, §15.10.1).
 
 External code must not retain raw object addresses across safepoints (moving/compacting GCs may relocate objects). The toolchain/runtime defines the concrete native ABI surface for these operations (see `SCOOP_RUNTIME.md`).
 
-Ordinary `@Extern` declarations are also effect-impermeable:
+Ordinary C ABI `@Extern` declarations are also effect-impermeable:
 
 - they must not declare effect-row parameters,
 - their effect row must be omitted or `Pure` / `Pure!`, and
 - they must not rely on effect propagation, continuation resume, or other non-local control crossing the native call boundary.
 
-Ordinary FFI v1 does not provide a channel for re-entering effectful/deferred Scoop computation. Raw tokens such as `FunPtr<F>`, `UIntPtr`, or stable handles remain ordinary values/identity carriers only; they do not establish a new effect boundary.
+Ordinary C FFI v1 does not provide a channel for re-entering effectful/deferred Scoop computation. Raw tokens such as `FunPtr<F>`, `UIntPtr`, or stable handles remain ordinary values/identity carriers only; they do not establish a new effect boundary.
 
 #### 15.8.4 Example
 
@@ -2648,7 +2667,7 @@ Ordinary FFI v1 does not provide a channel for re-entering effectful/deferred Sc
 @Unsafe
 fun bumpAlloc(alloc: Ptr<Byte>, size: Int): Ptr<Byte> {
     // Implementation is expected to use raw pointers and manual memory management.
-    // All operations must be allocation-free and only call other @NoGC / @Extern functions.
+    // All operations must be allocation-free and only call other @NoGC / @Extern(abi = "c") functions.
     return alloc + size
 }
 ```
@@ -2670,7 +2689,7 @@ Unsafe primitives are only permitted within an unsafe context. Using an unsafe p
 
 Calling a function annotated `@Unsafe` is only permitted within an unsafe context. Violations are compile errors.
 
-Calling an `@Extern` function is only permitted within an unsafe context. (External functions are assumed to be able to violate memory safety unless wrapped by a safe Scoop API.)
+Calling an `@Extern(abi = "c")` function, or accessing an `@Extern` global variable, is only permitted within an unsafe context. (`@Extern(abi = "c")` models native code that may violate memory safety unless wrapped by a safe Scoop API.)
 
 #### 15.9.2 `@Unsafe` blocks
 
@@ -2680,7 +2699,7 @@ Calling an `@Extern` function is only permitted within an unsafe context. (Exter
 fun doIO(): Unit {
     val buf = ByteBuffer.allocate(4096)
     @Unsafe do {
-        // Call to @Extern and raw pointer operations are allowed here.
+        // Call to @Extern(abi = "c") and raw pointer operations are allowed here.
         submitToKernel(buf)
     }
 }
@@ -2768,12 +2787,14 @@ Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) 
 Function pointers:
 
 - `FunPtr<F>` represents an opaque native function pointer for the function type `F` (e.g. `F = (Int, Int) -> Int`).
+- `FunPtr<F>` is fixed to the native/C-ABI callable family; it has no separate `abi` selector.
 - `F` must itself be effectless: omitting the effect row is allowed, and explicit `/ Pure` or `/ Pure!` is allowed, but any non-`Pure` effect row is a compile error.
 - If `F` is a receiver function type `T.(A1, ..., An) -> R`, the receiver is passed as the first explicit argument when invoking the pointer (for example, `fp(receiver, a1, ..., an)` or `fp.invoke(receiver, a1, ..., an)`).
 - Like other function-type calls, invoking `FunPtr<F>` is positional-only; synthetic names such as `receiver`, `a0`, `a1`, ... are not part of the surface language.
 - Calling a function pointer is unsafe and must require an unsafe context.
-- `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
-- Returning or accepting `FunPtr<F>` via `@Extern` does not establish an effect/control bridge. The later unsafe `fp(...)` / `fp.invoke(...)` call remains an ordinary native function-pointer call and never switches to the effect/state-machine ABI.
+- `@CallingConvention(...)` may be used to specify the native calling convention of a `FunPtr` alias, but it does not change the ABI family.
+- Returning or accepting `FunPtr<F>` via ordinary C ABI `@Extern` does not establish an effect/control bridge. The later unsafe `fp(...)` / `fp.invoke(...)` call remains an ordinary native function-pointer call and never switches to the effect/state-machine ABI.
+- If a future managed import/export callable surface is needed, it must use a dedicated surface (for example, `import function` / `import interface`) rather than extending `FunPtr` with `abi = "scoop"`.
 
 Example:
 

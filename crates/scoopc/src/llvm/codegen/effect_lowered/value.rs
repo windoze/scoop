@@ -1756,11 +1756,20 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        if self
-            .codegen
-            .direct_call_abi_identity(callee_fqn)
-            .uses_native_abi()
-        {
+        let callable_abi = self.codegen.direct_call_abi_identity(callee_fqn);
+        if callable_abi.uses_native_abi() {
+            let value = self.codegen.codegen_mir_direct_call(
+                span,
+                callee_fqn,
+                args,
+                self.body,
+                self.source_types,
+                transport,
+                self.slots,
+            )?;
+            return self.codegen.coerce_value(span, value, target_cg);
+        }
+        if callable_abi.is_extern() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
                 callee_fqn,

@@ -1,0 +1,20 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: declare ptr addrspace(1) @managed_string_helper()
+// BUILD-LLVM-CONTAINS: call ptr addrspace(1) @managed_string_helper()
+// BUILD-LLVM-NOT-CONTAINS: @scoop_enter_native(
+// BUILD-LLVM-NOT-CONTAINS: @scoop_leave_native(
+
+package fixtures.build
+
+import scoop.core.*
+
+@Extern("managed_string_helper", abi = "scoop")
+fun managedStringHelper(): String
+
+fun main() {
+    val keep: String = f"keep-{41}"
+    val message: String = managedStringHelper()
+    println(keep)
+    println(message)
+}

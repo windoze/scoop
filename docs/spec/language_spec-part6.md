@@ -2,14 +2,14 @@
 
 版本：0.1 草案
 
-本部分定义 unsafe context、`@NoGC`、`@Extern`、C layout、raw pointer、function pointer、GC pinning、stable GC handle、顶层可变全局和 FFI 管理资源的语言级边界。运行时具体符号名、GC 算法和 C runtime 内部 ABI 不属于语言规范。
+本部分定义 unsafe context、`@NoGC`、`@Extern`、C layout、raw pointer、function pointer、GC pinning、stable GC handle、顶层可变全局和外部 ABI 边界。运行时具体符号名、GC 算法和 C runtime 内部 ABI 不属于语言规范。
 
 ## 1. 低层边界总览
 
 Scoop 默认提供内存安全语言表面。以下能力需要显式 opt in：
 
 - Raw pointer 与手动内存读写。
-- 外部 C ABI 调用。
+- 外部 ABI 调用与符号访问。
 - 可变全局状态。
 - GC pinning。
 - Stable GC handle。
@@ -41,7 +41,7 @@ fun wrapper() {
 - `@Unsafe do { ... }` 创建局部 unsafe context。
 - Unsafe primitive 只能在 unsafe context 中使用。
 - 调用 `@Unsafe` 函数只能在 unsafe context 中进行。
-- 调用 `@Extern` 函数只能在 unsafe context 中进行。
+- 调用 `@Extern(abi = "c")` 函数以及访问 `@Extern` 顶层变量只能在 unsafe context 中进行。
 - `@Unsafe` 不暗示 `@NoGC`。
 
 局部 unsafe block 必须写 `@Unsafe do { ... }`。由于裸 `{ ... }` 是 closure literal，`@Unsafe { ... }` 不是局部 unsafe block，必须拒绝；若需要注解 closure，应按 closure 注解规则处理。
@@ -64,7 +64,7 @@ fun f() {
 规则：
 
 - `@Safe` 函数体、`@Safe do { ... }` block 和 `@Safe { ... }` closure 按非 unsafe context 检查。
-- 在 `@Safe` 区域内调用 `@Extern`、`@Unsafe` 函数或使用 raw pointer primitive 是编译错误。
+- 在 `@Safe` 区域内调用 `@Extern(abi = "c")`、`@Unsafe` 函数、访问 `@Extern` 顶层变量或使用 raw pointer primitive 是编译错误。
 - 可在 `@Safe` 内嵌套新的 `@Unsafe do { ... }` 局部重新开启 unsafe。
 - `@Safe do { ... }` 是局部 block。
 - `@Safe { ... }` 是 annotated closure，不是局部 block。
@@ -84,8 +84,9 @@ fun bumpAlloc(alloc: Ptr<Byte>, size: Int): Ptr<Byte> {
 调用限制：
 
 - `@NoGC` 函数只能调用其它 `@NoGC` 函数。
-- `@NoGC` 函数可调用 `@Extern` 函数，因为普通 `@Extern` 隐式 `@NoGC`。
-- 调用 `@Extern` 仍需要 unsafe context。
+- `@NoGC` 函数可调用 `@Extern(abi = "c")` 函数，因为它们在调用图约束上隐式视为 `@NoGC` leaf。
+- `@Extern(abi = "scoop")` 按 ordinary managed call 处理，不能因为带 `@Extern` 就在 `@NoGC` 中放行。
+- 调用 `@Extern(abi = "c")` 仍需要 unsafe context。
 - 调用普通可能分配的 Scoop 函数是编译错误。
 
 分配限制：
@@ -176,12 +177,14 @@ struct FunPtr<F>
 规则：
 
 - `FunPtr<F>` 表示原生函数指针。
+- `FunPtr<F>` 固定属于 native/C ABI family，不支持额外 `abi` 参数。
 - `F` 必须是无 effect 的函数类型，例如 `(Int, Int) -> Int`、`() -> Int / Pure!`。
 - 若 `F` 是 receiver function type `T.(A1, ..., An) -> R`，调用时 receiver 作为第一个显式参数传递。
 - 调用 function pointer 是 unsafe 操作。
-- `@CallingConvention(...)` 可标记函数指针别名或外部函数调用约定。
-- `FunPtr<F>` 不是 effect/control bridge token；普通 `@Extern` 边界不会因为返回/接收 `FunPtr<F>` 而放宽 effect-impermeable 规则。
+- `@CallingConvention(...)` 可标记函数指针别名或外部函数调用约定；它不带 `abi` 参数，也不能把 `FunPtr` 切换到 Scoop ABI。
+- `FunPtr<F>` 不是 effect/control bridge token；普通 C ABI `@Extern` 边界不会因为返回/接收 `FunPtr<F>` 而放宽 effect-impermeable 规则。
 - 后续 unsafe `fp(...)` / `fp.invoke(...)` 调用仍是普通 native function-pointer call，而不是 effect/state-machine 调用。
+- 若未来需要 managed import/export callable，应使用专门的 import/export surface，而不是给 `FunPtr` 扩展 `abi = "scoop"`。
 
 示例：
 
@@ -197,11 +200,19 @@ typealias MyFuncPtr = FunPtr<(Int, Int) -> Int>
 
 ## 8. `@Extern`
 
-`@Extern` 声明外部符号，通常是 C ABI 函数或全局变量：
+`@Extern` 声明外部符号。当前函数支持两类 ABI：
+
+- `abi = "c"`：native C ABI boundary。
+- `abi = "scoop"`：Scoop / Managed ABI binary boundary。
+- 省略 `abi` 时默认是 `c`。
+- 外部顶层变量当前只支持 C ABI 语义。
 
 ```kotlin
 @Extern(lib = "mylib", name = "myfunc")
 fun myFunc(x: Int): Int
+
+@Extern(name = "managedHelper", abi = "scoop")
+fun managedHelper(x: Int): String
 
 @Extern(name = "errno")
 @ThreadLocal
@@ -212,6 +223,7 @@ var errno: Int
 
 - `name`：外部符号名。省略或空字符串时使用 Scoop 声明名。
 - `lib`：可选外部库名。如何传给链接器由工具链定义。
+- `abi`：可选 ABI 家族。省略时默认 `c`；当前只允许用于函数声明。`c` 表示 native C ABI，`scoop` 表示 external linkage 下的 ordinary managed ABI。
 
 允许形态：
 
@@ -219,20 +231,32 @@ var errno: Int
 - `@Extern("symbol")`
 - `@Extern(name = "symbol")`
 - `@Extern(lib = "mylib", name = "symbol")`
+- `@Extern("symbol", abi = "scoop")`
+- `@Extern(name = "symbol", abi = "scoop")`
 
 规则：
 
 - `@Extern` 函数必须省略函数体。
-- 调用 `@Extern` 函数需要 unsafe context。
-- `@Extern` 函数隐式 `@NoGC`。
-- 普通 `@Extern` 函数是 effect-impermeable：
-  - 不允许 effect row 参数。
-  - effect row 必须省略或显式为 `Pure` / `Pure!`。
-  - 不允许 effect propagation、continuation resume 或 longjmp-like non-local control 穿越普通 `@Extern` 边界。
-- 普通 `@Extern` 函数的 receiver、参数和返回类型必须是 GC-free value type。
-- `Continuation<...>`、class、interface、`String`、`Any` 等 GC-managed/control 对象不能直接出现在普通 C ABI `@Extern` 签名中。
-- 返回/接收 `FunPtr<F>`、`UIntPtr`、`GcHandle.raw` 这类值也不允许 effect/continuation 穿越普通 `@Extern` 边界。
-
+- `@Extern` 函数声明不得显式再写 `@Unsafe` 或 `@NoGC`；这两个语义由 `abi` 决定。
+- `abi = "c"`（以及省略 `abi` 的 `@Extern`）：
+  - 调用需要 unsafe context。
+  - 在调用图约束上隐式视为 `@NoGC`。
+  - 是 effect-impermeable：
+    - 不允许 effect row 参数。
+    - effect row 必须省略或显式为 `Pure` / `Pure!`。
+    - 不允许 effect propagation、continuation resume 或 longjmp-like non-local control 穿越边界。
+  - receiver、参数和返回类型必须是 GC-free value type。
+  - `Continuation<...>`、class、interface、`String`、`Any` 等 GC-managed/control 对象不能直接出现在签名中。
+  - 返回/接收 `FunPtr<F>`、`UIntPtr`、`GcHandle.raw` 这类值也不允许 effect/continuation 穿越边界。
+- `abi = "scoop"`：
+  - 调用不需要 unsafe context。
+  - 不隐式视为 `@NoGC`。
+  - 当前 v1 只支持顶层函数。
+  - 当前 v1 仍然要求 `Pure`、禁止 effect row 参数、禁止 outward suspend / continuation crossing。
+  - 当前 v1 不支持泛型和 closure/function-value surface。
+  - 参数和返回值可使用 GC ref 与 ordinary aggregate。
+  - 当前不支持 `@CallingConvention`。
+  - 它建模的是 DLL/so import-export 这类 binary boundary，不是普通多-cone 项目内调用。
 外部变量：
 
 - `@Extern` 可用于顶层变量。
@@ -240,6 +264,7 @@ var errno: Int
 - 外部变量类型必须是 GC-free value type。
 - 访问外部变量需要 unsafe context。
 - 外部 TLS 变量可组合 `@Extern` 与 `@ThreadLocal`。
+- 外部变量当前沿用 C ABI 语义；`abi = "scoop"` 尚不用于变量。
 
 ## 9. `@CallingConvention`
 
@@ -260,6 +285,8 @@ fun messageBoxA(
 - 支持的调用约定名称由实现定义。
 - 当前可移植源码应只依赖默认 C ABI，除非目标平台和工具链明确支持指定约定。
 - `@CallingConvention` 不等同于 Managed ABI 模式；它只描述 machine/native calling convention。
+- `@CallingConvention` 可用于 native `@Extern(abi = "c")` 与 `FunPtr` 别名；对 `@Extern(abi = "scoop")` 是无效组合。
+- `@CallingConvention` 当前没有 `abi` 参数；`FunPtr` 的 ABI family 固定为 native/C ABI。
 
 ## 10. `@CLayout`
 
@@ -283,7 +310,7 @@ struct MyStruct {
 - `@CLayout` 只能用于 struct。
 - 该 struct 必须是 GC-free。
 - 计算布局必须匹配目标 C ABI 对相应 aligned/packed 配置的规则。
-- `@CLayout` struct 可用于普通 `@Extern` 签名和 raw pointer pointee。
+- `@CLayout` struct 可用于 `@Extern(abi = "c")` 签名和 raw pointer pointee。
 - 含 GC 引用的 struct 不能 `@CLayout`。
 
 ## 11. 顶层可变全局
@@ -396,9 +423,9 @@ struct GcHandle(val raw: UIntPtr)
 
 禁止模式：
 
-- 在普通 `@Extern` 签名中直接使用 `Any`、`String`、class、interface、`Continuation`。
+- 在普通 C ABI `@Extern` 签名中直接使用 `Any`、`String`、class、interface、`Continuation`。
 - Native 保存未 pinned 的 GC object raw address 跨 safepoint。
-- Native 通过普通 `@Extern` 调用直接恢复 continuation 或抛出 Scoop effect。
+- Native 通过普通 C ABI `@Extern` 调用直接恢复 continuation 或抛出 Scoop effect。
 
 ## 15. Internal atomic value types
 
@@ -438,13 +465,15 @@ Scoop 不提供通用用户 finalizer。为了 FFI 管理资源，运行时可�
 
 ## 17. Managed ABI 状态说明
 
-本文只把普通 `@Extern` 定义为 C ABI native leaf。未来可引入 “Scoop ABI / Managed ABI” 外部链接模式，用于让外部实现复用 Scoop managed calling convention 并传递 GC 引用/aggregate。
+本文当前把 `@Extern(..., abi = "scoop")` 作为 Managed ABI / Scoop ABI 的设计入口。
 
-在 Scoop 0.1 语言规范中：
+在 Scoop 0.1 草案中：
 
-- `@Extern("scoop")` 不表示 ABI 名称；位置参数仍是 symbol name。
-- 普通 `@Extern` 仍要求 GC-free、Pure、effect-impermeable。
-- 若未来加入 `abi = "scoop"` 或新注解，必须另行规范其类型检查、GC root、effect 和 continuation 边界。
+- `abi = "scoop"` 表示 external linkage + ordinary managed call。
+- 它是 DLL/so import-export 这类 binary boundary，不是普通多-cone 项目内调用。
+- 默认 `@Extern` 仍是 `abi = "c"`。
+- `abi = "scoop"` 不隐含 `@Unsafe` / `@NoGC`。
+- `abi = "scoop"` 仍保持 `Pure` only、effect-impermeable，且不允许 continuation / outward suspend 穿越边界。
 
 ## 18. 与标准库的关系
 

@@ -2098,7 +2098,9 @@ pub(super) fn check_unsafe_call_gate(
     call_span: Span,
     lower: &TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
-    if sig.is_extern && !lower.in_unsafe_context() {
+    let native_extern =
+        sig.is_extern && !lower.is_extern_scoop_fun_decl(&sig.decl_file, sig.decl_span);
+    if native_extern && !lower.in_unsafe_context() {
         return Err(ExprTypeError::ExternCallRequiresUnsafeContext {
             callee: callee_fqn.to_string(),
             span: call_span.into(),
@@ -2187,9 +2189,12 @@ pub(super) fn check_nogc_call_gate(
     // spec §15.8：`@NoGC` 函数体内必须保守拒绝"可能分配"的调用点。
     //
     // 当前阶段（TODO T1005）最小实现：
-    // - 仅允许调用 `@NoGC`（含 `@Extern` 隐含 `@NoGC`）的函数；
+    // - 仅允许调用显式 `@NoGC` 函数，以及 native `@Extern` leaf；
+    // - `abi = "scoop"` 必须继续按 ordinary managed call 对待，不能在 `@NoGC` 上下文放行；
     // - 其它调用一律视为"可能分配/可能触发 GC"，直接报错。
-    if sig.is_nogc || sig.is_extern {
+    let native_extern =
+        sig.is_extern && !lower.is_extern_scoop_fun_decl(&sig.decl_file, sig.decl_span);
+    if sig.is_nogc || native_extern {
         return Ok(());
     }
 

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_call_forbidden
+// EXPECT-ERROR: `@NoGC` 上下文禁止调用非 `@NoGC` / native `@Extern` 函数
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_add_one", abi = "scoop")
+fun managedAddOne(value: Int): Int
+
+@NoGC
+fun callManagedExternInNoGc(value: Int): Int {
+    return managedAddOne(value)
+}

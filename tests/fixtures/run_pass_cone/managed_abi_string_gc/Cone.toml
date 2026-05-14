@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-managed-abi-string-gc"
+version = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.run_pass_cone.managed_abi_string_gc.helper",
+]

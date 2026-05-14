@@ -446,6 +446,8 @@ pub(crate) struct TypeLowering<'a> {
     top_level_value_mutabilities: HashMap<String, bool>,
     /// Top-level `@Extern` value FQNs visible to this file.
     extern_global_fqns: HashSet<String>,
+    /// `@Extern(..., abi = "scoop")` 函数声明位点（decl_file + name span）。
+    extern_scoop_fun_decls: HashSet<(PathBuf, Span)>,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// effect row parameter 作用域栈：用于 lowering `/ E` 这类 row 变量引用（T0509）。
@@ -650,6 +652,7 @@ impl<'a> TypeLowering<'a> {
         let top_level_value_mutabilities =
             collect_top_level_value_mutabilities(source, file, &pkg_prefix);
         let extern_global_fqns = collect_extern_global_fqns(source, file, env);
+        let extern_scoop_fun_decls = collect_extern_scoop_fun_decls(source, file, env);
 
         let mut ctx = Self::new_with_ctx(
             source,
@@ -662,6 +665,7 @@ impl<'a> TypeLowering<'a> {
         );
         ctx.top_level_value_mutabilities = top_level_value_mutabilities;
         ctx.extern_global_fqns = extern_global_fqns;
+        ctx.extern_scoop_fun_decls = extern_scoop_fun_decls;
         ctx
     }
 
@@ -689,6 +693,7 @@ impl<'a> TypeLowering<'a> {
             pkg_prefix,
             top_level_value_mutabilities: HashMap::new(),
             extern_global_fqns: HashSet::new(),
+            extern_scoop_fun_decls: HashSet::new(),
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
             type_alias_stack: Vec::new(),
@@ -740,6 +745,11 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn is_extern_global(&self, fqn: &str) -> bool {
         self.extern_global_fqns.contains(fqn)
+    }
+
+    pub(super) fn is_extern_scoop_fun_decl(&self, decl_file: &Path, decl_span: Span) -> bool {
+        self.extern_scoop_fun_decls
+            .contains(&(decl_file.to_path_buf(), decl_span))
     }
 
     pub(super) fn set_warning_emission_enabled(&mut self, enabled: bool) {
@@ -4202,6 +4212,27 @@ fn collect_extern_global_fqns(
     out
 }
 
+fn collect_extern_scoop_fun_decls(
+    source: &SourceFile,
+    file: &ast::File,
+    env: &TypeEnv,
+) -> HashSet<(PathBuf, Span)> {
+    let mut out = HashSet::new();
+    collect_extern_scoop_fun_decls_in_file(source, file, &mut out);
+
+    for (path, stored_file) in env.files() {
+        if path.as_path() == source.path() {
+            continue;
+        }
+        let Some(stored_source) = env.source(path) else {
+            continue;
+        };
+        collect_extern_scoop_fun_decls_in_file(stored_source, stored_file, &mut out);
+    }
+
+    out
+}
+
 fn collect_extern_global_fqns_in_file(
     source: &SourceFile,
     file: &ast::File,
@@ -4226,6 +4257,87 @@ fn collect_extern_global_fqns_in_file(
         };
         out.insert(fqn);
     }
+}
+
+fn collect_extern_scoop_fun_decls_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    out: &mut HashSet<(PathBuf, Span)>,
+) {
+    for item in &file.items {
+        let ast::Item::Fun(fun) = item else {
+            continue;
+        };
+        if !BuiltinAnnotationFlags::from_annotations(source, &fun.annotations).is_extern {
+            continue;
+        }
+        if !extern_fun_annotations_use_scoop_abi(source, &fun.annotations) {
+            continue;
+        }
+        out.insert((source.path().to_path_buf(), fun.name.span));
+    }
+}
+
+fn extern_fun_annotations_use_scoop_abi(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+) -> bool {
+    annotations
+        .iter()
+        .filter(|ann| annotation_is_extern_use(source, ann))
+        .flat_map(|ann| ann.args.iter())
+        .find_map(|arg| extern_annotation_named_arg_string_value(source, arg, "abi"))
+        .is_some_and(|abi| abi.eq_ignore_ascii_case("scoop"))
+}
+
+fn annotation_is_extern_use(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
+    let segs = ann
+        .path
+        .iter()
+        .map(|id| id.text(source))
+        .collect::<Vec<_>>();
+    matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
+}
+
+fn extern_annotation_named_arg_string_value(
+    source: &SourceFile,
+    arg: &ast::AnnotationArg,
+    key: &str,
+) -> Option<String> {
+    match &arg.name {
+        Some(name) if name.text(source) == key => {
+            annotation_string_literal_text(source, &arg.value)
+        }
+        Some(_) => None,
+        None => match &arg.value.kind {
+            ast::ExprKind::Assign { lhs, rhs, .. } => {
+                let ast::ExprKind::Ident(id) = &lhs.kind else {
+                    return None;
+                };
+                if source.slice(id.span) != key {
+                    return None;
+                }
+                annotation_string_literal_text(source, rhs.as_ref())
+            }
+            _ => None,
+        },
+    }
+}
+
+fn annotation_string_literal_text(source: &SourceFile, expr: &ast::Expr) -> Option<String> {
+    if !matches!(expr.kind, ast::ExprKind::StringLit) {
+        return None;
+    }
+    let raw = source.slice(expr.span);
+    let value = raw
+        .strip_prefix("\"\"\"")
+        .and_then(|text| text.strip_suffix("\"\"\""))
+        .or_else(|| {
+            raw.strip_prefix('"')
+                .and_then(|text| text.strip_suffix('"'))
+        })
+        .unwrap_or(raw);
+    Some(value.to_string())
 }
 
 /// 单态化（monomorphization）请求集合：去重 + 保留稳定顺序。

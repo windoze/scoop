@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_c_abi_modifier_redundant
+// EXPECT-ERROR: `abi = "c"` 的 `@Extern` 已隐含 `@NoGC`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_add", abi = "c")
+@NoGC
+fun nativeAdd(x: Int): Int

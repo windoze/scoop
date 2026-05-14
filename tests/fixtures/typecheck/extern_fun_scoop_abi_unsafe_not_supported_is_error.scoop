@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_modifier_not_supported
+// EXPECT-ERROR: `abi = "scoop"` 的 `@Extern` 不支持 `@Unsafe`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("managed_add", abi = "scoop")
+@Unsafe
+fun managedAdd(x: Int): Int

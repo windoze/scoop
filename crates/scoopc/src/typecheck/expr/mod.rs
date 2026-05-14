@@ -102,7 +102,8 @@ struct FunSigOwned {
     is_unsafe: bool,
     /// 是否为 `@NoGC` 函数（spec §15.8）。
     ///
-    /// 说明：当前阶段不实现 “可能分配” 分析；但 `@Extern` 会隐含 `@NoGC`（在收集阶段折叠）。
+    /// 说明：当前阶段不实现“可能分配”分析；是否允许把 `@Extern` 视为 `@NoGC` 需要在调用门禁处
+    /// 结合 ABI 判断，不能只靠这里的布尔位直接折叠。
     #[allow(dead_code)]
     is_nogc: bool,
     /// 是否为 `@Extern` 函数（spec §15.8.3）。

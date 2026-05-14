@@ -5,7 +5,7 @@
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/TODO-pipeline-gaps.md`、`docs/archive/plans/PLAN-pipeline-gaps.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 当前状态：`ExternAbi::Scoop` 尚未实现；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
+> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 与 ABI-specific `unsafe` / `@NoGC` 语义；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
 > 重要提醒：当前 mainline 已锁住 `unsafe_funptr_aggregate_return_tuple`、`extern_fun_effectful_funptr_is_error`、`single_file_minimal_ir_includes_compilable_sysroot_string_helpers` 等行为。除非先回写 `MANAGED_ABI.md` 与相关 fixture，否则不得把这些 current behavior 直接回退掉。
 
 ## 任务索引
@@ -17,8 +17,8 @@
 | `P1-T02` | P1 | [DONE] 收紧 `FunPtr<F>` 合同：pure-only native surface |
 | `P2-T01` | P2 | [DONE] 建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding |
 | `P2-T02` | P2 | [DONE] 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
-| `P3-T01` | P3 | 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
-| `P3-T02` | P3 | 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
+| `P3-T01` | P3 | [DONE] 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
+| `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -33,6 +33,7 @@
   - `crates/scoopc/src/llvm/tests.rs::single_file_minimal_ir_includes_compilable_sysroot_string_helpers`
 - `sysroot/string.scoop` 中的 `substring/indexOf/contains/startsWith/endsWith/split/trimStart/trimEnd/trim` 已视为完成基线；后续任务不得把它们搬回 runtime helper 或 compiler special-case。
 - `ExternAbi::Scoop` v1 继续保持 `Pure` only / top-level only / 无 generics / 无 closure crossing / 无 outward suspend。
+- `@Extern` 的 `@Unsafe` / `@NoGC` 语义由 ABI 决定：默认/`abi = "c"` 隐含两者，`abi = "scoop"` 不隐含两者；无论哪种 ABI，`@Extern` 都不允许显式再叠加 `@Unsafe` / `@NoGC`。
 - `FunPtr` 重构必须同时守住两类现有 surface：
   - native function pointer surface；
   - effectful / deferred capability bridge。
@@ -424,6 +425,10 @@
 
 ## P3：落地 `ExternAbi::Scoop`
 
+- 已确认语义：`@Extern` 的 `unsafe` / `@NoGC` 不再由独立注解决定，而是由 ABI 决定。
+- 默认/`abi = "c"` 继续隐含 `@Unsafe + @NoGC`；`abi = "scoop"` 不隐含这两者。
+- `@Extern` 无论哪种 ABI 都不得显式再写 `@Unsafe` / `@NoGC`。
+
 ### [DONE] P3-T01：扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"`
 
 - 参考：
@@ -482,13 +487,14 @@
     - 对应 `PLAN.md` P3 第 1 项：`@Extern` 现已具备显式 ABI 字段，前端/HIR 可以稳定区分 `C` 与 `Scoop`，并把 ABI 身份写进 `ExternFun.abi` side table。
     - `MANAGED_ABI.md` §4.2 / §4.3 / §5.2 的 v1 边界已与实现对齐：`abi = "scoop"` 当前只是 managed extern metadata + front-end gate，不是 machine calling convention 扩展点，也尚未在本任务提前接入 native leaf lowering。
 
-### [TODO] P3-T02：接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归
+### [DONE] P3-T02：接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
   - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §3、§6、§10.1、§10.2
 - 目标：
   - 让 imported `ExternAbi::Scoop` 顶层函数能走 ordinary managed ABI，而不是 native leaf。
+  - 把 `@Extern` 的 ABI-specific `unsafe` / `@NoGC` 语义正式固定下来。
   - 用最小 external managed helper 验证 declaration / call / GC-root contract。
 - 当前实现入口：
   - `crates/scoopc/src/llvm/codegen/mod.rs`
@@ -500,20 +506,60 @@
 - 必须实现的内容：
   1. declaration path：`ExternAbi::Scoop` 使用 external linkage + ordinary param ABI + ordinary return/hidden sret + no `gc-leaf-function`。
   2. call lowering：`ExternAbi::Scoop` 走 ordinary managed call + conservative root spill + statepoint correctness + no `enter_native/leave_native`。
-  3. 用一个最小 external managed helper 建立第一条 IR/run-pass 回归。
+  3. annotation / typecheck contract：
+     - `abi = "c"`（含省略时默认）继续隐含 `@Unsafe + @NoGC`；
+     - `abi = "scoop"` 不隐含 `@Unsafe`、也不隐含 `@NoGC`；
+     - `@Extern` 无论哪种 ABI 都不允许显式再叠加 `@Unsafe` / `@NoGC`。
+  4. 用一个最小 external managed helper 建立第一条 IR/run-pass 回归。
      - 推荐从简单的 `Int -> Int` 或 `Int -> String` helper 开始；
      - 若选择 `String` 返回值，应同时验证 live GC roots 在 helper 内部分配后仍正确。
-  4. 为 hidden sret case 再补一条 IR regression，证明 imported managed external aggregate return 走 ordinary sret，而不是 native ABI。
+  5. 为 hidden sret case 再补一条 IR regression，证明 imported managed external aggregate return 走 ordinary sret，而不是 native ABI。
 - 必须遵从的约束：
   - 不得把 `ExternAbi::Scoop` 视为“无 enter_native 的 extern C ABI”。
   - 不得让 `ExternAbi::Scoop` 复用 `@Extern` 的 GC-free gate。
+  - `ExternAbi::Scoop` 调用不需要 `unsafe context`；`@NoGC` 语义只对 `ExternAbi::C` 放行。
+  - `@Extern` 无论 ABI 为何都必须拒绝显式 `@Unsafe` / `@NoGC`。
 - 验证：
-  1. `cargo test -p scoopc llvm_tests -- --nocapture`
-  2. `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_*`
-  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_*`
+  1. `cargo test -p scoopc managed_extern_ -- --nocapture`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_nogc_call_is_error.scoop`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_default_abi_unsafe_redundant_is_error.scoop`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_c_abi_nogc_redundant_is_error.scoop`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_unsafe_not_supported_is_error.scoop`
+  9. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_nogc_not_supported_is_error.scoop`
+  10. `cargo clippy --all-targets -- -D warnings`
 - 完成条件：
   - imported managed external helper 已具备正式 ABI surface，可作为 P4 tracer bullet 的承载路径。
 - 依赖：`P3-T01`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/{annotations.rs,builtin_annotations.rs,expr/{call.rs,error.rs,mod.rs},lower.rs}`
+    - `crates/scoopc/src/resolve/mod.rs`
+    - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `tests/fixtures/{build/managed_abi_aggregate_return_hidden_sret.scoop,build/managed_abi_direct_call_ordinary_contract.scoop,run_pass_cone/managed_abi_string_gc/**,typecheck/extern_fun_*}`
+    - `MANAGED_ABI.md`、`PLAN.md`、`TODO.md`、`docs/spec/language_spec-part6.md`、`SCOOP_FULL_SPEC.md`、`memory/claude_plan.md`
+  - 核心决策：
+    - `ExternAbi::Scoop` 的 direct/materialized direct call 路径现已在 effect-lowered 调用入口按 ABI family 分流到 ordinary managed `codegen_mir_direct_call`，而不是继续复用 native leaf 分支。
+    - managed extern declaration/direct call/aggregate return 现已由 LLVM 单测、build fixture 与 run-pass cone fixture 共同锁定：返回值走 ordinary managed surface 或 hidden sret，不插 `enter_native/leave_native`，也不再打 `gc-leaf-function`。
+    - `@Extern` 的 `@Unsafe/@NoGC` 语义现已完全 ABI 化：`abi = "c"`（含省略时默认）隐含两者且拒绝重复标注，`abi = "scoop"` 不隐含两者且显式叠加会在前端报错；调用门禁与 side table 只把 native `@Extern` 当作 unsafe / `@NoGC` leaf。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_default_abi_unsafe_redundant_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_c_abi_nogc_redundant_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_unsafe_not_supported_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_nogc_not_supported_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_scoop_abi_nogc_call_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc`
+    - `cargo test -p scoopc managed_extern_ -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P3 第 3-5 项：`ExternAbi::Scoop` 现已具备 external linkage 下的 ordinary managed declaration / call lowering，aggregate return 走 hidden sret，且 ABI-specific `unsafe` / `@NoGC` 语义已在前端与调用门禁完成收口。
+    - `MANAGED_ABI.md` §3 / §5.2 / §5.4 / §6 / §10.1 / §10.2 已与实现对齐：managed extern 不再复用 native leaf scaffold，`FunPtr` 继续保持 native-only，binary-boundary 上的 `Pure` / no outward suspend 约束维持不变。
 
 ## P4：string cone tracer bullet
 
@@ -641,11 +687,11 @@
      - 若 P2 的 native surface contract 与 `MANAGED_ABI.md` §5.1 不同，必须更新 `MANAGED_ABI.md`；
      - 更新 sysroot/runtime 注释，去掉已失效的“body-less / runtime route”说明；
      - 在 `PLAN.md` / `TODO.md` 中把 remaining substrate list 写成最终状态。
-  4. 给 v2+ 留清晰边界：
-     - managed external function pointer；
-     - 泛型导入/导出；
-     - outward effect / continuation ABI；
-     - ABI version / feature bitmap。
+   4. 给 v2+ 留清晰边界：
+      - dedicated managed import/export surface（例如 `import function` / `import interface`），而不是 `FunPtr` ABI 扩展；
+      - 泛型导入/导出；
+      - outward effect / continuation ABI；
+      - ABI version / feature bitmap。
 - 必须遵从的约束：
   - 不得把 v1 未闭环的问题统统推到 v2+。
   - 若还有 remaining native/string special-case，必须说明它是 substrate 还是 bug，而不是模糊写成“以后再收”。

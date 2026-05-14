@@ -142,7 +142,7 @@
 
 当前已确认的 design drift（P0 只记录，不在本阶段修正）：
 
-- `crates/scoopc/src/hir/mod.rs::ExternAbi` 仍只有 `C`；`ExternAbi::Scoop` 尚未进入 HIR / lowering 路径。
+- P0 中记录的 `ExternAbi::Scoop` 缺口已在后续阶段收口：当前实现已具备前端/HIR、declaration / call lowering 与 ABI-specific binary-boundary contract；remaining work 已转入 string helper 迁移与 v2+ surface。
 
 ## 2. 分层模型
 
@@ -190,6 +190,7 @@
 
 - native leaf
 - ABI-safe 的 native value 参数/返回值
+- 语言语义上隐含 `@Unsafe` 与 `@NoGC`
 - `Pure`
 - `enter_native/leave_native`
 - 不承担 ordinary managed return / statepoint caller contract
@@ -205,6 +206,7 @@
 
 - `C ABI` 负责真正的 native FFI
 - `Managed ABI` 负责 external linkage 下的 ordinary managed helper
+- 省略 `abi` 的 `@Extern` 默认仍落在 `C ABI`
 
 ## 3. Managed ABI v1 的核心定义
 
@@ -232,6 +234,10 @@ Managed ABI v1 建议约定为：
 5. 不插 `enter_native/leave_native`。
 6. callee 不标记为 `gc-leaf-function`。
 7. machine callconv 初版仍使用 LLVM 默认 callconv `0`。
+8. 调用点本身不要求 `unsafe context`。
+9. 该 ABI 不隐式视为 `@NoGC`。
+10. 该 ABI 建模的是 DLL/so import-export 这类 binary boundary，而不是普通多-cone 项目内调用。
+11. `@Extern` 声明无论选择哪种 ABI，都不允许再显式叠加 `@Unsafe` / `@NoGC`；对 `C ABI` 这是重复标注，对 `Managed ABI` 则是无效语义。
 
 ### 3.3 v1 范围限制
 
@@ -263,6 +269,11 @@ Managed ABI v1 建议约定为：
 fun __cone_int_to_string(value: Int): String
 ```
 
+并保持：
+
+- `abi` 省略时默认是 `c`
+- `@Extern` 不接受显式 `@Unsafe` / `@NoGC` 叠加；这两个语义由 ABI family 决定
+
 或者单独引入一个新注解；本文不强制最终语法，但要求前端/HIR 能区分：
 
 - `ExternAbi::C`
@@ -270,8 +281,7 @@ fun __cone_int_to_string(value: Int): String
 
 ### 4.3 HIR 建议
 
-当前 `ExternAbi` 只有 `C`。  
-建议扩展为：
+当前 `ExternAbi` 已扩展为：
 
 ```text
 ExternAbi {
@@ -289,8 +299,10 @@ ExternAbi {
 
 但要注意：
 
+- `abi` 省略时默认应稳定落到 `ExternAbi::C`
 - `calling_convention` 对 `ExternAbi::Scoop` 初版没有独立意义
 - Managed ABI 不是 machine callconv 扩展点
+- `@Extern` 上的 `@Unsafe` / `@NoGC` 不应再作为独立布尔开关建模；这两个语义属于 ABI family 自身的 contract
 
 ### 4.4 callable ABI 身份必须是一等信息
 
@@ -317,8 +329,11 @@ ExternAbi {
 当前 v1 门禁：
 
 - 签名必须是 **ABI-safe 的 native value surface**，不能只用 GC-free 近似
+- 调用需要 `unsafe context`
+- 在 `@NoGC` 上下文中可作为 leaf 放行
 - `Pure`
 - effect-impermeable
+- `@Extern` 声明本身不允许显式再标 `@Unsafe` / `@NoGC`，因为这两条语义已由 `ExternAbi::C` 隐含
 
 这里要特别强调：
 
@@ -335,10 +350,13 @@ ExternAbi {
 
 - 允许 GC ref 参数 / 返回值
 - 允许 ordinary aggregate 参数 / 返回值
+- 调用不需要 `unsafe context`
+- 不隐式视为 `@NoGC`
 - 初版仍要求 `Pure`
 - 初版禁止 effect row 参数
 - 初版禁止 outward suspend / continuation crossing
 - 初版禁止泛型、closure/function-value surface
+- `@Extern` 声明本身不允许显式再标 `@Unsafe` / `@NoGC`
 
 ### 5.3 为什么 v1 仍然要求 `Pure`
 
@@ -361,9 +379,10 @@ ExternAbi {
 
 1. 若 `FunPtr<F>` 来源于 native surface，则其调用必须与 `ExternAbi::C` 共享同一套 ABI-safe 规则；`F` 的 receiver / 参数 / 返回值也必须落在 §5.1 那份 explicit native value surface 之内。
 2. `F` 本身必须是无 effect 的函数类型；`FunPtr` 调用永远不能切到 effect/state-machine ABI。
-3. 若将来需要支持 managed external function pointer，则它应是另一条显式 ABI family，而不是复用 native `FunPtr` 语义。
-4. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。
-5. bare `UIntPtr <-> FunPtr` round-trip 只能保留“地址”这一事实；若语言层需要跨 callsite 稳定复用完整 ABI 信息，必须在内部 lowering contract 中显式保留，而不能依赖最后一跳重新猜测。
+3. `FunPtr<F>` v1 固定表示 native callable family；它没有独立 `abi` 参数，`@CallingConvention` 也只负责 native machine calling convention，不负责切换 ABI family。
+4. 若未来需要 managed import/export callable surface，应通过专门的 `import function` / `import interface` 一类 surface 建模，而不是给 `FunPtr` 叠加 `abi = "scoop"`。
+5. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。
+6. bare `UIntPtr <-> FunPtr` round-trip 只能保留“地址”这一事实；若语言层需要跨 callsite 稳定复用完整 ABI 信息，必须在内部 lowering contract 中显式保留，而不能依赖最后一跳重新猜测。
 
 ## 6. codegen 合同
 
@@ -631,7 +650,7 @@ v1 稳定后，可以再考虑：
 - 支持 closure / function-value crossing
 - 支持 outward effect / continuation ABI
 - 给 Managed ABI 增加版本号 / feature bitmap
-- 在 cone 之间建立更正式的 import/export 工具链
+- 在 cone 之间建立更正式的 import/export 工具链（例如 `import function` / `import interface`）
 
 这些都不是 v1 的前置条件。
 
