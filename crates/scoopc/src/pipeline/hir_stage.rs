@@ -1580,7 +1580,7 @@ impl<'a> ContractCollector<'a> {
                     DispatchCallKind::Interface => TypedCallSiteContract::Interface(member),
                 }
             } else if let Some(receiver_ty) =
-                receiver_ty_from_arg_binding(arg_binding.as_ref(), args)
+                receiver_ty_from_call_contract_source(callee, arg_binding.as_ref(), args)
             {
                 if let Some((owner_fqn, member_name)) = self.member_binding_for_fqn(&binding.fqn) {
                     TypedCallSiteContract::MemberDirect(MemberCallTargetContract::new(
@@ -1644,20 +1644,6 @@ impl<'a> ContractCollector<'a> {
             } else {
                 Some(TypedCallSiteContract::DirectTopLevel(function))
             }
-        } else if let ExprKind::MemberAccess { member, .. } = &callee.kind {
-            if let Some(crate::hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref()
-                && fqn.starts_with("scoop.core.GC.")
-            {
-                Some(TypedCallSiteContract::Intrinsic {
-                    kind: TypedIntrinsicKind::from_fqn(fqn),
-                    function: FunctionTargetContract::synthetic_with_arg_binding(
-                        fqn.clone(),
-                        arg_binding.clone(),
-                    ),
-                })
-            } else {
-                None
-            }
         } else if matches!(callee.kind, ExprKind::Closure(_)) {
             Some(TypedCallSiteContract::Closure {
                 callee_ty: callee.ty,
@@ -1670,6 +1656,26 @@ impl<'a> ContractCollector<'a> {
                 return_ty: expr.ty,
                 arg_binding: arg_binding.clone(),
             })
+        } else if let Some(fqn) = gc_member_intrinsic_fqn(callee) {
+            Some(TypedCallSiteContract::Intrinsic {
+                kind: TypedIntrinsicKind::from_fqn(&fqn),
+                function: FunctionTargetContract::synthetic_with_arg_binding(fqn, arg_binding),
+            })
+        } else if let Some((owner_fqn, member_name, fqn, receiver_ty)) =
+            resolved_member_call_binding(callee)
+        {
+            // 合成的 member-access call（例如 generic delegated property 的 getValue/setValue）
+            // 在 lowering 时已写回 `MemberRef::Fun { fqn }`；这里据此发布 MemberDirect contract，
+            // 让 MIR / effect-facts / late-lowering 能像普通 source-level member 调用一样消费。
+            Some(TypedCallSiteContract::MemberDirect(
+                MemberCallTargetContract::new(
+                    owner_fqn,
+                    member_name,
+                    fqn.clone(),
+                    receiver_ty,
+                    FunctionTargetContract::synthetic_with_arg_binding(fqn, arg_binding),
+                ),
+            ))
         } else if is_function_ty(&self.lowered_hir.types, callee.ty)
             || matches!(callee.kind, ExprKind::VarRef(ValueRef::Local { .. }))
         {
@@ -1928,17 +1934,69 @@ fn call_arg_value_ty(arg: &CallArg) -> TypeId {
     }
 }
 
-fn receiver_ty_from_arg_binding(
+fn receiver_ty_from_call_contract_source(
+    callee: &Expr,
     binding: Option<&CallArgBindingContract>,
     args: &[CallArg],
 ) -> Option<TypeId> {
     let binding = binding?;
     for param in binding.params() {
         if matches!(param, CallArgParamContract::Receiver) {
-            return args.first().map(call_arg_value_ty);
+            return match &callee.kind {
+                ExprKind::MemberAccess { receiver, .. } => Some(receiver.ty),
+                _ => args.first().map(call_arg_value_ty),
+            };
         }
     }
     None
+}
+
+fn gc_member_intrinsic_fqn(callee: &Expr) -> Option<String> {
+    let ExprKind::MemberAccess { member, .. } = &callee.kind else {
+        return None;
+    };
+    let crate::hir::MemberRef::Fun { fqn, .. } = member.resolved.as_ref()? else {
+        return None;
+    };
+    fqn.starts_with("scoop.core.GC.").then(|| fqn.clone())
+}
+
+/// 当 HIR lowering 把合成 generic delegated property 的 getValue/setValue callee 已经
+/// resolve 成具体 `MemberRef::Fun { fqn }` 时，把 owner FQN / member 名 / 完整 FQN /
+/// receiver type 拆出来，让上游可以直接发布 `MemberDirect` typed call-site contract。
+///
+/// 仅匹配 receiver 是 `<owner>.<prop>$delegate` 字段访问的 callee，避免与普通 source-level
+/// member call 的常规 binding 路径互相覆盖。
+fn resolved_member_call_binding(callee: &Expr) -> Option<(String, String, String, TypeId)> {
+    let ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+        return None;
+    };
+    let crate::hir::MemberRef::Fun { fqn, .. } = member.resolved.as_ref()? else {
+        return None;
+    };
+    if fqn.starts_with("scoop.core.GC.") {
+        return None;
+    }
+    if !receiver_is_generic_delegate_field(receiver) {
+        return None;
+    }
+    let (owner_fqn, member_name) = match fqn.rsplit_once('.') {
+        Some((owner, name)) if !owner.is_empty() && !name.is_empty() => {
+            (owner.to_string(), name.to_string())
+        }
+        _ => return None,
+    };
+    Some((owner_fqn, member_name, fqn.clone(), receiver.ty))
+}
+
+fn receiver_is_generic_delegate_field(receiver: &Expr) -> bool {
+    let ExprKind::MemberAccess { member, .. } = &receiver.kind else {
+        return false;
+    };
+    let Some(crate::hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+        return false;
+    };
+    fqn.ends_with("$delegate")
 }
 
 fn collect_decl_owner_fqns(decls: &[Decl], owners: &mut Vec<String>) {

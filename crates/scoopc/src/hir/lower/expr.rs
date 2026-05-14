@@ -5204,6 +5204,14 @@ impl<'a> HirLowering<'a> {
                         receiver,
                         &info,
                     );
+                    let getter_member_resolved =
+                        info.delegate_class_fqn.as_ref().map(|class_fqn| {
+                            let getter_fqn = format!("{class_fqn}.getValue");
+                            MemberRef::Fun {
+                                id: self.symbols.intern_top_level(getter_fqn.clone()),
+                                fqn: getter_fqn,
+                            }
+                        });
                     let callee = Expr {
                         span: member.span,
                         ty: self.builtins.any,
@@ -5212,7 +5220,7 @@ impl<'a> HirLowering<'a> {
                             member: MemberAccess {
                                 span: member.span,
                                 name: "getValue".to_string(),
-                                resolved: None,
+                                resolved: getter_member_resolved,
                             },
                         },
                     };

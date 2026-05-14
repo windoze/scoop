@@ -1436,9 +1436,10 @@ impl<'a> HirLowering<'a> {
         args: Vec<Expr>,
         ret_ty: TypeId,
     ) -> Expr {
+        let call_span = self.fresh_synthetic_call_site_span(span);
         let fqn = fqn.to_string();
         let callee = Expr {
-            span,
+            span: call_span,
             ty: self.builtins.any,
             kind: ExprKind::VarRef(ValueRef::TopLevel {
                 id: self.symbols.intern_top_level(fqn.clone()),
@@ -1447,7 +1448,7 @@ impl<'a> HirLowering<'a> {
         };
 
         Expr {
-            span,
+            span: call_span,
             ty: ret_ty,
             kind: ExprKind::Call {
                 callee: Box::new(callee),

@@ -59,6 +59,14 @@ impl<'a> HirLowering<'a> {
                     receiver.clone(),
                     &info,
                 );
+                let setter_member_resolved =
+                    info.delegate_class_fqn.as_ref().map(|class_fqn| {
+                        let setter_fqn = format!("{class_fqn}.setValue");
+                        MemberRef::Fun {
+                            id: self.symbols.intern_top_level(setter_fqn.clone()),
+                            fqn: setter_fqn,
+                        }
+                    });
                 let callee = Expr {
                     span: member.span,
                     ty: self.builtins.any,
@@ -67,7 +75,7 @@ impl<'a> HirLowering<'a> {
                         member: MemberAccess {
                             span: member.span,
                             name: "setValue".to_string(),
-                            resolved: None,
+                            resolved: setter_member_resolved,
                         },
                     },
                 };
@@ -126,13 +134,14 @@ impl<'a> HirLowering<'a> {
         member_name: String,
         field_fqn: String,
     ) -> Expr {
+        let access_span = self.fresh_synthetic_call_site_span(span);
         Expr {
-            span,
+            span: access_span,
             ty: self.builtins.any,
             kind: ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
                 member: MemberAccess {
-                    span,
+                    span: access_span,
                     name: member_name,
                     resolved: Some(MemberRef::Value {
                         id: self.symbols.intern_top_level(field_fqn.clone()),
@@ -174,8 +183,9 @@ impl<'a> HirLowering<'a> {
 
             let init_value =
                 self.lower_delegated_property_expr(pkg_prefix, decl, &info.initializer_body);
+            let assign_value_span = self.fresh_synthetic_call_site_span(span);
             let assign_value = Stmt {
-                span,
+                span: assign_value_span,
                 ty: self.builtins.unit,
                 kind: StmtKind::Assign {
                     lhs: self.member_access_to_class_field(
@@ -184,13 +194,14 @@ impl<'a> HirLowering<'a> {
                         value_name.clone(),
                         info.value_field_fqn.clone(),
                     ),
-                    eq_span: span,
+                    eq_span: assign_value_span,
                     rhs: init_value,
                 },
             };
 
+            let assign_inited_span = self.fresh_synthetic_call_site_span(span);
             let assign_inited = Stmt {
-                span,
+                span: assign_inited_span,
                 ty: self.builtins.unit,
                 kind: StmtKind::Assign {
                     lhs: self.member_access_to_class_field(
@@ -199,7 +210,7 @@ impl<'a> HirLowering<'a> {
                         format!("{}$lazy_inited", info.name),
                         info.inited_field_fqn.clone(),
                     ),
-                    eq_span: span,
+                    eq_span: assign_inited_span,
                     rhs: Expr {
                         span,
                         ty: self.builtins.bool_,
@@ -351,21 +362,23 @@ impl<'a> HirLowering<'a> {
                     }),
                 };
 
+                let assign_value_span = self.fresh_synthetic_call_site_span(span);
                 let assign_value = Stmt {
-                    span,
+                    span: assign_value_span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Assign {
                         lhs: value_expr.clone(),
-                        eq_span: span,
+                        eq_span: assign_value_span,
                         rhs: computed_ref,
                     },
                 };
+                let assign_inited_span = self.fresh_synthetic_call_site_span(span);
                 let assign_inited = Stmt {
-                    span,
+                    span: assign_inited_span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Assign {
                         lhs: inited_expr.clone(),
-                        eq_span: span,
+                        eq_span: assign_inited_span,
                         rhs: Expr {
                             span,
                             ty: self.builtins.bool_,
@@ -419,21 +432,23 @@ impl<'a> HirLowering<'a> {
                     }),
                 };
 
+                let assign_value_span = self.fresh_synthetic_call_site_span(span);
                 let assign_value = Stmt {
-                    span,
+                    span: assign_value_span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Assign {
                         lhs: value_expr.clone(),
-                        eq_span: span,
+                        eq_span: assign_value_span,
                         rhs: computed_ref,
                     },
                 };
+                let assign_inited_span = self.fresh_synthetic_call_site_span(span);
                 let assign_inited = Stmt {
-                    span,
+                    span: assign_inited_span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Assign {
                         lhs: inited_expr.clone(),
-                        eq_span: span,
+                        eq_span: assign_inited_span,
                         rhs: Expr {
                             span,
                             ty: self.builtins.bool_,

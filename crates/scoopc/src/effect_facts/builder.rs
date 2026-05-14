@@ -2748,6 +2748,7 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.getByte"
             | "scoop.core.unsafeSliceBytes"
             | "scoop.core.isEmpty"
+            | "scoop.core.trimIndent"
             | "scoop.core.replace"
             | "scoop.core.charAt"
             | "scoop.core.repeat"

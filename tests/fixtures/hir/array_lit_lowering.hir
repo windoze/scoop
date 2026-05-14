@@ -95,12 +95,12 @@ File {
                                                                         ty: Any,
                                                                         init: Some(
                                                                             Expr {
-                                                                                span: 173..182,
+                                                                                span: 1048920..1048921,
                                                                                 ty: Any,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 173..182,
+                                                                                            span: 1048920..1048921,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -121,12 +121,12 @@ File {
                                                                 ty: Unit,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 173..182,
+                                                                        span: 1048922..1048923,
                                                                         ty: Unit,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 173..182,
+                                                                                    span: 1048922..1048923,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -165,12 +165,12 @@ File {
                                                                 ty: Unit,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 173..182,
+                                                                        span: 1048924..1048925,
                                                                         ty: Unit,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 173..182,
+                                                                                    span: 1048924..1048925,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -209,12 +209,12 @@ File {
                                                                 ty: Unit,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 173..182,
+                                                                        span: 1048926..1048927,
                                                                         ty: Unit,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 173..182,
+                                                                                    span: 1048926..1048927,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -253,12 +253,12 @@ File {
                                                                 ty: scoop.core.Array<Int>,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 173..182,
+                                                                        span: 1048928..1048929,
                                                                         ty: scoop.core.Array<Int>,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 173..182,
+                                                                                    span: 1048928..1048929,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -324,12 +324,12 @@ File {
                                                                         ty: Any,
                                                                         init: Some(
                                                                             Expr {
-                                                                                span: 212..218,
+                                                                                span: 1048930..1048931,
                                                                                 ty: Any,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 212..218,
+                                                                                            span: 1048930..1048931,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -350,12 +350,12 @@ File {
                                                                 ty: Unit,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 212..218,
+                                                                        span: 1048932..1048933,
                                                                         ty: Unit,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 212..218,
+                                                                                    span: 1048932..1048933,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -394,12 +394,12 @@ File {
                                                                 ty: Unit,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 212..218,
+                                                                        span: 1048934..1048935,
                                                                         ty: Unit,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 212..218,
+                                                                                    span: 1048934..1048935,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -438,12 +438,12 @@ File {
                                                                 ty: scoop.core.MutableArray<Int>,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 212..218,
+                                                                        span: 1048936..1048937,
                                                                         ty: scoop.core.MutableArray<Int>,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 212..218,
+                                                                                    span: 1048936..1048937,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -518,12 +518,12 @@ File {
                                                                                 ty: Any,
                                                                                 init: Some(
                                                                                     Expr {
-                                                                                        span: 233..239,
+                                                                                        span: 1048938..1048939,
                                                                                         ty: Any,
                                                                                         kind: Call {
                                                                                             callee:
                                                                                                 Expr {
-                                                                                                    span: 233..239,
+                                                                                                    span: 1048938..1048939,
                                                                                                     ty: Any,
                                                                                                     kind: VarRef(
                                                                                                         TopLevel {
@@ -544,12 +544,12 @@ File {
                                                                         ty: Unit,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 233..239,
+                                                                                span: 1048940..1048941,
                                                                                 ty: Unit,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 233..239,
+                                                                                            span: 1048940..1048941,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -588,12 +588,12 @@ File {
                                                                         ty: Unit,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 233..239,
+                                                                                span: 1048942..1048943,
                                                                                 ty: Unit,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 233..239,
+                                                                                            span: 1048942..1048943,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -632,12 +632,12 @@ File {
                                                                         ty: scoop.core.Array<Int>,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 233..239,
+                                                                                span: 1048944..1048945,
                                                                                 ty: scoop.core.Array<Int>,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 233..239,
+                                                                                            span: 1048944..1048945,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -714,12 +714,12 @@ File {
                                                                                 ty: Any,
                                                                                 init: Some(
                                                                                     Expr {
-                                                                                        span: 261..271,
+                                                                                        span: 1048946..1048947,
                                                                                         ty: Any,
                                                                                         kind: Call {
                                                                                             callee:
                                                                                                 Expr {
-                                                                                                    span: 261..271,
+                                                                                                    span: 1048946..1048947,
                                                                                                     ty: Any,
                                                                                                     kind: VarRef(
                                                                                                         TopLevel {
@@ -740,12 +740,12 @@ File {
                                                                         ty: Unit,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 261..271,
+                                                                                span: 1048948..1048949,
                                                                                 ty: Unit,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 261..271,
+                                                                                            span: 1048948..1048949,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -784,12 +784,12 @@ File {
                                                                         ty: Unit,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 261..271,
+                                                                                span: 1048950..1048951,
                                                                                 ty: Unit,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 261..271,
+                                                                                            span: 1048950..1048951,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -828,12 +828,12 @@ File {
                                                                         ty: Unit,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 261..271,
+                                                                                span: 1048952..1048953,
                                                                                 ty: Unit,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 261..271,
+                                                                                            span: 1048952..1048953,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -872,12 +872,12 @@ File {
                                                                         ty: scoop.core.MutableArray<Int>,
                                                                         kind: Expr(
                                                                             Expr {
-                                                                                span: 261..271,
+                                                                                span: 1048954..1048955,
                                                                                 ty: scoop.core.MutableArray<Int>,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 261..271,
+                                                                                            span: 1048954..1048955,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -945,12 +945,12 @@ File {
                                                                         ty: Any,
                                                                         init: Some(
                                                                             Expr {
-                                                                                span: 301..303,
+                                                                                span: 1048956..1048957,
                                                                                 ty: Any,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 301..303,
+                                                                                            span: 1048956..1048957,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -971,12 +971,12 @@ File {
                                                                 ty: scoop.core.Array<Int>,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 301..303,
+                                                                        span: 1048958..1048959,
                                                                         ty: scoop.core.Array<Int>,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 301..303,
+                                                                                    span: 1048958..1048959,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -1042,12 +1042,12 @@ File {
                                                                         ty: Any,
                                                                         init: Some(
                                                                             Expr {
-                                                                                span: 338..340,
+                                                                                span: 1048960..1048961,
                                                                                 ty: Any,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
-                                                                                            span: 338..340,
+                                                                                            span: 1048960..1048961,
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
@@ -1068,12 +1068,12 @@ File {
                                                                 ty: scoop.core.MutableArray<Int>,
                                                                 kind: Expr(
                                                                     Expr {
-                                                                        span: 338..340,
+                                                                        span: 1048962..1048963,
                                                                         ty: scoop.core.MutableArray<Int>,
                                                                         kind: Call {
                                                                             callee:
                                                                                 Expr {
-                                                                                    span: 338..340,
+                                                                                    span: 1048962..1048963,
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
@@ -1143,61 +1143,103 @@ TypedHirEffectContracts {
     ],
     call_site_kinds: [
         TypedCallSiteContract {
-            span: 173..182,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 212..218,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
             span: 222..240,
             kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 233..239,
-            kind: Intrinsic,
         },
         TypedCallSiteContract {
             span: 243..272,
             kind: DirectTopLevel,
         },
         TypedCallSiteContract {
-            span: 261..271,
+            span: 1048920..1048921,
             kind: Intrinsic,
         },
         TypedCallSiteContract {
-            span: 301..303,
+            span: 1048922..1048923,
             kind: Intrinsic,
         },
         TypedCallSiteContract {
-            span: 338..340,
+            span: 1048924..1048925,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048926..1048927,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048928..1048929,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048930..1048931,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048932..1048933,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048934..1048935,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048936..1048937,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048938..1048939,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048940..1048941,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048942..1048943,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048944..1048945,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048946..1048947,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048948..1048949,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048950..1048951,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048952..1048953,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048954..1048955,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048956..1048957,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048958..1048959,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048960..1048961,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 1048962..1048963,
             kind: Intrinsic,
         },
     ],
     call_site_contracts: [
-        CallSiteContract {
-            span: 173..182,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_array",
-            target_decl_span: None,
-            target_type_args: [],
-            target_eff_args: [],
-        },
-        CallSiteContract {
-            span: 212..218,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_mutable_array" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
-            target_decl_span: None,
-            target_type_args: [],
-            target_eff_args: [],
-        },
         CallSiteContract {
             span: 222..240,
             kind: DirectTopLevel,
@@ -1206,17 +1248,6 @@ TypedHirEffectContracts {
             target_type_args: [],
             target_eff_args: [],
             target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
-        },
-        CallSiteContract {
-            span: 233..239,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_array",
-            target_decl_span: None,
-            target_type_args: [],
-            target_eff_args: [],
         },
         CallSiteContract {
             span: 243..272,
@@ -1228,18 +1259,51 @@ TypedHirEffectContracts {
             target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
         CallSiteContract {
-            span: 261..271,
+            span: 1048920..1048921,
             kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_mutable_array" },
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+            target_fqn: "scoop.core.__scoop_array_builder_new",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
-            span: 301..303,
+            span: 1048922..1048923,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048924..1048925,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048926..1048927,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048928..1048929,
             kind: Intrinsic,
             intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
             intrinsic_allowed_context: RuntimeOnly,
@@ -1250,7 +1314,183 @@ TypedHirEffectContracts {
             target_eff_args: [],
         },
         CallSiteContract {
-            span: 338..340,
+            span: 1048930..1048931,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_new",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048932..1048933,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048934..1048935,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048936..1048937,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_mutable_array" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048938..1048939,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_new",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048940..1048941,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048942..1048943,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048944..1048945,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_build_array",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048946..1048947,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_new",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048948..1048949,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048950..1048951,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048952..1048953,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_push",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048954..1048955,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_mutable_array" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048956..1048957,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_new",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048958..1048959,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_build_array",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048960..1048961,
+            kind: Intrinsic,
+            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: RuntimeIntrinsic,
+            target_fqn: "scoop.core.__scoop_array_builder_new",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 1048962..1048963,
             kind: Intrinsic,
             intrinsic_kind: Runtime { name: "__scoop_array_builder_build_mutable_array" },
             intrinsic_allowed_context: RuntimeOnly,

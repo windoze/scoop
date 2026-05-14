@@ -34,6 +34,7 @@ pub(super) struct GenericDelegatedPropertyInfo {
     pub(super) name: String,
     pub(super) delegate_field_fqn: String,
     pub(super) property_meta_fqn: String,
+    pub(super) delegate_class_fqn: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]

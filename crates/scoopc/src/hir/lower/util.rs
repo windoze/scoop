@@ -1660,6 +1660,34 @@ fn parse_lazy_thread_safety_mode(
     }
 }
 
+/// 提取 generic delegated property 的 delegate class FQN，用于 lowered HIR 中 setValue/getValue
+/// 调用的 typed call-site contract 发布。常见输入是 `Delegate()` 这样的构造调用，从 resolver
+/// 写回的 `Constructor { ty_fqn }` candidate 中读出类的 FQN。
+fn delegate_class_fqn_from_expr(delegate_expr: &ast::Expr) -> Option<String> {
+    let ast::ExprKind::Call { callee, .. } = &delegate_expr.kind else {
+        return None;
+    };
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+    let call = id.call.as_ref()?;
+    let mut tys: Vec<String> = call
+        .candidates
+        .iter()
+        .filter_map(|c| match c {
+            ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+            ast::CallCandidate::Fun { .. } => None,
+        })
+        .collect();
+    tys.sort();
+    tys.dedup();
+    if tys.len() == 1 {
+        Some(tys.remove(0))
+    } else {
+        None
+    }
+}
+
 fn parse_std_delegate_expr(
     source: &SourceFile,
     delegate_expr: &ast::Expr,
@@ -1833,10 +1861,12 @@ fn collect_delegated_properties_in_type_decl<'a>(
                         None => {
                             let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
                             let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                            let delegate_class_fqn = delegate_class_fqn_from_expr(delegate_expr);
                             DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
                                 name: name.clone(),
                                 delegate_field_fqn,
                                 property_meta_fqn,
+                                delegate_class_fqn,
                             })
                         }
                     };
@@ -1937,10 +1967,12 @@ fn collect_delegated_properties_in_object_decl<'a>(
                     None => {
                         let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
                         let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                        let delegate_class_fqn = delegate_class_fqn_from_expr(delegate_expr);
                         DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
                             name: name.clone(),
                             delegate_field_fqn,
                             property_meta_fqn,
+                            delegate_class_fqn,
                         })
                     }
                 };

@@ -2509,7 +2509,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(fallback_fqn.to_string());
         }
-        if binding_base != fallback_base && callable_fqn_specificity(fallback_fqn) > 0 {
+        // materialized MIR 已经可以把 where-bound/interface dispatch 等 source-level binding
+        // 具体化为不同 base 的 direct callee；此时必须信任 MIR 中的 fallback target，不能再按
+        // 原始 source-span side table 回退到抽象接口/trait base FQN。
+        if binding_base != fallback_base {
             return Ok(fallback_fqn.to_string());
         }
         Ok(binding_fqn)

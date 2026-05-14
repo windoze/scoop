@@ -183,6 +183,23 @@ fn call_arg_binding_has_receiver(binding: &CallArgBindingContract) -> bool {
         .any(|param| matches!(param, CallArgParamContract::Receiver))
 }
 
+fn call_arg_binding_without_receiver(
+    binding: Option<&CallArgBindingContract>,
+) -> Option<CallArgBindingContract> {
+    let binding = binding?;
+    if !call_arg_binding_has_receiver(binding) {
+        return Some(binding.clone());
+    }
+    Some(CallArgBindingContract::new(
+        binding
+            .params()
+            .iter()
+            .filter(|param| !matches!(param, CallArgParamContract::Receiver))
+            .cloned()
+            .collect(),
+    ))
+}
+
 impl MirLoweringFacts {
     pub(crate) fn from_lowered_hir(
         lowered: &hir::LoweredHir,
@@ -4043,12 +4060,21 @@ impl<'a> FnLowering<'a> {
         if self.current_is_terminated() {
             return;
         }
-        let arg_binding =
-            Self::active_hir_call_arg_binding(call_args, member.function().arg_binding());
+        let stripped_binding = call_arg_binding_without_receiver(member.function().arg_binding());
+        let arg_binding = Self::active_hir_call_arg_binding(call_args, stripped_binding.as_ref());
+        let function_has_receiver = member
+            .function()
+            .arg_binding()
+            .is_some_and(call_arg_binding_has_receiver);
         let expected_tys = self
             .top_level_fun_param_tys
             .get(member.function().fqn())
             .map(|param_tys| {
+                let param_tys = if function_has_receiver {
+                    param_tys.get(1..).unwrap_or(&[])
+                } else {
+                    param_tys.as_slice()
+                };
                 self.source_arg_expected_tys_from_param_tys(
                     param_tys,
                     call_args.len(),

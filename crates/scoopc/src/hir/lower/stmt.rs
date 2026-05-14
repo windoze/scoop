@@ -844,7 +844,6 @@ impl<'a> HirLowering<'a> {
         let int = self.builtins.int;
         let bool_ = self.builtins.bool_;
         let unit = self.builtins.unit;
-        let any = self.builtins.any;
 
         // Synthesize: var __for_i = 0
         let idx_id = self.intern_local_symbol(idx_span, true);
@@ -890,22 +889,12 @@ impl<'a> HirLowering<'a> {
         };
 
         // size(__for_arr)
-        let size_fqn = "scoop.core.size".to_string();
-        let size_call = Expr {
-            span: for_span,
-            ty: int,
-            kind: ExprKind::Call {
-                callee: Box::new(Expr {
-                    span: for_span,
-                    ty: any,
-                    kind: ExprKind::VarRef(ValueRef::TopLevel {
-                        id: self.symbols.intern_top_level(size_fqn.clone()),
-                        fqn: size_fqn,
-                    }),
-                }),
-                args: vec![CallArg::Positional(arr_ref(for_span))],
-            },
-        };
+        let size_call = self.call_top_level_fun(
+            for_span,
+            "scoop.core.size",
+            vec![arr_ref(for_span)],
+            int,
+        );
 
         // __for_i < size(__for_arr)
         let cond = Expr {
@@ -920,25 +909,12 @@ impl<'a> HirLowering<'a> {
         };
 
         // get(__for_arr, __for_i)
-        let get_fqn = "scoop.core.get".to_string();
-        let get_call = Expr {
-            span: for_span,
-            ty: int,
-            kind: ExprKind::Call {
-                callee: Box::new(Expr {
-                    span: for_span,
-                    ty: any,
-                    kind: ExprKind::VarRef(ValueRef::TopLevel {
-                        id: self.symbols.intern_top_level(get_fqn.clone()),
-                        fqn: get_fqn,
-                    }),
-                }),
-                args: vec![
-                    CallArg::Positional(arr_ref(for_span)),
-                    CallArg::Positional(idx_ref(for_span)),
-                ],
-            },
-        };
+        let get_call = self.call_top_level_fun(
+            for_span,
+            "scoop.core.get",
+            vec![arr_ref(for_span), idx_ref(for_span)],
+            int,
+        );
 
         // val x = get(__for_arr, __for_i)
         let binder_name = self.source.slice(f.binder.span).to_string();

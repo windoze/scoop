@@ -6781,6 +6781,7 @@ fn infer_member_call_expr_type(
                 value_resolved.as_ref(),
                 lower,
             )?;
+            lower.record_inferred_expr_ty(Span::new(receiver.span.start, member.span.end), callee_ty);
 
             if is_funptr_type(callee_ty, lower) {
                 return infer_funptr_type_call_expr_type(

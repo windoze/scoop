@@ -221,7 +221,11 @@ File {
                                                                     MemberAccess {
                                                                         span: 290..291,
                                                                         name: "getValue",
-                                                                        resolved: None,
+                                                                        resolved: Some(
+                                                                            Fun {
+                                                                                fqn: "a.Delegate.getValue",
+                                                                            }
+                                                                        ),
                                                                     }
                                                             },
                                                         }
@@ -303,7 +307,11 @@ File {
                                                             MemberAccess {
                                                                 span: 296..297,
                                                                 name: "setValue",
-                                                                resolved: None,
+                                                                resolved: Some(
+                                                                    Fun {
+                                                                        fqn: "a.Delegate.setValue",
+                                                                    }
+                                                                ),
                                                             }
                                                     },
                                                 }
@@ -399,6 +407,14 @@ TypedHirEffectContracts {
             span: 269..272,
             kind: Constructor,
         },
+        TypedCallSiteContract {
+            span: 288..291,
+            kind: MemberDirect,
+        },
+        TypedCallSiteContract {
+            span: 294..301,
+            kind: MemberDirect,
+        },
     ],
     call_site_contracts: [
         CallSiteContract {
@@ -408,6 +424,30 @@ TypedHirEffectContracts {
             ctor_span: Some(203..205),
             result_ty: a.C,
             arg_mapping: [],
+        },
+        CallSiteContract {
+            span: 288..291,
+            kind: MemberDirect,
+            member_owner_fqn: "a.Delegate",
+            member_member_name: "getValue",
+            member_member_fqn: "a.Delegate.getValue",
+            receiver_ty: Any,
+            target_fqn: "a.Delegate.getValue",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 294..301,
+            kind: MemberDirect,
+            member_owner_fqn: "a.Delegate",
+            member_member_name: "setValue",
+            member_member_fqn: "a.Delegate.setValue",
+            receiver_ty: Any,
+            target_fqn: "a.Delegate.setValue",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
         },
     ],
     with_update_contracts: [

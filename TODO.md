@@ -1311,7 +1311,7 @@
     - 对应 `PLAN.md` P6 第 1 项：`§7.1` / `§7.2` / `§7.5` 的前端 gate 文案与实际行为已统一，`§7.3` 则按真实能力改写为正式支持面，不再伪装成整体 reject。
     - `PIPELINE_GAPS.md` 已回写 `§7.3` 为 `Closed/Re-scoped`，并同步更新 `§2.6`、`§8` 中对 effect-row use-site surface 的描述：当前默认主线允许名义类型 `Type<eff Row>`，剩余非法 target 继续由 typecheck 明确拒绝，而不是留给 MIR/backend 暴露 unsupported。
 
-### [TODO] P6-T02A：修复 full regression 暴露的 typed call-site / effect-facts contract 发布回归
+### [DONE] P6-T02A：修复 full regression 暴露的 typed call-site / effect-facts contract 发布回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P1、P3、P4、P6
@@ -1357,9 +1357,72 @@
 - 依赖：`P6-T02`
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc/src/pipeline/hir_stage.rs`：把 `MemberAccess` callee 的 GC 内联拦截重写成
+      `gc_member_intrinsic_fqn` 派发，并新增 `resolved_member_call_binding` 把 generic
+      delegated property 合成的 getValue/setValue callee 发布为 `MemberDirect` typed
+      contract；统一 receiver typed contract publication 让 member-access callee 也可以
+      作为 receiver source。
+    - `crates/scoopc/src/typecheck/expr/call.rs`：member-access 形态的 callable value 现在
+      把推断出的 callee type 写回 `record_inferred_expr_ty`，避免 closure-call 等场景
+      继续走 `Any` fallback。
+    - `crates/scoopc/src/hir/lower/mod.rs` & `sugar.rs` & `stmt.rs`：所有合成 helper
+      call（`call_top_level_fun`、generic-delegate field access、lazy delegate
+      assign-stmt、for-in `scoop.core.size`/`scoop.core.get`）改用
+      `fresh_synthetic_call_site_span`，避免 call-site / assign-place 的 stmt span
+      碰撞导致 typed contract 互相覆盖；lazy delegate 三种 mode 的 assign-stmt 现在各自
+      拿到独立 stmt span，确保 `inited`/`value` 的 AssignPlaceContract 都能被发布。
+    - `crates/scoopc/src/hir/lower/util.rs` & `types.rs` & `expr.rs`：generic delegated
+      property info 现在记录 `delegate_class_fqn`，HIR lowering 的 getValue/setValue
+      callee 据此写入 `MemberRef::Fun { fqn }`，让上游 contract collector 直接把它视为
+      `MemberDirect` 调用。
+    - `crates/scoopc/src/effect_facts/builder.rs`：把 `scoop.core.trimIndent` 加进
+      `is_plain_compiler_intrinsic` 名单，恢复其作为 plain runtime helper 的
+      surface contract 发布。
+    - `crates/scoopc/src/effect_lowered/materialize.rs`：`build_call_boundary_operand_contract`
+      现在对 `KnownInstance` target 的 `FunValue` 调用与 `Closure` 调用复用同一份
+      `build_known_instance_closure_call_arg_sources` 路径，让 0-arg 用户调用也能正确
+      把 closure env 当作 invoke carrier source 消费。
+    - `crates/scoopc/src/llvm/codegen/mod.rs`：当 source-side binding 与 materialized MIR
+      fallback target 的 base FQN 不一致时（典型为 where-bound / interface dispatch 的
+      具体化结果），无条件信任 fallback target，避免回退到抽象接口/trait base。
+    - `crates/scoopc/src/mir/lower.rs`：member-direct 调用在分发非 receiver arg 的
+      expected-type / canonicalization 之前剥离 receiver-only binding，让命名参数派发
+      不再被 receiver shape 污染。
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：`internal bug
+      sentinel` 行号清单跟随 `llvm/codegen/mod.rs` 上游注释的扩展同步更新。
+    - 同步更新的 golden / fixture：
+      - `tests/fixtures/mir_refactor/call_contracts.mir`（lambda call 的 callee
+        local 现在登记为精确的 `(Int) -> Int / Pure` 而不是 `Any`）
+      - `tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.effectlowered`
+        以及 `effect_boundary_inside_expr_context.effectlowered` /
+        `handle_finally_boundary.effectlowered`（合成 span 改造造成的 stable hash 漂移）
+      - `tests/fixtures/hir/array_lit_lowering.hir` /
+        `delegated_property_lowering.hir` /
+        `do_block_multiple_trailing_lambda_boundary.hir` /
+        `refactor_call_args.hir`（同步合成 span / 新增 typed contract 的 dump）
   - 核心决策：
+    - 不引入 legacy fallback：所有合成 helper 调用（delegated property、for-in、lazy
+      lock/unlock）都通过 `call_top_level_fun` 或显式 fresh synthetic span 发布
+      typed contract，而不是放宽 verifier。
+    - generic delegated property 的 getValue/setValue 用 `MemberDirect` contract，
+      并把 receiver 必须是 `<owner>.<prop>$delegate` 字段访问作为触发条件，避免
+      与普通 source-level member call 的 binding 路径互相覆盖。
+    - 闭包 FunValue 的 boundary operand contract 与 `Closure` 路径共用 known-instance
+      env-source 处理，因为 KnownInstance fact 已经把 env tuple 当作 invoke carrier。
   - 验证结果：
+    - `cargo run -p scoop -- test --fixtures …`（任务列出的 10 项）全部 PASS。
+    - `cargo run -p scoop -- test`：1232 fixtures 全 PASS（1269 checks）。
+    - `cargo clippy --all-targets -- -D warnings`：0 warning。
+    - `cargo test --all`：单元测试相对 baseline 修复了 5 项已知失败、未引入新失败；
+      剩余的 21 项 effect_facts/effect_lowered/llvm/mir 单元测试快照漂移在
+      P6-T02A 进入前已存在，本任务范围之外，留待 P6-T03 / P7-T01 一并清理。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - `PLAN.md` §5/P6 阶段所述「actual outward effect set 唯一驱动 callable ABI / typed
+      call-site contract」收口：closure FunValue 与 generic delegated property 等
+      合成 callee 不再走 legacy fallback。
+    - `PIPELINE_GAPS.md` §1.7 / §3.7 / §5.4 / §6.3 中关于「synthetic helper call /
+      delegated property / closure FunValue env 视图」的最后 typed-contract gap 已闭合，
+      为 P6-T03 重写账本提供真实闭合状态。
 
 ### [TODO] P6-T03：重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态
 

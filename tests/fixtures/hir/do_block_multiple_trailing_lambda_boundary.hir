@@ -440,6 +440,14 @@ TypedHirEffectContracts {
     ],
     call_site_kinds: [
         TypedCallSiteContract {
+            span: 94..101,
+            kind: FunValue,
+        },
+        TypedCallSiteContract {
+            span: 96..100,
+            kind: FunValue,
+        },
+        TypedCallSiteContract {
             span: 122..154,
             kind: DirectTopLevel,
         },
@@ -449,6 +457,20 @@ TypedHirEffectContracts {
         },
     ],
     call_site_contracts: [
+        CallSiteContract {
+            span: 94..101,
+            kind: FunValue,
+            callee_ty: Any,
+            return_ty: Int,
+            arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
+        CallSiteContract {
+            span: 96..100,
+            kind: FunValue,
+            callee_ty: Any,
+            return_ty: Int,
+            arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
+        },
         CallSiteContract {
             span: 122..154,
             kind: DirectTopLevel,
