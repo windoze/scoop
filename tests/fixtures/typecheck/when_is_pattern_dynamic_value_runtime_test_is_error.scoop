@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_type_pattern_runtime_test_not_supported
+// EXPECT-ERROR: 需要未开放的 runtime type test
+// EXPECT-ERROR-AT: 13:9
+// 目标：P5-T02 把动态 value-type `when is T` pattern 前移为前端明确拒绝，不能晚到 LLVM backend unsupported。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun classify(x: Any): Int {
+    return when (x) {
+        is Int -> 1
+        else -> 0
+    }
+}

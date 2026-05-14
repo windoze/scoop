@@ -1075,7 +1075,7 @@
     - 对应 `PLAN.md` P5 第 1 项：enum payload boxing、array composite element transport、value boxing erasure 与 cross-thread resume composite payload 已统一到同一套 descriptor-backed composite transport contract；不再保留“enum 一套 / array 一套 / effect payload 一套”的 live blocker 语义。
     - `PIPELINE_GAPS.md` 已回写 `§4.1`、`§4.3`、`§4.4`、`§4.5` 为 `Closed/Re-scoped`，并同步将它们在 `codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 中冻结为 `P5-T01` owner 的 closed guard。阶段顺序未改变，因此无需更新 `PLAN.md`。
 
-### [TODO] P5-T02：收口 closure env/capture transport 与 pattern `is Type` residual
+### [DONE] P5-T02：收口 closure env/capture transport 与 pattern `is Type` residual
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -1118,9 +1118,34 @@
 - 依赖：`P5-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/typecheck/when_pat.rs` 与 `crates/scoopc/src/typecheck/expr/error.rs`，为 `when` 的 `is Type` pattern 新增前端 gate：dynamic value-type target、pure function-type target、effectful function-type target 不再流到 LLVM backend unsupported，而是以前端明确诊断拒绝。
+    - 更新 `crates/scoopc/src/mir/lower.rs`，收紧 runtime type static fold：`value vs ref`、`class/string/function/union ref vs value` 等显然不可能的 pattern 现在直接折叠为 `AlwaysFalse`，不再晚到 runtime type test。
+    - 更新 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`，补 static-false IR 断言，固定 disjoint value/ref pattern `is Type` 不再走 runtime type test。
+    - 新增 `tests/fixtures/typecheck/when_is_pattern_{dynamic_value_runtime_test,function_type,effectful_function_type}_is_error.scoop`，固定新的前端拒绝 surface。
+    - 更新 `tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_closure_capture_basic.scoop`，删除 `Box` workaround，改为 direct enum capture，验证 closure env/capture transport 在 moving GC 下直接承载 aggregate capture。
+    - 更新 `PIPELINE_GAPS.md`、`crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_gap_audit.rs`，将 `§3.8`、`§3.11` 回写为 closed guard / frontend gate 状态，并同步 inventory owner、route、audit baseline。
   - 核心决策：
+    - `when` 的 `is Type` pattern 只保留两类默认主线路径：类/接口/String runtime test，以及可静态判定的 value pattern。其余仍未开放的 dynamic value-type / function-type target 不再让 backend 暴露 `UnsupportedMainBody`，而是前移为明确 `FrontendReject`。
+    - `runtime_type_static_fold(...)` 不再只处理“同型真 / value-value 假”的最小子集；对 `value vs ref` 等显然不可能的组合，直接在 MIR 元数据层冻结为 `AlwaysFalse`，避免 backend 为不必要的 runtime check 承担 residual gap。
+    - closure env 继续以 `Unit` / `Tuple` 作为上游 MIR 不变量，但默认主线接受的 aggregate capture 与 mutable capture box 全部复用 P5-T01 的 descriptor-backed composite transport contract；因此 runtime GC 回归必须删除 `Box` workaround，改测 direct aggregate capture。
   - 验证结果：
+    - `cargo test -p scoopc refactor_llvm_closure_env_transport`
+    - `cargo test -p scoopc refactor_llvm_runtime_type_primitives`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/pattern_is_type.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_trace_closure_capture_string_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_closure_capture_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/parameterized_supertype_interface_dispatch.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_is_pattern_dynamic_value_runtime_test_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_is_pattern_function_type_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_is_pattern_effectful_function_type_is_error.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo fmt`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P5 第 3、5、6 项：closure env/capture transport 已与 composite transport contract 收口到同一套 descriptor/trace 规则；pattern `is Type` residual 已通过“实现默认主线路径 + 前移未开放 surface”闭合，不再保留 raw MIR backend unsupported。
+    - `PIPELINE_GAPS.md` 已回写 `§3.8`、`§3.11` 为 `Closed/Re-scoped`，并同步将对应 codegen inventory 条目标记为 `P5-T02` owner 的 closed guard / frontend gate；阶段顺序未改变，因此无需更新 `PLAN.md`。
 
 ## P6：同步 frontend gate、收尾 partial surface、重写账本
 

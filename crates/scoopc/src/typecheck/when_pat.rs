@@ -101,9 +101,9 @@ fn check_when_pat(
             }
             Ok(())
         }
-        ast::WhenPat::Is { ty, .. } => {
-            // 当前阶段仅保证 TypeRef 可 lowering（运行期语义与 smart cast 留给后续阶段补齐）。
-            let _ = lower.lower_type_ref(ty)?;
+        ast::WhenPat::Is { ty, is_span } => {
+            let target_ty = lower.lower_type_ref(ty)?;
+            check_when_is_pattern_target(expected_ty, target_ty, *is_span, lower, builtins)?;
             Ok(())
         }
         ast::WhenPat::Bind { ident } => {
@@ -282,6 +282,98 @@ fn check_when_pat(
             Ok(())
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum WhenPatternTypeTestFold {
+    AlwaysTrue,
+    AlwaysFalse,
+    Dynamic,
+}
+
+fn check_when_is_pattern_target(
+    subject_ty: TypeId,
+    target_ty: TypeId,
+    at: Span,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    if when_pattern_type_test_fold(subject_ty, target_ty, lower, builtins)
+        != WhenPatternTypeTestFold::Dynamic
+    {
+        return Ok(());
+    }
+    if when_is_pattern_dynamic_runtime_supported(target_ty, lower) {
+        return Ok(());
+    }
+
+    match lower.type_kind(target_ty) {
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            let target = lower.fmt_type(target_ty);
+            if fun.effects.is_pure() {
+                Err(ExprTypeError::WhenFunctionTypePatternNotSupported {
+                    target,
+                    span: at.into(),
+                })
+            } else {
+                Err(
+                    ExprTypeError::WhenEffectfulFunctionTypePatternNotSupported {
+                        target,
+                        span: at.into(),
+                    },
+                )
+            }
+        }
+        _ => Err(ExprTypeError::WhenTypePatternRuntimeTestNotSupported {
+            subject: lower.fmt_type(subject_ty),
+            target: lower.fmt_type(target_ty),
+            span: at.into(),
+        }),
+    }
+}
+
+// Keep this in sync with `mir/lower.rs::runtime_type_static_fold(...)` so the frontend gate and
+// MIR metadata agree about which `when is T` shapes are compile-time constants.
+fn when_pattern_type_test_fold(
+    subject_ty: TypeId,
+    target_ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> WhenPatternTypeTestFold {
+    if subject_ty == target_ty {
+        return WhenPatternTypeTestFold::AlwaysTrue;
+    }
+    if target_ty == builtins.any {
+        return WhenPatternTypeTestFold::AlwaysTrue;
+    }
+    if target_ty == builtins.nothing {
+        return WhenPatternTypeTestFold::AlwaysFalse;
+    }
+
+    match (lower.type_kind(subject_ty), lower.type_kind(target_ty)) {
+        (TypeKind::Value(_), TypeKind::Value(_)) => WhenPatternTypeTestFold::AlwaysFalse,
+        (TypeKind::Value(_), TypeKind::Ref(_)) => WhenPatternTypeTestFold::AlwaysFalse,
+        (TypeKind::Ref(RefTypeKind::String), TypeKind::Value(_))
+        | (TypeKind::Ref(RefTypeKind::Function(_)), TypeKind::Value(_))
+        | (TypeKind::Ref(RefTypeKind::Union(_)), TypeKind::Value(_)) => {
+            WhenPatternTypeTestFold::AlwaysFalse
+        }
+        (TypeKind::Ref(RefTypeKind::Nominal(nominal)), TypeKind::Value(_))
+            if lower.nominal_decl_kind(&nominal.fqn) != Some(ast::TypeKind::Interface) =>
+        {
+            WhenPatternTypeTestFold::AlwaysFalse
+        }
+        _ => WhenPatternTypeTestFold::Dynamic,
+    }
+}
+
+fn when_is_pattern_dynamic_runtime_supported(target_ty: TypeId, lower: &TypeLowering<'_>) -> bool {
+    matches!(
+        lower.type_kind(target_ty),
+        TypeKind::Ref(RefTypeKind::Any)
+            | TypeKind::Ref(RefTypeKind::String)
+            | TypeKind::Ref(RefTypeKind::Nominal(_))
+    )
 }
 
 fn is_integer_pattern_subject(

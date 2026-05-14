@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_effectful_function_type_pattern_not_supported
+// EXPECT-ERROR: effect row 只存在于编译期
+// EXPECT-ERROR-AT: 15:9
+// 目标：P5-T02 保持带非 `Pure` effect row 的 function-type `when is T` pattern 的更早 reject。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+typealias EffFn = () -> Int / Raise<RuntimeError>
+
+fun classify(x: Any): Int {
+    return when (x) {
+        is EffFn -> 1
+        else -> 0
+    }
+}

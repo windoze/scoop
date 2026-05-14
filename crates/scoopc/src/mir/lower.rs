@@ -3053,6 +3053,17 @@ impl<'a> FnLowering<'a> {
 
         match (self.types.kind(source_ty), self.types.kind(target_ty)) {
             (TypeKind::Value(_), TypeKind::Value(_)) => RuntimeTypeStaticFold::AlwaysFalse,
+            (TypeKind::Value(_), TypeKind::Ref(_)) => RuntimeTypeStaticFold::AlwaysFalse,
+            (TypeKind::Ref(RefTypeKind::String), TypeKind::Value(_))
+            | (TypeKind::Ref(RefTypeKind::Function(_)), TypeKind::Value(_))
+            | (TypeKind::Ref(RefTypeKind::Union(_)), TypeKind::Value(_)) => {
+                RuntimeTypeStaticFold::AlwaysFalse
+            }
+            (TypeKind::Ref(RefTypeKind::Nominal(nominal)), TypeKind::Value(_))
+                if self.facts.nominal_kind(&nominal.fqn) != Some(ast::TypeKind::Interface) =>
+            {
+                RuntimeTypeStaticFold::AlwaysFalse
+            }
             _ => RuntimeTypeStaticFold::Dynamic,
         }
     }

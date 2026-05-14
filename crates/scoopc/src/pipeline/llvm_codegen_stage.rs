@@ -980,6 +980,13 @@ fun classifyValue(x: Int): Int {
     }
 }
 
+fun classifyImpossible(x: Int): Int {
+    return when (x) {
+        is String -> 7
+        else -> 9
+    }
+}
+
 fun main(): Int {
     val x: Any = Impl()
     val _is_iface: Bool = x is IFace
@@ -1919,6 +1926,25 @@ fun main(): Int {
                 && !classify_ir.contains("isa_iface")
                 && !classify_ir.contains("isa_loop"),
             "pattern `is Type` should codegen through MIR pattern metadata, including static folds，而不是依赖当前 callable symbol 文本:\n{classify_ir}"
+        );
+        let impossible_ir = ir_function_matching(
+            &ir,
+            "type-pattern helper with statically folded false branch condition",
+            |header, function| {
+                !header.contains("@main(")
+                    && header.contains("(i64")
+                    && function.contains("br i1 false")
+                    && function.contains("phi i64 [ 7,")
+                    && function.contains("[ 9,")
+            },
+        );
+        assert!(
+            impossible_ir.contains("br i1 false")
+                && impossible_ir.contains("phi i64 [ 7,")
+                && impossible_ir.contains("[ 9,")
+                && !impossible_ir.contains("isa_iface")
+                && !impossible_ir.contains("isa_loop"),
+            "disjoint value/ref pattern `is Type` 应静态折叠为 false，而不是继续走 runtime type test:\n{impossible_ir}"
         );
     }
 

@@ -10,7 +10,7 @@
 - pre-MIR / MIR placeholder 主线已收口；当前主要剩 regression guard 与更下游的 contract drift，而不是新的 live lowering gap。
 - raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind 仍依赖更早 verifier 或 routing。
 - effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；对应 gap id 仅保留 guard / drift audit 语义。
-- aggregate/composite 主线上的 enum/array boxing、shared descriptor transport 与 cross-thread composite payload reuse 已收口；剩余相关工作主要落在 closure env/capture transport（`§3.11`）而不是 enum/array residual。
+- aggregate/composite 主线上的 enum/array boxing、shared descriptor transport、closure env/capture transport 与 cross-thread composite payload reuse 已收口；相关编号现在只剩 guard / frontend gate 语义。
 
 ## 如何阅读
 
@@ -194,9 +194,9 @@
 
 ### 3.8 MIR pattern `is Type` 只支持 ref/string
 
-- 状态：`Partial`。
-- 结论：当前 pattern runtime type test 仍要求 subject/target 落在 `Ref` / `String` 语义上；这对当前支持的类/接口 runtime test 够用，但 value-type / function-type pattern 仍未开放。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:4147-4217`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`when` 的 `is Type` pattern 现在完整覆盖类/接口/String runtime test，以及可静态折叠的 value pattern；其余仍未开放的 dynamic value-type / function-type target 已在前端明确拒绝，不再晚到 LLVM backend unsupported。
+- 证据：`crates/scoopc/src/typecheck/when_pat.rs`，`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`，`tests/fixtures/mir_refactor/pattern_is_type.scoop`，`tests/fixtures/typecheck/when_is_pattern_dynamic_value_runtime_test_is_error.scoop`，`tests/fixtures/typecheck/when_is_pattern_function_type_is_error.scoop`，`tests/fixtures/typecheck/when_is_pattern_effectful_function_type_is_error.scoop`。
 
 ### 3.9 class ctor raw MIR 不支持 named/default args
 
@@ -212,9 +212,9 @@
 
 ### 3.11 closure env / capture shape 限制
 
-- 状态：`Partial`。
-- 结论：closure env 现在已经支持 tuple env 与标量/ref/aggregate capture 元素，也支持 mutable capture box contract；但 raw path 仍要求 env 是 `Unit` 或 `Tuple`，且必须发布 closure env transport contract。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:6333-6423`。
+- 状态：`Closed/Re-scoped`。
+- 结论：closure env 现在统一发布 `ClosureEnvTransportMetadata` 与 descriptor-backed composite transport contract；默认主线接受的 tuple env、aggregate capture 与 mutable capture box 都走同一套 env layout / trace / load-store 规则，而 `Unit` / `Tuple` env 约束已经前移成上游 MIR 不变量，不再是 live backend gap。
+- 证据：`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/llvm/codegen/composite_transport.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`，`tests/fixtures/runtime_gc/gc_trace_closure_capture_string_basic.scoop`，`tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_closure_capture_basic.scoop`。
 
 ### 3.12 effect-typed closure/function-value adapter 限制
 

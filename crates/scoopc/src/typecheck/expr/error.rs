@@ -884,6 +884,37 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "`when` 的 `is T` pattern 不支持函数类型的 runtime test：{target}；请改用 nominal wrapper，或在更早阶段改写逻辑"
+    )]
+    #[diagnostic(code(scoop::typecheck::when_function_type_pattern_not_supported))]
+    WhenFunctionTypePatternNotSupported {
+        target: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "带非 `Pure` effect row 的函数类型不能作为 `when` 的 `is T` pattern：{target}；effect row 只存在于编译期，不能作为 runtime type test 合同"
+    )]
+    #[diagnostic(code(scoop::typecheck::when_effectful_function_type_pattern_not_supported))]
+    WhenEffectfulFunctionTypePatternNotSupported {
+        target: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`when` 的 `is T` pattern 当前只支持 ref/string runtime test，或可静态判定的 value pattern；这里的 subject={subject}、target={target} 需要未开放的 runtime type test"
+    )]
+    #[diagnostic(code(scoop::typecheck::when_type_pattern_runtime_test_not_supported))]
+    WhenTypePatternRuntimeTestNotSupported {
+        subject: String,
+        target: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 receiver 类型不匹配：{callee} 期望 receiver 为 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::call_receiver_type_mismatch))]
     CallReceiverTypeMismatch {

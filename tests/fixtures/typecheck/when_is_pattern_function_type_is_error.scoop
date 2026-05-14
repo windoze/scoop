@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_function_type_pattern_not_supported
+// EXPECT-ERROR: 不支持函数类型的 runtime test
+// EXPECT-ERROR-AT: 15:9
+// 目标：P5-T02 保持 pure function-type `when is T` pattern 的更早 reject，不能让它流到 backend unsupported。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+typealias Fn = () -> Int / Pure!
+
+fun classify(x: Any): Int {
+    return when (x) {
+        is Fn -> 1
+        else -> 0
+    }
+}

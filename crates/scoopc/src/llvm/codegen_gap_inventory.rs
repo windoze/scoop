@@ -127,12 +127,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.8",
-        "CG-T02",
-        "CG-T02 / MIR-T09R",
-        RawMirLlvm,
+        "P5-T02",
+        "P5-T02 / pattern type-test gate and guard",
+        FrontendReject,
         false,
-        true,
-        "pass MIR pattern is Type"
+        false,
+        "when-pattern runtime type test target must stay in ref/string or statically folded value surface"
     ),
     gap!(
         "PIPELINE_GAPS §3.9",
@@ -154,12 +154,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.11",
-        "CG-T04e",
-        "CG-T04e / MIR-T10R",
-        RawMirLlvm,
-        false,
+        "P5-T02",
+        "P5-T02 / closure env composite transport guard",
+        EffectRefactorLlvm,
         true,
-        "pass MIR closure env/aggregate shape"
+        false,
+        "closure env transport must publish shared descriptor-backed env/capture contract"
     ),
     gap!(
         "PIPELINE_GAPS §3.12",
@@ -458,6 +458,39 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_p5_t02_pattern_and_closure_gaps_as_closed_guards() {
+        let pattern = codegen_gap_entry("PIPELINE_GAPS §3.8")
+            .expect("§3.8 guard should remain tracked in inventory");
+        assert_eq!(pattern.owner_task, "P5-T02");
+        assert_eq!(
+            pattern.suggested_owner,
+            "P5-T02 / pattern type-test gate and guard"
+        );
+        assert_eq!(pattern.route, CodegenGapRoute::FrontendReject);
+        assert!(!pattern.needs_upstream_contract);
+        assert!(!pattern.production_blocker);
+        assert_eq!(
+            pattern.trigger,
+            "when-pattern runtime type test target must stay in ref/string or statically folded value surface"
+        );
+
+        let closure = codegen_gap_entry("PIPELINE_GAPS §3.11")
+            .expect("§3.11 guard should remain tracked in inventory");
+        assert_eq!(closure.owner_task, "P5-T02");
+        assert_eq!(
+            closure.suggested_owner,
+            "P5-T02 / closure env composite transport guard"
+        );
+        assert_eq!(closure.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert!(closure.needs_upstream_contract);
+        assert!(!closure.production_blocker);
+        assert_eq!(
+            closure.trigger,
+            "closure env transport must publish shared descriptor-backed env/capture contract"
+        );
     }
 
     #[test]
