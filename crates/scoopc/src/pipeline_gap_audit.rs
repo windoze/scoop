@@ -93,6 +93,9 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §3.13",
     "PIPELINE_GAPS §4.1",
     "PIPELINE_GAPS §4.2",
+    "PIPELINE_GAPS §4.3",
+    "PIPELINE_GAPS §4.4",
+    "PIPELINE_GAPS §4.5",
     "PIPELINE_GAPS §5.1",
     "PIPELINE_GAPS §5.2",
     "PIPELINE_GAPS §5.3",
@@ -108,7 +111,7 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
 ];
 
 #[cfg(feature = "llvm")]
-const CODEGEN_SCOPE_SHIFTED_PARTIAL_GAPS: &[&str] = &["PIPELINE_GAPS §4.1"];
+const CODEGEN_SCOPE_SHIFTED_PARTIAL_GAPS: &[&str] = &[];
 
 #[cfg(feature = "llvm")]
 const CODEGEN_CLOSED_RESCOPED_PRODUCTION_BLOCKERS: &[&str] = &[

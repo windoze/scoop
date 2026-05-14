@@ -10,7 +10,7 @@
 - pre-MIR / MIR placeholder 主线已收口；当前主要剩 regression guard 与更下游的 contract drift，而不是新的 live lowering gap。
 - raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind 仍依赖更早 verifier 或 routing。
 - effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；对应 gap id 仅保留 guard / drift audit 语义。
-- aggregate/composite 相关的 live hole 主要落在 enum 边角布局与 array/composite transport，而不是“完全没有 boxing”。
+- aggregate/composite 主线上的 enum/array boxing、shared descriptor transport 与 cross-thread composite payload reuse 已收口；剩余相关工作主要落在 closure env/capture transport（`§3.11`）而不是 enum/array residual。
 
 ## 如何阅读
 
@@ -232,9 +232,9 @@
 
 ### 4.1 tuple/struct 到 `Any`/`Ref` 没有通用装箱
 
-- 状态：`Partial`。
-- 结论：generic MIR composite value boxing 现在已经存在；当前真正的 live hole 已转移到 array/composite transport 与若干 enum layout 边角，而不是“完全没有 aggregate boxing”。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:2210-2259`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3025-3028`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3194-3197`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3742-3745`。
+- 状态：`Closed/Re-scoped`。
+- 结论：descriptor-backed `Rvalue::Transport` / value erasure 现在已经能统一承载 tuple、struct 与 enum payload 的 `Any`/`Ref` 装箱；剩余分支只再表达“boxing intent / materialized layout contract 被破坏”的 backend guard，而不再是 live feature gap。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen/composite_transport.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_value_boxing_transport`，`tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`。
 
 ### 4.2 enum boxed payload 中 `Unit` field 会失败
 
@@ -244,21 +244,21 @@
 
 ### 4.3 大整数 enum payload 超过 payload word 会失败
 
-- 状态：`Open`。
-- 结论：inline enum payload 仍假设单 word 表示；超过 payload word 的整数 payload 依然 unsupported。
-- 证据：`crates/scoopc/src/llvm/codegen/enum_lowering.rs:284-296`。
+- 状态：`Closed/Re-scoped`。
+- 结论：enum layout 现在会在 lowering 前把超过 payload word 的整数 payload 统一改走 boxed composite transport；下游 large-int 分支仅剩“boxed payload contract 漂移”的 impossible-state guard，不再是默认主线 blocker。
+- 证据：`crates/scoopc/src/llvm/codegen/layout.rs`，`crates/scoopc/src/llvm/codegen/enum_lowering.rs`，`tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`。
 
 ### 4.4 nested enum / tuple / struct payload 有 unsupported repr
 
-- 状态：`Open`。
-- 结论：array literal synthetic helper call-site 污染已收口；当前剩余问题是真实的 nested enum repr 与 tuple/struct/non-scalar payload composite transport 仍未统一走 boxed/shared contract，ctor 与 pattern extraction 两侧都保留 explicit unsupported。
-- 证据：`crates/scoopc/src/llvm/codegen/enum_lowering.rs:418-427`，`crates/scoopc/src/llvm/codegen/control_flow.rs:1217-1239`，`crates/scoopc/src/llvm/codegen/control_flow.rs:1364-1372`。
+- 状态：`Closed/Re-scoped`。
+- 结论：non-niche nested enum、tuple、struct payload 现在会在 enum layout 阶段统一切到 boxed composite transport；ctor lowering 与 when/pattern extraction 共同消费同一套 boxed payload contract，原先的 unsupported repr 只再保留为 contract guard。
+- 证据：`crates/scoopc/src/llvm/codegen/layout.rs`，`crates/scoopc/src/llvm/codegen/enum_lowering.rs`，`crates/scoopc/src/llvm/codegen/control_flow.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_enum_payload_transport`，`tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`。
 
 ### 4.5 Array get/set 对 composite element 支持不足
 
-- 状态：`Open`。
-- 结论：这是当前 aggregate/composite 主线上最清晰的 live gap。array literal helper 现在已经能把未污染的 enum/tuple/class element contract 稳定送到 backend；剩余问题是 refactor `Array.get` / `MutableArray.set` 仍要求完整 composite transport metadata，缺 metadata 或退回 `u64` 路径时 composite element 仍 unsupported。
-- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3020-3028`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3194-3208`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3742-3745`。
+- 状态：`Closed/Re-scoped`。
+- 结论：array builder / get / set 现在都通过 `ArrayElementTransportMetadata` 与共享 descriptor-backed composite transport contract 传递 composite element；缺 metadata 或退回 `u64` decode 对 composite value 的旧路径已降为 backend contract guard。现有 cross-thread resume composite payload regression 继续复用同一套 descriptor helper，而没有重新分叉新的 transport contract。
+- 证据：`crates/scoopc/src/mir/lower.rs`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_array_composite_transport`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_cross_thread_resume_payload_transport`，`tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`，`tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`。
 
 ## 5. Effect Refactor / Late-Lowered State Graph 缺口
 
@@ -379,7 +379,7 @@
 2. raw MIR residual effect/control routing 已收口；后续保持 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 gate-only 语义，避免这些 shape 回流到 plain/materialized MIR emitter。
 3. effect-refactor 的 ABI/routing 主线已收口；后续保持 `§3.12`、`§5.1`、`§5.3`、`§5.4` 的 guard-only 语义，确保 actual outward effect set 继续决定 callable ABI。
 4. `§1.13` 已收口；后续继续保留 array literal synthetic helper call-site identity 的 regression guard，避免 composite transport 入口再次在 backend 前失真。
-5. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`；它们现在拿到的 enum/array upstream contract 已经是稳定的 authoritative input。
+5. aggregate/composite 的 enum/array boxing 主线已收口；后续保持 `§4.1`、`§4.3`、`§4.4`、`§4.5` 的 guard-only 语义，并继续让 cross-thread resume payload 复用同一套 descriptor-backed contract。
 6. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
 
 ## 9. 建议验证矩阵

@@ -2236,34 +2236,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let body_fqn = self.current_codegen_body_fqn();
         let Some(boxing) = transport.boxing.as_ref() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport missing boxing intent",
-                at: span.into(),
-            });
+            return Err(super::composite_transport::composite_transport_gate_error(
+                &body_fqn,
+                span,
+                "PIPELINE_GAPS §4.1",
+                "composite value erasure must publish boxing intent before LLVM lowering",
+            ));
         };
         if !matches!(
             boxing.reason,
             crate::mir::MirBoxingReason::AnyErasure | crate::mir::MirBoxingReason::RefErasure
         ) || boxing.source_ty != transport.source_ty
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport boxing intent",
-                at: span.into(),
-            });
+            return Err(super::composite_transport::composite_transport_gate_error(
+                &body_fqn,
+                span,
+                "PIPELINE_GAPS §4.1",
+                "composite value erasure boxing intent must remain aligned with the published source transport",
+            ));
         }
         let source_ty = self
             .equivalent_codegen_type_id(mir_types, transport.source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport source type",
-                at: span.into(),
+            .ok_or_else(|| {
+                super::composite_transport::composite_transport_gate_error(
+                    &body_fqn,
+                    span,
+                    "PIPELINE_GAPS §4.1",
+                    "composite value erasure source type must stay materialized before LLVM lowering",
+                )
             })?;
-        let source_cg = self
-            .cg_ty_of(source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport source codegen type",
-                at: span.into(),
-            })?;
+        let source_cg = self.cg_ty_of(source_ty).ok_or_else(|| {
+            super::composite_transport::composite_transport_gate_error(
+                &body_fqn,
+                span,
+                "PIPELINE_GAPS §4.1",
+                "composite value erasure source layout must stay queryable before LLVM lowering",
+            )
+        })?;
 
         if matches!(
             mir_types.kind(transport.source_ty),
@@ -2283,12 +2294,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         if target_cg != CgTy::Ref {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value erasure transport target type",
-                at: span.into(),
-            });
+            return Err(super::composite_transport::composite_transport_gate_error(
+                &body_fqn,
+                span,
+                "PIPELINE_GAPS §4.1",
+                "composite value erasure must lower to Ref or String after descriptor publication",
+            ));
         }
-        let body_fqn = self.current_codegen_body_fqn();
         let _descriptor = self.get_or_create_value_composite_transport_descriptor_global(
             &body_fqn, span, mir_types, transport,
         )?;

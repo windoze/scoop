@@ -1214,10 +1214,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 })
                             }
                         },
-                        _ => Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when payload (nested enum, unsupported repr)",
-                            at: field_span.into(),
-                        }),
+                        _ => Err(
+                            super::composite_transport::composite_transport_codegen_guard_error(
+                                self,
+                                field_span,
+                                "PIPELINE_GAPS §4.4",
+                                "nested enum payload extraction must reuse boxed composite transport before LLVM lowering",
+                            ),
+                        ),
                     }
                 }
                 CgTy::Never
@@ -1234,10 +1238,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if !matches!(repr, CgEnumRepr::TaggedUnion) || variant.fields.len() != 1 || field_idx != 0 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when variant payload (inline, unsupported arity)",
-                at: field_span.into(),
-            });
+            return Err(
+                super::composite_transport::composite_transport_codegen_guard_error(
+                    self,
+                    field_span,
+                    "PIPELINE_GAPS §4.4",
+                    "inline enum payload extraction must not observe an unboxed multi-field payload after composite transport boxing",
+                ),
+            );
         }
 
         let llvm_enum_ty = self
@@ -1361,16 +1369,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             })
                         }
                     },
-                    _ => Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when payload (nested enum, unsupported repr)",
-                        at: field_span.into(),
-                    }),
+                    _ => Err(
+                        super::composite_transport::composite_transport_codegen_guard_error(
+                            self,
+                            field_span,
+                            "PIPELINE_GAPS §4.4",
+                            "nested enum payload extraction must reuse boxed composite transport before LLVM lowering",
+                        ),
+                    ),
                 }
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when payload (non-scalar)",
-                at: field_span.into(),
-            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(
+                super::composite_transport::composite_transport_codegen_guard_error(
+                    self,
+                    field_span,
+                    "PIPELINE_GAPS §4.4",
+                    "tuple/struct enum payload extraction must reuse boxed composite transport before LLVM lowering",
+                ),
+            ),
         }
     }
 

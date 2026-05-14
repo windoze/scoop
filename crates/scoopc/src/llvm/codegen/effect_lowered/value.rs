@@ -3076,10 +3076,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     );
                 }
                 if Self::array_codegen_ty_requires_composite_runtime(elem_cg) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor Array.get composite transport metadata",
-                        at: span.into(),
-                    });
+                    return Err(
+                        super::super::composite_transport::composite_transport_codegen_guard_error(
+                            self.codegen,
+                            span,
+                            "PIPELINE_GAPS §4.5",
+                            "array get on composite elements must publish descriptor-backed transport metadata before LLVM lowering",
+                        ),
+                    );
                 }
                 match elem_cg {
                     CgTy::Ref | CgTy::String => {
@@ -3245,10 +3249,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                                 at: args[2].span.into(),
                             })?;
                         if Self::array_codegen_ty_requires_composite_runtime(value_cg) {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor MutableArray.set composite transport metadata",
-                                at: args[2].span.into(),
-                            });
+                            return Err(super::super::composite_transport::composite_transport_codegen_guard_error(
+                                self.codegen,
+                                args[2].span,
+                                "PIPELINE_GAPS §4.5",
+                                "array set on composite elements must publish descriptor-backed transport metadata before LLVM lowering",
+                            ));
                         }
                         let value = self.codegen.codegen_mir_operand_expected(
                             args[2].span,
@@ -3283,10 +3289,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         };
         if metadata.operation != operation {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor array composite transport operation",
-                at: span.into(),
-            });
+            return Err(
+                super::super::composite_transport::composite_transport_codegen_guard_error(
+                    self.codegen,
+                    span,
+                    "PIPELINE_GAPS §4.5",
+                    "array composite runtime helper must preserve operation-specific transport metadata",
+                ),
+            );
         }
         if self
             .codegen
@@ -3318,16 +3328,24 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         metadata: &mir::ArrayElementTransportMetadata,
     ) -> Result<CgTy, LlvmEmitError> {
         if metadata.element.source_ty != metadata.element_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor array composite element metadata",
-                at: span.into(),
-            });
+            return Err(
+                super::super::composite_transport::composite_transport_codegen_guard_error(
+                    self.codegen,
+                    span,
+                    "PIPELINE_GAPS §4.5",
+                    "array composite transport metadata must remain aligned with the concrete element source type",
+                ),
+            );
         }
         self.codegen
             .cg_ty_of_mir_type(self.source_types, metadata.element.source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor array composite element type",
-                at: span.into(),
+            .ok_or_else(|| {
+                super::super::composite_transport::composite_transport_codegen_guard_error(
+                    self.codegen,
+                    span,
+                    "PIPELINE_GAPS §4.5",
+                    "array composite transport element layout must stay materialized before LLVM lowering",
+                )
             })
     }
 
@@ -3792,12 +3810,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 kind: "refactor decode u64 word to gc pointer",
                 at: span.into(),
             }),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor decode u64 word to composite value",
-                    at: span.into(),
-                })
-            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(
+                super::super::composite_transport::composite_transport_codegen_guard_error(
+                    self.codegen,
+                    span,
+                    "PIPELINE_GAPS §4.5",
+                    "composite array elements must not fall back to the u64 decode path after descriptor publication",
+                ),
+            ),
         }
     }
 

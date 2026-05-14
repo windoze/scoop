@@ -987,7 +987,7 @@
 
 ## P5：统一 aggregate / composite transport
 
-### [TODO] P5-T01：统一 composite transport contract，关闭 enum/array boxing residual
+### [DONE] P5-T01：统一 composite transport contract，关闭 enum/array boxing residual
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -1045,9 +1045,35 @@
 - 依赖：`P4-T03`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/llvm/codegen/composite_transport.rs`，新增统一的 composite contract backend guard helper，供 LLVM lowering 各入口在 contract 漂移时回报稳定的 `BackendGateError`，不再把这些 residual 暴露成用户可见 `UnsupportedMainBody`。
+    - 更新 `crates/scoopc/src/llvm/codegen/mir_body.rs`，将 composite value erasure / descriptor publication 的 residual 从 `UnsupportedMainBody` 改为 `PIPELINE_GAPS §4.1` backend guard，明确 tuple/struct/enum payload -> `Any`/`Ref` 现在依赖单一 descriptor-backed boxing contract。
+    - 更新 `crates/scoopc/src/llvm/codegen/enum_lowering.rs` 与 `crates/scoopc/src/llvm/codegen/control_flow.rs`，将 oversized int payload、nested enum payload、tuple/struct payload、多字段 inline payload 的残余失败改写为 `§4.3` / `§4.4` contract guard；这些形状现在必须在 enum layout 阶段先切到 boxed composite transport。
+    - 更新 `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`，将 array get/set composite metadata 缺失、operation 漂移、element layout 漂移、composite value 落回 `u64` decode 的 residual 改写为 `§4.5` contract guard，并保持 cross-thread resume composite payload 继续复用同一 descriptor helper。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_gap_audit.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 与 `PIPELINE_GAPS.md`，把 `§4.1`、`§4.3`、`§4.4`、`§4.5` 从旧的 CG-T04 blocker/partial 语义回写为 `P5-T01` owner 的 closed/re-scoped guard，并同步失败策略/审计基线。
   - 核心决策：
+    - 不为 enum、array、value boxing、cross-thread resume payload 分别维护独立 contract；继续复用同一个 descriptor-backed composite transport helper，并把各入口的 residual 统一降为 backend contract guard。
+    - 不删除 downstream guard；保留它们作为 impossible-state 防线，但 guard 文案不再表达“尚未支持某特性”，而是明确说明 boxed payload / array metadata / value erasure contract 已被上游破坏。
+    - `§4.1` / `§4.3` / `§4.4` / `§4.5` 关闭后，inventory 继续保留这些稳定 gap id 作为 regression / drift audit，但不再允许它们以 production blocker 身份出现在 active codegen inventory 中。
   - 验证结果：
+    - `cargo test -p scoopc codegen_gap_inventory -- --nocapture`
+    - `cargo test -p scoopc pipeline_gap_audit -- --nocapture`
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_value_boxing_transport -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_enum_payload_transport -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_array_composite_transport -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_cross_thread_resume_payload_transport -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_payload_boxing_any_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/enum_oversized_variant_boxing_suppressed.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg 'enum payload larger than word|nested enum/tuple/struct payload unsupported|array composite element u64 word unsupported|value boxing tuple/struct unsupported' crates/scoopc/src`：0 命中。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P5 第 1 项：enum payload boxing、array composite element transport、value boxing erasure 与 cross-thread resume composite payload 已统一到同一套 descriptor-backed composite transport contract；不再保留“enum 一套 / array 一套 / effect payload 一套”的 live blocker 语义。
+    - `PIPELINE_GAPS.md` 已回写 `§4.1`、`§4.3`、`§4.4`、`§4.5` 为 `Closed/Re-scoped`，并同步将它们在 `codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 中冻结为 `P5-T01` owner 的 closed guard。阶段顺序未改变，因此无需更新 `PLAN.md`。
 
 ### [TODO] P5-T02：收口 closure env/capture transport 与 pattern `is Type` residual
 

@@ -181,12 +181,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §4.1",
-        "CG-T04b",
-        "CG-T04b / MIR-T10R",
+        "P5-T01",
+        "P5-T01 / composite value erasure guard",
         EffectRefactorLlvm,
-        false,
         true,
-        "value boxing tuple/struct unsupported"
+        false,
+        "composite value erasure must publish descriptor-backed boxing intent"
     ),
     gap!(
         "PIPELINE_GAPS §4.2",
@@ -199,30 +199,30 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §4.3",
-        "CG-T04c",
-        "CG-T04c / MIR-T10R",
+        "P5-T01",
+        "P5-T01 / oversized enum payload boxing guard",
         RawMirLlvm,
         false,
-        true,
-        "enum payload larger than word"
+        false,
+        "oversized enum payload must already route through boxed composite transport"
     ),
     gap!(
         "PIPELINE_GAPS §4.4",
-        "CG-T04c",
-        "CG-T04c / MIR-T10R",
+        "P5-T01",
+        "P5-T01 / boxed enum payload guard",
         RawMirLlvm,
         false,
-        true,
-        "nested enum/tuple/struct payload unsupported"
+        false,
+        "boxed enum payload contract must cover nested enum/tuple/struct payloads"
     ),
     gap!(
         "PIPELINE_GAPS §4.5",
-        "CG-T04d",
-        "CG-T04d / MIR-T10R",
+        "P5-T01",
+        "P5-T01 / array composite element transport guard",
         EffectRefactorLlvm,
-        false,
         true,
-        "array composite element u64 word unsupported"
+        false,
+        "array composite element transport must publish descriptor-backed metadata"
     ),
     gap!(
         "PIPELINE_GAPS §5.1",
@@ -461,22 +461,48 @@ mod tests {
     }
 
     #[test]
-    fn codegen_gap_inventory_keeps_composite_transport_owners_split() {
-        for (gap_id, owner) in [
-            ("PIPELINE_GAPS §3.11", "CG-T04e"),
-            ("PIPELINE_GAPS §4.1", "CG-T04b"),
-            ("PIPELINE_GAPS §4.2", "CG-T04c"),
-            ("PIPELINE_GAPS §4.3", "CG-T04c"),
-            ("PIPELINE_GAPS §4.4", "CG-T04c"),
-            ("PIPELINE_GAPS §4.5", "CG-T04d"),
-            ("PIPELINE_GAPS §5.5", "CG-T04f"),
+    fn codegen_gap_inventory_marks_p5_t01_composite_transport_gaps_as_closed_guards() {
+        for (gap_id, suggested_owner, route, needs_upstream_contract, trigger) in [
+            (
+                "PIPELINE_GAPS §4.1",
+                "P5-T01 / composite value erasure guard",
+                CodegenGapRoute::EffectRefactorLlvm,
+                true,
+                "composite value erasure must publish descriptor-backed boxing intent",
+            ),
+            (
+                "PIPELINE_GAPS §4.3",
+                "P5-T01 / oversized enum payload boxing guard",
+                CodegenGapRoute::RawMirLlvm,
+                false,
+                "oversized enum payload must already route through boxed composite transport",
+            ),
+            (
+                "PIPELINE_GAPS §4.4",
+                "P5-T01 / boxed enum payload guard",
+                CodegenGapRoute::RawMirLlvm,
+                false,
+                "boxed enum payload contract must cover nested enum/tuple/struct payloads",
+            ),
+            (
+                "PIPELINE_GAPS §4.5",
+                "P5-T01 / array composite element transport guard",
+                CodegenGapRoute::EffectRefactorLlvm,
+                true,
+                "array composite element transport must publish descriptor-backed metadata",
+            ),
         ] {
-            let entry = codegen_gap_entry(gap_id).expect("composite gap must remain tracked");
-            assert_eq!(entry.owner_task, owner, "{gap_id} owner drifted");
-            assert_ne!(
-                entry.owner_task, "CG-T04",
-                "{gap_id} must not use a shared CG-T04 owner"
+            let entry = codegen_gap_entry(gap_id)
+                .unwrap_or_else(|| panic!("{gap_id} guard should remain tracked in inventory"));
+            assert_eq!(entry.owner_task, "P5-T01");
+            assert_eq!(entry.suggested_owner, suggested_owner);
+            assert_eq!(entry.route, route);
+            assert_eq!(entry.needs_upstream_contract, needs_upstream_contract);
+            assert!(
+                !entry.production_blocker,
+                "{gap_id} should now be represented as a closed composite-transport guard"
             );
+            assert_eq!(entry.trigger, trigger);
         }
     }
 

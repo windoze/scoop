@@ -239,10 +239,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 2) inline（非 boxed）variant：当前阶段仍采用 "word payload" 承载的小 payload。
         if variant.fields.len() > 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant payload (multi-field, not boxed)",
-                at: span.into(),
-            });
+            return Err(
+                super::composite_transport::composite_transport_codegen_guard_error(
+                    self,
+                    span,
+                    "PIPELINE_GAPS §4.4",
+                    "multi-field enum payload must already route through boxed composite transport before LLVM lowering",
+                ),
+            );
         }
 
         let payload = if let Some((field_cg, field_v)) = field_values.first().copied() {
@@ -287,10 +291,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })?;
                 if from.bits > payload_ty.bits {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload larger than word",
-                        at: at.into(),
-                    });
+                    return Err(
+                        super::composite_transport::composite_transport_codegen_guard_error(
+                            self,
+                            at,
+                            "PIPELINE_GAPS §4.3",
+                            "oversized enum payload must already route through boxed composite transport before LLVM lowering",
+                        ),
+                    );
                 }
                 let casted = self.cast_int(v, from, payload_ty)?;
                 Ok(CgEnumPayload {
@@ -415,16 +423,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             })
                         }
                     },
-                    _ => Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload (nested enum, unsupported repr)",
-                        at: at.into(),
-                    }),
+                    _ => Err(
+                        super::composite_transport::composite_transport_codegen_guard_error(
+                            self,
+                            at,
+                            "PIPELINE_GAPS §4.4",
+                            "nested enum payload must already route through boxed composite transport before LLVM lowering",
+                        ),
+                    ),
                 }
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum payload (non-scalar)",
-                at: at.into(),
-            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(
+                super::composite_transport::composite_transport_codegen_guard_error(
+                    self,
+                    at,
+                    "PIPELINE_GAPS §4.4",
+                    "tuple/struct enum payload must already route through boxed composite transport before LLVM lowering",
+                ),
+            ),
         }
     }
 

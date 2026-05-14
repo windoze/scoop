@@ -783,6 +783,24 @@ pub(super) fn composite_transport_gate_error(
     }))
 }
 
+pub(in crate::llvm::codegen) fn composite_transport_codegen_guard_error<'a, 'ctx>(
+    codegen: &MainCodegen<'a, 'ctx>,
+    span: Span,
+    gap_id: &'static str,
+    detail: &'static str,
+) -> LlvmEmitError {
+    composite_transport_gate_error(
+        codegen
+            .function_cx
+            .current_callable_fqn
+            .as_deref()
+            .unwrap_or("<unknown>"),
+        span,
+        gap_id,
+        detail,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
