@@ -93,6 +93,12 @@
 - 结论：typed frontend 现在发布显式 copy-update contract；`with_update` 若仍作为 raw 遗留分支残留，应在 preflight/HIR completeness 阶段拦截，而不是作为默认 LLVM gap。
 - 证据：`crates/scoopc/src/typecheck/lower.rs:500`，`crates/scoopc/src/pipeline/hir_preflight.rs:111-113`。
 
+### 1.13 array literal synthetic helper call-site identity 会污染元素 call contract
+
+- 状态：`Open`。
+- 结论：`synth_array_lit_from_exprs(...)` 当前把 synthetic `__scoop_array_builder_push` helper call 的 span 直接复用为元素表达式 span；在 typed call-site contract 以 source identity 关联时，这会让 helper contract 覆盖元素自身的 enum ctor / direct-call contract。其直接症状是：array literal 元素 `Hit(Point(...))` / `Pair((...))` 会先在 direct MIR 中被误降成单参数 `scoop.core.__scoop_array_builder_push(...)`，返回元素类型本身，随后真正的 builder push 再把这个错误结果继续 push，导致 `§4.4` / `§4.5` 的 composite transport 入口在到达 backend 前就已经失真。
+- 证据：`crates/scoopc/src/hir/lower/expr.rs:4043-4081`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs:1105-1143`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2766-2773`。
+
 ## 2. MIR Handoff / Materialization 缺口
 
 ### 2.1 refactor direct-style MIR validator 允许普通 Todo 通过
@@ -372,8 +378,9 @@
 1. pre-MIR / MIR handoff contract 已基本收紧；后续只需继续保持 `§2.3` / `§2.7` 的 guard-only 语义，不要再让 `UnsupportedMainBody` 承担 production 输入校验角色。
 2. raw MIR residual effect/control routing 已收口；后续保持 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 gate-only 语义，避免这些 shape 回流到 plain/materialized MIR emitter。
 3. effect-refactor 的 ABI/routing 主线已收口；后续保持 `§3.12`、`§5.1`、`§5.3`、`§5.4` 的 guard-only 语义，确保 actual outward effect set 继续决定 callable ABI。
-4. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
-5. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
+4. 在继续 P5 composite transport 前，先修 `§1.13` 的 synthetic helper call-site 污染，保证 array literal 元素中的 enum ctor / tuple payload contract 能以真实形状到达 MIR/LLVM。
+5. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
+6. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
 
 ## 9. 建议验证矩阵
 

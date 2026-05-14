@@ -24,6 +24,7 @@
 | `P3-T03` | P3 | 收口 `StoreMember` continuation route 与 raw function-ref normalization regression |
 | `P4-T01` | P4 | 让 actual outward effect set 唯一决定 callable ABI，并补齐 effect-typed callable adapter |
 | `P4-T02` | P4 | 收口 cleanup/unwind contract 与 `main(args)` plain routing |
+| `P4-T03` | P4 | 隔离 array literal synthetic helper call-site identity，修复 enum ctor contract 污染 |
 | `P5-T01` | P5 | 统一 composite transport contract，关闭 enum/array boxing residual |
 | `P5-T02` | P5 | 收口 closure env/capture transport 与 pattern `is Type` residual |
 | `P6-T01` | P6 | 收尾 `§3.5` / `§7.6` partial surface，统一 runtime cast 与 GC pin/handle policy |
@@ -931,6 +932,44 @@
     - 对应 `PLAN.md` P4 第 3、4、6 项：`ResumeUnwind` cleanup/unwind contract 与 `main(args)` plain routing 已通过已实现代码和回归验证收口；inventory/gap audit 现在将 `§5.3`、`§5.4` 视为 closed guard，而非默认主线 blocker。
     - `PIPELINE_GAPS.md` 已回写 `§5.3` 为 `Closed/Re-scoped`；`§5.4` 保持 closed 状态并在本任务中完成复核。`PLAN.md` 阶段顺序未改变，因此无需额外修改。
 
+### [TODO] P4-T03：隔离 array literal synthetic helper call-site identity，修复 enum ctor contract 污染
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P5
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.13、§4.4、§4.5
+- 目标：
+  - 让 array literal 合成出的 `__scoop_array_builder_*` helper call 与元素自身的用户 call/ctor call 拥有稳定且互不冲突的 typed call-site identity。
+  - 修复 enum variant ctor / tuple payload 等元素表达式在 direct MIR 中被误降成 `__scoop_array_builder_push(...)` 的污染问题。
+- 当前实现入口：
+  - `crates/scoopc/src/hir/lower/expr.rs::synth_array_lit_from_exprs`
+  - `crates/scoopc/src/mir/lower.rs`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_array_composite_transport`
+- 已确认的阻塞症状：
+  - 对 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::array_composite_transport_source` 对应源做 `dump-mir`，现可观察到：array literal 元素 `Hit(Point(...))` / `Pair((...))` 自身会先被误降成单参数 `scoop.core.__scoop_array_builder_push(...)`，返回 `sample.Item`，随后真正的 builder push 又把该错误结果作为元素继续 push。
+  - `cargo test -p scoopc refactor_llvm_array_composite_transport` 当前会报 `refactor array_builder_push arg contract`；这是 `P5-T01` 的直接前置阻塞，而不是 backend 可以局部绕过的 symptom。
+- 必须实现的内容：
+  1. 为 array literal synthetic helper calls 提供稳定、可区分、不会与元素用户表达式复用的 call-site span / identity。
+  2. 确保 array literal 元素中的 enum ctor / class ctor / 普通 direct call 继续发布并消费各自的 typed call-site contract，不再被 helper callee/metadata 覆盖。
+  3. 为该类污染增加 regression 覆盖。
+     - direct MIR 层至少要能断言：真正的 `__scoop_array_builder_push` 仍是双参数 helper call；元素自身的 enum ctor 保持 `Rvalue::EnumVariant` 或正确的 ctor/direct-call 形状，而不是伪装成 helper intrinsic。
+     - LLVM stage 回归需要继续覆盖 `refactor_llvm_array_composite_transport`。
+- 必须遵从的约束：
+  - 不得在 backend 侧接受单参数 `__scoop_array_builder_push`、猜测缺失 builder 参数，或把污染后的 helper call 当成新的 canonical contract。
+  - 不得通过缩窄 fixture 形状、绕开 enum ctor、改写元素表示来掩盖上游 contract 污染。
+- 验证：
+  1. `cargo test -p scoopc refactor_llvm_array_composite_transport`
+  2. 推荐新增：`cargo test -p scoopc refactor_mir_array_literal_helper_calls_keep_distinct_call_contracts`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/aggregate_transport.scoop`
+- 完成条件：
+  - array literal 的 synthetic builder helper 不再污染元素表达式的 typed call-site contract。
+  - `P5-T01` 入口所需的 enum ctor / array builder contract 可以作为 authoritative input 稳定到达 composite transport/codegen。
+- 依赖：`P4-T02`
+- 完成记录：
+  - 改动范围：
+  - 核心决策：
+  - 验证结果：
+  - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+
 ## P5：统一 aggregate / composite transport
 
 ### [TODO] P5-T01：统一 composite transport contract，关闭 enum/array boxing residual
@@ -947,6 +986,8 @@
   - `crates/scoopc/src/llvm/codegen/control_flow.rs`
   - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
   - `crates/scoopc/src/llvm/codegen/mir_body.rs`
+- 当前阻塞：
+   - 若不先完成 `P4-T03`，array literal 中的 enum ctor / composite element call-site contract 会被 synthetic builder helper 污染，导致本任务入口用例无法稳定进入正确的 composite transport/backend path。
   - 现有测试入口：
     - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals`
     - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs::refactor_llvm_value_boxing_transport`
@@ -986,7 +1027,7 @@
 - 完成条件：
   - `§4.1`、`§4.3`、`§4.4`、`§4.5` 关闭。
   - composite transport 成为单一 authoritative contract。
-- 依赖：`P4-T02`
+- 依赖：`P4-T03`
 - 完成记录：
   - 改动范围：
   - 核心决策：
