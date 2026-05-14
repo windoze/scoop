@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_not_supported_by_native_abi
+// EXPECT-ERROR: @CLayout struct
+// EXPECT-ERROR: NativePair
+// 目标：P2-T02 direct `@Extern` 不再把普通 nominal struct 仅因 value-only/GC-free 就默认放进 native ABI。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct NativePair(val x: Int, val y: Int)
+
+@Extern("native_pair_sum")
+fun nativePairSum(pair: NativePair): Int

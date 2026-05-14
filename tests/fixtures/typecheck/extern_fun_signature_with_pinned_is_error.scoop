@@ -1,5 +1,6 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_must_be_gc_free
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_not_supported_by_native_abi
+// EXPECT-ERROR: native ABI
 // EXPECT-ERROR: GcHandle.raw: UIntPtr
 // EXPECT-ERROR: Pinned
 // 目标：T4014b `Pinned` 只是 Scoop 侧短时裸地址借出 handle，不能作为 ordinary `@Extern` 的 ABI token。

@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::funptr_signature_not_supported_by_native_abi
+// EXPECT-ERROR: @CLayout struct
+// EXPECT-ERROR: NativePair
+// 目标：P2-T02 native `FunPtr` 也必须拒绝 ordinary nominal aggregate，而不是只看“是不是函数类型”。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.unsafe.*
+
+struct NativePair(val x: Int, val y: Int)
+
+typealias NativePairCallback = (NativePair) -> Int
+
+fun materialize(raw: UIntPtr): Unit {
+    @Unsafe do {
+        val _fp = uintPtrToFunPtr<NativePairCallback>(raw)
+    }
+}

@@ -42,7 +42,7 @@
 
 2. **`@Extern` 路径**  
    当前 `@Extern` 从 typecheck 到 codegen 都被定义成 **C ABI native leaf**：
-   - ABI 签名必须 GC-free
+   - ABI 签名必须满足 explicit native value contract
    - 必须是 `Pure`
    - 调用点走 `enter_native/leave_native`
    - callee 被视作 `gc-leaf-function`
@@ -95,7 +95,7 @@
    `FunctionType` 只描述 receiver/params/return/effects；一旦 `@Extern` 符号被取成 `FunPtr<F>`，调用点只剩下 `F`，不再知道它是 ordinary managed callable、还是 C ABI native callable、还是将来的 managed external callable。
 
 2. **direct `@Extern` 与 `FunPtr` 不能继续各自维护 native ABI classifier**。  
-   `P2-T01` 已把 direct `@Extern` 与 native `FunPtr` 收口到 shared native callable classifier：declaration / direct call / indirect call / MIR path 现在统一按同一份 native policy 决定参数/返回 lowering、target aggregate return、LLVM callconv、`enter_native/leave_native` 与 `gc-leaf`。后续 remaining 问题不再是 codegen classifier 分裂，而是 typecheck/surface gate 仍停留在 `GC-free` 近似上。
+   `P2-T01` 已把 direct `@Extern` 与 native `FunPtr` 收口到 shared native callable classifier：declaration / direct call / indirect call / MIR path 现在统一按同一份 native policy 决定参数/返回 lowering、target aggregate return、LLVM callconv、`enter_native/leave_native` 与 `gc-leaf`。`P2-T02` 继续把前端 surface gate 收口到同一份 explicit native value contract，不再停留在 `GC-free` 近似上。
 
 3. **`GC-free` 不是 `C ABI-safe` 的同义词**。  
    当前 `@Extern` typecheck 只要求签名为 GC-free 值类型，但这并不自动意味着 tuple、普通 nominal value type、enum 等都具备稳定的跨平台 C ABI。是否可安全过 native ABI，必须由单独的 ABI-safe 规则定义，而不能复用 GC-free 判定代替。
@@ -142,7 +142,6 @@
 
 当前已确认的 design drift（P0 只记录，不在本阶段修正）：
 
-- `crates/scoopc/src/typecheck/annotations.rs` 仍以 `GC-free` 作为 `@Extern` v1 门禁；这还不是 §5.1 想要的 explicit ABI-safe native allowlist。
 - `crates/scoopc/src/hir/mod.rs::ExternAbi` 仍只有 `C`；`ExternAbi::Scoop` 尚未进入 HIR / lowering 路径。
 
 ## 2. 分层模型
@@ -315,7 +314,7 @@ ExternAbi {
 
 ### 5.1 `ExternAbi::C`
 
-继续保留现有门禁：
+当前 v1 门禁：
 
 - 签名必须是 **ABI-safe 的 native value surface**，不能只用 GC-free 近似
 - `Pure`
@@ -324,9 +323,11 @@ ExternAbi {
 这里要特别强调：
 
 - `GC-free` 只说明“不含 GC 引用”，不说明“跨平台 C ABI 稳定”。
-- native ABI v1 应只接受一组明确列出的 ABI-safe 类型，而不是默认放行所有 GC-free aggregate。
-- 初版推荐的安全集合应至少包括：标量整数/布尔/字符/浮点、`UIntPtr`、以及 `Ptr<T>`/`@CLayout` 且已证明 ABI-safe 的值类型。
-- tuple、普通 nominal value type、enum、以及需要 hidden sret 才能表达的 aggregate，不应仅因 “GC-free” 就自动穿过 `ExternAbi::C`。
+- direct `@Extern` 与 native `FunPtr` 现在共享同一份 front-end contract：
+  - 允许：标量整数/布尔/字符/浮点、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple、以及字段递归满足同一 contract 的 `@CLayout` struct；
+  - 拒绝：GC ref、`Pinned` / `GcHandle` 这类 ordinary nominal token、普通非 `@CLayout` struct、rich enum / `Option<T>`，以及其它未固定 native value layout 的类型。
+- v1 明确保留 tuple aggregate native surface：`(Int, Int)` 这类 aggregate 继续允许 direct `@Extern` / native `FunPtr` 共享目标机 aggregate-return ABI。
+- 需要长期 opaque token 时，继续使用 `GcHandle.raw: UIntPtr` round-trip；短时裸地址借出继续使用 `GC.pin/unpin` + `Ptr<T>`。
 
 ### 5.2 `ExternAbi::Scoop`
 
@@ -358,7 +359,7 @@ ExternAbi {
 
 因此：
 
-1. 若 `FunPtr<F>` 来源于 native surface，则其调用必须与 `ExternAbi::C` 共享同一套 ABI-safe 规则。
+1. 若 `FunPtr<F>` 来源于 native surface，则其调用必须与 `ExternAbi::C` 共享同一套 ABI-safe 规则；`F` 的 receiver / 参数 / 返回值也必须落在 §5.1 那份 explicit native value surface 之内。
 2. `F` 本身必须是无 effect 的函数类型；`FunPtr` 调用永远不能切到 effect/state-machine ABI。
 3. 若将来需要支持 managed external function pointer，则它应是另一条显式 ABI family，而不是复用 native `FunPtr` 语义。
 4. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。

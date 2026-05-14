@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：P2-T02 current native surface 继续允许 `@CLayout` struct 走 direct `@Extern`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CLayout
+struct NativePair(val x: Int, val y: Int)
+
+@Extern("native_pair_sum")
+fun nativePairSum(pair: NativePair): Int

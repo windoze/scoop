@@ -229,12 +229,12 @@ pub enum AnnotationError {
     },
 
     #[error(
-        "`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；长期 opaque token 请 round-trip `GcHandle.raw: UIntPtr`，短时裸地址借出请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`"
+        "`@Extern` 函数的 native ABI 签名只接受当前 native value surface：标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple，以及 `@CLayout` struct；不接受 {found}；长期 opaque token 请 round-trip `GcHandle.raw: UIntPtr`，短时裸地址借出请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`"
     )]
-    #[diagnostic(code(scoop::typecheck::extern_fun_signature_must_be_gc_free))]
-    ExternFunSignatureMustBeGcFree {
+    #[diagnostic(code(scoop::typecheck::extern_fun_signature_not_supported_by_native_abi))]
+    ExternFunSignatureNotSupportedByNativeAbi {
         found: String,
-        #[label("这里的类型不是 GC-free 值类型")]
+        #[label("这里的类型不在当前 native ABI contract 中")]
         span: miette::SourceSpan,
     },
 
@@ -2121,13 +2121,14 @@ fn check_builtin_annotations_on_fun_decl(
         check_extern_fun_effect_contract(fun)?;
     }
 
-    // 4) `@Extern`：C ABI 边界禁止直接透传 GC 引用类型（addrspace(1) ref 指针）。
+    // 4) `@Extern`：native callable surface 必须走当前发布的 value contract。
     //
     // 说明：
-    // - 这里采用保守判定：签名中的 receiver/参数/返回值都必须是 GC-free 值类型；
-    // - 允许通过 `Ptr<T>` / `UIntPtr` 等显式桥接；`Ptr<T>` 的 pointee GC-free 门禁由 TypeLowering 负责。
+    // - `@Extern` 与 native `FunPtr` 共享同一份 front-end gate；
+    // - 允许通过 `Ptr<T>` / `UIntPtr` / `FunPtr<F>` token、tuple、`@CLayout` struct 等 current v1 surface 过边界；
+    // - GC-managed ref / ordinary nominal aggregate 等不再继续通过“GC-free 近似”被默认放行。
     if flags.is_extern {
-        check_extern_fun_signature_is_gc_free(source, fun, lower)?;
+        check_extern_fun_signature_matches_native_abi(source, fun, lower)?;
     }
 
     Ok(())
@@ -2151,14 +2152,14 @@ fn check_extern_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), Annotation
     Ok(())
 }
 
-fn check_extern_fun_signature_is_gc_free(
+fn check_extern_fun_signature_matches_native_abi(
     source: &SourceFile,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), AnnotationError> {
-    // receiver：`fun Receiver.name(...)` 语义上等价于第一个参数，同样属于 ABI 边界。
+    // receiver：`fun Receiver.name(...)` 语义上等价于第一个 native ABI 参数。
     if let Some(receiver) = fun.receiver.as_ref() {
-        check_extern_abi_type_ref_is_gc_free(source, receiver, lower)?;
+        check_extern_abi_type_ref_matches_native_abi(source, receiver, lower)?;
     }
 
     for p in &fun.params {
@@ -2166,18 +2167,18 @@ fn check_extern_fun_signature_is_gc_free(
             // 缺失类型由其它检查负责（保持健壮性）。
             continue;
         };
-        check_extern_abi_type_ref_is_gc_free(source, ty_ref, lower)?;
+        check_extern_abi_type_ref_matches_native_abi(source, ty_ref, lower)?;
     }
 
-    // 缺省 return 为 Unit：天然 GC-free。
+    // 缺省 return 为 Unit：天然属于当前 native surface。
     if let Some(ret_ty_ref) = fun.return_ty.as_ref() {
-        check_extern_abi_type_ref_is_gc_free(source, ret_ty_ref, lower)?;
+        check_extern_abi_type_ref_matches_native_abi(source, ret_ty_ref, lower)?;
     }
 
     Ok(())
 }
 
-fn check_extern_abi_type_ref_is_gc_free(
+fn check_extern_abi_type_ref_matches_native_abi(
     _source: &SourceFile,
     ty_ref: &ast::TypeRef,
     lower: &mut TypeLowering<'_>,
@@ -2187,16 +2188,16 @@ fn check_extern_abi_type_ref_is_gc_free(
         Err(_e) => return Ok(()),
     };
 
-    let is_gc_free = match lower.is_gc_free_value_type(ty) {
+    let is_native_abi = match lower.is_native_abi_value_type(ty) {
         Ok(v) => v,
         Err(_e) => return Ok(()),
     };
 
-    if is_gc_free {
+    if is_native_abi {
         return Ok(());
     }
 
-    Err(AnnotationError::ExternFunSignatureMustBeGcFree {
+    Err(AnnotationError::ExternFunSignatureNotSupportedByNativeAbi {
         found: lower.fmt_type(ty),
         span: ty_ref.span().into(),
     })

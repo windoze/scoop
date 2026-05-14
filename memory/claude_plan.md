@@ -1,49 +1,61 @@
-## 执行计划
+## 当前执行计划
 
-说明：按安全要求，这里记录可审计的高层执行计划、关键判断依据与进度更新，不记录不可审计的内部推理细节。
+说明：按安全与保密要求，这里记录可审计的执行计划与关键决策摘要，不记录内部推理细节。
 
-1. 先读取 `TODO.md`，按标题是否带有 `[DONE]` 确定第一个未完成任务。
-2. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若存在，则将其视为当前任务的一部分或在 `TODO.md` 中补成前置任务。
-3. 阅读当前任务相关条目中的要求、依赖、验证方式与完成记录；只在必要时阅读 `PLAN.md` 了解阶段性依赖，不把 `PLAN.md` 当作日常任务日志。
-4. 检查与当前任务直接相关的代码、测试、夹具和文档，确认当前实现状态与缺口。
-5. 如可直接完成，则实施最小且正确的代码修改；如遇到阻塞当前任务的真实缺陷或缺失特性，则先修复该阻塞，或将其作为最小前置任务写入 `TODO.md` 后停止。
-6. 运行任务要求的验证步骤，以及必要的相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，并修复由本次改动暴露的问题。
-7. 更新 `memory/claude_plan.md` 记录关键进展；若任务完成，则在 `TODO.md` 中将任务标题标记为 `[DONE]` 并填写/更新完成记录；仅当阶段计划真的变化时才更新 `PLAN.md`。
-8. 按仓库提交风格创建一次原子提交，提交信息以任务号开头，然后停止，不继续处理下一个任务。
+1. 读取 `TODO.md`，识别第一个标题未带 `[DONE]` 的任务，并确认它就是本次唯一执行单元。
+2. 检查最近提交信息是否直接提到与该任务相关且未完成的问题；若存在且它构成当前任务前置条件，则先在 `TODO.md` 中反映该依赖关系。
+3. 阅读任务相关代码、测试、规格与必要上下文，仅围绕当前任务收集实现所需信息，避免开放式排查。
+4. 实现当前任务要求的代码改动；若遇到阻塞当前任务的真实缺陷或缺失能力，则先修复，或在 `TODO.md` 中最小化新增前置任务并停止。
+5. 运行任务要求的验证与相关测试，并修复实现过程中暴露的问题；同时确保 `cargo clippy --all-targets -- -D warnings` 不报错（若其适用于当前改动范围）。
+6. 更新 `memory/claude_plan.md`，记录关键进展、计划变更、验证结果与是否存在阻塞。
+7. 在任务真正完成后，更新 `TODO.md`：将任务标题显式标记为 `[DONE]`，补全 completion record；仅在阶段计划实际变化时更新 `PLAN.md`。
+8. 按仓库约定创建一次 git 提交，提交信息使用当前任务号，随后停止，不继续处理下一个任务。
 
-## 进度
+## 当前任务识别
 
-- 已写入初始执行计划。
-- 已读取 `TODO.md` 并确认首个未完成任务为 `P2-T01：建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding`。
-- 已检查最近一次提交：`[P1-T02] Tighten FunPtr native-only call handoff`，未发现需要先插入到 `P2-T01` 之前的明确未完成项。
-- 已读取 `PLAN.md` / `MANAGED_ABI.md` 对应章节，并检查 `crates/scoopc/src/llvm/codegen/{call/abi.rs,call/lowering.rs,mod.rs,mir_body.rs}`。
-- 当前关键结论：
-  - direct `@Extern` 已经负责 `enter_native/leave_native`、`gc-leaf-function` 和 native declaration；
-  - native `FunPtr` 仍在 HIR/MIR lowering 中各自手写 `hidden_sret = None`、`callconv 0`，且调用路径绕过了 direct extern 的 boundary scaffold；
-  - `MANAGED_ABI.md` 的 P2 设计已经要求 direct `@Extern` 与 native `FunPtr` 共用单一 native ABI classifier，并让 C ABI 的 direct/indirect 入口都走同一 boundary 语义；
-  - 因此本任务的正确实现应把 `FunPtr` 间接调用也接入统一 native boundary（含 `enter_native/leave_native`），而不是继续保留隐式分裂。
-- 接下来的实施步骤：
-  1. 在 LLVM codegen 共享层新增 native callable classifier 结构与统一 emit helper。
-  2. 让 top-level native declaration 改为使用 classifier 生成 param/return ABI、callconv、gc-leaf。
-  3. 让 direct extern call、HIR funptr call、MIR direct native call、MIR funptr call 全部复用该 classifier / emit helper。
-  4. 补 direct/indirect parity 回归：至少覆盖 indirect funptr 也插入 `enter_native/leave_native`，以及 direct/indirect aggregate-return parity。
-  5. 更新 `MANAGED_ABI.md` / `TODO.md` / 本文件，然后运行格式化、相关回归与 `cargo clippy --all-targets -- -D warnings`。
-- 已完成的实现步骤：
-  - 已在 `crates/scoopc/src/llvm/codegen/{mod.rs,call/abi.rs}` 中加入 shared native callable classifier 数据结构与统一 native call emit helper。
-  - 已让 `declare_top_level_fun*` / `declare_materialized_top_level_fun_with_symbol` 使用 classifier 驱动 native declaration 的 param/return ABI、callconv 与 gc-leaf。
-  - 已让 HIR direct native call、HIR `FunPtr` call、MIR direct native call、MIR `FunPtr` call 复用 classifier；`FunPtr` 不再硬编码 `callconv 0`，并改为通过统一 boundary scaffold 插入 `enter_native/leave_native`。
-- 已补 runtime/test 承载：导出 direct aggregate helper、增加 `scoop_test_get_gc_collect_in_native_funptr`，并新增 runtime_gc/build/run-pass/LLVM parity 回归。
-- 已完成验证与文档回写：
+- 已读取 `TODO.md`。
+- 当前第一个未完成任务：`P2-T02`《收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract`》。
+- 最近提交：`[P2-T01] Establish unified native callable ABI classifier`。
+- 对最近提交的判断：它直接完成了 `P2-T01` 的 classifier 收口，但未显示引入额外未跟踪前置任务；`TODO.md` 中已明确 `P2-T02` 负责 gate / diagnostics 收口，因此当前先按 `P2-T02` 执行。
+
+## 当前执行细化
+
+1. 阅读 `P2-T02` 涉及的 typecheck、diagnostic、测试与设计文档，确认当前 `@Extern` 与 `FunPtr` 的分裂点。
+2. 判断现状是否允许保留 aggregate native surface；若可保留，则实现统一 contract 与诊断，并补 direct vs indirect parity 覆盖。
+3. 若发现无法按现有任务直接完成的真实前置缺口，则在 `TODO.md` 中最小化引入前置任务并停止。
+4. 完成实现后运行任务要求的 fixtures、相关单测、`cargo clippy --all-targets -- -D warnings`。
+5. 任务完成后更新 `TODO.md` completion record，并创建一次提交后停止。
+
+## 当前进展
+
+- 已实现统一 native surface gate：`@Extern` 不再只用 `GC-free` 近似；native `FunPtr` 也不再只检查“是不是 pure 函数类型”。
+- 当前 front-end contract：允许标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple、以及 `@CLayout` struct；拒绝普通非 `@CLayout` nominal aggregate、GC ref、`Pinned`、`Continuation`、`Option` 等未固定 native value layout 的类型。
+- 已更新：
+  - `crates/scoopc/src/typecheck/{lower.rs,annotations.rs,expr/call.rs}`
+  - `sysroot/unsafe.scoop`
+  - `MANAGED_ABI.md`
+  - 多个 typecheck fixture（含新增 `extern_fun_signature_with_{clayout_struct_ok,plain_struct_is_error}` 与 `uintptr_to_funptr_plain_struct_type_arg_is_error`）
+- 已完成首轮验证：
   - `cargo fmt --all`
-  - `cargo test -p scoopc native_callable -- --nocapture`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_plain_struct_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_clayout_struct_ok.scoop`
+- 尚未发现需要把当前任务拆成新的前置任务的阻塞项。
+
+## 验证收尾
+
+- 已补完任务所需验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_gc_ref_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_continuation_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_plain_struct_type_arg_is_error.scoop`
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
-  - `cargo test -p scoopc llvm_tests -- --nocapture`（filter 命中 0 条，因此额外补跑 `cargo test -p scoopc abi_baseline -- --nocapture` 与 `cargo test -p scoopc native_callable -- --nocapture`）
+  - `cargo test -p scoopc llvm_tests -- --nocapture`（filter 返回 0 条命中）
+  - `cargo test -p scoopc native_callable -- --nocapture`
+  - `cargo test -p scoopc abi_baseline_native_funptr_aggregate_return_uses_native_result_abi -- --nocapture`
   - `cargo clippy --all-targets -- -D warnings`
-  - 已回写 `MANAGED_ABI.md` 与 `TODO.md`，将 `P2-T01` 标记为 `[DONE]`。
-- 当前仅剩提交步骤：使用 `[P2-T01] ...` 风格创建原子提交，然后停止。
+- 已回写 `TODO.md`：`P2-T02` 现已标记为 `[DONE]`，并补全 completion record。
+- 未发现新的阻塞前置任务；下一次调用应从 `P3-T01` 开始。

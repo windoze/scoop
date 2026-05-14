@@ -27,6 +27,7 @@ use super::assignable::is_type_assignable;
 use super::builtin_annotations::{BuiltinAnnotationFlags, collect_file_warning_suppressions};
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
+const CLAYOUT_FQN: &str = "scoop.core.CLayout";
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
 const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
 const CONTINUATION_ANSWER_HOLE_DECL_FILE: &str = "<continuation-answer-hole>";
@@ -190,6 +191,16 @@ pub enum TypeLowerError {
     FunPtrSignatureMustBePure {
         found: String,
         #[label("这里的 F 不是无 effect 函数类型")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`FunPtr<F>` 的函数签名只接受当前 native ABI value surface：标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple，以及 `@CLayout` struct；不接受 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::funptr_signature_not_supported_by_native_abi))]
+    FunPtrSignatureNotSupportedByNativeAbi {
+        found: String,
+        #[label("这里的类型不在当前 native ABI contract 中")]
         span: miette::SourceSpan,
     },
 
@@ -2300,7 +2311,8 @@ impl<'a> TypeLowering<'a> {
         {
             self.check_ptr_pointee_gc_free(pointee, span)?;
         }
-        // `FunPtr<F>`：F 必须是无 effect 的函数类型；占位 type param 会在实例化时再次校验。
+        // `FunPtr<F>`：F 必须是无 effect，且 receiver/参数/返回值属于当前 native value contract；
+        // 占位 type param 会在实例化时再次校验。
         if fqn == FUNPTR_FQN
             && let Some(sig) = args.first().copied()
         {
@@ -2475,9 +2487,52 @@ impl<'a> TypeLowering<'a> {
         sig: TypeId,
         span: Span,
     ) -> Result<(), TypeLowerError> {
-        match self.type_kind(sig) {
+        match self.type_kind(sig).clone() {
             TypeKind::Ref(RefTypeKind::Function(fun)) => {
                 if fun.effects.is_pure() {
+                    let mut visiting: HashSet<TypeId> = HashSet::new();
+                    let mut memo: HashMap<TypeId, bool> = HashMap::new();
+
+                    if let Some(receiver) = fun.receiver
+                        && !self.is_native_abi_value_type_inner(
+                            receiver,
+                            true,
+                            &mut visiting,
+                            &mut memo,
+                        )?
+                    {
+                        return Err(TypeLowerError::FunPtrSignatureNotSupportedByNativeAbi {
+                            found: self.fmt_type(receiver),
+                            span: span.into(),
+                        });
+                    }
+
+                    for param in fun.params {
+                        if !self.is_native_abi_value_type_inner(
+                            param,
+                            true,
+                            &mut visiting,
+                            &mut memo,
+                        )? {
+                            return Err(TypeLowerError::FunPtrSignatureNotSupportedByNativeAbi {
+                                found: self.fmt_type(param),
+                                span: span.into(),
+                            });
+                        }
+                    }
+
+                    if !self.is_native_abi_value_type_inner(
+                        fun.return_ty,
+                        true,
+                        &mut visiting,
+                        &mut memo,
+                    )? {
+                        return Err(TypeLowerError::FunPtrSignatureNotSupportedByNativeAbi {
+                            found: self.fmt_type(fun.return_ty),
+                            span: span.into(),
+                        });
+                    }
+
                     Ok(())
                 } else {
                     Err(TypeLowerError::FunPtrSignatureMustBePure {
@@ -2493,6 +2548,237 @@ impl<'a> TypeLowering<'a> {
                 span: span.into(),
             }),
         }
+    }
+
+    pub(crate) fn is_native_abi_value_type(&mut self, ty: TypeId) -> Result<bool, TypeLowerError> {
+        let mut visiting: HashSet<TypeId> = HashSet::new();
+        let mut memo: HashMap<TypeId, bool> = HashMap::new();
+        self.is_native_abi_value_type_inner(ty, false, &mut visiting, &mut memo)
+    }
+
+    fn is_native_abi_value_type_inner(
+        &mut self,
+        id: TypeId,
+        allow_type_params: bool,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        if let Some(v) = memo.get(&id).copied() {
+            return Ok(v);
+        }
+
+        // 防御性：native surface contract 同样不接受递归值类型穿过 ABI 边界。
+        if !visiting.insert(id) {
+            memo.insert(id, false);
+            return Ok(false);
+        }
+
+        let ok = match self.type_kind(id).clone() {
+            TypeKind::Ref(_) => false,
+            TypeKind::StarProjection(_) => false,
+            TypeKind::Param(_) => allow_type_params,
+            TypeKind::Value(v) => match v {
+                ValueTypeKind::Nothing => false,
+                ValueTypeKind::Unit
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_) => true,
+                ValueTypeKind::Option(_) => false,
+                ValueTypeKind::Tuple(elements) => {
+                    let mut ok = true;
+                    for element in elements {
+                        if !self.is_native_abi_value_type_inner(
+                            element,
+                            allow_type_params,
+                            visiting,
+                            memo,
+                        )? {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    ok
+                }
+                ValueTypeKind::Nominal(nominal) => self.is_native_abi_nominal_value_type(
+                    &nominal,
+                    allow_type_params,
+                    visiting,
+                    memo,
+                )?,
+            },
+        };
+
+        visiting.remove(&id);
+        memo.insert(id, ok);
+        Ok(ok)
+    }
+
+    fn is_native_abi_nominal_value_type(
+        &mut self,
+        nominal: &NominalType,
+        allow_type_params: bool,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        if nominal.fqn == PTR_FQN {
+            return Ok(true);
+        }
+
+        if nominal.fqn == FUNPTR_FQN {
+            let Some(sig) = nominal.args.first().copied() else {
+                return Ok(false);
+            };
+            return self.funptr_signature_matches_native_abi_surface(
+                sig,
+                allow_type_params,
+                visiting,
+                memo,
+            );
+        }
+
+        match self.nominal_decl_kind(&nominal.fqn) {
+            Some(ast::TypeKind::Struct) => {
+                self.is_native_abi_clayout_struct(nominal, allow_type_params, visiting, memo)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn funptr_signature_matches_native_abi_surface(
+        &mut self,
+        sig: TypeId,
+        allow_type_params: bool,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        match self.type_kind(sig).clone() {
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if !fun.effects.is_pure() {
+                    return Ok(false);
+                }
+
+                if let Some(receiver) = fun.receiver
+                    && !self.is_native_abi_value_type_inner(
+                        receiver,
+                        allow_type_params,
+                        visiting,
+                        memo,
+                    )?
+                {
+                    return Ok(false);
+                }
+
+                for param in fun.params {
+                    if !self.is_native_abi_value_type_inner(
+                        param,
+                        allow_type_params,
+                        visiting,
+                        memo,
+                    )? {
+                        return Ok(false);
+                    }
+                }
+
+                self.is_native_abi_value_type_inner(
+                    fun.return_ty,
+                    allow_type_params,
+                    visiting,
+                    memo,
+                )
+            }
+            TypeKind::Param(_) => Ok(allow_type_params),
+            _ => Ok(false),
+        }
+    }
+
+    fn is_native_abi_clayout_struct(
+        &mut self,
+        nominal: &NominalType,
+        allow_type_params: bool,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        let Some(sym) = self.env.type_symbol(&nominal.fqn) else {
+            return Ok(false);
+        };
+
+        let Some(decl_source) = self.env.source(&sym.decl_file) else {
+            return Ok(false);
+        };
+
+        let Ok(file) = crate::parser::parse_file(decl_source) else {
+            return Ok(false);
+        };
+
+        let Some(decl) = find_type_decl_by_fqn(decl_source, &file, &nominal.fqn) else {
+            return Ok(false);
+        };
+
+        if !type_decl_has_clayout_annotation(decl_source, decl) {
+            return Ok(false);
+        }
+
+        let bindings = sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(nominal.args.iter().copied())
+            .collect::<Vec<_>>();
+
+        if let Some(primary) = &decl.primary_ctor {
+            for param in &primary.params {
+                let Some(ty_ref) = param.ty.as_ref() else {
+                    return Ok(false);
+                };
+                let field_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &sym.decl_file,
+                    bindings.iter().cloned(),
+                    ty_ref,
+                )?;
+                if !self.is_native_abi_value_type_inner(
+                    field_ty,
+                    allow_type_params,
+                    visiting,
+                    memo,
+                )? {
+                    return Ok(false);
+                }
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(property) = member else {
+                    continue;
+                };
+                if !property.is_direct_field() {
+                    continue;
+                }
+                let Some(ty_ref) = property.ty.as_ref() else {
+                    return Ok(false);
+                };
+                let field_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &sym.decl_file,
+                    bindings.iter().cloned(),
+                    ty_ref,
+                )?;
+                if !self.is_native_abi_value_type_inner(
+                    field_ty,
+                    allow_type_params,
+                    visiting,
+                    memo,
+                )? {
+                    return Ok(false);
+                }
+            }
+        }
+
+        Ok(true)
     }
 
     pub(crate) fn is_gc_free_value_type(&mut self, ty: TypeId) -> Result<bool, TypeLowerError> {
@@ -2926,7 +3212,8 @@ impl<'a> TypeLowering<'a> {
         {
             self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
         }
-        // `FunPtr<F>`：F 必须是无 effect 的函数类型；占位 type param 会在实例化时再次校验。
+        // `FunPtr<F>`：F 必须是无 effect，且 receiver/参数/返回值属于当前 native value contract；
+        // 占位 type param 会在实例化时再次校验。
         if fqn == FUNPTR_FQN
             && let Some(sig) = args.first().copied()
         {
@@ -3745,6 +4032,17 @@ fn find_type_decl_by_fqn<'a>(
     }
 
     None
+}
+
+fn type_decl_has_clayout_annotation(source: &SourceFile, decl: &ast::TypeDecl) -> bool {
+    decl.annotations.iter().any(|ann| {
+        let segs = ann
+            .path
+            .iter()
+            .map(|id| id.text(source))
+            .collect::<Vec<_>>();
+        matches!(segs.as_slice(), ["CLayout"]) || segs.join(".") == CLAYOUT_FQN
+    })
 }
 
 fn find_type_decl_in_type_decl<'a>(

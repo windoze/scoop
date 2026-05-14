@@ -8697,8 +8697,9 @@ pub(super) fn substitute_single_type_param(
                 }
             }
 
-            // `FunPtr<F>` 的 purity 门禁也必须在泛型实例化/替换时重放，避免通过
-            // `uintPtrToFunPtr<() -> Int / Ask>(...)` 等路径绕过前端约束。
+            // `FunPtr<F>` 的 native surface gate 也必须在泛型实例化/替换时重放，避免通过
+            // `uintPtrToFunPtr<() -> Int / Ask>(...)` 或 `uintPtrToFunPtr<(Point) -> Int>(...)`
+            // 这类路径绕过前端约束。
             if nominal.fqn == FUNPTR_FQN
                 && let Some(sig) = args.first().copied()
             {

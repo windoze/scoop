@@ -5,7 +5,7 @@
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/TODO-pipeline-gaps.md`、`docs/archive/plans/PLAN-pipeline-gaps.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 当前状态：`ExternAbi::Scoop` 尚未实现；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier 对齐 declaration / direct call / indirect call / MIR path，native surface gate / diagnostics 仍待 `P2-T02` 收口；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
+> 当前状态：`ExternAbi::Scoop` 尚未实现；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
 > 重要提醒：当前 mainline 已锁住 `unsafe_funptr_aggregate_return_tuple`、`extern_fun_effectful_funptr_is_error`、`single_file_minimal_ir_includes_compilable_sysroot_string_helpers` 等行为。除非先回写 `MANAGED_ABI.md` 与相关 fixture，否则不得把这些 current behavior 直接回退掉。
 
 ## 任务索引
@@ -14,9 +14,9 @@
 | --- | --- | --- |
 | `P0-T01` | P0 | [DONE] 冻结 current ABI baseline 与 regression owner map |
 | `P1-T01` | P1 | [DONE] 建立 callable ABI identity，并让 `ExternFun.abi` 真正进入 lowering source of truth |
-| `P1-T02` | P1 | 收紧 `FunPtr<F>` 合同：pure-only native surface |
+| `P1-T02` | P1 | [DONE] 收紧 `FunPtr<F>` 合同：pure-only native surface |
 | `P2-T01` | P2 | [DONE] 建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding |
-| `P2-T02` | P2 | 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
+| `P2-T02` | P2 | [DONE] 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
 | `P3-T01` | P3 | 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
 | `P3-T02` | P3 | 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
@@ -354,7 +354,7 @@
     - 对应 `PLAN.md` P2 第 1、4、5 项：single native classifier 已进入 declaration / direct call / indirect call / MIR path，native `FunPtr` 不再绕过 direct extern boundary scaffold，direct/indirect parity 现在有 runtime_gc/build/run-pass/LLVM owner 覆盖。
     - `MANAGED_ABI.md` §1.5 / §6.2a / §10.1 / §10.4 现已与实现对齐：direct `@Extern` 与 native `FunPtr` 共享同一 native callable classifier，并统一采用 `enter_native/leave_native` + target aggregate-return ABI；native surface gate / diagnostics 仍留待 `P2-T02` 收口。
 
-### [TODO] P2-T02：收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract
+### [DONE] P2-T02：收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -363,8 +363,8 @@
   - 让 `@Extern` 与 native `FunPtr` 共用同一 surface gate，而不是一个看 `GC-free`、一个只看“是不是函数类型”。
   - 把当前 repo 对 native aggregate / non-scalar surface 的真实 contract 明确下来。
 - 当前实现入口：
-  - `crates/scoopc/src/typecheck/annotations.rs::check_extern_fun_signature_is_gc_free`
-  - `crates/scoopc/src/typecheck/lower.rs`（`FunPtr<F>` 形状检查）
+  - `crates/scoopc/src/typecheck/annotations.rs::check_extern_fun_signature_matches_native_abi`
+  - `crates/scoopc/src/typecheck/lower.rs`（`FunPtr<F>` native surface contract 检查）
   - `crates/scoopc/src/typecheck/expr/call.rs`
   - `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
   - `runtime/c/scoop_test.c`
@@ -389,6 +389,38 @@
 - 完成条件：
   - `@Extern` 与 native `FunPtr` 共用同一 native surface contract 与诊断。
 - 依赖：`P2-T01`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/{annotations.rs,lower.rs,expr/call.rs}`
+    - `sysroot/unsafe.scoop`
+    - `tests/fixtures/typecheck/{extern_fun_signature_with_gc_ref_is_error.scoop,extern_fun_signature_with_continuation_is_error.scoop,extern_fun_signature_with_pinned_is_error.scoop,extern_fun_signature_with_clayout_struct_ok.scoop,extern_fun_signature_with_plain_struct_is_error.scoop,uintptr_to_funptr_plain_struct_type_arg_is_error.scoop}`
+    - `MANAGED_ABI.md`
+    - `TODO.md`
+  - 核心决策：
+    - 在 `TypeLowering` 中新增 shared native value surface classifier，直接供 `@Extern` signature gate 与 `FunPtr<F>` signature contract 复用；不再让 `@Extern` 只看 `GC-free`、`FunPtr` 只看“是不是 pure 函数类型”。
+    - 当前 v1 native surface 正式收口为：标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple、以及字段递归满足同一 contract 的 `@CLayout` struct；普通非 `@CLayout` nominal aggregate、GC ref、`Pinned` / `GcHandle`、rich enum / `Option<T>` 等未固定 native value layout 的类型会在前端被直接拒绝。
+    - 保留现有 tuple aggregate native surface：`unsafe_funptr_aggregate_return_tuple` 与 `extern_native_aggregate_return_direct_indirect_parity` 继续作为 direct / indirect target-ABI aggregate return owner；本任务没有回退 aggregate surface，只把它从“GC-free 近似”提升为 explicit contract。
+    - 诊断文案升级为“当前 native ABI contract 允许 / 不允许哪些形状”的明确提示，并继续给出 `GcHandle.raw: UIntPtr`、`GC.pin/unpin` + `Ptr<T>` 的桥接建议。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_gc_ref_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_continuation_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_clayout_struct_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_plain_struct_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/uintptr_to_funptr_plain_struct_type_arg_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 下该 filter 返回 `0 passed; 845 filtered out`，因此额外按 owner 测试名补跑下面两条）
+    - `cargo test -p scoopc native_callable -- --nocapture`
+    - `cargo test -p scoopc abi_baseline_native_funptr_aggregate_return_uses_native_result_abi -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P2 第 2-4 项：native surface 现在已有 explicit value contract，`@Extern` 与 native `FunPtr` 共用同一 front-end gate / diagnostics，non-pure 与 non-native-shape `FunPtr<F>` 都会在前端被直接拒绝。
+    - `MANAGED_ABI.md` §1.4 / §5.1 / §5.4 现已与实现对齐：tuple aggregate native surface 被显式保留，普通非 `@CLayout` nominal aggregate 不再因“GC-free”被默认放行；native token bridging 继续通过 `UIntPtr` / `Ptr<T>` / pure `FunPtr<F>` surface 明确表达。
 
 ## P3：落地 `ExternAbi::Scoop`
 
