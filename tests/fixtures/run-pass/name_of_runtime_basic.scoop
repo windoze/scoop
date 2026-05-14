@@ -1,7 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: name_of_runtime_basic.stdout
 //
-// CG-T03: `nameOf<T>()` lowers from the typed MIR intrinsic contract to a runtime string value.
+// 回归：`nameOf<T>()` 继续通过 typed intrinsic contract 降到运行期字符串值。
 
 import scoop.core.*
 

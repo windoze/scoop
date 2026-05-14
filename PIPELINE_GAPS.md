@@ -1,10 +1,10 @@
 # PIPELINE_GAPS
 
-## 状态更新（2026-05-12）
+## 状态更新（2026-05-14）
 
 - 本文件已按当前代码、fixture 与 LLVM IR 单测重写，目标从“历史差距审计日志”改为“当前 live gap 账本 + legacy gap id 映射”。
 - `LlvmEmitError::UnsupportedMainBody` / “暂不支持的 main 代码生成节点”已经是 LLVM backend 的通用 unsupported/assertion 桶，不再等价于“当前仍未实现的 feature 列表”。
-- 机器可消费的 owner/gap id 仍保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。其中 `PIPELINE_GAPS §...` 继续作为稳定 bucket id；部分 bucket 当前已关闭、改道或仅剩 guard 语义。
+- 机器可消费的 owner/gap id 仍保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。其中 `PIPELINE_GAPS §...` 继续作为稳定 bucket id；但 active codegen inventory 现在只保留仍有 executable guard / frontend gate 语义的条目，纯 regression coverage 留在 fixture / LLVM IR 单测里。
 - 当前 `UnsupportedMainBody` 症状最集中的模块是 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`。其中相当一部分报错反映的是 typed contract 漂移、routing 失配或内部不变量断言，而不是缺少某个 LLVM primitive。
 - 当前仍值得跟踪的主线与 guard，主要是以下几类：
 - pre-MIR / MIR placeholder 主线已收口；当前主要剩 regression guard 与更下游的 contract drift，而不是新的 live lowering gap。
@@ -16,7 +16,7 @@
 
 - 状态：`Open` 表示当前仍是 live gap 或高价值 guard bucket。
 - 状态：`Partial` 表示主线已收口，但剩余 narrow surface、contract drift 或 residual unsupported 仍存在。
-- 状态：`LegacyOnly` 表示源码里仍残留 legacy producer / 遗留分支，但 refactor 计划要求这些路径对 production/refactor pipeline 完全不可达；如果任何真实编译路径还能命中它们，那是实现错误，不是可接受的剩余 gap。
+- 状态：`LegacyOnly` 不再用于当前 active 条目；若源码再次出现该 bucket，应视为审计失败而不是可接受的剩余 gap。
 - 状态：`FrontendReject` 表示当前由前端显式拒绝；不是 codegen-stage blocker，但解禁前必须同步补 backend。
 - 状态：`Closed/Re-scoped` 表示默认 pipeline 已收口，或问题已改写成更上游/更窄的 contract。
 - 状态：`Historical` 表示保留 legacy 编号，但本轮未发现新的 machine-readable owner 或默认 pipeline blocker。
@@ -171,7 +171,7 @@
 ### 3.4 `TypeCheck` / `Cast` raw MIR 不支持
 
 - 状态：`Closed/Re-scoped`。
-- 结论：当前受支持的 runtime `is/!is/as/as?` 已有 MIR lowering 和 run-pass 覆盖；该编号不再是默认 pipeline blocker。剩余缺口已缩小到函数类型 / effectful function type cast，见 `§7.2`。
+- 结论：当前受支持的 runtime `is/!is/as/as?` 已有 MIR lowering 和 run-pass 覆盖；该编号不再是默认 pipeline blocker。剩余缺口已缩小到函数类型 / effectful function type cast，见 `§7.2`。对应回归 coverage 保留，但该编号已从 active codegen inventory 移除。
 - 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:2365-2549`，`tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop:1-11`，`crates/scoopc/src/pipeline/mir_stage.rs:1043-1065`。
 
 ### 3.5 refactor effect-neutral cast/typecheck 支持不完整
@@ -189,7 +189,7 @@
 ### 3.7 `TopLevelRef` raw MIR 不覆盖普通函数引用
 
 - 状态：`Closed/Re-scoped`。
-- 结论：默认主线下顶层 callable value / `FunPtr`、pattern binder 提取出的 callable，以及 `make(1)()` / `choose(mode)()` 这类“调用返回的 callable”都已在 typed HIR + materialized effect-facts handoff 上保留真实 callable surface；剩余风险只允许作为 regression audit，防止 raw MIR 再次晚期重建未规范化函数引用，而不再是默认 blocker。
+- 结论：默认主线下顶层 callable value / `FunPtr`、pattern binder 提取出的 callable，以及 `make(1)()` / `choose(mode)()` 这类“调用返回的 callable”都已在 typed HIR + materialized effect-facts handoff 上保留真实 callable surface；剩余风险只允许作为 regression audit，防止 raw MIR 再次晚期重建未规范化函数引用，而不再是默认 blocker。回归 coverage 留在 fixture / LLVM IR 单测里，不再保留 active codegen inventory entry。
 - 证据：`crates/scoopc/src/typecheck/expr/call.rs`，`crates/scoopc/src/hir/lower/expr.rs`，`crates/scoopc/src/effect_facts/builder.rs`，`tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`，`tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`，`crates/scoopc/src/llvm/tests.rs`。
 
 ### 3.8 MIR pattern `is Type` 只支持 ref/string
@@ -239,8 +239,8 @@
 ### 4.2 enum boxed payload 中 `Unit` field 会失败
 
 - 状态：`Closed/Re-scoped`。
-- 结论：boxed payload 现在会把 `Unit` field 写成零值占位，而不是直接失败；该编号不再是 live blocker。
-- 证据：`crates/scoopc/src/llvm/codegen/enum_lowering.rs:170-171`。
+- 结论：boxed payload 现在会把 `Unit` field 写成零值占位，而不是直接失败；该编号不再是 live blocker。回归 coverage 继续由 run-pass fixture 提供，不再保留 active codegen inventory entry。
+- 证据：`crates/scoopc/src/llvm/codegen/enum_lowering.rs:170-171`，`tests/fixtures/run-pass/enum_payload_unit_field_basic.scoop:1-28`。
 
 ### 4.3 大整数 enum payload 超过 payload word 会失败
 
@@ -271,7 +271,7 @@
 ### 5.2 unsupported source classification 被 verifier 放行，lowering 才失败
 
 - 状态：`Closed/Re-scoped`。
-- 结论：verifier 现在已经把 `Unsupported` source classification 直接升格为 frontend-style error；旧“晚到 lowering 才炸”结论已过时。
+- 结论：verifier 现在已经把 `Unsupported` source classification 直接升格为 frontend-style error；旧“晚到 lowering 才炸”结论已过时。对应 verifier regression 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:3101-3111`。
 
 ### 5.3 `ResumeUnwind` 只有空 cleanup placeholder 可接受
@@ -289,50 +289,50 @@
 ### 5.5 cross-thread resume 只支持 u64 payload
 
 - 状态：`Closed/Re-scoped`。
-- 结论：runtime 现在已有 transport helper，能携带 `{word, gc_ref, payload_ptr}`；runtime GC fixture 也已覆盖 composite/ref payload。旧“只支持 u64 payload”结论已不再准确。
+- 结论：runtime 现在已有 transport helper，能携带 `{word, gc_ref, payload_ptr}`；runtime GC fixture 也已覆盖 composite/ref payload。旧“只支持 u64 payload”结论已不再准确。active inventory 仅再保留一个 non-blocking contract guard，用于标记 descriptor-backed effect-payload transport drift，而不是旧的 runtime helper 缺失 blocker。
 - 证据：`runtime/c/scoop_thread.c:37-40`，`runtime/c/scoop_thread.c:277-327`，`tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop:1-24`。
 
 ### 5.6 thread resume 后 non-complete Step 直接 fatal
 
 - 状态：`Closed/Re-scoped`。
-- 结论：production 代码不再依赖专门的 `thread_resume_noncomplete_fatal` helper；该策略已由 frontend Pure gate、ordinary runtime fatal terminal 和 unreachable contract 吞掉。
+- 结论：production 代码不再依赖专门的 `thread_resume_noncomplete_fatal` helper；该策略已由 frontend Pure gate、ordinary runtime fatal terminal 和 unreachable contract 吞掉。对应 regression 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:6923-6936`，`crates/scoopc/src/typecheck/expr/error.rs:512-531`。
 
 ### 5.7 当前 P7 默认 refactor blocker 已完成收口（历史记录）
 
 - 状态：`Closed/Re-scoped`。
-- 结论：本节保留 purely for legacy id；默认 refactor blockers 不再以这节为当前 owner。
+- 结论：本节保留 purely for legacy id；默认 refactor blockers 不再以这节为当前 owner，也不再保留 active inventory entry。
 
 ## 6. Spec / Fixture 相关项
 
 ### 6.1 `!!` 非空断言仍 expected fail
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`!!` 已有 run-pass fixture；该节不再是 live blocker。
+- 结论：`!!` 已有 run-pass fixture；该节不再是 live blocker。run-pass coverage 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`tests/fixtures/run-pass/not_null_assert_basic.scoop:1-20`。
 
 ### 6.2 runtime `is/as/as?` 在 MIR/refactor path 不闭合
 
 - 状态：`Closed/Re-scoped`。
-- 结论：当前受支持的 runtime cast/type-check 主线已通；剩余 function-type cast 被前端显式挡住，见 `§7.2`。
+- 结论：当前受支持的 runtime cast/type-check 主线已通；剩余 function-type cast 被前端显式挡住，见 `§7.2`。run-pass coverage 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop:1-11`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2365-2549`。
 
 ### 6.3 runtime reflection 路径 `nameOf<T>()` / `getPlatform()` 缺 codegen lowering
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`nameOf<T>()` 与 `getPlatform()` 现在都有 runtime lowering；同时 MIR lowering 侧已删除 `sizeOf` / `nameOf` legacy Todo fallback，只再接受 typed intrinsic contract。`getPlatform()` 仍有 IR 级断言确保不会退回 declaration-only call。
+- 结论：`nameOf<T>()` 与 `getPlatform()` 现在都有 runtime lowering；同时 MIR lowering 侧已删除 `sizeOf` / `nameOf` legacy Todo fallback，只再接受 typed intrinsic contract。`getPlatform()` 仍有 IR 级断言确保不会退回 declaration-only call。run-pass / IR regression 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`crates/scoopc/src/mir/lower.rs:3965-4023`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2294-2307`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2311-2342`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1657-1665`，`tests/fixtures/run-pass/name_of_runtime_basic.scoop:1-14`，`tests/fixtures/run-pass/get_platform_runtime_basic.scoop:1-16`，`crates/scoopc/src/llvm/tests.rs:406-430`。
 
 ### 6.4 `@Extern` global variable 没有 extern storage/linkage model
 
 - 状态：`Closed/Re-scoped`。
-- 结论：`@Extern` global 现在已有 MIR root、external linkage、TLS storage 与“无 initializer” contract；IR 单测已锁定行为。
+- 结论：`@Extern` global 现在已有 MIR root、external linkage、TLS storage 与“无 initializer” contract；IR 单测已锁定行为。回归 coverage 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`crates/scoopc/src/llvm/codegen/mod.rs:2981-3025`，`crates/scoopc/src/llvm/tests.rs:434-477`。
 
 ### 6.5 interface default method codegen 覆盖需确认
 
 - 状态：`Closed/Re-scoped`。
-- 结论：interface default method dispatch 现在已有 run-pass 与 IR 单测，默认 pipeline 不再把它视为候选 gap。
+- 结论：interface default method dispatch 现在已有 run-pass 与 IR 单测，默认 pipeline 不再把它视为候选 gap。回归 coverage 继续保留，但该编号已从 active codegen inventory 移除。
 - 证据：`tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop:1-23`，`crates/scoopc/src/llvm/tests.rs:420-426`。
 
 ## 7. 前端暂挡或未来表面

@@ -29,6 +29,7 @@
 | `P5-T02` | P5 | 收口 closure env/capture transport 与 pattern `is Type` residual |
 | `P6-T01` | P6 | 收尾 `§3.5` / `§7.6` partial surface，统一 runtime cast 与 GC pin/handle policy |
 | `P6-T02` | P6 | 同步 `FrontendReject` surface：or-pattern binder / function-type cast / use-site effect row / struct mutable field |
+| `P6-T02A` | P6 | 修复 full regression 暴露的 typed call-site / effect-facts contract 发布回归 |
 | `P6-T03` | P6 | 重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态 |
 | `P7-T01` | P7 | 执行 full regression 与 legacy residual grep 审计 |
 | `P7-T02` | P7 | 审计所有用户可见失败路径并完成最终回写 |
@@ -1310,6 +1311,56 @@
     - 对应 `PLAN.md` P6 第 1 项：`§7.1` / `§7.2` / `§7.5` 的前端 gate 文案与实际行为已统一，`§7.3` 则按真实能力改写为正式支持面，不再伪装成整体 reject。
     - `PIPELINE_GAPS.md` 已回写 `§7.3` 为 `Closed/Re-scoped`，并同步更新 `§2.6`、`§8` 中对 effect-row use-site surface 的描述：当前默认主线允许名义类型 `Type<eff Row>`，剩余非法 target 继续由 typecheck 明确拒绝，而不是留给 MIR/backend 暴露 unsupported。
 
+### [TODO] P6-T02A：修复 full regression 暴露的 typed call-site / effect-facts contract 发布回归
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P1、P3、P4、P6
+  - [`PIPELINE_GAPS.md`](./PIPELINE_GAPS.md) §1.7、§3.7、§5.4、§6.3
+- 目标：
+  - 修复 full fixture suite 暴露的 typed call-site / effect-facts contract 发布回归，使 receiver/callable value、delegated property helper、stdlib/runtime top-level call 与 `main(args)` 相关 surface 回到 canonical typed contract 主线。
+  - 清掉因此带出的 MIR / effect-lowered snapshot drift，避免 `P6-T03` 在真实能力未闭合时提前重写最终账本。
+- 当前实现入口：
+  - `crates/scoopc/src/pipeline/hir_stage.rs`
+  - `crates/scoopc/src/effect_facts/builder.rs`
+  - `crates/scoopc/src/typecheck/expr/call.rs`
+  - `crates/scoopc/src/hir/lower/expr.rs`
+  - `tests/fixtures/mir_refactor/call_contracts.{scoop,mir}`
+  - `tests/fixtures/effect_lowered/*.effectlowered`
+  - 当前已复现的代表性失败：
+    - `tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`
+    - `tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`
+    - `tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
+    - `tests/fixtures/run-pass/string_trim_indent_basic.scoop`
+    - `tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
+- 必须实现的内容：
+  1. 补齐 receiver function value / bound method / virtual-interface named args / callable-value pattern binder / `main(args)` / 受影响 stdlib/runtime helper 的 typed call-site contract 发布。
+  2. 让 effect-facts builder 能为 `scoop.core.trimIndent`、delegated property helper、其他受影响的 top-level stdlib/runtime call-site 构造 surface contract，而不是再报 `frontend_prepare_failed` / panic。
+  3. 修复由上述 contract drift 带出的 HIR / MIR / effect-lowered snapshot 差异；只有在行为与 contract 都恢复后，才允许回写 golden。
+  4. 复跑当前 full regression 中受影响的代表性 fixtures，确保不再出现 `call expression missing typed call-site contract`、surface contract 缺失或对应 panic。
+- 必须遵从的约束：
+  - 不得恢复 legacy fallback 或放宽 verifier 来绕过 typed call-site contract。
+  - 不得用 fixture-only snapshot 回写掩盖 runtime/contract regression。
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/call_contracts.scoop`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered/dropped_continuation_abandons_remaining_work.scoop`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/string_trim_indent_basic.scoop`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/struct_function_field_call_basic.scoop`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/where_clause_bound_method_fun.scoop`
+  9. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_named_args_basic.scoop`
+  10. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_virtual_named_args_basic.scoop`
+- 完成条件：
+  - 当前 full regression 里的 typed call-site / effect-facts contract regression 被消除。
+  - `P6-T03` 可以在不再伪造最终状态的前提下继续执行账本 / inventory / fixture 收口。
+- 依赖：`P6-T02`
+- 完成记录：
+  - 改动范围：
+  - 核心决策：
+  - 验证结果：
+  - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+
 ### [TODO] P6-T03：重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态
 
 - 参考：
@@ -1347,7 +1398,7 @@
 - 完成条件：
   - `PIPELINE_GAPS.md`、active inventory、active fixtures 对同一事实给出一致结论。
   - active tree 不再出现 `LegacyOnly` 和旧 fallback reason。
-- 依赖：`P6-T02`
+- 依赖：`P6-T02A`
 - 完成记录：
   - 改动范围：
   - 核心决策：

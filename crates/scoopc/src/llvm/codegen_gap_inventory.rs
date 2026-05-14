@@ -1,15 +1,14 @@
 //! Codegen-stage gap inventory and backend gate helpers.
 //!
-//! This inventory is intentionally executable data: backend gates and tests consume the same
-//! entries that document each `PIPELINE_GAPS.md` owner.  New unsupported codegen shapes should be
-//! added here before they are allowed to reach LLVM body emission.
+//! This inventory is intentionally executable data: only gap ids that still back an executable
+//! backend guard or a codegen-adjacent frontend gate stay here. Pure regression coverage for
+//! already-closed surfaces lives in dedicated fixtures / IR tests instead of this active table.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CodegenGapRoute {
     RawMirLlvm,
     EffectRefactorLlvm,
     RuntimeC,
-    FixtureRegression,
     UpstreamMirContract,
     FrontendReject,
 }
@@ -20,7 +19,6 @@ impl CodegenGapRoute {
             Self::RawMirLlvm => "raw MIR LLVM",
             Self::EffectRefactorLlvm => "effect-refactor LLVM",
             Self::RuntimeC => "runtime C",
-            Self::FixtureRegression => "fixture/regression",
             Self::UpstreamMirContract => "upstream MIR contract",
             Self::FrontendReject => "frontend reject",
         }
@@ -90,15 +88,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "backend gate / raw MIR PerformResult route bug"
     ),
     gap!(
-        "PIPELINE_GAPS §3.4",
-        "CG-T02",
-        "CG-T02 / MIR-T09R",
-        RawMirLlvm,
-        false,
-        true,
-        "pass MIR TypeCheck/Cast unsupported"
-    ),
-    gap!(
         "PIPELINE_GAPS §3.5",
         "P6-T01",
         "P6-T01 / runtime cast contract guard",
@@ -115,15 +104,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         true,
         false,
         "backend gate / raw MIR missing dispatch/resume handoff contract"
-    ),
-    gap!(
-        "PIPELINE_GAPS §3.7",
-        "P3-T03",
-        "P3-T03 / top-level callable regression guard",
-        FixtureRegression,
-        false,
-        false,
-        "top-level callable value / FunPtr regression guard"
     ),
     gap!(
         "PIPELINE_GAPS §3.8",
@@ -189,15 +169,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "composite value erasure must publish descriptor-backed boxing intent"
     ),
     gap!(
-        "PIPELINE_GAPS §4.2",
-        "CG-T04c",
-        "CG-T04c / MIR-T10R",
-        RawMirLlvm,
-        false,
-        true,
-        "enum boxed payload field unit"
-    ),
-    gap!(
         "PIPELINE_GAPS §4.3",
         "P5-T01",
         "P5-T01 / oversized enum payload boxing guard",
@@ -234,15 +205,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "actual outward effect set must uniquely decide callable ABI"
     ),
     gap!(
-        "PIPELINE_GAPS §5.2",
-        "CG-T06",
-        "CG-T06",
-        EffectRefactorLlvm,
-        true,
-        true,
-        "refactor unsupported source classification"
-    ),
-    gap!(
         "PIPELINE_GAPS §5.3",
         "P4-T02",
         "P4-T02 / cleanup-unwind contract guard",
@@ -262,84 +224,21 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §5.5",
-        "CG-T04f",
-        "CG-T04f / MIR-T10R",
-        RuntimeC,
-        false,
-        true,
-        "runtime cross-thread resume u64 payload helper"
-    ),
-    gap!(
-        "PIPELINE_GAPS §5.6",
-        "CG-T06",
-        "CG-T06",
+        "P5-T01",
+        "P5-T01 / cross-thread effect-payload transport guard",
         RuntimeC,
         true,
-        true,
-        "runtime fatal helper thread resume noncomplete"
-    ),
-    gap!(
-        "PIPELINE_GAPS §5.7",
-        "CG-T08",
-        "CG-T08",
-        FixtureRegression,
         false,
-        true,
-        "default refactor blocker regression"
-    ),
-    gap!(
-        "PIPELINE_GAPS §6.1",
-        "CG-T02",
-        "CG-T02 / MIR-T09R",
-        FixtureRegression,
-        false,
-        true,
-        "not-null assertion !! expected-fail fixture"
-    ),
-    gap!(
-        "PIPELINE_GAPS §6.2",
-        "CG-T02",
-        "CG-T02 / MIR-T09R",
-        FixtureRegression,
-        false,
-        true,
-        "runtime is/as/as? refactor path"
-    ),
-    gap!(
-        "PIPELINE_GAPS §6.3",
-        "CG-T03",
-        "CG-T03",
-        RawMirLlvm,
-        false,
-        true,
-        "nameOf/getPlatform intrinsic fallback"
-    ),
-    gap!(
-        "PIPELINE_GAPS §6.4",
-        "CG-T07",
-        "CG-T07",
-        RawMirLlvm,
-        true,
-        true,
-        "@Extern global storage/linkage"
-    ),
-    gap!(
-        "PIPELINE_GAPS §6.5",
-        "CG-T03",
-        "CG-T03 / MIR-T08R",
-        RawMirLlvm,
-        true,
-        false,
-        "interface default method dispatch candidate"
+        "cross-thread resume payload must publish descriptor-backed composite transport metadata before reaching the runtime helper"
     ),
     gap!(
         "PIPELINE_GAPS §7.2",
-        "CG-T02",
-        "CG-T02",
+        "P6-T02",
+        "P6-T02 / function-type runtime cast frontend gate",
         FrontendReject,
         false,
         false,
-        "function type runtime cast frontend diagnostic"
+        "function-type runtime cast must fail at the frontend until a real runtime cast contract exists"
     ),
     gap!(
         "PIPELINE_GAPS §7.6",
@@ -349,15 +248,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         true,
         false,
         "GC pin/handle unsupported source shapes must fail at frontend; accepted calls must keep token/root contract"
-    ),
-    gap!(
-        "PIPELINE_GAPS §9",
-        "CG-T08",
-        "CG-T08",
-        FixtureRegression,
-        false,
-        true,
-        "codegen validation matrix"
     ),
 ];
 
@@ -380,10 +270,8 @@ mod tests {
             "PIPELINE_GAPS §3.1",
             "PIPELINE_GAPS §3.2",
             "PIPELINE_GAPS §3.3",
-            "PIPELINE_GAPS §3.4",
             "PIPELINE_GAPS §3.5",
             "PIPELINE_GAPS §3.6",
-            "PIPELINE_GAPS §3.7",
             "PIPELINE_GAPS §3.8",
             "PIPELINE_GAPS §3.9",
             "PIPELINE_GAPS §3.10",
@@ -391,25 +279,15 @@ mod tests {
             "PIPELINE_GAPS §3.12",
             "PIPELINE_GAPS §3.13",
             "PIPELINE_GAPS §4.1",
-            "PIPELINE_GAPS §4.2",
             "PIPELINE_GAPS §4.3",
             "PIPELINE_GAPS §4.4",
             "PIPELINE_GAPS §4.5",
             "PIPELINE_GAPS §5.1",
-            "PIPELINE_GAPS §5.2",
             "PIPELINE_GAPS §5.3",
             "PIPELINE_GAPS §5.4",
             "PIPELINE_GAPS §5.5",
-            "PIPELINE_GAPS §5.6",
-            "PIPELINE_GAPS §5.7",
-            "PIPELINE_GAPS §6.1",
-            "PIPELINE_GAPS §6.2",
-            "PIPELINE_GAPS §6.3",
-            "PIPELINE_GAPS §6.4",
-            "PIPELINE_GAPS §6.5",
             "PIPELINE_GAPS §7.2",
             "PIPELINE_GAPS §7.6",
-            "PIPELINE_GAPS §9",
         ];
 
         let mut seen = BTreeSet::new();
@@ -437,6 +315,52 @@ mod tests {
             );
         }
         assert_eq!(seen.len(), CODEGEN_GAP_INVENTORY.len());
+    }
+
+    #[test]
+    fn codegen_gap_inventory_excludes_regression_only_closed_ids() {
+        for gap_id in [
+            "PIPELINE_GAPS §3.4",
+            "PIPELINE_GAPS §3.7",
+            "PIPELINE_GAPS §4.2",
+            "PIPELINE_GAPS §5.2",
+            "PIPELINE_GAPS §5.6",
+            "PIPELINE_GAPS §5.7",
+            "PIPELINE_GAPS §6.1",
+            "PIPELINE_GAPS §6.2",
+            "PIPELINE_GAPS §6.3",
+            "PIPELINE_GAPS §6.4",
+            "PIPELINE_GAPS §6.5",
+            "PIPELINE_GAPS §9",
+        ] {
+            assert!(
+                codegen_gap_entry(gap_id).is_none(),
+                "{gap_id} should stay out of the active codegen inventory once it only has regression coverage"
+            );
+        }
+    }
+
+    #[test]
+    fn codegen_gap_inventory_has_no_blockers_or_stale_legacy_owners() {
+        for entry in CODEGEN_GAP_INVENTORY {
+            assert!(
+                !entry.production_blocker,
+                "{} should no longer stay in the active inventory as a production blocker",
+                entry.gap_id
+            );
+            assert!(
+                !entry.owner_task.starts_with("CG-T"),
+                "{} still points at a stale legacy owner: {}",
+                entry.gap_id,
+                entry.owner_task
+            );
+            assert!(
+                !entry.suggested_owner.starts_with("CG-T"),
+                "{} still points at a stale legacy suggested owner: {}",
+                entry.gap_id,
+                entry.suggested_owner
+            );
+        }
     }
 
     #[test]
@@ -523,6 +447,13 @@ mod tests {
                 CodegenGapRoute::EffectRefactorLlvm,
                 true,
                 "array composite element transport must publish descriptor-backed metadata",
+            ),
+            (
+                "PIPELINE_GAPS §5.5",
+                "P5-T01 / cross-thread effect-payload transport guard",
+                CodegenGapRoute::RuntimeC,
+                true,
+                "cross-thread resume payload must publish descriptor-backed composite transport metadata before reaching the runtime helper",
             ),
         ] {
             let entry = codegen_gap_entry(gap_id)
@@ -623,18 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn codegen_gap_inventory_marks_p3_t03_regression_and_storemember_gaps_as_closed_guards() {
-        let function_ref = codegen_gap_entry("PIPELINE_GAPS §3.7")
-            .expect("§3.7 regression guard should remain tracked in inventory");
-        assert_eq!(function_ref.owner_task, "P3-T03");
-        assert_eq!(function_ref.route, CodegenGapRoute::FixtureRegression);
-        assert!(!function_ref.needs_upstream_contract);
-        assert!(!function_ref.production_blocker);
-        assert_eq!(
-            function_ref.trigger,
-            "top-level callable value / FunPtr regression guard"
-        );
-
+    fn codegen_gap_inventory_marks_p3_t03_storemember_gap_as_closed_guard() {
         let store_member = codegen_gap_entry("PIPELINE_GAPS §3.13")
             .expect("§3.13 guard should remain tracked in inventory");
         assert_eq!(store_member.owner_task, "P3-T03");
@@ -708,6 +628,24 @@ mod tests {
     }
 
     #[test]
+    fn codegen_gap_inventory_marks_p6_t02_function_type_cast_gate() {
+        let entry = codegen_gap_entry("PIPELINE_GAPS §7.2")
+            .expect("§7.2 frontend gate should remain tracked in inventory");
+        assert_eq!(entry.owner_task, "P6-T02");
+        assert_eq!(
+            entry.suggested_owner,
+            "P6-T02 / function-type runtime cast frontend gate"
+        );
+        assert_eq!(entry.route, CodegenGapRoute::FrontendReject);
+        assert!(!entry.needs_upstream_contract);
+        assert!(!entry.production_blocker);
+        assert_eq!(
+            entry.trigger,
+            "function-type runtime cast must fail at the frontend until a real runtime cast contract exists"
+        );
+    }
+
+    #[test]
     fn codegen_gap_inventory_covers_required_unsupported_patterns() {
         let triggers = CODEGEN_GAP_INVENTORY
             .iter()
@@ -719,7 +657,7 @@ mod tests {
             "UnsupportedMainBody",
             "pass MIR",
             "runtime cast/typecheck metadata",
-            "runtime fatal helper",
+            "cross-thread resume payload",
         ] {
             assert!(
                 triggers.contains(needle),

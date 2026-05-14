@@ -1,7 +1,7 @@
 // EXPECT: pass
 // EXPECT-EXIT: 66
 //
-// CG-T04c: Unit payload fields must keep their field ordinal in boxed enum payload layout.
+// 回归：boxed enum payload 中的 `Unit` field 必须保留自己的 field ordinal。
 
 import scoop.core.*
 

@@ -1,7 +1,7 @@
 // EXPECT: pass
 // EXPECT-EXIT: 0
 //
-// CG-T04c: payload-bearing enum value erasure must use the explicit boxed carrier path.
+// 回归：带 payload 的 enum 值擦除必须继续走显式 boxed carrier 路径。
 
 import scoop.core.*
 

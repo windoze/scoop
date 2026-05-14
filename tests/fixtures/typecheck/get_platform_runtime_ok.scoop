@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T1219：`getPlatform()` 可在运行期语境调用（遵循 const fun fallback 规则），并返回 Platform 值类型。
+// 回归：`getPlatform()` 可在运行期语境直接调用，并返回 `Platform` 值类型。
 
 package fixtures.typecheck
 
@@ -11,4 +11,3 @@ fun runtimeUse(): String {
 }
 
 val a: String = runtimeUse()
-

@@ -66,7 +66,7 @@ const INVENTORY_CLASSIFICATION_RULES: &[InventoryClassificationRule] = &[
     },
     InventoryClassificationRule {
         name: "historical-only mapping",
-        meaning: "Legacy-only residue or closed/re-scoped ids kept only for audit and owner mapping, not as default production blockers.",
+        meaning: "Legacy residue or closed/re-scoped ids kept only in docs or dedicated regression tests, not in active executable inventories.",
     },
 ];
 
@@ -84,10 +84,8 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §3.1",
     "PIPELINE_GAPS §3.2",
     "PIPELINE_GAPS §3.3",
-    "PIPELINE_GAPS §3.4",
     "PIPELINE_GAPS §3.5",
     "PIPELINE_GAPS §3.6",
-    "PIPELINE_GAPS §3.7",
     "PIPELINE_GAPS §3.8",
     "PIPELINE_GAPS §3.9",
     "PIPELINE_GAPS §3.10",
@@ -95,22 +93,13 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §3.12",
     "PIPELINE_GAPS §3.13",
     "PIPELINE_GAPS §4.1",
-    "PIPELINE_GAPS §4.2",
     "PIPELINE_GAPS §4.3",
     "PIPELINE_GAPS §4.4",
     "PIPELINE_GAPS §4.5",
     "PIPELINE_GAPS §5.1",
-    "PIPELINE_GAPS §5.2",
     "PIPELINE_GAPS §5.3",
     "PIPELINE_GAPS §5.4",
     "PIPELINE_GAPS §5.5",
-    "PIPELINE_GAPS §5.6",
-    "PIPELINE_GAPS §5.7",
-    "PIPELINE_GAPS §6.1",
-    "PIPELINE_GAPS §6.2",
-    "PIPELINE_GAPS §6.3",
-    "PIPELINE_GAPS §6.4",
-    "PIPELINE_GAPS §6.5",
     "PIPELINE_GAPS §7.6",
 ];
 
@@ -118,18 +107,7 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
 const CODEGEN_SCOPE_SHIFTED_PARTIAL_GAPS: &[&str] = &[];
 
 #[cfg(feature = "llvm")]
-const CODEGEN_CLOSED_RESCOPED_PRODUCTION_BLOCKERS: &[&str] = &[
-    "PIPELINE_GAPS §3.4",
-    "PIPELINE_GAPS §4.2",
-    "PIPELINE_GAPS §5.2",
-    "PIPELINE_GAPS §5.5",
-    "PIPELINE_GAPS §5.6",
-    "PIPELINE_GAPS §5.7",
-    "PIPELINE_GAPS §6.1",
-    "PIPELINE_GAPS §6.2",
-    "PIPELINE_GAPS §6.3",
-    "PIPELINE_GAPS §6.4",
-];
+const CODEGEN_CLOSED_RESCOPED_PRODUCTION_BLOCKERS: &[&str] = &[];
 
 #[test]
 fn pipeline_gap_audit_records_roots_rules_and_exit_conditions() {

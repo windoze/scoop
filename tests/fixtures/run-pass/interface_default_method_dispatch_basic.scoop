@@ -1,7 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: interface_default_method_dispatch_basic.stdout
 //
-// CG-T03: interface dispatch consumes the selected default-method slot contract.
+// 回归：interface default method dispatch 继续消费已选中的 default-method slot contract。
 
 import scoop.core.*
 

@@ -1,7 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: not_null_assert_basic.stdout
 //
-// T0108 / CG-T02: `!!` (non-null assert) codegen.
+// 回归：`!!` 非空断言在默认主线继续通过运行期解包。
 //
 // Covers:
 //   - `expr!!` on a `Some` value -> unwraps successfully.

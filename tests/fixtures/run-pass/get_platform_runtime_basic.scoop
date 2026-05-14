@@ -1,7 +1,7 @@
 // EXPECT: pass
 // RUN-STDOUT: get_platform_runtime_basic.stdout
 //
-// CG-T03: `getPlatform()` has refactor runtime lowering instead of a declaration-only call.
+// 回归：`getPlatform()` 继续走真实运行期 lowering，而不是退回 declaration-only 调用。
 
 import scoop.core.*
 

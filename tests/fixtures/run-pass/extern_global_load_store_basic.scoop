@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：CG-T07 `@Extern var` 在 refactor codegen 中按外部 C storage 做 load/store。
+// 回归：`@Extern var` 继续按外部 C storage contract 做 load/store。
 
 package fixtures.codegen
 
