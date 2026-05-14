@@ -14,7 +14,7 @@ fn read_workspace_file(relative: &str) -> String {
 #[test]
 fn legacy_pipeline_docs_removed_live_docs_omit_pipeline_selector_commands() {
     for relative in [
-        "EFFECT_REFACTOR.md",
+        "docs/archive/designs/EFFECT_REFACTOR.md",
         "docs/archive/designs/HIR_COMPLETENESS_HANDOFF.md",
         "docs/archive/designs/MIR_REFACTOR_PHASE_EXIT_AUDIT.md",
     ] {
