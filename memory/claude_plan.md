@@ -36,4 +36,5 @@
   - `codegen_gap_inventory`、`pipeline_gap_audit`
   - `cargo clippy --all-targets -- -D warnings`
 - 额外复核：`cargo test -p scoopc llvm::tests -- --nocapture` 中与本任务直接相关的历史失败已消失；剩余 3 个失败对齐后续 `P4` / explicit-root-frame 任务，不阻塞 `P3-T03` 完成。
-- 下一步：提交本任务改动并停止。
+- 已提交：`bcc1d3f7 [P3-T03] Close StoreMember and callable-surface regressions`
+- 下一步：停止，等待下一次按 `TODO.md` 顺序继续执行。
