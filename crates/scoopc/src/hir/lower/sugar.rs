@@ -59,14 +59,13 @@ impl<'a> HirLowering<'a> {
                     receiver.clone(),
                     &info,
                 );
-                let setter_member_resolved =
-                    info.delegate_class_fqn.as_ref().map(|class_fqn| {
-                        let setter_fqn = format!("{class_fqn}.setValue");
-                        MemberRef::Fun {
-                            id: self.symbols.intern_top_level(setter_fqn.clone()),
-                            fqn: setter_fqn,
-                        }
-                    });
+                let setter_member_resolved = info.delegate_class_fqn.as_ref().map(|class_fqn| {
+                    let setter_fqn = format!("{class_fqn}.setValue");
+                    MemberRef::Fun {
+                        id: self.symbols.intern_top_level(setter_fqn.clone()),
+                        fqn: setter_fqn,
+                    }
+                });
                 let callee = Expr {
                     span: member.span,
                     ty: self.builtins.any,

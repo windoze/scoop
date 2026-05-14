@@ -87,9 +87,9 @@ fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 //
 // 说明：
 // - `FunPtr<F>` 的调用在语义上属于 unsafe 操作（可跳出语言内存/控制流模型），因此统一要求 `@Unsafe`；
-// - ordinary `@Extern` 自身保持 effect-impermeable；若 native 需要把 effectful / deferred
-//   capability 显式交还给 Scoop，应通过 `FunPtr<F>` / `UIntPtr` 这类 bridge token 建模，
-//   再由后续 unsafe call 单独承担该控制流边界；
+// - `FunPtr<F>` 只建模 native leaf function pointer，`F` 必须是无 effect 的函数类型；
+// - `FunPtr<F>` / `UIntPtr` 这类 token 不建立 effect/control boundary，ordinary `@Extern` 仍然
+//   对双向 effect/continuation/non-local control 保持 impermeable；
 // - v0 阶段以 “extension fun invoke(...)” 的形式暴露，便于在早期实现中复用现有的扩展函数调用路径。
 
 /// `FunPtr` → `UIntPtr`（只能在 unsafe context 使用）。

@@ -183,6 +183,16 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "`FunPtr<F>` 的类型实参必须是无 effect 的函数类型（省略 effect row、`/ Pure` 或 `/ Pure!`），但得到 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::funptr_signature_must_be_pure))]
+    FunPtrSignatureMustBePure {
+        found: String,
+        #[label("这里的 F 不是无 effect 函数类型")]
+        span: miette::SourceSpan,
+    },
+
     #[error("value-only enum 的底层类型必须是整型标量：{enum_name} 的底层类型为 {found}")]
     #[diagnostic(code(scoop::typecheck::value_only_enum_underlying_not_integral))]
     ValueOnlyEnumUnderlyingNotIntegral {
@@ -2290,11 +2300,11 @@ impl<'a> TypeLowering<'a> {
         {
             self.check_ptr_pointee_gc_free(pointee, span)?;
         }
-        // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
+        // `FunPtr<F>`：F 必须是无 effect 的函数类型；占位 type param 会在实例化时再次校验。
         if fqn == FUNPTR_FQN
             && let Some(sig) = args.first().copied()
         {
-            self.check_funptr_signature_is_function(sig, span)?;
+            self.check_funptr_signature_contract(sig, span)?;
         }
 
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
@@ -2460,14 +2470,23 @@ impl<'a> TypeLowering<'a> {
         })
     }
 
-    fn check_funptr_signature_is_function(
+    pub(crate) fn check_funptr_signature_contract(
         &mut self,
         sig: TypeId,
         span: Span,
     ) -> Result<(), TypeLowerError> {
         match self.type_kind(sig) {
-            TypeKind::Ref(RefTypeKind::Function(_)) => Ok(()),
-            // 允许占位 type param（例如在泛型声明内部出现 `FunPtr<F>`）。
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if fun.effects.is_pure() {
+                    Ok(())
+                } else {
+                    Err(TypeLowerError::FunPtrSignatureMustBePure {
+                        found: self.fmt_type(sig),
+                        span: span.into(),
+                    })
+                }
+            }
+            // 允许占位 type param（例如 sysroot 或泛型声明中的 `FunPtr<F>`）；一旦实例化成具体类型会再次校验。
             TypeKind::Param(_) => Ok(()),
             _ => Err(TypeLowerError::FunPtrSignatureMustBeFunction {
                 found: self.fmt_type(sig),
@@ -2907,11 +2926,11 @@ impl<'a> TypeLowering<'a> {
         {
             self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
         }
-        // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
+        // `FunPtr<F>`：F 必须是无 effect 的函数类型；占位 type param 会在实例化时再次校验。
         if fqn == FUNPTR_FQN
             && let Some(sig) = args.first().copied()
         {
-            self.check_funptr_signature_is_function(sig, ptr_pointee_arg_span)?;
+            self.check_funptr_signature_contract(sig, ptr_pointee_arg_span)?;
         }
 
         match sym.kind {

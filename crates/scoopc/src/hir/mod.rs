@@ -1079,6 +1079,46 @@ pub type WhenPatBindingTypeIndex = HashMap<WhenPatBindingSite, TypeId>;
 /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
 /// - 当前阶段（T1006）仅支持 C ABI；
 /// - `symbol` 为最终参与链接的符号名（例如 `@Extern("puts")` / `@Extern("scoop_println")`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableAbiIdentity {
+    ManagedOrdinary,
+    NativeExtern,
+    ManagedExtern,
+    EffectBridge,
+}
+
+impl CallableAbiIdentity {
+    pub const fn from_extern_abi(abi: ExternAbi) -> Self {
+        match abi {
+            ExternAbi::C => Self::NativeExtern,
+        }
+    }
+
+    pub const fn managed_callable(call_may_suspend: bool) -> Self {
+        if call_may_suspend {
+            Self::EffectBridge
+        } else {
+            Self::ManagedOrdinary
+        }
+    }
+
+    pub const fn funptr(_call_may_suspend: bool) -> Self {
+        Self::NativeExtern
+    }
+
+    pub const fn is_extern(self) -> bool {
+        matches!(self, Self::NativeExtern | Self::ManagedExtern)
+    }
+
+    pub const fn uses_native_abi(self) -> bool {
+        matches!(self, Self::NativeExtern)
+    }
+
+    pub const fn uses_effect_bridge_abi(self) -> bool {
+        matches!(self, Self::EffectBridge)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternFun {
     pub abi: ExternAbi,
@@ -1092,6 +1132,12 @@ pub struct ExternFun {
     /// 说明：链接阶段同时通过 `LoweredHir.extern_libs`（由 `collect_extern_libs` 收集的去重列表）
     /// 将所有 lib 传递给链接器。此字段记录单个函数关联的 lib，用于诊断与追溯。
     pub lib: Option<String>,
+}
+
+impl ExternFun {
+    pub const fn callable_abi_identity(&self) -> CallableAbiIdentity {
+        CallableAbiIdentity::from_extern_abi(self.abi)
+    }
 }
 
 /// `@Extern` 的 ABI 约定（当前阶段只落地 C ABI）。

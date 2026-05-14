@@ -132,7 +132,7 @@ This boundary does **not** install an `EffectCtx` / `EffectOutcome` propagation 
 - continuation resumption/replay, or
 - longjmp-like non-local control unwinding through Scoop frames.
 
-If native code needs to hand effectful or deferred work back to Scoop, it must do so through an explicit bridge token such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw`. The later unsafe bridge call/lookup establishes the next boundary; the original `@Extern` call itself remains Pure/effect-impermeable.
+Returning or accepting raw tokens such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw` does not create an effect/control bridge. The original `@Extern` call remains Pure/effect-impermeable, and any later `FunPtr<F>` call is still lowered as an ordinary native function-pointer call.
 
 ## 5. Pointer ↔ integer casts
 

@@ -291,7 +291,7 @@ fn collect_files(dir: &Path, out: &mut Vec<PathBuf>) {
 fn parse_pipeline_gap_statuses() -> std::collections::BTreeMap<String, String> {
     const STATUS_PREFIX: &str = "- \u{72b6}\u{6001}\u{ff1a}`";
 
-    let source = fs::read_to_string(repo_root().join("PIPELINE_GAPS.md"))
+    let source = fs::read_to_string(repo_root().join("docs/archive/designs/PIPELINE_GAPS.md"))
         .expect("failed to read PIPELINE_GAPS.md");
     let mut statuses = std::collections::BTreeMap::new();
     let mut current_gap = None::<String>;

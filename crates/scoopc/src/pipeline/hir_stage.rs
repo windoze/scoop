@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir::{
-    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, Decl, DispatchCallKind, Expr,
-    ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item, LoweredHir, Stmt,
-    StmtKind, ValDecl, ValueRef,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, CallSite, CallableAbiIdentity, Decl,
+    DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
+    LoweredHir, Stmt, StmtKind, ValDecl, ValueRef,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -600,6 +600,7 @@ pub struct FunctionTargetContract {
     fqn: String,
     decl_file: Option<PathBuf>,
     decl_span: Option<Span>,
+    abi_identity: CallableAbiIdentity,
     type_args: Vec<TypeId>,
     eff_args: Vec<EffectRow>,
     arg_binding: Option<CallArgBindingContract>,
@@ -609,12 +610,14 @@ impl FunctionTargetContract {
     fn from_binding(
         types: &TypeStore,
         binding: &ast::TopLevelFunCallBinding,
+        abi_identity: CallableAbiIdentity,
         arg_binding: Option<CallArgBindingContract>,
     ) -> Self {
         Self {
             fqn: binding.fqn.clone(),
             decl_file: Some(binding.decl_file.clone()),
             decl_span: Some(binding.decl_span),
+            abi_identity,
             type_args: binding
                 .type_args
                 .iter()
@@ -640,12 +643,14 @@ impl FunctionTargetContract {
 
     fn synthetic_with_arg_binding(
         fqn: String,
+        abi_identity: CallableAbiIdentity,
         arg_binding: Option<CallArgBindingContract>,
     ) -> Self {
         Self {
             fqn,
             decl_file: None,
             decl_span: None,
+            abi_identity,
             type_args: Vec::new(),
             eff_args: Vec::new(),
             arg_binding,
@@ -662,6 +667,10 @@ impl FunctionTargetContract {
 
     pub fn decl_span(&self) -> Option<Span> {
         self.decl_span
+    }
+
+    pub fn abi_identity(&self) -> CallableAbiIdentity {
+        self.abi_identity
     }
 
     pub fn type_args(&self) -> &[TypeId] {
@@ -779,16 +788,19 @@ pub enum TypedCallSiteContract {
     Closure {
         callee_ty: TypeId,
         return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
         arg_binding: Option<CallArgBindingContract>,
     },
     FunValue {
         callee_ty: TypeId,
         return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
         arg_binding: Option<CallArgBindingContract>,
     },
     FunPtr {
         callee_ty: TypeId,
         return_ty: TypeId,
+        abi_identity: CallableAbiIdentity,
         arg_binding: Option<CallArgBindingContract>,
     },
     Virtual(MemberCallTargetContract),
@@ -1338,6 +1350,45 @@ impl<'a> ContractCollector<'a> {
         ));
     }
 
+    fn hir_fun_decl(&self, fqn: &str) -> Option<&FunDecl> {
+        self.lowered_hir
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == fqn => Some(fun),
+                _ => None,
+            })
+            .or_else(|| {
+                self.lowered_hir
+                    .member_funs
+                    .iter()
+                    .find(|fun| fun.fqn == fqn)
+            })
+    }
+
+    fn callable_abi_identity_for_fqn(&self, fqn: &str) -> CallableAbiIdentity {
+        if let Some(extern_fun) = self.lowered_hir.extern_funs.get(fqn) {
+            return extern_fun.callable_abi_identity();
+        }
+
+        let call_may_suspend = self
+            .hir_fun_decl(fqn)
+            .is_some_and(|fun| callable_declared_effectful(&self.lowered_hir.types, fun.ty));
+        CallableAbiIdentity::managed_callable(call_may_suspend)
+    }
+
+    fn managed_callable_abi_identity_for_ty(&self, ty: TypeId) -> CallableAbiIdentity {
+        CallableAbiIdentity::managed_callable(callable_declared_effectful(
+            &self.lowered_hir.types,
+            ty,
+        ))
+    }
+
+    fn funptr_callable_abi_identity_for_ty(&self, _ty: TypeId) -> CallableAbiIdentity {
+        CallableAbiIdentity::funptr(false)
+    }
+
     fn top_level_val_source_path(&self, val: &ValDecl) -> Option<PathBuf> {
         self.lowered_hir
             .top_level_vars
@@ -1542,9 +1593,11 @@ impl<'a> ContractCollector<'a> {
 
         if let Some(binding) = self.lowered_hir.top_level_fun_call_sites.get(&call_site) {
             let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
+            let abi_identity = self.callable_abi_identity_for_fqn(&binding.fqn);
             let function = FunctionTargetContract::from_binding(
                 &self.lowered_hir.types,
                 binding,
+                abi_identity,
                 arg_binding.clone(),
             );
 
@@ -1608,8 +1661,10 @@ impl<'a> ContractCollector<'a> {
 
         let arg_binding = self.call_arg_binding_contract(source_path, call_site.span);
         let contract = if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            let abi_identity = self.callable_abi_identity_for_fqn(fqn);
             let function = FunctionTargetContract::synthetic_with_arg_binding(
                 fqn.clone(),
+                abi_identity,
                 arg_binding.clone(),
             );
             if let Some((dispatch_kind, receiver_ty)) =
@@ -1648,18 +1703,24 @@ impl<'a> ContractCollector<'a> {
             Some(TypedCallSiteContract::Closure {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                abi_identity: self.managed_callable_abi_identity_for_ty(callee.ty),
                 arg_binding: arg_binding.clone(),
             })
         } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunPtr {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                abi_identity: self.funptr_callable_abi_identity_for_ty(callee.ty),
                 arg_binding: arg_binding.clone(),
             })
         } else if let Some(fqn) = gc_member_intrinsic_fqn(callee) {
             Some(TypedCallSiteContract::Intrinsic {
                 kind: TypedIntrinsicKind::from_fqn(&fqn),
-                function: FunctionTargetContract::synthetic_with_arg_binding(fqn, arg_binding),
+                function: FunctionTargetContract::synthetic_with_arg_binding(
+                    fqn,
+                    CallableAbiIdentity::ManagedOrdinary,
+                    arg_binding,
+                ),
             })
         } else if let Some((owner_fqn, member_name, fqn, receiver_ty)) =
             resolved_member_call_binding(callee)
@@ -1667,13 +1728,18 @@ impl<'a> ContractCollector<'a> {
             // 合成的 member-access call（例如 generic delegated property 的 getValue/setValue）
             // 在 lowering 时已写回 `MemberRef::Fun { fqn }`；这里据此发布 MemberDirect contract，
             // 让 MIR / effect-facts / late-lowering 能像普通 source-level member 调用一样消费。
+            let abi_identity = self.callable_abi_identity_for_fqn(&fqn);
             Some(TypedCallSiteContract::MemberDirect(
                 MemberCallTargetContract::new(
                     owner_fqn,
                     member_name,
                     fqn.clone(),
                     receiver_ty,
-                    FunctionTargetContract::synthetic_with_arg_binding(fqn, arg_binding),
+                    FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn,
+                        abi_identity,
+                        arg_binding,
+                    ),
                 ),
             ))
         } else if is_function_ty(&self.lowered_hir.types, callee.ty)
@@ -1682,6 +1748,7 @@ impl<'a> ContractCollector<'a> {
             Some(TypedCallSiteContract::FunValue {
                 callee_ty: callee.ty,
                 return_ty: expr.ty,
+                abi_identity: self.managed_callable_abi_identity_for_ty(callee.ty),
                 arg_binding,
             })
         } else {
@@ -2045,6 +2112,11 @@ fn function_effect_contract(types: &TypeStore, fun_ty: TypeId) -> Option<(Effect
     };
 
     Some((function.effects.clone(), function.effects_closed))
+}
+
+fn callable_declared_effectful(types: &TypeStore, callable_ty: TypeId) -> bool {
+    function_effect_contract(types, callable_ty)
+        .is_some_and(|(effects, _effects_closed)| !effects.is_pure())
 }
 
 fn find_raise_runtime_error_effect(types: &TypeStore) -> Option<TypeId> {
@@ -2841,16 +2913,19 @@ fn format_call_site_contract(
             callee_ty,
             return_ty,
             arg_binding,
+            ..
         }
         | TypedCallSiteContract::FunValue {
             callee_ty,
             return_ty,
             arg_binding,
+            ..
         }
         | TypedCallSiteContract::FunPtr {
             callee_ty,
             return_ty,
             arg_binding,
+            ..
         } => {
             let _ = writeln!(out, "            callee_ty: {},", types.display(*callee_ty));
             let _ = writeln!(out, "            return_ty: {},", types.display(*return_ty));
@@ -3582,6 +3657,13 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
             contract,
             TypedCallSiteContract::DirectTopLevel(target)
                 if target.fqn() == "sample.direct"
+                    && target.abi_identity() == CallableAbiIdentity::ManagedOrdinary
+        )));
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::DirectTopLevel(target)
+                if target.fqn() == "sample.getFunPtr"
+                    && target.abi_identity() == CallableAbiIdentity::NativeExtern
         )));
         assert!(contracts.values().any(|contract| matches!(
             contract,
@@ -3617,11 +3699,11 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
                 .values()
                 .any(|contract| matches!(contract, TypedCallSiteContract::Closure { .. }))
         );
-        assert!(
-            contracts
-                .values()
-                .any(|contract| matches!(contract, TypedCallSiteContract::FunPtr { .. }))
-        );
+        assert!(contracts.values().any(|contract| matches!(
+            contract,
+            TypedCallSiteContract::FunPtr { abi_identity, .. }
+                if *abi_identity == CallableAbiIdentity::NativeExtern
+        )));
         assert!(contracts.values().any(|contract| matches!(
             contract,
             TypedCallSiteContract::Intrinsic { function, .. }
@@ -3637,6 +3719,40 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
             TypedCallSiteContract::EffectOp(perform)
                 if perform.op_fqn() == "sample.Boom.boom"
         )));
+    }
+
+    #[test]
+    fn refactor_hir_rejects_effectful_funptr_signature_before_hir() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_effect_bridge_abi.scoop",
+            r#"package sample
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+@Extern("native_get_funptr")
+fun getFunPtr(): FunPtr<() -> Int / (Ask)>
+
+fun useBridge(): Int / (Ask) {
+    val fp: FunPtr<() -> Int / (Ask)> = @Unsafe do { getFunPtr() }
+    return @Unsafe do { fp() }
+}
+"#,
+        );
+
+        let err = run(&session, &source)
+            .expect_err("effectful FunPtr signatures should be rejected before HIR");
+        let HirLowerError::TypeLower(err) = err else {
+            panic!("expected type-lowering diagnostic, got {err:?}");
+        };
+        assert!(matches!(
+            *err,
+            crate::typecheck::TypeLowerError::FunPtrSignatureMustBePure { .. }
+        ));
     }
 
     #[test]

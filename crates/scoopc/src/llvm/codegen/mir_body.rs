@@ -4809,12 +4809,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::FunValue { callee } => {
                 if let Some(fun_ty) = self.mir_operand_funptr_function_type(body, mir_types, callee)
                 {
+                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(&fun_ty);
                     return self.codegen_mir_funptr_value_call(
                         span,
                         callee,
                         args,
                         &fun_ty,
-                        !fun_ty.effects.is_pure(),
+                        callable_abi.uses_effect_bridge_abi(),
                         (body, mir_types, slots),
                     );
                 }
@@ -4838,12 +4839,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 RAW_MIR_CALL_KIND_DETAIL,
             )),
         }
-    }
-
-    fn published_callable_uses_effect_step_surface(&self, callable_fqn: &str) -> bool {
-        self.published_late_lowered_program()
-            .and_then(|program| program.callable(callable_fqn))
-            .is_some_and(|callable| callable.effect_step_abi().is_some())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -4870,11 +4865,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             concrete_fqn = inferred_fqn;
         }
-        let is_extern = self.extern_funs.contains_key(&concrete_fqn);
+        let callable_abi = self.direct_call_abi_identity(&concrete_fqn);
+        let uses_native_abi = callable_abi.uses_native_abi();
+        let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         let dispatch_fqn = mir_direct_call_base_fqn(&concrete_fqn);
-        let uses_effect_step_surface = !is_extern
-            && (self.published_callable_uses_effect_step_surface(&concrete_fqn)
-                || self.published_callable_uses_effect_step_surface(dispatch_fqn));
         if require_plain_surface && uses_effect_step_surface {
             return Err(frontend_error(format!(
                 "refactor plain direct call `{}` 仍要求 effect-step callable surface；应走 published boundary/dynamic adapter，而不是 ordinary direct call",
@@ -5060,7 +5054,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "pass MIR direct call return type",
             at: span.into(),
         })?;
-        let hidden_sret_result_ty = if is_extern {
+        let hidden_sret_result_ty = if uses_native_abi {
             None
         } else {
             self.hidden_sret_result_ty(span, ret_cg)?
@@ -5070,7 +5064,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // compilation-unit codegen context and outlives this call.
             let mir_types = unsafe { &**mir_types };
             self.codegen_bound_materialized_mir_call_args(
-                span, fun, mir_types, args, slots, is_extern,
+                span,
+                fun,
+                mir_types,
+                args,
+                slots,
+                uses_native_abi,
             )?
         } else {
             self.codegen_bound_mir_call_args_from_signature(
@@ -5079,7 +5078,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &param_tys,
                 args,
                 slots,
-                is_extern,
+                uses_native_abi,
                 self.types,
             )?
         };
@@ -5121,7 +5120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // compilation-unit codegen context and outlives this call.
                     let mir_types = unsafe { &**mir_types };
                     let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-                    let declaration_surface = if is_extern {
+                    let declaration_surface = if callable_abi.is_extern() {
                         LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
                     } else {
                         LlvmFunctionDeclarationSurface::ExportedAbi
@@ -5144,7 +5143,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         };
-        let call_site_result = if is_extern {
+        let call_site_result = if uses_native_abi {
             self.emit_extern_native_call(span, &concrete_fqn, llvm_fun, &llvm_args)
         } else {
             self.with_conservative_gc_local_root_spills(span, |cg| {
@@ -5246,7 +5245,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .published_late_lowered_program()
             .and_then(|program| program.callable(fn_ptr))
             .map(|callable| callable.effect_step_abi().is_some())
-            .unwrap_or(!fun_ty.effects.is_pure());
+            .unwrap_or_else(|| {
+                self.managed_callable_abi_identity_from_fun_ty(fun_ty)
+                    .uses_effect_bridge_abi()
+            });
         let callee_value =
             self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
@@ -5287,7 +5289,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             span,
             closure_obj_i8,
             fun_ty,
-            !fun_ty.effects.is_pure(),
+            self.managed_callable_abi_identity_from_fun_ty(fun_ty)
+                .uses_effect_bridge_abi(),
             args,
             slots,
         )
@@ -6407,7 +6410,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         sig_fun: &hir::FunDecl,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
-        is_extern: bool,
+        uses_native_abi: bool,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = sig_fun
             .params
@@ -6425,7 +6428,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &param_tys,
             args,
             slots,
-            is_extern,
+            uses_native_abi,
             self.types,
         )
     }
@@ -6438,7 +6441,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         param_tys: &[TypeId],
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
-        is_extern: bool,
+        uses_native_abi: bool,
         source_types: &TypeStore,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let arg_to_param = map_mir_call_args_to_param_names(param_names, args).ok_or(
@@ -6487,7 +6490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let abi_ty = self
                     .equivalent_codegen_type_id(source_types, param_ty)
                     .unwrap_or(param_ty);
-                let param_abi = if is_extern {
+                let param_abi = if uses_native_abi {
                     None
                 } else {
                     Some(self.ordinary_param_abi(span, abi_ty)?)
@@ -6537,7 +6540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
-        is_extern: bool,
+        uses_native_abi: bool,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let arg_to_param = map_mir_call_args_to_mir_params(&mir_fun.params, args).ok_or(
             LlvmEmitError::UnsupportedMainBody {
@@ -6583,7 +6586,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: param.span.into(),
                     },
                 )?;
-                let param_abi = if is_extern {
+                let param_abi = if uses_native_abi {
                     None
                 } else {
                     Some(self.ordinary_param_abi(param.span, abi_ty)?)
@@ -7870,7 +7873,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &receiver_arg.value,
             call_args,
             &fun_ty,
-            !fun_ty.effects.is_pure(),
+            self.funptr_callable_abi_identity_from_fun_ty(&fun_ty)
+                .uses_effect_bridge_abi(),
             (body, mir_types, slots),
         )
     }

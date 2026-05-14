@@ -13,7 +13,7 @@
 - 本轮目标不是“再补一组 helper 特判”，而是把 callable 的 ABI 身份、native boundary scaffolding、以及 managed external surface 一次性收口成可追踪 contract。
 - `FunctionType` 继续只表达源码级签名；后续实现不得再默认把它等同于“已知 ABI 的 callable”。
 - 当前 mainline 已经接受部分 native aggregate callable surface，例如 `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`。本计划默认沿着“正式化并统一当前行为”推进；若要回退为更窄 allowlist，必须先更新 `MANAGED_ABI.md`、同步重写 fixture，再改实现。
-- 当前 mainline 已经接受“`@Extern` 返回 effectful `FunPtr<F>` 作为 bridge token”的 surface，例如 `tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`。后续重构必须保留这条用户可见能力；若内部需要拆成不同 ABI family，应该在 lowering contract 内区分，而不是直接删掉现有 surface。
+- 当前 contract 下，`FunPtr<F>` 中的 `F` 必须保持无 effect；`@Extern` / `FunPtr` 都不能成为 effect/control 穿越 FFI 的通道。后续重构必须保留这条收窄后的用户可见能力。
 - `ExternAbi::Scoop` v1 仍然遵守 `MANAGED_ABI.md` 的收窄边界：
   - 只支持顶层函数；
   - 只支持 `Pure`；
@@ -52,10 +52,10 @@
   - `crates/scoopc/src/typecheck/lower.rs` 对 `FunPtr<F>` 只检查“`F` 是函数类型”；
   - `crates/scoopc/src/typecheck/expr/call.rs` 对 `FunPtr` 调用只要求 unsafe context；
   - 当前没有统一的 “这类类型允许穿过 native ABI / 这类不允许” classifier。
-- `FunPtr` 目前承担了两种内部语义，但代码中没有显式分家。
-  - 一类是 native function pointer surface；
-  - 一类是 effectful / deferred capability bridge，例如 `FunPtr<() -> Int / (Ask)>`；
-  - 这两类 surface 在 `sysroot/unsafe.scoop`、typed call contract 和 LLVM lowering 中仍共用 `FunPtr<F>` carrier。
+- `FunPtr` 应只承担 native function pointer surface。
+  - `FunPtr<F>` 中的 `F` 必须在前端保持无 effect；
+  - `FunPtr` 调用必须始终走 ordinary native function-pointer ABI，而不是 effect/state-machine 路径；
+  - 现有任务仍需把这一 contract 收口进 typed call contract、LLVM lowering 和 regression matrix。
 - `string cone` 不是从零开始。
   - 已迁移到普通 sysroot/helper 的部分：
     - `sysroot/string.scoop`：`substring`、`indexOf`、`contains`、`startsWith`、`endsWith`、`split`、`trimStart`、`trimEnd`、`trim`；
@@ -81,7 +81,7 @@
 | `FunctionType` 与 callable ABI identity 混在一起 | Open | 引入显式 ABI family / callable identity，并贯穿 typed call contract 与 LLVM lowering | P1 |
 | native `@Extern` 与 `FunPtr` 只在参数/返回 ABI 上部分对齐 | Partial | 建立单一 native ABI classifier，统一 declaration / direct call / indirect call / MIR path | P2 |
 | native surface 仍是 `GC-free`，不是 `ABI-safe`；`FunPtr` 也未复用同一 gate | Open | 明确 current v1 native surface contract，并让 `@Extern` / `FunPtr` 共用 gate 与诊断 | P2 |
-| `FunPtr` 同时承载 native leaf 与 effectful bridge，但内部没有 family 区分 | Open | 在不破坏现有 surface 的前提下，把 native leaf funptr 与 effect bridge 路由拆开 | P1-P2 |
+| `FunPtr` contract 需要收窄为 pure-only native surface | Open | 前端拒绝非纯 `FunPtr<F>`，并让 indirect call 始终走 ordinary native ABI | P1-P2 |
 | `string cone` 已部分 sysroot 化，但 scalar/string helper 仍是 builtin/runtime 特判 | Partial | 用 `ExternAbi::Scoop` 迁走 remaining string helpers，删除 resolver/typecheck/codegen/runtime 名字驱动路径 | P4 |
 | native / managed external 的 IR 与跨平台回归矩阵不完整 | Open | 补 direct/indirect parity、IR contract 与跨平台 matrix，回写文档 | P5 |
 
@@ -90,9 +90,9 @@
 | 主题 | 入口文件 / 位置 | 当前问题 | 目标状态 |
 |---|---|---|---|
 | `@Extern` 注解与 HIR 元数据 | `crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/hir/lower/util.rs`、`crates/scoopc/src/hir/mod.rs` | 只支持 `name` / `lib`，`ExternAbi` 只有 `C`，`ExternFun.abi` 未被消费 | `abi` 参数进入前端/LoweredHir，并成为 lowering 分流依据 |
-| callable ABI identity / `FunPtr` contract | `sysroot/unsafe.scoop`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/pipeline/hir_stage.rs` | `FunPtr` 只保留 `FunctionType` 与 word-sized address，typed call contract 不携带 ABI family | 直接调用、间接调用、bridge token 都能查询同一 ABI identity |
-| native declaration / call lowering | `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/call/lowering.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` | direct `@Extern` 与 `FunPtr` 在 `enter_native/leave_native`、`gc-leaf`、callconv、effect boundary 上分裂 | 单一 native classifier 统一 declaration / direct call / indirect call / MIR path |
-| native regression / matrix | `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`、`tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`、`crates/scoopc/src/llvm/tests.rs` | direct extern 合同已有 fixture，但 direct/indirect parity、callconv identity、effect bridge 与 native leaf 的边界还未作为一个矩阵锁定 | native direct/indirect / bridge 三类 surface 都有稳定回归 |
+| callable ABI identity / `FunPtr` contract | `sysroot/unsafe.scoop`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/pipeline/hir_stage.rs` | `FunPtr` 只保留 `FunctionType` 与 word-sized address，typed call contract 不携带 ABI family，也缺少对非纯 `F` 的统一收口 | 直接调用、间接调用都能查询同一 ABI identity，且 `FunPtr<F>` 保持 pure-only native contract |
+| native declaration / call lowering | `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/call/lowering.rs`、`crates/scoopc/src/llvm/codegen/mir_body.rs` | direct `@Extern` 与 `FunPtr` 在 `enter_native/leave_native`、`gc-leaf`、callconv 上分裂；`FunPtr` 路径还残留过时的 effect boundary 分支 | 单一 native classifier 统一 declaration / direct call / indirect call / MIR path |
+| native regression / matrix | `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`、`tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`、`tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`、`tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`、`tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`、`crates/scoopc/src/llvm/tests.rs` | direct extern 合同已有 fixture，但 direct/indirect parity、callconv identity，以及 non-pure `FunPtr` rejection 还未作为一个矩阵锁定 | native direct/indirect surface 与 non-pure `FunPtr` rejection 都有稳定回归 |
 | 已迁移的 sysroot string helpers | `sysroot/string.scoop`、`crates/scoopc/src/resolve/scopes.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/llvm/tests.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs` | 已经 ordinary managed 化，但依赖底层 byte primitives；需要保护既有成果 | 继续保留为 ordinary managed helper，不回退到 runtime helper |
 | 仍在 compiler/runtime 中 special-case 的 string helpers | `sysroot/core.scoop`、`crates/scoopc/src/resolve/scopes.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/llvm/codegen/call/lowering.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/{body.rs,value.rs}`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c` | 仍按 FQN/member-name 和 runtime symbol 拦截 | 迁到 `ExternAbi::Scoop` 或普通 sysroot helper；runtime 只保留 substrate |
 
@@ -108,7 +108,7 @@
 依赖说明：
 
 - P0 必须早于 P1-P4，因为当前 mainline 已有一批“看起来像设计 drift、但实际上被 fixture 锁住”的行为；不先冻结 baseline，后续很容易误把正确行为回退掉。
-- P1 必须早于 P2-P4，因为 native leaf / bridge token / managed external 只有在 ABI family 明确后才能统一 lower。
+- P1 必须早于 P2-P4，因为 native leaf / pure-only `FunPtr` / managed external 只有在 ABI family 明确后才能统一 lower。
 - P2 必须早于 P3，因为 `ExternAbi::Scoop` 不应建立在仍分裂的 native classifier 之上；否则 direct/indirect/managed external 三条线会再次交叉污染。
 - P3 必须早于 P4，因为 P4 迁 string helper 的前提就是 external managed helper 已有正式出口。
 - P5 之前不算完成；只做少量 string helper 或单个平台通过，不代表 callable ABI contract 已闭环。
@@ -121,7 +121,7 @@
 - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §1、§5、§10
 - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
 - `tests/fixtures/run-pass/unsafe_funptr_{extern_call_basic,aggregate_return_tuple}.scoop`
-- `tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+- `tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
 
 目标：
 
@@ -131,15 +131,15 @@
 
 必须实现的内容：
 
-1. 把当前 three-surface baseline 写成明确 contract：
+1. 把当前 baseline 写成明确 contract：
    - direct `@Extern` native leaf；
    - native `FunPtr` indirect call；
-   - effectful `FunPtr` bridge token。
+   - non-pure `FunPtr<F>` front-end rejection。
 2. 为现有行为补齐或刷新回归矩阵，至少覆盖：
    - `@Extern` direct call 会插 `enter_native/leave_native`；
    - `@Extern` direct call 不重新进入 statepoint rewrite；
    - native `FunPtr` aggregate return 继续按目标 ABI 返回，不回 ordinary hidden sret；
-   - `@Extern` 仍是 `Pure` / effect-impermeable，但可以返回 effectful `FunPtr` 作为 bridge。
+   - non-pure `FunPtr<F>` 必须在前端被拒绝；一旦允许调用，`FunPtr` call 必须保持 ordinary native ABI。
 3. 明确记录 current design drift：
    - native surface 仍是 `GC-free`；
    - `FunPtr` 还没有统一 gate / callconv / native boundary classifier；
@@ -155,7 +155,7 @@
 
 阶段输出：
 
-- 一份固定的 direct extern / native funptr / effectful bridge baseline。
+- 一份固定的 direct extern / native funptr baseline，以及 non-pure `FunPtr` rejection gate。
 - 一份已迁移 string helper 清单与 remaining special-case 清单。
 - 一组足以保护后续重构的最小 regression matrix。
 
@@ -165,7 +165,7 @@
 2. `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
 3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
 4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
-5. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+5. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
 6. `cargo test -p scoopc llvm_tests -- --nocapture`
    - 重点关注 `single_file_minimal_ir_includes_compilable_sysroot_string_helpers`
 
@@ -185,7 +185,7 @@
 目标：
 
 - 明确切开“源码级签名”和“调用 ABI 身份”。
-- 让 `ExternFun.abi`、typed call contract、native `FunPtr` / effectful bridge token 都能把 ABI family 明确传给 lowering。
+- 让 `ExternFun.abi`、typed call contract、native `FunPtr` 都能把 ABI family 明确传给 lowering。
 - 为 P2 的 native classifier 和 P3 的 `ExternAbi::Scoop` 预留稳定输入结构。
 
 必须实现的内容：
@@ -194,7 +194,7 @@
    - ordinary managed callable；
    - external C/native callable；
    - external Scoop/managed callable；
-   - current effect bridge callable（若继续借用 `FunPtr<F>` surface，也要在 lowering contract 内能区分它不是 native leaf）。
+   - effect-step managed callable（用于 ordinary managed outward-effect surface，而不是 `FunPtr`）。
 2. 让 `ExternFun.abi` 成为实际 consumer 使用的数据，而不再只是 HIR side table 里的占位字段。
 3. 扩展 typed call contract / effect facts / MIR handoff 中与 `FunPtr` 相关的 contract，使 direct `@Extern`、native `FunPtr`、effectful `FunPtr` 不再都只剩 `FunctionType`。
 4. 明确 `funPtrToUIntPtr` / `uintPtrToFunPtr` 在内部 contract 中是否保留 ABI family：
@@ -204,21 +204,21 @@
 必须遵从的约束：
 
 - 不得通过“再多加一个 `if is_extern` / `if nominal.fqn == FunPtr`”充当 ABI identity。
-- 不得破坏当前 `extern_fun_effectful_funptr_bridge_ok` / `effectful_funptr_call_uses_explicit_outcome_boundary` 这类现有 surface。
+- 不得放宽当前 `extern_fun_effectful_funptr_is_error` 这类收窄后的 surface。
 - `FunctionType` 仍只表示源码级签名；若需要 callconv / leaf / ABI family，必须进入新的 identity contract。
 
 阶段输出：
 
-- 一套可被 declaration path、direct call、indirect call、effect bridge 共用的 ABI identity 数据结构。
+- 一套可被 declaration path、direct call、indirect call共用的 ABI identity 数据结构。
 - 一套能在 HIR/MIR/LLVM 之间稳定传递的 identity source-of-truth。
 
 验证：
 
 1. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/refactor_hir_call_contracts_surface_ok.scoop`
-2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
 3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
 4. `cargo test -p scoopc llvm_tests -- --nocapture`
-   - 重点关注 `effectful_funptr_call_uses_explicit_outcome_boundary`
+   - 重点关注 `abi_baseline_native_funptr_aggregate_return_uses_native_result_abi`
 
 完成条件：
 
@@ -263,10 +263,10 @@
 3. 让 `@Extern` 与 native `FunPtr` 共用同一 gate。
    - 不能存在“direct extern 被 reject，但等价 `FunPtr<F>` 仍可过”的旁路；
    - 也不能存在 direct `@Extern` 和 native `FunPtr` 对同一签名采用不同 callconv / boundary scaffold。
-4. 在 classifier 中显式处理 current effectful `FunPtr` bridge：
-   - 要么把它识别为非 native leaf family；
-   - 要么为 native leaf 与 bridge token 建立不同 published route；
-   - 但不能继续让它们在 classifier 不可见的情况下混用同一路 lowering。
+4. 在 classifier 中显式排除 `FunPtr` 的 effect/state-machine 路径：
+   - 所有 `FunPtr` call 都必须落到 native leaf family；
+   - non-pure `FunPtr<F>` 必须在前端被拒绝；
+   - 不能继续让 `FunPtr` 在 classifier 不可见的情况下混入 effect-specific lowering。
 5. 补 direct/indirect parity 回归，至少覆盖：
    - 标量参数 / 标量返回；
    - aggregate return；
@@ -510,7 +510,7 @@
 
 - `ExternAbi::Scoop` 已成为正式可用的 external managed ABI surface。
 - `ExternFun.abi` 与 callable ABI identity 已成为 declaration / call lowering 的 source of truth。
-- direct `@Extern`、native `FunPtr`、effectful `FunPtr` bridge 的边界已被 classifier 和 regression 明确区分。
+- direct `@Extern`、native `FunPtr` 与 non-pure `FunPtr` rejection 的边界已被 classifier 和 regression 明确区分。
 - native direct / indirect parity 已被 IR + run-pass + 跨平台 matrix 锁定。
 - `sysroot/string.scoop` 已迁移 helper 保持 ordinary managed；remaining string helper 不再依赖 compiler/runtime 名字特判。
 - runtime 收口到 substrate；编译器不再因为 helper FQN 而理解业务语义。

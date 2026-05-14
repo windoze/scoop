@@ -2972,7 +2972,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let llvm_name = if self.extern_funs.contains_key(&fun.fqn) {
+        let callable_abi = self.direct_call_abi_identity(&fun.fqn);
+        let llvm_name = if callable_abi.is_extern() {
             self.extern_funs
                 .get(&fun.fqn)
                 .map(|e| e.symbol.clone())
@@ -2992,7 +2993,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
+        let callable_abi = self.direct_call_abi_identity(&fun.fqn);
+        let uses_native_abi = callable_abi.uses_native_abi();
 
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
         // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
@@ -3017,15 +3019,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let hidden_sret_result_ty = if is_extern {
+        let hidden_sret_result_ty = if uses_native_abi {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
-        let uses_explicit_effect_hidden_abi =
-            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
         let is_gc_leaf =
-            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -3040,7 +3041,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
         for param in &fun.params {
-            let llvm_param_ty = if is_extern {
+            let llvm_param_ty = if uses_native_abi {
                 self.llvm_param_ty(param.span, param.ty)
             } else {
                 self.ordinary_param_abi(param.span, param.ty)
@@ -3069,7 +3070,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let llvm_fun = if is_extern {
+        let llvm_fun = if callable_abi.is_extern() {
             self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
@@ -3092,8 +3093,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         param_tys: &[TypeId],
         return_ty: TypeId,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
-        let llvm_name = if is_extern {
+        let callable_abi = self.direct_call_abi_identity(&fun.fqn);
+        let uses_native_abi = callable_abi.uses_native_abi();
+        let llvm_name = if callable_abi.is_extern() {
             llvm_name.to_string()
         } else if let Some(pass_view) = self.materialized_pass_view()
             && let Some(owner) = pass_view.owner_of_callable(llvm_name)
@@ -3134,15 +3136,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let hidden_sret_result_ty = if is_extern {
+        let hidden_sret_result_ty = if uses_native_abi {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
-        let uses_explicit_effect_hidden_abi =
-            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
         let is_gc_leaf =
-            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             param_tys.len()
@@ -3157,7 +3158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
         for (param, param_ty) in fun.params.iter().zip(param_tys.iter().copied()) {
-            let llvm_param_ty = if is_extern {
+            let llvm_param_ty = if uses_native_abi {
                 self.llvm_param_ty(param.span, param_ty)
             } else {
                 self.ordinary_param_abi(param.span, param_ty)
@@ -3175,7 +3176,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let llvm_fun = if is_extern {
+        let llvm_fun = if callable_abi.is_extern() {
             self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
@@ -3199,8 +3200,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .materialized_pass_view()
             .map(|view| &view.materialized().types)
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-        let is_extern = self.extern_funs.contains_key(&fun.fqn);
-        let llvm_name = if is_extern {
+        let callable_abi = self.direct_call_abi_identity(&fun.fqn);
+        let uses_native_abi = callable_abi.uses_native_abi();
+        let llvm_name = if callable_abi.is_extern() {
             llvm_name.to_string()
         } else {
             self.exported_abi_symbol_for_materialized_fun(fun, mir_types)?
@@ -3228,15 +3230,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let hidden_sret_result_ty = if is_extern {
+        let hidden_sret_result_ty = if uses_native_abi {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
-        let uses_explicit_effect_hidden_abi =
-            !is_extern && self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
         let is_gc_leaf =
-            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -3254,7 +3255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_ty = self
                 .equivalent_codegen_type_id(mir_types, param.ty)
                 .unwrap_or(param.ty);
-            let llvm_param_ty = if is_extern {
+            let llvm_param_ty = if uses_native_abi {
                 self.llvm_param_ty(param.span, param_ty)
             } else {
                 self.ordinary_param_abi(param.span, param_ty)
@@ -3283,7 +3284,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let llvm_fun = if is_extern {
+        let llvm_fun = if callable_abi.is_extern() {
             self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
@@ -3362,6 +3363,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(extern_fun) = self.extern_funs.get(fqn) else {
             return 0;
         };
+        if !extern_fun.callable_abi_identity().uses_native_abi() {
+            return 0;
+        }
         let Some(name) = extern_fun.calling_convention.as_deref() else {
             return 0;
         };
@@ -5001,8 +5005,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let uses_hidden_sret = self
             .hidden_sret_result_ty(fun.span, declared_return_cg)?
             .is_some();
-        let uses_explicit_effect_hidden_abi =
-            self.callable_uses_explicit_effect_hidden_abi(&fun.fqn);
+        let uses_explicit_effect_hidden_abi = self
+            .direct_call_abi_identity(&fun.fqn)
+            .uses_effect_bridge_abi();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
@@ -5427,6 +5432,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn callable_uses_explicit_effect_hidden_abi(&self, callable_fqn: &str) -> bool {
         self.callable_uses_explicit_effect_hidden_abi_impl(callable_fqn)
+    }
+
+    fn direct_call_abi_identity(&self, callable_fqn: &str) -> hir::CallableAbiIdentity {
+        self.direct_call_abi_identity_impl(callable_fqn)
+    }
+
+    fn managed_callable_abi_identity(&self, call_may_suspend: bool) -> hir::CallableAbiIdentity {
+        self.managed_callable_abi_identity_impl(call_may_suspend)
+    }
+
+    fn managed_callable_abi_identity_from_fun_ty(
+        &self,
+        fun_ty: &crate::ty::FunctionType,
+    ) -> hir::CallableAbiIdentity {
+        self.managed_callable_abi_identity_from_fun_ty_impl(fun_ty)
+    }
+
+    fn funptr_callable_abi_identity(&self, call_may_suspend: bool) -> hir::CallableAbiIdentity {
+        self.funptr_callable_abi_identity_impl(call_may_suspend)
+    }
+
+    fn funptr_callable_abi_identity_from_fun_ty(
+        &self,
+        fun_ty: &crate::ty::FunctionType,
+    ) -> hir::CallableAbiIdentity {
+        self.funptr_callable_abi_identity_from_fun_ty_impl(fun_ty)
     }
 
     fn callable_needs_callee_resume_shell(&self, callable_fqn: &str) -> bool {

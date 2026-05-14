@@ -889,12 +889,8 @@ impl<'a> HirLowering<'a> {
         };
 
         // size(__for_arr)
-        let size_call = self.call_top_level_fun(
-            for_span,
-            "scoop.core.size",
-            vec![arr_ref(for_span)],
-            int,
-        );
+        let size_call =
+            self.call_top_level_fun(for_span, "scoop.core.size", vec![arr_ref(for_span)], int);
 
         // __for_i < size(__for_arr)
         let cond = Expr {

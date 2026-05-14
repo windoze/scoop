@@ -176,12 +176,12 @@ struct FunPtr<F>
 规则：
 
 - `FunPtr<F>` 表示原生函数指针。
-- `F` 是函数类型，例如 `(Int, Int) -> Int`。
+- `F` 必须是无 effect 的函数类型，例如 `(Int, Int) -> Int`、`() -> Int / Pure!`。
 - 若 `F` 是 receiver function type `T.(A1, ..., An) -> R`，调用时 receiver 作为第一个显式参数传递。
 - 调用 function pointer 是 unsafe 操作。
 - `@CallingConvention(...)` 可标记函数指针别名或外部函数调用约定。
-- `FunPtr<F>` 是把 native deferred callback 能力交回 Scoop 的显式 bridge token 之一。
-- Function pointer 的 effect row 属于后续 unsafe `fp(...)` 调用，而不是创建/传递 token 的普通 `@Extern` 调用。
+- `FunPtr<F>` 不是 effect/control bridge token；普通 `@Extern` 边界不会因为返回/接收 `FunPtr<F>` 而放宽 effect-impermeable 规则。
+- 后续 unsafe `fp(...)` / `fp.invoke(...)` 调用仍是普通 native function-pointer call，而不是 effect/state-machine 调用。
 
 示例：
 
@@ -231,7 +231,7 @@ var errno: Int
   - 不允许 effect propagation、continuation resume 或 longjmp-like non-local control 穿越普通 `@Extern` 边界。
 - 普通 `@Extern` 函数的 receiver、参数和返回类型必须是 GC-free value type。
 - `Continuation<...>`、class、interface、`String`、`Any` 等 GC-managed/control 对象不能直接出现在普通 C ABI `@Extern` 签名中。
-- Native 代码若需要稍后回到 Scoop，应通过显式 token，例如 `FunPtr<F>`、`UIntPtr`、`GcHandle.raw`。
+- 返回/接收 `FunPtr<F>`、`UIntPtr`、`GcHandle.raw` 这类值也不允许 effect/continuation 穿越普通 `@Extern` 边界。
 
 外部变量：
 
@@ -392,7 +392,7 @@ struct GcHandle(val raw: UIntPtr)
 
 - 短期同步调用需要 raw pointer：pin 对象，取得 pointer，调用 native，返回后 unpin。
 - 长期注册/回调需要身份：使用 `GcHandle.raw`。
-- Native 需要稍后调用 Scoop 函数：传递 `FunPtr<F>` 或其它明确 bridge token，后续 unsafe 调用建立新的边界。
+- Native 若传递函数地址，可使用 `FunPtr<F>`；但 `F` 必须无 effect，后续 unsafe 调用仍是普通 native call，不建立新的 effect boundary。
 
 禁止模式：
 

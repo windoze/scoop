@@ -2114,9 +2114,9 @@ fn check_builtin_annotations_on_fun_decl(
     //
     // 说明：
     // - ordinary `@Extern` 调用只负责“进入 native -> 返回普通 ABI 结果”；
-    // - outward effect / continuation / non-local control 不得通过该边界传播；
-    // - 若 native 需要交还 effectful/deferred capability，应显式桥接成 `FunPtr<F>` /
-    //   `UIntPtr` / stable handle 等 token，再由后续 unsafe bridge 单独驱动。
+    // - outward/inward effect、continuation、non-local control 都不得通过该边界传播；
+    // - 返回 `FunPtr<F>` / `UIntPtr` / stable handle 等 token 也不放宽上述规则；这些值只是
+    //   原始地址/身份 token，而不是 effect/control bridge。
     if flags.is_extern {
         check_extern_fun_effect_contract(fun)?;
     }

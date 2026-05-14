@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR: `FunPtr<F>` 的类型实参必须是无 effect 的函数类型
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+@Extern("native_get_funptr")
+fun getFunPtr(): FunPtr<() -> Int / (Ask)>
+
+fun useBridge(): Int {
+    val fp: FunPtr<() -> Int> = @Unsafe do { getFunPtr() }
+    return @Unsafe do { fp() }
+}

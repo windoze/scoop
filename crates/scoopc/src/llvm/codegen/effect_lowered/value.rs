@@ -1755,7 +1755,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        if self.codegen.extern_funs.contains_key(callee_fqn) {
+        if self
+            .codegen
+            .direct_call_abi_identity(callee_fqn)
+            .uses_native_abi()
+        {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
                 callee_fqn,

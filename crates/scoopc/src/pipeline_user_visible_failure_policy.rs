@@ -226,23 +226,19 @@ struct UpstreamGuardedSentinel {
 const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
     UpstreamGuardedSentinel {
         site: "crates/scoopc/src/typecheck/lower.rs::lower_struct_direct_field_infos",
-        upstream_gate:
-            "typecheck::check_file_headers rejects struct/class primary-ctor params without a type annotation via TypeHeaderError::MissingTypeAnnotation",
+        upstream_gate: "typecheck::check_file_headers rejects struct/class primary-ctor params without a type annotation via TypeHeaderError::MissingTypeAnnotation",
     },
     UpstreamGuardedSentinel {
         site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant empty path guard",
-        upstream_gate:
-            "parser guarantees a `WhenPat::Variant` path always contains at least one segment",
+        upstream_gate: "parser guarantees a `WhenPat::Variant` path always contains at least one segment",
     },
     UpstreamGuardedSentinel {
         site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant missing enum decl guard",
-        upstream_gate:
-            "enum_instance_from_type returns the enum FQN by looking it up in the type env, so the env must contain a corresponding enum_decl",
+        upstream_gate: "enum_instance_from_type returns the enum FQN by looking it up in the type env, so the env must contain a corresponding enum_decl",
     },
     UpstreamGuardedSentinel {
         site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant type-arg arity guard",
-        upstream_gate:
-            "enum_instance_from_type produces enum_args from the same nominal instance whose declaration we just looked up; arity matches by construction",
+        upstream_gate: "enum_instance_from_type produces enum_args from the same nominal instance whose declaration we just looked up; arity matches by construction",
     },
 ];
 

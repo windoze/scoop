@@ -124,12 +124,11 @@
      - `tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
      - `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
      - `crates/scoopc/src/llvm/tests.rs::abi_baseline_native_funptr_aggregate_return_uses_native_result_abi`
-3. **effectful `FunPtr` bridge**
-   - current contract：ordinary `@Extern` 自身仍保持 `Pure` / effect-impermeable，但允许返回 effectful `FunPtr` 作为 bridge token；真正的 effect boundary 发生在后续 `fp()` 调用，并走 explicit `Step` outcome path。
+3. **non-pure `FunPtr<F>` rejection**
+   - current contract：`FunPtr<F>` 只建模 native leaf function pointer；`F` 必须是无 effect 的函数类型，非纯签名必须在前端被拒绝。
    - regression owner：
-     - `tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
-     - `crates/scoopc/src/llvm/tests.rs::effectful_funptr_call_uses_explicit_outcome_boundary`
-     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_effectful_funptr_bridge_uses_explicit_outcome_boundary`
+     - `tests/fixtures/typecheck/extern_fun_effectful_funptr_is_error.scoop`
+     - `tests/fixtures/typecheck/uintptr_to_funptr_effectful_type_arg_is_error.scoop`
 4. **compiled `sysroot/string.scoop` helpers**
    - current contract：已迁移的 `substring/indexOf/contains/startsWith/endsWith/split/trimStart/trimEnd/trim` 继续以 ordinary sysroot helper 编进当前模块，而不是映射回 runtime helper。
    - regression owner：
@@ -356,9 +355,10 @@ ExternAbi {
 因此：
 
 1. 若 `FunPtr<F>` 来源于 native surface，则其调用必须与 `ExternAbi::C` 共享同一套 ABI-safe 规则。
-2. 若将来需要支持 managed external function pointer，则它应是另一条显式 ABI family，而不是复用 native `FunPtr` 语义。
-3. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。
-4. bare `UIntPtr <-> FunPtr` round-trip 只能保留“地址”这一事实；若语言层需要跨 callsite 稳定复用完整 ABI 信息，必须在内部 lowering contract 中显式保留，而不能依赖最后一跳重新猜测。
+2. `F` 本身必须是无 effect 的函数类型；`FunPtr` 调用永远不能切到 effect/state-machine ABI。
+3. 若将来需要支持 managed external function pointer，则它应是另一条显式 ABI family，而不是复用 native `FunPtr` 语义。
+4. direct `@Extern` 取地址再通过 `FunPtr` 调用，不应丢失 ABI identity / calling convention / aggregate return 规则。
+5. bare `UIntPtr <-> FunPtr` round-trip 只能保留“地址”这一事实；若语言层需要跨 callsite 稳定复用完整 ABI 信息，必须在内部 lowering contract 中显式保留，而不能依赖最后一跳重新猜测。
 
 ## 6. codegen 合同
 

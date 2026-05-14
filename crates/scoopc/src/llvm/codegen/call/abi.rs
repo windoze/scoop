@@ -2,6 +2,17 @@
 
 use super::super::*;
 
+/// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。
+fn direct_call_dispatch_fqn(fqn: &str) -> &str {
+    if let Some((base, _)) = fqn.rsplit_once("::<") {
+        return base;
+    }
+
+    fqn.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(fqn)
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn callable_source_carrier_tys_impl(&self, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
         let types = self.codegen_type_store_for_type_id(carrier_ty)?;
@@ -78,6 +89,63 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 llvm_param_ty: llvm_ty.into(),
             })
         }
+    }
+
+    fn direct_callable_abi_identity_for_fqn_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> hir::CallableAbiIdentity {
+        if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
+            return extern_fun.callable_abi_identity();
+        }
+        if self.callable_uses_explicit_effect_hidden_abi_impl(callable_fqn) {
+            return hir::CallableAbiIdentity::EffectBridge;
+        }
+        hir::CallableAbiIdentity::ManagedOrdinary
+    }
+
+    pub(in crate::llvm::codegen) fn direct_call_abi_identity_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> hir::CallableAbiIdentity {
+        let identity = self.direct_callable_abi_identity_for_fqn_impl(callable_fqn);
+        if identity != hir::CallableAbiIdentity::ManagedOrdinary {
+            return identity;
+        }
+
+        let dispatch_fqn = direct_call_dispatch_fqn(callable_fqn);
+        if dispatch_fqn == callable_fqn {
+            return identity;
+        }
+        self.direct_callable_abi_identity_for_fqn_impl(dispatch_fqn)
+    }
+
+    pub(in crate::llvm::codegen) fn managed_callable_abi_identity_impl(
+        &self,
+        call_may_suspend: bool,
+    ) -> hir::CallableAbiIdentity {
+        hir::CallableAbiIdentity::managed_callable(call_may_suspend)
+    }
+
+    pub(in crate::llvm::codegen) fn managed_callable_abi_identity_from_fun_ty_impl(
+        &self,
+        fun_ty: &crate::ty::FunctionType,
+    ) -> hir::CallableAbiIdentity {
+        self.managed_callable_abi_identity_impl(!fun_ty.effects.is_pure())
+    }
+
+    pub(in crate::llvm::codegen) fn funptr_callable_abi_identity_impl(
+        &self,
+        _call_may_suspend: bool,
+    ) -> hir::CallableAbiIdentity {
+        hir::CallableAbiIdentity::NativeExtern
+    }
+
+    pub(in crate::llvm::codegen) fn funptr_callable_abi_identity_from_fun_ty_impl(
+        &self,
+        _fun_ty: &crate::ty::FunctionType,
+    ) -> hir::CallableAbiIdentity {
+        self.funptr_callable_abi_identity_impl(false)
     }
 
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，

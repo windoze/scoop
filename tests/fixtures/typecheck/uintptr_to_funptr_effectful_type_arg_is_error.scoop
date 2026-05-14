@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR: `FunPtr<F>` 的类型实参必须是无 effect 的函数类型
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.unsafe.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+typealias EffectfulCallback = () -> Int / (Ask)
+
+fun materialize(raw: UIntPtr): Unit {
+    @Unsafe do {
+        val _fp = uintPtrToFunPtr<EffectfulCallback>(raw)
+    }
+}

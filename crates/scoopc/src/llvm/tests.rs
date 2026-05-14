@@ -3845,60 +3845,6 @@ fun main(): Int {
     );
 }
 
-fn assert_abi_baseline_effectful_funptr_bridge_contract() {
-    let source = SourceFile::new_virtual(
-        "<mem>",
-        r#"
-package a
-
-import scoop.core.*
-import scoop.unsafe.*
-
-effect Ask {
-    fun ask(seed: Int): Int
-}
-
-@Extern("scoop_test_get_effectful_funptr")
-fun get_effectful_funptr(): FunPtr<() -> Int / (Ask)>
-
-fun entry(): Int / (Ask) {
-    val fp: FunPtr<() -> Int / (Ask)> = @Unsafe do { get_effectful_funptr() }
-    return @Unsafe do { fp() }
-}
-
-fun main(): Int {
-    return handle {
-        entry()
-    } with {
-        Ask.ask(seed) -> seed
-    }
-}
-"#,
-    );
-
-    let session = Session::new().unwrap();
-    let ir = emit_minimal_main_ir(&session, &source).unwrap();
-    let entry_ir = function_ir_matching(
-        &ir,
-        "effectful funptr direct-call helper",
-        |header, function| {
-            !header.contains("@main(")
-                && function.contains("refactor_dynamic_funptr_fn = inttoptr i64")
-        },
-    );
-
-    assert!(
-        entry_ir.contains("switch i32 %refactor_step_tag"),
-        "effectful FunPtr 调用应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
-    );
-    assert!(
-        entry_ir.contains("refactor_dynamic_funptr_fn = inttoptr i64")
-            && entry_ir.contains("refactor_dynamic_call_step = call %scoop.refactor.Step")
-            && entry_ir.contains("%refactor_dynamic_funptr_fn(i64"),
-        "effectful FunPtr 调用应直接把 machine-word funptr 还原成 dynamic entry 并返回 Step，而不是回旧 call_funptr helper:\n{entry_ir}"
-    );
-}
-
 fn assert_abi_baseline_sysroot_string_helper_contract() {
     let source = SourceFile::new_virtual(
         "<mem>",
@@ -3939,7 +3885,7 @@ fun main(): Int {
     );
 }
 
-// P0-T01 ABI baseline audit：集中冻结 current three-surface callable contract + compiled string helper。
+// P0-T01 ABI baseline audit：集中冻结 current two-surface callable contract + compiled string helper。
 #[test]
 fn abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence() {
     assert_abi_baseline_direct_extern_native_leaf_contract();
@@ -3948,16 +3894,6 @@ fn abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence(
 #[test]
 fn abi_baseline_native_funptr_aggregate_return_uses_native_result_abi() {
     assert_abi_baseline_native_funptr_aggregate_return_contract();
-}
-
-#[test]
-fn effectful_funptr_call_uses_explicit_outcome_boundary() {
-    assert_abi_baseline_effectful_funptr_bridge_contract();
-}
-
-#[test]
-fn abi_baseline_effectful_funptr_bridge_uses_explicit_outcome_boundary() {
-    assert_abi_baseline_effectful_funptr_bridge_contract();
 }
 
 #[test]

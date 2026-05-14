@@ -103,7 +103,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CallableValueCallSpec {
                 span,
                 callee_span,
-                call_may_suspend: !fun_ty.effects.is_pure(),
+                call_may_suspend: self
+                    .funptr_callable_abi_identity_from_fun_ty(fun_ty)
+                    .uses_effect_bridge_abi(),
                 fun_ty,
                 args: call_args,
             },

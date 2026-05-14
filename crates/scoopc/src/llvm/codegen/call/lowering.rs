@@ -729,6 +729,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CallableCallee::FunctionValue(fun_ty) => {
                     let call_may_suspend = self
                         .function_value_expr_body_may_outward_effect_when_called_for_local(callee);
+                    let callable_abi = self.managed_callable_abi_identity(call_may_suspend);
                     let callee_value = self.codegen_expr(callee)?;
                     let callee_value = self.coerce_value(callee.span, callee_value, CgTy::Ref)?;
                     let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value
@@ -743,13 +744,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend,
+                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty: &fun_ty,
                             args,
                         },
                     );
                 }
                 CallableCallee::FunPtr(fun_ty) => {
+                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(&fun_ty);
                     let callee_value = self.codegen_expr(callee)?;
                     let (funptr_addr, funptr_int_ty) =
                         callee_value
@@ -764,7 +766,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: !fun_ty.effects.is_pure(),
+                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty: &fun_ty,
                             args,
                         },
@@ -790,7 +792,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: local.call_may_suspend,
+                            call_may_suspend: self
+                                .managed_callable_abi_identity(local.call_may_suspend)
+                                .uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -837,7 +841,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: local.call_may_suspend,
+                            call_may_suspend: self
+                                .funptr_callable_abi_identity(local.call_may_suspend)
+                                .uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -1033,6 +1039,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 {
                     let call_may_suspend = self
                         .function_value_expr_body_may_outward_effect_when_called_for_local(callee);
+                    let callable_abi = self.managed_callable_abi_identity(call_may_suspend);
                     let callee_value = self.codegen_top_level_value_ref(callee.span, fqn)?;
                     let CgValue {
                         ty: CgTy::Ref,
@@ -1049,7 +1056,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend,
+                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -1082,13 +1089,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "funptr top-level cg type",
                                 at: callee.span.into(),
                             })?;
+                    let callable_abi = self.funptr_callable_abi_identity_from_fun_ty(fun_ty);
                     return self.codegen_funptr_value_call(
                         funptr_addr,
                         funptr_int_ty,
                         CallableValueCallSpec {
                             span,
                             callee_span: callee.span,
-                            call_may_suspend: !fun_ty.effects.is_pure(),
+                            call_may_suspend: callable_abi.uses_effect_bridge_abi(),
                             fun_ty,
                             args,
                         },
@@ -1255,11 +1263,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Mir(crate::mir::FunDecl, *const TypeStore),
         }
 
-        let is_extern = self.extern_funs.contains_key(fqn);
+        let callable_abi = self.direct_call_abi_identity(fqn);
+        let uses_native_abi = callable_abi.uses_native_abi();
         let dispatch_fqn = direct_call_dispatch_fqn(fqn);
-        let uses_explicit_effect_hidden_abi = !is_extern
-            && (self.callable_uses_explicit_effect_hidden_abi(fqn)
-                || self.callable_uses_explicit_effect_hidden_abi(dispatch_fqn));
+        let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
         let sig_fun = self
             .materialized_pass_view()
             .and_then(|view| {
@@ -1408,7 +1415,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "call return type",
             at: span.into(),
         })?;
-        let hidden_sret_result_ty = if is_extern {
+        let hidden_sret_result_ty = if uses_native_abi {
             None
         } else {
             self.hidden_sret_result_ty(callee_span, ret_cg)?
@@ -1418,7 +1425,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 callee_span,
                 kind: "call arg binding",
-                abi_mode: if is_extern {
+                abi_mode: if uses_native_abi {
                     CallArgAbiMode::Native
                 } else {
                     CallArgAbiMode::Ordinary
@@ -1470,7 +1477,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         };
 
-        let call_site_result = if is_extern {
+        let call_site_result = if uses_native_abi {
             self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)
         } else {
             self.with_conservative_gc_local_root_spills(span, |cg| {
@@ -1652,8 +1659,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "vtable call callee type",
                 at: callee_span.into(),
             })?;
-        let uses_explicit_effect_hidden_abi = self.callable_uses_explicit_effect_hidden_abi(fqn)
-            || self.callable_uses_explicit_effect_hidden_abi(dispatch_fqn);
+        let uses_explicit_effect_hidden_abi =
+            self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2249,8 +2256,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "itable call callee type",
                 at: callee_span.into(),
             })?;
-        let uses_explicit_effect_hidden_abi = self.callable_uses_explicit_effect_hidden_abi(fqn)
-            || self.callable_uses_explicit_effect_hidden_abi(dispatch_fqn);
+        let uses_explicit_effect_hidden_abi =
+            self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {

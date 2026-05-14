@@ -4736,8 +4736,7 @@ fn build_call_boundary_operand_contract(
                 }
             };
             let arg_sources = match kind {
-                CallKind::Closure { callee, .. }
-                | CallKind::FunValue { callee }
+                CallKind::Closure { callee, .. } | CallKind::FunValue { callee }
                     if facts.target_mode() == CallTargetMode::KnownInstance =>
                 {
                     match build_known_instance_closure_call_arg_sources(

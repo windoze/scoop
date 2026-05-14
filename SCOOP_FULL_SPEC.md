@@ -2362,7 +2362,7 @@ Rules:
   - their effect row must be omitted or explicitly `Pure` / `Pure!`, and
   - they communicate only through ordinary ABI argument/result slots.
 - The receiver, parameters, and return type of an ordinary `@Extern` function must be **GC-free value types**. This excludes `Continuation<...>` and other GC-managed control objects from the ordinary C ABI surface.
-- Effects, continuation resumption, and longjmp-like non-local control must not unwind through an ordinary `@Extern` call. If native code needs to hand deferred/effectful work back to Scoop, it must do so via an explicit bridge token such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw`, and the later unsafe bridge call/lookup establishes the next control-flow boundary.
+- Effects, continuation resumption, and longjmp-like non-local control must not unwind through an ordinary `@Extern` call. Returning or accepting raw tokens such as `FunPtr<F>`, `UIntPtr`, or `GcHandle.raw` does not relax this rule; they carry ordinary values/addresses only, not an effect/control bridge.
 - For long-lived callback / reactor / wake-token round-trips, ordinary `@Extern` signatures should pass the word-sized token `GcHandle.raw: UIntPtr`, and Scoop code should reconstruct `GcHandle { raw: raw }` before calling `GC.handleGet` / `GC.handleDrop`. `Pinned` itself is not the ordinary `@Extern` token surface.
 
 #### 15.5.2 `@CLayout` (C-compatible Struct Layout)
@@ -2639,7 +2639,7 @@ Ordinary `@Extern` declarations are also effect-impermeable:
 - their effect row must be omitted or `Pure` / `Pure!`, and
 - they must not rely on effect propagation, continuation resume, or other non-local control crossing the native call boundary.
 
-If native code needs to re-enter effectful/deferred Scoop computation, it must first hand back an explicit bridge token (for example `FunPtr<F>`, `UIntPtr`, or a stable handle-backed callback registration). The later unsafe bridge operation establishes a new boundary; the ordinary `@Extern` call itself does not.
+Ordinary FFI v1 does not provide a channel for re-entering effectful/deferred Scoop computation. Raw tokens such as `FunPtr<F>`, `UIntPtr`, or stable handles remain ordinary values/identity carriers only; they do not establish a new effect boundary.
 
 #### 15.8.4 Example
 
@@ -2768,11 +2768,12 @@ Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) 
 Function pointers:
 
 - `FunPtr<F>` represents an opaque native function pointer for the function type `F` (e.g. `F = (Int, Int) -> Int`).
+- `F` must itself be effectless: omitting the effect row is allowed, and explicit `/ Pure` or `/ Pure!` is allowed, but any non-`Pure` effect row is a compile error.
 - If `F` is a receiver function type `T.(A1, ..., An) -> R`, the receiver is passed as the first explicit argument when invoking the pointer (for example, `fp(receiver, a1, ..., an)` or `fp.invoke(receiver, a1, ..., an)`).
 - Like other function-type calls, invoking `FunPtr<F>` is positional-only; synthetic names such as `receiver`, `a0`, `a1`, ... are not part of the surface language.
 - Calling a function pointer is unsafe and must require an unsafe context.
 - `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
-- Returning or accepting `FunPtr<F>` via `@Extern` is the explicit way to model deferred/effectful native callbacks. The effect row belongs to the later unsafe `fp(...)` / `fp.invoke(...)` call, not to the ordinary `@Extern` call itself.
+- Returning or accepting `FunPtr<F>` via `@Extern` does not establish an effect/control bridge. The later unsafe `fp(...)` / `fp.invoke(...)` call remains an ordinary native function-pointer call and never switches to the effect/state-machine ABI.
 
 Example:
 

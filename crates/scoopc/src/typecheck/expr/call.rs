@@ -6781,7 +6781,10 @@ fn infer_member_call_expr_type(
                 value_resolved.as_ref(),
                 lower,
             )?;
-            lower.record_inferred_expr_ty(Span::new(receiver.span.start, member.span.end), callee_ty);
+            lower.record_inferred_expr_ty(
+                Span::new(receiver.span.start, member.span.end),
+                callee_ty,
+            );
 
             if is_funptr_type(callee_ty, lower) {
                 return infer_funptr_type_call_expr_type(
@@ -8692,6 +8695,14 @@ pub(super) fn substitute_single_type_param(
                     }
                     .into());
                 }
+            }
+
+            // `FunPtr<F>` 的 purity 门禁也必须在泛型实例化/替换时重放，避免通过
+            // `uintPtrToFunPtr<() -> Int / Ask>(...)` 等路径绕过前端约束。
+            if nominal.fqn == FUNPTR_FQN
+                && let Some(sig) = args.first().copied()
+            {
+                lower.check_funptr_signature_contract(sig, use_span)?;
             }
 
             Ok(
