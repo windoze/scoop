@@ -1235,7 +1235,7 @@
     - 对应 `PLAN.md` P6 第 2 项：`§3.5` 与 `§7.6` 已不再保留 `Partial`；runtime cast/typecheck 与 GC pin/handle 的默认主线支持面、前端 gate、MIR contract、LLVM lowering、runtime regression 现在彼此一致。
     - `PIPELINE_GAPS.md` 已回写 `§3.5`、`§7.6` 为 `Closed/Re-scoped`；`codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 现将它们分别冻结为 runtime-cast contract guard 与 GC intrinsic support-surface gate。`PLAN.md` 阶段顺序未改变，因此无需额外修改。
 
-### [TODO] P6-T02：同步 `FrontendReject` surface：or-pattern binder / function-type cast / use-site effect row / struct mutable field
+### [DONE] P6-T02：同步 `FrontendReject` surface：or-pattern binder / function-type cast / use-site effect row / struct mutable field
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -1281,9 +1281,34 @@
 - 依赖：`P6-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/structs.rs`，统一 `or-pattern binder`、function-type `as/as?`、非法 use-site effect row target、`struct var` 的诊断文案，全部改成“当前语言 contract 下非法/不接受该源码形状”的表述。
+    - 更新 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`，同步新的前端拒绝文案、`use_site_eff_arg_not_allowed` 的审计标记，并回写 internal bug sentinel 行号基线。
+    - 新增 `tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop`，并同步更新 `when_or_pattern_variant_payload_binder_{is_error,sharing_is_error}.scoop`、`fn_type_cast_{closed_pure_asq,effectful_as,effectful_asq}_is_error.scoop`、`struct_{primary_ctor_var,field_must_be_val}_is_error.scoop` 的预期文案。
+    - 更新 `PLAN.md`、`PIPELINE_GAPS.md` 与 `crates/scoopc/src/cone/pre_specialize.rs` 注释，把 `§7.3` 从过时的整体 `FrontendReject` 叙述改写为“名义类型 `Type<eff Row>` 已支持；非法 target 仍以前端诊断拒绝”的真实状态。
   - 核心决策：
+    - 保持 `§7.1`、`§7.2`、`§7.5` 为 `FrontendReject`，但要求用户可见文案统一明确指向“当前语言 contract 下非法输入”，不再使用“后端尚未支持”语气。
+    - 将 `§7.3` 重新分类为 `Closed/Re-scoped`：仓库中已有 typecheck / infer / run-pass 覆盖证明 `Type<eff Row>` 在声明了 effect row 形参的名义类型上是 production surface；保留的 `use_site_eff_arg_not_allowed` 只用于拒绝把 `eff ...` 填给 builtin / typealias / 无 effect-row 形参的类型。
+    - 不为 `§7.3` 新增 backend workaround；继续让 class `var` property 保持支持、`struct` mutable field 保持前端拒绝、function-type cast 保持在 MIR 前被挡住，避免出现“前端已放行，后端再 unsupported” 的分裂状态。
   - 验证结果：
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+    - `cargo test -p scoopc refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/parse/type_args_eff_use_site_order_fail.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/eff_row_param_infer_from_nominal_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_property_setter_not_allowed_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/class_var_property_reassign_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P6 第 1 项：`§7.1` / `§7.2` / `§7.5` 的前端 gate 文案与实际行为已统一，`§7.3` 则按真实能力改写为正式支持面，不再伪装成整体 reject。
+    - `PIPELINE_GAPS.md` 已回写 `§7.3` 为 `Closed/Re-scoped`，并同步更新 `§2.6`、`§8` 中对 effect-row use-site surface 的描述：当前默认主线允许名义类型 `Type<eff Row>`，剩余非法 target 继续由 typecheck 明确拒绝，而不是留给 MIR/backend 暴露 unsupported。
 
 ### [TODO] P6-T03：重写 `PIPELINE_GAPS.md`、active inventory 与 fixtures 到最终状态
 

@@ -134,7 +134,7 @@
 ### 2.6 effect-row generic direct-call instance 推断依赖 site binding
 
 - 状态：`Historical`。
-- 结论：当前默认 pipeline 未把它暴露成新的 codegen-stage blocker；后续若放开更一般的 effect-row use-site surface，应结合 `§7.3` 重新复核 instance key 与 call-site binding。
+- 结论：当前默认 pipeline 未把它暴露成新的 codegen-stage blocker；后续若继续扩大 effect-row use-site / pre-specialize accounting 面，应重新复核 instance key 与 call-site binding。
 
 ### 2.7 `TypeKind::Param` 仍可能到达 codegen
 
@@ -349,11 +349,11 @@
 - 结论：这仍是当前最明确的前端挡板之一；默认 pipeline 会在 MIR 之前拒绝 function-type runtime cast。
 - 证据：`crates/scoopc/src/pipeline/mir_stage.rs:1043-1065`。
 
-### 7.3 use-site effect row type arg 暂不支持
+### 7.3 use-site effect row type arg 已收口
 
-- 状态：`FrontendReject`。
-- 结论：use-site `eff ...` type arg 仍在 type lowering 时被拒绝；materializer / ABI 若要支持该表面，需要一并补 instance key 与 effect args transport。
-- 证据：`crates/scoopc/src/typecheck/lower.rs:1364-1367`。
+- 状态：`Closed/Re-scoped`。
+- 结论：声明了 effect row 形参的名义类型现在已经正式支持 `Type<eff Row>`：typecheck / infer 可以用它参与 row 推断，runtime `is/as/as?` 也会把 use-site effect row 纳入 nominal identity。剩余 `use_site_eff_arg_not_allowed` 只用于拒绝把 `eff ...` 填给没有 effect row 形参的目标类型（含 builtin / typealias），不再代表 live pipeline gap。
+- 证据：`crates/scoopc/src/typecheck/lower.rs:2926-2949`，`tests/fixtures/typecheck/eff_row_param_infer_from_nominal_ok.scoop:1-23`，`tests/fixtures/infer/effects/use_site_eff_row_default_and_explicit_ok.scoop:1-19`，`tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop:29-94`，`tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop:1-9`。
 
 ### 7.4 `spawn` / user-facing `join` 是延期表面
 
@@ -380,7 +380,7 @@
 3. effect-refactor 的 ABI/routing 主线已收口；后续保持 `§3.12`、`§5.1`、`§5.3`、`§5.4` 的 guard-only 语义，确保 actual outward effect set 继续决定 callable ABI。
 4. `§1.13` 已收口；后续继续保留 array literal synthetic helper call-site identity 的 regression guard，避免 composite transport 入口再次在 backend 前失真。
 5. aggregate/composite 的 enum/array boxing 主线已收口；后续保持 `§4.1`、`§4.3`、`§4.4`、`§4.5` 的 guard-only 语义，并继续让 cross-thread resume payload 复用同一套 descriptor-backed contract。
-6. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
+6. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误；已开放的 `Type<eff Row>` nominal surface 也要继续和 type identity / runtime cast 语义保持一致。
 
 ## 9. 建议验证矩阵
 

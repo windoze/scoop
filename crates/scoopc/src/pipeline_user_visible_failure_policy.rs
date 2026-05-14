@@ -114,11 +114,11 @@ const OR_PATTERN_BINDER_MARKERS: &[SourceMarker] = &[
     },
     SourceMarker {
         path: "tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_is_error.scoop",
-        marker: "// EXPECT-ERROR: when or-pattern（不允许 binder）",
+        marker: "// EXPECT-ERROR: 当前语言 contract 下，when or-pattern 不允许引入 binder",
     },
     SourceMarker {
         path: "tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop",
-        marker: "// EXPECT-ERROR: when or-pattern（不允许 binder）",
+        marker: "// EXPECT-ERROR: 当前语言 contract 下，when or-pattern 不允许引入 binder",
     },
 ];
 
@@ -150,8 +150,8 @@ const USE_SITE_EFFECT_ROW_MARKERS: &[SourceMarker] = &[
         marker: "TypeLowerError::UseSiteEffectRowArgNotAllowed {",
     },
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/lower.rs",
-        marker: "kind: \"use-site effect row arg (`eff ...`)\",",
+        path: "tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::use_site_eff_arg_not_allowed",
     },
 ];
 
@@ -162,11 +162,11 @@ const STRUCT_MUTABLE_FIELD_MARKERS: &[SourceMarker] = &[
     },
     SourceMarker {
         path: "tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop",
-        marker: "// EXPECT-ERROR: struct 字段必须是 `val`，不允许 `var`",
+        marker: "// EXPECT-ERROR: 当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`",
     },
     SourceMarker {
         path: "tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop",
-        marker: "// EXPECT-ERROR: struct 字段必须是 `val`，不允许 `var`",
+        marker: "// EXPECT-ERROR: 当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`",
     },
 ];
 
@@ -175,35 +175,35 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
         gap_id: "PIPELINE_GAPS §7.1",
         definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::when_or_pattern_binder_not_allowed",
-        message: "when or-pattern（不允许 binder）",
+        message: "当前语言 contract 下，when or-pattern 不允许引入 binder",
         markers: OR_PATTERN_BINDER_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.2",
         definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::function_type_cast_not_supported",
-        message: "显式 `as`/`as?` 不支持函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper",
+        message: "当前语言 contract 下，显式 `as`/`as?` 不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper",
         markers: FUNCTION_TYPE_CAST_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.2",
         definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::effectful_function_type_cast_not_supported",
-        message: "带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同",
+        message: "当前语言 contract 下，带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同",
         markers: EFFECTFUL_FUNCTION_TYPE_CAST_MARKERS,
     },
     FrontendRejectSurface {
-        gap_id: "PIPELINE_GAPS §7.3",
+        gap_id: "type lowering use-site effect row target validation",
         definition_path: "crates/scoopc/src/typecheck/lower.rs",
         diagnostic_code: "scoop::typecheck::use_site_eff_arg_not_allowed",
-        message: "类型 {name} 不支持 use-site effect row 实参（`eff ...`）",
+        message: "当前语言 contract 下，只有显式声明 effect row 形参的名义类型才允许 use-site effect row 实参（`eff ...`）；{name} 不满足该条件",
         markers: USE_SITE_EFFECT_ROW_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.5",
         definition_path: "crates/scoopc/src/typecheck/structs.rs",
         diagnostic_code: "scoop::typecheck::struct_field_must_be_val",
-        message: "struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}",
+        message: "当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}",
         markers: STRUCT_MUTABLE_FIELD_MARKERS,
     },
 ];
@@ -230,12 +230,12 @@ const STALE_USER_VISIBLE_UNSUPPORTED_MARKERS: &[SourceMarker] = &[
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body.rs:5528:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4407:                    _ => unreachable!(\"receiver_cg matched float above\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2912:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2960:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2972:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3488:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5429:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5510:                    _ => unreachable!(\"value.ty matched float above\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2942:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2990:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3002:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3518:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5459:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5540:                    _ => unreachable!(\"value.ty matched float above\"),",
     "crates/scoopc/src/llvm/codegen/mod.rs:8303:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/mod.rs:8322:                _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/mod.rs:8382:                _ => unreachable!(\"filtered by caller\"),",
@@ -245,9 +245,9 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mod.rs:8944:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/mir/materialize.rs:6216:                    panic!(",
     "crates/scoopc/src/mir/materialize.rs:8830:            panic!(",
-    "crates/scoopc/src/typecheck/lower.rs:2362:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:2964:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3209:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/typecheck/lower.rs:2365:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:2967:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3212:                unreachable!(\"is_value_only_enum implies first_super exists\");",
 ];
 
 #[test]

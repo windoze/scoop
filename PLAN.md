@@ -79,7 +79,7 @@
 | `§6.3` residual legacy intrinsic fallback | Closed/Re-scoped | 删除旧 `sizeOf` / `nameOf` fallback 残留 | P1 |
 | `§7.1` or-pattern binder | FrontendReject | 保持 gate，与 backend 能力同步 | P6 |
 | `§7.2` function type runtime cast | FrontendReject | 保持 gate 或在单独特性计划中重开 | P6 |
-| `§7.3` use-site effect row type arg | FrontendReject | 保持 gate，与 instance key/ABI 同步 | P6 |
+| `§7.3` use-site effect row type arg | Closed/Re-scoped | 名义类型上的 `Type<eff Row>` 已支持；非法 target 维持前端诊断 | P6 |
 | `§7.5` struct mutable field | FrontendReject | 保持 gate，避免 value-type store drift | P6 |
 | `§7.6` GC pin/handle intrinsic narrow residual | Partial | 收口支持子集或前移 gate | P6 |
 
@@ -421,8 +421,8 @@
 
 必须实现的内容：
 
-1. 对 `FrontendReject` surface 明确最终策略：
-   `or-pattern binder`、function type runtime cast、use-site effect row type arg、struct mutable field 若本轮不打开，则前端 gate、diagnostic、MIR verifier 和 backend capability 必须完全一致。
+1. 对 `FrontendReject` / re-scoped surface 明确最终策略：
+   `or-pattern binder`、function type runtime cast、struct mutable field 若本轮不打开，则前端 gate、diagnostic、MIR verifier 和 backend capability 必须完全一致；`use-site effect row type arg` 若已具 production 能力，则必须改写为正式支持并删除过时的 FrontendReject 叙述。
 2. 收尾 `§3.5` 与 `§7.6` 的 partial residual：
    要么把默认主线已接受的子集补齐到 production；
    要么缩小接受面并前移为明确 gate；

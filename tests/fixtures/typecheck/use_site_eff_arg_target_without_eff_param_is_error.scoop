@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::use_site_eff_arg_not_allowed
+// EXPECT-ERROR: 当前语言 contract 下，只有显式声明 effect row 形参的名义类型才允许 use-site effect row 实参
+// EXPECT-ERROR-AT: 10:10
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val bad: String<eff Pure> = ""

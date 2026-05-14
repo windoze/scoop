@@ -1,50 +1,47 @@
 # 执行计划
 
-说明：我不会记录逐字的内部推理过程，但会持续在这里维护可检查的执行计划、关键决策、进度与阻塞信息。
-
-## 当前回合目标
-
-完成 `TODO.md` 中按顺序出现的第一个未完成任务；若遇到阻塞，则按要求在 `TODO.md` 中插入最小必要前置任务并停止。
-
-## 初始步骤
-
-1. 读取 `TODO.md`，识别第一个标题中未带 `[DONE]` 的任务。
-2. 读取与该任务直接相关的上下文文件（必要时包括 `PLAN.md`、相关源码、测试、最新提交信息），确认范围、依赖与验证要求。
-3. 如发现最新提交里存在与该任务直接相关且未完成的问题，将其视为当前任务的一部分；若它构成真实前置阻塞，则先在 `TODO.md` 中登记该前置任务。
-4. 实现当前任务，避免规避性方案；若暴露出阻塞当前任务的规范不匹配或实现缺口，则先修复，或把它登记为前置任务并停止。
-5. 运行与当前任务直接相关的验证；在可行范围内补充必要测试，并执行任务要求的检查。
-6. 更新 `TODO.md`：仅在任务真正完成时给任务标题加上 `[DONE]`，并填写/更新完成记录；若发生任务拆分或重排，则同步维护顺序与依赖。
-7. 仅在阶段计划发生变化时更新 `PLAN.md`。
-8. 提交当前变更，提交信息以当前任务 ID 为前缀，然后停止，不继续下一个任务。
+1. 读取 `TODO.md`，定位第一个未标记为 `[DONE]` 的任务，并确认其依赖、验证要求与完成记录。
+2. 检查最近一次提交是否直接提到与该任务相关但未完成的问题；如果该问题构成前置依赖，则先在 `TODO.md` 中补充并调整顺序。
+3. 阅读完成该任务所需的最小相关代码与文档，确认当前实现状态、规格约束与测试入口。
+4. 直接实现当前任务；如果遇到会阻塞任务达成的真实缺口或规格不匹配，先修复该缺口，或在 `TODO.md` 中加入最小前置任务并停止。
+5. 运行与该任务相关的验证，包括任务要求的测试，以及必要的格式化、lint 或构建检查。
+6. 根据执行进展更新本文件，记录关键步骤、计划变更、阻塞信息与验证结果。
+7. 完成后在 `TODO.md` 中将该任务标题显式标记为 `[DONE]`，补全完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
+8. 按仓库提交风格创建一次提交，提交本次任务涉及的全部未提交改动，然后停止，不继续下一个任务。
 
 ## 进度记录
 
-- 已创建本计划文件，准备开始读取 `TODO.md` 并确定当前任务。
-- 已确认当前回合的第一个未完成任务是 `P6-T01：收尾 §3.5 / §7.6 partial surface，统一 runtime cast 与 GC pin/handle policy`。
-- 下一步：读取 `PLAN.md` / `PIPELINE_GAPS.md` 的对应条目，并检查最新提交是否记录了与 `P6-T01` 直接相关的未完成问题；随后审视当前实现与测试基线，决定直接实现还是先登记前置阻塞。
-- 已确认最新提交没有单独声明一个会阻塞 `P6-T01` 的未完成问题；当前工作可直接在 `P6-T01` 内收口。
-- 已完成首轮实现：
-  - 把 GC pin/handle 的 typecheck 诊断与相关注释改为稳定 contract 语言，移除“当前阶段/临时 special-case”表述。
-  - 新增 `GC.unpin` / `GC.handleGet` / `GC.handleDrop` 的错误 fixture，明确剩余未开放 surface 必须前端拒绝。
-  - 将 runtime GC callback/raw token fixtures 中的 `GcHandle.raw` 类型统一到 `UIntPtr`，与 sysroot 与 typecheck fixture 对齐。
-  - 将 `PIPELINE_GAPS.md` 与 `codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 中 `§3.5`、`§7.6` 的状态准备收口到 guard-only 语义。
-- 在验证中暴露并已修复两个直接阻塞 `P6-T01` 的实现缺口：
-  - 真实 HIR stage 路径不会为保留 member-access 形状的 GC intrinsic call 发布 typed call-site contract；现已在 HIR stage 补齐 intrinsic 合同，并在 typecheck 侧固定实参绑定回写。
-  - typed HIR/MIR 把 `UIntPtr` 当作 ref nominal，而不是 word-sized scalar；现已在 HIR type lowering 中把 `UIntPtr` 与 `UInt` 对齐，并新增 MIR 回归锁定 `GcHandle.raw` token transport 为 scalar。
+- 已读取 `TODO.md` 并确认首个未完成任务为 `P6-T02`：同步 `FrontendReject` surface（or-pattern binder / function-type cast / use-site effect row / struct mutable field）。
+- 已检查最近一次提交信息：`[P6-T01] Close runtime cast and GC token partial surfaces`，提交说明未显式声明需要先处理的 `P6-T02` 前置未完事项。
+- 已完成当前任务的事实核对：
+  - `or-pattern binder` 由 `typecheck/when_pat.rs` 在 typecheck 阶段稳定拒绝，MIR/backend 不再消费该形状。
+  - function-type `as/as?` 由 `typecheck/expr/infer.rs` 在 MIR 前拒绝，`pipeline/mir_stage.rs` 已有回归锁定。
+  - `struct mutable field` 由 `typecheck/structs.rs` 与 `typecheck/expr/collect.rs` 共同维持为前端限制；class `var` property 仍保持支持。
+  - `use-site effect row` 已有实际支持面，不只是 parse：现有 `typecheck` / `infer` / `run-pass` fixtures 已覆盖 `Type<eff Row>`、effect-row 推断，以及 parameterized interface 的 runtime `is/as/as?`。因此 `PIPELINE_GAPS.md §7.3` 的“整体 FrontendReject”描述已经过时。
+- 编辑计划：
+  1. 收紧四类 surface 的诊断文案，使其统一表达“当前语言 contract 下非法输入/不接受该源码形状”。
+  2. 将 `PIPELINE_GAPS.md §7.3` 与 `PLAN.md` 对应条目改写为真实支持状态，并同步修正 `pipeline_user_visible_failure_policy.rs` 中对 `§7.3` 的过时 FrontendReject 绑定。
+  3. 为“对无 effect-row 形参的类型误用 `Type<eff ...>`”补一个最小 typecheck 负例 fixture，作为 `use_site_eff_arg_not_allowed` 的常驻验证。
+  4. 跑完 `P6-T02` 要求的 fixture/test/clippy，再回写 `TODO.md` 完成记录并提交。
+- 已完成实现：
+  - 统一了 `or-pattern binder`、function-type `as/as?`、非法 use-site effect row target、`struct var` 的用户可见诊断文案。
+  - 新增 `tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop`，并更新相关旧 fixtures 预期文案。
+  - 将 `PIPELINE_GAPS.md §7.3` 与 `PLAN.md` 对应条目改写为“已支持的 nominal `Type<eff Row>` surface”，保留非法 target 的 typecheck reject；同步修正 `pipeline_user_visible_failure_policy.rs` 和 `cone/pre_specialize.rs` 的过时说明。
 - 已完成验证：
-  - `cargo test -p scoopc refactor_hir_gc_intrinsic_member_calls_publish_intrinsic_contracts`
-  - `cargo test -p scoopc refactor_mir_value_primitives`
-  - `cargo test -p scoopc refactor_mir_gc_handle_raw_uintptr_token_stays_scalar`
-  - `cargo test -p scoopc refactor_llvm_runtime_type_primitives`
-  - `cargo test -p scoopc codegen_gap_inventory`
-  - `cargo test -p scoopc pipeline_gap_audit`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_{closed_pure_asq,effectful_asq,effectful_as}_is_error.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/{unsafe_nogc/gc_pin_value_type_is_error,typecheck/gc_handle_new_value_type_is_error,typecheck/gc_unpin_requires_pinned_is_error,typecheck/gc_handle_get_requires_handle_is_error,typecheck/gc_handle_drop_requires_handle_is_error,typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok,typecheck/extern_fun_signature_with_pinned_is_error}.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`
-  - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/{gc_pin_unpin_move_stress_matrix,gc_handle_roundtrip,gc_handle_token_roundtrip_callback_basic}.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`
+  - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+  - `cargo test -p scoopc refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse/type_args_eff_use_site_order_fail.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/use_site_eff_arg_target_without_eff_param_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/eff_row_param_infer_from_nominal_ok.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_property_setter_not_allowed_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/class_var_property_reassign_ok.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`
   - `cargo clippy --all-targets -- -D warnings`
-- 下一步：回写 `TODO.md` 完成记录，检查工作区 diff，然后创建 `P6-T01` 提交并停止。
-- 已完成 `TODO.md` 回写：`P6-T01` 标题已标记为 `[DONE]`，完成记录已写入改动范围、决策、验证与闭合说明。
-- 当前只剩 git 提交流程：检查状态/差异/最近提交风格，创建 `P6-T01` 提交并停止。
+- 待执行：检查工作区差异、创建 `P6-T02` 提交，然后停止。

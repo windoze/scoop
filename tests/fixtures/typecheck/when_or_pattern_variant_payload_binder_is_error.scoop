@@ -1,7 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::when_or_pattern_binder_not_allowed
 // EXPECT-ERROR-AT: 16:3
-// EXPECT-ERROR: when or-pattern（不允许 binder）
+// EXPECT-ERROR: 当前语言 contract 下，when or-pattern 不允许引入 binder
 // 目标：MIR-T13 维持 or-pattern binder 前端拒绝，不能让 binder identity/scope/dominance 缺失的 pattern 进入 HIR/MIR。
 
 package fixtures.typecheck

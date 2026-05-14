@@ -86,7 +86,9 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
-    #[error("类型 {name} 不支持 use-site effect row 实参（`eff ...`）")]
+    #[error(
+        "当前语言 contract 下，只有显式声明 effect row 形参的名义类型才允许 use-site effect row 实参（`eff ...`）；{name} 不满足该条件"
+    )]
     #[diagnostic(code(scoop::typecheck::use_site_eff_arg_not_allowed))]
     UseSiteEffectRowArgNotAllowed {
         name: String,
@@ -219,7 +221,8 @@ pub enum TypeLowerError {
 ///
 /// 说明：
 /// - 该 key 使用 `(type_fqn, type_args)` 表示一个具体的 use-site 实例；
-/// - 当前阶段不包含 use-site effect row 实参（`eff ...`）的区分（后续任务再补齐）。
+/// - 它当前只服务于 type-alias cache 与 `.cone` 预特化命中统计，因此仍只跟踪普通 type args；
+///   nominal type 的 use-site effect row identity 继续保存在 `NominalType::eff` 中。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeInstantiationKey {
     pub fqn: String,

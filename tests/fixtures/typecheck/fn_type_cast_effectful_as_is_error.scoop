@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::effectful_function_type_cast_not_supported
-// EXPECT-ERROR: effect row 只存在于编译期
+// EXPECT-ERROR: 当前语言 contract 下，带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`
 // EXPECT-ERROR-AT: 13:15
 // 目标：T4016T1b：带非 `Pure` effect row 的函数类型不能参与显式 `as`。
 

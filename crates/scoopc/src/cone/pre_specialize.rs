@@ -775,7 +775,8 @@ fn intern_type_path(
         args.push(intern_type_path(types, builtins, type_kinds, a)?);
     }
 
-    // v0：不支持 use-site effect row 实参，固定为 None。
+    // v0：pre-specialize type key 目前只编码普通 type args；use-site effect row
+    // 仍不写入该 JSON key，因此这里保持 `eff: None`。
     let nominal = NominalType {
         fqn: path.fqn.clone(),
         args,

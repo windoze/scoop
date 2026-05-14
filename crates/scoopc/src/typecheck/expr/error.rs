@@ -22,7 +22,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("when or-pattern（不允许 binder）")]
+    #[error("当前语言 contract 下，when or-pattern 不允许引入 binder")]
     #[diagnostic(code(scoop::typecheck::when_or_pattern_binder_not_allowed))]
     WhenOrPatternBinderNotAllowed {
         #[label("这里")]
@@ -983,7 +983,7 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "显式 `as`/`as?` 不支持函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper"
+        "当前语言 contract 下，显式 `as`/`as?` 不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper"
     )]
     #[diagnostic(code(scoop::typecheck::function_type_cast_not_supported))]
     FunctionTypeCastNotSupported {
@@ -994,7 +994,7 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同"
+        "当前语言 contract 下，带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同"
     )]
     #[diagnostic(code(scoop::typecheck::effectful_function_type_cast_not_supported))]
     EffectfulFunctionTypeCastNotSupported {
