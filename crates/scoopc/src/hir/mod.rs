@@ -26,6 +26,7 @@ use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
+pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
 pub use lower::{
     HirLowerError, HirStageError, LoweredHir, MirInstanceCollectionOptions,
@@ -41,6 +42,7 @@ pub(crate) use lower::{
     canonical_generic_property_getter_signature_key,
     generic_template_symbol_suffixes_for_compilation_unit,
 };
+pub(crate) use lower::{collect_generic_template_symbol_suffixes, stable_instance_fqn};
 pub(crate) use stable_closure::{
     stable_closure_lexical_path_in_expr, stable_closure_lexical_path_in_fun,
 };

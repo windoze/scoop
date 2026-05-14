@@ -1670,6 +1670,56 @@ fun main(): Int {
 }
 
 #[test]
+fn value_box_interface_itable_points_directly_to_struct_body_method_symbol() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/p4_t01b_value_box_itable.scoop",
+        r#"
+package fixtures.p4t01b
+
+import scoop.core.*
+
+interface IFace {
+    fun m(): Int
+}
+
+struct Counter(val base: Int) : IFace {
+    fun m(): Int {
+        return this.base + 2
+    }
+}
+
+fun read(it: IFace): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    return read(Counter { base: 40 })
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let method_ir =
+        function_ir_matching(&ir, "value-box user struct interface impl", |header, _| {
+            header.contains("@__scoop_abi0_fun__fixtures_p4t01b_Counter_m__h")
+        });
+    let method_symbol = llvm_function_symbol_name(method_ir);
+
+    assert!(
+        ir.lines().any(|line| {
+            line.contains("@__scoop_priv0__itable_methods__h")
+                && line.contains(&format!("@{method_symbol}"))
+        }),
+        "value-box itable method table 应直接引用 user struct body method symbol，而不是 box thunk:\n{ir}"
+    );
+    assert!(
+        !ir.contains("refactor_itable_dynamic_entry"),
+        "plain value-box interface dispatch 不应为 struct receiver 发布 itable thunk shell:\n{ir}"
+    );
+}
+
+#[test]
 fn refactor_llvm_ctor_default_arg_contract_lowering() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

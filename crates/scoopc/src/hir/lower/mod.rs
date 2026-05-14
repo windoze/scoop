@@ -19,9 +19,11 @@ mod expr;
 mod stmt;
 
 pub use types::{HirLowerError, HirStageError, LoweredHir};
+pub(crate) use util::GenericTemplateSymbolSuffixIndex;
 pub use util::mangle_nominal_fqn;
 pub(crate) use util::{
     canonical_generic_fun_signature_key, canonical_generic_property_getter_signature_key,
+    collect_generic_template_symbol_suffixes, stable_instance_fqn,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -3467,6 +3469,37 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     },
                 )?,
             );
+            let wanted_dispatch_member_fqns = class_itables
+                .values()
+                .flat_map(|entries| {
+                    entries.iter().flat_map(|entry| {
+                        entry
+                            .method_impl_fqns
+                            .iter()
+                            .filter(|fqn| fqn.contains("::<"))
+                            .cloned()
+                    })
+                })
+                .collect::<HashSet<_>>();
+            if !wanted_dispatch_member_fqns.is_empty() {
+                let existing_member_fqns = member_funs
+                    .iter()
+                    .map(|fun| fun.fqn.clone())
+                    .collect::<HashSet<_>>();
+                member_funs.extend(
+                    collect_generic_member_fun_instantiations(
+                        compilation_unit,
+                        index,
+                        &type_kinds,
+                        Some(typecheck_types),
+                        &mut types,
+                        builtins,
+                    )
+                    .into_iter()
+                    .filter(|fun| wanted_dispatch_member_fqns.contains(&fun.fqn))
+                    .filter(|fun| !existing_member_fqns.contains(&fun.fqn)),
+                );
+            }
             struct_layouts.extend(collect_generic_struct_instantiation_layouts(
                 compilation_unit,
                 index,

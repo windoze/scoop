@@ -114,6 +114,19 @@ struct EvaluatedCallArg<'ctx> {
     cleanup_spills: Vec<DeferredGcSensitiveSpill<'ctx>>,
 }
 
+#[derive(Clone, Copy)]
+struct InterfaceItableSlotLookup<'ctx> {
+    fn_i8: PointerValue<'ctx>,
+    receiver_type_id: inkwell::values::IntValue<'ctx>,
+}
+
+#[derive(Clone)]
+struct InterfaceValueReceiverCase {
+    receiver_type_id: u64,
+    source_ty: TypeId,
+    impl_fqn: String,
+}
+
 /// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
 ///
 /// extern/native 调用期间，moving GC 会直接更新 managed locals / temp spill slots；
@@ -5462,6 +5475,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn llvm_scoop_itable_type(&self) -> StructType<'ctx> {
         self.llvm_scoop_itable_type_impl()
+    }
+
+    fn lookup_interface_itable_slot(
+        &mut self,
+        at: crate::span::Span,
+        receiver: PointerValue<'ctx>,
+        interface_id: u64,
+        slot: u32,
+    ) -> Result<InterfaceItableSlotLookup<'ctx>, LlvmEmitError> {
+        self.lookup_interface_itable_slot_impl(at, receiver, interface_id, slot)
     }
 
     fn load_interface_itable_slot_fn_ptr_i8(

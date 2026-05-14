@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_interface_dispatch_class_body_method_basic.stdout
+//
+// P4-T01b：user class body method 继续走完整 itable dispatch，不回退到旧的 by-name 路径。
+
+import scoop.core.*
+
+interface IFace {
+    fun m(): Int
+}
+
+class Boxed(val base: Int) : IFace {
+    fun m(): Int {
+        println("Boxed.m")
+        return this.base - 1
+    }
+}
+
+fun read(it: IFace): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    val first: IFace = Boxed(43)
+    println(read(first))
+    println(read(Boxed(10)))
+    return 0
+}

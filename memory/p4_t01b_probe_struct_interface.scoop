@@ -1,0 +1,21 @@
+import scoop.core.*
+
+interface I {
+    fun m(): Int
+}
+
+struct Point(val x: Int) : I {
+    fun m(): Int {
+        return this.x
+    }
+}
+
+fun read(x: I): Int {
+    return x.m()
+}
+
+fun main(): Int {
+    val value: I = Point(x = 7)
+    println(read(value))
+    return 0
+}

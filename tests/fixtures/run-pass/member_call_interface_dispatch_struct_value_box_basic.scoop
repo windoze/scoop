@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_interface_dispatch_struct_value_box_basic.stdout
+//
+// P4-T01b：value-type interface dispatch 应从 value-box itable 直接命中 user struct body method，
+// caller side 需按 slot metadata 从 payload 重建 receiver，而不是固定按 object ptr 传参。
+
+import scoop.core.*
+
+interface IFace {
+    fun m(): Int
+}
+
+struct Counter(val base: Int) : IFace {
+    fun m(): Int {
+        println("Counter.m")
+        return this.base + 2
+    }
+}
+
+fun read(it: IFace): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    val first: IFace = Counter { base: 40 }
+    println(read(first))
+    println(read(Counter { base: 5 }))
+    return 0
+}

@@ -21,7 +21,7 @@ use crate::stable_id::{
     NoTypeParamResolver, canonical_nominal_type_key, stable_rtti_interface_id, stable_rtti_type_id,
     stable_rtti_type_id_for_type,
 };
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use crate::typecheck::is_type_assignable;
 use crate::typecheck::{TypeEnv, TypeEnvError, TypeLowerError, TypeLowering, TypeSymbolKind};
 use crate::vtable::ClassVtableIndex;
@@ -71,6 +71,11 @@ pub struct ClassItableEntry {
     pub runtime_match_type_names: Vec<String>,
     pub runtime_match_type_ids: Vec<u64>,
     pub method_impl_fqns: Vec<String>,
+    /// slot 对应 receiver 的 authoritative ABI 形状：
+    /// - `0` 表示 receiver 继续按 ref/object ptr 传递；
+    /// - 非 `0` 表示 receiver 来自某个 concrete value nominal，需要按该 type id 对应的
+    ///   method signature 从 value-box payload 里重建并 marshal。
+    pub method_receiver_type_ids: Vec<u64>,
 }
 
 /// class FQN -> itable entries（按 interface_id 稳定排序）。
@@ -113,6 +118,7 @@ pub enum ItableLayoutError {
 #[derive(Debug, Clone)]
 struct ClassDeclInfo {
     fqn: String,
+    is_value_type: bool,
     super_class_fqn: Option<String>,
     direct_interfaces: Vec<String>,
     methods: Vec<ClassMethodInfo>,
@@ -131,6 +137,8 @@ struct ConcreteClassTarget {
     base_fqn: String,
     ty: TypeId,
 }
+
+pub(crate) const ITABLE_RECEIVER_REF_TYPE_ID: u64 = 0;
 
 pub fn collect_interfaces_and_class_itables(
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -244,6 +252,8 @@ pub fn collect_runtime_interfaces_and_class_itables_with_env(
     let builtins = runtime_types.intern_builtins();
     let concrete_classes = collect_concrete_class_targets(&runtime_types, env);
     let concrete_interface_targets = collect_concrete_interface_targets(&runtime_types, env);
+    let generic_template_symbol_suffixes =
+        crate::hir::collect_generic_template_symbol_suffixes(index, compilation_unit);
     if concrete_classes.is_empty() {
         return Ok((interfaces, class_itables));
     }
@@ -265,6 +275,8 @@ pub fn collect_runtime_interfaces_and_class_itables_with_env(
             &classes,
             &interfaces,
             class_vtables,
+            index,
+            &generic_template_symbol_suffixes,
             &concrete_interface_targets,
             &mut lower,
             builtins,
@@ -347,6 +359,8 @@ fn build_base_class_itables(
 
             // slot -> impl_member_fqn：保持与 slot index 对齐。
             let mut impls: Vec<String> = vec![String::new(); method_slots.len()];
+            let mut receiver_type_ids: Vec<u64> =
+                vec![ITABLE_RECEIVER_REF_TYPE_ID; method_slots.len()];
 
             // v0：slot key（name+params_len+has_receiver）在单个 interface 内必须是唯一的，
             // 否则 lowering/codegen 无法在调用点稳定选中正确 slot。
@@ -389,6 +403,17 @@ fn build_base_class_itables(
                     continue;
                 }
                 impls[idx] = impl_member_fqn;
+                receiver_type_ids[idx] = if classes
+                    .get(class_fqn)
+                    .is_some_and(|info| info.is_value_type)
+                    && !impls[idx].is_empty()
+                    && !impls[idx].starts_with(&format!("{iface_fqn}."))
+                {
+                    let type_key = canonical_nominal_type_key(class_fqn);
+                    stable_rtti_type_id(type_key.as_str())
+                } else {
+                    ITABLE_RECEIVER_REF_TYPE_ID
+                };
             }
 
             let interface_type_name = iface_fqn.clone();
@@ -402,6 +427,7 @@ fn build_base_class_itables(
                 runtime_match_type_names: vec![interface_type_name],
                 runtime_match_type_ids: vec![interface_type_id],
                 method_impl_fqns: impls,
+                method_receiver_type_ids: receiver_type_ids,
             });
         }
 
@@ -542,11 +568,85 @@ fn stable_runtime_type_id_for_lower(
     })
 }
 
+fn find_member_owner_nominal_instantiation(
+    receiver_ty: TypeId,
+    member_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<(String, Vec<TypeId>)>, ItableLayoutError> {
+    let Some((member_owner_fqn, _)) = member_fqn.rsplit_once('.') else {
+        return Ok(None);
+    };
+
+    let mut stack = vec![receiver_ty];
+    let mut visited: HashSet<TypeId> = HashSet::new();
+    while let Some(cur) = stack.pop() {
+        if !visited.insert(cur) {
+            continue;
+        }
+
+        let (nominal_fqn, nominal_args) = match lower.type_kind(cur) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+            _ => continue,
+        };
+        if nominal_fqn == member_owner_fqn {
+            return Ok(Some((nominal_fqn, nominal_args)));
+        }
+
+        stack.extend(lower.instantiated_direct_supertypes(cur)?);
+    }
+
+    Ok(None)
+}
+
+fn materialize_member_impl_fqn_for_owner(
+    impl_member_fqn: &str,
+    owner_ty: TypeId,
+    index: &Index,
+    generic_template_symbol_suffixes: &crate::hir::GenericTemplateSymbolSuffixIndex,
+    lower: &mut TypeLowering<'_>,
+) -> Result<String, ItableLayoutError> {
+    let Some((_owner_fqn, owner_args)) =
+        find_member_owner_nominal_instantiation(owner_ty, impl_member_fqn, lower)?
+    else {
+        return Ok(impl_member_fqn.to_string());
+    };
+    if owner_args.is_empty() {
+        return Ok(impl_member_fqn.to_string());
+    }
+
+    let Some(overload) = index
+        .by_fqn
+        .get(impl_member_fqn)
+        .and_then(|syms| syms.fun.first())
+    else {
+        return Ok(impl_member_fqn.to_string());
+    };
+    let template = crate::mir::TemplateKey {
+        fqn: impl_member_fqn.to_string(),
+        source_path: overload.symbol.decl_file.clone(),
+        decl_span: overload.symbol.span,
+    };
+    Ok(crate::hir::stable_instance_fqn(
+        lower.types(),
+        &template,
+        &owner_args,
+        &[],
+        generic_template_symbol_suffixes
+            .get(&template)
+            .map(String::as_str)
+            .unwrap_or(""),
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn build_precise_class_itable_entries(
     concrete_class: &ConcreteClassTarget,
     classes: &HashMap<String, ClassDeclInfo>,
     interfaces: &InterfaceIndex,
     class_vtables: &ClassVtableIndex,
+    index: &Index,
+    generic_template_symbol_suffixes: &crate::hir::GenericTemplateSymbolSuffixIndex,
     concrete_interface_targets: &[TypeId],
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
@@ -581,6 +681,7 @@ fn build_precise_class_itable_entries(
         };
 
         let mut impls: Vec<String> = vec![String::new(); method_slots.len()];
+        let mut receiver_type_ids: Vec<u64> = vec![ITABLE_RECEIVER_REF_TYPE_ID; method_slots.len()];
         let mut seen_shapes: HashSet<MethodShapeKey> = HashSet::new();
 
         for slot in &method_slots {
@@ -598,14 +699,26 @@ fn build_precise_class_itable_entries(
             }
 
             let impl_member_fqn = if let Some(found) = vtable_impls.get(&key).cloned() {
-                found
+                materialize_member_impl_fqn_for_owner(
+                    &found,
+                    concrete_class.ty,
+                    index,
+                    generic_template_symbol_suffixes,
+                    lower,
+                )?
             } else if let Some((_in_fqn, member_fqn)) = resolve_method_in_class_hierarchy(
                 &concrete_class.base_fqn,
                 &key,
                 classes,
                 &mut HashSet::new(),
             ) {
-                member_fqn
+                materialize_member_impl_fqn_for_owner(
+                    &member_fqn,
+                    concrete_class.ty,
+                    index,
+                    generic_template_symbol_suffixes,
+                    lower,
+                )?
             } else if slot.has_body {
                 format!("{}.{}", nominal.fqn, slot.name)
             } else {
@@ -615,6 +728,7 @@ fn build_precise_class_itable_entries(
             let idx = slot.slot as usize;
             if idx < impls.len() {
                 impls[idx] = impl_member_fqn;
+                receiver_type_ids[idx] = ITABLE_RECEIVER_REF_TYPE_ID;
             }
         }
 
@@ -649,6 +763,7 @@ fn build_precise_class_itable_entries(
             runtime_match_type_names,
             runtime_match_type_ids,
             method_impl_fqns: impls,
+            method_receiver_type_ids: receiver_type_ids,
         });
     }
 
@@ -869,7 +984,7 @@ fn collect_classes_in_type_decl(
     let name = decl.name.text(source).to_string();
     let type_fqn = join_prefix(owner_prefix, &name);
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
+    if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct) {
         let super_class_fqn = decl
             .supertypes
             .iter()
@@ -902,6 +1017,7 @@ fn collect_classes_in_type_decl(
             type_fqn.clone(),
             ClassDeclInfo {
                 fqn: type_fqn.clone(),
+                is_value_type: matches!(decl.kind, ast::TypeKind::Struct),
                 super_class_fqn,
                 direct_interfaces,
                 methods,

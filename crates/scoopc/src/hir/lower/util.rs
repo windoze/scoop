@@ -6030,7 +6030,7 @@ fn collect_explicit_top_level_generic_fun_templates<'a>(
     out
 }
 
-pub(super) fn collect_generic_template_symbol_suffixes(
+pub(crate) fn collect_generic_template_symbol_suffixes(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
@@ -6233,7 +6233,7 @@ fn re_intern_effect_row_from(
     )
 }
 
-pub(super) fn stable_instance_fqn(
+pub(crate) fn stable_instance_fqn(
     types: &TypeStore,
     template: &TemplateKey,
     type_args: &[TypeId],

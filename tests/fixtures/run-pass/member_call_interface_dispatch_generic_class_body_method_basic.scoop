@@ -1,0 +1,30 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_interface_dispatch_generic_class_body_method_basic.stdout
+//
+// P4-T01b：generic class 实现 interface 后，concrete itable entry 应指向 owner-specialized callable，
+// 而不是继续停留在模板 member FQN。
+
+import scoop.core.*
+
+interface IFace {
+    fun m(): Int
+}
+
+class Box<T>(val value: T, val code: Int) : IFace {
+    fun m(): Int {
+        println("Box.m")
+        return this.code
+    }
+}
+
+fun read(it: IFace): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    val ints: IFace = Box(9, 41)
+    val texts: IFace = Box("hi", 7)
+    println(read(ints))
+    println(read(texts))
+    return 0
+}

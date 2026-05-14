@@ -179,7 +179,7 @@ fn collect_classes_in_type_decl(
     let name = decl.name.text(source).to_string();
     let type_fqn = join_prefix(owner_prefix, &name);
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
+    if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct) {
         let super_class_fqn = decl
             .supertypes
             .iter()

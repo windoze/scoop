@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use inkwell::values::{BasicMetadataValueEnum, FunctionValue, PointerValue};
+use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, PointerValue};
 
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -5906,6 +5906,70 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
+        if let PlainDispatchTarget::Interface {
+            interface_id, slot, ..
+        } = &target
+        {
+            let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor plain interface owner fqn",
+                    at: span.into(),
+                },
+            )?;
+            let receiver_value =
+                self.codegen_mir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;
+            let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
+            let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "refactor plain interface receiver value",
+                    at: span.into(),
+                });
+            };
+            let deferred_receiver =
+                self.defer_gc_ref_pointer(span, "refactor_plain_interface_receiver", receiver_ptr)?;
+            let explicit_param_names = sig_fun.params[1..]
+                .iter()
+                .map(|param| param.name.clone())
+                .collect::<Vec<_>>();
+            let explicit_param_tys = sig_fun.params[1..]
+                .iter()
+                .map(|param| param.ty)
+                .collect::<Vec<_>>();
+            let evaluated_explicit_args = self.codegen_bound_mir_call_args_from_signature(
+                span,
+                &explicit_param_names,
+                &explicit_param_tys,
+                args,
+                slots,
+                false,
+                self.types,
+            )?;
+            let explicit_args = evaluated_explicit_args
+                .iter()
+                .map(|arg| arg.value)
+                .collect::<Vec<_>>();
+            let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
+                span,
+                "refactor_plain_interface_receiver_reload",
+                &deferred_receiver,
+            )?;
+            let lookup =
+                self.lookup_interface_itable_slot(span, receiver_ptr, *interface_id, *slot)?;
+            let result = self.emit_interface_dispatch_indirect_call(
+                span,
+                span,
+                interface_fqn,
+                *slot,
+                sig_fun,
+                false,
+                receiver_ptr,
+                lookup,
+                &explicit_args,
+            )?;
+            self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
+            return Ok(result);
+        }
+
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -8132,7 +8196,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(None);
         }
-        let entries = self.mir_value_box_itable_entries(&nominal.fqn)?;
+        let entries = self.mir_value_box_itable_entries(source_ty)?;
         if entries.is_empty() {
             return Ok(None);
         }
@@ -8143,13 +8207,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
     }
 
-    fn mir_value_box_itable_entries(
+    fn materialized_value_box_member_impl_fqn(
         &self,
-        source_fqn: &str,
+        source_ty: TypeId,
+        impl_member_fqn: &str,
+    ) -> String {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+            return impl_member_fqn.to_string();
+        };
+        let Some((owner_fqn, _)) = impl_member_fqn.rsplit_once('.') else {
+            return impl_member_fqn.to_string();
+        };
+        if nominal.fqn != owner_fqn || nominal.args.is_empty() {
+            return impl_member_fqn.to_string();
+        }
+        let Some(template_fun) = self.fun_index.get(impl_member_fqn).copied() else {
+            return impl_member_fqn.to_string();
+        };
+        let template = crate::mir::TemplateKey {
+            fqn: impl_member_fqn.to_string(),
+            source_path: template_fun.source_path.clone(),
+            decl_span: template_fun.span,
+        };
+        crate::hir::stable_instance_fqn(self.types, &template, &nominal.args, &[], "")
+    }
+
+    pub(in crate::llvm::codegen) fn mir_value_box_itable_entries(
+        &self,
+        source_ty: TypeId,
     ) -> Result<Vec<crate::itable::ClassItableEntry>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+            return Ok(Vec::new());
+        };
         let mut interfaces = Vec::new();
         let mut visiting = HashSet::new();
-        self.collect_mir_value_box_interfaces(source_fqn, &mut interfaces, &mut visiting);
+        self.collect_mir_value_box_interfaces(&nominal.fqn, &mut interfaces, &mut visiting);
         interfaces
             .into_iter()
             .map(|interface_fqn| {
@@ -8159,26 +8251,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ))
                 })?;
                 let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
+                let value_receiver_type_id = self
+                    .stable_rtti_type_id_for_codegen(source_ty, "MIR value box receiver RTTI")
+                    .map_err(|err| {
+                        frontend_error(format!(
+                            "MIR value box `{}` 无法构造 receiver stable RTTI type id: {err}",
+                            self.types.display(source_ty)
+                        ))
+                    })?;
+                let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());
                 for slot in &iface.method_slots {
-                    let impl_fqn = format!("{source_fqn}.{}", slot.name);
+                    let impl_fqn = self.materialized_value_box_member_impl_fqn(
+                        source_ty,
+                        &format!("{}.{}", nominal.fqn, slot.name),
+                    );
                     if self.fun_index.contains_key(impl_fqn.as_str()) {
                         method_impl_fqns.push(impl_fqn);
+                        method_receiver_type_ids.push(value_receiver_type_id);
                     } else if slot.has_body {
                         method_impl_fqns.push(slot.member_fqn.clone());
+                        method_receiver_type_ids.push(crate::itable::ITABLE_RECEIVER_REF_TYPE_ID);
                     } else {
                         return Err(frontend_error(format!(
-                            "value box `{source_fqn}` missing implementation for interface method `{}`",
-                            slot.member_fqn
+                            "value box `{}` missing implementation for interface method `{}`",
+                            nominal.fqn, slot.member_fqn
                         )));
                     }
                 }
                 let interface_type_name = iface.fqn.clone();
-                let interface_ty = self.types.find_nominal_ref_by_fqn(&iface.fqn).ok_or_else(|| {
-                    frontend_error(format!(
-                        "MIR value box interface `{}` missing nominal TypeId",
-                        iface.fqn
-                    ))
-                })?;
+                let interface_ty =
+                    self.types
+                        .find_nominal_ref_by_fqn(&iface.fqn)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "MIR value box interface `{}` missing nominal TypeId",
+                                iface.fqn
+                            ))
+                        })?;
                 let interface_type_id = self
                     .stable_rtti_type_id_for_codegen(interface_ty, "MIR value box interface RTTI")
                     .map_err(|err| {
@@ -8195,6 +8304,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     runtime_match_type_names: vec![interface_type_name],
                     runtime_match_type_ids: vec![interface_type_id],
                     method_impl_fqns,
+                    method_receiver_type_ids,
                 })
             })
             .collect()

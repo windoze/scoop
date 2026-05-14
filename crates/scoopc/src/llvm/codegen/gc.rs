@@ -3,6 +3,35 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn declare_dispatch_target_fun(
+        &mut self,
+        _at: crate::span::Span,
+        callable_fqn: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let llvm_name = self
+            .extern_funs
+            .get(callable_fqn)
+            .map(|e| e.symbol.as_str())
+            .unwrap_or(callable_fqn);
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            return Ok(existing);
+        }
+        if let Some(sig_fun) = self.fun_index.get(callable_fqn).copied() {
+            return self.declare_top_level_fun(sig_fun);
+        }
+        if let Some(mir_fun) = self
+            .materialized_mir_callable(callable_fqn)
+            .map(|(_mir_types, mir_fun)| mir_fun.clone())
+        {
+            return self.declare_materialized_top_level_fun_with_symbol(&mir_fun, callable_fqn);
+        }
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "dispatch target callable `{callable_fqn}` 缺少 HIR/materialized declaration source"
+            ),
+        })
+    }
+
     pub(super) fn try_codegen_sysroot_gc_debug_intrinsics(
         &mut self,
         span: crate::span::Span,
@@ -1490,16 +1519,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
 
         // itable entry：
-        // { interface_id: u64, match_len: u32, _reserved: u32, match_ids: i8*, methods: i8* }
+        // {
+        //   interface_id: u64,
+        //   match_len: u32,
+        //   _reserved: u32,
+        //   match_ids: i8*,
+        //   methods: i8*,
+        //   receiver_type_ids: i8*
+        // }
         //
         // 说明：
         // - `methods` 指向一个 `i8*[]`（函数指针数组），按 interface slot 顺序排列；
         // - `match_ids` 指向一个 `u64[]`，保存该具体 interface 实例在运行期可匹配的 target type ids。
+        // - `receiver_type_ids` 指向一个 `u64[]`，按 slot 发布 receiver marshal metadata：
+        //   `0` 表示继续按 ref/object ptr 传递；非 `0` 表示需要从 value-box payload 里按该
+        //   stable type id 对应的 concrete value nominal 形状重建 receiver。
         let entry_ty = self.context.struct_type(
             &[
                 i64_ty.into(),
                 i32_ty.into(),
                 i32_ty.into(),
+                i8_ptr_ty.into(),
                 i8_ptr_ty.into(),
                 i8_ptr_ty.into(),
             ],
@@ -1534,24 +1574,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         inits.push(i8_ptr_ty.const_null());
                         continue;
                     }
-
-                    let sig_fun = self.fun_index.get(impl_fqn.as_str()).copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "class itable slot target",
-                            at: at.into(),
-                        },
-                    )?;
-
-                    let llvm_name = self
-                        .extern_funs
-                        .get(impl_fqn)
-                        .map(|e| e.symbol.as_str())
-                        .unwrap_or(impl_fqn.as_str());
-
-                    let llvm_fun = match self.module.get_function(llvm_name) {
-                        Some(f) => f,
-                        None => self.declare_top_level_fun(sig_fun)?,
-                    };
+                    let llvm_fun = self.declare_dispatch_target_fun(at, impl_fqn)?;
 
                     let fn_ptr = self.callable_carrier_target_fn_ptr(
                         CallableCarrierKind::InterfaceItable,
@@ -1568,6 +1591,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             let methods_ptr_i8 = methods_gv.as_pointer_value().const_cast(i8_ptr_ty).into();
+
+            let receiver_type_ids_ptr_i8 = if entry
+                .method_receiver_type_ids
+                .iter()
+                .all(|id| *id == crate::itable::ITABLE_RECEIVER_REF_TYPE_ID)
+            {
+                i8_ptr_ty.const_null().into()
+            } else {
+                let receiver_types_key = CanonicalTextKey::new(canonical_record(
+                    "itable_receiver_type_ids",
+                    [
+                        owner_key.canonical_text(),
+                        format!("{:016x}", entry.interface_id),
+                        format!("{:016x}", entry.interface_type_id),
+                    ],
+                ));
+                let receiver_types_gv_name =
+                    PrivateSymbolMangler.mangle("itable_receiver_type_ids", &receiver_types_key);
+                let receiver_types_gv =
+                    if let Some(existing) = self.module.get_global(&receiver_types_gv_name) {
+                        existing
+                    } else {
+                        let arr_ty = i64_ty.array_type(entry.method_impl_fqns.len() as u32);
+                        let gv = self
+                            .module
+                            .add_global(arr_ty, None, &receiver_types_gv_name);
+                        let inits = entry
+                            .method_receiver_type_ids
+                            .iter()
+                            .copied()
+                            .chain(std::iter::repeat(
+                                crate::itable::ITABLE_RECEIVER_REF_TYPE_ID,
+                            ))
+                            .take(entry.method_impl_fqns.len())
+                            .map(|id| i64_ty.const_int(id, false))
+                            .collect::<Vec<_>>();
+                        gv.set_initializer(&i64_ty.const_array(&inits));
+                        gv.set_constant(true);
+                        gv.set_linkage(Linkage::Internal);
+                        gv
+                    };
+                receiver_types_gv
+                    .as_pointer_value()
+                    .const_cast(i8_ptr_ty)
+                    .into()
+            };
 
             let match_ids_ptr_i8 = if entry.runtime_match_type_ids.is_empty() {
                 i8_ptr_ty.const_null().into()
@@ -1607,6 +1676,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 i32_ty.const_zero().into(),
                 match_ids_ptr_i8,
                 methods_ptr_i8,
+                receiver_type_ids_ptr_i8,
             ]);
             entry_inits.push(init);
         }
@@ -1656,25 +1726,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut inits: Vec<PointerValue<'ctx>> = Vec::with_capacity(slots.len());
         for slot in slots {
-            let sig_fun = self
-                .fun_index
-                .get(slot.impl_member_fqn.as_str())
-                .copied()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class vtable slot target",
-                    at: at.into(),
-                })?;
-
-            let llvm_name = self
-                .extern_funs
-                .get(&slot.impl_member_fqn)
-                .map(|e| e.symbol.as_str())
-                .unwrap_or(slot.impl_member_fqn.as_str());
-
-            let llvm_fun = match self.module.get_function(llvm_name) {
-                Some(f) => f,
-                None => self.declare_top_level_fun(sig_fun)?,
-            };
+            let llvm_fun = self.declare_dispatch_target_fun(at, &slot.impl_member_fqn)?;
 
             let fn_ptr = self.callable_carrier_target_fn_ptr(
                 CallableCarrierKind::ClassVtable,

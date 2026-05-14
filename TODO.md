@@ -20,7 +20,7 @@
 | `P3-T01` | P3 | [DONE] 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
 | `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
 | `P4-T01a` | P4 前置 I | [DONE] 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
-| `P4-T01b` | P4 前置 I | vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
+| `P4-T01b` | P4 前置 I | [DONE] vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
 | `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
@@ -635,7 +635,7 @@
     - 对应 `PLAN.md` P4 前置 I 第 1 项：user struct/class（含 generic class）的 instance method 现已走与 sysroot declarer 同构的 ordinary member-call 前端路径，不再只依赖扩展函数承接实例方法语义。
     - 本任务没有改动 `sysroot/core.scoop` 的既有内建类型声明，也没有提前改写 vtable/itable、intrinsic 表或 ABI substrate，因此无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01b：vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal
+### [DONE] P4-T01b：vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
@@ -668,6 +668,33 @@
 - 完成条件：
   - vtable / itable 收集与 interface call caller side 完全 metadata-driven，不依赖任何 by-name 内建分支或合成 thunk。
 - 依赖：`P4-T01a`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/{itable.rs,vtable.rs}`
+    - `crates/scoopc/src/hir/{mod.rs,lower/mod.rs,lower/util.rs}`
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/llvm/codegen/{mod.rs,call/lowering.rs,effect_lowered/layout.rs,gc.rs,mir_body.rs}`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `tests/fixtures/run-pass/member_call_interface_dispatch_{struct_value_box,class_body_method,generic_class_body_method}_basic.*`
+    - `TODO.md`
+  - 核心决策：
+    - `vtable` / `itable` 现在统一把 struct/class body method 当作实现来源：`vtable` 对 struct 也收集 method slot，`itable` 的 base/runtime entries 都显式发布 `method_impl_fqns + method_receiver_type_ids`，保持已有 extension/default-method 命中路径不删除。
+    - interface caller side 改为完全按 itable slot metadata marshal：lookup 同时返回函数指针与 receiver type id；ref receiver 继续按对象指针调用，value-type receiver 则从 value-box payload 按 metadata 重建 concrete receiver，不再依赖 box thunk shell。
+    - MIR value-box itable global 现在直接指向 user struct body method symbol；LLVM owner test 明确锁定“slot 直接命中 body method，不出现 `refactor_itable_dynamic_entry` thunk shell”。
+    - generic class interface dispatch 额外补齐了 dispatch-only member instance 发布：precise class itable 会把 owner-specialized `Box.m::<T>` 写进 metadata，materializer 则从 lowered 顶层函数首参识别 receiver owner，并用 typechecked concrete nominal 生成显式 dispatch instance 索引，确保 `Box.m::<Int>` / `Box.m::<String>` 能进入初始实例请求与 published MIR bodies。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_struct_value_box_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_generic_class_body_method_basic.scoop`
+    - `cargo test -p scoopc value_box_interface_itable_points_directly_to_struct_body_method_symbol -- --nocapture`
+    - `cargo test -p scoopc materialize_for_dump_publishes_generic_interface_dispatch_member_instances -- --nocapture`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 仍返回 `0 passed; 850 filtered out`，因此以上两条 owner tests 作为本任务的实际 LLVM / materialization 锁定覆盖）
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（当前仍存在两个既存失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`；本任务新增的 interface-dispatch 相关 fixture 全部通过，未引入额外回归）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 I 第 2 项：user struct/class/generic class 的 interface impl 现在可以通过统一的 metadata-driven itable dispatch 走完整 caller-side marshal；value type 不再依赖 thunk，generic class 的 concrete method instance 也能被发布到 fun_index / class_itables / runtime dispatch metadata。
+    - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有删除 `ToString`/scalar/string 的 by-name intercept；这些删除动作仍按顺序留给后续 `P4-T01`。
 
 ### [TODO] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
 

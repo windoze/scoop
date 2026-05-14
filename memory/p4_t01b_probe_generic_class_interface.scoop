@@ -1,0 +1,21 @@
+import scoop.core.*
+
+interface I {
+    fun m(): Int
+}
+
+class Box<T>(val value: T) : I {
+    fun m(): Int {
+        return 11
+    }
+}
+
+fun read(x: I): Int {
+    return x.m()
+}
+
+fun main(): Int {
+    val value: I = Box(value = 3)
+    println(read(value))
+    return 0
+}

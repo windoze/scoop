@@ -2489,7 +2489,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                             )
                 })
                 .collect::<BTreeSet<_>>();
-        let interface_itable_targets = self
+        let mut interface_itable_targets = self
             .codegen
             .class_itables
             .values()
@@ -2499,12 +2499,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .method_impl_fqns
                         .iter()
                         .filter(|impl_fqn| !impl_fqn.is_empty())
-                        .map(String::as_str)
                 })
             })
-            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
-            .collect::<BTreeSet<_>>();
-        let plain_interface_itable_targets =
+            .filter(|impl_fqn| published_callable_roots.contains(impl_fqn.as_str()))
+            .cloned()
+            .collect::<BTreeSet<String>>();
+        let mut plain_interface_itable_targets =
             self.codegen
                 .class_itables
                 .values()
@@ -2514,12 +2514,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                             .method_impl_fqns
                             .iter()
                             .filter(|impl_fqn| !impl_fqn.is_empty())
-                            .map(String::as_str)
                     })
                 })
                 .filter(|impl_fqn| {
-                    plain_callable_roots.contains(impl_fqn)
-                        || self.pass_view.callable(impl_fqn).is_none()
+                    plain_callable_roots.contains(impl_fqn.as_str())
+                        || self.pass_view.callable(impl_fqn.as_str()).is_none()
                             && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
                                 |sig_fun| {
                                     sig_fun.body.is_some()
@@ -2529,7 +2528,36 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                                 },
                             )
                 })
-                .collect::<BTreeSet<_>>();
+                .cloned()
+                .collect::<BTreeSet<String>>();
+
+        for source_ty in self.codegen.types.iter_ids() {
+            for entry in self.codegen.mir_value_box_itable_entries(source_ty)? {
+                for impl_fqn in entry
+                    .method_impl_fqns
+                    .iter()
+                    .filter(|impl_fqn| !impl_fqn.is_empty())
+                {
+                    if published_callable_roots.contains(impl_fqn.as_str()) {
+                        interface_itable_targets.insert(impl_fqn.clone());
+                    }
+                    if plain_callable_roots.contains(impl_fqn.as_str())
+                        || self.pass_view.callable(impl_fqn.as_str()).is_none()
+                            && self
+                                .codegen
+                                .hir_fun_for_callable_fqn(impl_fqn.as_str())
+                                .is_some_and(|sig_fun| {
+                                    sig_fun.body.is_some()
+                                        && !self
+                                            .codegen
+                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
+                                })
+                    {
+                        plain_interface_itable_targets.insert(impl_fqn.clone());
+                    }
+                }
+            }
+        }
 
         let mut carrier_layouts = HashMap::new();
         let dynamic_dispatch_targets =
@@ -2546,7 +2574,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         for impl_fqn in plain_interface_itable_targets {
             self.publish_plain_carrier_fallback_target(
                 CallableCarrierKind::InterfaceItable,
-                impl_fqn,
+                &impl_fqn,
             )?;
         }
         for callable_fqn in closure_targets {
@@ -2576,7 +2604,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .copied();
             self.publish_dispatch_carrier_entry_shell(
                 CallableCarrierKind::InterfaceItable,
-                impl_fqn,
+                &impl_fqn,
                 return_step_schema,
                 callable_layouts,
                 step_layouts,

@@ -1,65 +1,51 @@
 ## 当前执行计划
 
-1. 读取 `TODO.md`，定位第一个标题未标记 `[DONE]` 的任务，并确认该任务的要求、依赖、验证方式与完成记录格式。
-2. 检查最近提交是否有与该任务直接相关且明确未完成的问题；如果存在且会阻塞当前任务，则先把它视为当前任务范围内问题，或按要求在 `TODO.md` 中登记为前置任务。
-3. 阅读实现该任务所需的最小相关代码、测试、规范与文档，确认当前实现状态与缺口，不做开放式无关问题排查。
-4. 如当前任务可直接完成，则按最小正确改动实现完整功能；若遇到会阻塞任务的真实缺口或规格不匹配，则在 `TODO.md` 中增加最小前置任务、更新依赖关系，并停止继续后续任务。
-5. 运行任务要求的验证命令，以及必要的回归测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；若失败则立即修复并重新验证。
-6. 完成后更新 `memory/claude_plan.md` 记录进展，更新 `TODO.md` 将当前任务标题标记为 `[DONE]` 并填写完成记录；仅在阶段计划发生变化时更新 `PLAN.md`。
-7. 检查工作区改动，按要求提交一次 Git 提交，提交信息使用当前任务编号，并在本次调用中停止，不继续下一个任务。
+1. 读取 `TODO.md`，确认按顺序排列的第一个未标记 `[DONE]` 的任务。
+2. 检查最近提交记录，判断是否存在与该任务直接相关且明确未完成的问题；如果有，则按要求将其视为当前任务的一部分或在 `TODO.md` 中补充为前置依赖。
+3. 阅读当前任务涉及的代码、文档与测试，确认实现边界、依赖关系和验证要求。
+4. 如任务可直接完成，则进行最小且正确的实现；如遇到阻塞当前任务的真实缺陷或缺失特性，则先修复，或在 `TODO.md` 中新增最小前置任务并停止。
+5. 运行与当前任务直接相关的测试、必要的仓库级检查，以及任务要求的验证命令；若失败则立即修复后重试。
+6. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
+7. 在 `TODO.md` 中将当前任务标记为 `[DONE]` 并填写完成记录；仅当阶段计划发生变化时才更新 `PLAN.md`。
+8. 按仓库提交规范创建一次 git 提交，提交当前任务涉及的全部未提交更改，然后停止，不继续处理下一项任务。
 
-## 约束说明
+## 进度记录
 
-- 不采用绕过规格的临时方案。
-- 如果发现阻塞当前任务的真实缺口，先在 `TODO.md` 中显式建前置任务并调整顺序。
-- 只完成 `TODO.md` 中当前排位的一个任务。
-- 这里记录的是执行计划与外显决策，不包含内部推理细节。
-
-## 当前进展
-
-- 已确认首个未完成任务为 `P4-T01a`：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用。
-- 已检查最近一次提交：只更新了 `PLAN.md` / `TODO.md`，未额外声明会直接阻塞 `P4-T01a` 的未完成实现问题。
-- 下一步聚焦阅读 `P4-T01a` 指向的实现入口与现有注释，确认当前 member call / instance method / generic class 的实际缺口。
-
-## 已确认的实现缺口
-
-- `crates/scoopc/src/typecheck/expr/entry.rs` 当前只真正检查 `class` / `object` 的成员函数体；`struct` body 内 `fun` 尚未走成员函数体 typecheck。
-- `crates/scoopc/src/hir/lower/expr.rs` 的成员调用降糖当前只对 `class` / `interface` / `object` 生效，`struct` 成员方法调用仍会保留成 `MemberAccess` 回退形态。
-- `generic class` 成员方法调用与单态化路径已经存在既有回归，因此当前任务重点是补齐 `struct` 路径，并用新 fixture 明确锁住 `struct` / `class` / `generic class` 三类常规 `receiver.method()` surface。
-
-## 当前编辑计划
-
-1. 在 `typecheck/expr/entry.rs` 让 `struct` 也复用现有成员函数体检查逻辑，并保留 class 专属的 property/init/super-ctor 路径不变。
-2. 在 `hir/lower/expr.rs` 放开 `struct` 的 member-call / safe-member-call 直降糖，使其和现有 class/object member-call 一样改写为 `<Type>.method(this, ...)`。
-3. 新增三个 `run-pass` fixture，分别锁住 user `struct`、user `class`、generic `class` 的实例方法调用；其中至少一条同时覆盖“成员方法优先于同名扩展函数”。
-4. 运行格式化、目标 fixture、`tests/fixtures/run-pass`、`cargo test -p scoopc llvm_tests -- --nocapture`、`cargo clippy --all-targets -- -D warnings`，通过后回写 `TODO.md` 并提交。
-
-## 已完成步骤
-
-- 已在 `crates/scoopc/src/typecheck/expr/entry.rs` 把 `struct` member fun body 接入既有成员函数体 typecheck 主线；class 专属的 property/init/super-ctor 检查保持不变。
-- 已在 `crates/scoopc/src/hir/lower/expr.rs` 放开 `struct` 的 ordinary member-call / safe-member-call 直降糖，统一改写为 `<Owner>.method(receiver, ...)`。
-- 已新增以下 run-pass fixture：
-  - `tests/fixtures/run-pass/member_call_struct_body_method_basic.scoop`
-  - `tests/fixtures/run-pass/member_call_class_body_method_basic.scoop`
-  - `tests/fixtures/run-pass/member_call_generic_class_body_method_basic.scoop`
-
-## 验证状态
-
-- 已通过：
+- 已写入初始计划。
+- 已读取 `TODO.md` 并确认首个未完成任务为 `P4-T01b`：`vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal`。
+- 已检查最近提交：`[P4-T01a] Enable ordinary struct/class member calls`，提交正文未额外标注与 `P4-T01b` 直接相关的未完成 issue。
+- 已发现工作区存在与 `P4-T01b` 高度相关的未提交改动与新 fixture，需要先审阅这些改动，判断是否为上次未完成执行留下的续作，并在本次完成任务时一并纳入提交。
+- 已确认 struct/class body method 的 vtable / itable 收集、value-box itable 直接指向 user struct body method symbol、interface caller side metadata-driven marshal、新增 run-pass/LLVM fixture 草稿都已在工作区实现，但 generic class interface dispatch 仍缺少 concrete member instance 发布。
+- 已补齐 materializer 对 dispatch-only generic member instances 的显式索引：改为从 lowered 顶层函数首参识别 receiver owner，并接受 value/ref nominal；这样 generic class 的 interface dispatch 可以把 `Box.m::<Int>` / `Box.m::<String>` 编入初始实例请求并发布 concrete MIR body。
+- 已新增/确认回归覆盖：
+  - `tests/fixtures/run-pass/member_call_interface_dispatch_struct_value_box_basic.scoop`
+  - `tests/fixtures/run-pass/member_call_interface_dispatch_class_body_method_basic.scoop`
+  - `tests/fixtures/run-pass/member_call_interface_dispatch_generic_class_body_method_basic.scoop`
+  - `crates/scoopc/src/llvm/tests.rs::value_box_interface_itable_points_directly_to_struct_body_method_symbol`
+  - `crates/scoopc/src/mir/materialize.rs::materialize_for_dump_publishes_generic_interface_dispatch_member_instances`
+- 已完成验证：
   - `cargo fmt --all`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_struct_body_method_basic.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_class_body_method_basic.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_generic_class_body_method_basic.scoop`
-  - `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
-  - `cargo test -p scoopc builtin_string_member_calls_lower_to_direct_calls -- --nocapture`
-  - `cargo test -p scoopc builtin_string_trim_indent_member_calls_lower_to_direct_calls -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_struct_value_box_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_class_body_method_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_interface_dispatch_generic_class_body_method_basic.scoop`
+  - `cargo test -p scoopc value_box_interface_itable_points_directly_to_struct_body_method_symbol -- --nocapture`
+  - `cargo test -p scoopc materialize_for_dump_publishes_generic_interface_dispatch_member_instances -- --nocapture`
+  - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 仍返回 `0 passed; 850 filtered out`，因此继续以上述 owner tests 作为实际 LLVM 覆盖）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（当前仍只有两个既存失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`；与本任务代码路径无新增回归）
   - `cargo clippy --all-targets -- -D warnings`
-- 已记录：
-  - `cargo test -p scoopc llvm_tests -- --nocapture` 当前仍是空过滤：`0 passed; 848 filtered out`。
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 的 member-call 相关 fixture 均通过，但全量当前仍暴露两个与本任务代码路径无直接交集的现存失败：
-    - `tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
-    - `tests/fixtures/run-pass/sync_gc_release_task_like_object_basic.scoop`
+- 当前剩余步骤：回写 `TODO.md` 完成记录并提交；`PLAN.md` 无需更新。
+- 已将 `TODO.md` 中的 `P4-T01b` 标记为 `[DONE]`，并补齐改动范围、核心决策、验证结果及与 `PLAN.md` / `MANAGED_ABI.md` 的闭合说明。
+- 当前仅剩：检查最终 diff、按仓库规范提交本任务并停止。
 
-## 收尾
+## 当前任务细化计划（P4-T01b）
 
-- 下一步只剩检查工作区、提交本任务改动，并停止在 `P4-T01a` 处，不继续 `P4-T01b`。
+1. 审阅 `itable` / `vtable` / interface call lowering / MIR value box 相关代码与当前未提交改动，确认已有实现状态与缺口。
+2. 检查新增 fixture 与现有 LLVM 测试草稿，确认它们意图覆盖的行为是否正好对应 `P4-T01b` 的四项必做内容。
+3. 以最小正确改动补齐以下能力：
+   - struct/class body method 进入 vtable / itable 收集；
+   - interface caller side 按 slot 元数据做 metadata-driven marshal；
+   - value-type interface dispatch 不再依赖合成 box thunk；
+   - generic class interface impl 的 monomorphized metadata 完整落地。
+4. 运行任务要求的 fixture、相关 LLVM 锁定测试，以及 `cargo clippy --all-targets -- -D warnings`；若出现失败，先修复再继续。
+5. 完成后更新 `TODO.md` 的 `P4-T01b` 状态与完成记录；若阶段级计划未变化，不改 `PLAN.md`。
+6. 提交当前任务涉及的全部未提交更改并停止。

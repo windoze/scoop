@@ -4890,6 +4890,7 @@ struct MirInstanceMaterializer {
     nongeneric_callable_signature_keys: HashMap<TemplateKey, String>,
     template_symbol_suffixes: HashMap<TemplateKey, String>,
     roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
+    explicit_dispatch_candidate_instances: HashMap<String, Vec<InstanceKey>>,
     direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     top_level_vars: crate::hir::TopLevelVarIndex,
     top_level_consts: crate::hir::TopLevelConstIndex,
@@ -4951,10 +4952,11 @@ struct DirectCallRewriteContext<'a> {
 }
 
 fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
-    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty) else {
-        return None;
-    };
-    Some(nominal.fqn.as_str())
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        _ => None,
+    }
 }
 
 fn collect_interface_slot_targets(
@@ -5296,6 +5298,7 @@ impl MirInstanceMaterializer {
             nongeneric_callable_signature_keys,
             template_symbol_suffixes,
             roots_by_fqn,
+            explicit_dispatch_candidate_instances: HashMap::new(),
             direct_call_bindings,
             top_level_vars,
             top_level_consts,
@@ -5329,6 +5332,8 @@ impl MirInstanceMaterializer {
             materialized: HashMap::new(),
             declaration_only_instances: HashSet::new(),
         };
+        materializer.explicit_dispatch_candidate_instances =
+            materializer.collect_explicit_dispatch_candidate_instances(typecheck_types);
         materializer.load_site_instance_bindings(
             typecheck_types,
             top_level_fun_value_refs,
@@ -6083,6 +6088,10 @@ impl MirInstanceMaterializer {
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
         for candidate_fqn in candidate_fqns {
+            if let Some(instance_key) = self.explicit_dispatch_candidate_instance(candidate_fqn) {
+                out.push(instance_key);
+                continue;
+            }
             if let Some(reachable_fun) =
                 self.resolve_non_generic_fun_body_by_fqn(default_source_path, candidate_fqn)
             {
@@ -6090,6 +6099,83 @@ impl MirInstanceMaterializer {
             }
         }
         Ok(())
+    }
+
+    fn collect_explicit_dispatch_candidate_instances(
+        &mut self,
+        typecheck_types: &TypeStore,
+    ) -> HashMap<String, Vec<InstanceKey>> {
+        let mut out = HashMap::<String, Vec<InstanceKey>>::new();
+        let all_type_ids = typecheck_types.iter_ids().collect::<Vec<_>>();
+
+        for templates in self.roots_by_fqn.values() {
+            for template in templates {
+                let Some(signature) = self.template_signatures.get(template) else {
+                    continue;
+                };
+                if signature.eff_param_name.is_some() {
+                    continue;
+                }
+                let Some((owner_fqn, _)) = template.fqn.rsplit_once('.') else {
+                    continue;
+                };
+                let Some(receiver_param) = signature.params.first() else {
+                    continue;
+                };
+                if nominal_type_fqn(&self.types, receiver_param.ty) != Some(owner_fqn) {
+                    continue;
+                }
+
+                for ty_id in &all_type_ids {
+                    let nominal = match typecheck_types.kind(*ty_id) {
+                        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                            if nominal.fqn == owner_fqn =>
+                        {
+                            nominal
+                        }
+                        _ => continue,
+                    };
+                    if nominal.args.is_empty()
+                        || nominal
+                            .args
+                            .iter()
+                            .any(|ty| type_contains_param(typecheck_types, *ty))
+                        || nominal.args.len() != signature.type_param_names.len()
+                    {
+                        continue;
+                    }
+
+                    let instance = InstanceKey {
+                        template: template.clone(),
+                        type_args: nominal
+                            .args
+                            .iter()
+                            .map(|&ty| self.types.re_intern_from(typecheck_types, ty))
+                            .collect(),
+                        eff_args: Vec::new(),
+                    };
+                    let display_fqn = self.instance_display_fqn(&instance);
+                    let entry = out.entry(display_fqn).or_default();
+                    if !entry.contains(&instance) {
+                        entry.push(instance);
+                    }
+                }
+            }
+        }
+
+        out
+    }
+
+    fn explicit_dispatch_candidate_instance(&self, candidate_fqn: &str) -> Option<InstanceKey> {
+        match self
+            .explicit_dispatch_candidate_instances
+            .get(candidate_fqn)
+            .map(Vec::as_slice)
+        {
+            Some([instance]) => Some(instance.clone()),
+            _ => None,
+        }
     }
 
     fn virtual_dispatch_candidate_fqns(
@@ -12411,6 +12497,232 @@ fun entry(): Int / Boom {
                         && fun.fqn.contains("eff fixtures.materialize.Boom")
             )),
             "materialize_for_dump 应产出 Box.forward 的 concrete MIR root"
+        );
+    }
+
+    #[test]
+    fn materialize_for_dump_publishes_generic_interface_dispatch_member_instances() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/materialize_generic_interface_dispatch.scoop",
+            r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+interface IFace {
+    fun m(): Int
+}
+
+class Box<T>(val value: T, val code: Int) : IFace {
+    fun m(): Int {
+        return this.code
+    }
+}
+
+fun read(it: IFace): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    val ints: IFace = Box(9, 41)
+    val texts: IFace = Box("hi", 7)
+    return read(ints) + read(texts)
+}
+"#,
+        );
+
+        let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+        let compilation_unit = inputs
+            .prepared_files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        let stable_cone_key = StableConeKey::for_virtual_source_path(source.path());
+        let template_catalog =
+            collect_generic_template_infos(&stable_cone_key, &inputs.index, &compilation_unit);
+        let callable_body_infos = collect_callable_body_infos(&compilation_unit);
+        let (top_level_fun_value_refs, top_level_fun_call_bindings) =
+            collect_site_instance_bindings(&compilation_unit);
+        let mut lowered_hir =
+            crate::hir::lower_generic_for_compilation_unit_multi_files_with_type_env(
+                stable_cone_key.clone(),
+                &inputs.index,
+                &compilation_unit,
+                &compilation_unit,
+                Some(&inputs.env),
+                &inputs.typecheck_types,
+            )
+            .unwrap();
+        let request_root_fun_keys = collect_request_root_fun_keys(
+            &lowered_hir,
+            &[source.path().to_path_buf()],
+            &inputs.index,
+            crate::mir::MaterializeRequestRootMode::RequestSources,
+        );
+        let request_sources = [source.path().to_path_buf()]
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let callable_signatures = collect_callable_signature_infos(&lowered_hir);
+        let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
+            &mut lowered_hir,
+            &inputs.typecheck_types,
+            &top_level_fun_call_bindings,
+        );
+        let known_receiver_subclasses =
+            crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        let direct_subclasses =
+            collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
+        let class_vtables = lowered_hir.class_vtables.clone();
+        let interfaces = lowered_hir.interfaces.clone();
+        let class_itables = lowered_hir.class_itables.clone();
+        let builtins = lowered_hir.types.intern_builtins();
+        let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
+        let generic_file = lower_hir_file_for_dump_with_facts(
+            builtins,
+            &mut lowered_hir.types,
+            &lowered_hir.file,
+            &lowered_hir.member_funs,
+            &facts,
+        );
+        let top_level_vars = lowered_hir.top_level_vars.clone();
+        let top_level_consts = lowered_hir.top_level_consts.clone();
+        let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
+        let object_inits = lowered_hir.object_inits.clone();
+        let lowered_top_level_fun_call_bindings =
+            collect_lowered_top_level_fun_call_bindings(&lowered_hir);
+        let member_value_tys =
+            collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
+        let types = lowered_hir.types;
+        let mut materializer = MirInstanceMaterializer::new(
+            generic_file,
+            types,
+            builtins,
+            MaterializerConstructionInputs {
+                stable_cone_key,
+                typecheck_types: &inputs.typecheck_types,
+                template_infos: template_catalog,
+                callable_body_infos,
+                callable_signatures,
+                known_receiver_subclasses,
+                direct_subclasses,
+                class_vtables,
+                interfaces,
+                class_itables,
+                top_level_fun_value_refs,
+                top_level_fun_call_bindings,
+                lowered_top_level_fun_call_bindings,
+                top_level_vars,
+                top_level_consts,
+                top_level_immutable_values,
+                object_inits,
+                member_value_tys,
+                request_sources,
+                request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
+                request_root_fun_keys,
+            },
+            OptLevel::O2,
+            true,
+            true,
+        )
+        .unwrap();
+        materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
+
+        let mut dispatch_candidates = materializer
+            .request_root_funs
+            .iter()
+            .find_map(|reachable_fun| {
+                let body = reachable_fun.fun.body.as_ref()?;
+                body.blocks.iter().find_map(|block| {
+                    block.stmts.iter().find_map(|stmt| {
+                        let StatementKind::Assign {
+                            value:
+                                Rvalue::Call {
+                                    kind: CallKind::Interface { dispatch, .. },
+                                    args,
+                                    ..
+                                },
+                            ..
+                        } = &stmt.kind
+                        else {
+                            return None;
+                        };
+                        Some(materializer.interface_dispatch_candidate_fqns(
+                            dispatch.receiver_ty,
+                            &dispatch.owner_fqn,
+                            &dispatch.member_name,
+                            args.len(),
+                        ))
+                    })
+                })
+            })
+            .unwrap_or_default();
+        dispatch_candidates.sort();
+        assert!(
+            dispatch_candidates.contains(&"fixtures.materialize.Box.m::<Int>".to_string())
+                && dispatch_candidates
+                    .contains(&"fixtures.materialize.Box.m::<String>".to_string()),
+            "interface dispatch candidate set 应至少包含 generic owner-specialized Box.m targets：{dispatch_candidates:#?}"
+        );
+
+        let mut resolved_instances = dispatch_candidates
+            .iter()
+            .filter_map(|candidate| materializer.explicit_dispatch_candidate_instance(candidate))
+            .map(|instance| materializer.instance_display_fqn(&instance))
+            .collect::<Vec<_>>();
+        resolved_instances.sort();
+        assert_eq!(
+            resolved_instances,
+            vec![
+                "fixtures.materialize.Box.m::<Int>".to_string(),
+                "fixtures.materialize.Box.m::<String>".to_string(),
+            ],
+            "explicit dispatch candidate 必须解析出 concrete Box.m instances；当前索引键 = {:#?}",
+            materializer
+                .explicit_dispatch_candidate_instances
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>()
+        );
+
+        let initial_requests = materializer
+            .seed_requests(&inputs.typecheck_types, &inputs.monomorph_requests)
+            .unwrap();
+        let mut seeded_fqns = initial_requests
+            .iter()
+            .filter(|key| key.template.fqn == "fixtures.materialize.Box.m")
+            .map(|key| materializer.instance_display_fqn(key))
+            .collect::<Vec<_>>();
+        seeded_fqns.sort();
+        assert_eq!(
+            seeded_fqns,
+            vec![
+                "fixtures.materialize.Box.m::<Int>".to_string(),
+                "fixtures.materialize.Box.m::<String>".to_string(),
+            ],
+            "request-root reachable scan 应把 generic interface dispatch targets 编入初始实例请求"
+        );
+
+        let materialized = materializer.run(initial_requests).unwrap();
+        let mut display_fqns = materialized
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) if fun.fqn.starts_with("fixtures.materialize.Box.m::<") => {
+                    Some(fun.fqn.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        display_fqns.sort();
+        assert_eq!(
+            display_fqns,
+            vec![
+                "fixtures.materialize.Box.m::<Int>".to_string(),
+                "fixtures.materialize.Box.m::<String>".to_string(),
+            ],
+            "generic interface dispatch 应发布 owner-specialized Box.m instances"
         );
     }
 
