@@ -592,6 +592,22 @@ fn llvm_function_header_uses_internal_or_private_linkage(header: &str) -> bool {
     header.starts_with("internal ") || header.starts_with("private ")
 }
 
+fn llvm_declaration_line_matching<'ir, F>(ir: &'ir str, description: &str, predicate: F) -> &'ir str
+where
+    F: Fn(&str) -> bool,
+{
+    ir.lines()
+        .find(|line| line.starts_with("declare ") && predicate(line))
+        .unwrap_or_else(|| panic!("expected declaration matching {description}\n{ir}"))
+}
+
+fn llvm_attribute_group_for_declaration<'ir>(ir: &'ir str, decl_line: &str) -> Option<&'ir str> {
+    let (_, group) = decl_line.rsplit_once(" #")?;
+    let group = group.trim();
+    ir.lines()
+        .find(|line| line.starts_with(&format!("attributes #{group} =")))
+}
+
 fn assert_ir_contains_internal_or_private_helper_family(
     ir: &str,
     description: &str,
@@ -3711,8 +3727,125 @@ fun main(): Int {
     );
 }
 
-#[test]
-fn effectful_funptr_call_uses_explicit_outcome_boundary() {
+fn assert_abi_baseline_direct_extern_native_leaf_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_gc_collect_in_native")
+fun gcCollectInNative(): Unit
+
+fun main() {
+    val x: Any = f"hello {7}"
+    @Unsafe do { gcCollectInNative() }
+    val h: GcHandle = @Unsafe do { GC.handleNew(x) }
+    @Unsafe do { GC.handleDrop(h) }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_matching(
+        &ir,
+        "direct extern native leaf helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_test_gc_collect_in_native")
+        },
+    );
+
+    assert!(
+        entry_ir.contains("call void @scoop_enter_native(")
+            && entry_ir.contains("call void @scoop_test_gc_collect_in_native()")
+            && entry_ir.contains("call void @scoop_leave_native()"),
+        "direct `@Extern` native leaf 应保持 enter_native/native call/leave_native 三连序列:\n{entry_ir}"
+    );
+    assert!(
+        entry_ir.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        "direct `@Extern` native leaf 返回后应从 explicit frame home slot reload live root:\n{entry_ir}"
+    );
+    assert!(
+        !ir.contains("@llvm.experimental.gc.statepoint"),
+        "current direct `@Extern` baseline 应保持 plain native call，不重新进入 statepoint rewrite:\n{ir}"
+    );
+
+    let decl_line = llvm_declaration_line_matching(&ir, "extern native leaf declaration", |line| {
+        line.contains("@scoop_test_gc_collect_in_native()")
+    });
+    let attr_group = llvm_attribute_group_for_declaration(&ir, decl_line)
+        .expect("expected extern declaration to reference an LLVM attribute group");
+    assert!(
+        attr_group.contains("\"gc-leaf-function\""),
+        "direct `@Extern` declaration 应继续标记 gc-leaf-function:\ndecl: {decl_line}\nattrs: {attr_group}"
+    );
+}
+
+fn assert_abi_baseline_native_funptr_aggregate_return_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_make_int_pair_funptr")
+fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
+
+fun main(): Int {
+    @Unsafe do {
+        val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
+
+        val a: (Int, Int) = fp(7)
+        println(a._0)
+        println(a._1)
+
+        val b: (Int, Int) = fp.invoke(9)
+        println(b._0)
+        println(b._1)
+    }
+    0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_matching(
+        &ir,
+        "native funptr aggregate-return helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_test_get_make_int_pair_funptr")
+                && function.contains("call { i64, i64 } %")
+        },
+    );
+    let leave_idx = entry_ir
+        .find("call void @scoop_leave_native()")
+        .expect("expected direct extern getter to leave native before indirect funptr calls");
+    let indirect_window = &entry_ir[leave_idx..];
+    let native_funptr_calls = indirect_window.matches("call { i64, i64 } %").count();
+
+    assert!(
+        indirect_window.contains("inttoptr i64")
+            && native_funptr_calls >= 2
+            && indirect_window.contains("extractvalue { i64, i64 }"),
+        "native `FunPtr<(Int) -> (Int, Int)>` 应继续按目标 ABI 直接返回 aggregate，而不是回 ordinary hidden sret:\n{indirect_window}"
+    );
+    assert!(
+        !indirect_window.contains("funptr_call_sret") && !indirect_window.contains(" sret("),
+        "native `FunPtr` aggregate return 不应重新落回 hidden sret 路径:\n{indirect_window}"
+    );
+}
+
+fn assert_abi_baseline_effectful_funptr_bridge_contract() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -3764,6 +3897,67 @@ fun main(): Int {
             && entry_ir.contains("%refactor_dynamic_funptr_fn(i64"),
         "effectful FunPtr 调用应直接把 machine-word funptr 还原成 dynamic entry 并返回 Step，而不是回旧 call_funptr helper:\n{entry_ir}"
     );
+}
+
+fn assert_abi_baseline_sysroot_string_helper_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val word: String = "hello".substring(1, 4)
+    return if (word == "ell") 1 else 0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    let substring_ir = function_ir_matching(
+        &ir,
+        "compiled sysroot substring helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && stable_id_symbol_mentions_fqn(
+                    llvm_function_symbol_name(function),
+                    "scoop.core.substring",
+                )
+        },
+    );
+
+    assert!(
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(substring_ir),
+            "scoop.core.substring"
+        ),
+        "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
+    );
+}
+
+// P0-T01 ABI baseline audit：集中冻结 current three-surface callable contract + compiled string helper。
+#[test]
+fn abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence() {
+    assert_abi_baseline_direct_extern_native_leaf_contract();
+}
+
+#[test]
+fn abi_baseline_native_funptr_aggregate_return_uses_native_result_abi() {
+    assert_abi_baseline_native_funptr_aggregate_return_contract();
+}
+
+#[test]
+fn effectful_funptr_call_uses_explicit_outcome_boundary() {
+    assert_abi_baseline_effectful_funptr_bridge_contract();
+}
+
+#[test]
+fn abi_baseline_effectful_funptr_bridge_uses_explicit_outcome_boundary() {
+    assert_abi_baseline_effectful_funptr_bridge_contract();
 }
 
 #[test]
@@ -4226,43 +4420,12 @@ fun main() {
 
 #[test]
 fn single_file_minimal_ir_includes_compilable_sysroot_string_helpers() {
-    let source = SourceFile::new_virtual(
-        "<mem>",
-        r#"
-package a
-
-import scoop.core.*
-
-fun main(): Int {
-    val word: String = "hello".substring(1, 4)
-    return if (word == "ell") 1 else 0
+    assert_abi_baseline_sysroot_string_helper_contract();
 }
-"#,
-    );
 
-    let session = Session::new().unwrap();
-    let ir = emit_minimal_main_ir(&session, &source).unwrap();
-
-    let substring_ir = function_ir_matching(
-        &ir,
-        "compiled sysroot substring helper",
-        |header, function| {
-            !header.contains("@main(")
-                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_symbol_mentions_fqn(
-                    llvm_function_symbol_name(function),
-                    "scoop.core.substring",
-                )
-        },
-    );
-
-    assert!(
-        stable_id_symbol_mentions_fqn(
-            llvm_function_symbol_name(substring_ir),
-            "scoop.core.substring"
-        ),
-        "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
-    );
+#[test]
+fn abi_baseline_compiled_sysroot_string_helper_stays_in_module() {
+    assert_abi_baseline_sysroot_string_helper_contract();
 }
 
 #[test]

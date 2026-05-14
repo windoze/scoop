@@ -12,7 +12,7 @@
 
 | ID | 阶段 | 标题 |
 | --- | --- | --- |
-| `P0-T01` | P0 | 冻结 current ABI baseline 与 regression owner map |
+| `P0-T01` | P0 | [DONE] 冻结 current ABI baseline 与 regression owner map |
 | `P1-T01` | P1 | 建立 callable ABI identity，并让 `ExternFun.abi` 真正进入 lowering source of truth |
 | `P1-T02` | P1 | 为 `FunPtr` / effect bridge 发布 ABI family，拆开 native leaf 与 bridge carrier |
 | `P2-T01` | P2 | 建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding |
@@ -77,7 +77,7 @@
 
 ## P0：冻结 current baseline
 
-### [TODO] P0-T01：冻结 current ABI baseline 与 regression owner map
+### [DONE] P0-T01：冻结 current ABI baseline 与 regression owner map
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P0
@@ -123,6 +123,35 @@
 - 完成条件：
   - 后续任务可以直接引用同一份 baseline，不需要再来回搜索 current behavior。
 - 依赖：无
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `MANAGED_ABI.md`
+    - `TODO.md`
+  - 核心决策：
+    - 在 `crates/scoopc/src/llvm/tests.rs` 新增 `abi_baseline_*` 集中审计入口，冻结四类 current behavior：
+      - direct `@Extern` native leaf 的 `enter_native/leave_native` + `gc-leaf-function` + explicit-frame reload；
+      - native `FunPtr` aggregate return 继续走目标 ABI 直接返回，不回 ordinary hidden sret；
+      - effectful `FunPtr` bridge 继续走 explicit `Step` outcome boundary；
+      - compiled `sysroot/string.scoop` helper 继续编进当前模块。
+    - 保留既有 owner 测试名 `effectful_funptr_call_uses_explicit_outcome_boundary` 与 `single_file_minimal_ir_includes_compilable_sysroot_string_helpers`，并让它们复用同一套 helper；新增 `abi_baseline_*` 前缀测试作为 P0 的集中 audit 入口。
+    - 在 `MANAGED_ABI.md` 修正了已经与现状不一致的 native `FunPtr` aggregate-return 描述，并新增 `§1.5 P0-T01` owner map，明确记录当前 design drift：`GC-free` gate 仍在、native classifier 仍分裂、`ExternAbi::Scoop` 尚未实现。
+    - 本任务只冻结 baseline 与文档，不改变当前用户可见 ABI surface。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc abi_baseline -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 下该 filter 返回 `0 passed; 842 filtered out`，因此额外按 owner 测试名补跑下面两条）
+    - `cargo test -p scoopc effectful_funptr_call_uses_explicit_outcome_boundary -- --nocapture`
+    - `cargo test -p scoopc single_file_minimal_ir_includes_compilable_sysroot_string_helpers -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P0 第 1-4 项：three-surface callable baseline 与 compiled sysroot string helper baseline 已冻结为可执行 regression owner map，不再需要后续任务重复搜索 current behavior。
+    - `MANAGED_ABI.md` 现已把 native `FunPtr` aggregate-return 的 current reality 回写到 §1.4，并在 §1.5 明确标出仍待后续阶段收口的 drift；本任务没有提前实现 `ExternAbi::Scoop`，也没有改变 native surface gate。
 
 ## P1：建立 ABI identity
 

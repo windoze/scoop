@@ -1,57 +1,41 @@
-# Claude Plan
+## 当前执行计划
 
-## Planning Note
+说明：按安全与协作要求，这里记录可执行计划与进度，不记录内部推理细节。
 
-I will not record private chain-of-thought verbatim. This file tracks a concise reasoning summary, execution plan, and progress updates for the current invocation.
+1. 读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务。
+2. 检查最近一次提交是否直接提到与该任务相关且未完成的问题；如果是，则将其视为当前任务的一部分或在 `TODO.md` 中补充为前置任务。
+3. 阅读与当前任务直接相关的代码、测试、规范和任务说明，确认约束、依赖和验收要求。
+4. 以最小正确改动实现当前任务；如果遇到会阻塞该任务的真实缺陷或缺失能力，则先修复它，或按要求在 `TODO.md` 中加入最小前置任务并停止。
+5. 运行与当前任务相关的验证，并补充必要测试；至少覆盖任务要求，必要时执行更广的回归检查。
+6. 更新文档与记录：
+   - 在 `TODO.md` 中将当前任务标题标记为 `[DONE]`，并填写完成记录。
+   - 仅在阶段计划发生变化时更新 `PLAN.md`。
+   - 继续更新本文件记录关键进展或计划调整。
+7. 按仓库约定创建一次 git 提交，然后停止，不继续处理下一个任务。
 
-## Current Goal (P7-T02 — in progress)
+## 进度记录
 
-Audit all user-visible failure paths and complete the final writeback so that the project ends in a state where:
-
-- legal input → correct output;
-- illegal input → explicit, stable error;
-- everything else is treated as a compiler bug.
-
-## Plan
-
-1. Confirm P7-T02 is the first incomplete task (P7-T01 is `[DONE]`; P7-T02 only depends on it). No historical issue is currently blocking it.
-2. Re-read `PIPELINE_GAPS.md` §0 / §9 and `PLAN.md` §0 / §5 / P7 to recover the contract guards I must verify.
-3. Enumerate production-path failure-path hits with `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`, then classify each hit into one of:
-   - `internal bug sentinel`: contract-violation / impossible-state assertion that callers cannot reach with legal input;
-   - `test-only helper`: only reached from `#[cfg(test)]` paths;
-   - `should-have-been-frontend-diagnostic bug`: user-reachable on legal input — these must be fixed and tracked in `TODO.md`, not papered over.
-4. Confirm the `FrontendReject` surface phrasing: `crates/scoopc/src/diagnostic` (or wherever the user-visible diagnostic text lives) must say “非法输入 / 当前语言 contract 不接受”, not “尚未支持”. Adjust any wording that still reads as "not yet supported".
-5. Run the required validation matrix:
-   - `cargo test --all --all-targets`
-   - `cargo run -p scoop -- test`
-   - `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`
-   - `cargo test -p scoopc llvm_tests`
-6. Write the audit conclusions back into:
-   - `PIPELINE_GAPS.md` (final user-visible failure surface narrative);
-   - `PLAN.md` (only if phase-level conclusion changes);
-   - `TODO.md` P7-T02 完成记录 (改动范围 / 核心决策 / 验证结果 / `PLAN.md` `PIPELINE_GAPS.md` 对应闭合);
-   - flip the title from `[TODO]` to `[DONE]`.
-7. The final summary in `TODO.md` and `PIPELINE_GAPS.md` must explicitly state whether the three conclusions hold:
-   - 合法输入 → 正确输出;
-   - 非法输入 → 明确错误;
-   - 其它 → 编译器 bug。
-8. Commit on the `eff` branch with a `[P7-T02]`-prefixed message and stop.
-
-## Open Decision Points
-
-- The classification audit may surface a hit that is genuinely a bug (i.e. user-reachable on legal input). If so, I must fix it before marking the task `[DONE]`, or insert a prerequisite task into `TODO.md` and stop.
-
-## Progress Updates
-
-1. Identified P7-T02 as the first incomplete task; P7-T01 already `[DONE]`. No historical bug currently blocks execution.
-2. Audited the four `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` sites. Each one is post-upstream-validation: untyped struct primary-ctor params are gated by `typecheck::check_file_headers`'s `MissingTypeAnnotation`; the three `WhenPat::Variant` guards are gated by parser invariants and the `enum_instance_from_type` resolve contract. Replaced all four with documented `unreachable!` / `expect`.
-3. Rephrased `LlvmEmitError::UnsupportedMainBody` user-visible message from "暂不支持的 main 代码生成节点：{kind}" to "编译器内部不变量被打破（compiler bug）：LLVM 主 codegen 收到本不应抵达的节点：{kind}（这表示上游 contract drift，不是合法语言特性）", aligning the user-facing wording with the §0 "contract-violation / impossible-state assertion" framing.
-4. Updated the audit baseline (`pipeline_user_visible_failure_policy.rs`): emptied `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS`; added `POST_UPSTREAM_VALIDATION_GUARDS` documenting the upstream gate for each of the four sites; expanded `INTERNAL_BUG_SENTINEL_HITS` from 20 → 23 entries (added `lower.rs:1181`, `when_pat.rs:209`, `when_pat.rs:258`, and shifted `lower.rs:2365/2967/3212` to `2363/2965/3210` to reflect line-count changes); added a new `pipeline_user_visible_failure_policy_documents_upstream_guards` test.
-5. Validation:
-   - `cargo test --all --all-targets`: 1078 / 0 / 0 (lib + e2e + ancillary); `pipeline_user_visible_failure_policy::*` 7/7, `pipeline_gap_audit::*` 5/5.
-   - `cargo run -p scoop -- test`: 1269 fixture rows PASS, exit 0.
-   - `cargo test -p scoopc --features llvm --lib llvm::`: 230 / 0.
-   - `cargo clippy --all-targets --features llvm -- -D warnings`: clean.
-   - `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`: 2229 hits; production-side bucket fully matches `INTERNAL_BUG_SENTINEL_HITS` + `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` baselines (asserted by tests).
-6. Wrote the final-state summary into `PIPELINE_GAPS.md` (new "P7-T02 终态" section at the top) and the four required completion-record sections in `TODO.md`. Three final conclusions explicitly stated as held: 合法输入→正确输出, 非法输入→明确错误, 其它→编译器 bug.
-7. Marked P7-T02 `[DONE]` in `TODO.md`. Ready to commit on the `eff` branch with a `[P7-T02]` prefix and stop.
+- 已创建初始执行计划。
+- 已读取 `TODO.md`，确认首个未完成任务为 `P0-T01`（冻结 current ABI baseline 与 regression owner map）。
+- 已检查最近一次提交：仅更新计划文件，未发现需要先插入到 `P0-T01` 之前的直接相关未完成实现项。
+- 当前执行重点：
+  1. 读取 `PLAN.md` / `MANAGED_ABI.md` 的 P0 相关章节，核对 baseline 与设计 drift。
+  2. 审计 `crates/scoopc/src/llvm/tests.rs` 与现有 fixture，补齐集中 ABI baseline audit。
+  3. 运行 `P0-T01` 指定验证命令；若出现阻塞当前任务的真实回归，先修复或在 `TODO.md` 中补最小前置任务。
+  4. 回写 `TODO.md` 完成记录与本文件，然后提交并停止。
+- 已完成代码/文档改动：
+  - 在 `crates/scoopc/src/llvm/tests.rs` 新增 `abi_baseline_*` 审计测试，并把 effectful bridge / sysroot string owner 测试收口到共享 helper。
+  - 在 `MANAGED_ABI.md` 修正当前 native `FunPtr` aggregate-return 描述，并新增 `P0-T01` regression owner map + drift 记录。
+- 已完成验证：
+  - `cargo test -p scoopc abi_baseline -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+  - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 filter 命中 0 测试）
+  - `cargo test -p scoopc effectful_funptr_call_uses_explicit_outcome_boundary -- --nocapture`
+  - `cargo test -p scoopc single_file_minimal_ir_includes_compilable_sysroot_string_helpers -- --nocapture`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已回写 `TODO.md`：`P0-T01` 已标记为 `[DONE]`，并补充完成记录。
+- 下一步：检查工作区改动并创建 `P0-T01` 提交，然后停止。

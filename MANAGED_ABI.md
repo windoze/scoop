@@ -95,7 +95,7 @@
    `FunctionType` 只描述 receiver/params/return/effects；一旦 `@Extern` 符号被取成 `FunPtr<F>`，调用点只剩下 `F`，不再知道它是 ordinary managed callable、还是 C ABI native callable、还是将来的 managed external callable。
 
 2. **direct `@Extern` 与 `FunPtr` 目前没有共享同一套 native ABI classifier**。  
-   现状是 direct `@Extern` 会按 native leaf 处理，而 `FunPtr` 间接调用只在参数上复用了 native arg lowering，却在 aggregate 返回值上继续套 ordinary hidden sret。这种“参数 native、返回 ordinary”的分裂模型在 x86_64 上可能偶然工作，但在 macOS/AArch64 这类 ABI 更敏感的平台上会直接暴露。
+   现状是 direct `@Extern` 会按 native leaf 处理；native `FunPtr` 间接调用已经按目标 ABI 直接返回 aggregate，但仍单独硬编码 `callconv 0`，也没有共享 direct `@Extern` 的 `enter_native/leave_native`、`gc-leaf` 与 boundary policy。也就是说，aggregate return 这一项 current behavior 已经被回归锁住，但 native classifier 仍然按入口形状分裂。
 
 3. **`GC-free` 不是 `C ABI-safe` 的同义词**。  
    当前 `@Extern` typecheck 只要求签名为 GC-free 值类型，但这并不自动意味着 tuple、普通 nominal value type、enum 等都具备稳定的跨平台 C ABI。是否可安全过 native ABI，必须由单独的 ABI-safe 规则定义，而不能复用 GC-free 判定代替。
@@ -107,6 +107,40 @@
    像 “用手写 `void + out* + args` helper 模拟 native aggregate return” 这样的测试方式，只能验证 hidden sret 路径是否自洽，不能证明 `FunPtr` 的 native C ABI 正确。native surface 的验收必须尽量贴近目标平台的真实 ABI，而不是把 ordinary managed ABI 投影到 native helper 上。
 
 这几条结论共同说明：本文不能只把 `Managed ABI` 设计成 “给 extern 多一个 managed 选项”，还必须把 **native callable ABI 的边界与身份** 一并画清楚。否则 runtime helper 从名字 special-case 迁出后，native surface 仍会继续以新的形态泄漏同类问题。
+
+### 1.5 P0-T01：current baseline / regression owner map
+
+在真正收口 ABI 设计前，当前 mainline 已冻结以下 current behavior；后续任务若要改变它们，必须先回写本文与对应 fixture / LLVM 测试。
+
+1. **direct `@Extern` native leaf**
+   - current contract：direct call 会插 `enter_native/leave_native`；imported decl 仍标记 `gc-leaf-function`；返回 managed 侧后从 explicit frame home slot reload live roots；调用点保持 plain native call，不重新进入 statepoint rewrite。
+   - regression owner：
+     - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
+     - `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence`
+2. **native `FunPtr` indirect call**
+   - current contract：`FunPtr<(Int) -> (Int, Int)>` 这条 surface 继续按目标机 native aggregate return ABI 直接返回，不回 ordinary hidden sret；取地址仍是 word-sized funptr round-trip。
+   - regression owner：
+     - `tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+     - `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_native_funptr_aggregate_return_uses_native_result_abi`
+3. **effectful `FunPtr` bridge**
+   - current contract：ordinary `@Extern` 自身仍保持 `Pure` / effect-impermeable，但允许返回 effectful `FunPtr` 作为 bridge token；真正的 effect boundary 发生在后续 `fp()` 调用，并走 explicit `Step` outcome path。
+   - regression owner：
+     - `tests/fixtures/typecheck/extern_fun_effectful_funptr_bridge_ok.scoop`
+     - `crates/scoopc/src/llvm/tests.rs::effectful_funptr_call_uses_explicit_outcome_boundary`
+     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_effectful_funptr_bridge_uses_explicit_outcome_boundary`
+4. **compiled `sysroot/string.scoop` helpers**
+   - current contract：已迁移的 `substring/indexOf/contains/startsWith/endsWith/split/trimStart/trimEnd/trim` 继续以 ordinary sysroot helper 编进当前模块，而不是映射回 runtime helper。
+   - regression owner：
+     - `crates/scoopc/src/llvm/tests.rs::single_file_minimal_ir_includes_compilable_sysroot_string_helpers`
+     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_compiled_sysroot_string_helper_stays_in_module`
+
+当前已确认的 design drift（P0 只记录，不在本阶段修正）：
+
+- `crates/scoopc/src/typecheck/annotations.rs` 仍以 `GC-free` 作为 `@Extern` v1 门禁；这还不是 §5.1 想要的 explicit ABI-safe native allowlist。
+- `crates/scoopc/src/llvm/codegen/mod.rs` / `crates/scoopc/src/llvm/codegen/call/lowering.rs` 仍让 direct `@Extern` 与 native `FunPtr` 分别决定 `callconv`、`enter_native/leave_native`、`gc-leaf-function` 与 indirect call scaffold，尚未满足 §6.2a 的单一 native classifier。
+- `crates/scoopc/src/hir/mod.rs::ExternAbi` 仍只有 `C`；`ExternAbi::Scoop` 尚未进入 HIR / lowering 路径。
 
 ## 2. 分层模型
 
