@@ -1523,7 +1523,7 @@
 
 ## P7：执行 full regression 与最终审计
 
-### [TODO] P7-T01：执行 full regression 与 legacy residual grep 审计
+### [DONE] P7-T01：执行 full regression 与 legacy residual grep 审计
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P7
@@ -1567,9 +1567,33 @@
 - 依赖：`P6-T03`
 - 完成记录：
   - 改动范围：
+    - `TODO.md`（本任务条目状态由 `[TODO]` 改为 `[DONE]` 并填写完成记录）。
+    - `memory/claude_plan.md`（记录本轮规划/进度）。
+    - 不修改 `crates/scoopc/src/**`、`crates/scoop/src/**` 与 `tests/fixtures/**`：本任务为只读全量回归 + grep 审计；P6-T03 的最终账本仍是当前 active inventory，无需重写。
   - 核心决策：
+    - `cargo test --all` 视作生产单元/集成基线；同时显式补跑 `cargo test -p scoopc --lib llvm::tests::` 以覆盖 TODO 中 `cargo test -p scoopc llvm_tests` 所指的 LLVM 单元集合（`scoopc` 没有名为 `llvm_tests` 的独立 binary/test target，模块化测试位于 `llvm::tests::*`）。
+    - 因 `UnsupportedMainBody` 已被 `PIPELINE_GAPS.md §0` 显式重定义为 LLVM backend 通用 contract-violation / impossible-state assertion 桶，本审计将该 enum 命中按“canonical impossible-state sentinel”而非“active legacy residual”归类；`pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts` 已为四个高密度文件冻结期望命中数（mir_body 314、effect_lowered/body 43、effect_lowered/value 210、mod 235；总计 802），任意漂移都会立即触发回归。
+    - 不为 P7-T02 提前下结论：本任务只负责证明“active tree 已清空旧主线 residual”，最终用户可见失败路径的逐条分类回写仍由 P7-T02 负责。
   - 验证结果：
+    - `cargo test --all`：1035 passed / 0 failed / 0 ignored（49 个测试 binary 全部 ok，包括 `scoopc::lib` 837/837、`scoopc-cli e2e_fixtures` 113/113、`runtime` 13/13、`scoop-pkg`/`scoopc-mir-fail`/`scoopc-mir-error` 等子集）。
+    - `cargo run -p scoop -- test`：`fixtures: ok (1269)`，1232 fixture 行 PASS / 0 FAIL（含 typecheck、resolve、run_pass、cone/multi、annotation、effect、gc、unsafe_nogc 等所有桶）。
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`：`fixtures: ok (25)`，25/25 PASS（覆盖 stackmap fixup、cross-thread STW、enum maybe-ref、closure capture、interface dispatch trace、cycle 等代表性 GC 场景）。
+    - `cargo test -p scoopc --lib llvm::tests::`：230 passed / 0 failed / 607 filtered。
+    - `cargo test -p scoopc codegen_gap_inventory`：14 passed / 0 failed。
+    - `cargo clippy --all-targets -- -D warnings`：clean（无 warning）。
+    - `rg 'LegacyOnly|assign lhs missing local|assign lhs lowering pending|call callee lowering pending|ctor call lowering pending|sizeOf intrinsic requires value or type arg|nameOf intrinsic requires type arg|resume lowering requires canonical callee shape|dispatch callee lowering pending|UnsupportedMainBody' crates/scoopc/src crates/scoop/src tests/fixtures`：
+      - `LegacyOnly` / 八条 legacy reason 字符串：active tree 共 0 hit（`crates/scoopc/src` / `crates/scoop/src` / `tests/fixtures` 均为 0）。
+      - `UnsupportedMainBody`：`crates/scoop/src` 0 hit、`tests/fixtures` 0 hit、`crates/scoopc/src` 1 535 hit。逐文件分类如下：
+        - canonical impossible-state sentinel（生产态 contract-violation guard）：`llvm/codegen/mir_body.rs` 315、`llvm/codegen/mod.rs` 235、`llvm/codegen/effect_lowered/value.rs` 210、`llvm/codegen/intrinsics/builtin.rs` 162、`llvm/codegen/gc.rs` 79、`llvm/codegen/control_flow.rs` 78、`llvm/codegen/intrinsics/sync.rs` 53、`llvm/codegen/effect_lowered/body.rs` 43、`llvm/codegen/intrinsics/containers.rs` 42、`llvm/codegen/call/lowering.rs` 39、`llvm/codegen/class_ctor.rs` 31、`llvm/codegen/enum_lowering.rs` 29、`llvm/codegen/intrinsics/atomic.rs` 27、`llvm/codegen/closure/mod.rs` 25、`llvm/codegen/intrinsics/thread.rs` 24、`llvm/codegen/stmt.rs` 20、`llvm/codegen/layout.rs` 19、`llvm/codegen/effect_outcome.rs` 18、`llvm/codegen/call/abi.rs` 17、`llvm/codegen/intrinsics/sysroot.rs` 16、`llvm/codegen/ty.rs` 15、`llvm/codegen/object_init.rs` 13、`llvm/codegen/ordinary_callee.rs` 6、`llvm/codegen/expr.rs` 6（per `PIPELINE_GAPS.md §0`，全部按 contract drift / compiler bug sentinel 处理）。
+        - 审计 / inventory 基础设施（不可移除，本来就负责追踪上述 sentinel 的命中数和位置）：`pipeline_user_visible_failure_policy.rs` 11、`llvm/codegen_gap_inventory.rs` 2、`llvm/mod.rs` 1（enum 变体定义）。
+        - 文档/archive 保留：本次 grep 范围只覆盖 `crates/scoopc/src crates/scoop/src tests/fixtures`，不再纳入历史 archive；如需追溯，参见 `docs/archive/plans/**`。
+      - 仍需清理的 active residual：**0**。
+    - `cargo test -p scoopc --lib pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts`（含在 `cargo test --all` 内）：通过，与上述按文件命中数一致（mir_body 314 / body 43 / value 210 / mod 235，合计 802；rg 的 315 vs watchdog 的 314 差额来自 `mir_body.rs` 内 `#[cfg(test)]` 段，watchdog 通过 `production_source_text` 显式裁掉测试段，行为符合预期）。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - `PLAN.md §5 / P7` 要求“执行 full regression 与旧主线 residual 审计”：上述五个回归命令 + 一个 grep 命令构成 TODO 指定的完整矩阵，结果全部通过；旧主线 residual reason 与 `LegacyOnly` 在 active tree 已彻底归零。
+    - `PIPELINE_GAPS.md §0` 已声明 `UnsupportedMainBody` 为 contract-violation / impossible-state assertion 桶；本任务的 grep 命中分类与该声明一致，且 `pipeline_user_visible_failure_policy.rs` watchdog 持续约束这四个高密度文件的命中数，不允许漂移。
+    - `PIPELINE_GAPS.md §9 验证矩阵`：`cargo test --all` / `cargo run -p scoop -- test` / GC stress 主线 / `codegen_gap_inventory` / `llvm::tests::*` 全部跑过，`refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir`、`refactor_llvm_source_classification_verifier`、`refactor_llvm_resume_unwind_lowering`、`refactor_llvm_thread_resume_noncomplete_policy`、`refactor_llvm_cross_thread_resume_payload_transport` 已包含在 `cargo test --all` 的 837 项 lib 测试中，未见漂移。
+    - 本任务未发现需要回到上游任务修复的新 blocker，因此不修改 `PLAN.md` / `PIPELINE_GAPS.md` / 任何上游任务条目；P7-T02 继续按现有顺序进行。
 
 ### [TODO] P7-T02：审计所有用户可见失败路径并完成最终回写
 
