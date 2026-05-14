@@ -17,7 +17,7 @@
 cargo build
 
 # Run Rust unit + integration tests (CI uses this)
-cargo test --all
+cargo test --all --all-targets
 
 # Check spec doctest fixtures generated from SCOOP_FULL_SPEC.md
 cargo run -p scoop_tools -- spec-fixtures check
