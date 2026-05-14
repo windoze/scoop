@@ -4871,7 +4871,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             concrete_fqn = inferred_fqn;
         }
         let callable_abi = self.direct_call_abi_identity(&concrete_fqn);
-        let uses_native_abi = callable_abi.uses_native_abi();
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         let dispatch_fqn = mir_direct_call_base_fqn(&concrete_fqn);
         if require_plain_surface && uses_effect_step_surface {
@@ -5033,33 +5032,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let ret_cg = if let Some((fun, materialized_types)) = materialized_sig.as_ref() {
-            // SAFETY: `materialized_types` points into the materialized pass view owned by the
-            // compilation-unit codegen context and outlives this call.
-            let materialized_types = unsafe { &**materialized_types };
-            self.cg_ty_of_mir_type(materialized_types, fun.return_ty)
-                .or_else(|| self.cg_ty_of(return_ty_for_codegen))
-                .or_else(|| {
-                    self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
-                        .or_else(|| {
-                            self.equivalent_codegen_type_id(mir_types, transport.result.source_ty)
-                                .and_then(|ty| self.cg_ty_of(ty))
-                        })
-                })
+        let native_abi = if callable_abi.uses_native_abi() {
+            Some(self.classify_direct_extern_native_callable(
+                span,
+                &concrete_fqn,
+                &param_tys,
+                return_ty_for_codegen,
+            )?)
         } else {
-            self.cg_ty_of(return_ty_for_codegen).or_else(|| {
-                self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
-                    .or_else(|| {
-                        self.equivalent_codegen_type_id(mir_types, transport.result.source_ty)
-                            .and_then(|ty| self.cg_ty_of(ty))
+            None
+        };
+
+        let ret_cg = native_abi
+            .as_ref()
+            .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| {
+                if let Some((fun, materialized_types)) = materialized_sig.as_ref() {
+                    // SAFETY: `materialized_types` points into the materialized pass view owned by the
+                    // compilation-unit codegen context and outlives this call.
+                    let materialized_types = unsafe { &**materialized_types };
+                    self.cg_ty_of_mir_type(materialized_types, fun.return_ty)
+                        .or_else(|| self.cg_ty_of(return_ty_for_codegen))
+                        .or_else(|| {
+                            self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
+                                .or_else(|| {
+                                    self.equivalent_codegen_type_id(
+                                        mir_types,
+                                        transport.result.source_ty,
+                                    )
+                                    .and_then(|ty| self.cg_ty_of(ty))
+                                })
+                        })
+                } else {
+                    self.cg_ty_of(return_ty_for_codegen).or_else(|| {
+                        self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
+                            .or_else(|| {
+                                self.equivalent_codegen_type_id(
+                                    mir_types,
+                                    transport.result.source_ty,
+                                )
+                                .and_then(|ty| self.cg_ty_of(ty))
+                            })
                     })
+                }
             })
-        }
-        .ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "pass MIR direct call return type",
-            at: span.into(),
-        })?;
-        let hidden_sret_result_ty = if uses_native_abi {
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR direct call return type",
+                at: span.into(),
+            })?;
+        let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
             self.hidden_sret_result_ty(span, ret_cg)?
@@ -5074,7 +5095,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_types,
                 args,
                 slots,
-                uses_native_abi,
+                native_abi.is_some(),
             )?
         } else {
             self.codegen_bound_mir_call_args_from_signature(
@@ -5083,7 +5104,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &param_tys,
                 args,
                 slots,
-                uses_native_abi,
+                native_abi.is_some(),
                 self.types,
             )?
         };
@@ -5148,8 +5169,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         };
-        let call_site_result = if uses_native_abi {
-            self.emit_extern_native_call(span, &concrete_fqn, llvm_fun, &llvm_args)
+        let call_site_result = if let Some(native_abi) = native_abi.as_ref() {
+            self.emit_native_callable_call(
+                span,
+                native_abi,
+                NativeCallableTarget::Direct(llvm_fun),
+                &llvm_args,
+            )
         } else {
             self.with_conservative_gc_local_root_spills(span, |cg| {
                 let call_site =
@@ -5327,35 +5353,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let ret_cg = self
-            .cg_ty_of(fun_ty.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr call return type",
-                at: span.into(),
-            })?;
-        // `FunPtr<F>` follows the target's native function-pointer ABI instead of the
-        // ordinary managed-call sret policy.
-        let hidden_sret_result_ty = None;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(expected_arity + usize::from(hidden_sret_result_ty.is_some()));
-        if let Some(result_ty) = hidden_sret_result_ty {
-            let _ = result_ty;
-            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
-        }
-        if let Some(receiver_ty) = fun_ty.receiver {
-            llvm_param_tys.push(self.llvm_param_ty(span, receiver_ty)?);
-        }
-        for ty in &fun_ty.params {
-            llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
-        }
-        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
-            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
-                self.context.void_type().fn_type(&llvm_param_tys, false)
-            }
-            (None, other) => self
-                .llvm_basic_type_of(span, other)?
-                .fn_type(&llvm_param_tys, false),
-        };
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        let native_abi =
+            self.classify_funptr_native_callable(span, &param_tys, fun_ty.return_ty)?;
+        let ret_cg = native_abi.return_abi.cg_ty;
 
         let fun_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let casted_addr = if funptr_int_ty.bits == self.host.word_bit_width() {
@@ -5374,72 +5375,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_int_to_ptr(casted_addr, fun_ptr_ty, "pass_mir_funptr_typed")?;
 
-        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(args.len() + usize::from(hidden_sret_result_ty.is_some()));
-        let sret_result_slot = if hidden_sret_result_ty.is_some() {
-            let slot = self.create_entry_alloca(span, "pass_mir_funptr_call_sret", ret_cg)?;
-            llvm_args.push(slot.into());
-            Some(slot)
-        } else {
-            None
-        };
+        let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(args.len());
         let evaluated_args =
             self.codegen_mir_funptr_value_args(span, fun_ty, args, mir_types, slots)?;
         for arg in &evaluated_args {
             llvm_args.push(arg.value);
         }
 
-        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site = cg.builder.build_indirect_call(
-                llvm_fun_ty,
-                typed_fn_ptr,
-                &llvm_args,
-                "pass_mir_call_funptr",
-            )?;
-            if let Some(result_ty) = hidden_sret_result_ty {
-                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
-            }
-            call_site.set_call_convention(0);
-            Ok(call_site)
-        });
+        let call_site_result = self.emit_native_callable_call(
+            span,
+            &native_abi,
+            NativeCallableTarget::Indirect {
+                fn_ty: native_abi.fn_ty,
+                ptr: typed_fn_ptr,
+                call_name: "pass_mir_call_funptr",
+            },
+            &llvm_args,
+        );
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
-        if let Some(result_ptr) = sret_result_slot {
-            self.sync_hidden_sret_result_roots(
-                span,
-                ret_cg,
-                result_ptr,
-                "pass_mir_funptr_call_sret",
-            )?;
-        }
-        let deferred_direct_result = if sret_result_slot.is_none() {
-            self.defer_direct_call_result(span, ret_cg, call_site, "pass_mir_funptr_call_result")?
-        } else {
-            None
-        };
+        let deferred_direct_result =
+            self.defer_direct_call_result(span, ret_cg, call_site, "pass_mir_funptr_call_result")?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => {
-                if let Some(result_ptr) = sret_result_slot {
-                    self.load_hidden_sret_result_from_ptr(
-                        span,
-                        ret_cg,
-                        result_ptr,
-                        "pass_mir_funptr_call_sret",
-                    )
-                } else {
-                    self.materialize_deferred_cg_value(
-                        span,
-                        "pass_mir_funptr_call_result_reload",
-                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR FunPtr deferred return value",
-                            at: span.into(),
-                        })?,
-                    )
-                }
-            }
+            _ => self.materialize_deferred_cg_value(
+                span,
+                "pass_mir_funptr_call_result_reload",
+                deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "pass MIR FunPtr deferred return value",
+                    at: span.into(),
+                })?,
+            ),
         }
     }
 

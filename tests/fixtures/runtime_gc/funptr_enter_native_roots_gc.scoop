@@ -1,0 +1,31 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: funptr_enter_native_roots_gc.stdout.txt
+// 目标：P2-T01：native `FunPtr` 调用与 direct `@Extern` 一样插入 `enter_native/leave_native`，并暴露 native_roots 供 GC 扫描。
+
+package fixtures.codegen
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_gc_collect_in_native_funptr")
+fun get_gc_collect_in_native_funptr(): FunPtr<() -> Unit>
+
+fun main() {
+    val x: Any = f"hello {7}"
+
+    @Unsafe do {
+        val fp: FunPtr<() -> Unit> = get_gc_collect_in_native_funptr()
+        fp()
+    }
+
+    val h: GcHandle = @Unsafe do { GC.handleNew(x) }
+    val gotAny: Any = @Unsafe do { GC.handleGet(h) }
+    val gotOpt: String? = gotAny as? String
+    val got: String = when (gotOpt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+    println(got)
+    @Unsafe do { GC.handleDrop(h) }
+}

@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: extern_native_aggregate_return_direct_indirect_parity.stdout
+// EXPECT-EXIT: 0
+//
+// P2-T01：direct `@Extern` 与 native `FunPtr` 对同一 aggregate-return helper 应共享 target native ABI。
+
+package fixtures.runpass
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Unsafe
+@Extern("scoop_test_make_int_pair")
+fun make_int_pair(seed: Int): (Int, Int)
+
+@Extern("scoop_test_get_make_int_pair_funptr")
+fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
+
+fun main(): Int {
+    @Unsafe do {
+        val direct: (Int, Int) = make_int_pair(7)
+        println(direct._0)
+        println(direct._1)
+
+        val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
+        val indirect: (Int, Int) = fp(7)
+        println(indirect._0)
+        println(indirect._1)
+
+        val invoked: (Int, Int) = fp.invoke(9)
+        println(invoked._0)
+        println(invoked._1)
+    }
+    0
+}

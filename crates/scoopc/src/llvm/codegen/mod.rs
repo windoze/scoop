@@ -169,6 +169,60 @@ impl<'ctx> OrdinaryParamAbi<'ctx> {
 }
 
 #[derive(Clone, Copy)]
+struct NativeParamAbi<'ctx> {
+    llvm_param_ty: BasicMetadataTypeEnum<'ctx>,
+}
+
+#[derive(Clone, Copy)]
+struct NativeReturnAbi<'ctx> {
+    cg_ty: CgTy,
+    llvm_return_ty: Option<BasicTypeEnum<'ctx>>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativeAggregateReturnMode {
+    TargetAbiDirect,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativeBoundaryMode {
+    EnterLeaveNative,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativeEffectBoundaryPolicy {
+    PlainNativeLeaf,
+}
+
+#[derive(Clone)]
+struct NativeCallableAbi<'ctx> {
+    param_abis: Vec<NativeParamAbi<'ctx>>,
+    return_abi: NativeReturnAbi<'ctx>,
+    fn_ty: FunctionType<'ctx>,
+    aggregate_return_mode: NativeAggregateReturnMode,
+    call_convention: u32,
+    boundary_mode: NativeBoundaryMode,
+    gc_leaf_function: bool,
+    effect_boundary_policy: NativeEffectBoundaryPolicy,
+}
+
+#[derive(Clone, Copy)]
+enum NativeCallableOrigin<'a> {
+    DirectExtern { callable_fqn: &'a str },
+    FunPtr,
+}
+
+#[derive(Clone, Copy)]
+enum NativeCallableTarget<'ctx> {
+    Direct(FunctionValue<'ctx>),
+    Indirect {
+        fn_ty: FunctionType<'ctx>,
+        ptr: PointerValue<'ctx>,
+        call_name: &'static str,
+    },
+}
+
+#[derive(Clone, Copy)]
 enum CallArgAbiMode {
     Native,
     Ordinary,
@@ -3002,7 +3056,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let callable_abi = self.direct_call_abi_identity(&fun.fqn);
-        let uses_native_abi = callable_abi.uses_native_abi();
+        let native_abi = if callable_abi.uses_native_abi() {
+            let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+            Some(self.classify_direct_extern_native_callable(
+                fun.span,
+                &fun.fqn,
+                &param_tys,
+                fun.return_ty,
+            )?)
+        } else {
+            None
+        };
 
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
         // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
@@ -3015,7 +3079,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 否则它们内部的 managed calls 会被错误跳过 statepoint rewrite。
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
 
-        let Some(return_cg) = self.cg_ty_of(fun.return_ty) else {
+        let Some(return_cg) = native_abi
+            .as_ref()
+            .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| self.cg_ty_of(fun.return_ty))
+        else {
             tracing::warn!(
                 "declare_top_level_fun: unsupported return type for {} -> {}",
                 fun.fqn,
@@ -3027,14 +3095,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let hidden_sret_result_ty = if uses_native_abi {
+        let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let is_gc_leaf =
-            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+        let is_gc_leaf = native_abi
+            .as_ref()
+            .map(|abi| abi.gc_leaf_function)
+            .unwrap_or(returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -3048,34 +3118,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if uses_explicit_effect_hidden_abi {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
-        for param in &fun.params {
-            let llvm_param_ty = if uses_native_abi {
-                self.llvm_param_ty(param.span, param.ty)
-            } else {
-                self.ordinary_param_abi(param.span, param.ty)
-                    .map(OrdinaryParamAbi::llvm_param_ty)
-            };
-            match llvm_param_ty {
-                Ok(ty) => llvm_params.push(ty),
-                Err(err) => {
-                    tracing::warn!(
-                        "declare_top_level_fun: unsupported param type for {} param {} -> {}",
-                        fun.fqn,
-                        param.name,
-                        self.types.display(param.ty)
-                    );
-                    return Err(err);
+        if let Some(native_abi) = native_abi.as_ref() {
+            llvm_params.extend(native_abi.param_abis.iter().map(|abi| abi.llvm_param_ty));
+        } else {
+            for param in &fun.params {
+                let llvm_param_ty = self
+                    .ordinary_param_abi(param.span, param.ty)
+                    .map(OrdinaryParamAbi::llvm_param_ty);
+                match llvm_param_ty {
+                    Ok(ty) => llvm_params.push(ty),
+                    Err(err) => {
+                        tracing::warn!(
+                            "declare_top_level_fun: unsupported param type for {} param {} -> {}",
+                            fun.fqn,
+                            param.name,
+                            self.types.display(param.ty)
+                        );
+                        return Err(err);
+                    }
                 }
             }
         }
 
-        let fn_ty = match (hidden_sret_result_ty, return_cg) {
-            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
-                self.context.void_type().fn_type(&llvm_params, false)
+        let fn_ty = if let Some(native_abi) = native_abi.as_ref() {
+            native_abi.fn_ty
+        } else {
+            match (hidden_sret_result_ty, return_cg) {
+                (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                    self.context.void_type().fn_type(&llvm_params, false)
+                }
+                (None, other) => self
+                    .llvm_basic_type_of(fun.span, other)?
+                    .fn_type(&llvm_params, false),
             }
-            (None, other) => self
-                .llvm_basic_type_of(fun.span, other)?
-                .fn_type(&llvm_params, false),
         };
 
         let llvm_fun = if callable_abi.is_extern() {
@@ -3083,8 +3158,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
-        // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
-        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        // `@CallingConvention(...)`：native surface 仍通过统一 classifier 产出 callconv。
+        llvm_fun.set_call_conventions(
+            native_abi
+                .as_ref()
+                .map(|abi| abi.call_convention)
+                .unwrap_or_else(|| self.llvm_call_convention_for_fqn(&fun.fqn)),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
@@ -3102,7 +3182,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         return_ty: TypeId,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let callable_abi = self.direct_call_abi_identity(&fun.fqn);
-        let uses_native_abi = callable_abi.uses_native_abi();
+        let native_abi =
+            if callable_abi.uses_native_abi() {
+                Some(self.classify_direct_extern_native_callable(
+                    fun.span, &fun.fqn, param_tys, return_ty,
+                )?)
+            } else {
+                None
+            };
         let llvm_name = if callable_abi.is_extern() {
             llvm_name.to_string()
         } else if let Some(pass_view) = self.materialized_pass_view()
@@ -3131,7 +3218,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(return_ty);
 
-        let Some(return_cg) = self.cg_ty_of(return_ty) else {
+        let Some(return_cg) = native_abi
+            .as_ref()
+            .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| self.cg_ty_of(return_ty))
+        else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function return type",
                 at: fun.span.into(),
@@ -3144,14 +3235,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let hidden_sret_result_ty = if uses_native_abi {
+        let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let is_gc_leaf =
-            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+        let is_gc_leaf = native_abi
+            .as_ref()
+            .map(|abi| abi.gc_leaf_function)
+            .unwrap_or(returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             param_tys.len()
@@ -3165,23 +3258,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if uses_explicit_effect_hidden_abi {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
-        for (param, param_ty) in fun.params.iter().zip(param_tys.iter().copied()) {
-            let llvm_param_ty = if uses_native_abi {
-                self.llvm_param_ty(param.span, param_ty)
-            } else {
-                self.ordinary_param_abi(param.span, param_ty)
-                    .map(OrdinaryParamAbi::llvm_param_ty)
-            }?;
-            llvm_params.push(llvm_param_ty);
+        if let Some(native_abi) = native_abi.as_ref() {
+            llvm_params.extend(native_abi.param_abis.iter().map(|abi| abi.llvm_param_ty));
+        } else {
+            for (param, param_ty) in fun.params.iter().zip(param_tys.iter().copied()) {
+                llvm_params.push(
+                    self.ordinary_param_abi(param.span, param_ty)
+                        .map(OrdinaryParamAbi::llvm_param_ty)?,
+                );
+            }
         }
 
-        let fn_ty = match (hidden_sret_result_ty, return_cg) {
-            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
-                self.context.void_type().fn_type(&llvm_params, false)
+        let fn_ty = if let Some(native_abi) = native_abi.as_ref() {
+            native_abi.fn_ty
+        } else {
+            match (hidden_sret_result_ty, return_cg) {
+                (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                    self.context.void_type().fn_type(&llvm_params, false)
+                }
+                (None, other) => self
+                    .llvm_basic_type_of(fun.span, other)?
+                    .fn_type(&llvm_params, false),
             }
-            (None, other) => self
-                .llvm_basic_type_of(fun.span, other)?
-                .fn_type(&llvm_params, false),
         };
 
         let llvm_fun = if callable_abi.is_extern() {
@@ -3189,7 +3287,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
-        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        llvm_fun.set_call_conventions(
+            native_abi
+                .as_ref()
+                .map(|abi| abi.call_convention)
+                .unwrap_or_else(|| self.llvm_call_convention_for_fqn(&fun.fqn)),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
@@ -3209,7 +3312,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|view| &view.materialized().types)
             .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
         let callable_abi = self.direct_call_abi_identity(&fun.fqn);
-        let uses_native_abi = callable_abi.uses_native_abi();
         let llvm_name = if callable_abi.is_extern() {
             llvm_name.to_string()
         } else {
@@ -3221,10 +3323,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let codegen_return_ty = self
             .equivalent_codegen_type_id(mir_types, fun.return_ty)
             .unwrap_or(fun.return_ty);
+        let native_abi = if callable_abi.uses_native_abi() {
+            let param_tys = fun
+                .params
+                .iter()
+                .map(|param| {
+                    self.equivalent_codegen_type_id(mir_types, param.ty)
+                        .unwrap_or(param.ty)
+                })
+                .collect::<Vec<_>>();
+            Some(self.classify_direct_extern_native_callable(
+                fun.span,
+                &fun.fqn,
+                &param_tys,
+                codegen_return_ty,
+            )?)
+        } else {
+            None
+        };
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(codegen_return_ty);
 
-        let Some(return_cg) = self
-            .cg_ty_of_mir_type(mir_types, fun.return_ty)
+        let Some(return_cg) = native_abi
+            .as_ref()
+            .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| self.cg_ty_of_mir_type(mir_types, fun.return_ty))
             .or_else(|| self.cg_ty_of(codegen_return_ty))
         else {
             tracing::warn!(
@@ -3238,14 +3360,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let hidden_sret_result_ty = if uses_native_abi {
+        let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
             self.hidden_sret_result_ty(fun.span, return_cg)?
         };
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let is_gc_leaf =
-            uses_native_abi || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+        let is_gc_leaf = native_abi
+            .as_ref()
+            .map(|abi| abi.gc_leaf_function)
+            .unwrap_or(returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
 
         let mut llvm_params = Vec::with_capacity(
             fun.params.len()
@@ -3259,37 +3383,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if uses_explicit_effect_hidden_abi {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_params);
         }
-        for param in &fun.params {
-            let param_ty = self
-                .equivalent_codegen_type_id(mir_types, param.ty)
-                .unwrap_or(param.ty);
-            let llvm_param_ty = if uses_native_abi {
-                self.llvm_param_ty(param.span, param_ty)
-            } else {
-                self.ordinary_param_abi(param.span, param_ty)
-                    .map(OrdinaryParamAbi::llvm_param_ty)
-            };
-            match llvm_param_ty {
-                Ok(ty) => llvm_params.push(ty),
-                Err(err) => {
-                    tracing::warn!(
-                        "declare_materialized_top_level_fun: unsupported param type for {} param {} -> {}",
-                        fun.fqn,
-                        param.name,
-                        mir_types.display(param.ty)
-                    );
-                    return Err(err);
+        if let Some(native_abi) = native_abi.as_ref() {
+            llvm_params.extend(native_abi.param_abis.iter().map(|abi| abi.llvm_param_ty));
+        } else {
+            for param in &fun.params {
+                let param_ty = self
+                    .equivalent_codegen_type_id(mir_types, param.ty)
+                    .unwrap_or(param.ty);
+                let llvm_param_ty = self
+                    .ordinary_param_abi(param.span, param_ty)
+                    .map(OrdinaryParamAbi::llvm_param_ty);
+                match llvm_param_ty {
+                    Ok(ty) => llvm_params.push(ty),
+                    Err(err) => {
+                        tracing::warn!(
+                            "declare_materialized_top_level_fun: unsupported param type for {} param {} -> {}",
+                            fun.fqn,
+                            param.name,
+                            mir_types.display(param.ty)
+                        );
+                        return Err(err);
+                    }
                 }
             }
         }
 
-        let fn_ty = match (hidden_sret_result_ty, return_cg) {
-            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
-                self.context.void_type().fn_type(&llvm_params, false)
+        let fn_ty = if let Some(native_abi) = native_abi.as_ref() {
+            native_abi.fn_ty
+        } else {
+            match (hidden_sret_result_ty, return_cg) {
+                (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                    self.context.void_type().fn_type(&llvm_params, false)
+                }
+                (None, other) => self
+                    .llvm_basic_type_of(fun.span, other)?
+                    .fn_type(&llvm_params, false),
             }
-            (None, other) => self
-                .llvm_basic_type_of(fun.span, other)?
-                .fn_type(&llvm_params, false),
         };
 
         let llvm_fun = if callable_abi.is_extern() {
@@ -3297,7 +3426,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.declare_exported_abi_function(&llvm_name, fn_ty)
         };
-        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        llvm_fun.set_call_conventions(
+            native_abi
+                .as_ref()
+                .map(|abi| abi.call_convention)
+                .unwrap_or_else(|| self.llvm_call_convention_for_fqn(&fun.fqn)),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
@@ -5280,7 +5414,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args)
     }
 
-    /// 为 `@Extern` 调用点生成 `scoop_enter_native(root_slots, len)`。
+    /// 为 native callable 调用点生成 `scoop_enter_native(root_slots, len)`。
     ///
     /// 设计取舍（v0）：
     /// - 这里采用保守策略：把当前 scope 中所有 `Ref/String` locals 的栈槽地址作为 roots slots；
@@ -5291,16 +5425,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
         self.emit_enter_native_for_extern_call_impl(at)
-    }
-
-    fn emit_extern_native_call(
-        &mut self,
-        at: crate::span::Span,
-        fqn: &str,
-        llvm_fun: FunctionValue<'ctx>,
-        llvm_args: &[inkwell::values::BasicMetadataValueEnum<'ctx>],
-    ) -> Result<CallSiteValue<'ctx>, LlvmEmitError> {
-        self.emit_extern_native_call_impl(at, fqn, llvm_fun, llvm_args)
     }
 
     fn try_codegen_class_vtable_call(
@@ -5436,6 +5560,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
         self.ordinary_param_abi_impl(span, ty)
+    }
+
+    fn classify_direct_extern_native_callable(
+        &mut self,
+        span: crate::span::Span,
+        callable_fqn: &str,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        self.classify_direct_extern_native_callable_impl(span, callable_fqn, param_tys, return_ty)
+    }
+
+    fn classify_funptr_native_callable(
+        &mut self,
+        span: crate::span::Span,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        self.classify_funptr_native_callable_impl(span, param_tys, return_ty)
+    }
+
+    fn emit_native_callable_call(
+        &mut self,
+        at: crate::span::Span,
+        abi: &NativeCallableAbi<'ctx>,
+        target: NativeCallableTarget<'ctx>,
+        llvm_args: &[inkwell::values::BasicMetadataValueEnum<'ctx>],
+    ) -> Result<CallSiteValue<'ctx>, LlvmEmitError> {
+        self.emit_native_callable_call_impl(at, abi, target, llvm_args)
     }
 
     fn callable_uses_explicit_effect_hidden_abi(&self, callable_fqn: &str) -> bool {

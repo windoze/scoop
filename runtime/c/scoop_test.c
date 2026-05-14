@@ -215,9 +215,9 @@ typedef struct ScoopTestIntPair {
 // 一个最小的 aggregate 返回 helper。
 //
 // 约定：
-// - `FunPtr<(Int) -> (Int, Int)>` 的 higher-order 间接调用应走目标机 native ABI；
-// - 这里直接返回 C struct by value，供 run-pass fixture 验证 native aggregate return。
-static ScoopTestIntPair scoop_test_make_int_pair(intptr_t seed) {
+// - direct `@Extern` 与 `FunPtr<(Int) -> (Int, Int)>` 都应走同一套目标机 native ABI；
+// - 这里直接返回 C struct by value，供 direct/indirect parity fixture 验证 native aggregate return。
+ScoopTestIntPair scoop_test_make_int_pair(intptr_t seed) {
   ScoopTestIntPair out;
   out.first = seed + 1;
   out.second = seed + 2;
@@ -237,6 +237,14 @@ uintptr_t scoop_test_get_add_int_funptr(void) {
 // `FunPtr<(Int) -> (Int, Int)>` 的 runtime 落点。
 uintptr_t scoop_test_get_make_int_pair_funptr(void) {
   return (uintptr_t)&scoop_test_make_int_pair;
+}
+
+void scoop_test_gc_collect_in_native(void);
+
+// 返回 `scoop_test_gc_collect_in_native` 的函数地址，供 native `FunPtr<() -> Unit>`
+// 通过同一 boundary scaffold 验证 `enter_native/leave_native` + roots 暴露。
+uintptr_t scoop_test_get_gc_collect_in_native_funptr(void) {
+  return (uintptr_t)&scoop_test_gc_collect_in_native;
 }
 
 // 捕获当前线程的 backtrace（instruction pointers）。

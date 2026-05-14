@@ -94,8 +94,8 @@
 1. **当前 callable identity 只有“函数签名”，没有“ABI 身份”**。  
    `FunctionType` 只描述 receiver/params/return/effects；一旦 `@Extern` 符号被取成 `FunPtr<F>`，调用点只剩下 `F`，不再知道它是 ordinary managed callable、还是 C ABI native callable、还是将来的 managed external callable。
 
-2. **direct `@Extern` 与 `FunPtr` 目前没有共享同一套 native ABI classifier**。  
-   现状是 direct `@Extern` 会按 native leaf 处理；native `FunPtr` 间接调用已经按目标 ABI 直接返回 aggregate，但仍单独硬编码 `callconv 0`，也没有共享 direct `@Extern` 的 `enter_native/leave_native`、`gc-leaf` 与 boundary policy。也就是说，aggregate return 这一项 current behavior 已经被回归锁住，但 native classifier 仍然按入口形状分裂。
+2. **direct `@Extern` 与 `FunPtr` 不能继续各自维护 native ABI classifier**。  
+   `P2-T01` 已把 direct `@Extern` 与 native `FunPtr` 收口到 shared native callable classifier：declaration / direct call / indirect call / MIR path 现在统一按同一份 native policy 决定参数/返回 lowering、target aggregate return、LLVM callconv、`enter_native/leave_native` 与 `gc-leaf`。后续 remaining 问题不再是 codegen classifier 分裂，而是 typecheck/surface gate 仍停留在 `GC-free` 近似上。
 
 3. **`GC-free` 不是 `C ABI-safe` 的同义词**。  
    当前 `@Extern` typecheck 只要求签名为 GC-free 值类型，但这并不自动意味着 tuple、普通 nominal value type、enum 等都具备稳定的跨平台 C ABI。是否可安全过 native ABI，必须由单独的 ABI-safe 规则定义，而不能复用 GC-free 判定代替。
@@ -119,11 +119,16 @@
      - `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
      - `crates/scoopc/src/llvm/tests.rs::abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence`
 2. **native `FunPtr` indirect call**
-   - current contract：`FunPtr<(Int) -> (Int, Int)>` 这条 surface 继续按目标机 native aggregate return ABI 直接返回，不回 ordinary hidden sret；取地址仍是 word-sized funptr round-trip。
+   - current contract：native `FunPtr` 调用与 direct `@Extern` 共享同一 native callable classifier；间接调用会插 `enter_native/leave_native`，返回 managed 侧后从 explicit frame home slot reload live roots；`FunPtr<(Int) -> (Int, Int)>` 继续按目标机 native aggregate return ABI 直接返回，不回 ordinary hidden sret；取地址仍是 word-sized funptr round-trip。
    - regression owner：
-     - `tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
-     - `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
-     - `crates/scoopc/src/llvm/tests.rs::abi_baseline_native_funptr_aggregate_return_uses_native_result_abi`
+      - `tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+      - `tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+      - `tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
+      - `tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
+      - `tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+      - `crates/scoopc/src/llvm/tests.rs::abi_baseline_native_funptr_aggregate_return_uses_native_result_abi`
+      - `crates/scoopc/src/llvm/tests.rs::native_callable_funptr_indirect_call_uses_enter_leave_native_boundary`
+      - `crates/scoopc/src/llvm/tests.rs::native_callable_direct_and_indirect_aggregate_return_share_target_abi`
 3. **non-pure `FunPtr<F>` rejection**
    - current contract：`FunPtr<F>` 只建模 native leaf function pointer；`F` 必须是无 effect 的函数类型，非纯签名必须在前端被拒绝。
    - regression owner：
@@ -138,7 +143,6 @@
 当前已确认的 design drift（P0 只记录，不在本阶段修正）：
 
 - `crates/scoopc/src/typecheck/annotations.rs` 仍以 `GC-free` 作为 `@Extern` v1 门禁；这还不是 §5.1 想要的 explicit ABI-safe native allowlist。
-- `crates/scoopc/src/llvm/codegen/mod.rs` / `crates/scoopc/src/llvm/codegen/call/lowering.rs` 仍让 direct `@Extern` 与 native `FunPtr` 分别决定 `callconv`、`enter_native/leave_native`、`gc-leaf-function` 与 indirect call scaffold，尚未满足 §6.2a 的单一 native classifier。
 - `crates/scoopc/src/hir/mod.rs::ExternAbi` 仍只有 `C`；`ExternAbi::Scoop` 尚未进入 HIR / lowering 路径。
 
 ## 2. 分层模型

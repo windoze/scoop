@@ -91,6 +91,176 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn native_call_convention_for_origin_impl(&self, origin: NativeCallableOrigin<'_>) -> u32 {
+        match origin {
+            NativeCallableOrigin::DirectExtern { callable_fqn } => {
+                self.llvm_call_convention_for_fqn(callable_fqn)
+            }
+            NativeCallableOrigin::FunPtr => 0,
+        }
+    }
+
+    fn native_gc_leaf_function_for_origin_impl(&self, origin: NativeCallableOrigin<'_>) -> bool {
+        matches!(origin, NativeCallableOrigin::DirectExtern { .. })
+    }
+
+    fn native_param_abi_impl(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<NativeParamAbi<'ctx>, LlvmEmitError> {
+        self.cg_ty_of(ty).ok_or_else(|| {
+            let ty_desc = self
+                .codegen_type_store_for_type_id(ty)
+                .map(|types| types.display(ty).to_string())
+                .unwrap_or_else(|| format!("t{}", ty.as_u32()));
+            tracing::warn!(
+                current_callable = ?self.function_cx.current_callable_fqn,
+                ?span,
+                ty = %ty_desc,
+                "native_param_abi: unsupported function param type"
+            );
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "function param type",
+                at: span.into(),
+            }
+        })?;
+        Ok(NativeParamAbi {
+            llvm_param_ty: self.llvm_param_ty(span, ty)?,
+        })
+    }
+
+    fn native_return_abi_impl(
+        &mut self,
+        span: crate::span::Span,
+        return_ty: TypeId,
+    ) -> Result<NativeReturnAbi<'ctx>, LlvmEmitError> {
+        let cg_ty = self.cg_ty_of(return_ty).ok_or_else(|| {
+            let ty_desc = self
+                .codegen_type_store_for_type_id(return_ty)
+                .map(|types| types.display(return_ty).to_string())
+                .unwrap_or_else(|| format!("t{}", return_ty.as_u32()));
+            tracing::warn!(
+                current_callable = ?self.function_cx.current_callable_fqn,
+                ?span,
+                ty = %ty_desc,
+                "native_return_abi: unsupported function return type"
+            );
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: span.into(),
+            }
+        })?;
+        let llvm_return_ty = match cg_ty {
+            CgTy::Unit | CgTy::Never => None,
+            _ => Some(self.llvm_basic_type_of(span, cg_ty)?),
+        };
+        Ok(NativeReturnAbi {
+            cg_ty,
+            llvm_return_ty,
+        })
+    }
+
+    fn classify_native_callable_impl(
+        &mut self,
+        span: crate::span::Span,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        origin: NativeCallableOrigin<'_>,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        let param_abis = param_tys
+            .iter()
+            .copied()
+            .map(|ty| self.native_param_abi_impl(span, ty))
+            .collect::<Result<Vec<_>, _>>()?;
+        let return_abi = self.native_return_abi_impl(span, return_ty)?;
+        let llvm_param_tys = param_abis
+            .iter()
+            .map(|abi| abi.llvm_param_ty)
+            .collect::<Vec<_>>();
+        let fn_ty = match return_abi.llvm_return_ty {
+            Some(return_ty) => return_ty.fn_type(&llvm_param_tys, false),
+            None => self.context.void_type().fn_type(&llvm_param_tys, false),
+        };
+        Ok(NativeCallableAbi {
+            param_abis,
+            return_abi,
+            fn_ty,
+            aggregate_return_mode: NativeAggregateReturnMode::TargetAbiDirect,
+            call_convention: self.native_call_convention_for_origin_impl(origin),
+            boundary_mode: NativeBoundaryMode::EnterLeaveNative,
+            gc_leaf_function: self.native_gc_leaf_function_for_origin_impl(origin),
+            effect_boundary_policy: NativeEffectBoundaryPolicy::PlainNativeLeaf,
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn classify_direct_extern_native_callable_impl(
+        &mut self,
+        span: crate::span::Span,
+        callable_fqn: &str,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        self.classify_native_callable_impl(
+            span,
+            param_tys,
+            return_ty,
+            NativeCallableOrigin::DirectExtern { callable_fqn },
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn classify_funptr_native_callable_impl(
+        &mut self,
+        span: crate::span::Span,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        self.classify_native_callable_impl(span, param_tys, return_ty, NativeCallableOrigin::FunPtr)
+    }
+
+    pub(in crate::llvm::codegen) fn emit_native_callable_call_impl(
+        &mut self,
+        at: crate::span::Span,
+        abi: &NativeCallableAbi<'ctx>,
+        target: NativeCallableTarget<'ctx>,
+        llvm_args: &[inkwell::values::BasicMetadataValueEnum<'ctx>],
+    ) -> Result<CallSiteValue<'ctx>, LlvmEmitError> {
+        debug_assert!(matches!(
+            abi.aggregate_return_mode,
+            NativeAggregateReturnMode::TargetAbiDirect
+        ));
+        debug_assert!(matches!(
+            abi.effect_boundary_policy,
+            NativeEffectBoundaryPolicy::PlainNativeLeaf
+        ));
+
+        match abi.boundary_mode {
+            NativeBoundaryMode::EnterLeaveNative => self.emit_enter_native_for_extern_call(at)?,
+        }
+
+        let call_site = match target {
+            NativeCallableTarget::Direct(llvm_fun) => {
+                self.builder.build_call(llvm_fun, llvm_args, "call")?
+            }
+            NativeCallableTarget::Indirect {
+                fn_ty,
+                ptr,
+                call_name,
+            } => self
+                .builder
+                .build_indirect_call(fn_ty, ptr, llvm_args, call_name)?,
+        };
+        call_site.set_call_convention(abi.call_convention);
+
+        match abi.boundary_mode {
+            NativeBoundaryMode::EnterLeaveNative => {
+                let leave = self.declare_runtime_leave_native();
+                let _ = self.builder.build_call(leave, &[], "leave_native")?;
+            }
+        }
+        Ok(call_site)
+    }
+
     fn direct_callable_abi_identity_for_fqn_impl(
         &self,
         callable_fqn: &str,

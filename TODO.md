@@ -5,7 +5,7 @@
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/TODO-pipeline-gaps.md`、`docs/archive/plans/PLAN-pipeline-gaps.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 当前状态：`ExternAbi::Scoop` 尚未实现；native `@Extern` 与 `FunPtr` 已在参数/返回 lowering 上部分对齐，但 `enter_native/leave_native`、`gc-leaf`、calling convention、ABI identity、surface gate 仍分裂；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
+> 当前状态：`ExternAbi::Scoop` 尚未实现；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier 对齐 declaration / direct call / indirect call / MIR path，native surface gate / diagnostics 仍待 `P2-T02` 收口；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
 > 重要提醒：当前 mainline 已锁住 `unsafe_funptr_aggregate_return_tuple`、`extern_fun_effectful_funptr_is_error`、`single_file_minimal_ir_includes_compilable_sysroot_string_helpers` 等行为。除非先回写 `MANAGED_ABI.md` 与相关 fixture，否则不得把这些 current behavior 直接回退掉。
 
 ## 任务索引
@@ -15,7 +15,7 @@
 | `P0-T01` | P0 | [DONE] 冻结 current ABI baseline 与 regression owner map |
 | `P1-T01` | P1 | [DONE] 建立 callable ABI identity，并让 `ExternFun.abi` 真正进入 lowering source of truth |
 | `P1-T02` | P1 | 收紧 `FunPtr<F>` 合同：pure-only native surface |
-| `P2-T01` | P2 | 建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding |
+| `P2-T01` | P2 | [DONE] 建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding |
 | `P2-T02` | P2 | 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
 | `P3-T01` | P3 | 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
 | `P3-T02` | P3 | 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
@@ -284,7 +284,7 @@
 
 ## P2：统一 native surface
 
-### [TODO] P2-T01：建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding
+### [DONE] P2-T01：建立单一 native ABI classifier，统一 direct/indirect declaration 与 call scaffolding
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P2
@@ -324,6 +324,35 @@
 - 完成条件：
   - native callable 的 lowering 不再取决于入口形状，而只取决于 classifier 给出的 ABI family 与 policy。
 - 依赖：`P1-T02`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/{mod.rs,call/abi.rs,call/lowering.rs,mir_body.rs}`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `runtime/c/scoop_test.c`
+    - `tests/fixtures/{runtime_gc/funptr_enter_native_roots_gc.*,build/funptr_enter_native_no_statepoint_writeback.scoop,run-pass/extern_native_aggregate_return_direct_indirect_parity.*}`
+    - `MANAGED_ABI.md`
+    - `TODO.md`
+  - 核心决策：
+    - 在 LLVM 共享层新增 `NativeCallableAbi` classifier，统一发布 native callable 的 param/return lowered ABI、aggregate return mode、LLVM callconv、native boundary mode、`gc-leaf-function` 决策与 effect boundary policy；direct `@Extern` declaration/call、HIR funptr call、MIR direct native call、MIR funptr call 现在都复用同一 source of truth。
+    - native `FunPtr` 调用不再手写 `callconv 0` / `with_conservative_gc_local_root_spills` / `hidden_sret = None` 分支，而是改为通过 unified native boundary scaffold 插入 `enter_native/leave_native`；direct `@Extern` 与 native `FunPtr` 现在对同一 native callable family 共享 target aggregate-return ABI 与 boundary 语义。
+    - 导出 `scoop_test_make_int_pair` 作为 direct/indirect aggregate parity helper，并新增 `scoop_test_get_gc_collect_in_native_funptr` 作为 indirect native boundary 的 runtime_gc 承载；用 runtime_gc/build/run-pass/LLVM tests 同时锁住 funptr roots 暴露、no-statepoint-writeback 与 aggregate-return parity。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc native_callable -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_funptr_aggregate_return_tuple.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 下该 filter 返回 `0 passed; 845 filtered out`，因此额外按 owner 测试名补跑下面两条）
+    - `cargo test -p scoopc abi_baseline -- --nocapture`
+    - `cargo test -p scoopc native_callable -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P2 第 1、4、5 项：single native classifier 已进入 declaration / direct call / indirect call / MIR path，native `FunPtr` 不再绕过 direct extern boundary scaffold，direct/indirect parity 现在有 runtime_gc/build/run-pass/LLVM owner 覆盖。
+    - `MANAGED_ABI.md` §1.5 / §6.2a / §10.1 / §10.4 现已与实现对齐：direct `@Extern` 与 native `FunPtr` 共享同一 native callable classifier，并统一采用 `enter_native/leave_native` + target aggregate-return ABI；native surface gate / diagnostics 仍留待 `P2-T02` 收口。
 
 ### [TODO] P2-T02：收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract
 

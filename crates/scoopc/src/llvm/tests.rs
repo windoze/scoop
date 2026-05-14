@@ -3845,6 +3845,143 @@ fun main(): Int {
     );
 }
 
+fn assert_native_funptr_indirect_call_preserves_native_boundary_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_gc_collect_in_native_funptr")
+fun get_gc_collect_in_native_funptr(): FunPtr<() -> Unit>
+
+fun main() {
+    val x: Any = f"hello {7}"
+
+    @Unsafe do {
+        val fp: FunPtr<() -> Unit> = get_gc_collect_in_native_funptr()
+        fp()
+    }
+
+    val h: GcHandle = @Unsafe do { GC.handleNew(x) }
+    @Unsafe do { GC.handleDrop(h) }
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir =
+        function_ir_matching(&ir, "native funptr boundary helper", |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_test_get_gc_collect_in_native_funptr")
+                && function.contains("call void %")
+        });
+
+    let getter_idx = entry_ir
+        .find("call i64 @scoop_test_get_gc_collect_in_native_funptr()")
+        .expect("expected direct extern getter call");
+    let post_getter = &entry_ir[getter_idx..];
+    let indirect_enter_idx = post_getter
+        .find("call void @scoop_enter_native(")
+        .expect("expected indirect funptr call to re-enter native boundary");
+    let indirect_window = &post_getter[indirect_enter_idx..];
+
+    assert!(
+        entry_ir.matches("call void @scoop_enter_native(").count() >= 2
+            && entry_ir.matches("call void @scoop_leave_native()").count() >= 2,
+        "native `FunPtr` indirect call 应与 getter 一样受 native boundary 包裹:\n{entry_ir}"
+    );
+    assert!(
+        entry_ir.contains("inttoptr i64")
+            && indirect_window.contains("call void %")
+            && indirect_window.contains("call void @scoop_leave_native()"),
+        "native `FunPtr` 间接调用应生成 enter_native/indirect call/leave_native 三连序列:\n{indirect_window}"
+    );
+    assert!(
+        entry_ir.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
+        "native `FunPtr` 返回后应从 explicit frame home slot reload live root:\n{entry_ir}"
+    );
+    assert!(
+        !ir.contains("@llvm.experimental.gc.statepoint"),
+        "native `FunPtr` boundary 仍应保持 plain native call，不重新进入 statepoint rewrite:\n{ir}"
+    );
+}
+
+fn assert_native_callable_aggregate_direct_indirect_parity_contract() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Unsafe
+@Extern("scoop_test_make_int_pair")
+fun make_int_pair(seed: Int): (Int, Int)
+
+@Extern("scoop_test_get_make_int_pair_funptr")
+fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
+
+fun main(): Int {
+    @Unsafe do {
+        val direct: (Int, Int) = make_int_pair(7)
+        println(direct._0)
+        println(direct._1)
+
+        val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
+        val indirect: (Int, Int) = fp(7)
+        println(indirect._0)
+        println(indirect._1)
+
+        val invoked: (Int, Int) = fp.invoke(9)
+        println(invoked._0)
+        println(invoked._1)
+    }
+    0
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let entry_ir = function_ir_matching(
+        &ir,
+        "native aggregate direct/indirect parity helper",
+        |header, function| {
+            !header.contains("@main(")
+                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
+                && function.contains("@scoop_test_make_int_pair")
+                && function.contains("@scoop_test_get_make_int_pair_funptr")
+        },
+    );
+    let getter_call_idx = entry_ir
+        .find("call i64 @scoop_test_get_make_int_pair_funptr()")
+        .expect("expected direct extern getter call for aggregate funptr parity");
+    let indirect_window = &entry_ir[getter_call_idx..];
+    let native_funptr_calls = indirect_window.matches("call { i64, i64 } %").count();
+
+    assert!(
+        entry_ir.contains("call { i64, i64 } @scoop_test_make_int_pair(i64 7)")
+            && indirect_window.contains("inttoptr i64")
+            && native_funptr_calls >= 2,
+        "direct `@Extern` 与 native `FunPtr` 应共享同一 target aggregate-return ABI:\n{entry_ir}"
+    );
+    assert!(
+        entry_ir.matches("call void @scoop_enter_native(").count() >= 4
+            && entry_ir.matches("call void @scoop_leave_native()").count() >= 4,
+        "direct/indirect native aggregate 调用都应通过同一 native boundary scaffold:\n{entry_ir}"
+    );
+    assert!(
+        !entry_ir.contains("funptr_call_sret") && !entry_ir.contains(" sret("),
+        "native callable aggregate-return parity 不应重新落回 hidden sret 路径:\n{entry_ir}"
+    );
+}
+
 fn assert_abi_baseline_sysroot_string_helper_contract() {
     let source = SourceFile::new_virtual(
         "<mem>",
@@ -3894,6 +4031,16 @@ fn abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence(
 #[test]
 fn abi_baseline_native_funptr_aggregate_return_uses_native_result_abi() {
     assert_abi_baseline_native_funptr_aggregate_return_contract();
+}
+
+#[test]
+fn native_callable_funptr_indirect_call_uses_enter_leave_native_boundary() {
+    assert_native_funptr_indirect_call_preserves_native_boundary_contract();
+}
+
+#[test]
+fn native_callable_direct_and_indirect_aggregate_return_share_target_abi() {
+    assert_native_callable_aggregate_direct_indirect_parity_contract();
 }
 
 #[test]
