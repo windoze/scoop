@@ -194,15 +194,15 @@
 
 ### 3.9 class ctor raw MIR 不支持 named/default args
 
-- 状态：`Partial`。
-- 结论：当前 fixture 主线已经支持 class ctor named/default/delegation；但 backend 仍强依赖 selected ctor + ordered bound args contract，一旦上游 contract 漂移，仍会落到 unsupported。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:5728-5807`，`tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop:1-6`。
+- 状态：`Closed/Re-scoped`。
+- 结论：class ctor 的 selected ctor + ordered args contract 现在由 upstream handoff 显式冻结；LLVM 不再按 ctor arity 或缺失 binding 猜目标 ctor。direct class ctor、`super(...)` 与 `this(...)` 仍可按已发布 mapping 求值默认值，但不再允许 backend 自行恢复选中的 ctor。
+- 证据：`crates/scoopc/src/llvm/codegen/class_ctor.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/pipeline/hir_stage.rs`，`tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop:1-50`。
 
 ### 3.10 默认参数补齐只覆盖有限顶层函数
 
-- 状态：`Partial`。
-- 结论：它不再是默认 pipeline 的通用 blocker，但 raw/backend 仍假设“参数绑定已在更早阶段完成”。只要上游没有发布完整 ordered args / binding map，LLVM 仍会用 arity / arg binding guard 报错。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:4624-4649`，`crates/scoopc/src/llvm/codegen/mir_body.rs:7248-7285`。
+- 状态：`Closed/Re-scoped`。
+- 结论：default/named arg canonicalization 已在 typed HIR/MIR contract 上收口；top-level direct call、extension call 与 class ctor call 在进入 MIR/LLVM 前都必须带完整 ordered args。backend 若再次看到 arity drift，只会把它视为 upstream contract bug，而不再补齐或修复顺序。
+- 证据：`crates/scoopc/src/pipeline/hir_stage.rs`，`crates/scoopc/src/pipeline/mir_stage.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`tests/fixtures/mir_refactor/call_contracts.scoop:1-42`。
 
 ### 3.11 closure env / capture shape 限制
 

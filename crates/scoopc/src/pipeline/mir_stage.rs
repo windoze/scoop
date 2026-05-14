@@ -607,6 +607,8 @@ fun main() {}
         let mut saw_size_of = false;
         let mut saw_name_of_metadata = false;
         let mut saw_closure_call = false;
+        let mut saw_named_default_call = false;
+        let mut saw_extension_default_call = false;
 
         for stmt in main.blocks.iter().flat_map(|block| block.stmts.iter()) {
             match &stmt.kind {
@@ -625,6 +627,22 @@ fun main() {}
                     );
                     if callee_fqn == "scoop.core.getPlatform" {
                         saw_get_platform = true;
+                    }
+                    if callee_fqn == "mir_refactor.call_contracts.namedDefault" {
+                        assert_eq!(
+                            args.len(),
+                            2,
+                            "default args should be canonicalized before MIR direct call lowering: {stmt:#?}"
+                        );
+                        saw_named_default_call = true;
+                    }
+                    if callee_fqn == "mir_refactor.call_contracts.ext" {
+                        assert_eq!(
+                            args.len(),
+                            2,
+                            "extension default args should include receiver + defaulted slot before MIR lowering: {stmt:#?}"
+                        );
+                        saw_extension_default_call = true;
                     }
                     direct_fqns.push(callee_fqn.as_str());
                 }
@@ -689,6 +707,14 @@ fun main() {}
             "getPlatform intrinsic call missing: {dump}"
         );
         assert!(saw_class_ctor, "class ctor contract missing: {dump}");
+        assert!(
+            saw_named_default_call,
+            "top-level default-arg call should lower with full ordered args: {dump}"
+        );
+        assert!(
+            saw_extension_default_call,
+            "extension default-arg call should lower with full ordered args: {dump}"
+        );
         assert!(saw_size_of, "sizeOf<T>() MIR primitive missing: {dump}");
         assert!(
             saw_name_of_metadata,
@@ -710,6 +736,58 @@ fun main() {}
                         ..
                     }
                 ))
+        );
+    }
+
+    #[test]
+    fn refactor_mir_ctor_default_args_lower_to_ordered_class_ctor() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_mir_ctor_default_args.scoop",
+            r#"package sample
+
+class Pair(val first: Int = 7, val second: Int)
+
+fun main(): Int {
+    val pair: Pair = Pair(second = 6)
+    return pair.first + pair.second
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = super::run(typed_hir_output).expect("ctor default args should lower to MIR");
+        let body = validated_callable_body(&output, "sample.main");
+
+        let (ctor, args) = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value:
+                        Rvalue::ClassCtor {
+                            class_fqn,
+                            ctor,
+                            args,
+                            ..
+                        },
+                    ..
+                } if class_fqn == "sample.Pair" => Some((ctor, args)),
+                _ => None,
+            })
+            .expect("Pair class ctor should lower through ordered class ctor contract");
+
+        assert!(
+            args.iter().all(|arg| arg.name.is_none()),
+            "class ctor default args should be canonical positional MIR args: {args:#?}"
+        );
+        assert_eq!(args.len(), 2);
+        assert_eq!(ctor.ordered_param_count, 2);
+        assert!(
+            ctor.selected_ctor_span.is_some(),
+            "class ctor contract must keep the selected ctor identity"
         );
     }
 

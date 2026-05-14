@@ -864,7 +864,7 @@ pub struct ClassInit {
     pub steps: Vec<ClassInitStep>,
     /// 该 class 的构造器集合（primary + secondary）。
     ///
-    /// 说明：当前阶段用它来在 codegen 时按“参数形状”选择要执行的 ctor。
+    /// 说明：当前阶段用它来在 codegen 时按已发布的 selected-ctor / arg-mapping contract 执行 ctor。
     pub ctors: Vec<ClassCtor>,
 }
 

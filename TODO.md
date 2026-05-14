@@ -648,7 +648,7 @@
     - 对应 `PLAN.md` P3 第 1 项：raw MIR emitter 现在只接受 raw-safe 输入；effect/control terminator、unsupported call kind 与 `PerformResult` 都在 route gate 或 impossible-state guard 处收口，不再晚到 body emission 才以 unsupported/default-value 形式失败。
     - `PIPELINE_GAPS.md` 已回写 `§3.1`、`§3.2`、`§3.3`、`§3.6` 为 `Closed/Re-scoped`，并明确这些编号现在只表示 raw-route gate / handoff-contract audit，而不再是默认主线的 live blocker。
 
-### [TODO] P3-T02：收口 ctor/default-arg typed contract，删除 backend 补参/猜测
+### [DONE] P3-T02：收口 ctor/default-arg typed contract，删除 backend 补参/猜测
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P3
@@ -689,9 +689,32 @@
 - 依赖：`P3-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/llvm/codegen/class_ctor.rs`，删除按 ctor arity 选择目标 ctor 的 fallback，以及 `call_info=None` 时自行构造 positional arg mapping 的 fallback；direct ctor call、`super(...)`、`this(...)` 现在只消费已发布的 selected/ordered args contract。
+    - 更新 `crates/scoopc/src/llvm/codegen/mir_body.rs`，让 pass-MIR class ctor 路径继承 `CtorCallInfo.arg_mapping.len()` 作为 `ordered_param_count`，不再把 contract 压缩成 `args.len()`。
+    - 更新 `crates/scoopc/src/hir/mod.rs` 注释，明确 `ClassInit.ctors` 的用途是执行 published ctor contract，而不是按参数形状临时猜测。
+    - 新增 `crates/scoopc/src/pipeline/hir_stage.rs::refactor_hir_ctor_contract_canonicalizes_default_args_to_ordered_slots`、`crates/scoopc/src/pipeline/mir_stage.rs::refactor_mir_ctor_default_args_lower_to_ordered_class_ctor`、`crates/scoopc/src/llvm/tests.rs::refactor_llvm_ctor_default_arg_contract_lowering`，并强化 `refactor_mir_call_contract_lowers_typed_call_sites` 对 top-level/extension default args 的 ordered-args 断言。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_gap_audit.rs` 与 `PIPELINE_GAPS.md`，将 `§3.9`、`§3.10` 回写为 closed/re-scoped 的 typed-contract guard。
   - 核心决策：
+    - `CtorCallInfo` 现在是 ctor 选择与参数顺序的唯一权威 handoff。backend 仍可在 mapping 明确标记 `None` 时求值声明处默认值，但这被视为“消费已发布 contract”，不再是“现场补参/猜测”。
+    - pass-MIR / refactor-MIR 都统一要求 ctor ordered args contract 由 upstream 明确给出；backend 若再遇到 arity drift，只能作为 contract bug 失败，而不是按参数个数或 call-site 形状自愈。
+    - 不为 `P3-T02` 重开新的 MIR snapshot fixture；class ctor default args 的覆盖改放到 HIR/MIR/LLVM 的虚拟源码单测里，避免把无关 golden 基线一并改写。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_ctor_contract_canonicalizes_default_args_to_ordered_slots`
+    - `cargo test -p scoopc refactor_mir_call_contract`
+    - `cargo test -p scoopc refactor_mir_ctor_default_args_lower_to_ordered_class_ctor`
+    - `cargo test -p scoopc refactor_llvm_call_contract_lowering`
+    - `cargo test -p scoopc refactor_llvm_ctor_default_arg_contract_lowering`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo test -p scoopc llvm_tests`（当前仓库下该过滤串命中 0 tests）
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/call_contracts.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/default_param_call_site_fill_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - 额外检查：`cargo test -p scoopc llvm::tests` 仍有 8 个与本任务无关的现存失败（closure/function-value/explicit-root-frame 相关），未构成 `P3-T02` 前置阻塞，因此未改动 TODO 顺序。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P3 第 3、4 项：ctor selected binding 与 default-arg canonicalization 已上移到 typed contract；backend 不再承担补参、arity 容错或 ctor 猜测职责。
+    - `PIPELINE_GAPS.md` 已回写 `§3.9`、`§3.10` 为 `Closed/Re-scoped`，并通过 `codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 将它们冻结为 upstream typed-contract drift guard，而不再是默认主线 live gap。
 
 ### [TODO] P3-T03：收口 `StoreMember` continuation route 与 raw function-ref normalization regression
 

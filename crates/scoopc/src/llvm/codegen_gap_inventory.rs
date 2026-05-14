@@ -136,21 +136,21 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.9",
-        "CG-T03",
-        "CG-T03 / MIR-T08R",
-        RawMirLlvm,
+        "P3-T02",
+        "P3-T02 / typed ctor contract guard",
+        UpstreamMirContract,
         true,
-        true,
-        "pass MIR class ctor default/named args"
+        false,
+        "typed class ctor selected/ordered args contract drift"
     ),
     gap!(
         "PIPELINE_GAPS §3.10",
-        "CG-T03",
-        "CG-T03 / MIR-T07R",
-        RawMirLlvm,
+        "P3-T02",
+        "P3-T02 / typed default-arg contract guard",
+        UpstreamMirContract,
         true,
-        true,
-        "backend default-arg arity mismatch"
+        false,
+        "typed default-arg ordered call contract drift"
     ),
     gap!(
         "PIPELINE_GAPS §3.11",

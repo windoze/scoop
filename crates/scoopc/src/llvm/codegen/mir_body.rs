@@ -5184,7 +5184,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_layout_key,
             &crate::mir::ClassCtorCallMetadata {
                 selected_ctor_span: site.ctor_span,
-                ordered_param_count: args.len(),
+                ordered_param_count: site.arg_mapping.len(),
             },
             args,
             slots,

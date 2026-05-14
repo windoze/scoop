@@ -3568,6 +3568,49 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
     }
 
     #[test]
+    fn refactor_hir_ctor_contract_canonicalizes_default_args_to_ordered_slots() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_ctor_call_contracts.scoop",
+            r#"package sample
+
+class Pair(val first: Int = 7, val second: Int)
+
+fun make(): Pair {
+    return Pair(second = 6)
+}
+
+fun main(): Int {
+    return make().first
+}
+"#,
+        );
+
+        let output = run(&session, &source).expect("constructor default args should lower");
+        let contracts = output.effect_contracts().call_site_contracts();
+
+        let ctor = contracts
+            .values()
+            .find_map(|contract| match contract {
+                TypedCallSiteContract::Constructor(ctor) if ctor.owner_fqn() == "sample.Pair" => {
+                    Some(ctor)
+                }
+                _ => None,
+            })
+            .expect("Pair ctor contract should be published");
+
+        assert!(
+            ctor.ctor_span().is_some(),
+            "constructor contract must publish the selected ctor identity"
+        );
+        assert_eq!(
+            ctor.arg_mapping(),
+            [Some(0), Some(1)],
+            "constructor contract must expose canonical ordered args after default-arg lowering"
+        );
+    }
+
+    #[test]
     fn refactor_hir_call_contracts_publish_where_bound_member_dispatch() {
         let session = refactor_session();
         let source = SourceFile::new_virtual(

@@ -5,12 +5,10 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
-    /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
-    /// - 对正常 class ctor call，调用点会优先消费前端准备好的 `CtorCallInfo`：
-    ///   已解析的 named args / default args 映射会在这里按形参顺序求值；
-    /// - 若某些内部复用路径没有 `CtorCallInfo`，则仍退回到仅按 positional args + 参数个数匹配；
-    /// - ctor 选择规则：优先按 `CtorCallInfo.ctor_span` 精确命中；否则再按“参数个数”在已收集
-    ///   ctor 集合中匹配；若不唯一则报错；
+    /// 当前阶段的约束：
+    /// - normal class ctor call 必须消费前端准备好的 `CtorCallInfo`；
+    /// - named/default args 的选择与顺序必须由 `CtorCallInfo.arg_mapping` 固化；
+    /// - backend 不再按参数个数或缺失 `CtorCallInfo` 猜测 ctor 目标；
     /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
     /// - super ctor args 与 secondary ctor delegation args 同样优先走 `CtorCallInfo` 映射，
     ///   并按源码顺序求值。
@@ -56,7 +54,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             site.ctor_span,
             args.len(),
             None,
-            "class ctor call overload mismatch/ambiguous",
+            "class ctor selected/ordered args contract",
         )?;
         let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
@@ -282,29 +280,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
         }
 
-        let mut matching: Vec<&hir::ClassCtor> = class
-            .ctors
-            .iter()
-            .filter(|ctor| ctor.params.len() == arg_count)
-            .collect();
-        if let Some(exclude) = exclude_ctor_span {
-            matching.retain(|c| c.span != exclude);
-        }
-
-        if matching.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
-        }
-        if matching.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
-        }
-
-        Ok(Some(matching[0]))
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind,
+            at: at.into(),
+        })
     }
 
     fn codegen_class_ctor_eval_args(
@@ -325,24 +304,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             info.arg_mapping.clone()
         } else {
-            if args.len() > ctor_params.len() {
+            if !args.is_empty() || !ctor_params.is_empty() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind,
                     at: at.into(),
                 });
             }
 
-            let mut out = vec![None; ctor_params.len()];
-            for (arg_idx, arg) in args.iter().enumerate() {
-                if !matches!(arg, hir::CallArg::Positional(_)) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind,
-                        at: at.into(),
-                    });
-                }
-                out[arg_idx] = Some(arg_idx);
-            }
-            out
+            Vec::new()
         };
 
         let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
@@ -798,7 +767,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 deleg.call.as_ref().and_then(|call| call.ctor_span),
                                 deleg.args.len(),
                                 Some(ctor_span),
-                                "class this delegation overload mismatch/ambiguous",
+                                "class this delegation selected/ordered args contract",
                             )?;
 
                             let target_params: &[hir::ClassCtorParam] = match target {
@@ -848,7 +817,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 deleg.args.as_slice(),
                                 deleg.call.as_ref(),
                                 stack,
-                                "class super delegation overload mismatch/ambiguous",
+                                "class super delegation selected/ordered args contract",
                             )?;
 
                             cg.codegen_class_ctor_run_init_steps(
@@ -880,7 +849,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     class.super_ctor_args.as_slice(),
                     class.super_ctor_call.as_ref(),
                     stack,
-                    "class super ctor call overload mismatch/ambiguous",
+                    "class super ctor selected/ordered args contract",
                 )?;
 
                 cg.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params)?;

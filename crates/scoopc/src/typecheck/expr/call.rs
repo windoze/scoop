@@ -9336,18 +9336,19 @@ fn try_infer_where_bound_method_call(
                 });
             }
 
-            let mut instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                &method_fqn,
-                call_expr.span,
-                cand,
-                explicit_type_args,
-                generic_constraints,
-                lower,
-                builtins,
-            ) {
-                Ok(s) => s,
-                Err(_) => continue 'candidates,
-            };
+            let mut instantiated =
+                match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                    &method_fqn,
+                    call_expr.span,
+                    cand,
+                    explicit_type_args,
+                    generic_constraints,
+                    lower,
+                    builtins,
+                ) {
+                    Ok(s) => s,
+                    Err(_) => continue 'candidates,
+                };
 
             if check_fun_where_constraints_after_instantiation(
                 &method_fqn,

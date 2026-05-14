@@ -1654,6 +1654,32 @@ fun main(): Int {
 }
 
 #[test]
+fn refactor_llvm_ctor_default_arg_contract_lowering() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/cg_t03_ctor_default_args.scoop",
+        r#"
+package fixtures.cgt03
+
+class Pair(val first: Int = 7, val second: Int)
+
+fun main(): Int {
+    val pair: Pair = Pair(second = 5)
+    return pair.first + pair.second
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).expect(
+        "defaulted class ctor call should lower through the published ordered-args contract",
+    );
+    assert!(
+        ir.contains("define i32 @main("),
+        "ctor default-arg build should still produce a main entry:\n{ir}"
+    );
+}
+
+#[test]
 fn refactor_llvm_extern_global() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
