@@ -603,8 +603,8 @@ impl<'a> HirLowering<'a> {
                     // - 对 `TypeName.member(...)` 这类 companion dispatch，receiver 在 AST/typecheck 中
                     //   仍是“未 resolve 的类型名 ident”，这里需要显式改写成 companion object 单例值，
                     //   才能进入和普通 object member call 相同的 direct-call 主线；
-                    // - `GC.pin/unpin` 等少量内建 member call 依赖后端 `MemberAccess` special-case，
-                    //   不能在这里改写为顶层调用。
+                    // - `GC.pin/unpin` / `GC.handle*` 这组 sysroot intrinsic member call 具有专门的
+                    //   MIR/runtime contract；必须保留 member-access callee 形状，不能在这里改写为顶层调用。
                     let ast::ExprKind::MemberAccess { receiver, member } = &callee_expr.kind else {
                         return None;
                     };

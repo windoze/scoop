@@ -100,12 +100,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.5",
-        "CG-T02",
-        "CG-T02 / MIR-T09R",
+        "P6-T01",
+        "P6-T01 / runtime cast contract guard",
         EffectRefactorLlvm,
-        false,
         true,
-        "refactor value primitive runtime cast unsupported"
+        false,
+        "runtime cast/typecheck metadata must stay within supported runtime-ref or static-folded surface"
     ),
     gap!(
         "PIPELINE_GAPS §3.6",
@@ -343,12 +343,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §7.6",
-        "CG-T07",
-        "CG-T07",
+        "P6-T01",
+        "P6-T01 / GC intrinsic support-surface gate",
         FrontendReject,
         true,
         false,
-        "GC pin/handle intrinsic frontend diagnostic"
+        "GC pin/handle unsupported source shapes must fail at frontend; accepted calls must keep token/root contract"
     ),
     gap!(
         "PIPELINE_GAPS §9",
@@ -540,6 +540,39 @@ mod tests {
     }
 
     #[test]
+    fn codegen_gap_inventory_marks_p6_t01_runtime_cast_and_gc_gaps_as_closed_guards() {
+        let runtime_cast = codegen_gap_entry("PIPELINE_GAPS §3.5")
+            .expect("§3.5 guard should remain tracked in inventory");
+        assert_eq!(runtime_cast.owner_task, "P6-T01");
+        assert_eq!(
+            runtime_cast.suggested_owner,
+            "P6-T01 / runtime cast contract guard"
+        );
+        assert_eq!(runtime_cast.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert!(runtime_cast.needs_upstream_contract);
+        assert!(!runtime_cast.production_blocker);
+        assert_eq!(
+            runtime_cast.trigger,
+            "runtime cast/typecheck metadata must stay within supported runtime-ref or static-folded surface"
+        );
+
+        let gc = codegen_gap_entry("PIPELINE_GAPS §7.6")
+            .expect("§7.6 guard should remain tracked in inventory");
+        assert_eq!(gc.owner_task, "P6-T01");
+        assert_eq!(
+            gc.suggested_owner,
+            "P6-T01 / GC intrinsic support-surface gate"
+        );
+        assert_eq!(gc.route, CodegenGapRoute::FrontendReject);
+        assert!(gc.needs_upstream_contract);
+        assert!(!gc.production_blocker);
+        assert_eq!(
+            gc.trigger,
+            "GC pin/handle unsupported source shapes must fail at frontend; accepted calls must keep token/root contract"
+        );
+    }
+
+    #[test]
     fn codegen_gap_inventory_marks_2_3_as_nonblocking_upstream_guard() {
         let entry = codegen_gap_entry("PIPELINE_GAPS §2.3")
             .expect("§2.3 guard should remain tracked in inventory");
@@ -685,7 +718,7 @@ mod tests {
         for needle in [
             "UnsupportedMainBody",
             "pass MIR",
-            "refactor value primitive runtime cast unsupported",
+            "runtime cast/typecheck metadata",
             "runtime fatal helper",
         ] {
             assert!(

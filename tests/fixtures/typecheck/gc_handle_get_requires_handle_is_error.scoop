@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::gc_handle_get_requires_handle
+// EXPECT-ERROR-AT: 13:22
+// EXPECT-ERROR: 参数必须是 `GcHandle`
+// 目标：P6-T01 固定 `GC.handleGet` 只接受稳定 handle token。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Unit {
+    @Unsafe do {
+        GC.handleGet(1)
+    }
+}

@@ -85,6 +85,7 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §3.2",
     "PIPELINE_GAPS §3.3",
     "PIPELINE_GAPS §3.4",
+    "PIPELINE_GAPS §3.5",
     "PIPELINE_GAPS §3.6",
     "PIPELINE_GAPS §3.7",
     "PIPELINE_GAPS §3.8",
@@ -110,6 +111,7 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §6.3",
     "PIPELINE_GAPS §6.4",
     "PIPELINE_GAPS §6.5",
+    "PIPELINE_GAPS §7.6",
 ];
 
 #[cfg(feature = "llvm")]

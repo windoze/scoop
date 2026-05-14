@@ -2012,6 +2012,83 @@ fun main(): Unit {
     }
 
     #[test]
+    fn refactor_mir_gc_handle_raw_uintptr_token_stays_scalar() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/gc_handle_uintptr_policy.scoop",
+            r#"package fixtures.mir_refactor
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_store")
+fun handleTokenSlotStore(raw: UIntPtr): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_take")
+fun handleTokenSlotTake(): UIntPtr
+
+fun main(): Unit {
+    val raw: UIntPtr = @Unsafe do { handleTokenSlotTake() }
+    val returned: GcHandle = GcHandle { raw: raw }
+    @Unsafe do { handleTokenSlotStore(returned.raw) }
+}
+"#,
+        );
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source)
+                .expect("GC handle raw UIntPtr fixture should typecheck before MIR");
+        let output = super::run(typed_hir_output)
+            .expect("GC handle raw UIntPtr fixture should lower to MIR");
+        let body = callable_body(&output, "fixtures.mir_refactor.main");
+
+        let take_transport = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value:
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            transport,
+                            ..
+                        },
+                    ..
+                } if callee_fqn == "fixtures.mir_refactor.handleTokenSlotTake" => Some(transport),
+                _ => None,
+            })
+            .expect("extern take-handle-token call should be present");
+        assert_eq!(take_transport.result.kind, MirTransportKind::Scalar);
+        assert!(
+            !take_transport.result.requirements.trace,
+            "UIntPtr token return should stay scalar rather than GC-tracked"
+        );
+
+        let raw_field_transport = body
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match &stmt.kind {
+                StatementKind::Assign {
+                    value: Rvalue::StructLit { transport, .. },
+                    ..
+                } => transport
+                    .fields
+                    .iter()
+                    .find(|field| field.name.as_deref() == Some("raw"))
+                    .map(|field| &field.transport),
+                _ => None,
+            })
+            .expect("GcHandle { raw: ... } struct literal should be present");
+        assert_eq!(raw_field_transport.kind, MirTransportKind::Scalar);
+        assert!(
+            !raw_field_transport.requirements.trace,
+            "GcHandle.raw field transport should stay scalar rather than GC-tracked"
+        );
+    }
+
+    #[test]
     fn refactor_mir_cfg_effect_boundary_inside_expr_context_uses_explicit_blocks() {
         let output = run_fixture("mir_refactor", "effect_boundary_inside_expr_context.scoop");
         let body = validated_callable_body(&output, "fixtures.mir_refactor.main");

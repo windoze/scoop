@@ -1644,6 +1644,20 @@ impl<'a> ContractCollector<'a> {
             } else {
                 Some(TypedCallSiteContract::DirectTopLevel(function))
             }
+        } else if let ExprKind::MemberAccess { member, .. } = &callee.kind {
+            if let Some(crate::hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref()
+                && fqn.starts_with("scoop.core.GC.")
+            {
+                Some(TypedCallSiteContract::Intrinsic {
+                    kind: TypedIntrinsicKind::from_fqn(fqn),
+                    function: FunctionTargetContract::synthetic_with_arg_binding(
+                        fqn.clone(),
+                        arg_binding.clone(),
+                    ),
+                })
+            } else {
+                None
+            }
         } else if matches!(callee.kind, ExprKind::Closure(_)) {
             Some(TypedCallSiteContract::Closure {
                 callee_ty: callee.ty,
@@ -3565,6 +3579,65 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
             TypedCallSiteContract::EffectOp(perform)
                 if perform.op_fqn() == "sample.Boom.boom"
         )));
+    }
+
+    #[test]
+    fn refactor_hir_gc_intrinsic_member_calls_publish_intrinsic_contracts() {
+        let session = refactor_session();
+        let source = SourceFile::new_virtual(
+            "<mem>/refactor_hir_gc_intrinsics.scoop",
+            r#"package sample
+import scoop.core.*
+
+class Box(val value: Int)
+
+fun main(): Unit {
+    @Unsafe do {
+        val box: Box = Box(value = 1)
+        val pinned: Pinned = GC.pin(box)
+        GC.unpin(pinned)
+        val gcHandle: GcHandle = GC.handleNew(box)
+        val value: Any = GC.handleGet(gcHandle)
+        GC.handleDrop(gcHandle)
+        val _ = value
+    }
+}
+"#,
+        );
+
+        let output =
+            run(&session, &source).expect("GC intrinsic member calls should lower through HIR");
+        let contracts = output.effect_contracts().call_site_contracts();
+        let mut saw_pin = false;
+        let mut saw_unpin = false;
+        let mut saw_handle_new = false;
+        let mut saw_handle_get = false;
+        let mut saw_handle_drop = false;
+
+        for contract in contracts.values() {
+            let TypedCallSiteContract::Intrinsic { kind, function } = contract else {
+                continue;
+            };
+            assert_eq!(kind.allowed_context(), IntrinsicAllowedContext::RuntimeOnly);
+            assert_eq!(
+                kind.runtime_fallback(),
+                IntrinsicRuntimeFallback::RuntimeIntrinsic
+            );
+            match function.fqn() {
+                "scoop.core.GC.pin" => saw_pin = true,
+                "scoop.core.GC.unpin" => saw_unpin = true,
+                "scoop.core.GC.handleNew" => saw_handle_new = true,
+                "scoop.core.GC.handleGet" => saw_handle_get = true,
+                "scoop.core.GC.handleDrop" => saw_handle_drop = true,
+                _ => {}
+            }
+        }
+
+        assert!(saw_pin, "GC.pin intrinsic contract missing");
+        assert!(saw_unpin, "GC.unpin intrinsic contract missing");
+        assert!(saw_handle_new, "GC.handleNew intrinsic contract missing");
+        assert!(saw_handle_get, "GC.handleGet intrinsic contract missing");
+        assert!(saw_handle_drop, "GC.handleDrop intrinsic contract missing");
     }
 
     #[test]

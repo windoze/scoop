@@ -1602,6 +1602,36 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 });
             }
         };
+        match callee_fqn.as_str() {
+            "scoop.core.GC.handleNew" => {
+                return self.codegen.codegen_mir_sysroot_gc_handle_new(
+                    span,
+                    args,
+                    self.slots,
+                    Some(target_cg),
+                );
+            }
+            "scoop.core.GC.handleGet" => {
+                return self.codegen.codegen_mir_sysroot_gc_handle_get(
+                    span,
+                    args,
+                    self.slots,
+                    Some(target_cg),
+                );
+            }
+            "scoop.core.GC.handleDrop" => {
+                return self
+                    .codegen
+                    .codegen_mir_sysroot_gc_handle_drop(span, args, self.slots);
+            }
+            "scoop.core.GC.pin" => {
+                return self.lower_refactor_gc_pin(span, args, target_cg);
+            }
+            "scoop.core.GC.unpin" => {
+                return self.lower_refactor_gc_unpin(span, args);
+            }
+            _ => {}
+        }
         if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
             return Ok(value);
         }

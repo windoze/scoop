@@ -701,6 +701,17 @@ fn call_arg_binding_from_optional_mapping(
     Some(ast::CallArgBinding { params })
 }
 
+fn record_call_arg_binding_from_optional_mapping(
+    lower: &mut TypeLowering<'_>,
+    call_span: Span,
+    mapping: &[Option<usize>],
+    call_args: &[CallArgInfo<'_>],
+) {
+    if let Some(binding) = call_arg_binding_from_optional_mapping(mapping, call_args) {
+        lower.record_typechecked_call_arg_binding(call_span, binding);
+    }
+}
+
 fn vararg_param_index(param_is_vararg: &[bool]) -> Option<usize> {
     let mut found: Option<usize> = None;
     for (idx, is_vararg) in param_is_vararg.iter().copied().enumerate() {
@@ -5738,18 +5749,17 @@ fn infer_member_call_expr_type(
         );
     }
 
-    // spec §15.10：GC pin/unpin（early stage）。
+    // spec §15.10 / §15.10.1：GC pin/handle intrinsic surface。
     //
     // 说明：
-    // - 当前阶段尚未接入"普通成员函数调用"（class/object methods），这里只对 sysroot 的 `GC.pin/unpin`
-    //   做最小落点：让前端可以通过 typecheck，并由后端 intrinsic lowering 映射到 runtime；
-    // - 语义约束（TODO T1008）：仅允许 pin 引用类型/box 对象；值类型（含 type param）暂不支持。
+    // - `GC.pin/unpin` 与 `GC.handleNew/Get/Drop` 是 sysroot 固定的 intrinsic member-call surface；
+    //   它们的 authoritative contract 由前端 gate、MIR transport metadata 与 runtime lowering 共同定义。
+    // - 这里保留专门分支，是为了在 ordinary member-call desugaring 之前锁定支持面与诊断，避免把它们
+    //   误降成普通成员调用后再由后端兜底。
+    // - `pin/handleNew` 只接受可追踪引用对象；`unpin`/`handleGet`/`handleDrop` 只接受对应 token 类型。
     if let Some(fqn) = resolved_member_fun_fqn {
-        // spec §15.10.1：stable GC handles（early stage）。
-        //
-        // 说明：
-        // - 与 `GC.pin/unpin` 类似：当前阶段成员函数调用对 sysroot `GC.*` 做 minimal special-case；
-        // - `handleNew` 不是 `@NoGC`：在 `@NoGC` 上下文中必须保守拒绝（可能分配）。
+        // `handleNew` 可能分配，因此在 `@NoGC` 上下文中必须拒绝；其余入口沿 sysroot `@NoGC`/
+        // `@Unsafe` contract 执行。
         if fqn == "scoop.core.GC.handleNew" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
@@ -5814,6 +5824,12 @@ fn infer_member_call_expr_type(
                 Vec::new(),
                 call_expr.span,
             )?;
+            record_call_arg_binding_from_optional_mapping(
+                lower,
+                call_expr.span,
+                &mapping,
+                &call_args,
+            );
             return Ok(handle_ty);
         }
 
@@ -5877,6 +5893,12 @@ fn infer_member_call_expr_type(
                 });
             }
 
+            record_call_arg_binding_from_optional_mapping(
+                lower,
+                call_expr.span,
+                &mapping,
+                &call_args,
+            );
             return Ok(builtins.any);
         }
 
@@ -5940,6 +5962,12 @@ fn infer_member_call_expr_type(
                 });
             }
 
+            record_call_arg_binding_from_optional_mapping(
+                lower,
+                call_expr.span,
+                &mapping,
+                &call_args,
+            );
             return Ok(builtins.unit);
         }
 
@@ -6001,6 +6029,12 @@ fn infer_member_call_expr_type(
                 Vec::new(),
                 call_expr.span,
             )?;
+            record_call_arg_binding_from_optional_mapping(
+                lower,
+                call_expr.span,
+                &mapping,
+                &call_args,
+            );
             return Ok(pinned_ty);
         }
 
@@ -6064,6 +6098,12 @@ fn infer_member_call_expr_type(
                 });
             }
 
+            record_call_arg_binding_from_optional_mapping(
+                lower,
+                call_expr.span,
+                &mapping,
+                &call_args,
+            );
             return Ok(builtins.unit);
         }
     }
@@ -6077,7 +6117,7 @@ fn infer_member_call_expr_type(
     // - 当前入口统一覆盖 direct call / class vtable / interface itable 三类成员调用形态；
     //   具体走哪条后端路径由 receiver 类型与 slot 解析结果决定。
     if let Some(fqn) = resolved_member_fun_fqn {
-        // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
+        // 注意：`GC.pin/unpin` / `GC.handle*` 走的是专门的 GC intrinsic contract；这里不要把它们当作普通 member call。
         if fqn != "scoop.core.GC.pin"
             && fqn != "scoop.core.GC.unpin"
             && fqn != "scoop.core.GC.handleNew"

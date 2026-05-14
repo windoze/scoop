@@ -1149,7 +1149,7 @@
 
 ## P6：同步 frontend gate、收尾 partial surface、重写账本
 
-### [TODO] P6-T01：收尾 `§3.5` / `§7.6` partial surface，统一 runtime cast 与 GC pin/handle policy
+### [DONE] P6-T01：收尾 `§3.5` / `§7.6` partial surface，统一 runtime cast 与 GC pin/handle policy
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P6
@@ -1198,9 +1198,42 @@
 - 依赖：`P5-T02`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/typecheck/expr/error.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`，把 GC pin/handle 的前端 gate、typed HIR call contract、`UIntPtr` lowering 与 pure/effect-refactor LLVM intrinsic lowering 收口到同一条正式主线。
+    - 更新 `PIPELINE_GAPS.md`、`crates/scoopc/src/llvm/codegen_gap_inventory.rs` 与 `crates/scoopc/src/pipeline_gap_audit.rs`，将 `§3.5`、`§7.6` 从 `Partial` 回写为 `Closed/Re-scoped`，并把 inventory/audit 语义收紧为 closed guard / frontend gate。
+    - 新增 `crates/scoopc/src/pipeline/hir_stage.rs::refactor_hir_gc_intrinsic_member_calls_publish_intrinsic_contracts`、`crates/scoopc/src/pipeline/mir_stage.rs::refactor_mir_gc_handle_raw_uintptr_token_stays_scalar`；新增 `tests/fixtures/typecheck/gc_{unpin_requires_pinned,handle_get_requires_handle,handle_drop_requires_handle}_is_error.scoop`；更新现有 GC runtime/typecheck fixtures 的文案与 `GcHandle.raw: UIntPtr` token 形状。
   - 核心决策：
+    - `§3.5` 不再保留“后端半支持”状态：默认主线允许的 runtime `is/!is/as/as?` 继续走统一的 MIR metadata + LLVM lowering；函数类型 / effectful function-type cast 维持前端明确拒绝，不再把剩余 surface 留成 partial bucket。
+    - `§7.6` 采用“保留已实现能力 + 前移未开放 surface”的收口方式，而不是缩小默认主线：`GC.pin/unpin`、`GC.handleNew/Get/Drop`、`GcHandle.raw: UIntPtr` callback/native token round-trip 保持正式支持；值类型 `pin/handleNew`、非 `Pinned` 的 `unpin`、非 `GcHandle` 的 `handleGet/drop`，以及把 `Pinned` 当 ordinary `@Extern` token 的用法统一以前端诊断拒绝。
+    - 对任务中暴露的两个阻塞缺口不做 workaround：一是 HIR stage 现在直接为保留 member-access 形状的 GC intrinsic call 发布 typed intrinsic contract；二是 `UIntPtr` 在 typed HIR 中直接按 word-sized scalar lowering，不再落成 ref nominal 后再靠后端修补。
   - 验证结果：
+    - `cargo test -p scoopc refactor_hir_gc_intrinsic_member_calls_publish_intrinsic_contracts`
+    - `cargo test -p scoopc refactor_mir_value_primitives`
+    - `cargo test -p scoopc refactor_mir_gc_handle_raw_uintptr_token_stays_scalar`
+    - `cargo test -p scoopc refactor_llvm_runtime_type_primitives`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_asq_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fn_type_cast_effectful_as_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/gc_pin_value_type_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/gc_handle_new_value_type_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/gc_unpin_requires_pinned_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/gc_handle_get_requires_handle_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/gc_handle_drop_requires_handle_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 SCOOP_GC_VERIFY_ROOTS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+    - `rg '状态：`Partial`' PIPELINE_GAPS.md`：命中仅剩状态定义行，active gap 条目已无 `Partial`。
+    - `rg 'refactor value primitive runtime cast unsupported|GC pin/handle intrinsic frontend diagnostic|TODO T1008' crates/scoopc/src tests/fixtures PIPELINE_GAPS.md TODO.md`：0 命中。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P6 第 2 项：`§3.5` 与 `§7.6` 已不再保留 `Partial`；runtime cast/typecheck 与 GC pin/handle 的默认主线支持面、前端 gate、MIR contract、LLVM lowering、runtime regression 现在彼此一致。
+    - `PIPELINE_GAPS.md` 已回写 `§3.5`、`§7.6` 为 `Closed/Re-scoped`；`codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 现将它们分别冻结为 runtime-cast contract guard 与 GC intrinsic support-surface gate。`PLAN.md` 阶段顺序未改变，因此无需额外修改。
 
 ### [TODO] P6-T02：同步 `FrontendReject` surface：or-pattern binder / function-type cast / use-site effect row / struct mutable field
 

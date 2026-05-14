@@ -176,9 +176,9 @@
 
 ### 3.5 refactor effect-neutral cast/typecheck 支持不完整
 
-- 状态：`Partial`。
-- 结论：effect-neutral value primitive 现在能复用同一套 MIR cast/typecheck lowering 处理当前受支持的 runtime-ref surface；剩余未开放的 surface 已由 `§7.2` 前端挡住。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1808-1857`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2365-2549`，`crates/scoopc/src/pipeline/mir_stage.rs:1043-1065`。
+- 状态：`Closed/Re-scoped`。
+- 结论：effect-neutral value primitive 现在已把默认主线允许的 runtime `is/!is/as/as?` surface 收口为统一的 MIR metadata + LLVM lowering：类/接口/String/参数化 nominal 的 runtime-ref test 可执行，显然不可能的 value/ref 组合会在 MIR metadata 上静态折叠，函数类型 / effectful function-type cast 则继续由 `§7.2` 在前端明确拒绝。因此该编号不再表示“后端半支持”的 partial surface；剩余 `UnsupportedMainBody` 只表达 runtime cast/typecheck metadata 或 runtime-ref contract drift guard。
+- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:1252-1286`，`crates/scoopc/src/llvm/codegen/mir_body.rs:2651-2896`，`crates/scoopc/src/pipeline/mir_stage.rs:795-1017`，`tests/fixtures/mir_refactor/runtime_typecheck_cast.scoop:1-32`，`tests/fixtures/typecheck/fn_type_cast_closed_pure_asq_is_error.scoop:1-16`，`tests/fixtures/typecheck/fn_type_cast_effectful_as{,q}_is_error.scoop:1-15`。
 
 ### 3.6 `Virtual` / `Interface` / `Resume` call kind raw MIR 不支持
 
@@ -369,9 +369,9 @@
 
 ### 7.6 GC pin/handle intrinsic surface 仍有限制
 
-- 状态：`Partial`。
-- 结论：支持子集已经存在，包含 `GC.pin/unpin` 与 `GC.handleNew/Get/Drop` 的 typed MIR contract 和 LLVM lowering；但更一般的 surface 仍由前端限制，以避免 root/pairing/shape contract 漂移。
-- 证据：`crates/scoopc/src/typecheck/expr/error.rs:488-517`，`crates/scoopc/src/pipeline/mir_stage.rs:1975-2060`，`crates/scoopc/src/llvm/codegen/mir_body.rs:3522-3829`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`GC.pin/unpin`、`GC.handleNew/Get/Drop` 与 `GcHandle.raw: UIntPtr` callback/native token round-trip 的最终支持面已经固定：默认主线接受的引用对象 pin、stable handle create/get/drop、callback token 回传都具备 typed MIR contract、LLVM lowering 与 runtime GC 回归；值类型 `pin/handleNew`、非 `Pinned` 的 `unpin`、非 `GcHandle` 的 `handleGet/drop`，以及把 `Pinned` 当 ordinary `@Extern` ABI token 的用法，都以前端明确诊断拒绝。因此该编号不再表示 partial backend gap，只再保留“前端 gate + token/root contract”一致性的 guard 语义。
+- 证据：`sysroot/core.scoop:220-259`，`crates/scoopc/src/typecheck/expr/call.rs:5741-6068`，`crates/scoopc/src/typecheck/expr/error.rs:479-517`，`crates/scoopc/src/pipeline/mir_stage.rs:1915-2012`，`crates/scoopc/src/llvm/codegen/mir_body.rs:3799-4137`，`tests/fixtures/run-pass/gc_pin_unpin_basic.scoop:1-38`，`tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop:1-91`，`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop:1-27`，`tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop:1-55`，`tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop:1-42`，`tests/fixtures/typecheck/gc_handle_new_value_type_is_error.scoop:1-15`，`tests/fixtures/typecheck/gc_unpin_requires_pinned_is_error.scoop:1-15`，`tests/fixtures/typecheck/gc_handle_get_requires_handle_is_error.scoop:1-15`，`tests/fixtures/typecheck/gc_handle_drop_requires_handle_is_error.scoop:1-15`，`tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop:1-29`，`tests/fixtures/typecheck/extern_fun_signature_with_pinned_is_error.scoop:1-12`。
 
 ## 8. 建议收口顺序
 

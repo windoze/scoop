@@ -1,7 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::gc_pin_requires_ref
 // EXPECT-ERROR-AT: 12:25
-// EXPECT-ERROR: 仅支持引用类型
+// EXPECT-ERROR: 参数必须是可追踪的引用类型
 
 package fixtures.unsafe_nogc
 
@@ -12,4 +12,3 @@ fun main(): Unit {
         val _p = GC.pin(1)
     }
 }
-

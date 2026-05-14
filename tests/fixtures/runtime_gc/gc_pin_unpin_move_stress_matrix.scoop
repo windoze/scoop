@@ -19,7 +19,7 @@ import scoop.core.*
 
 @Unsafe
 @Extern("scoop_test_handle_get_object_addr")
-fun handleGetObjectAddr(handleRaw: UInt): Int
+fun handleGetObjectAddr(handleRaw: UIntPtr): Int
 
 fun assertTrueCode(cond: Bool, code: Int): Unit {
     when (cond) {

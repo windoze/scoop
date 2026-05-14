@@ -476,7 +476,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.pin 当前阶段仅支持引用类型（heap/box 对象）：{found}")]
+    #[error("GC.pin 的参数必须是可追踪的引用类型（heap/box 对象），当前得到：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_pin_requires_ref))]
     GcPinRequiresRefType {
         found: String,
@@ -484,7 +484,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.unpin 当前阶段仅支持 `Pinned` handle：{found}")]
+    #[error("GC.unpin 的参数必须是 `Pinned`：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_unpin_requires_ref))]
     GcUnpinRequiresRefType {
         found: String,
@@ -492,7 +492,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.handleNew 当前阶段仅支持引用类型（heap/box 对象）：{found}")]
+    #[error("GC.handleNew 的参数必须是可追踪的引用类型（heap/box 对象），当前得到：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_handle_new_requires_ref))]
     GcHandleNewRequiresRefType {
         found: String,
@@ -500,7 +500,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.handleGet 当前阶段仅支持 `GcHandle`：{found}")]
+    #[error("GC.handleGet 的参数必须是 `GcHandle`：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_handle_get_requires_handle))]
     GcHandleGetRequiresGcHandle {
         found: String,
@@ -508,7 +508,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("GC.handleDrop 当前阶段仅支持 `GcHandle`：{found}")]
+    #[error("GC.handleDrop 的参数必须是 `GcHandle`：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_handle_drop_requires_handle))]
     GcHandleDropRequiresGcHandle {
         found: String,

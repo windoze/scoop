@@ -1704,6 +1704,7 @@ impl<'a> HirLowering<'a> {
             // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
             "scoop.unsafe.__AtomicInt" => return self.builtins.int,
             "scoop.core.UInt" => return self.builtins.uint,
+            "scoop.core.UIntPtr" => return self.builtins.uint,
             "scoop.core.Option" => {
                 let inner = type_args
                     .first()
