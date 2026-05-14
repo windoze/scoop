@@ -244,12 +244,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §5.3",
-        "CG-T06",
-        "CG-T06",
+        "P4-T02",
+        "P4-T02 / cleanup-unwind contract guard",
         EffectRefactorLlvm,
         true,
-        true,
-        "refactor unwind payload/cleanup continuation contract missing"
+        false,
+        "published ResumeUnwind cleanup contract must remain coherent"
     ),
     gap!(
         "PIPELINE_GAPS §5.4",
@@ -592,6 +592,27 @@ mod tests {
             );
             assert_eq!(entry.trigger, trigger);
         }
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_p4_t02_cleanup_unwind_gap_as_closed_guard() {
+        let entry = codegen_gap_entry("PIPELINE_GAPS §5.3")
+            .expect("§5.3 guard should remain tracked in inventory");
+        assert_eq!(entry.owner_task, "P4-T02");
+        assert_eq!(
+            entry.suggested_owner,
+            "P4-T02 / cleanup-unwind contract guard"
+        );
+        assert_eq!(entry.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert!(entry.needs_upstream_contract);
+        assert!(
+            !entry.production_blocker,
+            "§5.3 should now be represented as a closed cleanup/unwind guard"
+        );
+        assert_eq!(
+            entry.trigger,
+            "published ResumeUnwind cleanup contract must remain coherent"
+        );
     }
 
     #[test]

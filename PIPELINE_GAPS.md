@@ -6,10 +6,10 @@
 - `LlvmEmitError::UnsupportedMainBody` / “暂不支持的 main 代码生成节点”已经是 LLVM backend 的通用 unsupported/assertion 桶，不再等价于“当前仍未实现的 feature 列表”。
 - 机器可消费的 owner/gap id 仍保留在 `crates/scoopc/src/mir/placeholder_inventory.rs` 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`。其中 `PIPELINE_GAPS §...` 继续作为稳定 bucket id；部分 bucket 当前已关闭、改道或仅剩 guard 语义。
 - 当前 `UnsupportedMainBody` 症状最集中的模块是 `crates/scoopc/src/llvm/codegen/mir_body.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`。其中相当一部分报错反映的是 typed contract 漂移、routing 失配或内部不变量断言，而不是缺少某个 LLVM primitive。
-- 当前仍值得当成 live implementation gap 跟踪的主线，主要是以下几类：
+- 当前仍值得跟踪的主线与 guard，主要是以下几类：
 - pre-MIR / MIR placeholder 与 handoff contract 仍有少量 open item。
 - raw MIR 只覆盖一个受限 lowering 子集；残留 effect/control、`PerformResult`、dynamic call kind 仍依赖更早 verifier 或 routing。
-- effect-refactor 主线的剩余缺口集中在 ABI routing、effect-typed callable adapter、cleanup/unwind contract。
+- effect-refactor 主线 ABI routing、effect-typed callable adapter、cleanup/unwind 已收口；对应 gap id 仅保留 guard / drift audit 语义。
 - aggregate/composite 相关的 live hole 主要落在 enum 边角布局与 array/composite transport，而不是“完全没有 boxing”。
 
 ## 如何阅读
@@ -270,9 +270,9 @@
 
 ### 5.3 `ResumeUnwind` 只有空 cleanup placeholder 可接受
 
-- 状态：`Partial`。
-- 结论：`ResumeUnwind` contract 现在更严格地校验 cleanup state、source slice、origin/resume-state；call-boundary complete 后的 frame-free tail 也会在无 handle、无 resume/runtime-error/composed boundary、无后续 suspend/cleanup 时提前释放 frame root，避免普通返回路径把 internal frame / empty `EffectCtx` 继续暴露给用户可观测 GC。复杂 cleanup/unwind contract 仍未完全泛化。
-- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:3368-3399`，`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4493-4565`，`tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop:1-31`。
+- 状态：`Closed/Re-scoped`。
+- 结论：`ResumeUnwind` 现在只接受 published cleanup/unwind contract。cleanup state、origin/resume-state 来自 `Suspend { cleanup_state, resume_state, boundary_ids }` 的 cleanup route；source slice 来自 terminal cleanup state 的 canonical MIR cleanup terminator；ordinary return / effect-outcome return / plain return 会在真正返回前统一执行 handle-context cleanup，而 call-boundary complete 的 frame-free tail 只会在无后续 suspend/cleanup、无 handle completion、无 runtime-error/composed boundary 时提前释放 frame root。`ResumeUnwind` terminal 本身只作为 enclosing `HandleDispatch` pending-completion contract 的 sink，若直接落到该 state 则按 impossible-state `unreachable` 处理。
+- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`，`tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop`，`tests/fixtures/run-pass/effect_handle_return_from_function_basic.scoop`，`tests/fixtures/run-pass/effect_handle_return_from_function_finally.scoop`，`tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop`。
 
 ### 5.4 outward-empty callable 不应被路由为 effect-step entry；`main(args)` 是当前症状
 
@@ -371,7 +371,7 @@
 
 1. pre-MIR / MIR handoff contract 已基本收紧；后续只需继续保持 `§2.3` / `§2.7` 的 guard-only 语义，不要再让 `UnsupportedMainBody` 承担 production 输入校验角色。
 2. raw MIR residual effect/control routing 已收口；后续保持 `§3.1`、`§3.2`、`§3.3`、`§3.6` 的 gate-only 语义，避免这些 shape 回流到 plain/materialized MIR emitter。
-3. 完成 effect-refactor 的 ABI/routing 主线：优先处理 `§3.12`、`§5.1`、`§5.3`、`§5.4`，确保 actual outward effect set 真正决定 callable ABI。
+3. effect-refactor 的 ABI/routing 主线已收口；后续保持 `§3.12`、`§5.1`、`§5.3`、`§5.4` 的 guard-only 语义，确保 actual outward effect set 继续决定 callable ABI。
 4. 统一 aggregate/composite transport：优先处理 `§4.3`、`§4.4`、`§4.5`，避免 enum/array/effect payload 各走一套孤立的特殊规则。
 5. 保持前端 gate 与 backend 能力同步：`§7.1`、`§7.2`、`§7.3`、`§7.5`、`§7.6` 只要放开其一，就应同步补齐 MIR contract、layout 与 runtime 语义，而不是依赖 `UnsupportedMainBody` 才暴露错误。
 

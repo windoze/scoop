@@ -862,7 +862,7 @@
     - 对应 `PLAN.md` P4 第 1、2、4、5 项：callable ABI routing 现在由 actual outward effect set / published callable ABI 决定；plain closure / function-value / `FunPtr` 的 effect-typed surface 已通过 adapter 或 published boundary 收口；`main(args)` 的 outward-empty plain routing 保持稳定。
     - `PIPELINE_GAPS.md` 已回写 `§3.12`、`§5.1`、`§5.4` 为 `Closed/Re-scoped`；`codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 将这三项冻结为 nonblocking effect-routing guard，而 `P4-T02` 继续单独负责 `§5.3` cleanup/unwind contract 收尾。
 
-### [TODO] P4-T02：收口 cleanup/unwind contract 与 `main(args)` plain routing
+### [DONE] P4-T02：收口 cleanup/unwind contract 与 `main(args)` plain routing
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -909,9 +909,27 @@
 - 依赖：`P4-T01`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`，将 `PIPELINE_GAPS §5.3` 从 live production blocker 回写为 `P4-T02` 关闭后的 cleanup/unwind guard，并补充对应 inventory 单测。
+    - 更新 `crates/scoopc/src/pipeline_gap_audit.rs`，把 `§5.3` 纳入 codegen scope-drift baseline，确保后续若重新漂回 live blocker 会被审计抓到。
+    - 更新 `PIPELINE_GAPS.md` 顶部摘要、`§5.3` 与建议收口顺序，明确 effect-refactor ABI/routing 主线已经闭合，`§5.3`/`§5.4` 仅保留 guard 语义。
   - 核心决策：
+    - 不再把 `§5.3` 当作 live implementation gap：现有 lowering/verifier 已经把 cleanup state、origin/resume-state、source slice 与 frame 生命周期固定到 published contract 上，本任务的收尾是把这一事实同步回 executable inventory 与 gap 账本。
+    - `main(args)` 的问题继续只通过 outward-empty plain routing 解决；本任务只复核既有 plain-entry 路由与 wrapper 行为，不引入新的 `main` 特判或 Step argv ABI。
   - 验证结果：
+    - `cargo test -p scoopc refactor_llvm_resume_unwind_lowering`
+    - `cargo test -p scoopc refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+    - `cargo test -p scoopc refactor_llvm_main_wrapper_routes_unhandled_outward_to_exit_code`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_return_from_function_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_return_from_function_finally.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P4 第 3、4、6 项：`ResumeUnwind` cleanup/unwind contract 与 `main(args)` plain routing 已通过已实现代码和回归验证收口；inventory/gap audit 现在将 `§5.3`、`§5.4` 视为 closed guard，而非默认主线 blocker。
+    - `PIPELINE_GAPS.md` 已回写 `§5.3` 为 `Closed/Re-scoped`；`§5.4` 保持 closed 状态并在本任务中完成复核。`PLAN.md` 阶段顺序未改变，因此无需额外修改。
 
 ## P5：统一 aggregate / composite transport
 
