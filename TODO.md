@@ -19,7 +19,7 @@
 | `P2-T02` | P2 | [DONE] 收口 native surface gate 与诊断，统一 `@Extern` / native `FunPtr` contract |
 | `P3-T01` | P3 | [DONE] 扩展 `@Extern` 语法与 HIR，正式支持 `abi = "scoop"` |
 | `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
-| `P4-T01a` | P4 前置 I | 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
+| `P4-T01a` | P4 前置 I | [DONE] 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
 | `P4-T01b` | P4 前置 I | vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
 | `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
@@ -576,7 +576,7 @@
 >
 > 顺序约束：P4-T01a → P4-T01b → P4-T01c → P4-T01d → P4-T01e → P4-T01。五个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
 
-### [TODO] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
+### [DONE] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
@@ -609,6 +609,31 @@
 - 完成条件：
   - 用户自定义 struct/class（含 generic class）能用常规 `receiver.method()` 调用 instance method；既有扩展函数路径与现有内建类型 lowering 不变。
 - 依赖：`P3-T02`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/expr/entry.rs`
+    - `crates/scoopc/src/hir/lower/expr.rs`
+    - `tests/fixtures/run-pass/member_call_{struct,class,generic_class}_body_method_basic.*`
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - `struct` 成员函数体现在复用既有的 member-fun body typecheck 主线：`this` 与主构造参数的可见性、返回类型推断、默认参数检查与 effect gate 和 class member 保持同构；class 专属的 property/init/super-ctor 路径保持不变。
+    - ordinary `receiver.method()` / `receiver?.method()` 的 HIR 降糖现在统一覆盖 `struct/class/interface/object`：除 builtin keep-list 与 GC/handle intrinsics 外，都改写为 `<Owner>.method(receiver, ...)` 顶层调用形状；既有扩展函数 fallback 与 by-name 特判不删除。
+    - generic class instance method 沿用现有 owner-specialized member monomorphization 路径，不新增新的 generic special-case；新增的 struct fixture 额外锁定“member method 优先于同名 extension”这一解析顺序。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_struct_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_generic_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（新增/既有 member-call 相关 fixture 均通过；全量当前仍暴露两个与本任务代码路径无直接交集的现存失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`）
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 filter 仍返回 `0 passed; 848 filtered out`，因此额外按 owner test 名补跑下面三条）
+    - `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture`
+    - `cargo test -p scoopc builtin_string_member_calls_lower_to_direct_calls -- --nocapture`
+    - `cargo test -p scoopc builtin_string_trim_indent_member_calls_lower_to_direct_calls -- --nocapture`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 I 第 1 项：user struct/class（含 generic class）的 instance method 现已走与 sysroot declarer 同构的 ordinary member-call 前端路径，不再只依赖扩展函数承接实例方法语义。
+    - 本任务没有改动 `sysroot/core.scoop` 的既有内建类型声明，也没有提前改写 vtable/itable、intrinsic 表或 ABI substrate，因此无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01b：vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal
 

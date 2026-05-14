@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_struct_body_method_basic.stdout
+//
+// P4-T01a：user struct body method 应可通过常规 `receiver.method()` 调用，
+// 且同名 extension 不应抢占 member method。
+
+import scoop.core.*
+
+struct Foo(val base: Int) {
+    fun bar(delta: Int): Int {
+        return this.base + delta
+    }
+}
+
+fun Foo.bar(delta: Int): Int {
+    return this.base + delta + 1000
+}
+
+fun main(): Int {
+    val foo: Foo = Foo { base: 40 }
+    println(foo.bar(2))
+    return 0
+}

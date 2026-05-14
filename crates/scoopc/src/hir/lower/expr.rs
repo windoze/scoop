@@ -625,9 +625,13 @@ impl<'a> HirLowering<'a> {
                         return None;
                     }
 
-                    // T1508a/T1508c：对 class/object/interface member method 做降糖；
-                    // struct/value type 的 member call 语义留给其它任务（保持既有 HIR fixtures 稳定）。
+                    // 统一把 ordinary member call 降糖为顶层调用：
+                    // `receiver.method(args...)` -> `Owner.method(receiver, args...)`。
+                    // 这里覆盖 struct/class/interface/object；内建 by-name keep-list 仍由上面的
+                    // `should_keep_member_call_as_member_access` 控制。
                     let (owner_fqn, member_name) = fqn.as_str().rsplit_once('.')?;
+                    let owner_is_struct =
+                        matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Struct));
                     let owner_is_class =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
                     let owner_is_interface = matches!(
@@ -635,7 +639,11 @@ impl<'a> HirLowering<'a> {
                         Some(ast::TypeKind::Interface)
                     );
                     let owner_is_object = self.index.object_types.contains(owner_fqn);
-                    if !owner_is_class && !owner_is_interface && !owner_is_object {
+                    if !owner_is_struct
+                        && !owner_is_class
+                        && !owner_is_interface
+                        && !owner_is_object
+                    {
                         return None;
                     }
 
@@ -5938,10 +5946,12 @@ impl<'a> HirLowering<'a> {
             };
         }
 
-        // Class/interface member function: `receiver?.method(args)` → `Owner.method(v, args...)`
+        // Ordinary member function: `receiver?.method(args)` → `Owner.method(v, args...)`
         if let Some(ast::ResolvedMemberRef::Fun { fqn }) = resolved.as_ref()
             && let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.')
         {
+            let owner_is_struct =
+                matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Struct));
             let owner_is_class =
                 matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
             let owner_is_interface = matches!(
@@ -5949,7 +5959,7 @@ impl<'a> HirLowering<'a> {
                 Some(ast::TypeKind::Interface)
             );
             let owner_is_object = self.index.object_types.contains(owner_fqn);
-            if owner_is_class || owner_is_interface || owner_is_object {
+            if owner_is_struct || owner_is_class || owner_is_interface || owner_is_object {
                 let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
                 all_args.push(CallArg::Positional(v_ref.clone()));
                 all_args.extend(lowered_args_without_receiver);

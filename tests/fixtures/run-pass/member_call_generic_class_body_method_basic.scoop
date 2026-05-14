@@ -1,0 +1,21 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_generic_class_body_method_basic.stdout
+//
+// P4-T01a：generic class body method 应可通过常规 `receiver.method()` 调用，
+// 并保留返回类型的 owner-specialized 单态化。
+
+import scoop.core.*
+
+class Box<T>(val value: T) {
+    fun get(): T {
+        return this.value
+    }
+}
+
+fun main(): Int {
+    val ints: Box<Int> = Box(9)
+    val texts: Box<String> = Box("hi")
+    println(ints.get())
+    println(texts.get())
+    return 0
+}

@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_class_body_method_basic.stdout
+//
+// P4-T01a：user class body method 应可通过常规 `receiver.method()` 调用。
+
+import scoop.core.*
+
+class Bar() {
+    fun baz(): Int {
+        return 7
+    }
+}
+
+fun main(): Int {
+    val bar: Bar = Bar()
+    println(bar.baz())
+    return 0
+}

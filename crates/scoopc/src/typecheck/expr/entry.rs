@@ -636,7 +636,7 @@ fn check_class_member_fun_bodies_in_type_decl(
                 check_struct_direct_field_initializer_exprs(shared, decl, ctor_params, lower)?;
             }
 
-            if matches!(decl.kind, ast::TypeKind::Class) && !is_annotation_class {
+            if !is_annotation_class {
                 let this_ty_args = decl
                     .type_params
                     .iter()
@@ -646,36 +646,49 @@ fn check_class_member_fun_bodies_in_type_decl(
                     lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)
                 })?;
 
-                let superclass_fqn = decl
-                    .supertypes
-                    .iter()
-                    .find(|st| st.ctor_args_span.is_some())
-                    .and_then(|st| lower.index().type_ref_to_fqn_in_file(source, file, &st.ty));
-
-                check_class_super_ctor_call_exprs(shared, &type_fqn, decl, ctor_params, lower)?;
-
-                let class_shared = ClassExprShared {
+                let member_shared = ClassExprShared {
                     file: shared,
                     this_decl_span: decl.name.span,
                     this_ty,
                     ctor_params,
                 };
 
+                let superclass_fqn = matches!(decl.kind, ast::TypeKind::Class)
+                    .then(|| {
+                        decl.supertypes
+                            .iter()
+                            .find(|st| st.ctor_args_span.is_some())
+                            .and_then(|st| {
+                                lower.index().type_ref_to_fqn_in_file(source, file, &st.ty)
+                            })
+                    })
+                    .flatten();
+
+                if matches!(decl.kind, ast::TypeKind::Class) {
+                    check_class_super_ctor_call_exprs(shared, &type_fqn, decl, ctor_params, lower)?;
+                }
+
                 if let Some(body) = &decl.body {
                     for member in &body.members {
                         match member {
                             ast::TypeMember::Fun(fun) => {
-                                check_class_member_fun_body_exprs(class_shared, fun, lower)?;
+                                check_class_member_fun_body_exprs(member_shared, fun, lower)?;
                             }
-                            ast::TypeMember::Property(p) => {
-                                check_class_property_initializer_exprs(class_shared, p, lower)?;
+                            ast::TypeMember::Property(p)
+                                if matches!(decl.kind, ast::TypeKind::Class) =>
+                            {
+                                check_class_property_initializer_exprs(member_shared, p, lower)?;
                             }
-                            ast::TypeMember::InitBlock(b) => {
-                                check_class_init_block_exprs(class_shared, b, lower)?;
+                            ast::TypeMember::InitBlock(b)
+                                if matches!(decl.kind, ast::TypeKind::Class) =>
+                            {
+                                check_class_init_block_exprs(member_shared, b, lower)?;
                             }
-                            ast::TypeMember::SecondaryCtor(ctor) => {
+                            ast::TypeMember::SecondaryCtor(ctor)
+                                if matches!(decl.kind, ast::TypeKind::Class) =>
+                            {
                                 check_class_secondary_ctor_exprs(
-                                    class_shared,
+                                    member_shared,
                                     &type_fqn,
                                     decl.primary_ctor.is_some(),
                                     superclass_fqn.as_deref(),
@@ -685,7 +698,10 @@ fn check_class_member_fun_bodies_in_type_decl(
                             }
                             ast::TypeMember::EnumVariant(_)
                             | ast::TypeMember::Type(_)
-                            | ast::TypeMember::Object(_) => {}
+                            | ast::TypeMember::Object(_)
+                            | ast::TypeMember::Property(_)
+                            | ast::TypeMember::InitBlock(_)
+                            | ast::TypeMember::SecondaryCtor(_) => {}
                         }
                     }
                 }
