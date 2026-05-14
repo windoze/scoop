@@ -212,9 +212,9 @@
 
 ### 3.12 effect-typed closure/function-value adapter 限制
 
-- 状态：`Open`。
-- 结论：这仍是当前最重要的 live gap 之一。plain closure / function-value / `FunPtr` call 在 effect-typed surface 上仍会要求 adapter 或 published boundary；actual outward effect routing 也必须与之协同。
-- 证据：`crates/scoopc/src/llvm/codegen/mir_body.rs:5285-5375`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1556-1560`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:1753-1760`。
+- 状态：`Closed/Re-scoped`。
+- 结论：effect-typed closure / function-value / `FunPtr` surface 现在已经通过 published dynamic-invoke contract、local callable provenance 与 callable carrier target/adaptor 收口。actual outward-empty callable 会保留 plain ABI；actual outward 非空 callable 继续走显式 Step boundary / adapter，而不再把 effect-typed surface 直接退成 unsupported。
+- 证据：`crates/scoopc/src/effect_facts/builder.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`，`tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop:1-22`，`tests/fixtures/run-pass/receiver_function_value_call_basic.scoop:1-24`，`tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop:1-31`。
 
 ### 3.13 `StoreMember` continuation route ambiguous 会失败
 
@@ -258,9 +258,9 @@
 
 ### 5.1 ABI routing 仍可能按内部 effect/control 形状而非 actual outward effect set 分类
 
-- 状态：`Open`。
-- 结论：plain callable emission 仍把残留 `Perform` / `ResumeUnwind` / `Handle` / `Todo` 视为非法输入；这要求 actual outward effect set、handled-effect elimination 与 ABI routing 真正闭合。
-- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:957-963`。
+- 状态：`Closed/Re-scoped`。
+- 结论：callable ABI routing 现在以 actual outward effect set / published late-lowered callable ABI 为准，而不是以 surface 声明 effect row 或内部 control 形状为准。outward-empty callable 即使出现在 effect-typed surface 上，也会维持 plain ABI；只有 actual outward 非空或显式 adapter surface 才会发布 Step ABI。
+- 证据：`crates/scoopc/src/effect_facts/builder.rs`，`crates/scoopc/src/llvm/codegen/mir_body.rs`，`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`，`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`。
 
 ### 5.2 unsupported source classification 被 verifier 放行，lowering 才失败
 
@@ -276,9 +276,9 @@
 
 ### 5.4 outward-empty callable 不应被路由为 effect-step entry；`main(args)` 是当前症状
 
-- 状态：`Open`。
-- 结论：`main(args)` 的真正问题不是“要不要再发明一个 Step argv ABI”，而是 outward-empty callable 不应被错路由到 effect-step entry。当前 effect-step `main` wrapper 仍保留显式报错。
-- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:481-493`。
+- 状态：`Closed/Re-scoped`。
+- 结论：outward-empty callable 现在不会再被误路由到 effect-step entry；`main(args)` 已通过 plain entry routing 正确落到 published plain shell，并把 `Array<String>` argv 交给 plain entry，而不是再走 effect-step wrapper。
+- 证据：`crates/scoopc/src/llvm/codegen/effect_lowered/body.rs`，`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`，`tests/fixtures/run-pass/std_process_args_exit_basic.scoop:1-15`。
 
 ### 5.5 cross-thread resume 只支持 u64 payload
 

@@ -66,6 +66,36 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
+fn bind_mir_call_args_to_params(
+    params: &[crate::mir::Param],
+    args: &[crate::mir::CallArg],
+) -> Option<Vec<crate::mir::Operand>> {
+    if args.len() != params.len() {
+        return None;
+    }
+
+    let mut slots = vec![None; params.len()];
+    let mut next_positional = 0usize;
+    for arg in args {
+        let index = if let Some(name) = &arg.name {
+            params.iter().position(|param| &param.name == name)?
+        } else {
+            while next_positional < params.len() && slots[next_positional].is_some() {
+                next_positional += 1;
+            }
+            let index = next_positional;
+            next_positional += 1;
+            index
+        };
+        if index >= slots.len() || slots[index].is_some() {
+            return None;
+        }
+        slots[index] = Some(arg.value.clone());
+    }
+
+    slots.into_iter().collect()
+}
+
 const RAW_MIR_EFFECT_CONTROL_TERMINATOR_DETAIL: &str = "raw MIR effect/control terminator must be rejected or rerouted before plain/materialized MIR body emission";
 const RAW_MIR_PERFORM_TERMINATOR_DETAIL: &str = "raw MIR Perform terminator must route through the published late-lowered boundary before body emission; plain/materialized MIR codegen must not guess cleanup or resume contracts";
 const RAW_MIR_PERFORM_RESULT_DETAIL: &str = "raw MIR PerformResult must be eliminated before body emission; plain/materialized MIR codegen must not synthesize a default value";
@@ -5651,17 +5681,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             span, callee, args, &fun_ty, slots,
                         );
                     }
-                    let Some(fun) = self.hir_fun_for_callable_fqn(fn_ptr) else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor plain closure call effect-typed surface requires adapter",
-                            at: span.into(),
-                        });
-                    };
-                    if self.known_fun_body_may_outward_effect(fn_ptr, fun.ty) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor plain closure call target may outward-effect",
-                            at: span.into(),
-                        });
+                    match self.mir_callable_fqn_may_outward_effect(fn_ptr) {
+                        Some(false) => {}
+                        Some(true) => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor plain closure call target may outward-effect",
+                                at: span.into(),
+                            });
+                        }
+                        None => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor plain closure call effect-typed surface requires adapter",
+                                at: span.into(),
+                            });
+                        }
                     }
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
@@ -5691,10 +5724,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain function-value call effect-typed surface requires adapter",
-                        at: span.into(),
-                    });
+                    match self
+                        .mir_fun_value_callee_fqn(body, mir_types, callee)
+                        .and_then(|fqn| self.mir_callable_fqn_may_outward_effect(&fqn))
+                    {
+                        Some(false) => {}
+                        Some(true) => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor plain function-value call target may outward-effect",
+                                at: span.into(),
+                            });
+                        }
+                        None => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "refactor plain function-value call effect-typed surface requires adapter",
+                                at: span.into(),
+                            });
+                        }
+                    }
                 }
                 self.codegen_mir_plain_function_value_call(span, callee, args, &fun_ty, slots)
             }
@@ -6611,6 +6658,224 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => None,
         }
+    }
+
+    fn mir_callable_fqn_may_outward_effect(&self, callable_fqn: &str) -> Option<bool> {
+        if let Some(callable) = self
+            .published_late_lowered_program()
+            .and_then(|program| program.callable(callable_fqn))
+        {
+            return Some(callable.effect_step_abi().is_some());
+        }
+        if let Some((callable_types, callable_fun)) = self.materialized_mir_callable(callable_fqn) {
+            return Some(
+                crate::mir::summarize_pass_rewritten_fun(callable_fun, callable_types, None)
+                    .may_outward_effect,
+            );
+        }
+        self.hir_fun_for_callable_fqn(callable_fqn)
+            .map(|fun| self.known_fun_body_may_outward_effect(callable_fqn, fun.ty))
+    }
+
+    fn mir_fun_value_callee_fqn(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        operand: &crate::mir::Operand,
+    ) -> Option<String> {
+        let mut visiting = HashSet::new();
+        self.mir_callable_value_fqn_for_operand(body, mir_types, operand, &mut visiting)
+    }
+
+    fn mir_callable_value_fqn_for_operand(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        operand: &crate::mir::Operand,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        let crate::mir::Operand::Local(local) = operand else {
+            return None;
+        };
+        self.mir_callable_value_fqn_for_local(body, mir_types, *local, visiting)
+    }
+
+    fn mir_callable_value_fqn_for_local(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        local: crate::mir::LocalId,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        if !visiting.insert(local) {
+            return None;
+        }
+
+        let mut matched: Option<String> = None;
+        for block in &body.blocks {
+            for stmt in &block.stmts {
+                let crate::mir::StatementKind::Assign { target, value } = &stmt.kind else {
+                    continue;
+                };
+                if *target != local {
+                    continue;
+                }
+                let candidate =
+                    self.mir_callable_value_fqn_for_rvalue(body, mir_types, value, visiting)?;
+                match &matched {
+                    Some(existing) if existing != &candidate => {
+                        visiting.remove(&local);
+                        return None;
+                    }
+                    Some(_) => {}
+                    None => matched = Some(candidate),
+                }
+            }
+        }
+
+        visiting.remove(&local);
+        matched
+    }
+
+    fn mir_callable_value_fqn_for_rvalue(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        value: &crate::mir::Rvalue,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        match value {
+            crate::mir::Rvalue::Use(operand)
+            | crate::mir::Rvalue::Transport { value: operand, .. } => {
+                self.mir_callable_value_fqn_for_operand(body, mir_types, operand, visiting)
+            }
+            crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) => {
+                Some(fqn.clone())
+            }
+            crate::mir::Rvalue::MakeClosure { fn_ptr, .. } => Some(fn_ptr.clone()),
+            crate::mir::Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                crate::mir::MemberTarget::Fun { fqn }
+                | crate::mir::MemberTarget::ExtensionFun { fqn } => Some(fqn.clone()),
+                crate::mir::MemberTarget::Value { .. }
+                | crate::mir::MemberTarget::ExtensionValue { .. } => None,
+            },
+            crate::mir::Rvalue::Call {
+                kind: crate::mir::CallKind::Direct { callee_fqn },
+                args,
+                ..
+            } => self.mir_callable_value_fqn_from_direct_call(
+                body, mir_types, callee_fqn, args, visiting,
+            ),
+            crate::mir::Rvalue::UnresolvedName { .. }
+            | crate::mir::Rvalue::Unary { .. }
+            | crate::mir::Rvalue::Binary { .. }
+            | crate::mir::Rvalue::TypeCheck { .. }
+            | crate::mir::Rvalue::Cast { .. }
+            | crate::mir::Rvalue::SizeOf { .. }
+            | crate::mir::Rvalue::TypeMetadataLiteral(_)
+            | crate::mir::Rvalue::EnumVariant { .. }
+            | crate::mir::Rvalue::ClassCtor { .. }
+            | crate::mir::Rvalue::Call { .. }
+            | crate::mir::Rvalue::MakeTuple { .. }
+            | crate::mir::Rvalue::StructLit { .. }
+            | crate::mir::Rvalue::InterpolatedString { .. }
+            | crate::mir::Rvalue::TupleGet { .. }
+            | crate::mir::Rvalue::CaptureBoxNew { .. }
+            | crate::mir::Rvalue::CaptureBoxGet { .. }
+            | crate::mir::Rvalue::CaptureBoxSet { .. }
+            | crate::mir::Rvalue::PatternMatch { .. }
+            | crate::mir::Rvalue::PatternExtract { .. }
+            | crate::mir::Rvalue::PerformResult { .. }
+            | crate::mir::Rvalue::Todo(_) => None,
+        }
+    }
+
+    fn mir_callable_value_fqn_from_direct_call(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        callee_fqn: &str,
+        args: &[crate::mir::CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        let (callee_types, callable_fun) = self.materialized_mir_callable(callee_fqn)?;
+        let summary = crate::mir::summarize_pass_rewritten_fun(callable_fun, callee_types, None);
+        self.mir_callable_value_fqn_from_result(
+            body,
+            mir_types,
+            &summary.result_provenance,
+            &callable_fun.params,
+            args,
+            visiting,
+        )
+    }
+
+    fn mir_callable_value_fqn_from_result(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        result: &crate::mir::ResultProvenance,
+        params: &[crate::mir::Param],
+        args: &[crate::mir::CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        match result {
+            crate::mir::ResultProvenance::DirectFunction(fqn)
+            | crate::mir::ResultProvenance::KnownClosure(fqn) => Some(fqn.clone()),
+            crate::mir::ResultProvenance::Param(index) => self
+                .mir_callable_value_fqn_from_param_result(
+                    body, mir_types, *index, params, args, visiting,
+                ),
+            crate::mir::ResultProvenance::Join(sources) if sources.len() == 1 => self
+                .mir_callable_value_fqn_from_result_source(
+                    body,
+                    mir_types,
+                    &sources[0],
+                    params,
+                    args,
+                    visiting,
+                ),
+            crate::mir::ResultProvenance::Unit
+            | crate::mir::ResultProvenance::TopLevelValue(_)
+            | crate::mir::ResultProvenance::PerformResult(_)
+            | crate::mir::ResultProvenance::Join(_)
+            | crate::mir::ResultProvenance::Unknown => None,
+        }
+    }
+
+    fn mir_callable_value_fqn_from_result_source(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        source: &crate::mir::ResultProvenanceSource,
+        params: &[crate::mir::Param],
+        args: &[crate::mir::CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        match source {
+            crate::mir::ResultProvenanceSource::DirectFunction(fqn)
+            | crate::mir::ResultProvenanceSource::KnownClosure(fqn) => Some(fqn.clone()),
+            crate::mir::ResultProvenanceSource::Param(index) => self
+                .mir_callable_value_fqn_from_param_result(
+                    body, mir_types, *index, params, args, visiting,
+                ),
+            crate::mir::ResultProvenanceSource::TopLevelValue(_)
+            | crate::mir::ResultProvenanceSource::PerformResult(_) => None,
+        }
+    }
+
+    fn mir_callable_value_fqn_from_param_result(
+        &self,
+        body: &crate::mir::Body,
+        mir_types: &TypeStore,
+        index: usize,
+        params: &[crate::mir::Param],
+        args: &[crate::mir::CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<String> {
+        let bound_args = bind_mir_call_args_to_params(params, args)?;
+        let operand = bound_args.get(index)?;
+        self.mir_callable_value_fqn_for_operand(body, mir_types, operand, visiting)
     }
 
     fn mir_operand_funptr_function_type(

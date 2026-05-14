@@ -1,40 +1,25 @@
 ## 当前执行计划
 
-说明：此文件记录本次执行的可公开计划、关键判断依据与进度更新，不记录内部私有推理细节。
+说明：这里记录可执行的步骤、关键判断与进度更新，不记录逐字内部推理。
 
-1. 读取 `TODO.md`，识别首个标题未带 `[DONE]` 的任务。
-2. 检查最近一次提交，确认是否存在与该任务直接相关且明确未完成的问题；若有，按用户要求将其并入当前任务范围或补记为前置依赖。
-3. 阅读当前任务涉及的代码、测试、规范与任务说明，确认实现边界与验证要求。
-4. 直接实现该任务；若发现无法按规范完成的阻塞项，则在 `TODO.md` 中以最小前置任务形式补录并停止，不做规避性实现。
-5. 运行与当前任务直接相关的测试/检查；若任务影响面要求更广，则补充运行必要的回归验证与 `cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`：仅在任务真正完成时为任务标题添加 `[DONE]` 并填写完成记录；若出现阻塞，则保持任务未完成并写明新增前置任务。
-7. 仅当阶段计划或依赖结构变化时更新 `PLAN.md`。
-8. 提交本次所有相关改动，提交信息使用当前任务号。
-9. 停止，不继续下一个任务。
+1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 确认第一个未完成任务。
+2. 检查最近一次提交信息，确认是否存在与该任务直接相关且明确未完成的问题；若有，将其视为当前任务的一部分或作为前置任务写回 `TODO.md`。
+3. 阅读当前任务相关代码、测试、规范与依赖说明，只聚焦该任务所需上下文，不做开放式问题排查。
+4. 实现该任务要求；若遇到真实阻塞且无法按规范完成，则以最小必要方式在 `TODO.md` 中添加前置任务并调整依赖顺序。
+5. 运行任务要求的验证，并补充必要测试，直到相关检查通过。
+6. 更新 `TODO.md`：将当前任务标题标为 `[DONE]`，填写完成记录；仅在阶段计划真的变化时更新 `PLAN.md`。
+7. 复查工作区中与本任务相关的改动，按仓库约定创建一次 git 提交，然后停止，不继续下一个任务。
 
-## 进度
+## 进度记录
 
-- 已读取 `TODO.md`，确认首个未完成任务为 `P3-T03`：收口 `StoreMember` continuation route 与 raw function-ref normalization regression。
-- 已查看最近一次提交 `87b1da99 [P3-T02] Close ctor and default-arg contract drift`，下一步检查其中提到的 function-value / closure 相关未完事项是否直接属于 `P3-T03` 范围。
-- 已确认 `StoreMember` 的 `Ambiguous` 当前已有 MIR verifier 与 codegen 定向测试覆盖；`cargo test -p scoopc refactor_mir_store_member_codegen` 与 `cargo test -p scoopc refactor_mir_member_access_codegen` 通过。
-- 已复现 `P3-T03` 的另一半问题：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop` 失败。下一步获取精确错误并修复 `TopLevelRef` / top-level callable value 规范化回归。
-- 已定位并修复两类直接阻塞：
-  1. nested callable callee（如 `make(1)()` / `choose(mode)()`）在 typecheck 时没有把 callee 推导类型写回 `inferred_expr_tys`，导致 HIR lowering 把 callee 降成 `Any`；现已改为通过 `inputs.infer(...)` 记录该类型。
-  2. `String.length()` 这类保留 member-access 形状的 callable 在 HIR lowering / LLVM HIR call lowering 中没有被当成 callable surface 处理；现已为 typed HIR 保留函数类型，并把 builtin member-call short-circuit 前移到 generic callable 分支之前。
-- 已为 materialized MIR 增补顶层 value 类型索引，使 effect-facts 能为 `topNamed` / `topPatternF` / `topFp` 这类顶层 callable value 构建 surface contract，而不再依赖 generic MIR root 留在 materialized snapshot 里。
-- 已新增 typed-HIR 回归测试，覆盖 nested callable callee 类型保留与 top-level immutable receiver closure side table 形状。
-- 已完成验证：
-  - `refactor_mir_member_access_codegen`、`refactor_mir_store_member_codegen`
-  - `typed_hir_preserves_function_typed_nested_call_callee`
-  - `typed_hir_top_level_immutable_receiver_closure_keeps_length_as_call_in_side_table`
-  - `materialized_mir_closure_private_symbols_use_stable_hash_namespaces`
-  - `callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir`
-  - `callable_value_pattern_binder_receiver_named_args_fixture_codegen_succeeds`
-  - `higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval`
-  - `higher_order_effectful_function_value_uses_schema_aware_carrier_adapter`
-  - fixture：`top_level_callable_value_call_basic.scoop`、`callable_value_pattern_binder_receiver_named_args_basic.scoop`、`assignment_places.scoop`
-  - `codegen_gap_inventory`、`pipeline_gap_audit`
-  - `cargo clippy --all-targets -- -D warnings`
-- 额外复核：`cargo test -p scoopc llvm::tests -- --nocapture` 中与本任务直接相关的历史失败已消失；剩余 3 个失败对齐后续 `P4` / explicit-root-frame 任务，不阻塞 `P3-T03` 完成。
-- 已提交：`bcc1d3f7 [P3-T03] Close StoreMember and callable-surface regressions`
-- 下一步：停止，等待下一次按 `TODO.md` 顺序继续执行。
+- 已写入初始执行计划，下一步读取 `TODO.md` 并锁定当前任务。
+- 已确认首个未完成任务为 `P4-T01`：让 actual outward effect set 唯一决定 callable ABI，并补齐 effect-typed callable adapter。
+- 最近一次提交信息为 `[P3-T03] Record final execution note`，未见与 `P4-T01` 直接相关的未完事项描述；当前按 `P4-T01` 原任务推进。
+- 下一步：读取 `PLAN.md` 的 P4 段、`PIPELINE_GAPS.md` 的 `§3.12` / `§5.1` / `§5.4`，并检查 `effect_lowered/body.rs`、`effect_lowered/value.rs`、`llvm/codegen/mod.rs` 与现有测试入口，确定真实缺口和最小正确改动面。
+- 已完成关键实现：
+  - `effect_facts/builder.rs` 的 `FunValue` 调用点现在会解析 local callable provenance（`MakeClosure` / `TopLevelRef` / resolved member fun / direct-call result provenance），优先把动态调用点绑定到真实 callable facts，而不是只按 surface `declared_row` 生成 effect-step fallback。
+  - `llvm/codegen/mir_body.rs` 的 plain dynamic call 现在优先查询 published late-lowered callable ABI；对于 surface effectful 但 actual outward-empty 的 closure/function-value，会允许走 plain ABI，而不是继续按声明 effect row 报 “requires adapter”。
+  - 针对 closure 的两条关键回归：`closure_call_without_outward_effect_stays_on_direct_call_surface`、`closure_call_with_real_outward_effect_uses_explicit_outcome_boundary` 已通过。
+- 已完成账本回写：`PIPELINE_GAPS.md`、`codegen_gap_inventory.rs`、`pipeline_gap_audit.rs`、`pipeline_user_visible_failure_policy.rs`、`TODO.md` 已同步到 `P4-T01` 完成状态。
+- 已完成验证：task-level 单测、fixture、inventory audit、failure-policy audit 与 `cargo clippy --all-targets -- -D warnings` 均通过。
+- 下一步：创建 `[P4-T01]` 提交并停止。

@@ -789,7 +789,7 @@
 
 ## P4：收口 effect-refactor ABI、adapter 与 unwind/main 路由
 
-### [TODO] P4-T01：让 actual outward effect set 唯一决定 callable ABI，并补齐 effect-typed callable adapter
+### [DONE] P4-T01：让 actual outward effect set 唯一决定 callable ABI，并补齐 effect-typed callable adapter
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -835,9 +835,32 @@
 - 依赖：`P3-T03`
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/effect_facts/builder.rs`，为 `CallKind::FunValue` 动态调用点补 local callable provenance 解析：现在会优先从 `MakeClosure`、`TopLevelRef`、resolved member fun，以及 direct-call result provenance 恢复真实 callable，再复用 authoritative callable facts / step schema，而不是只按 surface `declared_row` 构造 `DynamicFallback` effect-step 上界。
+    - 更新 `crates/scoopc/src/llvm/codegen/mir_body.rs`，让 plain dynamic call 对 closure / function-value 的 actual-outward 判定优先查询 published late-lowered callable ABI；outward-empty callable 即使 surface type 带非 `Pure` effect row，也会留在 plain ABI，actual outward 非空 callable 才继续走 explicit Step boundary 或 adapter guard。
+    - 更新 `crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_gap_audit.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 与 `PIPELINE_GAPS.md`，将 `§3.12`、`§5.1`、`§5.4` 回写为 closed/re-scoped 的 effect-routing guard，并同步 inventory / audit / failure-policy 基线。
   - 核心决策：
+    - `FunValue` call-site 的 ABI 分类必须先看 authoritative callee provenance，再看 surface function type。否则 `val thunk: () -> Int / Ask = { handle { ... } }` 这类 actual outward-empty callable 会被误发布成 effect-step dynamic invoke contract。
+    - plain-path 的 “may outward effect” 判定不能继续依赖保守 summary；优先消费 published late-lowered callable ABI，才能让 `main(args)`、outward-empty closure/function-value 与 effect-typed surface 在同一套 actual-outward routing 下闭合。
+    - `§3.12`、`§5.1`、`§5.4` 关闭后仍保留在 inventory 中，但只作为 nonblocking regression / routing guard；后续若回归，只允许以 contract drift / routing bug 重新暴露，而不是恢复成默认主线 live blocker。
   - 验证结果：
+    - `cargo test -p scoopc refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry`
+    - `cargo test -p scoopc refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry`
+    - `cargo test -p scoopc closure_call_without_outward_effect_stays_on_direct_call_surface`
+    - `cargo test -p scoopc closure_call_with_real_outward_effect_uses_explicit_outcome_boundary`
+    - `cargo test -p scoopc effectful_funptr_call_uses_explicit_outcome_boundary`
+    - `cargo test -p scoopc refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell`
+    - `cargo test -p scoopc refactor_call_site_facts_distinguish_plain_call_and_effect_adapter_after_solver`
+    - `cargo test -p scoopc refactor_effect_solver_consumes_higher_order_function_value_call_in_handle`
+    - `cargo test -p scoopc codegen_gap_inventory`
+    - `cargo test -p scoopc pipeline_gap_audit`
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/receiver_function_value_call_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - 对应 `PLAN.md` P4 第 1、2、4、5 项：callable ABI routing 现在由 actual outward effect set / published callable ABI 决定；plain closure / function-value / `FunPtr` 的 effect-typed surface 已通过 adapter 或 published boundary 收口；`main(args)` 的 outward-empty plain routing 保持稳定。
+    - `PIPELINE_GAPS.md` 已回写 `§3.12`、`§5.1`、`§5.4` 为 `Closed/Re-scoped`；`codegen_gap_inventory.rs` / `pipeline_gap_audit.rs` 将这三项冻结为 nonblocking effect-routing guard，而 `P4-T02` 继续单独负责 `§5.3` cleanup/unwind contract 收尾。
 
 ### [TODO] P4-T02：收口 cleanup/unwind contract 与 `main(args)` plain routing
 

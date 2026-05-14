@@ -41,21 +41,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .map(Some);
             }
             if fqn == "scoop.core.GC.handleGet" {
-                return self.codegen_sysroot_gc_handle_get(span, member.span, args).map(Some);
+                return self
+                    .codegen_sysroot_gc_handle_get(span, member.span, args)
+                    .map(Some);
             }
             if fqn == "scoop.core.GC.handleDrop" {
-                return self.codegen_sysroot_gc_handle_drop(span, member.span, args).map(Some);
+                return self
+                    .codegen_sysroot_gc_handle_drop(span, member.span, args)
+                    .map(Some);
             }
             if fqn == "scoop.core.GC.pin" {
-                return self.codegen_sysroot_gc_pin(span, member.span, args, expected).map(Some);
+                return self
+                    .codegen_sysroot_gc_pin(span, member.span, args, expected)
+                    .map(Some);
             }
             if fqn == "scoop.core.GC.unpin" {
-                return self.codegen_sysroot_gc_unpin(span, member.span, args).map(Some);
+                return self
+                    .codegen_sysroot_gc_unpin(span, member.span, args)
+                    .map(Some);
             }
         }
 
         if member.name == "trimIndent" {
-            return self.codegen_string_trim_indent(span, receiver, args).map(Some);
+            return self
+                .codegen_string_trim_indent(span, receiver, args)
+                .map(Some);
         }
         if member.name == "toInt" {
             let recv_ty = match &receiver.kind {
@@ -78,9 +88,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
             ) {
                 let recv = self.codegen_expr(receiver)?;
-                return self.codegen_float_to_int_value(span, receiver.span, recv).map(Some);
+                return self
+                    .codegen_float_to_int_value(span, receiver.span, recv)
+                    .map(Some);
             }
-            return self.codegen_string_method(span, receiver, &member.name, args).map(Some);
+            return self
+                .codegen_string_method(span, receiver, &member.name, args)
+                .map(Some);
         }
         if matches!(
             member.name.as_str(),
@@ -95,7 +109,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | "getByte"
                 | "unsafeSliceBytes"
         ) {
-            return self.codegen_string_method(span, receiver, &member.name, args).map(Some);
+            return self
+                .codegen_string_method(span, receiver, &member.name, args)
+                .map(Some);
         }
         if member.name == "toString" {
             return self.codegen_to_string_method(span, receiver).map(Some);
@@ -121,17 +137,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let recv = self.codegen_expr(receiver)?;
                     self.codegen_float_hash_value(receiver.span, recv).map(Some)
                 }
-                _ => self.codegen_string_method(span, receiver, "hash", args).map(Some),
+                _ => self
+                    .codegen_string_method(span, receiver, "hash", args)
+                    .map(Some),
             };
         }
         if matches!(member.name.as_str(), "abs" | "isNaN" | "isInfinite") {
             let recv = self.codegen_expr(receiver)?;
             return match member.name.as_str() {
                 "abs" => self.codegen_float_abs_value(receiver.span, recv).map(Some),
-                "isNaN" => self.codegen_float_is_nan_value(receiver.span, recv).map(Some),
-                "isInfinite" => {
-                    self.codegen_float_is_infinite_value(receiver.span, recv).map(Some)
-                }
+                "isNaN" => self
+                    .codegen_float_is_nan_value(receiver.span, recv)
+                    .map(Some),
+                "isInfinite" => self
+                    .codegen_float_is_infinite_value(receiver.span, recv)
+                    .map(Some),
                 _ => unreachable!("filtered by matches!"),
             };
         }

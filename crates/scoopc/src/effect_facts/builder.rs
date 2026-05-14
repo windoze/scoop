@@ -3,9 +3,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use crate::ast;
 use crate::mir::{
     BasicBlockId, Body as MirBody, CallArg, CallKind, ConstValue, File as MirFile,
-    FunDecl as MirFunDecl, HandleMetadata, HandlerArm, InstanceKey, Item as MirItem,
-    MaterializedMir, Operand, PerformMetadata, ResumeMetadata, Rvalue, SiteId, StatementKind,
-    TemplateKey, TerminatorKind, UnwindAction,
+    FunDecl as MirFunDecl, HandleMetadata, HandlerArm, InstanceKey, InstanceSummary,
+    Item as MirItem, MaterializedMir, Operand, PerformMetadata, ResultProvenance,
+    ResultProvenanceSource, ResumeMetadata, Rvalue, SiteId, StatementKind, TemplateKey,
+    TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
 };
 use crate::resolve::{FunOverload, Index};
 use crate::session::Session;
@@ -42,6 +43,12 @@ pub struct MaterializedEffectFactsBuilder<'a> {
 #[derive(Debug, Clone)]
 struct SurfaceCallableContract {
     declared_row: EffectRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CallableValueProvenance {
+    DirectFunction(String),
+    KnownClosure(String),
 }
 
 impl EffectFactsTypeContext {
@@ -546,6 +553,7 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             callable_fun,
             callable_step_schema,
             current_case_index,
+            callable_summary_cache: HashMap::new(),
             sites: BTreeMap::new(),
             block_drafts: BTreeMap::new(),
             block_scan_cache: BTreeMap::new(),
@@ -1123,6 +1131,17 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 )? {
                     return Ok(facts);
                 }
+                if let Some(callable_fqn) = self.resolved_fun_value_callable_fqn(types, callee) {
+                    return self.build_direct_like_call_site(
+                        types,
+                        CallSiteKind::FunValue,
+                        &callable_fqn,
+                        args.len(),
+                        invoke_args_tuple_ty,
+                        result_ty,
+                        None,
+                    );
+                }
                 let callee_ty = operand_ty(self.body(), types, callee);
                 if let Some(contract) = function_surface_contract_from_ty(types, callee_ty)
                     && contract.declared_row.is_pure()
@@ -1215,6 +1234,226 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             CaseSet::new(self.callable_step_schema, Vec::new()),
             EffectPrecision::Precise,
         )))
+    }
+
+    fn resolved_fun_value_callable_fqn(
+        &mut self,
+        types: &TypeStore,
+        callee: &Operand,
+    ) -> Option<String> {
+        let mut visiting = HashSet::new();
+        self.callable_value_provenance_for_operand(types, callee, &mut visiting)
+            .map(|provenance| match provenance {
+                CallableValueProvenance::DirectFunction(fqn)
+                | CallableValueProvenance::KnownClosure(fqn) => fqn,
+            })
+    }
+
+    fn callable_value_provenance_for_operand(
+        &mut self,
+        types: &TypeStore,
+        operand: &Operand,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        let Operand::Local(local) = operand else {
+            return None;
+        };
+        self.callable_value_provenance_for_local(types, *local, visiting)
+    }
+
+    fn callable_value_provenance_for_local(
+        &mut self,
+        types: &TypeStore,
+        local: crate::mir::LocalId,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        if !visiting.insert(local) {
+            return None;
+        }
+
+        let assignments = self
+            .body()
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .filter_map(|stmt| {
+                let StatementKind::Assign { target, value } = &stmt.kind else {
+                    return None;
+                };
+                (*target == local).then_some(value.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut matched: Option<CallableValueProvenance> = None;
+        for value in assignments {
+            let candidate = self.callable_value_provenance_for_rvalue(types, &value, visiting)?;
+            match &matched {
+                Some(existing) if *existing != candidate => {
+                    visiting.remove(&local);
+                    return None;
+                }
+                Some(_) => {}
+                None => matched = Some(candidate),
+            }
+        }
+
+        visiting.remove(&local);
+        matched
+    }
+
+    fn callable_value_provenance_for_rvalue(
+        &mut self,
+        types: &TypeStore,
+        value: &Rvalue,
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        match value {
+            Rvalue::Use(operand) | Rvalue::Transport { value: operand, .. } => {
+                self.callable_value_provenance_for_operand(types, operand, visiting)
+            }
+            Rvalue::TopLevelRef(top_level) => Some(CallableValueProvenance::DirectFunction(
+                top_level.fqn.clone(),
+            )),
+            Rvalue::MakeClosure { fn_ptr, .. } => {
+                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
+            }
+            Rvalue::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                crate::mir::MemberTarget::Fun { fqn }
+                | crate::mir::MemberTarget::ExtensionFun { fqn } => {
+                    Some(CallableValueProvenance::DirectFunction(fqn.clone()))
+                }
+                crate::mir::MemberTarget::Value { .. }
+                | crate::mir::MemberTarget::ExtensionValue { .. } => None,
+            },
+            Rvalue::Call {
+                kind: CallKind::Direct { callee_fqn },
+                args,
+                ..
+            } => self.callable_value_provenance_from_direct_call(types, callee_fqn, args, visiting),
+            Rvalue::UnresolvedName { .. }
+            | Rvalue::Unary { .. }
+            | Rvalue::Binary { .. }
+            | Rvalue::TypeCheck { .. }
+            | Rvalue::Cast { .. }
+            | Rvalue::SizeOf { .. }
+            | Rvalue::TypeMetadataLiteral(_)
+            | Rvalue::EnumVariant { .. }
+            | Rvalue::ClassCtor { .. }
+            | Rvalue::Call { .. }
+            | Rvalue::MakeTuple { .. }
+            | Rvalue::StructLit { .. }
+            | Rvalue::InterpolatedString { .. }
+            | Rvalue::TupleGet { .. }
+            | Rvalue::CaptureBoxNew { .. }
+            | Rvalue::CaptureBoxGet { .. }
+            | Rvalue::CaptureBoxSet { .. }
+            | Rvalue::PatternMatch { .. }
+            | Rvalue::PatternExtract { .. }
+            | Rvalue::PerformResult { .. }
+            | Rvalue::Todo(_) => None,
+        }
+    }
+
+    fn callable_value_provenance_from_direct_call(
+        &mut self,
+        types: &TypeStore,
+        callee_fqn: &str,
+        args: &[CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        let summary = self.callable_summary(types, callee_fqn)?;
+        let params = self.raw_fun_by_fqn.get(callee_fqn)?.params.clone();
+        self.callable_value_provenance_from_result(
+            types,
+            &summary.result_provenance,
+            &params,
+            args,
+            visiting,
+        )
+    }
+
+    fn callable_summary(
+        &mut self,
+        types: &TypeStore,
+        callable_fqn: &str,
+    ) -> Option<InstanceSummary> {
+        if let Some(summary) = self.callable_summary_cache.get(callable_fqn) {
+            return Some(summary.clone());
+        }
+        let fun = self.raw_fun_by_fqn.get(callable_fqn)?;
+        let summary = summarize_pass_rewritten_fun(fun, types, None);
+        self.callable_summary_cache
+            .insert(callable_fqn.to_string(), summary.clone());
+        Some(summary)
+    }
+
+    fn callable_value_provenance_from_result(
+        &mut self,
+        types: &TypeStore,
+        result: &ResultProvenance,
+        params: &[crate::mir::Param],
+        args: &[CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        match result {
+            ResultProvenance::DirectFunction(fqn) => {
+                Some(CallableValueProvenance::DirectFunction(fqn.clone()))
+            }
+            ResultProvenance::KnownClosure(fn_ptr) => {
+                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
+            }
+            ResultProvenance::Param(index) => self
+                .callable_value_provenance_from_param_result(types, *index, params, args, visiting),
+            ResultProvenance::Join(sources) if sources.len() == 1 => self
+                .callable_value_provenance_from_result_source(
+                    types,
+                    &sources[0],
+                    params,
+                    args,
+                    visiting,
+                ),
+            ResultProvenance::Unit
+            | ResultProvenance::TopLevelValue(_)
+            | ResultProvenance::PerformResult(_)
+            | ResultProvenance::Join(_)
+            | ResultProvenance::Unknown => None,
+        }
+    }
+
+    fn callable_value_provenance_from_result_source(
+        &mut self,
+        types: &TypeStore,
+        source: &ResultProvenanceSource,
+        params: &[crate::mir::Param],
+        args: &[CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        match source {
+            ResultProvenanceSource::DirectFunction(fqn) => {
+                Some(CallableValueProvenance::DirectFunction(fqn.clone()))
+            }
+            ResultProvenanceSource::KnownClosure(fn_ptr) => {
+                Some(CallableValueProvenance::KnownClosure(fn_ptr.clone()))
+            }
+            ResultProvenanceSource::Param(index) => self
+                .callable_value_provenance_from_param_result(types, *index, params, args, visiting),
+            ResultProvenanceSource::TopLevelValue(_) | ResultProvenanceSource::PerformResult(_) => {
+                None
+            }
+        }
+    }
+
+    fn callable_value_provenance_from_param_result(
+        &mut self,
+        types: &TypeStore,
+        index: usize,
+        params: &[crate::mir::Param],
+        args: &[CallArg],
+        visiting: &mut HashSet<crate::mir::LocalId>,
+    ) -> Option<CallableValueProvenance> {
+        let bound_args = bind_call_args_to_params(params, args)?;
+        let operand = bound_args.get(index)?;
+        self.callable_value_provenance_for_operand(types, operand, visiting)
     }
 
     fn fun_value_callee_is_builtin_string_member(
@@ -1721,6 +1960,7 @@ struct BodyFactsBuilder<'a, 'b> {
     callable_fun: &'a MirFunDecl,
     callable_step_schema: StepSchemaId,
     current_case_index: HashMap<ConcreteOpKey, CurrentBodyCaseInfo>,
+    callable_summary_cache: HashMap<String, InstanceSummary>,
     sites: BTreeMap<SiteId, SiteEffectFacts>,
     block_drafts: BTreeMap<BasicBlockId, BlockDraft>,
     block_scan_cache: BTreeMap<BasicBlockId, RegionCaseContribution>,
@@ -2666,6 +2906,36 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
     }
 }
 
+fn bind_call_args_to_params(
+    params: &[crate::mir::Param],
+    args: &[CallArg],
+) -> Option<Vec<Operand>> {
+    if args.len() != params.len() {
+        return None;
+    }
+
+    let mut slots = vec![None; params.len()];
+    let mut next_positional = 0usize;
+    for arg in args {
+        let index = if let Some(name) = &arg.name {
+            params.iter().position(|param| &param.name == name)?
+        } else {
+            while next_positional < params.len() && slots[next_positional].is_some() {
+                next_positional += 1;
+            }
+            let index = next_positional;
+            next_positional += 1;
+            index
+        };
+        if index >= slots.len() || slots[index].is_some() {
+            return None;
+        }
+        slots[index] = Some(arg.value.clone());
+    }
+
+    slots.into_iter().collect()
+}
+
 /// site-level facts 需要给本地 `perform` / `resume` / `handle` 产生稳定 case tag，即使 callable 的
 /// surface `declared_row` 因本地 `handle` 吸收而是 `Pure`。
 fn callable_step_effect_row(
@@ -2898,7 +3168,9 @@ fn collect_top_level_value_surface_contracts(
 ) -> HashMap<String, SurfaceCallableContract> {
     top_level_value_tys
         .iter()
-        .filter_map(|(fqn, ty)| function_surface_contract_from_ty(types, *ty).map(|contract| (fqn.clone(), contract)))
+        .filter_map(|(fqn, ty)| {
+            function_surface_contract_from_ty(types, *ty).map(|contract| (fqn.clone(), contract))
+        })
         .collect()
 }
 

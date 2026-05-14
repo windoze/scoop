@@ -808,11 +808,7 @@ impl<'a> HirLowering<'a> {
                 {
                     (kind, typechecked_call_ty.unwrap_or(ty))
                 } else if let Some((kind, ty)) = self.try_lower_retained_builtin_member_call_expr(
-                    pkg_prefix,
-                    e.span,
-                    callee,
-                    args,
-                    call_ty,
+                    pkg_prefix, e.span, callee, args, call_ty,
                 ) {
                     (kind, ty)
                 } else {

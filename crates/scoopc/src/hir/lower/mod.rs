@@ -7043,7 +7043,10 @@ fun main(): Int {
             panic!("期望外层表达式被 lower 为调用，实际为 {:?}", call_expr.kind);
         };
         assert!(
-            matches!(lowered.types.kind(callee.ty), TypeKind::Ref(RefTypeKind::Function(_))),
+            matches!(
+                lowered.types.kind(callee.ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            ),
             "调用返回的 callable 在 typed HIR 中应保留函数类型，实际为 {}",
             lowered.types.display(callee.ty)
         );
@@ -7072,18 +7075,27 @@ val topNamed: String.(Int) -> Int = { n: Int -> this.length() + n }
             panic!("topNamed initializer 应为 closure，实际为 {:?}", init.kind);
         };
         let ExprKind::Binary { lhs, .. } = &closure.body.kind else {
-            panic!("receiver closure body 应为 binary，实际为 {:?}", closure.body.kind);
+            panic!(
+                "receiver closure body 应为 binary，实际为 {:?}",
+                closure.body.kind
+            );
         };
         let ExprKind::Call { callee, args } = &lhs.kind else {
             panic!("length 调用应保留为 Call，实际为 {:?}", lhs.kind);
         };
         assert!(args.is_empty(), "String.length() 不应携带实参: {args:?}");
         let ExprKind::MemberAccess { member, .. } = &callee.kind else {
-            panic!("length 调用 callee 应为 MemberAccess，实际为 {:?}", callee.kind);
+            panic!(
+                "length 调用 callee 应为 MemberAccess，实际为 {:?}",
+                callee.kind
+            );
         };
         assert_eq!(member.name, "length");
         assert!(
-            matches!(lowered.types.kind(callee.ty), TypeKind::Ref(RefTypeKind::Function(_))),
+            matches!(
+                lowered.types.kind(callee.ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            ),
             "length callee 在 side table 中应是函数类型，实际为 {}",
             lowered.types.display(callee.ty)
         );

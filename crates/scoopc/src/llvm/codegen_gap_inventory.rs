@@ -163,12 +163,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §3.12",
-        "CG-T05",
-        "CG-T05",
+        "P4-T01",
+        "P4-T01 / effect-typed callable adapter regression guard",
         EffectRefactorLlvm,
         false,
-        true,
-        "refactor effect-typed adapter unsupported"
+        false,
+        "effect-typed callable adapter regression guard"
     ),
     gap!(
         "PIPELINE_GAPS §3.13",
@@ -226,12 +226,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §5.1",
-        "CG-T05",
-        "CG-T05",
+        "P4-T01",
+        "P4-T01 / actual-outward ABI routing guard",
         EffectRefactorLlvm,
         true,
-        true,
-        "refactor plain callable effect/control terminator"
+        false,
+        "actual outward effect set must uniquely decide callable ABI"
     ),
     gap!(
         "PIPELINE_GAPS §5.2",
@@ -253,12 +253,12 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
     ),
     gap!(
         "PIPELINE_GAPS §5.4",
-        "CG-T05",
-        "CG-T05",
+        "P4-T01",
+        "P4-T01 / outward-empty plain routing guard",
         EffectRefactorLlvm,
         true,
-        true,
-        "refactor effect-step main argv ABI unsupported"
+        false,
+        "outward-empty callable must publish plain entry routing"
     ),
     gap!(
         "PIPELINE_GAPS §5.5",
@@ -553,6 +553,45 @@ mod tests {
             store_member.trigger,
             "typed StoreMember continuation route must be unique before handoff"
         );
+    }
+
+    #[test]
+    fn codegen_gap_inventory_marks_p4_t01_effect_routing_gaps_as_closed_guards() {
+        for (gap_id, owner, suggested_owner, needs_upstream_contract, trigger) in [
+            (
+                "PIPELINE_GAPS §3.12",
+                "P4-T01",
+                "P4-T01 / effect-typed callable adapter regression guard",
+                false,
+                "effect-typed callable adapter regression guard",
+            ),
+            (
+                "PIPELINE_GAPS §5.1",
+                "P4-T01",
+                "P4-T01 / actual-outward ABI routing guard",
+                true,
+                "actual outward effect set must uniquely decide callable ABI",
+            ),
+            (
+                "PIPELINE_GAPS §5.4",
+                "P4-T01",
+                "P4-T01 / outward-empty plain routing guard",
+                true,
+                "outward-empty callable must publish plain entry routing",
+            ),
+        ] {
+            let entry = codegen_gap_entry(gap_id)
+                .unwrap_or_else(|| panic!("{gap_id} guard should remain tracked in inventory"));
+            assert_eq!(entry.owner_task, owner);
+            assert_eq!(entry.suggested_owner, suggested_owner);
+            assert_eq!(entry.route, CodegenGapRoute::EffectRefactorLlvm);
+            assert_eq!(entry.needs_upstream_contract, needs_upstream_contract);
+            assert!(
+                !entry.production_blocker,
+                "{gap_id} should now be represented as a closed effect-routing guard"
+            );
+            assert_eq!(entry.trigger, trigger);
+        }
     }
 
     #[test]
