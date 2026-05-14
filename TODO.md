@@ -1595,7 +1595,7 @@
     - `PIPELINE_GAPS.md §9 验证矩阵`：`cargo test --all` / `cargo run -p scoop -- test` / GC stress 主线 / `codegen_gap_inventory` / `llvm::tests::*` 全部跑过，`refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir`、`refactor_llvm_source_classification_verifier`、`refactor_llvm_resume_unwind_lowering`、`refactor_llvm_thread_resume_noncomplete_policy`、`refactor_llvm_cross_thread_resume_payload_transport` 已包含在 `cargo test --all` 的 837 项 lib 测试中，未见漂移。
     - 本任务未发现需要回到上游任务修复的新 blocker，因此不修改 `PLAN.md` / `PIPELINE_GAPS.md` / 任何上游任务条目；P7-T02 继续按现有顺序进行。
 
-### [TODO] P7-T02：审计所有用户可见失败路径并完成最终回写
+### [DONE] P7-T02：审计所有用户可见失败路径并完成最终回写
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §0、§5 / P7
@@ -1641,6 +1641,24 @@
 - 依赖：`P7-T01`
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc/src/typecheck/lower.rs`：`lower_struct_direct_field_infos` 中“primary ctor 无类型注解”分支替换为 `unreachable!`，并把 `use_span` 重命名为 `_use_span`，以反映该分支已被 `typecheck::check_file_headers` 的 `MissingTypeAnnotation` 上游网关锁住。
+    - `crates/scoopc/src/typecheck/when_pat.rs`：`WhenPat::Variant` 上三处 `UnsupportedExpr {kind: "..."}` 全部改为带文档化上游 gate 的 `expect` / `unreachable!`（空路径由 parser 保证、enum decl 缺失由 `enum_instance_from_type` 保证、type-arg arity 由同一处保证）。
+    - `crates/scoopc/src/llvm/mod.rs`：`LlvmEmitError::UnsupportedMainBody` 用户文案由“暂不支持的 main 代码生成节点”改写为“编译器内部不变量被打破（compiler bug）：LLVM 主 codegen 收到本不应抵达的节点：{kind}（这表示上游 contract drift，不是合法语言特性）”，与 §0 的 contract-violation 桶定位一致。
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：`STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 清空；新增 `POST_UPSTREAM_VALIDATION_GUARDS` 文档化 4 条 typecheck 上游 gate；`INTERNAL_BUG_SENTINEL_HITS` 加入 `lower.rs:1181`、`when_pat.rs:209`、`when_pat.rs:258`，并把原 `lower.rs:2365/2967/3212` 同步到删行后的 `2363/2965/3210`；新增 `pipeline_user_visible_failure_policy_documents_upstream_guards` 测试。
+    - `PIPELINE_GAPS.md`：在文件头部加入“P7-T02 终态”段，明确写下三条最终结论是否成立（全部成立），并指向 `pipeline_user_visible_failure_policy.rs` / `pipeline_gap_audit.rs` 作为机器可消费的入口。
+    - `TODO.md`：本任务标题前缀改为 `[DONE]` 并填写本完成记录。
+    - `memory/claude_plan.md`：更新本轮的执行计划与进度。
   - 核心决策：
+    - 用户可见失败路径只承认两种合法分类：(a) `FrontendReject` 表达“非法输入 / 当前语言 contract 不接受”的稳定文案（仍被 `pipeline_user_visible_failure_policy_freezes_frontend_reject_surfaces` 锁住，禁止出现“后端 / backend / LLVM / codegen / UnsupportedMainBody”等让用户暴露内部分类的术语）；(b) `INTERNAL_BUG_SENTINEL_HITS` 表达“合法输入 + 上游 contract drift”的 `panic!` / `unreachable!`，每条都必须在 `POST_UPSTREAM_VALIDATION_GUARDS` 或代码注释里写清究竟是哪个上游网关让它不可达。任何处于这两类之外的用户可见结果都视为本轮终态遗漏。
+    - “这些 sentinel 本来就不会触发”不是合法分类。本轮把 P0-T02 baseline 的 4 条 `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 全部替换为带具名上游 gate 的 internal-bug sentinel；同时把 `LlvmEmitError::UnsupportedMainBody` 文案改写为显式 “compiler bug”，从而消除“暂不支持”这种模糊语义在用户可见路径上的残留。
+    - 不进一步重写其它仍含“暂不支持”的诊断（comptime / annotation class / `UnsupportedExpr` / `UnsupportedTypeRef` 等）：这些都是 `FrontendReject` 之外的“当前语言 contract 之内但实现尚未铺开”的合法 frontend 反馈，受相应任务而非本轮再处理；P7-T02 的 surface 严格限定在 `FrontendReject` + `UnsupportedMainBody` + 4 条 audited stale typecheck 路径。
   - 验证结果：
+    - `cargo test --all --all-targets`：1078 项通过 / 0 失败 / 0 ignored（含 `pipeline_user_visible_failure_policy::*` 7 项、`pipeline_gap_audit::*` 5 项；`scoopc` lib 838 / `scoopc` features=llvm 230 / 其它 crates 与 e2e 套件全部 PASS）。
+    - `cargo run -p scoop -- test`：1269 fixture 全部 PASS（包括 `tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`、`fun_param_missing_type_is_error.scoop`、`when_or_pattern_*` 等命中 `FrontendReject` 路径的 fail 用例与全部 pass 用例）。
+    - `rg 'UnsupportedMainBody|Unsupported[A-Za-z_]+|todo!|panic!|unreachable!' crates/scoopc/src`：得到 2229 行命中；其中 production-path 部分由 `pipeline_user_visible_failure_policy` 6 项强约束（`*_records_scope_keywords_and_rules`、`*_freezes_frontend_reject_surfaces`、`*_tracks_stale_unsupportedmainbody_counts`、`*_tracks_other_stale_unsupported_markers`、`*_forbids_production_todo_macros`、`*_tracks_internal_bug_sentinels`、`*_documents_upstream_guards`）继续锁定为 0 stale + 0 todo! + 23 internal-bug-sentinel + 802 `UnsupportedMainBody` contract-drift 桶；其余命中是测试代码 / `#[cfg(test)]` 块内的辅助 panic / unreachable，不在 production 审计范围。
+    - `cargo test -p scoopc --features llvm --lib llvm::`：230 项 / 0 失败（608 filtered）。
+    - `cargo clippy --all-targets --features llvm -- -D warnings`：clean。
   - 与 `PLAN.md` / `PIPELINE_GAPS.md` 对应闭合：
+    - `PLAN.md` §0：本任务严格按“合法输入 → 正确输出，非法输入 → 明确错误，其它 → 编译器 bug”三条原则收束 surface，未出现折中或重新放宽 contract 的情况；§5 / P7 完成条件 1-4 均已成立（默认主线 live gap 全部关闭、active code 不残留 `LegacyOnly` / 旧 reason 串、production MIR / materialized MIR / raw MIR / effect-refactor / aggregate transport 全部仅依赖新主线 contract、`FrontendReject` surface 与 backend 真实能力同步）。
+    - `PIPELINE_GAPS.md` §0：新增的“P7-T02 终态”段明确写下三条最终结论已成立，并指向 `pipeline_user_visible_failure_policy.rs` 的最新分类入口；§9 验证矩阵列出的命令全部在本轮跑过，无回归。`UnsupportedMainBody` 与 §0 既有定位（contract-violation / impossible-state assertion 桶）一致——文案改写后用户可见信息也不再含“暂不支持”这种功能列表式语义。
+    - 后续任何对“`暂不支持` 文案”的全局重写（comptime / annotation / `UnsupportedExpr` / `UnsupportedTypeRef` 等）必须以新任务形式出现在 `TODO.md`，不能被本轮 P7-T02 隐含吞下；P7-T02 surface 严格限定在 `FrontendReject` + `UnsupportedMainBody` + 4 条 audited stale typecheck 路径。

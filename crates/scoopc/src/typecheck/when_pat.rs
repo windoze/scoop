@@ -164,14 +164,14 @@ fn check_when_pat(
             }
         }
         ast::WhenPat::Variant { path, args, span } => {
-            let variant_ident =
-                path.segments
-                    .last()
-                    .copied()
-                    .ok_or_else(|| ExprTypeError::UnsupportedExpr {
-                        kind: "when variant pattern（空路径）",
-                        span: (*span).into(),
-                    })?;
+            // Upstream gate: parser guarantees a `WhenPat::Variant` path always
+            // contains at least one segment (the variant ident). An empty path
+            // here therefore violates the parser contract.
+            let variant_ident = path
+                .segments
+                .last()
+                .copied()
+                .expect("when variant pattern path should contain at least one segment");
             let variant_name = source.slice(variant_ident.span);
 
             let (enum_fqn, enum_args, enum_source) =
@@ -197,12 +197,19 @@ fn check_when_pat(
                 }
             }
 
-            let decl = lower.env().enum_decl(&enum_fqn).cloned().ok_or_else(|| {
-                ExprTypeError::UnsupportedExpr {
-                    kind: "when variant pattern（缺少 enum 声明信息）",
-                    span: (*span).into(),
-                }
-            })?;
+            // Upstream gate: `enum_instance_from_type` returns the enum FQN by
+            // looking it up in the type env above; the env therefore must
+            // contain a corresponding `enum_decl`. A missing decl here violates
+            // that resolve/type-env contract.
+            let decl = lower
+                .env()
+                .enum_decl(&enum_fqn)
+                .cloned()
+                .unwrap_or_else(|| {
+                    unreachable!(
+                        "enum decl `{enum_fqn}` should exist after enum_instance_from_type succeeded",
+                    )
+                });
 
             let variant = decl
                 .variants
@@ -243,12 +250,14 @@ fn check_when_pat(
                 });
             }
 
-            // 将 enum 声明处的 type params 映射到当前 subject 的实例化 type args。
+            // Upstream gate: `enum_instance_from_type` produced `enum_args`
+            // from the same nominal instance whose declaration we just looked
+            // up; arity must match by construction. A mismatch here means the
+            // resolve/type-env contract drifted.
             if decl.type_params.len() != enum_args.len() {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "when variant pattern（enum type args 数量异常）",
-                    span: (*span).into(),
-                });
+                unreachable!(
+                    "enum `{enum_fqn}` type-arg arity drift between declaration and instance",
+                );
             }
 
             let type_param_set: HashSet<String> = decl.type_params.iter().cloned().collect();

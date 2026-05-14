@@ -158,7 +158,9 @@ pub enum LlvmEmitError {
     #[diagnostic(code(scoop::llvm::ambiguous_entry_main))]
     AmbiguousEntryMain { entry: String, count: usize },
 
-    #[error("暂不支持的 main 代码生成节点：{kind}")]
+    #[error(
+        "编译器内部不变量被打破（compiler bug）：LLVM 主 codegen 收到本不应抵达的节点：{kind}（这表示上游 contract drift，不是合法语言特性）"
+    )]
     #[diagnostic(code(scoop::llvm::unsupported_main_body))]
     UnsupportedMainBody {
         kind: &'static str,

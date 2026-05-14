@@ -1,5 +1,16 @@
 # PIPELINE_GAPS
 
+## 状态更新（2026-05-14，P7-T02 终态）
+
+- 本文件结束于 P7-T02 的最终复核：用户可见失败路径已收口为两类——“非法输入 → 明确诊断的前端拒绝”和“合法输入 + 上游 contract drift → 编译器 bug sentinel”。两者之外不再有第三种用户可见结果。
+- 三条最终结论都已成立：
+  - 合法输入 → 正确输出（`cargo run -p scoop -- test` 全部 PASS，1269 个 fixture）。
+  - 非法输入 → 明确错误（`FRONTEND_REJECT_SURFACES` 五条仍由 `pipeline_user_visible_failure_policy_freezes_frontend_reject_surfaces` 锁住稳定文案，禁止使用“后端/backend/LLVM/codegen/UnsupportedMainBody”这类把内部分类泄漏给用户的术语）。
+  - 其它一律视为编译器 bug：`LlvmEmitError::UnsupportedMainBody` 的用户文案改写为“编译器内部不变量被打破（compiler bug）：LLVM 主 codegen 收到本不应抵达的节点”，与 §0 的“contract-violation / impossible-state assertion 桶”定位完全一致；P0-T02 baseline 中标记为 `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 的 4 条 typecheck 路径已替换为带文档化 upstream gate 的 `unreachable!` / `expect`，并迁入 `INTERNAL_BUG_SENTINEL_HITS`。
+- 终态分类入口：
+  - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：5 条 `FRONTEND_REJECT_SURFACES`（含稳定 diagnostic code、message、fixture marker）；23 条 `INTERNAL_BUG_SENTINEL_HITS`（按文件 + 行锁定）；4 条 `POST_UPSTREAM_VALIDATION_GUARDS` 文档化每个 sentinel 对应的上游 gate；`STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 已清空。
+  - `crates/scoopc/src/pipeline_gap_audit.rs`：`LegacyOnly`、legacy reason lexicon、scope-drift baseline 仍保持 P7-T01 的 0 hit / 21 entry 状态。
+
 ## 状态更新（2026-05-14，P6-T03 终态）
 
 - 本文件作为 P6-T03 收尾的**终态账本**：所有 `PIPELINE_GAPS §...` 编号要么已 `Closed/Re-scoped`，要么已 `Historical`，要么落到前端显式 `FrontendReject` gate 上。本轮没有任何 `Open` 或 `Partial` 编号留在主线。

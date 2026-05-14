@@ -1149,7 +1149,7 @@ impl<'a> TypeLowering<'a> {
         &mut self,
         struct_fqn: &str,
         concrete_args: &[TypeId],
-        use_span: Span,
+        _use_span: Span,
     ) -> Result<Vec<StructDirectFieldInfo>, TypeLowerError> {
         let Some(ctors) = self.index.constructors.get(struct_fqn) else {
             return Ok(Vec::new());
@@ -1173,9 +1173,15 @@ impl<'a> TypeLowering<'a> {
 
         let mut out = Vec::with_capacity(primary_ctor.params.len());
         for param in &primary_ctor.params {
-            let Some(ty_ref) = &param.ty else {
-                continue;
-            };
+            // Upstream gate: `typecheck::check_file_headers` rejects struct/class
+            // primary-ctor params without a type annotation via
+            // `TypeHeaderError::MissingTypeAnnotation`. Reaching this site with
+            // `param.ty == None` therefore violates that upstream contract.
+            let ty_ref = param.ty.as_ref().unwrap_or_else(|| {
+                unreachable!(
+                    "primary ctor param without type annotation should have been rejected by check_file_headers",
+                )
+            });
             let ty = self.lower_type_ref_in_decl_file_with_bindings(
                 &primary_ctor.decl_file,
                 bindings.iter().cloned(),
@@ -1187,14 +1193,6 @@ impl<'a> TypeLowering<'a> {
                 has_default: param.has_default,
             });
         }
-
-        if primary_ctor.params.iter().any(|param| param.ty.is_none()) {
-            return Err(TypeLowerError::UnsupportedTypeRef {
-                kind: "struct direct field type",
-                span: use_span.into(),
-            });
-        }
-
         Ok(out)
     }
 

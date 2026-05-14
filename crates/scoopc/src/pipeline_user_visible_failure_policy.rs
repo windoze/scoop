@@ -208,22 +208,41 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
     },
 ];
 
-const STALE_USER_VISIBLE_UNSUPPORTED_MARKERS: &[SourceMarker] = &[
-    SourceMarker {
-        path: "crates/scoopc/src/typecheck/lower.rs",
-        marker: "kind: \"struct direct field type\",",
+// P7-T02 final state: every previously-stale user-visible `Unsupported*` site
+// in this audit list has been replaced by an internal-bug sentinel guarded by
+// an upstream contract (see `INTERNAL_BUG_SENTINEL_HITS`). Reaching any of
+// those sites now means the upstream gate drifted, not that the user wrote
+// "not yet supported" syntax.
+const STALE_USER_VISIBLE_UNSUPPORTED_MARKERS: &[SourceMarker] = &[];
+
+/// Maps each previously-stale user-visible `Unsupported*` site to the upstream
+/// frontend gate that makes it impossible on legal input. The actual sentinel
+/// now lives in [`INTERNAL_BUG_SENTINEL_HITS`].
+struct UpstreamGuardedSentinel {
+    site: &'static str,
+    upstream_gate: &'static str,
+}
+
+const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/typecheck/lower.rs::lower_struct_direct_field_infos",
+        upstream_gate:
+            "typecheck::check_file_headers rejects struct/class primary-ctor params without a type annotation via TypeHeaderError::MissingTypeAnnotation",
     },
-    SourceMarker {
-        path: "crates/scoopc/src/typecheck/when_pat.rs",
-        marker: "kind: \"when variant pattern（空路径）\",",
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant empty path guard",
+        upstream_gate:
+            "parser guarantees a `WhenPat::Variant` path always contains at least one segment",
     },
-    SourceMarker {
-        path: "crates/scoopc/src/typecheck/when_pat.rs",
-        marker: "kind: \"when variant pattern（缺少 enum 声明信息）\",",
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant missing enum decl guard",
+        upstream_gate:
+            "enum_instance_from_type returns the enum FQN by looking it up in the type env, so the env must contain a corresponding enum_decl",
     },
-    SourceMarker {
-        path: "crates/scoopc/src/typecheck/when_pat.rs",
-        marker: "kind: \"when variant pattern（enum type args 数量异常）\",",
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant type-arg arity guard",
+        upstream_gate:
+            "enum_instance_from_type produces enum_args from the same nominal instance whose declaration we just looked up; arity matches by construction",
     },
 ];
 
@@ -245,9 +264,12 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mod.rs:8947:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/mir/materialize.rs:6216:                    panic!(",
     "crates/scoopc/src/mir/materialize.rs:8830:            panic!(",
-    "crates/scoopc/src/typecheck/lower.rs:2365:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:2967:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3212:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/typecheck/lower.rs:1181:                unreachable!(",
+    "crates/scoopc/src/typecheck/lower.rs:2363:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:2965:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3210:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/typecheck/when_pat.rs:209:                    unreachable!(",
+    "crates/scoopc/src/typecheck/when_pat.rs:258:                unreachable!(",
 ];
 
 #[test]
@@ -356,6 +378,10 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
 
 #[test]
 fn pipeline_user_visible_failure_policy_tracks_other_stale_unsupported_markers() {
+    assert!(
+        STALE_USER_VISIBLE_UNSUPPORTED_MARKERS.is_empty(),
+        "P7-T02 final state: every previously-stale user-visible Unsupported* site should have been replaced by an upstream-guarded internal-bug sentinel"
+    );
     for marker in STALE_USER_VISIBLE_UNSUPPORTED_MARKERS {
         assert_source_marker(*marker);
         println!(
@@ -364,6 +390,17 @@ fn pipeline_user_visible_failure_policy_tracks_other_stale_unsupported_markers()
             marker.path,
             marker.marker
         );
+    }
+}
+
+#[test]
+fn pipeline_user_visible_failure_policy_documents_upstream_guards() {
+    assert!(
+        !POST_UPSTREAM_VALIDATION_GUARDS.is_empty(),
+        "post-upstream-validation guards should remain documented"
+    );
+    for guard in POST_UPSTREAM_VALIDATION_GUARDS {
+        println!("upstream guard: {} <- {}", guard.site, guard.upstream_gate);
     }
 }
 
