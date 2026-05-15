@@ -545,6 +545,12 @@ pub struct Index {
     /// - object 单例值：`Obj.member`
     /// - enum 作为 value namespace：`Enum.Variant`
     pub object_types: HashSet<String>,
+    /// 类型 FQN → direct supertype FQN 列表（声明顺序；含 superclass 与 interfaces，不含隐式 `Any`）（P4-T01g）。
+    ///
+    /// 用途：在 member 解析未命中"自身声明面"时沿继承链向上查找 inherited body member。
+    /// 由 [`Index::collect_direct_supertypes`] 在 `add_file_in_cone` 全部完成后填充，
+    /// 因此 supertype FQN 解析结果可用且与 cross-file 顺序无关。
+    pub direct_supertypes: HashMap<String, Vec<String>>,
 }
 
 /// `Index` 构建输入：一个源文件 + AST，以及它所属的 cone。
@@ -585,6 +591,7 @@ impl Index {
         }
         index.collect_extension_funs(files);
         index.collect_extension_properties(files);
+        index.collect_direct_supertypes(files);
         Ok(index)
     }
 
@@ -715,6 +722,114 @@ impl Index {
                     decl_file: f.source.path().to_path_buf(),
                     span: prop.name.span,
                 });
+            }
+        }
+    }
+
+    /// 收集 type FQN → direct supertype FQN 列表（P4-T01g）。
+    ///
+    /// 在所有源文件已经通过 [`Index::add_file_in_cone`] 进入 `by_fqn` 后调用，
+    /// 这样 `type_ref_to_fqn_in_file` 才能稳定解出 cross-file 的 supertype 引用。
+    /// 仅记录 nominal class/struct/object 之间的直接继承关系；
+    /// 隐式 `Any` 不在此处显式存储。
+    fn collect_direct_supertypes(&mut self, files: &[IndexedFile<'_>]) {
+        self.direct_supertypes.clear();
+
+        for f in files {
+            let pkg_prefix = package_prefix(f.source, f.file.package.as_ref());
+            for item in &f.file.items {
+                match item {
+                    ast::Item::Type(ty) => {
+                        self.collect_type_decl_supertypes(f.source, f.file, &pkg_prefix, ty);
+                    }
+                    ast::Item::Object(obj) => {
+                        self.collect_object_decl_supertypes(f.source, f.file, &pkg_prefix, obj);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn collect_type_decl_supertypes(
+        &mut self,
+        source: &SourceFile,
+        file: &ast::File,
+        prefix: &str,
+        ty: &ast::TypeDecl,
+    ) {
+        let type_name = source.slice(ty.name.span);
+        let type_prefix = if prefix.is_empty() {
+            type_name.to_string()
+        } else {
+            format!("{prefix}.{type_name}")
+        };
+
+        let mut supers: Vec<String> = Vec::new();
+        for st in &ty.supertypes {
+            if let Some(super_fqn) = self.type_ref_to_fqn_in_file(source, file, &st.ty) {
+                supers.push(super_fqn);
+            }
+        }
+        if !supers.is_empty() {
+            self.direct_supertypes.insert(type_prefix.clone(), supers);
+        }
+
+        let Some(body) = &ty.body else {
+            return;
+        };
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    self.collect_type_decl_supertypes(source, file, &type_prefix, nested);
+                }
+                ast::TypeMember::Object(obj) => {
+                    self.collect_object_decl_supertypes(source, file, &type_prefix, obj);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_object_decl_supertypes(
+        &mut self,
+        source: &SourceFile,
+        file: &ast::File,
+        prefix: &str,
+        obj: &ast::ObjectDecl,
+    ) {
+        let Some(name) = obj.name.as_ref() else {
+            return;
+        };
+        let obj_name = source.slice(name.span);
+        let obj_prefix = if prefix.is_empty() {
+            obj_name.to_string()
+        } else {
+            format!("{prefix}.{obj_name}")
+        };
+
+        let mut supers: Vec<String> = Vec::new();
+        for st in &obj.supertypes {
+            if let Some(super_fqn) = self.type_ref_to_fqn_in_file(source, file, &st.ty) {
+                supers.push(super_fqn);
+            }
+        }
+        if !supers.is_empty() {
+            self.direct_supertypes.insert(obj_prefix.clone(), supers);
+        }
+
+        let Some(body) = &obj.body else {
+            return;
+        };
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    self.collect_type_decl_supertypes(source, file, &obj_prefix, nested);
+                }
+                ast::TypeMember::Object(nested_obj) => {
+                    self.collect_object_decl_supertypes(source, file, &obj_prefix, nested_obj);
+                }
+                _ => {}
             }
         }
     }

@@ -1,65 +1,60 @@
-## 本轮执行计划
+## 本轮执行计划（P4-T01g）
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断完成状态，锁定第一个未完成任务。
-2. 查看最近一次 git 提交信息，确认是否存在与该任务直接相关且明确标注未完成的事项；如果存在，将其作为当前任务的一部分或在 `TODO.md` 中登记为前置依赖。
-3. 阅读当前任务涉及的代码、测试、规范记录（必要时包含 `PLAN.md` 中的阶段背景，但不把它当作任务真源）。
-4. 在不规避规范缺口的前提下，直接实现该任务；如果发现阻塞当前任务的真实缺陷或缺失特性，则先在 `TODO.md` 中按依赖顺序补充最小必要前置任务，并停止继续推进当前任务。
-5. 运行与当前任务直接相关的验证，再运行要求的质量检查（至少包含相关测试，以及可行时的 `cargo clippy --all-targets -- -D warnings`）。
-6. 完成后更新 `memory/claude_plan.md`、`TODO.md` 的完成记录与 `[DONE]` 前缀；仅在阶段计划发生变化时更新 `PLAN.md`。
-7. 按仓库约定创建一次 git 提交，只提交当前任务相关的最终结果，然后停止，不进入下一个任务。
+按照 `PROMPT.md` 规范完成 `TODO.md` 中第一个未完成任务 **P4-T01g**：解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段。
 
-## 当前任务
+### 任务确认
 
-- 首个未完成任务：`P4-T01f`。
-- 最近一次提交标题是 `[P4-T01f] Record scalar String bridge prerequisite`，说明它只是把该任务前置条件写入 `TODO.md`，当前仍需实际落地 bridge。
+- 检查 `TODO.md` 顶部任务索引，在 `P4-T01f` 已 [DONE] 之后第一个未完成任务确实是 `P4-T01g`（这是新增的两条 P4 前置 IV 子任务之一）。
+- 检查最近一次 commit `[P4-T01f] Finalize execution log` 等，无遗留未完成项需要并入。
 
-## 已确认实现方案
+### 实现方案要点
 
-1. 保持 `check_extern_fun_signature_matches_native_abi()` 不变，继续拒绝 native `@Extern` 的 `String` / managed ref surface。
-2. 复用现有 named intrinsic `RuntimeCall` 审计表，不新增任何“native `@Extern` 放宽”路径：
-   - 为 `scoop_char_to_string` / `scoop_int_to_string` / `scoop_float32_to_string` / `scoop_float64_to_string` 增加显式 named intrinsic entry；
-   - 在审计表里写清 runtime symbol、精确签名和 why-runtime 理由，明确它们是 substrate bridge，而不是新的用户态 FFI 能力。
-3. 新增一个可编译 sysroot 文件，定义 ordinary managed helper（带 body），由 helper body 调用上述 named intrinsic bridge；这样后续 `P4-T01` 可以直接用 ordinary managed call 引用这些 helper，而不必借旧 `toString` 按名特判自举。
-4. 把该 sysroot 文件加入“始终进入完整编译管线”的 support source 列表，确保 helper body 会被真正编译进模块。
-5. 补两类回归：
-   - typecheck fixture：native `@Extern` 继续拒绝 `String` 返回；
-   - LLVM / fixture：compiled sysroot helper 会编进模块，并通过 ordinary managed 路径返回 `String`，其 helper body 内部再调用 runtime substrate symbol。
-6. 若实现过程中发现 named intrinsic runtime 签名层无法准确表达 `i32/f32/f64`，则补最小必要的共享签名类型支持；这是 bridge 的直接前置，不属于额外拆任务。
+- **resolver 改动**：在 `crates/scoopc/src/resolve/scopes.rs` 内 member-name 解析未命中"自身声明面"时，沿 class supertype 链（先 direct superclass、再 interfaces，按声明顺序，含已 inherited interface chain）查找 inherited body method / 字段。命中后挂回 member-call AST node，typecheck 阶段视同自身 method/field 一样消费。
+- **typecheck 改动**：在 `crates/scoopc/src/typecheck/expr/call.rs::infer_member_call_expr_type` / 字段访问路径中，沿继承链查找的命中要正确处理：
+  - `this` 隐含 receiver 同样适用（subclass body 内 `this.inheritedField` / `this.inheritedMethod()`）；
+  - generic supertype 实例化要把 `T` 在 base 的位置映射到 subclass 实参。
+- **HIR lowering**：复用现有 `<OwnerFqn>.<methodName>` top-level 调用 + receiver 上转；不新增 IR path。
+- **不删除任何现有 by-name 特判 / 扩展函数 fallback**（删除留给 P4-T01）。
+- 不引入"subclass-typed receiver 解析时优先访问 base 实现而绕过 vtable"这类回退；virtual dispatch 仍是唯一的 dispatch 来源，本任务只解决"前端可见性"。
 
-## 进展更新
+### 顺序
 
-- 已完成：为 named intrinsic runtime 签名补充 `I32/I64/Float32/Float64/StringRef` 精确类型，并新增四个 `scalar_*_to_string_bridge` 审计条目，分别绑定现有 runtime substrate symbol。
-- 已完成：新增 `sysroot/scalar_string_bridge.scoop`，在可编译 sysroot 中暴露 ordinary managed helper：`scoopAbiCharToString`、`scoopAbiIntToString`、`scoopAbiFloat32ToString`、`scoopAbiFloat64ToString`。
-- 已完成：把 `scalar_string_bridge.scoop` 加入始终参与完整编译管线的 sysroot support source 列表。
-- 已完成：补回归与验证入口：
-  - `tests/fixtures/typecheck/extern_fun_signature_with_string_return_is_error.scoop`
-  - `tests/fixtures/run-pass/sysroot_scalar_string_bridge_basic.scoop`
-  - `crates/scoopc/src/llvm/tests.rs::compiled_sysroot_scalar_string_bridge_helpers_stay_in_module`
-- 已完成的验证：
-  - `cargo test -p scoopc compiled_sysroot_scalar_string_bridge_helpers_stay_in_module -- --nocapture`
-  - `cargo test -p scoopc named_intrinsic -- --nocapture`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_string_return_is_error.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_gc_ref_is_error.scoop`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_scalar_string_bridge_basic.scoop`
-  - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 仍为 `0 passed; 861 filtered out`，因此实际 owner coverage 以上述定向 LLVM test 为准）
-  - `cargo clippy --all-targets -- -D warnings`
+1. 复现 gap：用最小 scoop 代码跑通 baseline 失败信号（不入库）。
+2. 浏览 `resolve/scopes.rs`、`typecheck/expr/call.rs`、`hir/lower/expr.rs`、`typecheck/override_effects.rs::direct_superclass`，找到 inherited 查找的最小插入点。
+3. 实现 resolver / typecheck 路径；保持 lowering 不变。
+4. 加 fixture：subclass-typed receiver 调用 base ordinary body method、未 override interface default body、`this.inheritedField`、多级继承、`@Intrinsic class<T>` inherited default。
+5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo test -p scoopc -- --nocapture`、`cargo clippy --all-targets -- -D warnings`。
+6. 写 `[DONE] P4-T01g` 完成记录，提交 commit。
 
-## 剩余步骤
+### 风险点
 
-1. 回写 `TODO.md` 的完成记录并加上 `[DONE]`。
-2. 评估是否需要同步 `MANAGED_ABI.md` 的 bridge 叙事；若需要则补最小文档回写。
-3. 检查 `git status`，按任务约定提交本轮结果并停止。
+- 若 inherited generic supertype 实例化要重写 monomorphization key，可能涉及面比预期大；遇到此类阻塞按 PROMPT.md 处理：拆出更小前置或继续整体推进，但不引入 workaround。
+- 若 base class 的 `val` 字段 access 当前完全通过 layout-based 路径走，则可能 resolver 已经拿不到字段元数据，需要在 layout / member meta 表上补 inherited 字段 expose。
 
-## 完成状态
+### 进展更新
 
-- 已完成：`TODO.md` 已将 `P4-T01f` 标记为 `[DONE]`，并补齐改动范围、核心决策、验证结果与文档闭合记录。
-- 已完成：`MANAGED_ABI.md` 已补充 scalar `toString` substrate bridge 的 ownership/why-runtime 叙事。
-- 已完成：所有本轮改动已提交，提交为 `3e5b9fa5` / `[P4-T01f] Bridge scalar String helpers through compiled sysroot`。
-- 已完成：提交后 `git status --short` 无输出，工作树保持干净。
+- **resolver / index 改动已落地**：在 `Index` 中新增 `direct_supertypes` 并通过 `collect_direct_supertypes` 在 `add_file_in_cone` 全部完成后单独构建；`scopes.rs` 中加入 `resolve_inherited_member`，在 `resolve_member_access_on_value_receiver` 现有所有 fallback 之后、落入 `unresolved_member` 之前按 BFS 沿继承链查找；命中规则限制为 "可见 + has_body 的 fun" 或 "可见 value"，避免 `Hashable.hash` default body 抢占现有 extension fun fallback。
+- **HIR / typecheck 零改动**：实测既有 `late_resolve_direct_member_fun_fqn_from_receiver_ty` 与 `find_member_owner_nominal_instantiation` 已经能够沿继承链定位 owner 实例化，因此本任务在 typecheck / HIR lowering 上零改动。
+- **新增 5 个 fixture**：
+  - `inherited_member_call_base_class_body_method_basic.scoop`
+  - `inherited_member_call_interface_default_body_basic.scoop`
+  - `inherited_member_field_access_basic.scoop`
+  - `inherited_member_call_multi_level_chain_basic.scoop`
+  - `inherited_member_call_intrinsic_generic_class_basic.scoop`
+- **回归确认**：
+  - 上述 5 个新增 fixture 全部通过；
+  - `member_call_*` / `interface_default_method_dispatch_basic.scoop` / `intrinsic_*_body_method_basic.scoop` / `intrinsic_named_*_basic.scoop` 既有 fixture 全部通过；
+  - 全量 `tests/fixtures/run-pass` 与本任务介入前一致：唯二既存失败 `extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop` 已在 `P4-T01i` 中显式登记；
+  - 全量 `tests/fixtures/typecheck` 唯一失败 `extern_fun_gc_handle_raw_token_roundtrip_ok.scoop` 同样属 `P4-T01i`；
+  - `cargo clippy --all-targets -- -D warnings` 通过；
+  - `cargo test -p scoopc` 全量 9 个失败已在 `git stash` 复核后确认全部为 `@Unsafe @Extern` 与 failure-policy 行号 drift 的预先存在 issue，已在 `P4-T01i` 中显式登记，不归本任务范畴。
+- **TODO.md 改动**：
+  - 顶部任务索引追加 `P4-T01i`（清理 P2-T02 之后仍残留 `@Unsafe @Extern` 的 fixture / 单测 / failure-policy 行号常量）；
+  - "P4 前置 I" / "P4 前置 IV" 顺序约束行更新为九个前置；
+  - `P4-T01g` 标 `[DONE]` 并补完 改动范围 / 核心决策 / 验证结果 / 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合记录；
+  - `P4-T01i` 任务体说明三类清理：fixture-only / inline-source 单测 / failure-policy 行号 sentinel。
 
-## 执行约束
+### 完成状态
 
-- 只处理 `TODO.md` 中顺序上的第一个未完成任务。
-- 不用变通方案绕过规范、实现缺口或测试问题。
-- 若发现阻塞项，先把阻塞项显式写入 `TODO.md` 并按依赖排序，然后提交并停止。
-- 执行过程中若计划变化或关键步骤完成，会继续更新本文件。
+- 已完成：实现、回归、`[DONE]` 记录、`P4-T01i` 登记、`memory/claude_plan.md` 刷新；
+- 待提交：`git status` 中的本任务 deltas（`crates/scoopc/src/resolve/{mod,scopes}.rs` / `tests/fixtures/run-pass/inherited_member_*.scoop` / `TODO.md` / `memory/claude_plan.md`）。

@@ -1,0 +1,40 @@
+// EXPECT: pass
+//
+// P4-T01g：多级继承链（A ← B ← C），C 的 nominal receiver 应能逐级解析到祖先 body method 与字段。
+
+import scoop.core.*
+
+open class A(val tag: String) {
+    fun fromA(): Int {
+        return 1
+    }
+}
+
+open class B(tag: String) : A(tag) {
+    fun fromB(): Int {
+        return 2
+    }
+}
+
+class C() : B("xyz") {
+    fun fromC(): Int {
+        return 3
+    }
+}
+
+fun main(): Int {
+    val c: C = C()
+    if (c.fromC() != 3) {
+        return 1
+    }
+    if (c.fromB() != 2) {
+        return 2
+    }
+    if (c.fromA() != 1) {
+        return 3
+    }
+    if (c.tag != "xyz") {
+        return 4
+    }
+    return 0
+}

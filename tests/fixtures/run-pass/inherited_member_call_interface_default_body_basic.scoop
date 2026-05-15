@@ -1,0 +1,43 @@
+// EXPECT: pass
+//
+// P4-T01g：subclass-typed receiver 应能直接调用未 override 的 interface default body method，
+// 而不需要先 cast 到 interface 类型。已 override 的 default body 仍走子类实现。
+
+import scoop.core.*
+
+interface Greeting {
+    fun shout(): Int {
+        return 11
+    }
+
+    fun whisper(): Int {
+        return 12
+    }
+}
+
+class Polite() : Greeting {
+    override fun whisper(): Int {
+        return 22
+    }
+}
+
+fun main(): Int {
+    val p: Polite = Polite()
+    // 未 override 的 default：subclass-typed receiver 直接调到 interface body。
+    if (p.shout() != 11) {
+        return 1
+    }
+    // 已 override 的 default：subclass-typed receiver 调到子类实现。
+    if (p.whisper() != 22) {
+        return 2
+    }
+    // interface-typed receiver 走 itable 仍然得到同样结果。
+    val g: Greeting = p
+    if (g.shout() != 11) {
+        return 3
+    }
+    if (g.whisper() != 22) {
+        return 4
+    }
+    return 0
+}

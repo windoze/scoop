@@ -11,7 +11,7 @@
 //! - 不解析成员访问（`.`）的目标（T0310）
 //! - 不实现 `super`、capture/闭包等更复杂的语义（T0313 之后再补）
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{ast, source::SourceFile, span::Span};
 
@@ -1870,10 +1870,97 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // P4-T01g：subclass-typed receiver 沿继承链向上查找 inherited body member。
+        //
+        // 说明：
+        // - 直接查找 `<receiverFqn>.<memberName>` 已失败（自身声明面没有该 member）；
+        // - 既有 extension fun / extension property fallback 与所有内建 by-name 特判（Float / String /
+        //   Int / Bool / Char / Continuation / Any）也都没有命中，否则已经各自 short-circuit；
+        // - 在落入 `unresolved_member` 报错之前，按 BFS 顺序遍历 supertype 链
+        //   （class superclass 与 interfaces，含 default body / inherited interface chain），
+        //   命中后挂回 `member.resolved` 为 `<superFqn>.<memberName>`，让 typecheck 阶段视同自身 member 一样消费；
+        // - 命中可见且带 body 的 fun 立即返回（abstract 方法继续向上找，避免抢占已有 extension/by-name 路径，
+        //   也避免误把 `interface Hashable.hash` 抽象签名植回到 `member.resolved`）；
+        // - 命中可见 value（field / property）次之；
+        // - 多 supertype 同名时按 BFS 顺序取第一条命中——已 override 自身的成员在直接查找阶段就胜出，
+        //   现有 vtable / itable / interface impl 校验仍是 dispatch 唯一来源。
+        if let Some(resolved) = self.resolve_inherited_member(receiver_ty_fqn, member_name) {
+            member.resolved = Some(resolved);
+            return Ok(());
+        }
+
         Err(ResolveError::UnresolvedMember {
             name: member_fqn,
             span: member.span.into(),
         })
+    }
+
+    /// P4-T01g：沿 receiver 类型的 supertype 链 BFS 查找 inherited body member。
+    ///
+    /// 仅在直接查找 `<receiverFqn>.<memberName>` 失败后才被调用，因此自身 override 永远胜出。
+    ///
+    /// 命中规则：
+    /// - **fun**：仅在 supertype 上找到的 overload 中存在 `has_body = true`（即"默认/具体实现"）时
+    ///   才接受为命中；纯 abstract（无 body）的 interface 方法不在此处接管，
+    ///   维持与既有 extension fun fallback / vtable / itable 路径的兼容（典型例子：
+    ///   `struct Int : Hashable` 上的 `Int.hash` 由 extension fun 提供，本步骤不应把
+    ///   `Hashable.hash` 抽象签名误植回 `member.resolved`）。
+    /// - **value**：可见 field / property 直接命中；当当前 supertype 上既有 value 也有 abstract fun
+    ///   时仍优先 fun（命中即立即返回）。
+    /// - 多 supertype 同名时按 BFS 顺序取第一条命中（已 override 自身的成员在直接查找阶段就胜出，
+    ///   因此到这里仍冲突的几乎只剩"interface default 与 inherited base body 同名"，
+    ///   现有 vtable / itable / interface impl 校验仍是 dispatch 唯一来源）。
+    fn resolve_inherited_member(
+        &self,
+        receiver_ty_fqn: &str,
+        member_name: &str,
+    ) -> Option<ast::ResolvedMemberRef> {
+        let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn).to_string();
+
+        let mut visited: HashSet<String> = HashSet::new();
+        visited.insert(receiver_ty_fqn_norm.clone());
+        let mut queue: VecDeque<String> = VecDeque::new();
+        if let Some(supers) = self.index.direct_supertypes.get(&receiver_ty_fqn_norm) {
+            for s in supers {
+                queue.push_back(s.clone());
+            }
+        }
+        // collections alias：`scoop.core.List` / `scoop.core.MutableList` 等通过 normalize 已收敛到
+        // `scoop.core.Array` / `scoop.core.MutableArray`，因此无需额外查询。
+
+        let mut value_hit: Option<ast::ResolvedMemberRef> = None;
+
+        while let Some(super_fqn) = queue.pop_front() {
+            let super_norm = normalize_collections_alias(&super_fqn).to_string();
+            if !visited.insert(super_norm.clone()) {
+                continue;
+            }
+
+            let candidate = format!("{super_norm}.{member_name}");
+            if let Some(syms) = self.index.by_fqn.get(&candidate) {
+                if syms
+                    .fun
+                    .iter()
+                    .any(|o| o.has_body && is_symbol_visible_from(self.use_cone, self.source, &o.symbol))
+                {
+                    return Some(ast::ResolvedMemberRef::Fun { fqn: candidate });
+                }
+                if value_hit.is_none()
+                    && let Some(sym) = syms.get(SymbolKind::Value)
+                    && is_symbol_visible_from(self.use_cone, self.source, sym)
+                {
+                    value_hit = Some(ast::ResolvedMemberRef::Value { fqn: candidate });
+                }
+            }
+
+            if let Some(supers) = self.index.direct_supertypes.get(&super_norm) {
+                for s in supers {
+                    queue.push_back(s.clone());
+                }
+            }
+        }
+
+        value_hit
     }
 
     /// 查找"在当前文件作用域内可见"的 extension fun 候选集合（T0322）。

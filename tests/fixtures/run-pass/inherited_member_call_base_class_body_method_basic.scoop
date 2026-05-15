@@ -1,0 +1,40 @@
+// EXPECT: pass
+//
+// P4-T01g：subclass-typed receiver 应能直接调用 base class 的非 override body method，
+// 而不需要先 cast 到父类。
+
+import scoop.core.*
+
+open class Animal(val tag: String) {
+    fun describe(): Int {
+        return 7
+    }
+
+    open fun sound(): Int {
+        return 1
+    }
+}
+
+class Dog() : Animal("rex") {
+    override fun sound(): Int {
+        return 2
+    }
+}
+
+fun main(): Int {
+    val d: Dog = Dog()
+    if (d.describe() != 7) {
+        return 1
+    }
+    if (d.sound() != 2) {
+        return 2
+    }
+    val a: Animal = d
+    if (a.describe() != 7) {
+        return 3
+    }
+    if (a.sound() != 2) {
+        return 4
+    }
+    return 0
+}

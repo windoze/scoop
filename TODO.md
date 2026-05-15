@@ -28,6 +28,7 @@
 | `P4-T01f` | P4 前置 III | [DONE] 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
 | `P4-T01g` | P4 前置 IV | [TODO] 解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段 |
 | `P4-T01h` | P4 前置 IV | [TODO] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
+| `P4-T01i` | P4 前置 IV | [TODO] 清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测 |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -582,7 +583,7 @@
 >
 > 硬约束（"零编译器后门"，non-generic 维度）：本前置阶段必须保证，未来再加任何新的非 generic 内建 method（含 interface override 与独立 method）都不会再要求改编译器；只动 sysroot 即可。generic-by-T 维度的后门（不可避免）由 P4 前置 II 收敛为可枚举 intrinsic 表。
 >
-> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01f → P4-T01g → P4-T01h → P4-T01。八个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
+> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01f → P4-T01g → P4-T01h → P4-T01i → P4-T01。九个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
 
 ### [DONE] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
 
@@ -1106,9 +1107,9 @@
 >
 > 这两类 gap 都不在 P4-T01a/b/c 的 "完成条件" 措辞范围内，因此不属于既已落地基线，但属于 P4-T01 / P4-T02 在 sysroot 写 bodied helper 时**必然**会踩到的前置缺口（当前 sysroot 的 generic intrinsic 全部靠"T 出现在 ctor arg"的 idiom 来回避 Gap A，未来加任何 `class Foo<T>(): ...` 形态的 sysroot helper 都会立刻退化成 `Foo<Any>`）。
 >
-> 顺序约束：P4-T01g 与 P4-T01h 之间无强依赖，但都必须在 P4-T01 之前完成。两者都遵循前置阶段"新增机制不删除现有 path"的硬约束，不得借此回退任何已锁住的 fixture 行为。
+> 顺序约束：P4-T01g 与 P4-T01h 之间无强依赖，但都必须在 P4-T01 之前完成；P4-T01i 仅做 fixture 清理，不与 P4-T01g/h 互相阻塞，但同样要在 P4-T01 之前完成（确保 string cone tracer bullet 启动时 `tests/fixtures/run-pass` 与 `tests/fixtures/typecheck` 全量基线干净）。三者都遵循前置阶段"新增机制不删除现有 path"的硬约束，不得借此回退任何已锁住的 fixture 行为。
 
-### [TODO] P4-T01g：解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段
+### [DONE] P4-T01g：解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4 前置
@@ -1153,6 +1154,33 @@
 - 完成条件：
   - 任何 user / sysroot subclass 的 nominal receiver，都不再需要先 cast 到 base / interface type 才能调用 inherited body member，也不再有"subclass body 内 `this.<inheritedField>` 报 unresolved_member" 这类阻塞 P4-T01 / P4-T02 写 bodied helper 的前端 gap。
 - 依赖：`P4-T01f`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/resolve/mod.rs`：在 `Index` 中新增 `direct_supertypes: HashMap<String, Vec<String>>`，并在 `build_with_cones` 末尾通过新增的 `collect_direct_supertypes` / `collect_type_decl_supertypes` / `collect_object_decl_supertypes` 在所有 `add_file_in_cone` 完成后统一收集 nominal class / struct / object 的直接 supertype FQN，避免 cross-file 顺序敏感性。
+    - `crates/scoopc/src/resolve/scopes.rs`：新增 `resolve_inherited_member`，在 `resolve_member_access_on_value_receiver` 已完成"自身声明面 / extension fun / extension property / 内建 by-name 特判 / `Any` smart-cast 缓冲"全部 fallback 之后、再落入 `unresolved_member` 之前，按 BFS 遍历 supertype 链查找 inherited body member；命中规则：可见且 `has_body=true` 的 fun 立即返回，可见 value 次之，纯 abstract fun 不接管（避免抢占已有的 extension fun fallback 与 vtable / itable 路径）；命中后写回 `member.resolved` 即可，typecheck / lowering 复用既有 `find_member_owner_nominal_instantiation` / `instantiate_member_value_type_from_receiver_ty` 路径，HIR / vtable / itable 不引入新 IR path。
+    - `tests/fixtures/run-pass/inherited_member_call_base_class_body_method_basic.scoop` / `inherited_member_call_interface_default_body_basic.scoop` / `inherited_member_field_access_basic.scoop` / `inherited_member_call_multi_level_chain_basic.scoop` / `inherited_member_call_intrinsic_generic_class_basic.scoop`：分别覆盖 base class 普通 body method、未 override 的 interface default body、`this.inheritedField` + 外部 `subInst.inheritedField`、三层继承链、`@Intrinsic class<T>` 实现 interface 时调用未 override 的 default body。
+    - `TODO.md`：把 P4-T01g 标 `[DONE]`；同时新增 `P4-T01i`（fixture / 单测 / failure-policy 行号清理），把验证过程中暴露的"P2-T02 之后一直跑不通"的 fixture 与 inline source 单测显式登记为前置 IV 的清理任务，避免后续任务再"绕开既存失败"。
+    - `memory/claude_plan.md`：刷新 P4-T01g 进展记录。
+  - 核心决策：
+    - **不在 `add_file_in_cone` 阶段计算 supertype FQN**：cross-file 声明顺序无法保证 supertype 已经在 `by_fqn`，因此 supertype 收集统一推迟到 `add_file_in_cone` 全部完成后由 `collect_direct_supertypes` 单独跑一次，复用既有 `type_ref_to_fqn_in_file` 解析能力，与 `collect_extension_funs` / `collect_extension_properties` 同构。
+    - **inherited 解析在 fallback 链尾部**：保持既有"内建特判 / extension fun / extension property / `Any` 缓冲"全部优先，只在它们都未命中时再走 supertype 链；这样 `key.hash()`（`key: Int`）这类既由 extension fun 承担、又同时声明 `Int : Hashable` 的场景不会被 `Hashable.hash` default body 抢占，已锁定的 `member_call_*` / sysroot string helper / Int/Char/Bool/Float by-name fixture 全部维持不动。
+    - **`has_body` 过滤**：只把"带 body 的 inherited fun"接管到 `member.resolved`，纯 abstract `interface ... { fun foo(): Int }` 不在此处 short-circuit；这样 user override + itable / vtable 仍是唯一的 dispatch 来源，本任务没有引入"subclass-typed receiver 绕过 vtable" 的回退。
+    - **lowering 零改动**：典型 case 验证后，typecheck 阶段 `late_resolve_direct_member_fun_fqn_from_receiver_ty` → `member.resolved` 回退序列加上既有 `find_member_owner_nominal_instantiation` 已经能在 receiver 类型 / 继承链上定位 owner 实例化，因此 HIR / vtable / itable / monomorphization 都不需要新增分支。
+  - 验证结果：
+    - `cargo build -p scoopc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_call_base_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_call_interface_default_body_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_field_access_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_call_multi_level_chain_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_call_intrinsic_generic_class_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/member_call_class_body_method_basic.scoop`、`member_call_struct_body_method_basic.scoop`、`member_call_generic_class_body_method_basic.scoop`、`member_call_virtual_dispatch_override_basic.scoop`、`member_call_interface_dispatch_basic.scoop`、`interface_default_method_dispatch_basic.scoop`、`intrinsic_class_body_method_basic.scoop`、`intrinsic_struct_interface_body_method_basic.scoop`、`intrinsic_generic_class_body_method_basic.scoop`、`intrinsic_named_method_dummy_ir_basic.scoop`、`intrinsic_named_runtime_fun_basic.scoop`：全部通过，未引入新的 fixture 退化。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：本轮新增的五个 inherited fixture 全部通过；剩余两个失败（`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`）与本任务代码路径无交集，已显式登记到 `P4-T01i`。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：剩余唯一失败 `extern_fun_gc_handle_raw_token_roundtrip_ok.scoop` 同样属于 `P4-T01i` 范畴。
+    - `cargo clippy --all-targets -- -D warnings`
+    - `cargo test -p scoopc`：本任务不修复 P4-T01i 收口的 `@Unsafe @Extern` / failure-policy 行号 drift，但确认这 9 个失败在本任务介入之前已经存在（通过 `git stash` 后跑同一命令对比验证）。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV 第 1 项：subclass-typed receiver 现已能直接看到 inherited body member，不再需要先 cast 到 base / interface type；与 `PLAN.md` "内建类型作为一等 struct/class implementer" 的方向一致，为 P4-T01 / P4-T02 写 bodied sysroot helper 时调用 inherited helper / 字段提供了前端可见性。
+    - 本任务没有修改 `MANAGED_ABI.md` 描述的 ABI surface（vtable / itable layout、interface dispatch ABI、native surface gate 等均未变），因此无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01h：完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用）
 
@@ -1188,6 +1216,53 @@
 - 完成条件：
   - sysroot / user 在写 `class Foo<T>` / `class Foo<T>(val n: Int)` 这两种"T 不出现在 ctor arg" 形态时，都能用 `val x: Foo<Int> = Foo()` / `val x: Foo<Int> = Foo(7)` / `val x = Foo<Int>()` 三种 idiom 之一无障碍构造，不再 silent-fallback 到 `Any`，也不再触发 `missing typed call-site contract`。
 - 依赖：`P4-T01g`
+
+### [TODO] P4-T01i：清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P2
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §1.5（P2-T02 之后 `abi = "c"` 的 `@Extern` 已隐含 `@Unsafe` / `@NoGC`，不允许显式重复标注）
+- 起因：在 `P4-T01g` 验证过程中跑全量 `tests/fixtures/run-pass` / `tests/fixtures/typecheck` 与 `cargo test -p scoopc` 时，发现一组与本任务代码路径无关、但**自 P2-T02 之后就已经在跑不通**的回归资源；它们之所以一直没被抓出，是因为各前置任务的完成记录里只对其中两个 run-pass fixture 做过标注，其它"既存失败"被默认忽略：
+  - **`@Unsafe @Extern` 双重标注 fixture（fixture-only 修复）**
+    - `tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+    - `tests/fixtures/run-pass/sync_gc_release_task_like_object_basic.scoop`
+    - `tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`
+    - 报错：`scoop::typecheck::extern_fun_c_abi_modifier_redundant`
+  - **同样形态的 `@Unsafe @Extern` virtual source 单测（test-resource-only 修复）**
+    - `crates/scoopc/src/llvm/tests.rs::abi_baseline_direct_extern_native_leaf_preserves_enter_leave_native_sequence`
+    - `crates/scoopc/src/llvm/tests.rs::function_declaration_inventory_eliminates_raw_add_function_none_callsites`
+    - `crates/scoopc/src/llvm/tests.rs::native_callable_direct_and_indirect_aggregate_return_share_target_abi`
+    - `crates/scoopc/src/hir/lower/tests.rs::hir_fixture_closure_capture_val_golden`
+    - `crates/scoopc/src/hir/lower/tests.rs::hir_fixture_closure_non_capture_golden`
+    - `crates/scoopc/src/mir/materialize.rs::tests::materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct`
+    - `crates/scoopc/src/pipeline/mir_stage.rs::tests::refactor_mir_gc_handle_raw_uintptr_token_stays_scalar`
+    - 这些单测 inline source 仍写 `@Unsafe @Extern(...)` / `@Unsafe @Extern fun ...`，全部撞上 `extern_fun_c_abi_modifier_redundant`。
+  - **依赖于 production 行号的 failure-policy 单测（test-only 维护）**
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs::pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels`
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs::pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts`
+    - 这两个单测把 `panic!` / `unreachable!` 在 production 文件中的精确行号 hard-code 进了 `INTERNAL_BUG_SENTINEL_HITS` / `UNSUPPORTED_MAIN_BODY_*` 常量；只要 production 行号发生位移就 fail，与本任务的代码改动无关，但属于已经持续 drift 的"伪回归"。
+- 当前实现入口：
+  - 各 fixture / 单测 inline source 本身；
+  - 检查规则：`crates/scoopc/src/typecheck/annotations.rs::check_extern_fun_effect_contract`（`extern_fun_c_abi_modifier_redundant` 诊断）；
+  - failure-policy 行号常量：`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 中的 `INTERNAL_BUG_SENTINEL_HITS` / `UNSUPPORTED_MAIN_BODY_*` 等。
+- 必须实现的内容：
+  1. 把上述 fixture 与 `tests.rs` / golden / pipeline 单测 inline source 中的 `@Unsafe @Extern("...")` 全部收拢为仅 `@Extern("...")`（默认 `abi = "c"` 已隐含 `@Unsafe` / `@NoGC`）；调用点若需要 `@Unsafe do { ... }` 表达调用范围则保留，调用范围 unsafe gate 不变。
+  2. 把 `pipeline_user_visible_failure_policy` 中那两个 hard-coded 行号 sentinel 列表与当前 production 状态对齐；不引入新的 `panic!` / `unreachable!`，也不放宽 `failure-policy` 检查范围。
+  3. 跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` / `tests/fixtures/typecheck` 与 `cargo test -p scoopc`，确认本次清理后所有曾经"既存失败"的资源全部回到通过；同时验证全量 baseline 中再无遗留 `@Unsafe @Extern` 写法。
+- 必须遵从的约束：
+  - 仅修改 fixture / test resource / failure-policy 行号常量，不动 `annotations.rs` / runtime / codegen 等编译器侧代码；
+  - 不得通过删除 fixture 或单测来"消除 drift"；
+  - 不得借此重排或缩窄现有 `@Extern` ABI 行为，也不得在 failure-policy 单测里改变筛选规则（仅刷新 sentinel 列表）。
+- 验证：
+  1. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sync_gc_release_task_like_object_basic.scoop`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：全量 0 failed。
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：全量 0 failed。
+  6. `cargo test -p scoopc`：全量 0 failed（含 LLVM / HIR / MIR / pipeline 单测）。
+- 完成条件：
+  - 全量 `tests/fixtures/run-pass`、`tests/fixtures/typecheck` 与 `cargo test -p scoopc` 在不带额外过滤的情况下全部通过；string cone tracer bullet 启动时不再有"既存失败"占用回归审计的注意力。
+- 依赖：无（与 P4-T01g/h 之间无强依赖；建议在 P4-T01 之前完成，使 string cone tracer bullet 启动时全量 baseline 干净）。
 
 ## P4：string cone tracer bullet
 

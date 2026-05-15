@@ -1,0 +1,25 @@
+// EXPECT: pass
+//
+// P4-T01g：subclass-typed receiver 应能直接访问 base class 的 `val` 字段；
+// 同时 base class body 内可通过 `this.field` 读取自身 / 子类传入的初值。
+
+import scoop.core.*
+
+open class Container(val tag: String) {
+    fun tagLength(): Int {
+        return this.tag.length()
+    }
+}
+
+class Crate() : Container("hello")
+
+fun main(): Int {
+    val c: Crate = Crate()
+    if (c.tag != "hello") {
+        return 1
+    }
+    if (c.tagLength() != 5) {
+        return 2
+    }
+    return 0
+}
