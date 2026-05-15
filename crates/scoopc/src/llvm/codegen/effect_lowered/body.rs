@@ -4132,10 +4132,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.store_local_value(stmt.span, *target, value)?;
             return Ok(true);
         }
-        if let Some(value) = self.lower_builtin_to_string_call(stmt.span, kind, args)? {
-            self.store_local_value(stmt.span, *target, value)?;
-            return Ok(true);
-        }
         let Some(layout) = self
             .abi
             .dynamic_invoke_layout(self.abi_step_schema, *site_id)
@@ -4320,104 +4316,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .then_some(receiver.clone())
             })
         })
-    }
-
-    fn lower_builtin_to_string_call(
-        &mut self,
-        span: crate::span::Span,
-        kind: &mir::CallKind,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let mir::CallKind::Interface { receiver, dispatch } = kind else {
-            return Ok(None);
-        };
-        if dispatch.owner_fqn != "scoop.core.ToString" || dispatch.member_name != "toString" {
-            return Ok(None);
-        }
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin ToString.toString args",
-                at: span.into(),
-            });
-        }
-        let receiver_cg = self
-            .codegen
-            .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin ToString receiver type",
-                at: span.into(),
-            })?;
-        let value = self.codegen.codegen_mir_operand_expected(
-            span,
-            receiver,
-            &self.slots,
-            Some(receiver_cg),
-        )?;
-        let value = self.codegen.coerce_value(span, value, receiver_cg)?;
-        match receiver_cg {
-            CgTy::String => Ok(Some(value)),
-            CgTy::Bool => {
-                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor builtin ToString Bool value",
-                        at: span.into(),
-                    });
-                };
-                let widened = self.codegen.builder.build_int_z_extend(
-                    raw,
-                    self.codegen.context.i64_type(),
-                    "refactor_bool_to_string_arg",
-                )?;
-                let runtime = self.codegen.declare_runtime_bool_to_string();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[widened.into()],
-                    "refactor_bool_to_string",
-                )?;
-                self.string_result_from_runtime_call(span, call, "Bool")
-                    .map(Some)
-            }
-            CgTy::Int(_) => {
-                let Some(BasicValueEnum::IntValue(raw)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor builtin ToString Int value",
-                        at: span.into(),
-                    });
-                };
-                let runtime = self.codegen.declare_runtime_int_to_string();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[raw.into()],
-                    "refactor_int_to_string",
-                )?;
-                self.string_result_from_runtime_call(span, call, "Int")
-                    .map(Some)
-            }
-            CgTy::Float64 | CgTy::Float32 => {
-                let Some(BasicValueEnum::FloatValue(raw)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor builtin ToString Float value",
-                        at: span.into(),
-                    });
-                };
-                let runtime = match receiver_cg {
-                    CgTy::Float64 => self.codegen.declare_runtime_float64_to_string(),
-                    CgTy::Float32 => self.codegen.declare_runtime_float32_to_string(),
-                    _ => unreachable!("receiver_cg matched float above"),
-                };
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[raw.into()],
-                    "refactor_float_to_string",
-                )?;
-                self.string_result_from_runtime_call(span, call, "Float")
-                    .map(Some)
-            }
-            _ => Ok(None),
-        }
     }
 
     fn string_result_from_runtime_call(

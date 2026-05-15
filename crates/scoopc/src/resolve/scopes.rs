@@ -1773,7 +1773,6 @@ impl<'a> BlockScopeChecker<'a> {
             "scoop.core.Float64" | "Float64" | "scoop.core.Float32" | "Float32"
         ) {
             let is_known_float_method = member_name == "toInt"
-                || member_name == "toString"
                 || member_name == "hash"
                 || member_name == "abs"
                 || member_name == "isNaN"
@@ -1827,24 +1826,17 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
-        // T1812: Int.toString() — 内建数值→文本转换。
         // T1817: Int.hash() — 内建哈希。
         if receiver_ty_fqn == "scoop.core.Int" {
-            let is_known_int_method = member_name == "toString" || member_name == "hash";
+            let is_known_int_method = member_name == "hash";
             if is_known_int_method {
                 return Ok(());
             }
         }
 
-        // T0114: Bool.toString() — 内建布尔值→文本转換。
-        if receiver_ty_fqn == "scoop.core.Bool" && member_name == "toString" {
-            return Ok(());
-        }
-
-        // T0146c2: Char 内建 API —— 与 Int/Bool/String 一样走 minimal builtin 路径。
+        // T0146c2: Char 内建 API 中尚未迁移为 body method 的部分。
         if receiver_ty_fqn == "scoop.core.Char" {
-            let is_known_char_method =
-                member_name == "toInt" || member_name == "toString" || member_name == "hash";
+            let is_known_char_method = member_name == "toInt" || member_name == "hash";
             if is_known_char_method {
                 return Ok(());
             }

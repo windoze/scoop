@@ -8779,6 +8779,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(casted.into()),
                 })
             }
+            (CgTy::Ref, CgTy::String) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ref -> string coercion value",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ref -> string coercion type",
+                        at: at.into(),
+                    });
+                };
+                let casted = self.builder.build_pointer_cast(
+                    ptr,
+                    self.llvm_scoop_string_ptr_type(),
+                    "ref_to_str",
+                )?;
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(casted.into()),
+                })
+            }
             (CgTy::Ref, CgTy::Ref) => Ok(value),
             (CgTy::Int(_), CgTy::Ref) => {
                 // T0817：值类型装箱到 `Any`（当前阶段先只支持整数族）。

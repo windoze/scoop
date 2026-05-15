@@ -41,6 +41,7 @@ enum PlainDispatchTarget<'h> {
     Interface {
         interface_id: u64,
         slot: u32,
+        receiver_ty: TypeId,
         sig_fun: &'h hir::FunDecl,
     },
 }
@@ -407,9 +408,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(super) fn hir_fun_for_callable_fqn(&self, fqn: &str) -> Option<&'a hir::FunDecl> {
-        if let Some(hir_fun) = self.fun_index.get(fqn).copied() {
-            return Some(hir_fun);
-        }
         if let Some(pass_view) = self.materialized_pass_view()
             && let Some(owner) = pass_view.owner_of_callable(fqn)
             && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
@@ -420,11 +418,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Some(hir_fun);
         }
+        if let Some(hir_fun) = self.fun_index.get(fqn).copied() {
+            return Some(hir_fun);
+        }
         let base = mir_direct_call_base_fqn(fqn);
         if base != fqn {
-            if let Some(hir_fun) = self.fun_index.get(base).copied() {
-                return Some(hir_fun);
-            }
             if let Some(pass_view) = self.materialized_pass_view()
                 && let Some(owner) = pass_view.owner_of_callable(base)
                 && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
@@ -433,6 +431,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         && fun.span == owner.template.decl_span
                 })
             {
+                return Some(hir_fun);
+            }
+            if let Some(hir_fun) = self.fun_index.get(base).copied() {
                 return Some(hir_fun);
             }
         }
@@ -2289,14 +2290,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if target_cg == CgTy::String {
-            return self.codegen_mir_transport_to_string(
-                span,
-                value,
-                transport.source_ty,
-                source_cg,
-                mir_types,
-                slots,
-            );
+            let source = self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
+            let source = self.coerce_value(span, source, source_cg)?;
+            if source_cg == CgTy::String {
+                return self.coerce_value(span, source, CgTy::String);
+            }
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "MIR transport to String requires ordinary ToString lowering",
+                at: span.into(),
+            });
         }
         if target_cg != CgTy::Ref {
             return Err(super::composite_transport::composite_transport_gate_error(
@@ -2331,123 +2333,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
         }
-    }
-
-    fn codegen_mir_transport_to_string(
-        &mut self,
-        span: crate::span::Span,
-        value: &crate::mir::Operand,
-        source_ty: TypeId,
-        source_cg: CgTy,
-        mir_types: &TypeStore,
-        slots: &[MirLocalSlot<'ctx>],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let source = self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
-        let source = self.coerce_value(span, source, source_cg)?;
-        match source_cg {
-            CgTy::String => self.coerce_value(span, source, CgTy::String),
-            CgTy::Bool => {
-                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "MIR transport Bool.toString value",
-                        at: span.into(),
-                    });
-                };
-                let widened = self.builder.build_int_z_extend(
-                    raw,
-                    self.context.i64_type(),
-                    "mir_transport_bool_to_string_arg",
-                )?;
-                let runtime = self.declare_runtime_bool_to_string();
-                let call = self.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[widened.into()],
-                    "mir_transport_bool_to_string",
-                )?;
-                self.string_value_from_runtime_call(span, call, "MIR transport Bool.toString")
-            }
-            CgTy::Int(from_ty)
-                if matches!(
-                    mir_types.kind(source_ty),
-                    TypeKind::Value(ValueTypeKind::Char)
-                ) =>
-            {
-                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "MIR transport Char.toString value",
-                        at: span.into(),
-                    });
-                };
-                let codepoint = self.cast_int(
-                    raw,
-                    from_ty,
-                    IntTy {
-                        bits: 32,
-                        signed: false,
-                    },
-                )?;
-                let str_ptr = self.codegen_char_to_string_value(span, codepoint)?;
-                Ok(CgValue {
-                    ty: CgTy::String,
-                    value: Some(str_ptr.into()),
-                })
-            }
-            CgTy::Int(from_ty) => {
-                let Some(BasicValueEnum::IntValue(raw)) = source.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "MIR transport Int.toString value",
-                        at: span.into(),
-                    });
-                };
-                let widened = self.cast_int(
-                    raw,
-                    from_ty,
-                    IntTy {
-                        bits: 64,
-                        signed: from_ty.signed,
-                    },
-                )?;
-                let runtime = self.declare_runtime_int_to_string();
-                let call = self.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[widened.into()],
-                    "mir_transport_int_to_string",
-                )?;
-                self.string_value_from_runtime_call(span, call, "MIR transport Int.toString")
-            }
-            CgTy::Float64 | CgTy::Float32 => self.codegen_float_to_string_value(span, span, source),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR transport to String source type",
-                at: span.into(),
-            }),
-        }
-    }
-
-    fn string_value_from_runtime_call(
-        &self,
-        span: crate::span::Span,
-        call: inkwell::values::CallSiteValue<'ctx>,
-        kind: &'static str,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
-        };
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -5737,6 +5622,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     receiver,
                     args,
+                    mir_types,
                     slots,
                     target,
                     allow_effect_typed_dispatch_signature,
@@ -5748,6 +5634,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     receiver,
                     args,
+                    mir_types,
                     slots,
                     target,
                     allow_effect_typed_dispatch_signature,
@@ -5898,15 +5785,199 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(PlainDispatchTarget::Interface {
             interface_id: iface.interface_id,
             slot: slot.slot,
+            receiver_ty: dispatch.receiver_ty,
             sig_fun,
         })
     }
 
+    fn static_interface_receiver_owner_fqn(
+        &self,
+        mir_types: &TypeStore,
+        receiver_ty: TypeId,
+    ) -> Option<(String, TypeId)> {
+        let codegen_ty = self
+            .equivalent_codegen_type_id(mir_types, receiver_ty)
+            .unwrap_or(receiver_ty);
+        let owner = match self.types.kind(codegen_ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool".to_string(),
+            TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char".to_string(),
+            TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64".to_string(),
+            TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32".to_string(),
+            TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int".to_string(),
+            TypeKind::Ref(RefTypeKind::String) => "scoop.core.String".to_string(),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.clone(),
+            _ => return None,
+        };
+        Some((owner, codegen_ty))
+    }
+
+    fn static_interface_dispatch_impl(
+        &self,
+        mir_types: &TypeStore,
+        receiver_ty: TypeId,
+        interface_id: u64,
+        slot: u32,
+    ) -> Option<(TypeId, String)> {
+        let (owner_fqn, source_ty) =
+            self.static_interface_receiver_owner_fqn(mir_types, receiver_ty)?;
+        let entries = self.class_itables.get(&owner_fqn)?;
+        let entry = entries
+            .iter()
+            .find(|entry| entry.interface_id == interface_id)?;
+        let impl_fqn = entry.method_impl_fqns.get(slot as usize)?.clone();
+        (!impl_fqn.is_empty()).then_some((source_ty, impl_fqn))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_mir_plain_static_interface_dispatch_call(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &crate::mir::Operand,
+        args: &[crate::mir::CallArg],
+        slots: &[MirLocalSlot<'ctx>],
+        source_ty: TypeId,
+        impl_fqn: &str,
+        allow_effect_typed_signature: bool,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let impl_sig = self.fun_index.get(impl_fqn).copied().ok_or_else(|| {
+            frontend_error(format!(
+                "static interface dispatch target `{impl_fqn}` missing signature"
+            ))
+        })?;
+        if impl_sig.params.len() != args.len() + 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "static interface dispatch arity mismatch",
+                at: span.into(),
+            });
+        }
+        if !allow_effect_typed_signature
+            && self.known_fun_body_may_outward_effect(&impl_sig.fqn, impl_sig.ty)
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "static interface dispatch target may outward-effect",
+                at: span.into(),
+            });
+        }
+
+        let ret_cg =
+            self.cg_ty_of(impl_sig.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "static interface dispatch return type",
+                    at: span.into(),
+                })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let hidden_sret_slot = if hidden_sret_result_ty.is_some() {
+            Some(self.create_entry_alloca(span, "static_iface_call_sret", ret_cg)?)
+        } else {
+            None
+        };
+        let direct_result_storage =
+            if hidden_sret_result_ty.is_none() && !matches!(ret_cg, CgTy::Unit | CgTy::Never) {
+                Some(self.create_entry_alloca(span, "static_iface_call_result", ret_cg)?)
+            } else {
+                None
+            };
+
+        let source_cg = self
+            .cg_ty_of(source_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "static interface receiver type",
+                at: span.into(),
+            })?;
+        let receiver_value =
+            self.codegen_mir_operand_expected(span, receiver, slots, Some(source_cg))?;
+        let receiver_value = self.coerce_value(span, receiver_value, source_cg)?;
+        let receiver_arg = if self
+            .ordinary_param_abi(span, source_ty)?
+            .pointee_ty()
+            .is_some()
+        {
+            let receiver_slot =
+                self.create_entry_alloca(span, "static_iface_receiver", source_cg)?;
+            let _ = self.store_local_value(span, receiver_slot, source_cg, receiver_value)?;
+            receiver_slot.into()
+        } else {
+            self.as_llvm_arg_value(span, source_cg, receiver_value)?
+        };
+
+        let explicit_param_names = impl_sig.params[1..]
+            .iter()
+            .map(|param| param.name.clone())
+            .collect::<Vec<_>>();
+        let explicit_param_tys = impl_sig.params[1..]
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        let evaluated_explicit_args = self.codegen_bound_mir_call_args_from_signature(
+            span,
+            &explicit_param_names,
+            &explicit_param_tys,
+            args,
+            slots,
+            false,
+            self.types,
+        )?;
+        let explicit_args = evaluated_explicit_args
+            .iter()
+            .map(|arg| arg.value)
+            .collect::<Vec<_>>();
+
+        let function = self.declare_top_level_fun(impl_sig)?;
+        let fn_i8 = function.as_global_value().as_pointer_value();
+        self.emit_interface_dispatch_case_call_to_storage(
+            span,
+            span,
+            &impl_sig.fqn,
+            fn_i8,
+            receiver_arg,
+            source_ty,
+            &explicit_param_tys,
+            &explicit_args,
+            ret_cg,
+            hidden_sret_result_ty,
+            hidden_sret_slot,
+            false,
+            None,
+            direct_result_storage,
+        )?;
+        self.release_evaluated_call_arg_roots(&evaluated_explicit_args);
+
+        if let Some(result_ptr) = hidden_sret_slot {
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "static_iface_call_sret")?;
+        }
+
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                if let Some(result_ptr) = hidden_sret_slot {
+                    self.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "static_iface_call_sret",
+                    )
+                } else {
+                    self.load_dispatch_result_from_storage(
+                        span,
+                        ret_cg,
+                        direct_result_storage.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "static interface direct result storage",
+                            at: span.into(),
+                        })?,
+                    )
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn codegen_mir_plain_dispatch_call(
         &mut self,
         span: crate::span::Span,
         receiver: &crate::mir::Operand,
         args: &[crate::mir::CallArg],
+        mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
         target: PlainDispatchTarget<'a>,
         allow_effect_typed_signature: bool,
@@ -5928,9 +5999,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let PlainDispatchTarget::Interface {
-            interface_id, slot, ..
+            interface_id,
+            slot,
+            receiver_ty,
+            ..
         } = &target
         {
+            if let Some((source_ty, impl_fqn)) =
+                self.static_interface_dispatch_impl(mir_types, *receiver_ty, *interface_id, *slot)
+            {
+                return self.codegen_mir_plain_static_interface_dispatch_call(
+                    span,
+                    receiver,
+                    args,
+                    slots,
+                    source_ty,
+                    &impl_fqn,
+                    allow_effect_typed_signature,
+                );
+            }
+
             let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).ok_or(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "refactor plain interface owner fqn",

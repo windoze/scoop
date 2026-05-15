@@ -38,7 +38,6 @@ pub(super) const SCOOP_FLOAT32_TO_INT: &str = "scoop_float32_to_int";
 pub(super) const SCOOP_FLOAT32_TO_STRING: &str = "scoop_float32_to_string";
 pub(super) const SCOOP_FLOAT64_TO_INT: &str = "scoop_float64_to_int";
 pub(super) const SCOOP_FLOAT64_TO_STRING: &str = "scoop_float64_to_string";
-pub(super) const SCOOP_INT_TO_STRING: &str = "scoop_int_to_string";
 pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_CHAR_AT: &str = "scoop_string_char_at";

@@ -39,7 +39,7 @@
 | `P4-T01o` | P4 前置 V | [DONE] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
 | `P4-T01p` | P4 前置 V | [DONE] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
 | `P4-T01q` | P4 前置 V | [DONE] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
-| `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
+| `P4-T01` | P4 | [DONE] 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
 
@@ -1846,7 +1846,7 @@
 
 ## P4：string cone tracer bullet
 
-### [TODO] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
+### [DONE] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -1898,6 +1898,32 @@
 - 完成条件：
   - 第一批标量 `toString` helper 已不再依赖 compiler/runtime FQN intercept。
 - 依赖：`P4-T01q`（在 P4-T01h 之后又依次新增了 `P4-T01i/j/k/l1/l2/l3` 六条前置 IV 子任务与 `P4-T01m/n/o/p/q` 五条前置 V 子任务；其中 `P4-T01l1/l2/l3` 是本任务推进过程中显式拆出的最后一组可达性阻塞——典型形态是 `@Intrinsic struct/class` 上的 `override fun toString(): String { ... }`，必须分三段依次打通"typecheck 把 builtin scalar / `String` 路由进 nominal member-call FQN（`l1`）→ HIR/MIR 把 receiver 作为第 0 个 arg 注入到 `@Intrinsic` body method（`l2`）→ `ToString.toString` interface dispatch 在 builtin scalar override 上 published late-lowered body（`l3`）"三条通路，否则 P4-T01 的删除动作会立刻撞上 `direct call arity mismatch` / `published late-lowered body` 缺失。`P4-T01m/n/o/p/q` 五条前置 V 子任务则把 `@Intrinsic class/struct` 规范（无可访问字段 / 允许合成属性 / interface override 必须为带 body 的普通 method / `@Intrinsic` method 不允许 body / 通用"必须带 body"前端约束）系统性补齐 fixture 与诊断，避免 P4-T01 在 sysroot 改写阶段被未发现的规范 gap 撞到。）
+- 完成记录：
+  - 改动范围：
+    - `sysroot/core.scoop`：将 `Bool/Char/Float32/Float64/Int/String.toString` 改为 `@Intrinsic` type body method；`Bool` / `String` 用纯 Scoop，`Char/Int/Float*` 经 `scoopAbi*ToString` bridge；删除 scalar `toString` extension 声明，并移除会因 compiled `core.scoop` 参与 support-source 编译而遮蔽 stdlib body 的 scope / `MutableArray<Int>.toArray` stubs。
+    - `crates/scoopc/src/{resolve,typecheck,hir,llvm,effect_lowered}`：删除 scalar `toString` resolver allowlist、synthetic typecheck、HIR keep-list、LLVM by-name extension/interface/transport intercept；补齐 builtin String receiver 表示、value/String interface direct dispatch、String-only print/println 输出路径与 compiled core support-source shadowing 相关修补。
+    - `tests/fixtures/{build,run-pass}` 与 overlay sysroot：新增 `managed_abi_scalar_tostring_basic` build/run-pass fixture，并移除 overlay 中旧 scalar `toString` extension 声明，补齐 overlay scalar body methods。
+    - `stdlib/math.scoop`：`abs(Int)` 迁入 compiled core，避免与 Float `abs` extension 共用 FQN 时被 compiled core support-source 遮蔽。
+  - 核心决策：
+    - 不再保留 `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext` / effect-lowered scalar `ToString.toString` / `codegen_mir_transport_to_string` 的 scalar runtime by-name 路径；scalar `toString` 统一走 sysroot method body。
+    - `print/println<T: ToString>` 对标量仍走 generic sysroot body + `ToString` dispatch；仅 `String` 参数保留直接 runtime print 输出，避免隐藏 init/support-source 中 declaration-only generic stub 产生重复未定义符号，这不恢复 scalar `toString` 旁路。
+    - `core.scoop` 变为 compilable support source 后，不能继续携带会遮蔽 stdlib body 的 declaration-only ordinary stubs；本任务移除已暴露冲突的 stubs，并把 `abs(Int)` 放到 compiled core 作为真实 body。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo test -p scoopc float_ -- --nocapture`
+    - `cargo test -p scoopc lowered_call_results_keep_concrete_types_for_local_bindings -- --nocapture`
+    - `cargo test -p scoopc lowered_hir_codegen_accepts_materialized_generic_sysroot_direct_calls -- --nocapture`
+    - `cargo test -p scoopc overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override_and_default_bodies -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_scalar_tostring_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/tostring_interface_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_scalar_tostring_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/tostring_interface_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 tracer bullet：第一批 scalar `toString` 已由 compiled sysroot body method + audited scalar String bridge 承接，不再依赖 compiler/runtime FQN intercept。
+    - 本任务没有改变 native ABI / `ExternAbi::Scoop` surface；无需回写 `MANAGED_ABI.md`。`PLAN.md` 的 phase-level sequencing 未变化。
 
 ### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 

@@ -128,9 +128,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .codegen_string_method(span, receiver, &member.name, args)
                 .map(Some);
         }
-        if member.name == "toString" {
-            return self.codegen_to_string_method(span, receiver).map(Some);
-        }
         if member.name == "hash" {
             let recv_ty = match &receiver.kind {
                 hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -603,6 +600,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
+    fn materialized_owner_hir_fun_for_callable(&self, fqn: &str) -> Option<&'a hir::FunDecl> {
+        let pass_view = self.materialized_pass_view()?;
+        let owner = pass_view.owner_of_callable(fqn)?;
+        self.fun_index.values().copied().find(|fun| {
+            fun.fqn == owner.template.fqn
+                && fun.source_path == owner.template.source_path
+                && fun.span == owner.template.decl_span
+        })
+    }
+
+    fn canonical_builtin_signature_ty(&self, ty: TypeId) -> TypeId {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                self.builtins.string
+            }
+            _ => ty,
+        }
+    }
+
     fn interface_value_receiver_cases(
         &self,
         interface_fqn: &str,
@@ -716,7 +732,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn emit_interface_dispatch_case_call_to_storage(
+    pub(in crate::llvm::codegen) fn emit_interface_dispatch_case_call_to_storage(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
@@ -800,7 +816,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn load_dispatch_result_from_storage(
+    pub(in crate::llvm::codegen) fn load_dispatch_result_from_storage(
         &mut self,
         at: crate::span::Span,
         ret_cg: CgTy,
@@ -1453,12 +1469,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(value) = self.try_codegen_class_vtable_call(span, callee.span, fqn, args)? {
                 return Ok(value);
             }
-            if dispatch_fqn == "scoop.core.ToString.toString"
-                && let Some(value) =
-                    self.try_codegen_tostring_iface_builtin(span, callee.span, args)?
-            {
-                return Ok(value);
-            }
             if let Some(value) =
                 self.try_codegen_interface_itable_call(span, callee.span, fqn, args)?
             {
@@ -1475,8 +1485,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.panic" {
                 return self.codegen_sysroot_panic(span, callee.span, args);
             }
-            if dispatch_fqn == "scoop.core.print" || dispatch_fqn == "scoop.core.println" {
-                return self.codegen_sysroot_print_like(span, callee.span, dispatch_fqn, args);
+            if (dispatch_fqn == "scoop.core.print" || dispatch_fqn == "scoop.core.println")
+                && let Some(value) =
+                    self.try_codegen_sysroot_print_string_like(span, dispatch_fqn, args)?
+            {
+                return Ok(value);
             }
             if dispatch_fqn == "scoop.core.concat" {
                 let Some(hir::CallArg::Positional(receiver)) = args.first() else {
@@ -1496,9 +1509,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     dispatch_fqn,
                     args,
                 );
-            }
-            if dispatch_fqn == "scoop.core.toString" {
-                return self.codegen_sysroot_to_string_ext(span, callee.span, args);
             }
             if dispatch_fqn == "scoop.core.toInt" {
                 return self.codegen_sysroot_to_int_ext(span, callee.span, args);
@@ -1739,9 +1749,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ) {
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
-            if member.name == "toString" {
-                return self.codegen_to_string_method(span, receiver);
-            }
             if member.name == "hash" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -1830,7 +1837,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         enum CallableSig<'b> {
             Hir(&'b hir::FunDecl),
-            Mir(crate::mir::FunDecl, *const TypeStore),
+            Mir(crate::mir::FunDecl, &'b TypeStore),
         }
 
         let callable_abi = self.direct_call_abi_identity(fqn);
@@ -1839,17 +1846,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let sig_fun = self
             .materialized_pass_view()
             .and_then(|view| {
-                view.callable(fqn).cloned().map(|fun| {
-                    CallableSig::Mir(fun, &view.materialized().types as *const TypeStore)
-                })
+                view.callable(fqn)
+                    .cloned()
+                    .map(|fun| CallableSig::Mir(fun, &view.materialized().types))
+            })
+            .or_else(|| {
+                self.materialized_owner_hir_fun_for_callable(fqn)
+                    .map(CallableSig::Hir)
             })
             .or_else(|| self.fun_index.get(fqn).copied().map(CallableSig::Hir))
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "call callee type",
-                at: callee_span.into(),
+            .or_else(|| {
+                if dispatch_fqn == fqn {
+                    None
+                } else {
+                    self.materialized_owner_hir_fun_for_callable(dispatch_fqn)
+                        .map(CallableSig::Hir)
+                        .or_else(|| {
+                            self.fun_index
+                                .get(dispatch_fqn)
+                                .copied()
+                                .map(CallableSig::Hir)
+                        })
+                }
+            })
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "call callee type `{fqn}` is missing from materialized MIR and HIR indexes"
+                ),
             })?;
+        let signature_owner_fqn = match &sig_fun {
+            CallableSig::Hir(_) if dispatch_fqn != fqn => dispatch_fqn,
+            _ => fqn,
+        };
 
-        let (param_names, param_tys, return_ty) = match &sig_fun {
+        let (param_names, mut param_tys, mut return_ty) = match &sig_fun {
             CallableSig::Hir(fun) => {
                 let param_names = fun
                     .params
@@ -1920,9 +1950,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 (param_names, param_tys, return_ty)
             }
             CallableSig::Mir(fun, types) => {
-                // SAFETY: `types` points into the materialized pass view owned by the
-                // compilation-unit codegen context and outlives this call.
-                let mir_types = unsafe { &**types };
+                let mir_types = *types;
                 let param_names = fun
                     .params
                     .iter()
@@ -1957,6 +1985,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 (param_names, param_tys, return_ty)
             }
         };
+        for ty in &mut param_tys {
+            *ty = self.canonical_builtin_signature_ty(*ty);
+        }
+        return_ty = self.canonical_builtin_signature_ty(return_ty);
         if param_names.len() != param_tys.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "call signature arity mismatch",
@@ -1986,9 +2018,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .or_else(|| match &sig_fun {
                 CallableSig::Hir(_) => self.cg_ty_of(return_ty),
                 CallableSig::Mir(fun, types) => {
-                    // SAFETY: `types` points into the materialized pass view owned by the
-                    // compilation-unit codegen context and outlives this call.
-                    let mir_types = unsafe { &**types };
+                    let mir_types = *types;
                     self.cg_ty_of_mir_type(mir_types, fun.return_ty)
                         .or_else(|| self.cg_ty_of(return_ty))
                 }
@@ -2046,7 +2076,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .extern_funs
             .get(fqn)
             .map(|extern_fun| extern_fun.symbol.as_str())
-            .unwrap_or(fqn);
+            .unwrap_or(signature_owner_fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => match sig_fun {
@@ -2072,7 +2102,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ty) = hidden_sret_result_ty {
                     cg.add_sret_attribute_to_call(call_site, 0, result_ty);
                 }
-                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
+                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(signature_owner_fqn));
                 Ok(call_site)
             })
         };

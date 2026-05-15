@@ -1,0 +1,34 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: scoop_core_Int_toString
+// BUILD-LLVM-CONTAINS: scoop_core_Bool_toString
+// BUILD-LLVM-CONTAINS: scoop_core_Char_toString
+// BUILD-LLVM-CONTAINS: scoop_core_Float32_toString
+// BUILD-LLVM-CONTAINS: scoop_core_Float64_toString
+// BUILD-LLVM-CONTAINS: scoop_core_String_toString
+// BUILD-LLVM-CONTAINS: @scoop_int_to_string(
+// BUILD-LLVM-CONTAINS: @scoop_char_to_string(
+// BUILD-LLVM-CONTAINS: @scoop_float32_to_string(
+// BUILD-LLVM-CONTAINS: @scoop_float64_to_string(
+// BUILD-LLVM-NOT-CONTAINS: scoop.core.toString
+
+package fixtures.build
+
+import scoop.core.*
+
+fun <T> stringify(value: T): String where T: ToString {
+    return value.toString()
+}
+
+fun main(): Int {
+    val narrow: Float32 = 1.5
+    val direct: String = 42.toString()
+        .concat(true.toString())
+        .concat('A'.toString())
+        .concat(narrow.toString())
+        .concat(2.25.toString())
+        .concat("ok".toString())
+    val generic: String = stringify(7).concat(stringify(false))
+    println(direct.concat(generic))
+    return 0
+}

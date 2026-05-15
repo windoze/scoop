@@ -124,11 +124,8 @@ use super::*;
 use crate::ast;
 use crate::hir;
 use crate::opt::OptLevel;
-use crate::parser::parse_file;
-use crate::resolve::Index;
 use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
-use crate::ty::TypeStore;
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::targets::TargetData;
@@ -2334,84 +2331,19 @@ fun main() {
 "#,
     );
 
-    let mut ast = parse_file(&source).unwrap();
-    let index = {
-        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in &session.sysroot().files {
-            pairs.push((&file.source, &file.ast));
-        }
-        pairs.push((&source, &ast));
-        Index::build(&pairs).unwrap()
-    };
-
-    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
-    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
-
-    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
-    env.extend_from_file(&source, &ast, &index).unwrap();
-
-    let mut typecheck_types = TypeStore::new();
-    let builtins = typecheck_types.intern_builtins();
-    crate::typecheck::check_file_annotations(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-    crate::typecheck::check_file_type_refs(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-    crate::typecheck::check_file_exprs(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-
-    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for file in &session.sysroot().files {
-        unit.push((&file.source, &file.ast));
-    }
-    unit.push((&source, &ast));
-
-    let files_to_lower = vec![(&source, &ast)];
-    let _lowered = hir::lower_for_compilation_unit_multi_files(
-        &source,
-        &index,
-        &unit,
-        &files_to_lower,
-        &[],
-        &typecheck_types,
-    )
-    .unwrap();
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
         ir.contains("@scoop_int_to_string("),
-        "Unannotated local Int call results should keep Int through lowering/codegen"
+        "Unannotated local Int call results should keep Int through sysroot toString lowering"
     );
     assert!(
         ir.contains("@scoop_float64_to_string("),
-        "Unannotated local Float call results should keep Float64 through lowering/codegen"
+        "Unannotated local Float call results should keep Float64 through sysroot toString lowering"
     );
     assert!(
-        ir.contains("@scoop_bool_to_string("),
-        "Unannotated local Bool call results should keep Bool through lowering/codegen"
+        ir.contains("scoop_core_Bool_toString") && !ir.contains("@scoop_bool_to_string("),
+        "Unannotated local Bool call results should use the pure sysroot Bool.toString body"
     );
 }
 
@@ -2432,104 +2364,14 @@ fun main(): Int {
 "#,
     );
 
-    let mut ast = parse_file(&source).unwrap();
-    let index = {
-        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in &session.sysroot().files {
-            pairs.push((&file.source, &file.ast));
-        }
-        pairs.push((&source, &ast));
-        Index::build(&pairs).unwrap()
-    };
-
-    let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
-    crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
-
-    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
-    env.extend_from_file(&source, &ast, &index).unwrap();
-
-    let mut typecheck_types = TypeStore::new();
-    let builtins = typecheck_types.intern_builtins();
-    crate::typecheck::check_file_annotations(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-    crate::typecheck::check_file_type_refs(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-    crate::typecheck::check_file_exprs(
-        &source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut typecheck_types,
-        builtins,
-    )
-    .unwrap();
-
-    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for file in &session.sysroot().files {
-        unit.push((&file.source, &file.ast));
-    }
-    unit.push((&source, &ast));
-
-    let files_to_lower = vec![(&source, &ast)];
-    let lowered = hir::lower_for_compilation_unit_multi_files(
-        &source,
-        &index,
-        &unit,
-        &files_to_lower,
-        &[],
-        &typecheck_types,
-    )
-    .unwrap();
-
-    let main = lowered
-        .file
-        .items
-        .iter()
-        .find_map(|item| match item {
-            hir::Item::Fun(fun) if fun.fqn == "fixtures.t5000e3d.main" => Some(fun),
-            _ => None,
-        })
-        .expect("expected lowered main");
-    let body = main.body.as_ref().expect("main should have a body");
-    let Some(hir::Stmt {
-        kind: hir::StmtKind::Expr(call),
-        ..
-    }) = body.stmts.first()
-    else {
-        panic!("expected println statement in lowered main body");
-    };
-    let hir::ExprKind::Call { callee, .. } = &call.kind else {
-        panic!("expected println statement to lower as a direct call");
-    };
-    let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
-        panic!("expected println callee to lower as a top-level direct-call target");
-    };
-    assert!(
-        fqn.starts_with("scoop.core.println::<"),
-        "HIR should already materialize the generic sysroot direct-call target before LLVM dispatch: {fqn}"
-    );
-
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     assert!(
         ir.contains("@scoop_println"),
-        "materialized generic sysroot direct-call should still route through builtin print lowering"
+        "materialized generic sysroot direct-call should print through compiled sysroot println"
+    );
+    assert!(
+        ir.contains("scoop_core_println") && ir.contains("scoop_core_Int_toString"),
+        "compiled sysroot println<Int> should call the Int.toString body instead of a print builtin bypass"
     );
 }
 

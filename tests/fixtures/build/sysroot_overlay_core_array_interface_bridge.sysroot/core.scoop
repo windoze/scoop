@@ -26,7 +26,7 @@ interface Hashable {
 //
 // 说明：
 // - 任何类型实现 `ToString` 即可被传入泛型 `print`/`println`（`where T: ToString`）。
-// - 内建类型（Int/Bool/String）通过 body-less extension function 声明 + codegen 路由实现。
+// - 本 overlay 只覆盖 Array 可见性，不重新声明生产 sysroot 的标量 `toString` body method。
 // - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
 // - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
 //   后续可收紧为抽象方法。
@@ -39,16 +39,48 @@ interface ToString {
 // Fixture-only overlay marker used to prove `Array<T>` comes from this file.
 interface OverlayVisible
 
-// Built-in scalar types（声明层）。
+// Built-in scalar types（声明层 + intrinsic body methods）。
 //
 // 说明：
 // - 这些类型的布局/语义由编译器与运行时固定；
-// - sysroot 只提供"可见声明"，用于名字解析与工具链展示。
-struct Bool : Hashable, ToString
-struct Char : Hashable, ToString
-struct Float64 : Hashable, ToString
-struct Float32 : Hashable, ToString
-class String : Hashable, ToString
+// - `toString` 走普通 method body，使调用路径不再依赖 compiler 按名字拦截。
+@Intrinsic
+struct Bool : Hashable, ToString {
+    override fun toString(): String {
+        if (this) {
+            return "true"
+        }
+        return "false"
+    }
+}
+
+@Intrinsic
+struct Char : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiCharToString(this)
+    }
+}
+
+@Intrinsic
+struct Float64 : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiFloat64ToString(this)
+    }
+}
+
+@Intrinsic
+struct Float32 : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiFloat32ToString(this)
+    }
+}
+
+@Intrinsic
+class String : Hashable, ToString {
+    override fun toString(): String {
+        return this
+    }
+}
 typealias Double = Float64
 // 泛型数组类型（compile-time + runtime 表面）。
 //
@@ -166,22 +198,16 @@ annotation class Retention(val policy: String)
 annotation class ThreadLocal
 annotation class Global
 
-// T0131: toString 扩展函数（body-less，codegen 路由到 runtime）。
+// Built-in scalar/string extension functions that this overlay still needs as declaration surface.
 //
 // 说明：
 // - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
-//   `Char.toInt()` / `Char.toString()` / `Int.toString()` / `Bool.toString()` / `String.toString()` /
-//   `Float64/Float32.toInt()/toString()/hash()/abs()/isNaN()/isInfinite()` / `Char.hash()`；
-// - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy/内建类型路由到 runtime 函数；
+//   `Char.toInt()` / `Float64/Float32.toInt()/hash()/abs()/isNaN()/isInfinite()` / `Char.hash()`；
 // - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
 @Intrinsic
 fun Char.toInt(): Int
 @Intrinsic
-fun Char.toString(): String
-@Intrinsic
 fun Float64.toInt(): Int
-@Intrinsic
-fun Float64.toString(): String
 @Intrinsic
 fun Float64.hash(): Int
 @Intrinsic
@@ -193,8 +219,6 @@ fun Float64.isInfinite(): Bool
 @Intrinsic
 fun Float32.toInt(): Int
 @Intrinsic
-fun Float32.toString(): String
-@Intrinsic
 fun Float32.hash(): Int
 @Intrinsic
 fun Float32.abs(): Float32
@@ -202,12 +226,6 @@ fun Float32.abs(): Float32
 fun Float32.isNaN(): Bool
 @Intrinsic
 fun Float32.isInfinite(): Bool
-@Intrinsic
-fun Int.toString(): String
-@Intrinsic
-fun Bool.toString(): String
-@Intrinsic
-fun String.toString(): String
 @Intrinsic
 fun Char.hash(): Int
 
@@ -369,7 +387,12 @@ struct AnnotationArgMeta {
 // Integers（spec §2.3.4 / runtime §3）
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
-struct Int : Hashable, ToString
+@Intrinsic
+struct Int : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiIntToString(this)
+    }
+}
 struct UInt : Hashable
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。

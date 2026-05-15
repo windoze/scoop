@@ -1,0 +1,49 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun <T> stringify(value: T): String where T: ToString {
+    return value.toString()
+}
+
+fun main(): Int {
+    val narrow: Float32 = 1.5
+
+    if (42.toString() != "42") {
+        return 1
+    }
+    if (true.toString() != "true") {
+        return 2
+    }
+    if (false.toString() != "false") {
+        return 3
+    }
+    if ('A'.toString() != "A") {
+        return 4
+    }
+    if (narrow.toString() != "1.5") {
+        return 5
+    }
+    if (2.25.toString() != "2.25") {
+        return 6
+    }
+    if ("ok".toString() != "ok") {
+        return 7
+    }
+    if (stringify(7) != "7") {
+        return 8
+    }
+    if (stringify(false) != "false") {
+        return 9
+    }
+
+    println(42)
+    println(true)
+    println('A')
+    println(narrow)
+    println("ok")
+    return 0
+}

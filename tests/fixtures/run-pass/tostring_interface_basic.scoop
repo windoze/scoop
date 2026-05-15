@@ -8,7 +8,7 @@
 // 1. Built-in types: println(Int), println(Bool), println(String)
 // 2. Built-in toString(): Int.toString(), Bool.toString(), String.toString()
 // 3. print(Bool) / print(Int) (non-newline)
-// 4. toString() via extension function
+// 4. toString() via sysroot body methods
 // 5. Combination: concat with toString result
 
 import scoop.core.*
@@ -20,7 +20,7 @@ fun main(): Int {
     println(false)
     println("hello")
 
-    // 2) Built-in toString() (extension function → codegen dispatch)
+    // 2) Built-in toString() (sysroot body method -> ordinary dispatch)
     val s1: String = 123.toString()
     println(s1)
     val s2: String = true.toString()

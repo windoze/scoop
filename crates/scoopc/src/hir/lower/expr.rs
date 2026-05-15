@@ -662,6 +662,10 @@ impl<'a> HirLowering<'a> {
                     } else {
                         self.lower_expr(pkg_prefix, receiver)
                     };
+                    // `String` is an intrinsic final runtime type; it has no object vtable, so its
+                    // body methods must lower as direct calls just like intrinsic scalar structs.
+                    let owner_uses_virtual_dispatch =
+                        owner_is_class && owner_fqn != "scoop.core.String";
 
                     if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span)
                         && let Some(fun_binding) =
@@ -670,7 +674,7 @@ impl<'a> HirLowering<'a> {
                         let receiver_ty = receiver.ty;
                         let dispatch_kind = if owner_is_interface {
                             Some(crate::hir::DispatchCallKind::Interface)
-                        } else if owner_is_class {
+                        } else if owner_uses_virtual_dispatch {
                             Some(crate::hir::DispatchCallKind::Virtual)
                         } else {
                             None
@@ -757,7 +761,7 @@ impl<'a> HirLowering<'a> {
                     };
                     let dispatch_kind = if owner_is_interface {
                         Some(crate::hir::DispatchCallKind::Interface)
-                    } else if owner_is_class {
+                    } else if owner_uses_virtual_dispatch {
                         Some(crate::hir::DispatchCallKind::Virtual)
                     } else {
                         None
@@ -5462,21 +5466,17 @@ impl<'a> HirLowering<'a> {
         }
 
         if receiver_ty == self.builtins.int {
-            return matches!(member_name, "toString" | "hash");
-        }
-
-        if receiver_ty == self.builtins.bool_ {
-            return member_name == "toString";
+            return member_name == "hash";
         }
 
         if receiver_ty == self.builtins.char_ {
-            return matches!(member_name, "toInt" | "toString" | "hash");
+            return matches!(member_name, "toInt" | "hash");
         }
 
         if receiver_ty == self.builtins.float64 || receiver_ty == self.builtins.float32 {
             return matches!(
                 member_name,
-                "toInt" | "toString" | "hash" | "abs" | "isNaN" | "isInfinite"
+                "toInt" | "hash" | "abs" | "isNaN" | "isInfinite"
             );
         }
 

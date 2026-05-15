@@ -1,38 +1,31 @@
-# Execution Plan
+# Claude Execution Plan
 
-I will keep this file updated with the actionable plan, decisions, key progress, validation, and blockers. This file intentionally records an auditable execution plan rather than private chain-of-thought.
+## Scope
 
-## Current Invocation Plan
+- Execute exactly the first incomplete task in `TODO.md`.
+- Treat `TODO.md` as the authoritative task list and only update `PLAN.md` if phase-level sequencing or dependencies change.
+- Avoid unrelated bug sweeps or opportunistic work.
+- Do not use workarounds for spec or implementation gaps; add a prerequisite task and stop if a blocker prevents correct execution.
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work that is directly relevant to that selected task.
-3. Read the selected task details, dependencies, validation requirements, and any relevant nearby planning context.
-4. Inspect only the code and fixtures needed to implement that task correctly.
-5. Implement the selected task without workarounds or scope narrowing.
-6. Add or update focused tests and fixtures required by the task.
-7. Run the task-specified validation plus relevant targeted tests; fix any failures caused by this work.
-8. Mark the task heading `[DONE]` in `TODO.md` and update its completion record.
-9. Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
-10. Commit all changes for this invocation with a clear task-tagged message, then stop.
+## Steps
 
-## Progress Log
+1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for an explicitly unfinished issue that is directly relevant to the selected task.
+3. Read the selected task details, dependencies, validation requirements, and relevant source/test files.
+4. Implement the task as written, making the smallest correct change that satisfies the task without narrowing scope.
+5. Add or update focused tests/fixtures required by the task.
+6. Run the task-specified validation commands and any additional relevant checks needed for confidence.
+7. If validation fails, fix the root cause and rerun the relevant checks.
+8. Mark the task title in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
+9. Update this plan file at key milestones and if the approach changes.
+10. Review the worktree, stage all files required for this completed task, and create one descriptive git commit.
+11. Stop after the commit without starting the next task.
 
-- Started invocation and recorded the initial execution plan before running shell commands.
-- Selected first incomplete task: `P4-T01q`, which requires a frontend diagnostic for ordinary functions/methods missing bodies, while preserving the three allowed exceptions: `@Intrinsic`, `@Extern`, and abstract interface methods.
-- Latest commit `75d589c3 [P4-T01p] Lock intrinsic member body diagnostics` is directly preceding but does not mention unfinished work; no prerequisite was added from commit history.
-- Implemented `scoop::typecheck::fun_must_have_body` for non-sysroot ordinary user functions/methods; sysroot enforcement is handled by a dedicated audit because sysroot has header stubs backed by support sources.
-- Added missing-body typecheck fixtures for top-level, member, generic, extension, `@Intrinsic`, `@Extern`, and interface abstract/default cases.
-- Updated legacy effect-row fixtures to use real bodies or parameter-provided nominal values instead of declaration-only ordinary helper functions.
-- Audited sysroot declaration-only ordinary surfaces, annotated compiler/runtime-backed sysroot declarations with `@Intrinsic`, preserved `core.scoop` `print/println` header stubs backed by bodyful `sysroot/print.scoop`, and added a sysroot audit unit test.
-- Updated sysroot overlay fixture copies to satisfy the new declaration-body rules.
-- Validation completed so far: `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`, `cargo run -p scoop -- test --fixtures tests/fixtures/build`, `cargo test -p scoopc`, and `cargo clippy --all-targets -- -D warnings` all pass.
+## Current Status
 
-## Task-Specific Plan: P4-T01q
-
-1. Inspect existing function-body representation, annotation checks, diagnostic definitions, and typecheck fixture metadata conventions.
-2. Add a frontend/typecheck diagnostic for body-less ordinary functions and methods outside interface abstract declarations.
-3. Ensure existing `@Extern` and `@Intrinsic` no-body declarations remain accepted and still use their existing inverse diagnostics when they incorrectly include a body.
-4. Add focused positive and negative typecheck fixtures for top-level, member, generic, extension, extern, intrinsic, and interface abstract/default cases.
-5. Audit sysroot declarations for ordinary body-less functions/methods and repair only noncompliant residuals, without deleting P4-T01 by-name intercepts.
-6. Run formatting, targeted fixture validation, full `scoopc` tests, run-pass fixtures, and clippy.
-7. Mark `P4-T01q` `[DONE]` with a completion record, then commit all changes for this invocation.
+- `TODO.md` 已读取。
+- `P4-T01` 的正式任务标题已标 `[DONE]`，但任务索引漏标 `[DONE]`。
+- 工作区已有大量未提交改动，内容与 `P4-T01` 完成记录对应，说明上一轮 `P4-T01` 已实现但未完成提交步骤。
+- 当前执行目标调整为闭合 `P4-T01` 的遗漏提交步骤，并在提交中同步修正 `TODO.md` 顶部任务索引的 `[DONE]` 漏标。
+- 已复跑 `P4-T01` 关键验证：`cargo fmt --all -- --check`、`cargo check -p scoopc`、相关 `scoopc` targeted tests、`tests/fixtures/build`、两个 scalar toString run-pass fixture、GC stress variants、`cargo clippy --all-targets -- -D warnings` 均通过。
+- 本轮提交完成后停止，不进入 `P4-T02`。

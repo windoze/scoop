@@ -4206,10 +4206,12 @@ fn operand_source_with_expected_ty(
                     site_id,
                     kind,
                     format!(
-                        "local{} 的类型为 t{}，但 published operand contract 期望 t{}",
+                        "local{} 的类型为 t{}({})，但 published operand contract 期望 t{}({})",
                         local.as_u32(),
                         local_ty.as_u32(),
+                        types.display(local_ty),
                         expected_ty.as_u32(),
+                        types.display(expected_ty),
                     ),
                 ));
             }
@@ -4233,6 +4235,9 @@ fn nominal_source_type_compatible(
     expected_ty: TypeId,
     nominal_direct_supertypes: &NominalDirectSupertypeIndex,
 ) -> bool {
+    if builtin_string_source_type_compatible(types, local_ty, expected_ty) {
+        return true;
+    }
     let (local_nominal, expected_nominal) = match (types.kind(local_ty), types.kind(expected_ty)) {
         (
             TypeKind::Ref(RefTypeKind::Nominal(local_nominal)),
@@ -4269,6 +4274,22 @@ fn nominal_source_type_compatible(
         }
     }
     false
+}
+
+fn builtin_string_source_type_compatible(
+    types: &TypeStore,
+    local_ty: TypeId,
+    expected_ty: TypeId,
+) -> bool {
+    fn is_string(types: &TypeStore, ty: TypeId) -> bool {
+        matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::String))
+            || matches!(
+                types.kind(ty),
+                TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String"
+            )
+    }
+
+    is_string(types, local_ty) && is_string(types, expected_ty)
 }
 
 fn function_value_source_type_compatible(

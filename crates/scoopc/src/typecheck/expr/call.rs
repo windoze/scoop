@@ -5760,19 +5760,7 @@ fn infer_member_call_expr_type(
         }
     }
 
-    // T1812: Int.toString() — 数值→文本転換。
     if actual_receiver_ty == builtins.int {
-        if member_name == "toString" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "toString".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
-        }
         // T1817: Int.hash() — SplitMix64 bit-mixing, returns Int.
         if member_name == "hash" {
             if !args.is_empty() {
@@ -5787,20 +5775,7 @@ fn infer_member_call_expr_type(
         }
     }
 
-    // T0114: Bool.toString() — 布尔値→文本転換。
-    if actual_receiver_ty == builtins.bool_ && member_name == "toString" {
-        if !args.is_empty() {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: "toString".into(),
-                expected: 0,
-                found: args.len(),
-                span: call_expr.span.into(),
-            });
-        }
-        return Ok(builtins.string);
-    }
-
-    // T0146c2: Char 内建 API —— toInt()/toString()/hash().
+    // T0146c2: Char 内建 API 中尚未迁移为 body method 的部分。
     if actual_receiver_ty == builtins.char_ {
         if member_name == "toInt" {
             if !args.is_empty() {
@@ -5812,17 +5787,6 @@ fn infer_member_call_expr_type(
                 });
             }
             return Ok(builtins.int);
-        }
-        if member_name == "toString" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "toString".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
         }
         if member_name == "hash" {
             if !args.is_empty() {
@@ -5837,10 +5801,9 @@ fn infer_member_call_expr_type(
         }
     }
 
-    // T0147c: Float 内建 API —— toInt()/toString()/hash()/abs()/isNaN()/isInfinite().
+    // T0147c: Float 内建 API 中尚未迁移为 body method 的部分。
     if actual_receiver_ty == builtins.float64 || actual_receiver_ty == builtins.float32 {
         let is_known_float_method = member_name == "toInt"
-            || member_name == "toString"
             || member_name == "hash"
             || member_name == "abs"
             || member_name == "isNaN"
@@ -5857,7 +5820,6 @@ fn infer_member_call_expr_type(
 
             return Ok(match member_name {
                 "toInt" | "hash" => builtins.int,
-                "toString" => builtins.string,
                 "abs" => actual_receiver_ty,
                 "isNaN" | "isInfinite" => builtins.bool_,
                 _ => unreachable!("filtered by is_known_float_method"),

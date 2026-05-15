@@ -106,11 +106,7 @@ annotation class Global
 @Intrinsic
 fun Char.toInt(): Int
 @Intrinsic
-fun Char.toString(): String
-@Intrinsic
 fun Float64.toInt(): Int
-@Intrinsic
-fun Float64.toString(): String
 @Intrinsic
 fun Float64.hash(): Int
 @Intrinsic
@@ -122,8 +118,6 @@ fun Float64.isInfinite(): Bool
 @Intrinsic
 fun Float32.toInt(): Int
 @Intrinsic
-fun Float32.toString(): String
-@Intrinsic
 fun Float32.hash(): Int
 @Intrinsic
 fun Float32.abs(): Float32
@@ -131,12 +125,6 @@ fun Float32.abs(): Float32
 fun Float32.isNaN(): Bool
 @Intrinsic
 fun Float32.isInfinite(): Bool
-@Intrinsic
-fun Int.toString(): String
-@Intrinsic
-fun Bool.toString(): String
-@Intrinsic
-fun String.toString(): String
 @Intrinsic
 fun Char.hash(): Int
 
@@ -232,7 +220,12 @@ struct AnnotationArgMeta {
     val value: Any
 }
 
-struct Int : Hashable, ToString
+@Intrinsic
+struct Int : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiIntToString(this)
+    }
+}
 struct UInt : Hashable
 struct Int8 : Hashable
 struct Int16 : Hashable
