@@ -32,6 +32,11 @@
 | `P4-T01j` | P4 前置 IV | [DONE] 把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用 |
 | `P4-T01k` | P4 前置 IV | [DONE] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
 | `P4-T01l` | P4 前置 IV | [TODO] 解锁 `@Intrinsic struct/class` body method 在 builtin scalar receiver / `ToString.toString` interface dispatch 上的可达性 |
+| `P4-T01m` | P4 前置 V | [TODO] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
+| `P4-T01n` | P4 前置 V | [TODO] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
+| `P4-T01o` | P4 前置 V | [TODO] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
+| `P4-T01p` | P4 前置 V | [TODO] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
+| `P4-T01q` | P4 前置 V | [TODO] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -586,7 +591,7 @@
 >
 > 硬约束（"零编译器后门"，non-generic 维度）：本前置阶段必须保证，未来再加任何新的非 generic 内建 method（含 interface override 与独立 method）都不会再要求改编译器；只动 sysroot 即可。generic-by-T 维度的后门（不可避免）由 P4 前置 II 收敛为可枚举 intrinsic 表。
 >
-> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01f → P4-T01g → P4-T01h → P4-T01i → P4-T01j → P4-T01k → P4-T01l → P4-T01。十二个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
+> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01f → P4-T01g → P4-T01h → P4-T01i → P4-T01j → P4-T01k → P4-T01l → P4-T01m → P4-T01n → P4-T01o → P4-T01p → P4-T01q → P4-T01。十七个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。`P4-T01m/n/o/p/q` 五条 P4 前置 V 子任务统一以"验证 + 修补"为定位：现有实现已全部或部分覆盖 `@Intrinsic` 规范，这五条任务只在不放宽既有 surface 的前提下对每条规范补足 fixture / 诊断与必要的最小修补。
 
 ### [DONE] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
 
@@ -1464,6 +1469,159 @@
   - 后续 `P4-T01` 在删除 by-name 拦截时不再被这两条可达性 gap 卡住，可以走"先验证新机制，再逐条删除"的明确流程。
 - 依赖：`P4-T01k`
 
+### [TODO] P4-T01m：验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §9
+  - 现有实现入口：
+    - `crates/scoopc/src/typecheck/annotations.rs::check_builtin_annotations_on_type_decl`（已对 primary ctor `val/var` param 与 body 内 `is_direct_field()` property 报 `IntrinsicTypeFieldNotSupported`）
+    - 现有 fixture：`tests/fixtures/typecheck/intrinsic_type_body_field_is_error.scoop`、`tests/fixtures/typecheck/intrinsic_type_ctor_field_is_error.scoop`
+- 起因：规范要求 `@Intrinsic class/struct` 的成员与内存布局完全由编译器生成，不允许声明可直接访问的数据成员；对内部结构的访问只能通过 `@Intrinsic method` 或其它 `@Extern function`（参见现有 `Array<T>` / `MutableArray<T>` 的实现形态）。当前 `IntrinsicTypeFieldNotSupported` 已经覆盖了 primary ctor `val/var` 字段与 body 内 direct-field property 两条最常见入口，但尚未系统验证：
+  1. struct 形态（区别于 class）走相同的 ctor / body member 检查；
+  2. 通过 `var` / `lateinit` / 默认值 / mutable property 等不同 surface 不会绕过约束；
+  3. `@Intrinsic class/struct` 内部状态访问只能经由 `@Intrinsic method` 或 `@Extern function` 暴露，sysroot 现状（`Array<T>` / `MutableArray<T>`）确实满足这一约束。
+- 必须实现的内容：
+  1. 为 `@Intrinsic struct` flavor 显式补一组 fixture：primary ctor `val/var` field + body `val/var` direct-field property，分别 assert 落入 `intrinsic_type_field_not_supported`；
+  2. 对 `var` field、带初始化器的 direct field、`lateinit` 等 surface 全量补 fixture，确保都被同一条诊断截住；
+  3. 审计 sysroot 中所有 `@Intrinsic class/struct`（`Array<T>` / `MutableArray<T>` / 经 `P4-T01l` 改写后的 `Bool/Char/Int/Float32/Float64/String`），确认它们对内部结构的访问 100% 走 `@Intrinsic method` 或 `@Extern function`，不存在被默认接受的 direct-field path；如发现 sysroot 出现违规形态，按"修补"原则改写而不是放宽诊断；
+  4. 若发现现有 `check_builtin_annotations_on_type_decl` 在某条 surface 上漏检（例如 secondary ctor、`object` 内 nested class、generic class type-parameter shenanigans），在不改变现有诊断 message 的前提下补齐覆盖。
+- 必须遵从的约束：
+  - 不得放宽 `IntrinsicTypeFieldNotSupported` 已锁住的现状；本任务只做"补 fixture + 修小漏检"，不引入新的 surface 让 `@Intrinsic` 类型可以声明可直接访问字段；
+  - 不得为了过 fixture 而把现有 sysroot `Array<T>` / `MutableArray<T>` layout / accessor 形态改写到非 `@Intrinsic method` / `@Extern function` 路径；
+  - 不得在本任务里调整 `@Intrinsic` 类型的 layout 内置识别逻辑（与 `P4-T01c` 完成基线一致）。
+- 验证：
+  1. `cargo test -p scoopc`（包括新增 fixture 的 typecheck 回归与既有 owner test）；
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：维持 0 failed；
+  3. `cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - `@Intrinsic class/struct` 在所有可观察 surface 上都不能声明可直接访问的数据成员；
+  - sysroot 现存的 `@Intrinsic class/struct` 内部状态访问被 audit 列为"全部走 `@Intrinsic method` 或 `@Extern function`"，并在本任务回写中固化结论。
+- 依赖：`P4-T01l`
+
+### [TODO] P4-T01n：验证 `@Intrinsic class/struct` 合成属性可正常落地，规范同普通 class/struct
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §9
+  - 现有实现入口：
+    - `crates/scoopc/src/typecheck/annotations.rs::check_builtin_annotations_on_type_decl`（`is_direct_field()` 判定，间接表明非 direct-field property—即合成属性—不被该诊断拦截）
+    - 普通 class/struct 合成属性 lowering 与 codegen 主线
+- 起因：规范允许 `@Intrinsic class/struct` 拥有合成属性（getter / setter / 计算属性），并要求其语义与普通 class/struct 完全一致；当前 `IntrinsicTypeFieldNotSupported` 仅在 `is_direct_field()` 时触发，逻辑上已经"放过"合成属性，但尚未有 fixture 锁定该行为，也未验证合成属性的 typecheck / HIR lowering / codegen 在 `@Intrinsic` receiver 上是否与普通类型对齐。本任务的目的是把"合成属性允许，且与普通 class/struct 同构"这一规范固化，避免 `P4-T01` / `P4-T02` 在 sysroot 改写阶段被未发现的合成属性 gap 撞到。
+- 必须实现的内容：
+  1. 新增 fixture：`@file:AllowIntrinsic` + `@Intrinsic class/struct Foo { val computed: Int get() = ... }` / 带 setter 的 mutable 合成属性，分别 assert typecheck 通过、HIR / codegen 行为与对应普通 class/struct 完全一致；
+  2. 至少覆盖：纯 getter 计算属性、getter+setter mutable 合成属性、依赖其它 `@Intrinsic method` 的 getter；
+  3. 若 `P4-T01l` 推进过程中需要让 sysroot scalar `@Intrinsic struct/class` 暴露任何合成属性（例如 cached toString），用本任务的 fixture 形态确认通路畅通；
+  4. 审计现有 sysroot 是否存在隐含的合成属性使用，把每处的"合成属性走普通 class/struct path"结论写进任务回写。
+- 必须遵从的约束：
+  - 合成属性的 typecheck / HIR / codegen 路径与普通 class/struct 必须**同构**，不得为 `@Intrinsic` 引入分支；任何分支都视为规范违反，必须改写到统一路径；
+  - 不得借此扩大 `@Intrinsic class/struct` 的可声明 surface（仍不允许 direct field）；
+  - 不得为了过 fixture 引入新的 sysroot 编译器后门或新的 by-name 拦截。
+- 验证：
+  1. `cargo test -p scoopc`；
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` / `tests/fixtures/run-pass`：维持 0 failed；
+  3. `cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - `@Intrinsic class/struct` 上的合成属性在 typecheck / HIR / codegen 三层全部走与普通 class/struct 同构的路径，且至少有一组 fixture 直接锁定这一行为；
+  - 后续 `P4-T01` / `P4-T02` 在 sysroot 改写时不再担心合成属性触发未覆盖路径。
+- 依赖：`P4-T01m`
+
+### [TODO] P4-T01o：锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §9、§10
+  - 现有实现入口：
+    - `crates/scoopc/src/typecheck/annotations.rs::{IntrinsicFunMustHaveNoBody, ExternFunMustHaveNoBody}`
+    - `crates/scoopc/src/typecheck/interfaces.rs::required_abstract_interface_funs`（已经按"无 body" / "有 body"区分 abstract vs default method）
+    - sysroot 范例：`Array<T>` / `MutableArray<T>` 的 `interface impl`
+- 起因：规范要求 `@Intrinsic class/struct` 实现 interface 时，所实现的 method 必须是普通 method 且必须提供完整的定义和实现——这是"interface 调用必须能在 `@Intrinsic` receiver 上落到一份用户/sysroot 可见的 body"的硬约束。当前 `@Intrinsic` method 与 `@Extern` function 的 body 缺省检查存在，但**没有**专门 fixture 锁定"`@Intrinsic class/struct` 上 override 的 interface method 既不能是 `@Intrinsic` 也不能是 `@Extern`，必须是带 body 的普通 method"。`P4-T01l` 推进时已经实质踩中这条约束（`override fun toString(): String { ... }` 必须有 body），但缺乏前端独立诊断与 fixture，可能在 `P4-T01` / `P4-T02` 写 bodied helper 时被反向破坏。
+- 必须实现的内容：
+  1. Fixture: `@Intrinsic class/struct Foo : SomeIface { @Intrinsic override fun m(): Int }` —— 必须报错（@Intrinsic 不能用于 interface override）；
+  2. Fixture: `@Intrinsic class/struct Foo : SomeIface { @Extern("...") override fun m(): Int }` —— 必须报错（@Extern 也不允许，访问内部需要走 method body 调 `@Extern function`，而不是把 override 本身声明为 `@Extern`）；
+  3. Fixture: `@Intrinsic class/struct Foo : SomeIface { override fun m(): Int }` 无 body —— 必须报错（缺失 body，落入新 `P4-T01q` 的通用诊断或本任务专属诊断）；
+  4. Fixture: `@Intrinsic class/struct Foo : SomeIface { override fun m(): Int = ... }` —— 必须接受；
+  5. 若现有诊断不能覆盖以上 (1)/(2)/(3)，引入最小诊断 / 复用既有诊断把它们截住；诊断 message 必须明确指向"`@Intrinsic` 类型的 interface override 必须是带 body 的普通 method"；
+  6. 审计 sysroot 现有 `@Intrinsic class/struct` 的 interface impl，把"全部为带 body 的普通 method"结论写进任务回写。
+- 必须遵从的约束：
+  - 不得放宽 `IntrinsicFunMustHaveNoBody` / `ExternFunMustHaveNoBody` 现有边界；
+  - 不得把"interface 默认 method（在 interface 自身上有 body）"误归到本约束 —— 默认 method 仍由 interface body 提供；本约束限定的是 `@Intrinsic class/struct` 作为 implementer 时 override / 实现 method 的形态；
+  - 不得新增 sysroot 编译器后门让某些 `@Intrinsic` 类型的 interface override 走 by-name 路径绕过 body 要求。
+- 验证：
+  1. `cargo test -p scoopc`；
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：维持 0 failed，新增 fixture 全部命中预期诊断；
+  3. `cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - `@Intrinsic class/struct` 实现 interface 时，`@Intrinsic` / `@Extern` / 无 body 三种形态均被前端拒绝；唯一被接受的形态是带 body 的普通 method；
+  - sysroot 现状被 audit 锁定为"全部 interface override 均为带 body 的普通 method"。
+- 依赖：`P4-T01n`
+
+### [TODO] P4-T01p：锁定 `@Intrinsic` method 在类型成员位置同样必须省略方法体
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §9
+  - 现有实现入口：
+    - `crates/scoopc/src/typecheck/annotations.rs::IntrinsicFunMustHaveNoBody`（line 2242 处已对 `@Intrinsic` 标注 + 有 body 报错）
+    - 现有 fixture：`tests/fixtures/typecheck/intrinsic_named_fun_body_is_error.scoop`
+- 起因：规范要求 `@Intrinsic` method / function 的实现由编译器生成，不能定义方法体。当前 `IntrinsicFunMustHaveNoBody` 已对 top-level fun 形态生效，但需要确认它对**类型成员位置**（class/struct/object 内 method、override method、generic method）同样生效，且与 `P4-T01d` 引入的 `@Intrinsic("name")` 形态、`P4-T01o` 锁定的 "interface override 不允许 `@Intrinsic`" 规则之间不出现重叠或漏检。
+- 必须实现的内容：
+  1. Fixture：在普通 class / struct 内声明 `@Intrinsic fun m(): Int { return 0 }` —— 必须报错（与 top-level 同诊断）；
+  2. Fixture：在普通 class / struct 内声明 `@Intrinsic fun m(): Int` 无 body —— 必须接受（这正是 `Array<T>` / `MutableArray<T>` 现状）；
+  3. Fixture：generic class / struct 上 `@Intrinsic fun m<U>(): U { ... }` —— 必须报错；
+  4. Fixture：`@Intrinsic("name") fun m(): Int { ... }`（命名形态）作为 class member 同样有 body —— 必须报错；
+  5. 若现有 `check_builtin_annotations_on_fun_decl` 链路仅覆盖 top-level，把它扩展到所有 method declaration 入口，使诊断在 type member position 也触发；扩展不得改变现有诊断 message。
+- 必须遵从的约束：
+  - 不得引入新的诊断 code，复用 `intrinsic_fun_must_have_no_body`；
+  - 不得放宽 `P4-T01d` 引入的 `@Intrinsic("name")` 表机制；
+  - 不得为 sysroot 引入"member 形态可以有 body" 的特殊豁免——sysroot 与用户代码在该约束上完全一致。
+- 验证：
+  1. `cargo test -p scoopc`；
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：维持 0 failed；
+  3. `cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - `@Intrinsic` method 在所有声明位置（top-level fun、class / struct / object member、generic 形态、`@Intrinsic("name")` 命名形态）上都被前端要求省略 body；
+  - 既有 `intrinsic_named_fun_body_is_error.scoop` fixture 与本任务新增 fixture 共同锁定上述行为。
+- 依赖：`P4-T01o`
+
+### [TODO] P4-T01q：收口前端通用约束——所有 method/function 必须有完整定义与实现（仅三类例外）
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
+  - [`MANAGED_ABI.md`](./MANAGED_ABI.md) §9、§10
+  - 现有实现入口：
+    - `crates/scoopc/src/hir/lower/mod.rs`（line 866 起把 `ast::FunBody::Missing` lower 成 `body: None`，目前未独立报错）
+    - `crates/scoopc/src/hir/lower/util.rs::has_body: !matches!(fun.body, ast::FunBody::Missing)`（line 4603 / 4716 / 6025 已经把 has_body 信号沉到 HIR 侧）
+    - `crates/scoopc/src/typecheck/interfaces.rs::required_abstract_interface_funs`（已按 has_body 区分 abstract vs default）
+    - `crates/scoopc/src/typecheck/annotations.rs::{ExternFunMustHaveNoBody, IntrinsicFunMustHaveNoBody}`（反向：要求**没有** body）
+- 起因：规范要求所有 method/function 都必须提供完整定义和实现，仅以下三类例外：
+  - 它是 `@Intrinsic` method/function（已有反向诊断，要求没有 body）；
+  - 它是 `@Extern` function（已有反向诊断，要求没有 body）；
+  - 它是 interface method 的声明，且没有提供默认实现（abstract interface method）。
+  当前前端**未独立**报"普通 method/function 缺失 body"——`ast::FunBody::Missing` 在 HIR lowering 直接被翻成 `body: None`，下游可能在 codegen / monomorphization 阶段才以"找不到可发布的 callable"等方式间接撞出。这条 gap 是 `@Intrinsic` 规范的**对偶面**：前面四条任务都在锁定"哪些场景必须没有 body"，本任务负责锁定"剩下所有场景都必须有 body"。
+- 必须实现的内容：
+  1. 在前端引入新的诊断（建议 code: `scoop::typecheck::fun_must_have_body` / `method_must_have_body`，message 列出三类豁免），覆盖：
+     - top-level `fun foo(): Int` 无 body 且无 `@Intrinsic` / `@Extern` 注解 —— 报错；
+     - class / struct / object member `fun m(): Int` 无 body 且无 `@Intrinsic` 注解 —— 报错；
+     - generic 形态、extension function 形态同样覆盖；
+  2. 不要把 interface method 的 abstract 声明（即 interface 自身 body 内的无 body method）误报错——它属于第三类例外；现有 `required_abstract_interface_funs` 已经识别这一形态，本任务的诊断必须显式跳过 interface body 内的 method declaration；
+  3. 为每条豁免单独补一条 ok fixture：(a) `@Intrinsic fun ... (无 body)`；(b) `@Extern("..." abi = "c"|"scoop") fun ... (无 body)`；(c) `interface I { fun m(): Int }`；
+  4. 为每条违反单独补一条 fail fixture：(a) top-level `fun foo(): Int` 无 body 无注解；(b) class member 同形态；(c) generic / extension fun 同形态；
+  5. 审计 sysroot：本任务上线后，sysroot 中所有 method / function 必须落到"三类例外之一" 或 "带 body"；如发现遗留的 declaration-only 普通 fun（例如 `Int.toString` 之类的 builtin allowlist 残留），先以"修补"原则改写到合规形态，但**不**在本任务里同步删除 `P4-T01` 计划要删的 by-name 拦截，避免与 string cone tracer bullet 的删除节奏冲突。
+- 必须遵从的约束：
+  - 不得借此提前完成 `P4-T01` 的 by-name 删除动作；本任务只新增前端通用诊断 + 修补 sysroot 不合规残留，所有既有 `try_codegen_tostring_iface_builtin` / `effect_lowered/{body,value}.rs` 拦截原样保留；
+  - 不得把 interface default method（interface body 内有 body 的 method）误报错或误判；
+  - 不得为了过 fixture 在普通 fun 上引入第四类豁免（例如不允许"`@Deprecated` 可以省略 body" 这样的扩展）；规范明确只有三类例外。
+- 验证：
+  1. `cargo test -p scoopc`；
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：维持 0 failed，新增豁免 / 违反 fixture 全部命中预期；
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：维持 0 failed（确认不误伤 sysroot 现状）；
+  4. `cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - 前端独立诊断锁定"普通 fun/method 必须有 body"，三类豁免（`@Intrinsic` / `@Extern` / 无默认实现的 interface method）以正向 fixture 显式覆盖；
+  - sysroot 不再存在不属于三类例外的 declaration-only 普通 fun/method；剩余的 by-name 拦截删除工作仍按计划交给 `P4-T01` / `P4-T02`。
+- 依赖：`P4-T01p`
+
 ## P4：string cone tracer bullet
 
 ### [TODO] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
@@ -1517,7 +1675,7 @@
   3. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <scalar-tostring-fixtures>`
 - 完成条件：
   - 第一批标量 `toString` helper 已不再依赖 compiler/runtime FQN intercept。
-- 依赖：`P4-T01l`（在 P4-T01h 之后又新增了 `P4-T01i/j/k/l` 四条前置 IV 子任务；其中 `P4-T01l` 是本任务推进过程中显式拆出的最后一条阻塞：`@Intrinsic struct/class` 上的 `override fun toString(): String { ... }` 必须能同时打通"builtin scalar receiver 走 nominal member-call 主线"与"`ToString.toString` interface dispatch 在 builtin scalar override 上发布 callable body" 这两条通路，否则 P4-T01 的删除动作会立刻撞上 `direct call arity mismatch` / `published late-lowered body` 缺失。）
+- 依赖：`P4-T01q`（在 P4-T01h 之后又依次新增了 `P4-T01i/j/k/l` 四条前置 IV 子任务与 `P4-T01m/n/o/p/q` 五条前置 V 子任务；其中 `P4-T01l` 是本任务推进过程中显式拆出的最后一条可达性阻塞：`@Intrinsic struct/class` 上的 `override fun toString(): String { ... }` 必须能同时打通"builtin scalar receiver 走 nominal member-call 主线"与"`ToString.toString` interface dispatch 在 builtin scalar override 上发布 callable body" 这两条通路，否则 P4-T01 的删除动作会立刻撞上 `direct call arity mismatch` / `published late-lowered body` 缺失。`P4-T01m/n/o/p/q` 五条前置 V 子任务则把 `@Intrinsic class/struct` 规范（无可访问字段 / 允许合成属性 / interface override 必须为带 body 的普通 method / `@Intrinsic` method 不允许 body / 通用"必须带 body"前端约束）系统性补齐 fixture 与诊断，避免 P4-T01 在 sysroot 改写阶段被未发现的规范 gap 撞到。）
 
 ### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 
