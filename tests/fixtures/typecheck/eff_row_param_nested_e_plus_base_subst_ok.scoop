@@ -15,7 +15,7 @@ effect IO {
 fun <eff E = Pure> takes(
     block: () -> Unit / E,
     pair: (Option<() -> Unit / (E + IO)>, () -> Unit / (E + IO))
-): Unit / Pure
+): Unit / Pure {}
 
 fun ok() {
     val f: () -> Unit / (Raise<Int> + IO) = {

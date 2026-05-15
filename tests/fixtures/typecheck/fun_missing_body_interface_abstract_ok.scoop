@@ -1,0 +1,14 @@
+// EXPECT: pass
+// P4-T01q: interface methods without default implementations remain abstract declarations.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Contract {
+    fun required(): Int
+
+    fun defaulted(): Int {
+        return 1
+    }
+}

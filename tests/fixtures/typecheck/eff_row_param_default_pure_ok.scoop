@@ -6,9 +6,10 @@ package fixtures.typecheck
 import scoop.core.*
 
 // `E` 缺省为 Pure，因此调用 `f()` 不应引入任何 required effects。
-fun <eff E = Pure> f(): Int / E
+fun <eff E = Pure> f(): Int / E {
+    return 1
+}
 
 fun ok() {
     val x: Int = f()
 }
-

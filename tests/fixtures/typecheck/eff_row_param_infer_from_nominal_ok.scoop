@@ -12,16 +12,12 @@ interface Disposable<eff E = Pure> {
     fun dispose(): Unit / E
 }
 
-fun <eff E = Pure> using(d: Disposable<eff E>): Unit / E
+fun <eff E = Pure> using(d: Disposable<eff E>): Unit / E {}
 
-fun asyncDisposable(): Disposable<eff Async>
-fun pureDisposable(): Disposable
-
-fun okPureInPublic() {
-    using(pureDisposable())
+fun okPureInPublic(d: Disposable) {
+    using(d)
 }
 
-internal fun okAsyncInInternal() {
-    using(asyncDisposable())
+internal fun okAsyncInInternal(d: Disposable<eff Async>) {
+    using(d)
 }
-

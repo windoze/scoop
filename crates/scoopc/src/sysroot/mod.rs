@@ -248,6 +248,8 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast;
+    use std::collections::BTreeSet;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -289,6 +291,37 @@ mod tests {
     }
 
     #[test]
+    fn sysroot_declaration_only_regular_funs_are_explicitly_exempted() {
+        let root = canonicalize_sysroot_root(&Sysroot::default_path(), "sysroot").unwrap();
+        let mut parsed_files = Vec::new();
+        let mut implemented_top_level_fqns = BTreeSet::new();
+        let mut violations = Vec::new();
+
+        for path in collect_merged_sysroot_paths(&root, None).unwrap() {
+            let source = SourceFile::load_sysroot(&path).unwrap();
+            let file = crate::parser::parse_file(&source).unwrap();
+            collect_bodyful_top_level_regular_fqns(&source, &file, &mut implemented_top_level_fqns);
+            parsed_files.push((path, source, file));
+        }
+
+        for (path, source, file) in &parsed_files {
+            audit_file_for_declaration_only_regular_funs(
+                path,
+                source,
+                file,
+                &implemented_top_level_fqns,
+                &mut violations,
+            );
+        }
+
+        assert!(
+            violations.is_empty(),
+            "sysroot ordinary functions/methods without local bodies must be `@Intrinsic`, `@Extern`, abstract interface methods, or backed by a bodyful sysroot support source:\n{}",
+            violations.join("\n")
+        );
+    }
+
+    #[test]
     fn overlay_core_with_bodied_intrinsic_nominal_method_becomes_compilable_support_source() {
         let root = make_temp_dir("overlay_core_compilable");
         let base_root = root.0.join("base");
@@ -319,5 +352,246 @@ mod tests {
         collect_compilable_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources)
             .unwrap();
         assert_eq!(support_sources, vec![overlay_core]);
+    }
+
+    fn audit_file_for_declaration_only_regular_funs(
+        path: &Path,
+        source: &SourceFile,
+        file: &ast::File,
+        implemented_top_level_fqns: &BTreeSet<String>,
+        violations: &mut Vec<String>,
+    ) {
+        for item in &file.items {
+            match item {
+                ast::Item::Fun(fun) => {
+                    audit_fun_for_declaration_only_regular_fun(
+                        path,
+                        source,
+                        file,
+                        fun,
+                        FunAuditContainer::TopLevel,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::Item::Type(decl) => {
+                    audit_type_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        decl,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    audit_object_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        obj,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::Item::TypeAlias(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::Val(_)
+                | ast::Item::ComptimeIf(_) => {}
+            }
+        }
+    }
+
+    fn audit_type_for_declaration_only_regular_funs(
+        path: &Path,
+        source: &SourceFile,
+        file: &ast::File,
+        decl: &ast::TypeDecl,
+        implemented_top_level_fqns: &BTreeSet<String>,
+        violations: &mut Vec<String>,
+    ) {
+        let Some(body) = &decl.body else {
+            return;
+        };
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Fun(fun) => {
+                    audit_fun_for_declaration_only_regular_fun(
+                        path,
+                        source,
+                        file,
+                        fun,
+                        FunAuditContainer::Type(decl.kind),
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::Type(nested) => {
+                    audit_type_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        nested,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::Object(obj) => {
+                    audit_object_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        obj,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::InitBlock(_) => {}
+            }
+        }
+    }
+
+    fn audit_object_for_declaration_only_regular_funs(
+        path: &Path,
+        source: &SourceFile,
+        file: &ast::File,
+        obj: &ast::ObjectDecl,
+        implemented_top_level_fqns: &BTreeSet<String>,
+        violations: &mut Vec<String>,
+    ) {
+        let Some(body) = &obj.body else {
+            return;
+        };
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Fun(fun) => {
+                    audit_fun_for_declaration_only_regular_fun(
+                        path,
+                        source,
+                        file,
+                        fun,
+                        FunAuditContainer::Object,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::Type(nested) => {
+                    audit_type_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        nested,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::Object(nested) => {
+                    audit_object_for_declaration_only_regular_funs(
+                        path,
+                        source,
+                        file,
+                        nested,
+                        implemented_top_level_fqns,
+                        violations,
+                    );
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::InitBlock(_) => {}
+            }
+        }
+    }
+
+    fn audit_fun_for_declaration_only_regular_fun(
+        path: &Path,
+        source: &SourceFile,
+        file: &ast::File,
+        fun: &ast::FunDecl,
+        container: FunAuditContainer,
+        implemented_top_level_fqns: &BTreeSet<String>,
+        violations: &mut Vec<String>,
+    ) {
+        if !matches!(fun.body, ast::FunBody::Missing) || fun.kind != ast::FunDeclKind::Regular {
+            return;
+        }
+        if matches!(container, FunAuditContainer::Type(ast::TypeKind::Interface)) {
+            return;
+        }
+        if has_intrinsic_annotation(source, &fun.annotations)
+            || has_builtin_annotation(source, &fun.annotations, "Extern")
+        {
+            return;
+        }
+        if matches!(container, FunAuditContainer::TopLevel)
+            && fun.receiver.is_none()
+            && implemented_top_level_fqns.contains(&top_level_fun_fqn(source, file, fun))
+        {
+            return;
+        }
+        violations.push(format!(
+            "{}: `{}`",
+            path.display(),
+            source.slice(fun.name.span)
+        ));
+    }
+
+    #[derive(Clone, Copy)]
+    enum FunAuditContainer {
+        TopLevel,
+        Type(ast::TypeKind),
+        Object,
+    }
+
+    fn has_builtin_annotation(
+        source: &SourceFile,
+        annotations: &[ast::AnnotationUse],
+        name: &str,
+    ) -> bool {
+        annotations.iter().any(|annotation| {
+            annotation
+                .path
+                .last()
+                .is_some_and(|segment| segment.text(source) == name)
+        })
+    }
+
+    fn collect_bodyful_top_level_regular_fqns(
+        source: &SourceFile,
+        file: &ast::File,
+        out: &mut BTreeSet<String>,
+    ) {
+        for item in &file.items {
+            let ast::Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.kind == ast::FunDeclKind::Regular
+                && fun.receiver.is_none()
+                && matches!(fun.body, ast::FunBody::Block(_))
+            {
+                out.insert(top_level_fun_fqn(source, file, fun));
+            }
+        }
+    }
+
+    fn top_level_fun_fqn(source: &SourceFile, file: &ast::File, fun: &ast::FunDecl) -> String {
+        let name = source.slice(fun.name.span);
+        let Some(package) = &file.package else {
+            return name.to_string();
+        };
+        let prefix = package
+            .path
+            .iter()
+            .map(|segment| segment.text(source))
+            .collect::<Vec<_>>()
+            .join(".");
+        if prefix.is_empty() {
+            name.to_string()
+        } else {
+            format!("{prefix}.{name}")
+        }
     }
 }

@@ -86,6 +86,12 @@ enum ExternFunctionSite {
     Member,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MissingRegularBodyPolicy {
+    RequireBody,
+    AllowAbstractDeclaration,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct ParsedExternAnnotationArgs {
     abi: ExternAbi,
@@ -255,6 +261,17 @@ pub enum AnnotationError {
     ExternFunMustHaveNoBody {
         fun_name: String,
         #[label("这里不应有函数体")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "普通{decl_kind}必须提供函数体（仅 `@Intrinsic`、`@Extern` 或无默认实现的 interface method 可省略）：{fun_name}"
+    )]
+    #[diagnostic(code(scoop::typecheck::fun_must_have_body))]
+    FunMustHaveBody {
+        decl_kind: &'static str,
+        fun_name: String,
+        #[label("这里需要函数体")]
         span: miette::SourceSpan,
     },
 
@@ -672,6 +689,7 @@ pub fn check_file_annotations(
                     fun,
                     &mut lower,
                     ExternFunctionSite::TopLevel,
+                    MissingRegularBodyPolicy::RequireBody,
                 )?;
                 check_param_list_annotations(ctx, &mut lower, builtins, &fun.params)?;
             }
@@ -885,6 +903,7 @@ fn check_type_decl_annotations(
                     fun,
                     lower,
                     ExternFunctionSite::Member,
+                    missing_regular_body_policy_for_type(decl.kind),
                 )?;
                 check_param_list_annotations(ctx, lower, builtins, &fun.params)?;
             }
@@ -913,6 +932,17 @@ fn check_type_decl_annotations(
     }
 
     Ok(())
+}
+
+fn missing_regular_body_policy_for_type(kind: ast::TypeKind) -> MissingRegularBodyPolicy {
+    match kind {
+        ast::TypeKind::Interface | ast::TypeKind::Effect => {
+            MissingRegularBodyPolicy::AllowAbstractDeclaration
+        }
+        ast::TypeKind::Class | ast::TypeKind::Struct | ast::TypeKind::Enum => {
+            MissingRegularBodyPolicy::RequireBody
+        }
+    }
 }
 
 /// 检查一组参数上的注解使用（`@Name(...)`）。
@@ -1055,6 +1085,7 @@ fn check_object_decl_annotations(
                     fun,
                     lower,
                     ExternFunctionSite::Member,
+                    MissingRegularBodyPolicy::RequireBody,
                 )?;
             }
             ast::TypeMember::Type(nested) => {
@@ -2162,6 +2193,7 @@ fn check_builtin_annotations_on_fun_decl(
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
     fun_site: ExternFunctionSite,
+    missing_body_policy: MissingRegularBodyPolicy,
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
     let fun_name = source.slice(fun.name.span).to_string();
@@ -2245,6 +2277,14 @@ fn check_builtin_annotations_on_fun_decl(
         });
     }
 
+    if !source.is_sysroot() && regular_fun_requires_body(fun, &flags, missing_body_policy) {
+        return Err(AnnotationError::FunMustHaveBody {
+            decl_kind: missing_body_decl_kind(fun, fun_site),
+            fun_name,
+            span: fun.name.span.into(),
+        });
+    }
+
     if flags.is_extern {
         let extern_abi = extern_abi.unwrap_or_default();
 
@@ -2286,6 +2326,26 @@ fn check_builtin_annotations_on_fun_decl(
     }
 
     Ok(())
+}
+
+fn regular_fun_requires_body(
+    fun: &ast::FunDecl,
+    flags: &BuiltinAnnotationFlags,
+    missing_body_policy: MissingRegularBodyPolicy,
+) -> bool {
+    matches!(fun.body, ast::FunBody::Missing)
+        && fun.kind == ast::FunDeclKind::Regular
+        && missing_body_policy == MissingRegularBodyPolicy::RequireBody
+        && !flags.is_extern
+        && !flags.is_intrinsic
+}
+
+fn missing_body_decl_kind(fun: &ast::FunDecl, fun_site: ExternFunctionSite) -> &'static str {
+    match (fun_site, fun.receiver.is_some()) {
+        (ExternFunctionSite::TopLevel, true) => "扩展函数",
+        (ExternFunctionSite::TopLevel, false) => "顶层函数",
+        (ExternFunctionSite::Member, _) => "成员函数",
+    }
 }
 
 fn check_intrinsic_builtin_annotation_args(

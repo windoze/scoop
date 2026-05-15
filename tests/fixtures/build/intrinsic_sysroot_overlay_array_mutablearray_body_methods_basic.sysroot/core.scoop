@@ -50,13 +50,19 @@ class MutableArray<T>(seed: T) : DummyIter {
 typealias List<T> = Array<T>
 typealias MutableList<T> = MutableArray<T>
 
+@Intrinsic
 fun <T> Array<T>.size(): Int
+@Intrinsic
 fun <T> Array<T>.get(index: Int): T
 
+@Intrinsic
 fun <T> MutableArray<T>.size(): Int
+@Intrinsic
 fun <T> MutableArray<T>.get(index: Int): T
+@Intrinsic
 fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 
+@Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
 
 class ComptimeList<T>
@@ -92,51 +98,72 @@ annotation class Retention(val policy: String)
 annotation class ThreadLocal
 annotation class Global
 
+@Intrinsic
 fun Char.toInt(): Int
+@Intrinsic
 fun Char.toString(): String
+@Intrinsic
 fun Float64.toInt(): Int
+@Intrinsic
 fun Float64.toString(): String
+@Intrinsic
 fun Float64.hash(): Int
+@Intrinsic
 fun Float64.abs(): Float64
+@Intrinsic
 fun Float64.isNaN(): Bool
+@Intrinsic
 fun Float64.isInfinite(): Bool
+@Intrinsic
 fun Float32.toInt(): Int
+@Intrinsic
 fun Float32.toString(): String
+@Intrinsic
 fun Float32.hash(): Int
+@Intrinsic
 fun Float32.abs(): Float32
+@Intrinsic
 fun Float32.isNaN(): Bool
+@Intrinsic
 fun Float32.isInfinite(): Bool
+@Intrinsic
 fun Int.toString(): String
+@Intrinsic
 fun Bool.toString(): String
+@Intrinsic
 fun String.toString(): String
+@Intrinsic
 fun Char.hash(): Int
 
-fun <T> print(value: T): Unit where T: ToString
-fun <T> println(value: T): Unit where T: ToString
-
+@Intrinsic
 fun __scoop_print_string(value: String): Unit
+@Intrinsic
 fun __scoop_println_string(value: String): Unit
 
+@Intrinsic
 fun __scoop_gc_collect(): Unit
+@Intrinsic
 fun __scoop_gc_debug_heap_object_count(): Int
+@Intrinsic
 fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+@Intrinsic
 fun __scoop_stackmap_statepoint_smoke(): Int
 
 @Intrinsic
 object GC {
-    @Unsafe
+    @Intrinsic @Unsafe
     fun handleNew(obj: Any): GcHandle
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun handleGet(h: GcHandle): Any
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun handleDrop(h: GcHandle): Unit
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun pin(obj: Any): Pinned
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun unpin(pinned: Pinned): Unit
 }
 
@@ -258,16 +285,22 @@ enum Option<T> {
     None
 }
 
+@Intrinsic
 fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 
 interface Continuation<Resume, Answer, eff E = Pure> {
     fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
+@Intrinsic
 fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
+@Intrinsic
 fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
 
 enum RuntimeError {
@@ -276,6 +309,7 @@ enum RuntimeError {
     ContinuationAlreadyResumed,
 }
 
+@Intrinsic
 fun panic(message: String): Nothing
 
 effect Raise<in E> {

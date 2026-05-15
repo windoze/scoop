@@ -26,42 +26,53 @@ class Once
 // --- Mutex ---
 
 /// 创建一个新的互斥锁。
+@Intrinsic
 fun mutexCreate(): Mutex
 
 /// 加锁（可能阻塞）。
+@Intrinsic
 fun Mutex.lock(): Unit
 
 /// 解锁。
+@Intrinsic
 fun Mutex.unlock(): Unit
 
 /// 销毁互斥锁（early stage：显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
+@Intrinsic
 fun Mutex.destroy(): Unit
 
 // --- CondVar ---
 
 /// 创建一个新的条件变量。
+@Intrinsic
 fun condVarCreate(): CondVar
 
 /// 在条件变量上等待：
 /// - 会原子地解锁 `mutex` 并阻塞；
 /// - 被唤醒后在返回前重新加锁 `mutex`（语义由平台 backend 决定）。
+@Intrinsic
 fun CondVar.wait(mutex: Mutex): Unit
 
 /// 唤醒一个等待者（若存在）。
+@Intrinsic
 fun CondVar.notifyOne(): Unit
 
 /// 唤醒所有等待者（若存在）。
+@Intrinsic
 fun CondVar.notifyAll(): Unit
 
 /// 销毁条件变量（显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
+@Intrinsic
 fun CondVar.destroy(): Unit
 
 // --- Once ---
 
 /// 创建一个新的 once 标记。
+@Intrinsic
 fun onceCreate(): Once
 
 /// 返回该 once 是否已完成。
+@Intrinsic
 fun Once.isDone(): Bool
 
 /// 执行一次：若尚未完成，则运行 `block` 并把 once 标记为完成；否则直接返回。
@@ -69,4 +80,5 @@ fun Once.isDone(): Bool
 /// 说明：
 /// - 该 API 的具体内存序与并发语义由 std/runtime 逐步固化；T1319a 仅提供声明面；
 /// - `Once` 自身没有显式 `destroy()` API，但其内部平台资源会在对象不可达后由 runtime sweep cleanup。
+@Intrinsic
 fun Once.run(block: () -> Unit): Unit

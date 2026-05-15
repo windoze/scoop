@@ -42,6 +42,7 @@ interface IntIterator {
 /// 说明：
 /// - 用于 vararg spread 的显式转换：`f(*xs.toArray())`；
 /// - 语言层不会放开 `*iterable` 的隐式 spread（避免隐式分配）。
+@Intrinsic
 fun IntIterable.toArray(): Array<Int>
 
 /// 最小 `Map` 声明（spec §10.4 示例）。

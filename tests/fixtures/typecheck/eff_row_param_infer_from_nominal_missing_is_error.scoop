@@ -2,7 +2,7 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
 // EXPECT-ERROR: 缺少效果声明
 // EXPECT-ERROR: Async
-// EXPECT-ERROR-AT: 28:5
+// EXPECT-ERROR-AT: 25:5
 // 目标：T0624：`Type<eff Row>`（use-site）与 `eff` 参数推断联动：
 // - `Disposable` 省略 use-site `eff` 时按声明处默认值实例化（此处为 `Pure`）
 // - `Disposable<eff Async>` 作为实参时，调用点推断 `E` 至少包含 `Async`，并把调用的 required effects 计入外层函数
@@ -15,15 +15,12 @@ interface Disposable<eff E = Pure> {
     fun dispose(): Unit / E
 }
 
-fun <eff E = Pure> using(d: Disposable<eff E>): Unit / E
+fun <eff E = Pure> using(d: Disposable<eff E>): Unit / E {}
 
-fun asyncDisposable(): Disposable<eff Async>
-fun pureDisposable(): Disposable
-
-fun ok() {
-    using(pureDisposable())
+fun ok(d: Disposable) {
+    using(d)
 }
 
-fun bad() {
-    using(asyncDisposable())
+fun bad(d: Disposable<eff Async>) {
+    using(d)
 }

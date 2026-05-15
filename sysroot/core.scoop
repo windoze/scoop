@@ -101,6 +101,7 @@ typealias MutableList<T> = MutableArray<T>
 // 说明：
 // - 该 API 由 stdlib 提供实现（pure scoop），sysroot 在此提供声明面用于名字解析与类型检查；
 // - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
+@Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
 // 编译期列表（spec §6.4）。
 //
@@ -178,31 +179,44 @@ annotation class Global
 //   `Float64/Float32.toInt()/toString()/hash()/abs()/isNaN()/isInfinite()` / `Char.hash()`；
 // - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy/内建类型路由到 runtime 函数；
 // - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
+@Intrinsic
 fun Char.toInt(): Int
+@Intrinsic
 fun Char.toString(): String
+@Intrinsic
 fun Float64.toInt(): Int
+@Intrinsic
 fun Float64.toString(): String
+@Intrinsic
 fun Float64.hash(): Int
+@Intrinsic
 fun Float64.abs(): Float64
+@Intrinsic
 fun Float64.isNaN(): Bool
+@Intrinsic
 fun Float64.isInfinite(): Bool
+@Intrinsic
 fun Float32.toInt(): Int
+@Intrinsic
 fun Float32.toString(): String
+@Intrinsic
 fun Float32.hash(): Int
+@Intrinsic
 fun Float32.abs(): Float32
+@Intrinsic
 fun Float32.isNaN(): Bool
+@Intrinsic
 fun Float32.isInfinite(): Bool
+@Intrinsic
 fun Int.toString(): String
+@Intrinsic
 fun Bool.toString(): String
+@Intrinsic
 fun String.toString(): String
+@Intrinsic
 fun Char.hash(): Int
 
-// T0131: 泛型 print/println 签名（body-less，resolver/typecheck 用）。
-//
-// 说明：
-// - 这些声明让 resolver 在所有用户代码中可以解析 `print(x)` / `println(x)`；
-// - 函数体在 sysroot/print.scoop 中提供（compilable sysroot file），monomorphization
-//   会为每个具体类型生成特化版本。
+// T0131: 泛型 print/println 签名（实现由 sysroot/print.scoop 提供）。
 fun <T> print(value: T): Unit where T: ToString
 fun <T> println(value: T): Unit where T: ToString
 
@@ -211,7 +225,9 @@ fun <T> println(value: T): Unit where T: ToString
 // 说明：
 // - `__scoop_print_string` / `__scoop_println_string` 是 runtime 映射的内部函数；
 // - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
+@Intrinsic
 fun __scoop_print_string(value: String): Unit
+@Intrinsic
 fun __scoop_println_string(value: String): Unit
 
 // GC（测试辅助）。
@@ -225,9 +241,13 @@ fun __scoop_println_string(value: String): Unit
 //   它是显式 opt-in 的可选 stackmap 路径，不属于默认 explicit-root-frame correctness 主线；
 // - 编译器会仅对包含该调用点的函数恢复 statepoint GC strategy，并把它 lowering 成 ordinary
 //   managed runtime 调用，这样调用点本身会重新保留真实 statepoint/stackmap record。
+@Intrinsic
 fun __scoop_gc_collect(): Unit
+@Intrinsic
 fun __scoop_gc_debug_heap_object_count(): Int
+@Intrinsic
 fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+@Intrinsic
 fun __scoop_stackmap_statepoint_smoke(): Int
 
 // GC pinning API（spec §15.10）。
@@ -248,19 +268,19 @@ object GC {
     // - ordinary `@Extern` / reactor / callback 的长期 round-trip 应通过 `GcHandle.raw`
     //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
-    @Unsafe
+    @Intrinsic @Unsafe
     fun handleNew(obj: Any): GcHandle
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun handleGet(h: GcHandle): Any
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun handleDrop(h: GcHandle): Unit
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun pin(obj: Any): Pinned
 
-    @NoGC @Unsafe
+    @Intrinsic @NoGC @Unsafe
     fun unpin(pinned: Pinned): Unit
 }
 
@@ -451,9 +471,13 @@ enum Option<T> {
 //
 // 当前阶段限制（为保持 LLVM run-pass 可落地）：
 // - 仅对 `Int` 提供最小可执行落点；更完整的 `<T>` 泛型版本将在 monomorph/codegen 能力补齐后升级。
+@Intrinsic
 fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
+@Intrinsic
 fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 
 // Continuation（spec §5.5）
@@ -483,7 +507,9 @@ interface Continuation<Resume, Answer, eff E = Pure> {
 // - 该 API 用于回归"跨线程 resume"语义（spec §5.5 / TODO T0618）；
 // - 当前阶段不提供调度器：该 helper 会创建一个新线程执行 `resume` 并 join 等待结束；
 // - 仅作为 fixtures 的可执行落点，并不承诺稳定的用户态 API。
+@Intrinsic
 fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
+@Intrinsic
 fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
 
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
@@ -500,6 +526,7 @@ enum RuntimeError {
 // - 它返回 `Nothing`，因此类型检查与控制流分析会把它视为 bottom；
 // - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
 //   core intrinsic / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
+@Intrinsic
 fun panic(message: String): Nothing
 
 // Built-in effect: Raise

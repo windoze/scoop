@@ -38,7 +38,7 @@
 | `P4-T01n` | P4 前置 V | [DONE] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
 | `P4-T01o` | P4 前置 V | [DONE] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
 | `P4-T01p` | P4 前置 V | [DONE] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
-| `P4-T01q` | P4 前置 V | [TODO] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
+| `P4-T01q` | P4 前置 V | [DONE] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -1782,7 +1782,7 @@
     - 对应 `PLAN.md` P4 前置 V：`@Intrinsic` method 在 top-level 与类型成员位置的“必须无 body”规范现在由既有 top-level fixture 与新增 member-position fixture 矩阵共同锁住，为后续 P4-T01 sysroot 改写避免成员 intrinsic body 漏检。
     - 本任务没有改变 callable ABI / extern ABI surface，也没有调整 `@Intrinsic` 表机制或 runtime substrate；无需回写 `MANAGED_ABI.md` / `PLAN.md`。
 
-### [TODO] P4-T01q：收口前端通用约束——所有 method/function 必须有完整定义与实现（仅三类例外）
+### [DONE] P4-T01q：收口前端通用约束——所有 method/function 必须有完整定义与实现（仅三类例外）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
@@ -1819,6 +1819,30 @@
   - 前端独立诊断锁定"普通 fun/method 必须有 body"，三类豁免（`@Intrinsic` / `@Extern` / 无默认实现的 interface method）以正向 fixture 显式覆盖；
   - sysroot 不再存在不属于三类例外的 declaration-only 普通 fun/method；剩余的 by-name 拦截删除工作仍按计划交给 `P4-T01` / `P4-T02`。
 - 依赖：`P4-T01p`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/annotations.rs`：新增 `scoop::typecheck::fun_must_have_body` 诊断，在用户源码中要求普通 top-level / member / generic / extension function 必须提供 body；保留 `@Intrinsic` / `@Extern` / interface abstract method 三类豁免。sysroot 自身通过专用 audit 约束，因为 `core.scoop` 仍有由 `sysroot/print.scoop` 提供实现的 signature stub。
+    - `crates/scoopc/src/sysroot/mod.rs`：新增 sysroot audit 单测，要求 declaration-only regular fun/method 必须是 `@Intrinsic` / `@Extern` / abstract interface method，或在 sysroot support source 中有同 FQN bodyful 实现。
+    - `sysroot/{core,thread,sync,collections,delegates}.scoop`：把 compiler/runtime-backed declaration-only surface 显式标为 `@Intrinsic`；保留 `print/println` 在 `core.scoop` 的签名 stub，并由 `sysroot/print.scoop` 的 bodyful implementation 闭合。
+    - `tests/fixtures/typecheck/fun_missing_body_*.scoop`：新增缺 body 失败矩阵与三类豁免正向 fixture。
+    - `tests/fixtures/typecheck/eff_row_param_*.scoop`：把旧的普通 declaration-only helper 改成带 body 的真实 helper或参数输入，避免继续依赖已禁止的普通无 body 函数。
+    - `tests/fixtures/typecheck/intrinsic_type_interface_override_missing_body_{class,struct}_is_error.scoop`：该形态现在由通用 `fun_must_have_body` 先行诊断，符合 P4-T01o 中允许“通用诊断或专属诊断”的记录。
+    - `tests/fixtures/build/*.sysroot/core.scoop` overlay：同步标注 declaration-only sysroot intrinsic surface，避免 overlay core 与新规则 drift。
+  - 核心决策：
+    - 用户源码中的普通 function/method 缺 body 现在在 annotation/typecheck 早期直接报 `fun_must_have_body`，不再等到 HIR/codegen/monomorphization 阶段以间接错误暴露。
+    - 不把 sysroot 内部 header stub 当作第四类用户语言豁免；生产诊断跳过 sysroot 源文件，改由 sysroot audit 从整个 sysroot source set 判断是否有显式 intrinsic/extern/abstract 归类或 bodyful support 实现。
+    - `print/println` 保持既有 `core.scoop` signature + `print.scoop` body 的双文件 sysroot 结构，避免破坏已锁定的 generic sysroot direct-call materialization；这不是 P4-T01 的 by-name 删除动作。
+    - 本任务没有删除 `toString` / string helper 的 compiler/runtime by-name intercept；这些删除继续留给 `P4-T01` / `P4-T02`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：468 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：401 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build`：43 passed / 0 failed
+    - `cargo test -p scoopc`：864 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`：通过
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 V：普通 function/method 必须有完整实现的前端约束已锁定，`@Intrinsic` / `@Extern` / interface abstract 三类无 body surface 均有正向 fixture；sysroot declaration-only surface 已由显式 annotation 或 support-source body 归档。
+    - 本任务不改变 callable ABI / extern ABI surface，也不删除 P4-T01 计划中的 string/toString by-name path；无需回写 `MANAGED_ABI.md` 或 `PLAN.md`。
 
 ## P4：string cone tracer bullet
 

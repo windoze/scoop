@@ -1,0 +1,12 @@
+// EXPECT: pass
+// P4-T01q: `@Extern` declarations may omit bodies for both C and Scoop ABI forms.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("fixture_native_i64")
+fun nativeProvided(value: Int): Int
+
+@Extern("fixture_managed_i64", abi = "scoop")
+fun managedProvided(value: Int): Int
