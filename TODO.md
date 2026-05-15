@@ -29,7 +29,7 @@
 | `P4-T01g` | P4 前置 IV | [TODO] 解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段 |
 | `P4-T01h` | P4 前置 IV | [TODO] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
 | `P4-T01i` | P4 前置 IV | [DONE] 清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测 |
-| `P4-T01j` | P4 前置 IV | [TODO] 把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用 |
+| `P4-T01j` | P4 前置 IV | [DONE] 把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用 |
 | `P4-T01k` | P4 前置 IV | [TODO] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
@@ -1335,7 +1335,7 @@
     - 对应 `PLAN.md` P4 前置 IV：在 `string cone tracer bullet` 启动之前把 fixture / 单测 / golden / failure-policy sentinel 这些 test-resource 噪声全部清理干净，使后续 `P4-T01j` / `P4-T01k` 与 `P4-T01` 在判断回归时不再被既存噪声干扰；
     - `MANAGED_ABI.md` 描述的 ABI surface（`@Extern` 注解契约、native surface gate、callable ABI identity）在本任务中均未变动，因此无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01j：把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用
+### [DONE] P4-T01j：把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用
 
 - 参考：
   - `crates/scoopc/src/llvm/codegen/mod.rs::{declare_classified_llvm_function, declare_runtime_or_native_import_function}`（function declaration 分类入口与 surface 检查）
@@ -1360,6 +1360,25 @@
   4. `cargo clippy --all-targets -- -D warnings`
 - 完成条件：named intrinsic runtime symbol 声明通过 `declare_runtime_or_native_import_function` 通道完成，inventory test 重新通过，且不引入新的 raw `add_function(..., None)` callsite。
 - 依赖：无（与 P4-T01i 同范畴下的 production drift；可与 `P4-T01k` 并行）。
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/intrinsics/named.rs::declare_named_intrinsic_runtime_symbol`：把末尾的 `Ok(self.module.add_function(symbol, fn_ty, None))` 改为复用 `MainCodegen::declare_runtime_or_native_import_function(symbol, fn_ty)`；该 wrapper 内部已包含"已存在则复用"语义，因此一并删除函数顶部冗余的 `if let Some(existing) = self.module.get_function(symbol)` early-return，避免双重检查路径。
+    - `TODO.md`：把 `P4-T01j` 标 `[DONE]`。
+    - `memory/claude_plan.md`：刷新 P4-T01j 进展记录。
+  - 核心决策：
+    - **复用 method form 而不是 free function**：`MainCodegen::declare_runtime_or_native_import_function` 已经把 module 借走，调用点更简洁；与既有 `declare_exported_abi_function` / `declare_compiler_private_helper_function` 的方法形态保持一致。
+    - **删除 named.rs 顶部的 early-return**：wrapper 内 `if let Some(existing) = module.get_function(name) { return existing; }` 已等价覆盖；删除可避免出现"两条路径在不同时间各自命中"的歧义。
+    - **零行为变化**：`declare_runtime_or_native_import_function` 走 `LlvmFunctionDeclarationSurface::RuntimeOrNativeImport` + `Linkage::External`，与原 `add_function(..., None)`（默认 External linkage）等价；不放宽 `declare_classified_llvm_function` 的 surface assertions，不引入新 surface 类型。
+  - 验证结果：
+    - `cargo build -p scoopc`
+    - `cargo test -p scoopc function_declaration_inventory`：1 passed（先前 P4-T01i 阶段失败的 inventory test 现已通过）；
+    - `cargo test -p scoopc named_intrinsic`：3 passed；
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 fixtures 全部通过；
+    - `cargo test -p scoopc`：860 passed / 1 failed，仅剩 `materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct`（`P4-T01k` 范畴）；
+    - `cargo clippy --all-targets -- -D warnings` 通过。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV：named intrinsic runtime symbol 现在与 `@Extern` native imports 共享同一 declaration surface 通道，未来对 surface 检查的任何加固自动覆盖到 named intrinsic 路径，不需要再 chase 出 raw `add_function` callsite；
+    - `MANAGED_ABI.md` 描述的 ABI surface（`@Extern` 注解契约、native surface gate、callable ABI identity）在本任务中均未变动，因此无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01k：修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift
 

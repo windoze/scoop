@@ -912,9 +912,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         symbol: &str,
         signature: crate::intrinsics::NamedIntrinsicRuntimeSignature,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(symbol) {
-            return Ok(existing);
-        }
+        // P4-T01j：named intrinsic runtime symbol 也属于 runtime/native import surface，
+        // 必须经过 [`declare_runtime_or_native_import_function`] 的分类入口完成 surface
+        // assertions（External linkage、未来一旦改写不会绕开 classification 检查）；
+        // wrapper 内部已包含 "已存在则复用" 语义，所以这里不再重复 `module.get_function` early-return。
         let param_tys = signature
             .params
             .iter()
@@ -925,7 +926,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(ret) => ret.fn_type(&param_tys, false),
             None => self.context.void_type().fn_type(&param_tys, false),
         };
-        Ok(self.module.add_function(symbol, fn_ty, None))
+        Ok(self.declare_runtime_or_native_import_function(symbol, fn_ty))
     }
 
     fn named_intrinsic_runtime_metadata_ty(
