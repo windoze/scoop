@@ -892,7 +892,7 @@ fn try_eval_string_method_intrinsic(
             ConstValue::String(s)
         }
         "hash" => {
-            // FNV-1a（与 runtime/c scoop_string_hash 一致）。
+            // FNV-1a（与 sysroot/string.scoop 的 __scoop_string_hash 一致）。
             check_arity(0)?;
             let bytes = s.as_bytes();
             if bytes.is_empty() {
@@ -1214,7 +1214,7 @@ fn string_split(s: &str, delim: &str) -> Vec<String> {
     parts
 }
 
-/// 字节级 compareTo（与 runtime/c scoop_string_compare_to 一致）。
+/// 字节级 compareTo（与 sysroot/string.scoop 的 __scoop_string_compare_to 一致）。
 fn string_compare_to(a: &str, b: &str) -> i64 {
     let ab = a.as_bytes();
     let bb = b.as_bytes();
@@ -1522,7 +1522,7 @@ fn is_blank_line(bytes: &[u8], start: usize, end: usize) -> bool {
 
 /// `trimIndent()`：去掉所有行的公共缩进，并剥离首尾空白行（spec §8.4）。
 ///
-/// 该实现与 `runtime/c/scoop_runtime.c:scoop_string_trim_indent` 保持一致：
+/// 该实现与 `sysroot/string.scoop:__scoop_string_trim_indent` 保持一致：
 /// - 按 `\n` 分割行，并对每行剥离末尾 `\r`（兼容 CRLF）；
 /// - 缩进仅识别 ASCII 空格/Tab；
 /// - 空白行判定把 `\r` 也视为可忽略空白；

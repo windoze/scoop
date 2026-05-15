@@ -77,11 +77,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        if member.name == "trimIndent" {
-            return self
-                .codegen_string_trim_indent(span, receiver, args)
-                .map(Some);
-        }
         if member.name == "toInt" {
             let recv_ty = match &receiver.kind {
                 hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -107,22 +102,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .codegen_float_to_int_value(span, receiver.span, recv)
                     .map(Some);
             }
-            return self
-                .codegen_string_method(span, receiver, &member.name, args)
-                .map(Some);
         }
         if matches!(
             member.name.as_str(),
-            "length"
-                | "concat"
-                | "isEmpty"
-                | "replace"
-                | "charAt"
-                | "repeat"
-                | "compareTo"
-                | "byteLength"
-                | "getByte"
-                | "unsafeSliceBytes"
+            "byteLength" | "getByte" | "unsafeSliceBytes"
         ) {
             return self
                 .codegen_string_method(span, receiver, &member.name, args)
@@ -149,9 +132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let recv = self.codegen_expr(receiver)?;
                     self.codegen_float_hash_value(receiver.span, recv).map(Some)
                 }
-                _ => self
-                    .codegen_string_method(span, receiver, "hash", args)
-                    .map(Some),
+                _ => Ok(None),
             };
         }
         if matches!(member.name.as_str(), "abs" | "isNaN" | "isInfinite") {
@@ -1491,15 +1472,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return Ok(value);
             }
-            if dispatch_fqn == "scoop.core.concat" {
-                let Some(hir::CallArg::Positional(receiver)) = args.first() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "core concat receiver arg",
-                        at: callee.span.into(),
-                    });
-                };
-                return self.codegen_string_method(span, receiver, "concat", &args[1..]);
-            }
             if dispatch_fqn == "scoop.core.__scoop_print_string"
                 || dispatch_fqn == "scoop.core.__scoop_println_string"
             {
@@ -1706,9 +1678,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            if member.name == "trimIndent" {
-                return self.codegen_string_trim_indent(span, receiver, args);
-            }
             if member.name == "toInt" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -1732,20 +1701,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let recv = self.codegen_expr(receiver)?;
                     return self.codegen_float_to_int_value(span, receiver.span, recv);
                 }
-                return self.codegen_string_method(span, receiver, &member.name, args);
             }
             if matches!(
                 member.name.as_str(),
-                "length"
-                    | "concat"
-                    | "isEmpty"
-                    | "replace"
-                    | "charAt"
-                    | "repeat"
-                    | "compareTo"
-                    | "byteLength"
-                    | "getByte"
-                    | "unsafeSliceBytes"
+                "byteLength" | "getByte" | "unsafeSliceBytes"
             ) {
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
@@ -1770,9 +1729,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let recv = self.codegen_expr(receiver)?;
                         return self.codegen_float_hash_value(receiver.span, recv);
                     }
-                    _ => {
-                        return self.codegen_string_method(span, receiver, "hash", args);
-                    }
+                    _ => {}
                 }
             }
             if matches!(member.name.as_str(), "abs" | "isNaN" | "isInfinite") {

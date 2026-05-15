@@ -2802,13 +2802,6 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.byteLength"
             | "scoop.core.getByte"
             | "scoop.core.unsafeSliceBytes"
-            | "scoop.core.isEmpty"
-            | "scoop.core.trimIndent"
-            | "scoop.core.replace"
-            | "scoop.core.charAt"
-            | "scoop.core.repeat"
-            | "scoop.core.concat"
-            | "scoop.core.compareTo"
             | "scoop.core.toInt"
             | "scoop.core.panic"
             | "scoop.sync.mutexCreate"
@@ -4503,37 +4496,6 @@ fun pureHelper(): Unit {}
                 .keys()
                 .all(|key| key.template.fqn != "scoop.core.Raise.raise")
         );
-    }
-
-    #[test]
-    fn refactor_effect_facts_treats_builtin_string_length_fun_value_as_plain() {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/run-pass/effect_receiver_op_basic.scoop");
-        let source = SourceFile::load(&path).expect("fixture 应可加载");
-        let (_materialized, facts) = build_facts_for_source(source);
-        let (direct_key, _) = callable_facts_for(&facts, "direct_case");
-        let body = facts.body(direct_key).expect("direct_case 应有 body facts");
-        let SiteEffectFacts::Call(length_call) = body
-            .sites()
-            .values()
-            .find(|site| {
-                matches!(
-                    site,
-                    SiteEffectFacts::Call(call)
-                        if call.kind() == CallSiteKind::FunValue
-                            && call.target_mode() == CallTargetMode::DynamicFallback
-                )
-            })
-            .expect("String.length fun-value call 应存在")
-        else {
-            panic!("String.length site 应是 Call facts")
-        };
-
-        assert!(
-            length_call.resolved_cases().is_empty(),
-            "String.length builtin fun-value call 不应继承当前 effect StepSchema cases"
-        );
-        assert_eq!(length_call.precision(), EffectPrecision::Precise);
     }
 
     #[test]

@@ -5523,241 +5523,92 @@ fn infer_member_call_expr_type(
         return Ok(ret);
     }
 
-    // Built-in String API (early stage).
+    // String byte-level substrate.
     //
-    // T1811: String P0 methods (length/substring/startsWith/endsWith/indexOf/contains/split).
+    // Public helpers such as `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`
+    // are ordinary `String` body methods now.  Only byte-level physical-layout access remains synthetic.
     let member_name = source.slice(member.span);
-    if actual_receiver_ty == builtins.string {
-        // T1817: String.hash() — 0 args, returns Int.
-        if member_name == "hash" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "hash".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
+    if actual_receiver_ty == builtins.string
+        && matches!(member_name, "byteLength" | "getByte" | "unsafeSliceBytes")
+    {
+        let callee_fqn = format!("scoop.core.{member_name}");
+        let call_args = collect_call_arg_infos(inputs, args, lower)?;
+        check_call_arg_named_rules(&callee_fqn, &call_args)?;
+        let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
+            "byteLength" => (Vec::new(), Vec::new(), builtins.int, false),
+            "getByte" => (
+                vec!["index".to_string()],
+                vec![builtins.int],
+                builtins.int,
+                false,
+            ),
+            "unsafeSliceBytes" => (
+                vec!["byteOffset".to_string(), "byteLength".to_string()],
+                vec![builtins.int, builtins.int],
+                builtins.string,
+                true,
+            ),
+            _ => unreachable!("filtered by matches!"),
+        };
+        if requires_unsafe && !lower.in_unsafe_context() {
+            return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                callee: format!("String.{member_name}"),
+                span: call_expr.span.into(),
+            });
         }
-        if member_name == "length" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: member_name.to_string(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
+        check_call_named_args_exist_in_any_candidate(
+            &callee_fqn,
+            &call_args,
+            std::iter::once(param_names.as_slice()),
+        )?;
+        if call_args.len() != param_names.len() {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: member_name.into(),
+                expected: param_names.len(),
+                found: call_args.len(),
+                span: call_expr.span.into(),
+            });
         }
-        // T1816/T0115: `String.concat/compareTo` 没有普通 sysroot 函数体，
-        // 但 production HIR/MIR/codegen 需要 authoritative direct-call contract，
-        // 因此这里显式发布一个 extension-style member resolution + receiver-prefixed arg binding。
-        if matches!(member_name, "concat" | "compareTo") {
-            let callee_fqn = format!("scoop.core.{member_name}");
-            let return_ty = if member_name == "concat" {
-                builtins.string
-            } else {
-                builtins.int
-            };
-            let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(&callee_fqn, &call_args)?;
-
-            let param_names = vec!["other".to_string()];
-            check_call_named_args_exist_in_any_candidate(
-                &callee_fqn,
-                &call_args,
-                std::iter::once(param_names.as_slice()),
-            )?;
-
-            if call_args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: member_name.into(),
-                    expected: 1,
-                    found: call_args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-
-            let param_has_defaults = vec![false];
-            let Some(mapping) = map_call_args_to_params_with_defaults(
-                &call_args,
-                &param_names,
-                &param_has_defaults,
-            ) else {
-                return Err(ExprTypeError::NoMatchingOverload {
-                    callee: callee_fqn.clone(),
-                    span: call_expr.span.into(),
-                });
-            };
-            let Some(arg_idx) = mapping.first().copied().flatten() else {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: member_name.into(),
-                    expected: 1,
-                    found: call_args.len(),
-                    span: call_expr.span.into(),
-                });
-            };
-            let other_ty = call_args[arg_idx].ty;
-            if !is_type_assignable(other_ty, builtins.string, lower, builtins) {
-                return Err(ExprTypeError::CallArgTypeMismatch {
-                    callee: callee_fqn.clone(),
-                    index: 1,
-                    expected: lower.fmt_type(builtins.string),
-                    found: lower.fmt_type(other_ty),
-                    span: call_args[arg_idx].expr.span.into(),
-                });
-            }
-
-            lower.record_typechecked_member_resolution(
-                member.span,
-                ast::ResolvedMemberRef::ExtensionFun {
-                    fqn: callee_fqn.clone(),
-                },
-            );
-            let mapping = mapping
-                .into_iter()
-                .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
-                .collect::<Vec<_>>();
-            if let Some(binding) =
-                call_arg_binding_from_mapping_with_receiver_prefix(&mapping, &call_args)
-            {
-                lower.record_typechecked_call_arg_binding(call_expr.span, binding);
-            }
-            return Ok(return_ty);
-        }
-
-        // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-        // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
-
-        // T1812: String.toInt() — 文本→数值转换。
-        if member_name == "toInt" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "toInt".into(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
-        }
-        // T0115/T0120/T0121: 这些 String builtin surface 没有普通 sysroot 函数体，
-        // 但 production HIR/MIR/codegen 仍必须消费稳定的 extension-style direct-call contract，
-        // 不能退化成 unresolved `MemberAccess` + `FunValue` callee。
-        if matches!(
-            member_name,
-            "trimIndent"
-                | "isEmpty"
-                | "replace"
-                | "charAt"
-                | "repeat"
-                | "byteLength"
-                | "getByte"
-                | "unsafeSliceBytes"
-        ) {
-            let callee_fqn = format!("scoop.core.{member_name}");
-            let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(&callee_fqn, &call_args)?;
-            let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
-                "trimIndent" => (Vec::new(), Vec::new(), builtins.string, false),
-                "isEmpty" => (Vec::new(), Vec::new(), builtins.bool_, false),
-                "replace" => (
-                    vec!["old".to_string(), "new".to_string()],
-                    vec![builtins.string, builtins.string],
-                    builtins.string,
-                    false,
-                ),
-                "charAt" => (
-                    vec!["index".to_string()],
-                    vec![builtins.int],
-                    builtins.int,
-                    false,
-                ),
-                "repeat" => (
-                    vec!["n".to_string()],
-                    vec![builtins.int],
-                    builtins.string,
-                    false,
-                ),
-                "byteLength" => (Vec::new(), Vec::new(), builtins.int, false),
-                "getByte" => (
-                    vec!["index".to_string()],
-                    vec![builtins.int],
-                    builtins.int,
-                    false,
-                ),
-                "unsafeSliceBytes" => (
-                    vec!["byteOffset".to_string(), "byteLength".to_string()],
-                    vec![builtins.int, builtins.int],
-                    builtins.string,
-                    true,
-                ),
-                _ => unreachable!("filtered by matches!"),
-            };
-            if requires_unsafe && !lower.in_unsafe_context() {
-                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: format!("String.{member_name}"),
-                    span: call_expr.span.into(),
-                });
-            }
-            check_call_named_args_exist_in_any_candidate(
-                &callee_fqn,
-                &call_args,
-                std::iter::once(param_names.as_slice()),
-            )?;
-            if call_args.len() != param_names.len() {
+        let param_has_defaults = vec![false; param_names.len()];
+        let Some(mapping) =
+            map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
+        else {
+            return Err(ExprTypeError::NoMatchingOverload {
+                callee: callee_fqn.clone(),
+                span: call_expr.span.into(),
+            });
+        };
+        for (param_idx, expected_ty) in param_tys.iter().copied().enumerate() {
+            let Some(arg_idx) = mapping.get(param_idx).copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
                     callee: member_name.into(),
                     expected: param_names.len(),
                     found: call_args.len(),
                     span: call_expr.span.into(),
                 });
-            }
-            let param_has_defaults = vec![false; param_names.len()];
-            let Some(mapping) = map_call_args_to_params_with_defaults(
-                &call_args,
-                &param_names,
-                &param_has_defaults,
-            ) else {
-                return Err(ExprTypeError::NoMatchingOverload {
-                    callee: callee_fqn.clone(),
-                    span: call_expr.span.into(),
-                });
             };
-            for (param_idx, expected_ty) in param_tys.iter().copied().enumerate() {
-                let Some(arg_idx) = mapping.get(param_idx).copied().flatten() else {
-                    return Err(ExprTypeError::CallArityMismatch {
-                        callee: member_name.into(),
-                        expected: param_names.len(),
-                        found: call_args.len(),
-                        span: call_expr.span.into(),
-                    });
-                };
-                let arg = &call_args[arg_idx];
-                if !is_type_assignable(arg.ty, expected_ty, lower, builtins)
-                    && !literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
-                {
-                    return Err(ExprTypeError::CallArgTypeMismatch {
-                        callee: callee_fqn.clone(),
-                        index: param_idx + 1,
-                        expected: lower.fmt_type(expected_ty),
-                        found: lower.fmt_type(arg.ty),
-                        span: arg.expr.span.into(),
-                    });
-                }
+            let arg = &call_args[arg_idx];
+            if !is_type_assignable(arg.ty, expected_ty, lower, builtins)
+                && !literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+            {
+                return Err(ExprTypeError::CallArgTypeMismatch {
+                    callee: callee_fqn.clone(),
+                    index: param_idx + 1,
+                    expected: lower.fmt_type(expected_ty),
+                    found: lower.fmt_type(arg.ty),
+                    span: arg.expr.span.into(),
+                });
             }
-            record_receiver_prefixed_extension_call_binding(
-                lower,
-                call_expr.span,
-                member.span,
-                &callee_fqn,
-                &mapping,
-                &call_args,
-            );
-            return Ok(return_ty);
         }
+        record_receiver_prefixed_extension_call_binding(
+            lower,
+            call_expr.span,
+            member.span,
+            &callee_fqn,
+            &mapping,
+            &call_args,
+        );
+        return Ok(return_ty);
     }
 
     if actual_receiver_ty == builtins.int {
@@ -5828,16 +5679,19 @@ fn infer_member_call_expr_type(
     }
 
     let current_lambda_this = inputs.is_current_lambda_this_expr(receiver);
-    let late_direct_member_fun_fqn = if current_lambda_this || member.resolved.is_none() {
-        late_resolve_direct_member_fun_fqn_from_receiver_ty(
-            inputs,
-            actual_receiver_ty,
-            member_name,
-            lower,
-        )?
-    } else {
-        None
-    };
+    let force_late_direct_member =
+        actual_receiver_ty == builtins.string && matches!(member_name, "hash" | "toInt");
+    let late_direct_member_fun_fqn =
+        if current_lambda_this || member.resolved.is_none() || force_late_direct_member {
+            late_resolve_direct_member_fun_fqn_from_receiver_ty(
+                inputs,
+                actual_receiver_ty,
+                member_name,
+                lower,
+            )?
+        } else {
+            None
+        };
     let resolved_member_fun_fqn = late_direct_member_fun_fqn.as_deref().or({
         if current_lambda_this {
             None

@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: managed_abi_string_helpers_basic.stdout
+//
+// P4-T02: remaining public String helpers route through sysroot bodies instead of
+// compiler/runtime FQN intercepts. `concat` reaches runtime only through the
+// audited string allocation bridge.
+
+import scoop.core.*
+
+fun main() {
+    println("abc".length())
+    println("41".toInt() + 1)
+    println("a".concat("b"))
+
+    if ("hello".hash() == "hello".hash()) {
+        println("hash_ok")
+    } else {
+        println("hash_fail")
+    }
+
+    if ("".isEmpty()) {
+        println("empty_ok")
+    } else {
+        println("empty_fail")
+    }
+
+    println("abc".replace("b", "X"))
+    println("abc".charAt(1))
+    println("ha".repeat(2))
+
+    if ("ab".compareTo("ac") < 0) {
+        println("compare_ok")
+    } else {
+        println("compare_fail")
+    }
+
+    val trimmed: String = """
+        one
+        two
+    """.trimIndent()
+    println(trimmed)
+    println("string_helpers_done")
+}

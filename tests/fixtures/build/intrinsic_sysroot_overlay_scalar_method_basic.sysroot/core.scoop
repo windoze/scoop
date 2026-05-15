@@ -34,7 +34,18 @@ struct Bool : Hashable, ToString {
 struct Char : Hashable, ToString
 struct Float64 : Hashable, ToString
 struct Float32 : Hashable, ToString
-class String : Hashable, ToString
+class String : Hashable, ToString {
+    fun length(): Int { return __scoop_string_length(this) }
+    fun toInt(): Int { return __scoop_string_to_int(this) }
+    fun concat(other: String): String { return __scoop_string_concat(this, other) }
+    fun hash(): Int { return __scoop_string_hash(this) }
+    fun isEmpty(): Bool { return __scoop_string_is_empty(this) }
+    fun replace(old: String, new: String): String { return __scoop_string_replace(this, old, new) }
+    fun charAt(index: Int): Int { return __scoop_string_char_at(this, index) }
+    fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
+    fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
+    fun trimIndent(): String { return __scoop_string_trim_indent(this) }
+}
 typealias Double = Float64
 
 @Intrinsic

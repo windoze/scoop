@@ -98,18 +98,9 @@
   X(scoop_composite_drop) \
   X(scoop_composite_trace) \
   X(scoop_int_to_string) \
-  X(scoop_string_char_at) \
-  X(scoop_string_compare_to) \
   X(scoop_string_concat) \
   X(scoop_string_equals) \
-  X(scoop_string_hash) \
-  X(scoop_string_is_empty) \
-  X(scoop_string_length) \
-  X(scoop_string_repeat) \
-  X(scoop_string_replace) \
   X(scoop_string_to_float64) \
-  X(scoop_string_to_int) \
-  X(scoop_string_trim_indent) \
   X(scoop_string_unsafe_slice_bytes) \
   X(scoop_sync_condvar_create) \
   X(scoop_sync_condvar_destroy) \

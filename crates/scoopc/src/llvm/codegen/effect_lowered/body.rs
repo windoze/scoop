@@ -42,7 +42,7 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
-use super::super::types::{CgTy, CgValue, IntTy};
+use super::super::types::{CgTy, CgValue};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, TypeDescriptorSpec,
     private_closure_env_type_name,
@@ -4053,9 +4053,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         stmt: &mir::Statement,
     ) -> Result<(), LlvmEmitError> {
-        if self.is_builtin_string_concat_callee_statement(stmt) {
-            return Ok(());
-        }
         let codegen = &mut *self.codegen;
         let source_types = self.source_types;
         let body = self.body;
@@ -4064,37 +4061,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let used_locals = &self.used_locals;
         RefactorValuePrimitives::new(codegen, source_types, body, slots, abi)
             .lower_effect_neutral_statement(stmt, used_locals)
-    }
-
-    fn is_builtin_string_concat_callee_statement(&self, stmt: &mir::Statement) -> bool {
-        let mir::StatementKind::Assign { target, value } = &stmt.kind else {
-            return false;
-        };
-        let mir::Rvalue::MemberAccess { member, .. } = value else {
-            return false;
-        };
-        if member.name != "concat"
-            || self
-                .codegen
-                .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
-                != Some(CgTy::String)
-        {
-            return false;
-        }
-        self.body.blocks.iter().any(|block| {
-            block.stmts.iter().any(|candidate| {
-                matches!(
-                    &candidate.kind,
-                    mir::StatementKind::Assign {
-                        value: mir::Rvalue::Call {
-                            kind: mir::CallKind::FunValue { callee: mir::Operand::Local(local) },
-                            ..
-                        },
-                        ..
-                    } if local == target
-                )
-            })
-        })
     }
 
     fn lower_published_call_statement(
@@ -4123,14 +4089,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 | mir::CallKind::Interface { .. }
         ) {
             return Ok(false);
-        }
-        if let Some(value) = self.lower_builtin_string_concat_call(stmt.span, kind, args)? {
-            self.store_local_value(stmt.span, *target, value)?;
-            return Ok(true);
-        }
-        if let Some(value) = self.lower_builtin_string_length_call(stmt.span, kind, args)? {
-            self.store_local_value(stmt.span, *target, value)?;
-            return Ok(true);
         }
         let Some(layout) = self
             .abi
@@ -4171,175 +4129,6 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             *target,
         )?;
         Ok(true)
-    }
-
-    fn lower_builtin_string_concat_call(
-        &mut self,
-        span: crate::span::Span,
-        kind: &mir::CallKind,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let mir::CallKind::FunValue { callee } = kind else {
-            return Ok(None);
-        };
-        let Some(receiver) = self.string_member_receiver(callee, "concat") else {
-            return Ok(None);
-        };
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.concat args",
-                at: span.into(),
-            });
-        }
-        let receiver = self.codegen.codegen_mir_operand_expected(
-            span,
-            &receiver,
-            &self.slots,
-            Some(CgTy::String),
-        )?;
-        let receiver = self.codegen.coerce_value(span, receiver, CgTy::String)?;
-        let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.concat receiver value",
-                at: span.into(),
-            });
-        };
-        let arg = &args[0];
-        let arg_value = self.codegen.codegen_mir_operand_expected(
-            arg.span,
-            &arg.value,
-            &self.slots,
-            Some(CgTy::String),
-        )?;
-        let arg_value = self
-            .codegen
-            .coerce_value(arg.span, arg_value, CgTy::String)?;
-        let Some(BasicValueEnum::PointerValue(arg_ptr)) = arg_value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.concat arg value",
-                at: arg.span.into(),
-            });
-        };
-        let runtime = self.codegen.declare_runtime_string_concat();
-        let call = self.codegen.build_call_preserving_gc_local_roots(
-            span,
-            runtime,
-            &[receiver_ptr.into(), arg_ptr.into()],
-            "refactor_string_concat",
-        )?;
-        self.string_result_from_runtime_call(span, call, "String.concat")
-            .map(Some)
-    }
-
-    fn lower_builtin_string_length_call(
-        &mut self,
-        span: crate::span::Span,
-        kind: &mir::CallKind,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let mir::CallKind::FunValue { callee } = kind else {
-            return Ok(None);
-        };
-        let Some(receiver) = self.string_member_receiver(callee, "length") else {
-            return Ok(None);
-        };
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.length args",
-                at: span.into(),
-            });
-        }
-        let receiver = self.codegen.codegen_mir_operand_expected(
-            span,
-            &receiver,
-            &self.slots,
-            Some(CgTy::String),
-        )?;
-        let receiver = self.codegen.coerce_value(span, receiver, CgTy::String)?;
-        let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.length receiver value",
-                at: span.into(),
-            });
-        };
-        let runtime = self.codegen.declare_runtime_string_length();
-        let call = self.codegen.build_call_preserving_gc_local_roots(
-            span,
-            runtime,
-            &[receiver_ptr.into()],
-            "refactor_string_length",
-        )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin String.length return value",
-                at: span.into(),
-            })?;
-        Ok(Some(self.codegen.cg_value_from_loaded(
-            span,
-            CgTy::Int(IntTy {
-                bits: self.codegen.host.word_bit_width(),
-                signed: true,
-            }),
-            raw,
-        )?))
-    }
-
-    fn string_member_receiver(
-        &self,
-        callee: &mir::Operand,
-        member_name: &str,
-    ) -> Option<mir::Operand> {
-        let mir::Operand::Local(callee_local) = callee else {
-            return None;
-        };
-        self.body.blocks.iter().find_map(|block| {
-            block.stmts.iter().find_map(|stmt| {
-                let mir::StatementKind::Assign { target, value } = &stmt.kind else {
-                    return None;
-                };
-                if target != callee_local {
-                    return None;
-                }
-                let mir::Rvalue::MemberAccess {
-                    receiver, member, ..
-                } = value
-                else {
-                    return None;
-                };
-                (member.name == member_name
-                    && self
-                        .codegen
-                        .cg_ty_of_mir_type(self.source_types, member.receiver_ty)
-                        == Some(CgTy::String))
-                .then_some(receiver.clone())
-            })
-        })
-    }
-
-    fn string_result_from_runtime_call(
-        &self,
-        span: crate::span::Span,
-        call: inkwell::values::CallSiteValue<'ctx>,
-        label: &'static str,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor builtin ToString runtime ret",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(frontend_error(format!(
-                "refactor builtin ToString {label} runtime ret type mismatch"
-            )));
-        };
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
     }
 
     fn load_local_value(

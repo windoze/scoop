@@ -1797,29 +1797,15 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        // 内建 String API（early stage）。
+        // String byte-level substrate.
         //
         // 说明：
-        // - 早期阶段我们尚未把 `String` 的成员函数完整建模为可解析的符号；
-        // - resolver 在这里对"已知 receiver 类型为 `scoop.core.String`"的已知方法做保守放行，
-        //   让后续 typecheck/codegen 走 intrinsic 路径。
+        // - `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`
+        //   已迁入 `String` body / sysroot helper 主线；
+        // - 这里只保留访问 `ScoopString` 物理表示所需的 byte-level substrate。
         if receiver_ty_fqn == "scoop.core.String" {
-            // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-            // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 resolver extension fun 路径处理。
-            let is_known_string_method = member_name == "trimIndent"
-                || member_name == "length"
-                || member_name == "toInt"
-                || member_name == "concat"
-                || member_name == "hash"
-                || member_name == "isEmpty"
-                || member_name == "replace"
-                || member_name == "charAt"
-                || member_name == "repeat"
-                || member_name == "compareTo"
-                // T0120: String byte accessors
-                || member_name == "byteLength"
+            let is_known_string_method = member_name == "byteLength"
                 || member_name == "getByte"
-                // T0121: @Unsafe byte-level String construction
                 || member_name == "unsafeSliceBytes";
             if is_known_string_method {
                 return Ok(());

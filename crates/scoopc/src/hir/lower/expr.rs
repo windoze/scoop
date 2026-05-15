@@ -5447,22 +5447,7 @@ impl<'a> HirLowering<'a> {
         let member_name = self.source.slice(member.span);
 
         if receiver_ty == self.builtins.string {
-            return matches!(
-                member_name,
-                "trimIndent"
-                    | "length"
-                    | "toInt"
-                    | "concat"
-                    | "hash"
-                    | "isEmpty"
-                    | "replace"
-                    | "charAt"
-                    | "repeat"
-                    | "compareTo"
-                    | "byteLength"
-                    | "getByte"
-                    | "unsafeSliceBytes"
-            );
+            return matches!(member_name, "byteLength" | "getByte" | "unsafeSliceBytes");
         }
 
         if receiver_ty == self.builtins.int {

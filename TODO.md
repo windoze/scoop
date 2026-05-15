@@ -5,7 +5,7 @@
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/TODO-pipeline-gaps.md`、`docs/archive/plans/PLAN-pipeline-gaps.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 与 ABI-specific `unsafe` / `@NoGC` 语义；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 已完成 `sysroot/string.scoop` 中那批普通 helper，并新增了供后续 scalar `toString` 迁移使用的 sysroot scalar String bridge，但 remaining string helper 仍依赖 compiler/runtime 特判。  
+> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 与 ABI-specific `unsafe` / `@NoGC` 语义；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 已完成普通 sysroot helper、scalar `toString` body method 与 remaining public `String` helper 迁移；当前仅 `String.byteLength/getByte/unsafeSliceBytes` 与 concat allocation bridge 等明确 substrate 保留在 compiler/runtime 边界。
 > 重要提醒：当前 mainline 已锁住 `unsafe_funptr_aggregate_return_tuple`、`extern_fun_effectful_funptr_is_error`、`single_file_minimal_ir_includes_compilable_sysroot_string_helpers` 等行为。除非先回写 `MANAGED_ABI.md` 与相关 fixture，否则不得把这些 current behavior 直接回退掉。
 
 ## 任务索引
@@ -40,7 +40,7 @@
 | `P4-T01p` | P4 前置 V | [DONE] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
 | `P4-T01q` | P4 前置 V | [DONE] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | [DONE] 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
-| `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
+| `P4-T02` | P4 | [DONE] 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
 
 ## 全局约束
@@ -1925,7 +1925,7 @@
     - 对应 `PLAN.md` P4 tracer bullet：第一批 scalar `toString` 已由 compiled sysroot body method + audited scalar String bridge 承接，不再依赖 compiler/runtime FQN intercept。
     - 本任务没有改变 native ABI / `ExternAbi::Scoop` surface；无需回写 `MANAGED_ABI.md`。`PLAN.md` 的 phase-level sequencing 未变化。
 
-### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
+### [DONE] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4
@@ -1974,6 +1974,30 @@
 - 完成条件：
   - remaining string helper 的归属已清晰：要么是 `ExternAbi::Scoop` / ordinary sysroot helper，要么被明确列为 runtime substrate。
 - 依赖：`P4-T01`
+- 完成记录：
+  - 改动范围：
+    - `sysroot/core.scoop` / `sysroot/string.scoop`：`String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent` 改为 `String` body method + sysroot helper；`String.concat` 通过 `@Intrinsic("string_concat_bridge")` audited runtime bridge 触达 allocation/copy substrate。
+    - `crates/scoopc/src/{resolve,typecheck,hir,llvm,effect_facts,comptime}`：删除 remaining public `String` helper 的 resolver/typecheck/HIR/LLVM/effect-lowered runtime/member-name intercept；只保留 `byteLength/getByte/unsafeSliceBytes` byte-level substrate 合同；修复 typecheck late direct member resolution 让 `String.toInt/hash` 在存在同名 scalar extension 时仍优先落到 `String` body method。
+    - `crates/scoopc/src/intrinsics.rs` / `runtime/c/*`：新增 `string_concat_bridge` named intrinsic audit entry；从 runtime direct ABI/API/C helper 中移除 `length/toInt/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`，保留 `scoop_string_concat` 作为 concat bridge substrate、`scoop_string_equals` 与 `scoop_string_unsafe_slice_bytes` 等底层 substrate。
+    - `tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop` 与 stdout：新增 P4-T02 migrated helper run-pass/GC-stress 覆盖；同步 overlay sysroot fixture 的 `String` body methods。
+    - `MANAGED_ABI.md` / `PLAN.md`：回写 P4-T02 后 authoritative string substrate list 与 current-state 边界。
+  - 核心决策：
+    - Public `String` helper 不再由 compiler/runtime 按 FQN/member-name 实现；普通逻辑写在 sysroot，只有物理布局读取和 allocation/copy 仍作为 substrate。
+    - `String.byteLength/getByte` 保持 IR-direct substrate；`String.unsafeSliceBytes` 保持 `@Unsafe` runtime allocation/copy substrate；`String.length` 普通定义为 `byteLength()`。
+    - `String.concat` public surface 是 sysroot body；runtime `scoop_string_concat` 只作为 audited bridge symbol，避免放宽 native `@Extern` surface。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo check -p scoopc`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 filter 返回 `0 passed; 863 filtered out`）
+    - `cargo test -p scoopc llvm::tests -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 remaining string helper tracer bullet：public helper 已迁移出 compiler/runtime 名字特判，runtime 边界收缩为明确 substrate。
+    - `MANAGED_ABI.md` §9.2/§9.3 已列出 P4-T02 后的 public helper 归属与 authoritative substrate：`byteLength/getByte`、`unsafeSliceBytes`、concat allocation bridge、string equality/layout/allocation。
 
 ## P5：稳定化与收尾
 

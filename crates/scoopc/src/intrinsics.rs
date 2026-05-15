@@ -176,6 +176,21 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         ),
     },
     NamedIntrinsicAuditEntry {
+        name: "string_concat_bridge",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_string_concat"),
+        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
+            params: &[
+                NamedIntrinsicRuntimeTy::StringRef,
+                NamedIntrinsicRuntimeTy::StringRef,
+            ],
+            return_ty: NamedIntrinsicRuntimeTy::StringRef,
+        }),
+        runtime_reason: Some(
+            "String concatenation allocates a managed String from two byte buffers; the public helper is sysroot code, while this audited bridge keeps the allocation/copy boundary in runtime substrate",
+        ),
+    },
+    NamedIntrinsicAuditEntry {
         name: "array_alloc",
         lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
         runtime_symbol: Some("scoop_array_alloc"),

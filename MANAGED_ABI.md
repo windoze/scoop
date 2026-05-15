@@ -556,8 +556,11 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
 - `String.hash`
 - `String.isEmpty`
 - `String.replace`
+- `String.toInt`
+- `String.charAt`
 - `String.repeat`
 - `String.compareTo`
+- `String.trimIndent`
 - 后续更多“不是 substrate 的字符串 helper”
 
 其中：
@@ -585,6 +588,20 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
   managed ref 进出边界；
 - compiled sysroot 通过一组已审计的 named intrinsic runtime-bridge entry 导入它们，再由 ordinary managed
   helper（`scoopAbi*ToString`）对上层 sysroot body 暴露稳定落点。
+
+P4-T02 后 string helper 边界进一步收口：
+
+- public `String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`
+  由 `@Intrinsic class String` body method + `sysroot/string.scoop` 普通 helper 承接；编译器不再按这些
+  public FQN / member name 直接 dispatch 到 runtime helper；
+- `String.length` 是普通 helper，语义定义为当前 v0 byte length（调用 `byteLength()`）；
+- `String.byteLength` / `String.getByte` 保留为 compiler IR-direct byte-level substrate，因为它们直接读取
+  `ScoopString` 物理布局的 `len` / `data` 字段；
+- `String.unsafeSliceBytes` 保留为 runtime allocation/copy substrate，并且仍要求 `@Unsafe`；
+- public `String.concat` 不是 runtime core helper；它的 sysroot body 只通过 audited named intrinsic bridge
+  调用 `scoop_string_concat`，该 symbol 的剩余职责是分配并复制两个 byte buffer 形成新的 managed `String`；
+- `scoop_string_equals` 仍是 equality operator 的 byte-level runtime substrate；`scoop_string_to_float64`
+  是后续 surface 的预留 runtime symbol，不属于本轮 public `String` helper 迁移结果。
 
 ### 9.4 试点实施顺序
 

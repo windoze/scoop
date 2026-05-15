@@ -2414,7 +2414,7 @@ fn class_init_order_fixture_collects_class_init_println_call_bindings() {
 }
 
 #[test]
-fn frontend_codegen_rewrites_string_literal_compare_to_and_concat_to_extension_direct_calls() {
+fn frontend_codegen_rewrites_string_literal_compare_to_and_concat_to_member_direct_calls() {
     fn find_local_init<'a>(body: &'a hir::Block, name: &str) -> &'a hir::Expr {
         body.stmts
             .iter()
@@ -2475,7 +2475,7 @@ fun main(): Int {
         panic!("strCmp should lower to a binary compare expression");
     };
     assert_eq!(*cmp_op, ast::BinaryOp::Lt);
-    assert_top_level_call(cmp_lhs, "scoop.core.compareTo", 2);
+    assert_top_level_call(cmp_lhs, "scoop.core.String.compareTo", 2);
     assert!(matches!(
         cmp_rhs.kind,
         hir::ExprKind::Literal(hir::LiteralKind::Int | hir::LiteralKind::SynthInt(0))
@@ -2491,7 +2491,7 @@ fun main(): Int {
         panic!("strEq should lower to a binary equality expression");
     };
     assert_eq!(*concat_op, ast::BinaryOp::Eq);
-    assert_top_level_call(concat_lhs, "scoop.core.concat", 2);
+    assert_top_level_call(concat_lhs, "scoop.core.String.concat", 2);
     assert!(matches!(
         concat_rhs.kind,
         hir::ExprKind::Literal(hir::LiteralKind::String)
@@ -2686,10 +2686,22 @@ fun main(): Int {
         .expect("expected lowered inspect helper");
     let body = inspect.body.as_ref().expect("inspect should have a body");
 
-    assert_top_level_call(find_local_init(body, "empty"), "scoop.core.isEmpty", 1);
-    assert_top_level_call(find_local_init(body, "replaced"), "scoop.core.replace", 3);
-    assert_top_level_call(find_local_init(body, "code"), "scoop.core.charAt", 2);
-    assert_top_level_call(find_local_init(body, "repeated"), "scoop.core.repeat", 2);
+    assert_top_level_call(
+        find_local_init(body, "empty"),
+        "scoop.core.String.isEmpty",
+        1,
+    );
+    assert_top_level_call(
+        find_local_init(body, "replaced"),
+        "scoop.core.String.replace",
+        3,
+    );
+    assert_top_level_call(find_local_init(body, "code"), "scoop.core.String.charAt", 2);
+    assert_top_level_call(
+        find_local_init(body, "repeated"),
+        "scoop.core.String.repeat",
+        2,
+    );
 
     let materialized = codegen_unit
         .lowered
@@ -2705,20 +2717,20 @@ fun main(): Int {
         "String builtin member calls should lower to direct contracts, not FunValue calls"
     );
     assert!(
-        mir_fun_contains_direct_call(inspect_mir, "scoop.core.isEmpty"),
-        "materialized MIR should contain a direct call to scoop.core.isEmpty"
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.String.isEmpty"),
+        "materialized MIR should contain a direct call to scoop.core.String.isEmpty"
     );
     assert!(
-        mir_fun_contains_direct_call(inspect_mir, "scoop.core.replace"),
-        "materialized MIR should contain a direct call to scoop.core.replace"
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.String.replace"),
+        "materialized MIR should contain a direct call to scoop.core.String.replace"
     );
     assert!(
-        mir_fun_contains_direct_call(inspect_mir, "scoop.core.charAt"),
-        "materialized MIR should contain a direct call to scoop.core.charAt"
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.String.charAt"),
+        "materialized MIR should contain a direct call to scoop.core.String.charAt"
     );
     assert!(
-        mir_fun_contains_direct_call(inspect_mir, "scoop.core.repeat"),
-        "materialized MIR should contain a direct call to scoop.core.repeat"
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.String.repeat"),
+        "materialized MIR should contain a direct call to scoop.core.String.repeat"
     );
 }
 
@@ -2787,8 +2799,16 @@ fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
         .expect("expected lowered main");
     let body = main.body.as_ref().expect("main should have a body");
 
-    assert_top_level_call(find_local_init(body, "s"), "scoop.core.trimIndent", 1);
-    assert_top_level_call(find_local_init(body, "again"), "scoop.core.trimIndent", 1);
+    assert_top_level_call(
+        find_local_init(body, "s"),
+        "scoop.core.String.trimIndent",
+        1,
+    );
+    assert_top_level_call(
+        find_local_init(body, "again"),
+        "scoop.core.String.trimIndent",
+        1,
+    );
 
     let materialized = codegen_unit
         .lowered
@@ -2801,12 +2821,12 @@ fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
         .expect("main should enter caller-side pass candidates");
     assert!(
         !mir_fun_contains_fun_value_call(main_mir),
-        "runtime String.trimIndent() member calls should lower to direct contracts, not FunValue calls"
+        "sysroot String.trimIndent() member calls should lower to direct contracts, not FunValue calls"
     );
     assert_eq!(
-        mir_fun_direct_call_count(main_mir, "scoop.core.trimIndent"),
+        mir_fun_direct_call_count(main_mir, "scoop.core.String.trimIndent"),
         2,
-        "materialized MIR should contain exactly two direct calls to scoop.core.trimIndent"
+        "materialized MIR should contain exactly two direct calls to scoop.core.String.trimIndent"
     );
 }
 
@@ -5838,7 +5858,7 @@ fun main() {
 }
 
 #[test]
-fn higher_order_aggregate_return_reloads_string_receiver_after_gc_sensitive_arg_eval() {
+fn higher_order_aggregate_return_calls_sysroot_string_concat_helper() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -5861,32 +5881,33 @@ fun main() {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let lambda_ir = function_ir_matching(
         &ir,
-        "closure body using concat in mapper",
+        "closure body using sysroot concat in mapper",
         |header, function| {
             !header.contains("@main(")
-                && function.contains("@scoop_string_concat")
+                && function.contains("scoop_core_String_concat")
                 && function.contains("explicit_root_frame_slot_0")
         },
     );
-    let alloc_idx = lambda_ir
-        .find("@__scoop_type_desc_runtime__ScoopString")
-        .expect("expected concat arg string allocation in closure IR");
-    let call_idx = lambda_ir[alloc_idx..]
-        .find("@scoop_string_concat")
-        .map(|idx| alloc_idx + idx)
-        .expect("expected runtime concat call in closure IR");
-    let reload_window = &lambda_ir[alloc_idx..call_idx];
-
     assert!(
-        reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_0"),
-        "String.concat receiver should reload from the explicit frame after GC-sensitive arg evaluation\n{reload_window}"
+        !lambda_ir.contains("@scoop_string_concat"),
+        "user closure should call the sysroot String.concat body instead of the runtime symbol directly\n{lambda_ir}"
+    );
+
+    let concat_ir = function_ir_matching(
+        &ir,
+        "compiled sysroot concat bridge helper",
+        |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "scoop.core.__scoop_string_concat",
+            )
+        },
     );
     assert!(
-        lambda_ir[call_idx..].contains(
-            "@scoop_string_concat(ptr addrspace(1) %pass_mir_load, ptr addrspace(1) %pass_mir_load1)"
-        ),
-        "runtime concat call should consume the receiver reloaded from explicit frame home slots\n{}",
-        &lambda_ir[call_idx..]
+        concat_ir.contains("@scoop_string_concat(")
+            && !concat_ir.contains("@scoop_enter_native")
+            && !concat_ir.contains("@scoop_leave_native"),
+        "compiled sysroot String.concat helper should bridge to runtime allocation substrate without native enter/leave\n{concat_ir}"
     );
 }
 

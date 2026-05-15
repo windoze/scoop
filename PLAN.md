@@ -60,13 +60,13 @@
 - `string cone` 不是从零开始。
   - 已迁移到普通 sysroot/helper 的部分：
     - `sysroot/string.scoop`：`substring`、`indexOf`、`contains`、`startsWith`、`endsWith`、`split`、`trimStart`、`trimEnd`、`trim`；
+    - `sysroot/core.scoop` + `sysroot/string.scoop`：`String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`；
     - `crates/scoopc/src/llvm/tests.rs::single_file_minimal_ir_includes_compilable_sysroot_string_helpers()` 已锁定这批 helper 会作为普通 managed 函数编进模块；
     - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 已删掉 `substring` 与 `starts_with/ends_with/index_of/contains/split/trim*` 的 runtime declaration。
-  - 仍依赖 special-case / runtime helper 的部分：
-    - `sysroot/core.scoop` 中 body-less builtin surface：`Int/Bool/Char/Float*.toString`、`Char.toInt/hash`、`Float*.toInt/hash/abs/isNaN/isInfinite`；
-    - `resolve/scopes.rs`、`typecheck/expr/call.rs`、`hir/lower/expr.rs` 中对 `String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/byteLength/getByte/unsafeSliceBytes/trimIndent` 的 allowlist 或 synthetic contract；
-    - `llvm/codegen/call/lowering.rs`、`llvm/codegen/intrinsics/builtin.rs`、`llvm/codegen/effect_lowered/{body.rs,value.rs}` 中按 FQN/member-name 的 lowering 特判；
-    - `runtime/c/scoop_runtime.c` 中仍保留 `scoop_{bool,char,int,float}_to_string`、`scoop_string_concat/hash/is_empty/replace/repeat/compare_to/unsafe_slice_bytes/trim_indent` 等 helper。
+  - 仍属于 substrate / later cleanup 的部分：
+    - `sysroot/core.scoop` 中 body-less builtin surface：`Char.toInt/hash`、`Float*.toInt/hash/abs/isNaN/isInfinite`；
+    - `String.byteLength/getByte` 仍是 compiler IR-direct byte-level substrate，`String.unsafeSliceBytes` 仍是 runtime allocation/copy substrate；
+    - `runtime/c/scoop_runtime.c` 中仍保留 `scoop_{char,int,float}_to_string`、`scoop_string_concat`（audited concat bridge）、`scoop_string_equals`、`scoop_string_unsafe_slice_bytes` 等 substrate symbol。
 - 因为上面的现状，当前实现顺序应调整为：
   1. 先冻结 current baseline，避免重构时误把已通过回归的 native aggregate / effectful bridge 表面回退掉；
   2. 再把 callable ABI identity 变成一等 contract；

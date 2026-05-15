@@ -168,33 +168,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(name, fn_ty)
     }
 
-    pub(super) fn declare_runtime_trim_indent(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM_INDENT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `const ScoopString* scoop_string_trim_indent(const ScoopString* value)`
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
-        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    // T1811: String P0 methods.
-
-    /// `int64_t scoop_string_length(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_length(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_LENGTH;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     /// T0107: `int64_t scoop_string_equals(const ScoopString* a, const ScoopString* b)`
     pub(super) fn declare_runtime_string_equals(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_STRING_EQUALS;
@@ -204,18 +177,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// T1817: `int64_t scoop_string_hash(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_hash(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_HASH;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
@@ -274,83 +235,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
-    /// `const ScoopString* scoop_string_concat(const ScoopString* a, const ScoopString* b)`
-    pub(super) fn declare_runtime_string_concat(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_CONCAT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
     // 已移除（迁移到 sysroot/string.scoop）
-
-    // T0115: String 補齐 — isEmpty/replace/charAt/repeat/compareTo
-
-    /// `int64_t scoop_string_is_empty(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_is_empty(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_IS_EMPTY;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `const ScoopString* scoop_string_replace(const ScoopString* s, const ScoopString* old, const ScoopString* new_str)`
-    pub(super) fn declare_runtime_string_replace(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_REPLACE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(
-            &[str_ptr_ty.into(), str_ptr_ty.into(), str_ptr_ty.into()],
-            false,
-        );
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `int64_t scoop_string_char_at(const ScoopString* s, int64_t index)`
-    pub(super) fn declare_runtime_string_char_at(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_CHAR_AT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `const ScoopString* scoop_string_repeat(const ScoopString* s, int64_t n)`
-    pub(super) fn declare_runtime_string_repeat(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_REPEAT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `int64_t scoop_string_compare_to(const ScoopString* a, const ScoopString* b)`
-    pub(super) fn declare_runtime_string_compare_to(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_COMPARE_TO;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
 
     // T0114: Bool→String conversion.
 
@@ -397,20 +283,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = str_ptr_ty.fn_type(&[self.context.f32_type().into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    // T1812: String-to-Int conversion substrate.
-
-    /// `int64_t scoop_string_to_int(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_to_int(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_TO_INT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 

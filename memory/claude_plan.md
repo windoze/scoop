@@ -1,31 +1,42 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 约束
 
-- Execute exactly the first incomplete task in `TODO.md`.
-- Treat `TODO.md` as the authoritative task list and only update `PLAN.md` if phase-level sequencing or dependencies change.
-- Avoid unrelated bug sweeps or opportunistic work.
-- Do not use workarounds for spec or implementation gaps; add a prerequisite task and stop if a blocker prevents correct execution.
+- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
+- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 如遇到阻塞当前任务的规格不匹配、缺失语言特性、回归或实现边界，先修复；若无法在当前任务中正确修复，则在 `TODO.md` 中插入最小必要前置任务并停止。
+- 不使用 workaround、fixture-only hack 或弱化测试形状来绕过问题。
+- 完成后必须更新 `TODO.md`，运行相关验证，提交 Git commit。
 
-## Steps
+## 步骤计划
 
-1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for an explicitly unfinished issue that is directly relevant to the selected task.
-3. Read the selected task details, dependencies, validation requirements, and relevant source/test files.
-4. Implement the task as written, making the smallest correct change that satisfies the task without narrowing scope.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task-specified validation commands and any additional relevant checks needed for confidence.
-7. If validation fails, fix the root cause and rerun the relevant checks.
-8. Mark the task title in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
-9. Update this plan file at key milestones and if the approach changes.
-10. Review the worktree, stage all files required for this completed task, and create one descriptive git commit.
-11. Stop after the commit without starting the next task.
+1. 阅读 `TODO.md`，按标题 `[DONE]` 前缀识别第一个未完成任务。
+2. 查看该任务的依赖、验收标准、完成记录和相关说明。
+3. 根据任务范围检查最小必要代码上下文，不进行开放式历史问题扫描。
+4. 实现当前任务或处理直接阻塞该任务的前置问题。
+5. 添加或更新最小相关测试、fixture 或文档。
+6. 运行任务指定验证和必要的相关测试；如失败，定位并修复。
+7. 将当前任务标题标记为 `[DONE]`，更新 completion record。
+8. 更新本文件记录关键进展、验证结果和最终状态。
+9. 检查 Git 状态和 diff，提交本次任务全部相关改动。
+10. 停止，不继续处理下一个任务。
 
-## Current Status
+## 进度
 
-- `TODO.md` 已读取。
-- `P4-T01` 的正式任务标题已标 `[DONE]`，但任务索引漏标 `[DONE]`。
-- 工作区已有大量未提交改动，内容与 `P4-T01` 完成记录对应，说明上一轮 `P4-T01` 已实现但未完成提交步骤。
-- 当前执行目标调整为闭合 `P4-T01` 的遗漏提交步骤，并在提交中同步修正 `TODO.md` 顶部任务索引的 `[DONE]` 漏标。
-- 已复跑 `P4-T01` 关键验证：`cargo fmt --all -- --check`、`cargo check -p scoopc`、相关 `scoopc` targeted tests、`tests/fixtures/build`、两个 scalar toString run-pass fixture、GC stress variants、`cargo clippy --all-targets -- -D warnings` 均通过。
-- 本轮提交完成后停止，不进入 `P4-T02`。
+- 已创建初始执行计划。
+- 已读取 `TODO.md`，第一个未完成任务为 `P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface`。
+- 最新提交为 `[P4-T01] Migrate scalar toString to sysroot methods`，与当前任务顺序相邻但未明确留下未完成 blocker；继续执行 `P4-T02`。
+- 已将 public `String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent` 接入 sysroot body；`String.concat` 通过 audited named intrinsic runtime bridge 触达 allocation/copy substrate。
+- 已清理 resolver/typecheck/HIR/LLVM/effect-lowered 中上述 public helper 的按名 intercept；保留 `byteLength/getByte/unsafeSliceBytes` 作为 byte-level substrate。
+- 已从 runtime direct API/ABI 中移除 `length/toInt/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent` 等 public helper；`scoop_string_concat` 暂作为 concat bridge 的 substrate symbol 保留。
+- 已完成主要验证：`cargo check -p scoopc`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`、`cargo clippy --all-targets -- -D warnings` 均通过。
+
+## 当前任务执行细化
+
+1. 检查 string helper 当前声明、typecheck/resolver/HIR/LLVM/runtime intercept 分布。
+2. 判断 `length` / `byteLength` / `getByte` / `unsafeSliceBytes` 是否为 runtime substrate，并把结论写入 sysroot/runtime 文档注释。
+3. 将非 substrate helper 迁移到 `sysroot/string.scoop` 或 `sysroot/core.scoop` 的普通/managed ABI helper 实现。
+4. 删除对应 resolver/typecheck/HIR/LLVM/runtime 的名字特判与 runtime symbol 暴露。
+5. 增加覆盖 migrated helper 的 build/run-pass/GC-stress fixture。
+6. 运行任务要求验证与 clippy；修复失败。
+7. 更新 `TODO.md` 的 `[DONE]` 标记和完成记录，提交改动。
