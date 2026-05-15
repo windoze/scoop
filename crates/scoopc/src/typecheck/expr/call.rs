@@ -11,7 +11,8 @@ use super::infer::ExpectedTypeFrom;
 use super::member::find_member_owner_nominal_instantiation;
 use super::ops::{
     collect_member_method_signatures_from_index, is_symbol_visible_from_source,
-    literal_absorbs_to_expected, try_extract_nominal_fqn_and_args,
+    literal_absorbs_to_expected, try_extract_member_call_receiver_fqn_and_args,
+    try_extract_nominal_fqn_and_args,
 };
 use super::util::{
     expr_kind_name, fmt_effect_row, fmt_overload_signature, join_overload_signatures,
@@ -4911,7 +4912,10 @@ fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     member_name: &str,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<String>, ExprTypeError> {
-    let Some((receiver_fqn, receiver_args)) = try_extract_nominal_fqn_and_args(receiver_ty, lower)
+    // P4-T01l：对 builtin scalar / `String` receiver 统一走 nominal FQN 提取，让
+    // `<scalar>.method()` 在 sysroot 提供 body method 时也能进入 direct-call 主线。
+    let Some((receiver_fqn, receiver_args)) =
+        try_extract_member_call_receiver_fqn_and_args(receiver_ty, lower)
     else {
         return Ok(None);
     };
@@ -6270,8 +6274,10 @@ fn infer_member_call_expr_type(
             // 会因 Param 非 nominal 而返回 CalleeNotCallable）。
             && !matches!(lower.type_kind(actual_receiver_ty), TypeKind::Param(_))
         {
+            // P4-T01l：让 builtin scalar / `String` receiver 也能在 direct-call 主线里
+            // 落入 nominal member-call FQN，从而把 receiver 作为第 0 个 arg 注入。
             let Some((receiver_fqn, receiver_args)) =
-                try_extract_nominal_fqn_and_args(actual_receiver_ty, lower)
+                try_extract_member_call_receiver_fqn_and_args(actual_receiver_ty, lower)
             else {
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: fqn.to_string(),

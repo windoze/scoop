@@ -470,6 +470,37 @@ pub(super) fn try_extract_nominal_fqn_and_args(
     }
 }
 
+/// P4-T01l：把 builtin scalar / `String` 的 nominal FQN 提取统一进 typecheck member-call 主线。
+///
+/// 说明：
+/// - `try_extract_nominal_fqn_and_args` 只识别 `TypeKind::Value(ValueTypeKind::Nominal)` /
+///   `TypeKind::Ref(RefTypeKind::Nominal)`，对 `Bool/Char/Int/Float32/Float64` / `String`
+///   返回 `None`，导致 `42.toString()` / `true.toString()` 即使在 sysroot 已经声明
+///   `Int.toString` body method 后，late-resolve 仍然不会把 receiver `Int` 映射到
+///   `scoop.core.Int.toString` direct-call。
+/// - 本 helper 把以上 builtin 形态映射到 `scoop.core.X` FQN（无 type args），
+///   让 builtin scalar receiver 也能进入 nominal member-call 主线。
+/// - 与 `try_extract_nominal_fqn_and_args` 保持同构：返回 `(fqn, args)`，args 为空 vec。
+pub(super) fn try_extract_member_call_receiver_fqn_and_args(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> Option<(String, Vec<TypeId>)> {
+    if let Some(found) = try_extract_nominal_fqn_and_args(ty, lower) {
+        return Some(found);
+    }
+    let fqn = match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool",
+        TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char",
+        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
+        TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt",
+        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32",
+        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64",
+        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
+        _ => return None,
+    };
+    Some((fqn.to_string(), Vec::new()))
+}
+
 #[derive(Clone, Copy)]
 pub(super) struct NominalReceiverRef<'a> {
     pub(super) ty: TypeId,

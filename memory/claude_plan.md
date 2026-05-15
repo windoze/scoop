@@ -1,69 +1,64 @@
-## 本轮执行计划（P4-T01）
+## 本轮执行计划（P4-T01l）
 
-按照 `PROMPT.md` 规范完成 `TODO.md` 中第一个未完成任务 **P4-T01**：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判。
+按照 `PROMPT.md` 规范完成 `TODO.md` 中第一个未完成任务 **P4-T01l**：解锁 `@Intrinsic struct/class` body method 在 builtin scalar receiver / `ToString.toString` interface dispatch 上的可达性。
 
 ### 任务确认
 
-- `TODO.md` 中所有 P4 前置（`P4-T01a/b/c-pre1/c/d/e/f/g/h/i/j/k`）已 [DONE]；下一条是 `P4-T01`。
-- 最近一次提交 `[P4-T01k]` 后 `cargo test -p scoopc` 已 0 failed。
+- 上一次会话把 P4-T01 主任务的 sysroot 改写回退，并新增 P4-T01l 作为前置 / 双轨可达性机制。
+- P4-T01l 的"必须实现内容"包含三块：
+  1. typecheck 层把 builtin scalar / `String` 的 nominal FQN 提取统一进 member-call 主线；
+  2. 让 `ToString.toString` interface dispatch 在 `@Intrinsic struct/class` override 引入后仍能被 monomorphization / late lowering 正确发布 callable body；
+  3. HIR / MIR / LLVM 收口受体作为第 0 个 arg 的传递；
 
-### 实现方案
+  并保留所有现有 by-name 路径作为过渡 surface（删除留给 P4-T01）。
 
-将以下 6 个内建类型从 declaration-only 形式改写为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }` 形式：
-- `Int.toString` — body 调 `scoopAbiIntToString(this)` bridge（已由 P4-T01f 提供）
-- `Char.toString` — body 调 `scoopAbiCharToString(this)`
-- `Float64.toString` — body 调 `scoopAbiFloat64ToString(this)`
-- `Float32.toString` — body 调 `scoopAbiFloat32ToString(this)`
-- `Bool.toString` — body `if (this) "true" else "false"`
-- `String.toString` — body `return this`
+### 本轮已完成
 
-清理以下 by-name 特判（删除而不是保留双轨）：
-- resolver: `crates/scoopc/src/resolve/scopes.rs` 中 Int/Bool/Char/Float `toString` allowlist
-- typecheck: `crates/scoopc/src/typecheck/expr/call.rs` 内建 `toString` synthetic 直接返回 String 的 contract
-- HIR: `crates/scoopc/src/hir/lower/expr.rs::should_keep_member_call_as_member_access` 的 `toString` keep-list
-- LLVM intrinsics: `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext`
-- effect_lowered: `lower_builtin_to_string_call` / `lower_refactor_core_to_string_call` / `refactor_core_print_to_string`
-- mir_body: `codegen_mir_transport_to_string` 按 `CgTy` 派生 runtime helper 名字的分支
+- **typecheck FQN 提取统一**（要求 1）：在 `crates/scoopc/src/typecheck/expr/ops.rs` 新增 `try_extract_member_call_receiver_fqn_and_args`，识别 `ValueTypeKind::{Bool, Char, Int, UInt, Float32, Float64}` / `RefTypeKind::String` 并映射到 `scoop.core.<X>` FQN（无 type args）。
+- 在 `late_resolve_direct_member_fun_fqn_from_receiver_ty` 与 `infer_member_call_expr_type` 主线（line ~6275）替换调用 `try_extract_nominal_fqn_and_args` 的两个点为新 helper。
+- **回归基线全部干净**：
+  - `cargo test -p scoopc`：861 passed, 0 failed。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400/400 PASS。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：437/437 PASS。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`：42/42 PASS（含既有 `intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic`、`sysroot_overlay_core_array_interface_bridge`）。
+  - `cargo clippy --all-targets -- -D warnings` clean。
 
-`ToString.toString` interface dispatch 对用户类型仍可用（P4-T01a/b/c 已保证）。
+### 本轮未完成（owner test 与下游 gap）
+
+为反复验证语义，本会话试做了 sysroot overlay fixture（`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic*`）覆盖 sysroot overlay 把六个 builtin scalar 改写为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }` 的真实场景。基于这份探针得到三类观察：
+
+1. **dual-track 简化形态（仅类型上加 `@Intrinsic`，不加 override body）通过**：说明 `@Intrinsic` 注解在 builtin scalar 类型上不会与 layout 内置识别冲突；新 helper 在该形态下不会被命中（typecheck 早 short-circuit 仍生效）。
+2. **dual-track 完整形态（同时声明 override body 与 by-name extension）触发 P4-T01l 任务体里事先描述的 gap 2**：`println(<value>)` 报 `LLVM stage handoff 缺少 reachable callable scoop.core.ToString.toString 的 published late-lowered body`。说明 builtin scalar override 引入后，`ToString.toString` interface 的 default body / itable 入口未被 monomorphization / late lowering 收集发布。
+3. **真正"new path"形态（在 `@Intrinsic struct Bool` 上加一个非 by-name 名字的 method，比如 `negate`）触发 gap 1**：`true.negate()` 在 typecheck 通过后，MIR codegen 报 `pass MIR direct call arity mismatch`，`scoop.core.Bool.negate` 的 MIR `Direct` 调用 args=[]——HIR → MIR 的 receiver-prefix 仍未把 builtin scalar receiver 作为第 0 个 arg 注入。
+
+为不污染 mainline fixture 集，最后**已删除该探针 fixture**（typecheck FQN 提取的 helper 改动本身被既有 fixture 间接覆盖：原本 nominal-only 的两条 call 路径现在能正确处理 builtin scalar receiver，对默认 sysroot 不改变行为）。
+
+下游 gap 1 / gap 2 的修复涉及：
+
+- **gap 1**：HIR `lower_canonical_call_expr` 看到 builtin scalar receiver 进入 path 597+ 路径时，`type_kinds.get("scoop.core.Bool")` 当前返回 None / 让 path 597+ closure 落入 fallback。需要让 HIR 知道 sysroot `@Intrinsic struct Bool { ... }` 已经把 `scoop.core.Bool` 注入 `type_kinds`，并保证 receiver 一定经 `CanonicalCallLoweringRequest::receiver = Some(...)` 进入。
+- **gap 2**：emit / late-lowering 链路在 builtin scalar override 引入后没有把 `scoop.core.ToString.toString` 的 default body / itable 入口正确发布，导致 `has_published_body` 检查失败。修复需要审视 monomorphization 的 reachable callable 收集与 late-lowered program 发布通道。
+
+由于这两个 gap 是 P4-T01l 的 "必须实现内容" 里的 #2 与 #3 子项（任务体早已显式列出 gap 1 / gap 2），按 `PROMPT.md` "Default to finishing the current task as written" 的硬约束，**不在本轮把 P4-T01l 拆解为新前置子任务**——但本轮的 helper 改动已经把 gap 1 / gap 2 的现场缩窄到上述两条具体的下游通道，下次会话承接时不需再重做 typecheck 层的探查。
 
 ### 顺序
 
-1. 阅读现有 `sysroot/core.scoop` 中六个类型的 declaration-only 形式与 `sysroot/scalar_string_bridge.scoop` 的 bridge 暴露面。
-2. 改写 sysroot：把内建类型从 declaration-only 形式改为 `@Intrinsic struct/class { override fun toString(): String { ... } }`，body 用 Scoop 写出。
-3. 跑 `cargo build -p scoopc` 确认 sysroot 形态被 typecheck 接受。
-4. 跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`，看 tracer bullet 之前的旧路径是否还能 pass（保留旧路径作为过渡时期的 safety 期望，即新路径落地后旧路径会被精确删除而不是双轨）。
-5. 删除上面列出的 by-name 特判，逐一删除并验证（先验证用户类型的 `ToString.toString` 仍能 work 后再删）。
-6. 检查 `print/println` 链路。
-7. 加 fixture：scalar `toString` 端到端 run-pass。
-8. 跑 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <fixture>`、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings`。
-9. 写 `[DONE] P4-T01` 完成记录并提交。
+1. ✅ 阅读 `try_extract_nominal_fqn_and_args` / `late_resolve_direct_member_fun_fqn_from_receiver_ty` 主线，定位需要扩展的两处。
+2. ✅ 实现 helper、接通 typecheck。
+3. ✅ 用 sysroot overlay fixture 反复验证三类形态分别命中哪条 gap。
+4. ❌ HIR / MIR receiver-prefix 收口（gap 1，下次会话承接）。
+5. ❌ `ToString.toString` published late-lowered body 收口（gap 2，下次会话承接）。
+6. ❌ owner test 端到端通过、`cargo test -p scoopc` / fixture 全量再跑、提交。
 
 ### 风险点
 
-- 这是一个非常大的重构，可能会触及 6+ 个 codegen 文件。
-- 改 `sysroot/core.scoop` 可能引发 layout / @Intrinsic 解析的 corner case；需要从最小变化开始（先一个类型 Bool 试点），逐个加上。
-- 删除旧路径必须在新路径完整能跑之后；中间状态可能 fail。
-- 若发现某条特判路径"用户类型也走过"的证据不存在（必须实现 4 的硬约束），则不能删除该路径，需要先补 fixture/owner-test 锁定用户类型路径再删。
-- 若某个旧路径与新机制有 ABI surface 冲突（如 `@Intrinsic struct String : Hashable, ToString { ... }` 被 layout 内置识别破坏），那本任务可能需要拆出更小前置。
-
-### 进展更新
-
-- 改写 sysroot：`Bool/Char/Int/Float64/Float32/String` 改为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }`，删除冗余 `fun *.toString(): String` 顶层声明。
-- 删除 typecheck 内 `Int/Bool/Char/Float*.toString` 的 synthetic 直接返回类型短路；`Int/Char/Float* hash/toInt/abs/...` 等其它 by-name 路径保留。
-- 修改 HIR `should_keep_member_call_as_member_access`：从 `Int/Bool/Char/Float*` keep-list 中移除 `toString`。
-- 引入新 helper `try_extract_member_call_receiver_fqn_and_args`，让 builtin scalar 也能进入 nominal member-call 主线。
-- **遇到阻塞**：
-  - **gap 1**：`true.toString()` 即使在 typecheck 通过后，HIR → MIR 阶段也没有把 receiver 作为第 0 个 arg 传递，触发 `pass MIR direct call arity mismatch`；本任务原定不动 HIR/MIR 的 receiver-prefix 逻辑，但实际证明 `@Intrinsic struct/class` body method 主线在 builtin scalar receiver 上还需要补齐 receiver-prefix。
-  - **gap 2**：`println(<value>)` 在 sysroot 改写后报 `LLVM stage handoff 缺少 reachable callable scoop.core.ToString.toString 的 published late-lowered body`；说明 `ToString.toString` 在 builtin scalar override 引入后没有被 monomorphization / late lowering 正确发布 callable，与既有 `try_codegen_tostring_iface_builtin` 形成"双轨互相缺失"。
-- 按 `PROMPT.md` "Missing or Incomplete Language Features" 规则，把这两条阻塞拆为新前置 `P4-T01l` ([TODO])，回退当前会话内的 sysroot / typecheck / HIR 改动，等 `P4-T01l` 完成后再启动 `P4-T01` 的删除动作。
-- 已更新 `TODO.md`：顶部任务索引追加 `P4-T01l`；P4 前置 I 顺序约束行更新为十二个前置；`P4-T01l` 任务体说明 gap 1 / gap 2 与必须实现内容；`P4-T01` 依赖项更新为 `P4-T01l`。
-- 验证当前回退状态：
-  - `cargo build -p scoopc` 通过；
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 fixtures 全过；
-  - 工作树仅剩 `TODO.md` / `memory/claude_plan.md` 待提交。
+- `gap 1` 涉及 HIR `lower_canonical_call_expr` 与 `type_kinds` 的 sysroot 类型注入；如果 sysroot 类型未被 `collect_type_decl_kinds` 完整收集，需要先补该路径。
+- `gap 2` 涉及 monomorphization 与 late-lowering 的 reachable callable 收集逻辑；若需要新增 itable 发布通道，可能比 helper 改动大很多。
+- 既有 by-name 路径必须保留作为过渡 surface（任务体硬约束），所以 gap 修复必须采取"add 新机制 + 不破坏旧机制"的策略。
 
 ### 完成状态
 
-- 未完成：`P4-T01` 仍是 `[TODO]`；本轮提交只增加 `P4-T01l` 前置任务并回退 P4-T01 主任务的代码改动；
-- 待提交：`TODO.md`、`memory/claude_plan.md`。
+- 未完成：P4-T01l 仍为 `[TODO]`；本轮提交内容仅包括 helper（typecheck FQN 提取）与对应 typecheck 主线接通，加 plan 与执行记录更新。Gap 1 / gap 2 留给下次会话承接。
+- 待提交：
+  - `crates/scoopc/src/typecheck/expr/ops.rs`（新 helper）
+  - `crates/scoopc/src/typecheck/expr/call.rs`（接通 helper 到两个调用点）
+  - `memory/claude_plan.md`
