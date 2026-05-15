@@ -26,6 +26,8 @@
 | `P4-T01d` | P4 前置 II | [DONE] 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | [DONE] 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
 | `P4-T01f` | P4 前置 III | [DONE] 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
+| `P4-T01g` | P4 前置 IV | [TODO] 解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段 |
+| `P4-T01h` | P4 前置 IV | [TODO] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -580,7 +582,7 @@
 >
 > 硬约束（"零编译器后门"，non-generic 维度）：本前置阶段必须保证，未来再加任何新的非 generic 内建 method（含 interface override 与独立 method）都不会再要求改编译器；只动 sysroot 即可。generic-by-T 维度的后门（不可避免）由 P4 前置 II 收敛为可枚举 intrinsic 表。
 >
-> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01。六个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
+> 顺序约束：P4-T01a → P4-T01b → P4-T01c-pre1 → P4-T01c → P4-T01d → P4-T01e → P4-T01f → P4-T01g → P4-T01h → P4-T01。八个前置子任务必须**新增机制不删除现有 path**（P4-T01e 例外：它会在 IR-direct 化完成后**删除**已被替代的 array runtime helper，这是显式 substrate 收缩动作；除此之外不做删除），以免与 P4-T01 的删除动作冲突造成中间双轨状态。
 
 ### [DONE] P4-T01a：解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用
 
@@ -1093,6 +1095,100 @@
     - 对应 `PLAN.md` P4 前置 III：compiled sysroot 现在已有一条不放宽 native surface 的 scalar `String` bridge，后续 bodied `toString` method 可以通过 ordinary managed helper 触达现有 runtime substrate，而不需要继续借 `toString` 按名特判自举。
     - `MANAGED_ABI.md` §9.3 已补充当前 bridge 边界：`scoop_{char,int,float32,float64}_to_string` 仍是 substrate helper，但只通过 audited sysroot bridge 暴露；native `@Extern` 仍不接受 `String` / managed ref surface。
 
+## P4 前置 IV：内建类型 surface 全形可调用闭环
+
+> 起因：在 `P4-T01f` 完成之后做 P4-T01 验证时（"以 P4-T01a/b/c/d/e/f 已铺好的机制，让用户写 `42.toString().length()` 这类全形 idiom"），发现两类前端 gap 仍会让 P4-T01 / P4-T02 在 sysroot 编写 bodied helper 时直接踩坑：
+>
+> 1. **subclass-typed receiver 不可见 inherited member**：`class Dog : Animal()` / `class Box : Ping`，subclass receiver 调用未 `override` 的祖先 body method 或 interface default body method，前端报 `unresolved_member`；继承自 base class 的 `val` 字段在 subclass body / 外部 receiver 也都不可见。当前 fixture 全部通过"先 cast 到 base type 再调"的写法绕开，但 P4-T01 / P4-T02 把 scalar 与 String helper bodied 化时会出现"用户写 `Int(...).toString()` 命中 `ToString.toString` default" / "sysroot bodied helper 调用基类已实现的 helper" 这类必须直接通过 nominal subclass receiver 命中的形态。
+> 2. **构造器 type argument 不闭环**：
+>    - `val c: Container<Int> = Container()`（zero-arg ctor，或所有 ctor arg 都不引用 `T`）从 LHS expected type 反推不发生，T 静默 fallback 到 `Any`，紧接着触发 `initializer_type_mismatch`；
+>    - `val c: Container<Int> = Container<Int>()`（构造器位置的显式 type argument）走到 LLVM frontend 时报 `call expression missing typed call-site contract`，说明 ctor call lowering 未对接 type-arg contract。
+>
+> 这两类 gap 都不在 P4-T01a/b/c 的 "完成条件" 措辞范围内，因此不属于既已落地基线，但属于 P4-T01 / P4-T02 在 sysroot 写 bodied helper 时**必然**会踩到的前置缺口（当前 sysroot 的 generic intrinsic 全部靠"T 出现在 ctor arg"的 idiom 来回避 Gap A，未来加任何 `class Foo<T>(): ...` 形态的 sysroot helper 都会立刻退化成 `Foo<Any>`）。
+>
+> 顺序约束：P4-T01g 与 P4-T01h 之间无强依赖，但都必须在 P4-T01 之前完成。两者都遵循前置阶段"新增机制不删除现有 path"的硬约束，不得借此回退任何已锁住的 fixture 行为。
+
+### [TODO] P4-T01g：解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4 前置
+  - 现有 fixture：
+    - `tests/fixtures/run-pass/member_call_class_body_method_basic.scoop`（subclass 自身 body method 直接调用）
+    - `tests/fixtures/run-pass/member_call_virtual_dispatch_override_basic.scoop`（base-typed receiver virtual dispatch 已 OK）
+    - `tests/fixtures/run-pass/interface_default_method_dispatch_basic.scoop`（interface-typed receiver 调用 default body 已 OK，但 subclass-typed receiver 同形态会报 unresolved_member）
+  - 现有实现入口：
+    - `crates/scoopc/src/resolve/scopes.rs`（member 解析；当前不沿继承链向上搜索 inherited member）
+    - `crates/scoopc/src/typecheck/expr/call.rs::infer_member_call_expr_type`
+    - `crates/scoopc/src/hir/lower/expr.rs`（member call lowering）
+    - `crates/scoopc/src/typecheck/override_effects.rs`（已有 `direct superclass` 概念，可复用为继承链查找的入口；当前注释明确"只检查 direct superclass，不沿继承链向上搜索"）
+- 目标：
+  - 让 user / sysroot subclass 的 nominal receiver 也能直接调用未 `override` 的祖先 body method（包括 base class 的 ordinary / `open` body method 与 interface default body method），并能访问 base class 的 `val`/`var` 字段。
+  - 不引入新的"subclass-only" 后门：member 解析失败时，统一沿 supertype 链（class → direct superclass → ... → 各 interface supertypes，含 default body）做有序查找；命中后复用现有 lowering（base class body method 复用 `<BaseFqn>.<methodName>` top-level 调用，interface default 复用 itable default-slot），不新增第二条 IR path。
+  - cover：
+    1. base class 的 ordinary body method（非 `open`、非 `override`）；
+    2. base class 的 `open` body method（被 / 未被 subclass override 都要正确）；
+    3. interface 的 default body method（被 / 未被 subclass override 都要正确）；
+    4. base class 的 `val` / `var` 字段（subclass body 内 `this.x` 与外部 `subInst.x` 两种 surface）；
+    5. 多层继承链（`A` ← `B` ← `C`，`C` 实例 nominal receiver 解析到 `A` 的 body member）；
+    6. `@Intrinsic class/struct` 上同形态全部成立。
+- 必须实现的内容：
+  1. resolver 在 member-name 解析未命中"自身声明面"时，按 class supertype 链（先 direct superclass，再 interfaces，按声明顺序，含 default body 与 inherited interface chain）做有序查找；命中后挂回原 member-call AST node，typecheck 阶段视同自身 method/field 一样消费。
+  2. typecheck 解析 `receiver.method(...)` / `receiver.field` 时，沿继承链查找的命中要正确处理：
+     - `this` 隐含 receiver 同样适用（subclass body 内 `this.inheritedField` / `this.inheritedMethod()` 必须可见）；
+     - generic supertype 实例化要把 `T` 在 base 的位置映射到 subclass 实参（`class C<T> : B<T>`，`C<Int>` instance 调用 `B<T>.method()` 必须看到 `T = Int`）。
+  3. HIR lowering 不新增 IR path：base class body method 命中走现有 `<OwnerFqn>.<methodName>` top-level 调用 + receiver 上转；interface default 命中走现有 itable default-slot；继承字段访问走现有 nominal field offset path。
+  4. 报错路径保留：找不到时仍 emit `unresolved_member` / `unresolved_field`；歧义（多 interface 同名 default 且未 override）走现有 ambiguity 报错路径。
+- 必须遵从的约束：
+  - 不得删除任何现有 by-name 特判或扩展函数 fallback（包括 `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext`，删除留给 P4-T01）。
+  - 不得改变现有 `member_call_*` / `interface_default_method_dispatch_basic.scoop` 的 IR 锁定。
+  - 不得引入"subclass-typed receiver 解析时优先访问 base 实现而绕过 vtable"这类回退；virtual dispatch 仍是唯一的 dispatch 来源，本任务只解决"前端可见性"问题。
+  - 不得借此重排 itable / vtable slot 顺序；命中现有 slot 即可。
+- 验证：
+  1. 新增 fixture：subclass-typed receiver 调用 base class ordinary body method（非 override），return value 正确。
+  2. 新增 fixture：subclass-typed receiver 调用未 override 的 interface default body method，return value 正确；同时已 override 的 default body 走子类实现。
+  3. 新增 fixture：subclass body 内 `this.inheritedField`（包括二级、三级继承链）读写值正确。
+  4. 新增 fixture：`@Intrinsic class<T> : Iface { ... }` subclass-typed receiver 调用 inherited default body 正确。
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：现有 pass fixture 不退化（特别是 `member_call_*` / `interface_default_method_dispatch_basic.scoop` / `class_init_*`）。
+  6. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定不退化。
+- 完成条件：
+  - 任何 user / sysroot subclass 的 nominal receiver，都不再需要先 cast 到 base / interface type 才能调用 inherited body member，也不再有"subclass body 内 `this.<inheritedField>` 报 unresolved_member" 这类阻塞 P4-T01 / P4-T02 写 bodied helper 的前端 gap。
+- 依赖：`P4-T01f`
+
+### [TODO] P4-T01h：完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用）
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / P4 前置
+  - 现有 fixture：
+    - `tests/fixtures/run-pass/intrinsic_generic_class_body_method_basic.scoop`（generic intrinsic class，靠 ctor arg `T` 反推）
+    - `tests/fixtures/run-pass/smart_cast_any_member_access_generic_class_basic.scoop`（generic class，靠 ctor arg `T` 反推）
+  - 现有实现入口：
+    - `crates/scoopc/src/typecheck/expr/call.rs`（call site type-arg solver）
+    - `crates/scoopc/src/hir/lower/expr.rs`（call lowering / typed call-site contract）
+    - `crates/scoopc/src/typecheck/expr/entry.rs`（initializer expected-type 下传）
+- 目标：
+  - 把 generic class / struct 构造器调用的 type argument 解算补成与顶层 generic 函数同构的两条路径：
+    1. **LHS expected type 反推**：`val c: Container<Int> = Container()` / `val b: Box<Int> = Box(7)`（其中 `Box<T>(val n: Int)` 不在 ctor arg 暴露 `T`）必须从 LHS 注解的 nominal type argument 反推，把 ctor 的 `T` solver 与 `let-binding` / `return-stmt` / 函数实参的 expected-type 通道合流，而不是 silent-fallback 到 `Any`；
+    2. **构造器位置的显式 type argument**：`Container<Int>()` 必须像顶层 `empty<Int>()` 一样在 typecheck 与 HIR lowering 上接入相同的 typed call-site contract，不再触发 `frontend_prepare_failed: missing typed call-site contract`。
+- 必须实现的内容：
+  1. typecheck 在 ctor call 形成 type-arg solver 时，把外层 expected nominal type 的 type argument 作为 type-arg 候选（与现有"ctor arg 反推 T"并存）；当 ctor arg 不暴露 `T`（含 zero-arg ctor 的退化情形）且 LHS 提供了 nominal type argument 时，必须从 LHS 解出 `T`。
+  2. parser / HIR lower 接受构造器位置的 `Type<TypeArgs>(...)` 形态（如已支持则只补 lowering）；ctor call 形成 typed call-site contract 时把显式 type-args 作为 user-specified bindings 传入 solver；与"LHS 反推"冲突时，显式 type args 优先（与顶层 generic fun 行为一致）。
+  3. 解算结果同步到现有 monomorphization key：generic class instance method / interface dispatch / itable lookup 在解出的 `T` 实参上仍走 owner-specialized member path（与 `P4-T01a` 完成基线一致），不引入新的 erased path。
+  4. 错误路径：仍未解出 `T` 时报现有 `cannot_infer_type_arg` / `initializer_type_mismatch`；显式 type args 与 LHS expected type 矛盾时报现有 conflict 报错（不新增错误码）。
+- 必须遵从的约束：
+  - 不得改变现有 generic class fixture（`intrinsic_generic_class_body_method_basic.scoop` / `smart_cast_any_member_access_generic_class_basic.scoop` 等）的现状行为：靠 ctor arg 反推 T 仍是 first-class 路径。
+  - 不得放宽 native `@Extern` / `FunPtr` 的 generics 限制（`ExternAbi::Scoop` v1 仍 `无 generics`）。
+  - 不得引入"ctor 显式 type args 走与 fun 不同的 contract" 的双轨；只复用现有 typed call-site contract。
+- 验证：
+  1. 新增 fixture：`val c: Container<Int> = Container()`（zero-arg ctor）run-pass。
+  2. 新增 fixture：`val b: Box<Int> = Box(7)`（ctor arg 不暴露 T）run-pass。
+  3. 新增 fixture：`Container<Int>()` 显式 type argument run-pass。
+  4. 新增 fixture：显式 type args 与 LHS 注解一致时通过；不一致时报现有 conflict 错误（typecheck fixture）。
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：现有 generic class fixture 不退化。
+  6. `cargo test -p scoopc llvm_tests -- --nocapture`：现有 IR 锁定不退化。
+- 完成条件：
+  - sysroot / user 在写 `class Foo<T>` / `class Foo<T>(val n: Int)` 这两种"T 不出现在 ctor arg" 形态时，都能用 `val x: Foo<Int> = Foo()` / `val x: Foo<Int> = Foo(7)` / `val x = Foo<Int>()` 三种 idiom 之一无障碍构造，不再 silent-fallback 到 `Any`，也不再触发 `missing typed call-site contract`。
+- 依赖：`P4-T01g`
+
 ## P4：string cone tracer bullet
 
 ### [TODO] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
@@ -1146,7 +1242,7 @@
   3. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <scalar-tostring-fixtures>`
 - 完成条件：
   - 第一批标量 `toString` helper 已不再依赖 compiler/runtime FQN intercept。
-- 依赖：`P4-T01f`（`P4-T01e` 之后又新增了 sysroot scalar `String` bridge 前置：在不放宽 native surface、也不复用旧 `toString` intercept 的前提下，先给 bodied sysroot helper 提供合法的 `String`-return substrate 落点）
+- 依赖：`P4-T01h`（`P4-T01f` 之后又新增了两条 P4 前置 IV 子任务：`P4-T01g` 解锁 subclass-typed receiver 对 inherited body method / 字段的可见性；`P4-T01h` 把 LHS expected type 反推与显式 type argument 都接入构造器调用——两者都会被 P4-T01 中的标量 `toString` migration 与 P4-T02 的 string helper migration 直接踩到）
 
 ### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 
