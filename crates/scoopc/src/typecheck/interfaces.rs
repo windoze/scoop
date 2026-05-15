@@ -21,6 +21,7 @@ use crate::ast;
 use crate::resolve::{FunOverload, Index};
 use crate::source::SourceFile;
 
+use super::builtin_annotations::BuiltinAnnotationFlags;
 use super::{TypeEnv, TypeSymbolKind};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -70,6 +71,22 @@ pub enum InterfaceError {
         span: miette::SourceSpan,
         #[label("该 interface 成员定义在这里")]
         member_span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@Intrinsic` 类型的 interface override 必须是带 body 的普通 method：{type_fqn}.{member} 实现 {interface_fqn}.{member}"
+    )]
+    #[diagnostic(code(
+        scoop::typecheck::intrinsic_type_interface_override_must_be_bodied_regular_method
+    ))]
+    IntrinsicTypeInterfaceOverrideMustBeBodiedRegularMethod {
+        type_fqn: String,
+        interface_fqn: String,
+        member: String,
+        #[label("这里必须提供普通 method body，不能使用 `@Intrinsic` / `@Extern` 或省略 body")]
+        span: miette::SourceSpan,
+        #[label("对应的 interface method 在这里")]
+        interface_span: miette::SourceSpan,
     },
 }
 
@@ -129,6 +146,20 @@ fn check_type_decl_interfaces(
         ast::TypeKind::Effect => {
             // 当前阶段不为 effect 引入额外 interface 语义（TODO T0602/T06xx）。
         }
+    }
+
+    if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct)
+        && BuiltinAnnotationFlags::from_annotations(source, &decl.annotations).is_intrinsic
+    {
+        check_intrinsic_type_interface_impl_shape(
+            source,
+            file,
+            &type_fqn,
+            &decl.supertypes,
+            decl.body.as_ref(),
+            index,
+            env,
+        )?;
     }
 
     // 递归检查 nested types / nested objects。
@@ -399,6 +430,106 @@ fn check_one_interface_impl(
     }
 
     Ok(())
+}
+
+fn check_intrinsic_type_interface_impl_shape(
+    source: &SourceFile,
+    file: &ast::File,
+    type_fqn: &str,
+    supertypes: &[ast::SuperType],
+    body: Option<&ast::TypeBody>,
+    index: &Index,
+    env: &TypeEnv,
+) -> Result<(), InterfaceError> {
+    let Some(body) = body else {
+        return Ok(());
+    };
+    let interface_funs = direct_interface_fun_targets(source, file, supertypes, index, env);
+    if interface_funs.is_empty() {
+        return Ok(());
+    }
+
+    for member in &body.members {
+        let ast::TypeMember::Fun(fun) = member else {
+            continue;
+        };
+        let Some((interface_fqn, interface_fun)) = interface_funs
+            .iter()
+            .find(|(_, target)| fun_matches_interface_overload(source, fun, target))
+        else {
+            continue;
+        };
+
+        let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+        if !flags.is_intrinsic && !flags.is_extern && !matches!(fun.body, ast::FunBody::Missing) {
+            continue;
+        }
+
+        return Err(
+            InterfaceError::IntrinsicTypeInterfaceOverrideMustBeBodiedRegularMethod {
+                type_fqn: type_fqn.to_string(),
+                interface_fqn: interface_fqn.clone(),
+                member: source.slice(fun.name.span).to_string(),
+                span: fun.name.span.into(),
+                interface_span: interface_fun.symbol.span.into(),
+            },
+        );
+    }
+
+    Ok(())
+}
+
+fn direct_interface_fun_targets<'a>(
+    source: &SourceFile,
+    file: &ast::File,
+    supertypes: &[ast::SuperType],
+    index: &'a Index,
+    env: &TypeEnv,
+) -> Vec<(String, &'a FunOverload)> {
+    let mut out = Vec::new();
+    for st in supertypes.iter().filter(|st| st.ctor_args_span.is_none()) {
+        let Some(interface_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+            continue;
+        };
+        if !is_interface(env, &interface_fqn) {
+            continue;
+        }
+        for overload in direct_interface_funs(index, &interface_fqn) {
+            out.push((interface_fqn.clone(), overload));
+        }
+    }
+    out
+}
+
+fn direct_interface_funs<'a>(index: &'a Index, interface_fqn: &str) -> Vec<&'a FunOverload> {
+    let prefix = format!("{interface_fqn}.");
+    let mut out = Vec::new();
+
+    for (fqn, syms) in &index.by_fqn {
+        if !fqn.starts_with(&prefix) {
+            continue;
+        }
+        // 排除 nested type/object 的成员：我们只关心 `Interface.member`。
+        let rest = &fqn[prefix.len()..];
+        if rest.contains('.') {
+            continue;
+        }
+
+        out.extend(syms.fun.iter());
+    }
+
+    out
+}
+
+fn fun_matches_interface_overload(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    target: &FunOverload,
+) -> bool {
+    source.slice(fun.name.span) == target.symbol.name
+        && fun.params.len() == target.sig.params.len()
+        && fun.receiver.is_some() == target.sig.receiver.is_some()
+        && fun.type_params.len() == target.sig.type_params.len()
 }
 
 fn required_abstract_interface_funs<'a>(

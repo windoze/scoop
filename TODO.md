@@ -36,7 +36,7 @@
 | `P4-T01l3` | P4 前置 IV | [DONE] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
 | `P4-T01m` | P4 前置 V | [DONE] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
 | `P4-T01n` | P4 前置 V | [DONE] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
-| `P4-T01o` | P4 前置 V | [TODO] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
+| `P4-T01o` | P4 前置 V | [DONE] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
 | `P4-T01p` | P4 前置 V | [TODO] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
 | `P4-T01q` | P4 前置 V | [TODO] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
@@ -1685,7 +1685,7 @@
     - 对应 `PLAN.md` P4 前置 V：`@Intrinsic class/struct` 的 synthetic property 已按普通 property callable path 锁定，不再依赖 direct-field 或 compiler by-name 后门；为后续 P4-T01/P4-T02 sysroot 改写保留可验证的 getter/setter 通路。
     - 本任务没有改变 `MANAGED_ABI.md` 的 callable ABI / extern ABI surface，也没有放宽 `@Intrinsic` 类型 layout 约束；无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01o：锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method
+### [DONE] P4-T01o：锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
@@ -1714,6 +1714,26 @@
   - `@Intrinsic class/struct` 实现 interface 时，`@Intrinsic` / `@Extern` / 无 body 三种形态均被前端拒绝；唯一被接受的形态是带 body 的普通 method；
   - sysroot 现状被 audit 锁定为"全部 interface override 均为带 body 的普通 method"。
 - 依赖：`P4-T01n`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/interfaces.rs`：新增 `intrinsic_type_interface_override_must_be_bodied_regular_method` 诊断，在 interface impl 检查阶段验证 `@Intrinsic class/struct` 的 direct interface method 实现形态。
+    - `tests/fixtures/typecheck/intrinsic_type_interface_override_*`：新增 class/struct 下 `@Intrinsic` override、`@Extern` override、无 body override 失败 fixture，以及带 body 普通 method 正向 fixture。
+    - `TODO.md` / `memory/claude_plan.md`：刷新任务状态、执行记录和验证结果。
+  - 核心决策：
+    - 约束放在 `typecheck::interfaces`，复用已有 direct interface method 匹配信息；abstract method 与 default method 的显式实现都会经过同一条 shape 检查。
+    - 只限制 `@Intrinsic class/struct` 作为 interface implementer 时匹配 interface method 的成员函数；未实现 interface 的普通 `@Intrinsic` method 形态继续留给 `P4-T01p` 按既有 body 规则单独锁定。
+    - 不放宽 `IntrinsicFunMustHaveNoBody` / `ExternFunMustHaveNoBody`：本任务新增的是更早、更明确的 implementer 约束，要求 interface method 实现必须是非 `@Intrinsic`、非 `@Extern` 且带 body 的普通 method。
+    - sysroot audit 结论：当前 default sysroot 中 `@Intrinsic class/struct` 为 `scoop.core.Array<T>`、`scoop.core.MutableArray<T>`、`scoop.unsafe.Ptr<T>`、`scoop.unsafe.FunPtr<F>`；它们均未声明 interface impl / interface override。默认 `Bool/Char/Int/Float32/Float64/String` 仍是非 `@Intrinsic` 声明；overlay scalar `@Intrinsic` fixtures 中的 `ToString` override 均为带 body 的普通 method。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_type_interface_override_bodied_regular_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_type_interface_override_intrinsic_class_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：453 passed / 0 failed
+    - `cargo test -p scoopc`：863 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 V：`@Intrinsic class/struct` 作为 interface implementer 时现在只能用普通 bodied method 落到用户/sysroot 可见 body，不再允许通过 `@Intrinsic` / `@Extern` / declaration-only method 形成 interface dispatch 空洞。
+    - 本任务没有改变 callable ABI / extern ABI surface，也没有调整 string cone substrate 边界；无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01p：锁定 `@Intrinsic` method 在类型成员位置同样必须省略方法体
 

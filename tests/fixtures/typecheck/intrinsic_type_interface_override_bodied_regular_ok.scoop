@@ -1,0 +1,39 @@
+// EXPECT: pass
+// P4-T01o: `@Intrinsic` class/struct interface implementations must use ordinary
+// bodied methods; interface default methods may remain inherited when not overridden.
+
+@file:AllowIntrinsic
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface NativeIface {
+    fun ping(): Int
+
+    fun fallback(): Int {
+        return 10
+    }
+}
+
+@Intrinsic
+class NativeClass() : NativeIface {
+    override fun ping(): Int {
+        return 1
+    }
+
+    override fun fallback(): Int {
+        return 2
+    }
+}
+
+@Intrinsic
+struct NativeStruct() : NativeIface {
+    override fun ping(): Int {
+        return 3
+    }
+}
+
+fun use(c: NativeClass, s: NativeStruct): Int {
+    return c.ping() + c.fallback() + s.ping()
+}

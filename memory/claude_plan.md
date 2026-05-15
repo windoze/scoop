@@ -1,21 +1,26 @@
-# Claude Execution Plan
+# 执行计划
 
-## Current Invocation
+说明：按要求先记录执行计划；不会记录私有推理细节，只记录可核查的步骤、决策与进度。
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that selected task.
-3. Inspect the task requirements, dependencies, and validation instructions in `TODO.md`.
-4. Implement the selected task exactly as written, without narrowing scope or using workarounds.
-5. If a concrete blocker prevents correct implementation, update `TODO.md` with the minimum prerequisite task needed, keep the blocked task incomplete, commit that bookkeeping, and stop.
-6. Run the relevant tests and quality checks for the changed area; fix any task-related failures.
-7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
-8. Update this file as key steps complete or if the plan changes.
-9. Commit all relevant changes with a descriptive task-tagged message, then stop without starting the next task.
+1. 读取 `TODO.md`，按标题是否含 `[DONE]` 找出第一个未完成任务。
+2. 查看该任务的依赖、验证要求和完成记录；必要时查看最新提交是否与该任务直接相关。
+3. 针对该任务检查相关代码、测试与 fixtures，确认实现范围。
+4. 完成该任务；若发现阻塞当前任务的真实缺口，则只新增最小必要前置任务并停止。
+5. 运行相关测试；若失败，修复后重测。
+6. 更新 `TODO.md`，将完成任务标题加 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 提交本次任务相关全部变更，并在提交后停止。
 
-## Progress Log
+当前状态：已定位首个未完成任务为 `P4-T01o`。最新提交 `4b2a5c79 [P4-T01n] Support intrinsic synthetic properties` 与当前任务顺序相邻但未声明未完成阻塞项。
 
-- Planned initial workflow before inspecting or modifying project code.
-- Identified first incomplete task: `P4-T01n`, which verifies that synthetic properties on `@Intrinsic class/struct` work like ordinary class/struct properties.
-- Current task plan: inspect existing property fixtures and lowering/codegen paths, add focused fixtures for getter-only, getter+setter, and getter depending on an `@Intrinsic method`, run the required validations, update `TODO.md`, then commit and stop.
-- Implemented the planned direction: computed properties without backing fields are now tracked through the shared HIR lowering path, with getter reads lowered to getter calls and setter assignments lowered to synthetic setter calls. Added targeted typecheck and run-pass fixtures for intrinsic class/struct synthetic properties.
-- Validation complete for `P4-T01n`: `cargo fmt --all`, targeted intrinsic property fixtures, `cargo test -p scoopc`, full typecheck fixtures, full run-pass fixtures, and `cargo clippy --all-targets -- -D warnings` all pass. `TODO.md` is updated with `[DONE]` and the completion record; next step is commit.
+本任务执行步骤：
+
+1. 检查 `@Intrinsic` / `@Extern` method body 诊断、interface override 检查和现有 fixture 约定。
+2. 补齐或修正前端约束：`@Intrinsic class/struct` 作为 interface implementer 时，显式实现/override 的 method 必须是普通 method 且有 body。
+3. 新增 typecheck fixture 覆盖 `@Intrinsic override`、`@Extern override`、无 body override 报错，以及带 body 普通 override 通过。
+4. 审计 sysroot 当前 `@Intrinsic class/struct` 的 interface impl 形态，并写入 `TODO.md` 完成记录。
+5. 运行指定验证：相关 fixture、完整 typecheck fixture、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings`。
+6. 标记 `TODO.md` 中 `P4-T01o` 为 `[DONE]`，提交本任务相关变更后停止。
+
+进度更新：已在 `typecheck/interfaces.rs` 增加 `@Intrinsic` class/struct interface implementation shape 诊断，并新增 class/struct 的 `@Intrinsic` override、`@Extern` override、无 body override 失败 fixture 与带 body 普通 method 正向 fixture。已运行 `cargo fmt --all`、正向 fixture 和一条 `@Intrinsic` class 失败 fixture，均通过。
+
+进度更新：完整验证已通过：`tests/fixtures/typecheck` 为 453 passed / 0 failed，`cargo test -p scoopc` 为 863 passed / 0 failed，`cargo clippy --all-targets -- -D warnings` clean。已把 `TODO.md` 中 `P4-T01o` 标记为 `[DONE]` 并写入完成记录；下一步检查 git diff 并提交本任务变更。
