@@ -113,10 +113,12 @@
    - 用 `Array` / `MutableArray` 作为 first user，把 `array_size` / `array_get` / `array_set` / `array_data_ptr` 等 entry 实现为纯 IR；保留 `array_alloc` / `array_builder_grow` / `write_barrier` / `composite_copy` 等少数 runtime 协作 entry。
    - 删除 `runtime/c/scoop_array.c` 中已被 IR-direct 替代的 helper（`scoop_array_get_u64/ref/composite` / `scoop_array_set_*` / `scoop_array_len`），收缩 runtime substrate。
    - 这一阶段为后续 v2+ 把 runtime 进一步收缩到"GC + GC-adjacent only"打下基础（其它非 GC 内容如 `exit(3)` / `print/println` / 标量 helper 等可在后续阶段以 IR / Scoop ABI FFI 形式迁出，不在 v1 主线 scope 内）。
-7. P4：用 remaining string helpers 做 tracer bullet，清理 resolver/typecheck/codegen/runtime 中的名字特判。
+7. P4 前置 III（P4-T01f）：给 compiled sysroot helper 暴露一个不放宽 native surface 的 scalar `String` bridge，使后续 bodied `toString` method 能合法触达现有 runtime `scoop_{char,int,float32,float64}_to_string` substrate，而不是继续借用旧的 by-name intercept。
+   - 背景约束：当前 source-level native `@Extern` 明确拒绝 `String` / managed ref 穿越 native ABI；因此 `P4-T01` 不能直接用 native `@Extern` 包装这些 runtime helper，也不能继续拿旧 `toString` intercept 自举自己。
+8. P4：用 remaining string helpers 做 tracer bullet，清理 resolver/typecheck/codegen/runtime 中的名字特判。
    - P4 主体（P4-T01）现在依赖 P4 前置 I：scalar `toString` 不再以扩展函数 + FQN intercept 形式落地，而是直接搬到 `@Intrinsic struct/class` 的 method body 内。
-   - P4-T01 不依赖 P4 前置 II（scalar toString 不需要 generic-by-T 分流），但顺序上仍排在 P4 前置 II 之后，避免 intrinsic 机制半完成时穿插对内建类型的 sysroot 改写。
-8. P5：做全量稳定化、跨平台 matrix、文档与注释收尾。
+   - P4-T01 不依赖 P4 前置 II 的 generic-by-T 分流机制本身，但顺序上仍排在其后；同时它现在还依赖新的 P4 前置 III：先为 bodied sysroot helper 提供合法的 `String`-return runtime bridge，才能在不放宽 native contract 的前提下删除旧 `toString` 特判。
+9. P5：做全量稳定化、跨平台 matrix、文档与注释收尾。
 
 依赖说明：
 
@@ -125,8 +127,9 @@
 - P2 必须早于 P3，因为 `ExternAbi::Scoop` 不应建立在仍分裂的 native classifier 之上；否则 direct/indirect/managed external 三条线会再次交叉污染。
 - P3 必须早于 P4 前置 I，因为内建类型 interface method body 内会调用 `@Extern(abi = "scoop")` wrapper（例如 `scoopAbiIntToString`），需要 `ExternAbi::Scoop` 已经接通。
 - P4 前置 I 必须早于 P4 前置 II，因为后者的 method-level `@Intrinsic("name")` 表机制依赖前者已经把 `@Intrinsic struct/class` 与 instance method 的全套 surface 接好。
-- P4 前置 II 必须早于 P4 主体（顺序约束），避免 intrinsic 表机制半完成时穿插 scalar toString 的 sysroot 改写。
-- P4 前置 I/II 都必须早于 P4 主体，因为 P4 主体的目标是“删除 by-name 特判”；如果机制侧仍然要靠 by-name 路径承接 sysroot 改动，P4 主体的删除目标就不成立。
+- P4 前置 II 必须早于 P4 前置 III 与 P4 主体（顺序约束），避免 intrinsic 表机制半完成时穿插 scalar toString 的 sysroot 改写。
+- P4 前置 III 必须早于 P4 主体，因为在当前 native contract 下，bodied sysroot helper 还没有合法方式直接声明 `String`-return native runtime helper；若不先补 bridge，`P4-T01` 只能回退到它要删除的旧 `toString` by-name intercept。
+- P4 前置 I/II/III 都必须早于 P4 主体，因为 P4 主体的目标是“删除 by-name 特判”；如果机制侧仍然要靠 by-name 路径承接 sysroot 改动，P4 主体的删除目标就不成立。
 - P5 之前不算完成；只做少量 string helper 或单个平台通过，不代表 callable ABI contract 已闭环。
 
 ## 5. 分阶段计划

@@ -24,7 +24,8 @@
 | `P4-T01c-pre1` | P4 前置 I | [DONE] 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
 | `P4-T01c` | P4 前置 I | [DONE] `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | [DONE] 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
-| `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
+| `P4-T01e` | P4 前置 II | [DONE] 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
+| `P4-T01f` | P4 前置 III | 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -1030,6 +1031,39 @@
     - 对应 `PLAN.md` P4 前置 II 的第 2-4 项：`Array` / `MutableArray` 已成为 named intrinsic 表的真实 first user，基础访问恢复为 IR-direct emission，旧 array runtime helper surface 已被收缩，LLVM 的 LICM/CSE/BCE/向量化窗口重新打开。
     - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface；改动仅限 array substrate 与 intrinsic lowering source-of-truth，因此无需回写 `MANAGED_ABI.md`。
 
+## P4 前置 III：sysroot scalar String bridge
+
+### [TODO] P4-T01f：为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §4 / §5 / P4
+  - `crates/scoopc/src/typecheck/annotations.rs::{check_extern_fun_signature_matches_native_abi,check_extern_fun_signature_matches_scoop_abi_v1}`
+  - `crates/scoopc/src/typecheck/lower.rs::TypeLowering::{is_native_abi_value_type,is_native_abi_value_type_inner}`
+  - `sysroot/{core.scoop,print.scoop}`
+  - `runtime/c/scoop_runtime.c::{scoop_char_to_string,scoop_int_to_string,scoop_float32_to_string,scoop_float64_to_string}`
+- 目标：
+  - 为 `P4-T01` 的 sysroot bodied `toString` method 提供一个真实、可审计的 helper 实现落点：compiled sysroot helper 能返回 `String`，并可被 `@Extern(abi = "scoop")` wrapper/ordinary managed call 消费。
+  - 保持 `P2` 已发布的 native surface contract 不变：user/source-level native `@Extern` 仍不接受 `String` 或其它 managed ref 穿越 native ABI。
+- 当前阻塞：
+  - `check_extern_fun_signature_matches_native_abi()` 通过 `TypeLowering::is_native_abi_value_type()` 明确拒绝一切 `TypeKind::Ref(_)`，因此像 `@Extern("scoop_int_to_string") fun ...(Int): String` 这类 sysroot wrapper 目前没有合法源码表示。
+  - 若继续用现有 `scoop.core.toString` / `ToString.toString` 的 by-name intercept 去实现 wrapper，本质上是在用 `P4-T01` 计划删除的旧路径自举自己，不能接受。
+- 必须实现的内容：
+  1. 引入一个仅供 compiled sysroot helper 使用、且可审计的 runtime bridge surface，使其能触达现有 `scoop_char_to_string` / `scoop_int_to_string` / `scoop_float32_to_string` / `scoop_float64_to_string` substrate helper 并返回 `String`。
+  2. 该 bridge 不得表现为“native `@Extern` contract 放宽”：用户源码里的 native `@Extern` 仍必须继续拒绝 `String` / `Ref` 形状。
+  3. bridge 的 ownership / why-runtime 需要写清楚：它属于 substrate bridge，不是新增的用户态 FFI 能力，也不是把 runtime C helper 伪装成普通 managed export。
+  4. 至少补一条 compiled sysroot helper + managed ABI/ordinary managed 调用验证，证明后续 `P4-T01` 可以在不借助旧 `toString` FQN intercept 的前提下，经由该 bridge 产出 `String`。
+- 必须遵从的约束：
+  - 不得把 `String` / `Ref` 悄悄加入 `check_extern_fun_signature_matches_native_abi()` 的 allowlist。
+  - 不得把 `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext` / `codegen_mir_transport_to_string` 当成 wrapper 的隐藏实现。
+  - 不得通过硬编码“managed ABI 名字直接映射到 runtime C symbol”来模糊 addrspace/ABI 边界；如果需要 bridge symbol，必须把 ABI/ownership 说清楚并用测试锁住。
+- 验证：
+  1. 新增 front-end 或 typecheck owner test，锁定 native `@Extern` 仍拒绝 `String` return / managed ref surface。
+  2. 新增 compiled sysroot helper fixture，验证 bridge 返回 `String` 并可被 ordinary managed 或 `@Extern(abi = "scoop")` call 消费。
+  3. `cargo test -p scoopc llvm_tests -- --nocapture`
+- 完成条件：
+  - `P4-T01` 可以直接把 scalar `toString` body 写成 sysroot ordinary code + managed wrapper，而不需要再碰 native surface contract，也不需要继续借用旧名字特判来“自举”。
+- 依赖：`P4-T01e`
+
 ## P4：string cone tracer bullet
 
 ### [TODO] P4-T01：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判
@@ -1083,7 +1117,7 @@
   3. `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <scalar-tostring-fixtures>`
 - 完成条件：
   - 第一批标量 `toString` helper 已不再依赖 compiler/runtime FQN intercept。
-- 依赖：`P4-T01e`（顺序约束：scalar toString 不直接依赖 P4 前置 II 的 generic intrinsic 表机制，但顺序排在其后避免 intrinsic 机制半完成时穿插对内建类型的 sysroot 改写）
+- 依赖：`P4-T01f`（`P4-T01e` 之后又新增了 sysroot scalar `String` bridge 前置：在不放宽 native surface、也不复用旧 `toString` intercept 的前提下，先给 bodied sysroot helper 提供合法的 `String`-return substrate 落点）
 
 ### [TODO] P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface
 
