@@ -804,8 +804,8 @@ impl<'a> HirLowering<'a> {
     /// {
     ///     val __for_arr = arr
     ///     var __for_i = 0
-    ///     while (__for_i < size(__for_arr)) {
-    ///         val x = get(__for_arr, __for_i)
+    ///     while (__for_i < Array.size(__for_arr)) {
+    ///         val x = Array.get(__for_arr, __for_i)
     ///         ...body_stmts...
     ///         __for_i = __for_i + 1
     ///     }
@@ -888,9 +888,14 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        // size(__for_arr)
-        let size_call =
-            self.call_top_level_fun(for_span, "scoop.core.size", vec![arr_ref(for_span)], int);
+        // Array.size(__for_arr)
+        let size_call = self.call_top_level_fun_with_synthetic_binding(
+            for_span,
+            "scoop.core.Array.size",
+            vec![arr_ref(for_span)],
+            int,
+            Some("array_size"),
+        );
 
         // __for_i < size(__for_arr)
         let cond = Expr {
@@ -904,12 +909,13 @@ impl<'a> HirLowering<'a> {
             },
         };
 
-        // get(__for_arr, __for_i)
-        let get_call = self.call_top_level_fun(
+        // Array.get(__for_arr, __for_i)
+        let get_call = self.call_top_level_fun_with_synthetic_binding(
             for_span,
-            "scoop.core.get",
+            "scoop.core.Array.get",
             vec![arr_ref(for_span), idx_ref(for_span)],
             int,
+            Some("array_get"),
         );
 
         // val x = get(__for_arr, __for_i)

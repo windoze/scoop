@@ -14,6 +14,7 @@
 
 // `scoop_alloc` 在 `scoop_runtime.c` 中实现；这里仅声明供本模块使用。
 void *scoop_alloc(uint64_t size);
+void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
 
 #define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
 #define SCOOP_ARRAY_ELEM_KIND_WORD 1u
@@ -42,6 +43,27 @@ typedef struct ScoopArrayBuilder {
   uint32_t elem_kind;
   uint32_t _reserved_u32;
 } ScoopArrayBuilder;
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopArray, header) == 0,
+               "ScoopArray.header offset must stay at 0");
+_Static_assert(offsetof(ScoopArray, len) == sizeof(ScoopGcObjectHeader),
+               "ScoopArray.len offset must follow the GC header");
+_Static_assert(offsetof(ScoopArray, elem_size_bytes) ==
+                   sizeof(ScoopGcObjectHeader) + sizeof(uint64_t),
+               "ScoopArray.elem_size_bytes offset drifted");
+_Static_assert(offsetof(ScoopArray, data_offset_bytes) ==
+                   sizeof(ScoopGcObjectHeader) + sizeof(uint64_t) * 2u,
+               "ScoopArray.data_offset_bytes offset drifted");
+_Static_assert(offsetof(ScoopArray, elem_desc) ==
+                   sizeof(ScoopGcObjectHeader) + sizeof(uint64_t) * 3u,
+               "ScoopArray.elem_desc offset drifted");
+_Static_assert(offsetof(ScoopArray, elem_kind) ==
+                   sizeof(ScoopGcObjectHeader) + sizeof(uint64_t) * 3u + sizeof(void *),
+               "ScoopArray.elem_kind offset drifted");
+_Static_assert(offsetof(ScoopArray, data) >= offsetof(ScoopArray, elem_kind) + sizeof(uint32_t) * 2u,
+               "ScoopArray.data must remain after the fixed header fields");
+#endif
 
 static uint64_t scoop_array_align_up_u64(uint64_t value, uint64_t align) {
   if (align <= 1) {
@@ -89,13 +111,6 @@ static uint8_t *scoop_array_data(ScoopArray *arr) {
     return 0;
   }
   return ((uint8_t *)arr) + arr->data_offset_bytes;
-}
-
-static const uint8_t *scoop_array_const_data(const ScoopArray *arr) {
-  if (arr == 0 || arr->data_offset_bytes == 0) {
-    return 0;
-  }
-  return ((const uint8_t *)arr) + arr->data_offset_bytes;
 }
 
 static uint64_t scoop_array_max_len_from_size(const ScoopArray *arr) {
@@ -399,26 +414,6 @@ static void scoop_array_commit_composite_copy_to_gc_storage(
   }
 }
 
-static uint32_t scoop_array_copy_composite_to_gc_storage(
-    const ScoopCompositeTransportDescriptor *descriptor,
-    uint8_t *dst,
-    const void *value,
-    uint32_t drop_existing) {
-  if (dst == 0) {
-    return 0;
-  }
-  ScoopArrayPreparedCompositeCopy prepared;
-  if (!scoop_array_prepare_composite_copy(descriptor, value, &prepared)) {
-    return 0;
-  }
-  if (drop_existing) {
-    scoop_composite_drop(descriptor, dst);
-  }
-  scoop_array_commit_composite_copy_to_gc_storage(dst, &prepared);
-  scoop_array_destroy_prepared_composite_copy(&prepared);
-  return 1;
-}
-
 static void scoop_array_release(void *object) {
   if (object == 0) {
     return;
@@ -509,7 +504,7 @@ static uint32_t scoop_array_builder_configure(
   return 1;
 }
 
-static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
+static uint32_t scoop_array_builder_grow_impl(ScoopArrayBuilder *b) {
   if (b == 0 || b->elem_size_bytes == 0) {
     return 0;
   }
@@ -532,6 +527,10 @@ static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
   b->data = p;
   b->cap = new_cap;
   return 1;
+}
+
+uint32_t scoop_array_builder_grow(void *builder) {
+  return scoop_array_builder_grow_impl((ScoopArrayBuilder *)builder);
 }
 
 void *scoop_array_builder_new(void) {
@@ -558,7 +557,7 @@ void scoop_array_builder_push_u64(void *builder, uint64_t value) {
     return;
   }
 
-  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
+  if (b->len >= b->cap && !scoop_array_builder_grow_impl(b)) {
     return;
   }
 
@@ -572,7 +571,7 @@ void scoop_array_builder_push_ref(void *builder, void *value) {
     return;
   }
 
-  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
+  if (b->len >= b->cap && !scoop_array_builder_grow_impl(b)) {
     return;
   }
 
@@ -590,7 +589,7 @@ void scoop_array_builder_push_composite(
     return;
   }
 
-  if (b->len >= b->cap && !scoop_array_builder_grow(b)) {
+  if (b->len >= b->cap && !scoop_array_builder_grow_impl(b)) {
     return;
   }
 
@@ -628,6 +627,43 @@ static uint64_t scoop_array_allocation_size(
   *out_elem_size = elem_size;
   *out_data_offset = data_offset;
   return data_offset + data_bytes;
+}
+
+void *scoop_array_alloc(
+    uint64_t len,
+    uint64_t elem_kind_raw,
+    const ScoopCompositeTransportDescriptor *descriptor) {
+  uint32_t elem_kind = (uint32_t)elem_kind_raw;
+  const ScoopCompositeTransportDescriptor *elem_desc =
+      (elem_kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) ? descriptor : 0;
+  if (elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD && elem_kind != SCOOP_ARRAY_ELEM_KIND_REF &&
+      elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE) {
+    return 0;
+  }
+
+  uint64_t elem_size = 0;
+  uint64_t data_offset = 0;
+  uint64_t bytes = scoop_array_allocation_size(
+      len, elem_kind, elem_desc, &elem_size, &data_offset);
+  if (bytes == 0) {
+    return 0;
+  }
+
+  ScoopArray *arr = (ScoopArray *)scoop_alloc_typed(&SCOOP_ARRAY_TYPE_DESC, bytes);
+  if (arr == 0) {
+    return 0;
+  }
+
+  arr->len = len;
+  arr->elem_size_bytes = elem_size;
+  arr->data_offset_bytes = data_offset;
+  arr->elem_desc = elem_desc;
+  arr->elem_kind = elem_kind;
+  arr->_reserved_u32 = 0;
+  if (bytes > data_offset) {
+    (void)memset(((uint8_t *)arr) + data_offset, 0, (size_t)(bytes - data_offset));
+  }
+  return (void *)arr;
 }
 
 static void scoop_array_builder_reset_after_transfer(ScoopArrayBuilder *b) {
@@ -747,140 +783,4 @@ void *scoop_array_builder_build_mutable_array_composite(
     void *builder,
     const ScoopCompositeTransportDescriptor *descriptor) {
   return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, descriptor);
-}
-
-uint64_t scoop_array_len(void *array_obj) {
-  if (array_obj == 0) {
-    return 0;
-  }
-
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  return arr->len;
-}
-
-uint64_t scoop_array_get_u64(void *array_obj, int64_t index) {
-  if (array_obj == 0 || index < 0) {
-    return 0;
-  }
-
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD || arr->elem_size_bytes < sizeof(uint64_t)) {
-    return 0;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return 0;
-  }
-
-  uint64_t value = 0;
-  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
-  (void)memcpy(&value, src, sizeof(value));
-  return value;
-}
-
-void *scoop_array_get_ref(void *array_obj, int64_t index) {
-  if (array_obj == 0 || index < 0) {
-    return 0;
-  }
-
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF || arr->elem_size_bytes < sizeof(uintptr_t)) {
-    return 0;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return 0;
-  }
-
-  uintptr_t encoded = 0;
-  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
-  (void)memcpy(&encoded, src, sizeof(encoded));
-  return (void *)encoded;
-}
-
-void scoop_array_get_composite(
-    void *array_obj,
-    int64_t index,
-    const ScoopCompositeTransportDescriptor *descriptor,
-    void *out_value) {
-  if (array_obj == 0 || descriptor == 0 || out_value == 0 || index < 0) {
-    return;
-  }
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE || arr->elem_desc != descriptor ||
-      arr->elem_size_bytes != descriptor->size_bytes) {
-    return;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return;
-  }
-
-  scoop_pin((void *)arr);
-  const uint8_t *src = scoop_array_const_data(arr) + (idx * arr->elem_size_bytes);
-  scoop_composite_copy(descriptor, out_value, src);
-  scoop_unpin((void *)arr);
-}
-
-void scoop_array_set_u64(void *array_obj, int64_t index, uint64_t value) {
-  if (array_obj == 0 || index < 0) {
-    return;
-  }
-
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD || arr->elem_size_bytes < sizeof(uint64_t)) {
-    return;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return;
-  }
-
-  uint8_t *dst = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
-  (void)memcpy(dst, &value, sizeof(value));
-}
-
-void scoop_array_set_ref(void *array_obj, int64_t index, void *value) {
-  if (array_obj == 0 || index < 0) {
-    return;
-  }
-
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF || arr->elem_size_bytes < sizeof(uintptr_t)) {
-    return;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return;
-  }
-
-  uint8_t *slot = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
-  (void)scoop_gc_write_barrier((void *)slot, value);
-}
-
-void scoop_array_set_composite(
-    void *array_obj,
-    int64_t index,
-    const ScoopCompositeTransportDescriptor *descriptor,
-    const void *value) {
-  if (array_obj == 0 || descriptor == 0 || value == 0 || index < 0) {
-    return;
-  }
-  ScoopArray *arr = (ScoopArray *)array_obj;
-  if (arr->elem_kind != SCOOP_ARRAY_ELEM_KIND_COMPOSITE || arr->elem_desc != descriptor ||
-      arr->elem_size_bytes != descriptor->size_bytes) {
-    return;
-  }
-  uint64_t idx = (uint64_t)index;
-  if (idx >= arr->len) {
-    return;
-  }
-
-  scoop_pin((void *)arr);
-  uint8_t *dst = scoop_array_data(arr) + (idx * arr->elem_size_bytes);
-  if (!scoop_array_copy_composite_to_gc_storage(descriptor, dst, value, 1)) {
-    scoop_unpin((void *)arr);
-    return;
-  }
-  scoop_unpin((void *)arr);
 }

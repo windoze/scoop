@@ -86,12 +86,99 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         runtime_reason: None,
     },
     NamedIntrinsicAuditEntry {
+        name: "array_size",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_get",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_set",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_data_ptr",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
         name: "dummy_runtime",
         lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
         runtime_symbol: Some("scoop_test_named_intrinsic_dummy_runtime"),
         runtime_signature: Some(DUMMY_RUNTIME_SIGNATURE),
         runtime_reason: Some(
             "test-only validation entry: published behavior depends on an external runtime-managed counter, so the runtime boundary itself is part of the contract and must remain a RuntimeCall",
+        ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_alloc",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_array_alloc"),
+        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
+            params: &[
+                NamedIntrinsicRuntimeTy::WordUInt,
+                NamedIntrinsicRuntimeTy::WordUInt,
+                NamedIntrinsicRuntimeTy::RawPtr,
+            ],
+            return_ty: NamedIntrinsicRuntimeTy::GcRef,
+        }),
+        runtime_reason: Some(
+            "involves GC heap allocation and array header initialization, so the allocation boundary must remain in runtime substrate",
+        ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_builder_grow",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_array_builder_grow"),
+        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
+            params: &[NamedIntrinsicRuntimeTy::GcRef],
+            return_ty: NamedIntrinsicRuntimeTy::Bool,
+        }),
+        runtime_reason: Some(
+            "involves GC-visible builder growth and existing element migration, so the reallocation policy stays in runtime substrate",
+        ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "write_barrier",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_gc_write_barrier"),
+        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
+            params: &[
+                NamedIntrinsicRuntimeTy::RawPtr,
+                NamedIntrinsicRuntimeTy::GcRef,
+            ],
+            return_ty: NamedIntrinsicRuntimeTy::GcRef,
+        }),
+        runtime_reason: Some(
+            "GC-adjacent card marking must stay in runtime substrate because it mutates collector-owned metadata",
+        ),
+    },
+    NamedIntrinsicAuditEntry {
+        name: "composite_copy",
+        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
+        runtime_symbol: Some("scoop_composite_copy"),
+        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
+            params: &[
+                NamedIntrinsicRuntimeTy::RawPtr,
+                NamedIntrinsicRuntimeTy::RawPtr,
+                NamedIntrinsicRuntimeTy::RawPtr,
+            ],
+            return_ty: NamedIntrinsicRuntimeTy::Void,
+        }),
+        runtime_reason: Some(
+            "descriptor-driven composite copy remains a runtime call so descriptor-owned copy hooks and GC slot coordination stay centralized",
         ),
     },
 ];
@@ -105,6 +192,25 @@ pub(crate) fn named_intrinsic_audit_entry(name: &str) -> Option<&'static NamedIn
     NAMED_INTRINSIC_AUDIT_ENTRIES
         .iter()
         .find(|entry| entry.name == name)
+}
+
+pub(crate) fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+    let base = fqn
+        .split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn);
+    match base {
+        "scoop.core.Array.size" | "scoop.core.MutableArray.size" => Some("array_size"),
+        "scoop.core.Array.get" | "scoop.core.MutableArray.get" => Some("array_get"),
+        "scoop.core.MutableArray.set" => Some("array_set"),
+        "scoop.core.Array.__dataPtr" | "scoop.core.MutableArray.__dataPtr" => {
+            Some("array_data_ptr")
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn parse_intrinsic_annotation_args(

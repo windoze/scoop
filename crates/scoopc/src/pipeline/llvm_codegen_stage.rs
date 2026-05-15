@@ -1676,8 +1676,16 @@ fun main(): Int {
             "composite array build should pass the element descriptor to runtime\n{ir}"
         );
         assert!(
-            ir.contains("@scoop_array_get_composite") && ir.contains("@scoop_array_set_composite"),
-            "composite array get/set should copy through descriptor-backed runtime hooks\n{ir}"
+            ir.contains("array_get_load")
+                && ir.contains("@scoop_composite_drop")
+                && ir.contains("@scoop_composite_copy")
+                && ir.contains("@scoop_gc_write_barrier"),
+            "composite array get/set should lower as direct load/store + descriptor-backed copy/write-barrier collaboration\n{ir}"
+        );
+        assert!(
+            !ir.contains("@scoop_array_get_composite")
+                && !ir.contains("@scoop_array_set_composite"),
+            "composite array get/set should no longer depend on array-specific runtime helpers\n{ir}"
         );
     }
 

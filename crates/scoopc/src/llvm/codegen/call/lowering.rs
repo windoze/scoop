@@ -1589,18 +1589,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
-            if dispatch_fqn == "scoop.core.size"
-                || dispatch_fqn == "scoop.core.get"
-                || dispatch_fqn == "scoop.core.set"
-            {
-                return self.codegen_sysroot_array_intrinsics(
-                    span,
-                    callee.span,
-                    dispatch_fqn,
-                    args,
-                    expected,
-                );
-            }
             if dispatch_fqn.starts_with("scoop.core.__scoop_array_builder_") {
                 return self.codegen_sysroot_array_builder_intrinsics(
                     span,

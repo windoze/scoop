@@ -1459,6 +1459,65 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn call_top_level_fun_with_synthetic_binding(
+        &mut self,
+        span: Span,
+        fqn: &str,
+        args: Vec<Expr>,
+        ret_ty: TypeId,
+        intrinsic_entry_name: Option<&str>,
+    ) -> Expr {
+        let expr = self.call_top_level_fun(span, fqn, args, ret_ty);
+        self.record_synthetic_top_level_fun_call_binding(expr.span, fqn, intrinsic_entry_name);
+        expr
+    }
+
+    fn record_synthetic_top_level_fun_call_binding(
+        &self,
+        span: Span,
+        fqn: &str,
+        intrinsic_entry_name: Option<&str>,
+    ) {
+        let mut bindings = self.file.top_level_fun_call_bindings();
+        if bindings.contains_key(&span) {
+            return;
+        }
+
+        let (decl_file, decl_span, is_intrinsic) = self
+            .index
+            .by_fqn
+            .get(fqn)
+            .and_then(|syms| syms.fun.first())
+            .map(|fun| {
+                (
+                    fun.symbol.decl_file.clone(),
+                    fun.symbol.span,
+                    fun.sig.builtin_flags.is_intrinsic,
+                )
+            })
+            .unwrap_or_else(|| {
+                (
+                    self.source.path().to_path_buf(),
+                    span,
+                    intrinsic_entry_name.is_some(),
+                )
+            });
+
+        bindings.insert(
+            span,
+            crate::ast::TopLevelFunCallBinding {
+                fqn: fqn.to_string(),
+                decl_file,
+                decl_span,
+                is_intrinsic,
+                intrinsic_entry_name: intrinsic_entry_name.map(str::to_string),
+                type_args: Vec::new(),
+                eff_args: Vec::new(),
+            },
+        );
+        self.file.replace_top_level_fun_call_bindings(bindings);
+    }
+
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
         // T0124: lower the declared type first so we can pass it as expected type for struct literals.
         let declared_ty_early = v.ty.as_ref().map(|t| self.lower_type_ref(t));

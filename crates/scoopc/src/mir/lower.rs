@@ -7287,7 +7287,7 @@ fun main(): Int {
             else {
                 continue;
             };
-            if callee_fqn != "scoop.core.get" {
+            if callee_fqn != "scoop.core.get" && callee_fqn != "scoop.core.Array.get" {
                 continue;
             }
             if stmt.span != Span::new(1062, 1074) && stmt.span != Span::new(1106, 1118) {

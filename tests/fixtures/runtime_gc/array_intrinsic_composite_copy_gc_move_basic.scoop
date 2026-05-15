@@ -1,0 +1,22 @@
+// EXPECT: pass
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+
+struct Entry(val label: String, val value: Int)
+
+fun main(): Int {
+    val keep: String = f"entry-{7}"
+    val xs: MutableArray<Entry> = [Entry("a", 1)]
+    xs.set(0, Entry(keep, 9))
+    __scoop_gc_collect()
+    val got: Entry = xs.get(0)
+    return when (got.label.compareTo(keep) == 0) {
+        true -> when (got.value == 9) {
+            true -> 0
+            false -> 1
+        }
+        false -> 1
+    }
+}

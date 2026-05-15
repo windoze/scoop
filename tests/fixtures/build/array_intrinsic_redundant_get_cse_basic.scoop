@@ -1,0 +1,15 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 2
+// BUILD-LLVM-CONTAINS: array_get_load = load i64
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_get_u64
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [11, 22]
+    val a: Int = xs.get(0)
+    val b: Int = xs.get(0)
+    return a + b
+}

@@ -1,0 +1,26 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 2
+// BUILD-LLVM-CONTAINS: array_len_gep
+// BUILD-LLVM-CONTAINS: array_get_load = load i64
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_len
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_get_u64
+// BUILD-LLVM-NOT-CONTAINS: @__scoop_abi0_fun__scoop_core_Array_get
+// BUILD-LLVM-NOT-CONTAINS: @__scoop_abi0_fun__scoop_core_Array_size
+// BUILD-LLVM-NOT-CONTAINS: array_get_ge_len
+// BUILD-LLVM-NOT-CONTAINS: array_get_negative
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [1, 2, 3, 4]
+    val n: Int = xs.size()
+    var sum: Int = 0
+    var i: Int = 0
+    while (i < n) {
+        sum = sum + xs.get(i)
+        i = i + 1
+    }
+    return sum
+}

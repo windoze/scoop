@@ -1,0 +1,21 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @scoop_composite_drop
+// BUILD-LLVM-CONTAINS: @scoop_composite_copy
+// BUILD-LLVM-CONTAINS: @scoop_gc_write_barrier
+// BUILD-LLVM-CONTAINS: array_get_load = load %fixtures.build.Entry
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_get_composite
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_set_composite
+
+package fixtures.build
+
+import scoop.core.*
+
+struct Entry(val label: String, val value: Int)
+
+fun main(): Int {
+    val xs: MutableArray<Entry> = [Entry("a", 1)]
+    xs.set(0, Entry("b", 2))
+    val got: Entry = xs.get(0)
+    return got.value
+}

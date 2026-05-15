@@ -110,6 +110,21 @@ enum MemberReceiverKind {
     Type { ty_fqn: String },
 }
 
+fn normalize_collections_alias(fqn: &str) -> &str {
+    match fqn {
+        "scoop.core.List" => "scoop.core.Array",
+        "scoop.core.MutableList" => "scoop.core.MutableArray",
+        // T1317f4：stdlib `Set/MutableSet/MapView/MutableMap` 在当前阶段以
+        // `Array<Int>` / `MutableArray<Int>` 的 typealias 落地。member/extension 解析
+        // 统一归一化到真实 carrier，避免 sysroot surface 从 extension 切到 method 后回退。
+        "scoop.collections.Set" => "scoop.core.Array",
+        "scoop.collections.MapView" => "scoop.core.Array",
+        "scoop.collections.MutableSet" => "scoop.core.MutableArray",
+        "scoop.collections.MutableMap" => "scoop.core.MutableArray",
+        _ => fqn,
+    }
+}
+
 impl<'a> BlockScopeChecker<'a> {
     fn new(
         source: &'a SourceFile,
@@ -1694,7 +1709,11 @@ impl<'a> BlockScopeChecker<'a> {
         member: &mut ast::MemberIdent,
     ) -> Result<(), ResolveError> {
         let member_name = self.source.slice(member.span);
-        let member_fqn = format!("{receiver_ty_fqn}.{member_name}");
+        let member_fqn = format!(
+            "{}.{}",
+            normalize_collections_alias(receiver_ty_fqn),
+            member_name
+        );
 
         if let Some(syms) = self.index.by_fqn.get(&member_fqn) {
             // 与调用解析（T0311）解耦：这里只做存在性与最小"绑定写回"。
@@ -1872,25 +1891,6 @@ impl<'a> BlockScopeChecker<'a> {
         member_name: &str,
         use_span: Span,
     ) -> Result<Vec<String>, ResolveError> {
-        // T1317f2：`List/MutableList` 在 sysroot 中是 `Array/MutableArray` 的 typealias。
-        // resolver 的 member/extension 匹配当前只看"名义类型 FQN"，因此这里对 receiver/extension
-        // receiver 做一个最小的归一化，让 `xs: List<Int>` 也能调用 `size/get`，以及让
-        // `ys: MutableList<Int>` 也能调用 `push/pop/...` 等 `MutableArray` 扩展。
-        fn normalize_collections_alias(fqn: &str) -> &str {
-            match fqn {
-                "scoop.core.List" => "scoop.core.Array",
-                "scoop.core.MutableList" => "scoop.core.MutableArray",
-                // T1317f4：stdlib `Set/MutableSet/MapView/MutableMap` 在当前阶段以
-                // `Array<Int>` / `MutableArray<Int>` 的 typealias 落地（避免 struct 持有 ref fields
-                // 对 LLVM codegen 的阻塞）。这里同样做最小归一化，使它们可复用 `size/get` 与
-                // `push/pop/...` 等数组扩展。
-                "scoop.collections.Set" => "scoop.core.Array",
-                "scoop.collections.MapView" => "scoop.core.Array",
-                "scoop.collections.MutableSet" => "scoop.core.MutableArray",
-                "scoop.collections.MutableMap" => "scoop.core.MutableArray",
-                _ => fqn,
-            }
-        }
         let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn);
 
         let mut candidates: Vec<String> = Vec::new();
@@ -2039,17 +2039,6 @@ impl<'a> BlockScopeChecker<'a> {
         receiver_ty_fqn: &str,
         member_name: &str,
     ) -> Vec<String> {
-        fn normalize_collections_alias(fqn: &str) -> &str {
-            match fqn {
-                "scoop.core.List" => "scoop.core.Array",
-                "scoop.core.MutableList" => "scoop.core.MutableArray",
-                "scoop.collections.Set" => "scoop.core.Array",
-                "scoop.collections.MapView" => "scoop.core.Array",
-                "scoop.collections.MutableSet" => "scoop.core.MutableArray",
-                "scoop.collections.MutableMap" => "scoop.core.MutableArray",
-                _ => fqn,
-            }
-        }
         let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn);
 
         let mut candidates: Vec<String> = Vec::new();

@@ -1031,7 +1031,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if self.class_inits.contains_key(callee_fqn) {
                     return Some(CgTy::Ref);
                 }
-                if mir_direct_call_base_fqn(callee_fqn) == "scoop.core.size" {
+                if matches!(
+                    mir_direct_call_base_fqn(callee_fqn),
+                    "scoop.core.size" | "scoop.core.Array.size" | "scoop.core.MutableArray.size"
+                ) {
                     return Some(CgTy::Int(IntTy {
                         bits: self.host.word_bit_width(),
                         signed: true,
@@ -4870,15 +4873,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             concrete_fqn = inferred_fqn;
         }
-        if let Some(entry_name) = self
+        let binding_entry_name = self
             .current_top_level_fun_call_binding(span)?
-            .and_then(|binding| binding.intrinsic_entry_name.clone())
+            .and_then(|binding| binding.intrinsic_entry_name.clone());
+        if let Some(entry_name) = binding_entry_name
+            .as_deref()
+            .or_else(|| crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn))
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
                 span,
-                &entry_name,
+                entry_name,
                 args,
                 body,
                 mir_types,
+                transport.array.as_ref(),
                 slots,
             )?
         {

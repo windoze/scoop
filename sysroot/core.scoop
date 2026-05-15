@@ -50,15 +50,41 @@ typealias Double = Float64
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
-// - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
-// - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
-class Array<T>
+// - layout 仍由编译器/runtime 固定；
+// - `size/get/set` 等基础访问通过 method-level named intrinsic lowering 接到编译器的
+//   array intrinsic 表，而不是再靠 `scoop.core.size/get/set` 的 extension + codegen 按名分流。
+@Intrinsic
+class Array<T> {
+    @Intrinsic("array_size")
+    fun size(): Int
+
+    @Intrinsic("array_get")
+    fun get(index: Int): T
+
+    @Intrinsic("array_data_ptr")
+    fun __dataPtr(): UIntPtr
+}
+
 // 可变泛型数组类型（runtime 表面）。
 //
 // 说明：
 // - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
-// - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
-class MutableArray<T>
+// - 基础读写与 `Array<T>` 一样走 named intrinsic 表；真正涉及分配/搬移/GC 协作的路径仍由
+//   stdlib helper + runtime substrate 承接。
+@Intrinsic
+class MutableArray<T> {
+    @Intrinsic("array_size")
+    fun size(): Int
+
+    @Intrinsic("array_get")
+    fun get(index: Int): T
+
+    @Intrinsic("array_set")
+    fun set(index: Int, value: T): Unit
+
+    @Intrinsic("array_data_ptr")
+    fun __dataPtr(): UIntPtr
+}
 
 // Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。
 //
@@ -69,19 +95,6 @@ class MutableArray<T>
 //   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
 typealias List<T> = Array<T>
 typealias MutableList<T> = MutableArray<T>
-
-// Array / MutableArray：最小公开 API 声明（T1317b）。
-//
-// 说明：
-// - 当前阶段 typecheck 对 class 的实例方法调用仍有门禁（例如 `receiver.method()`），
-//   因此这里先用 extension fun 的形式提供统一的 API 表面，供 resolver/typecheck/lowering 落点；
-// - 后续若引入实例方法调用语义，可以保持这些声明不变（或在不破坏现有用例的前提下提供 member 形式别名）。
-fun <T> Array<T>.size(): Int
-fun <T> Array<T>.get(index: Int): T
-
-fun <T> MutableArray<T>.size(): Int
-fun <T> MutableArray<T>.get(index: Int): T
-fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 
 // `MutableArray` → `Array`：显式桥接（T1325a）。
 //

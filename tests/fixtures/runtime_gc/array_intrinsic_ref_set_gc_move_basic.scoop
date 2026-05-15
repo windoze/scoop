@@ -1,0 +1,17 @@
+// EXPECT: pass
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+
+fun main(): Int {
+    val keep: String = f"ref-{7}"
+    val xs: MutableArray<String> = ["a"]
+    xs.set(0, keep)
+    __scoop_gc_collect()
+    val got: String = xs.get(0)
+    return when (got.compareTo(keep) == 0) {
+        true -> 0
+        false -> 1
+    }
+}

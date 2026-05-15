@@ -930,7 +930,7 @@
     - 对应 `PLAN.md` P4 前置 II 的“先做机制层”要求：本任务只交付 dummy IR / dummy runtime 双通路与 callsite 查表机制，没有提前把 `Array` / `MutableArray` 迁进表，也没有新增其它 by-name 内建特判；`P4-T01e` 将继续在这套机制上填充真实 array entries。
     - 本任务不改变 `MANAGED_ABI.md` 中的 ABI surface，因此无需回写 `MANAGED_ABI.md`；相关变更仅限 intrinsic 表机制与编译器内部 lowering source-of-truth。
 
-### [TODO] P4-T01e：用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper
+### [DONE] P4-T01e：用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 II"
@@ -994,6 +994,41 @@
   - 上述 array runtime helper 已删除，substrate 收缩动作完成；
   - intrinsic 表已有真实 first user，"零编译器后门（generic 维度）"约束以可枚举 entry 形式落实。
 - 依赖：`P4-T01d`
+- 完成记录：
+  - 改动范围：
+    - `sysroot/core.scoop`
+    - `crates/scoopc/src/{intrinsics.rs,resolve/scopes.rs,hir/lower/{mod.rs,stmt.rs},effect_facts/builder.rs,mir/{lower.rs,materialize.rs},llvm/tests.rs,pipeline/llvm_codegen_stage.rs}`
+    - `crates/scoopc/src/llvm/codegen/{gc.rs,runtime_symbols.rs,runtime_abi.rs,call/lowering.rs,mir_body.rs,effect_lowered/value.rs,intrinsics/{named.rs,containers.rs}}`
+    - `runtime/c/scoop_array.c`
+    - `tests/fixtures/build/{array_intrinsic_ir_direct_int_loop_basic.scoop,array_intrinsic_redundant_get_cse_basic.scoop,array_intrinsic_write_barrier_ref_set.scoop,array_intrinsic_composite_copy_set.scoop}`
+    - `tests/fixtures/runtime_gc/{array_intrinsic_ref_set_gc_move_basic.scoop,array_intrinsic_composite_copy_gc_move_basic.scoop}`
+    - 删除 `crates/scoop_runtime/tests/gc_immix_composite_array_write_barrier.rs`
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - 把 `Array<T>` / `MutableArray<T>` 从 sysroot extension declaration 改为 `@Intrinsic class` + method-level `@Intrinsic("array_*")` 声明，并让 `List/MutableList/Set/MapView/...` 的 direct member lookup 一并归一化到真实 array carrier，避免 surface 切换后再靠 extension 特例兜底。
+    - `named` intrinsic lowering 现在直接按 `ScoopArray` 布局发 IR：`array_size` 直接 load `len`，`array_get` 直接做 bounds check + `data_offset_bytes` GEP + typed load，`array_set` 直接做 typed store；ref/string 元素走 `scoop_gc_write_barrier`，composite 元素走 `scoop_composite_drop` + `scoop_composite_copy` + per-slot write barrier，而不是回旧 `scoop_array_get/set_*` helper。
+    - 删除了 `scoop_array_len/get_u64/get_ref/get_composite/set_u64/set_ref/set_composite` 及其 `runtime_symbols/runtime_abi` declaration；保留并显式发布 `scoop_array_alloc`、`scoop_array_builder_grow`、`scoop_composite_copy`、`scoop_gc_write_barrier` 作为 substrate runtime entry/audit 元数据。
+    - 对仍会合成 array callsite 的内部路径（`for ... in array` desugar、部分 refactor MIR direct-call）补上 synthetic call binding / FQN fallback，保证 declaration-only named intrinsic method 在没有 user-source call binding 的情况下也能稳定回到同一 intrinsic 表，而不是退回“缺少 callable signature”或旧 by-name helper 分流。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc named_intrinsic -- --nocapture`
+    - `cargo test -p scoopc array_ -- --nocapture`
+    - `cargo test -p scoopc refactor_llvm_array_composite_transport -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/list_and_mutable_list_alias_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/array_mutable_array_min_api_surface_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/{array_mutable_array_min_primitive_basic.scoop,array_composite_transport_basic.scoop,for_in_array_int_basic.scoop,mutable_array_ops_basic.scoop,vararg_spread_basic.scoop,stdlib_set_map_basic.scoop,stdlib_hash_set_map_basic.scoop,stdlib_smoke_collections_and_iteration.scoop}`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/{array_intrinsic_ir_direct_int_loop_basic.scoop,array_intrinsic_redundant_get_cse_basic.scoop,array_intrinsic_write_barrier_ref_set.scoop,array_intrinsic_composite_copy_set.scoop}`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/{array_intrinsic_ref_set_gc_move_basic.scoop,array_intrinsic_composite_copy_gc_move_basic.scoop,gc_trace_array_string_elements_basic.scoop}`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/array_intrinsic_ref_set_gc_move_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/array_intrinsic_composite_copy_gc_move_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_trace_array_string_elements_basic.scoop`
+    - 生产代码 grep：`runtime/c` 已无 `scoop_array_len/get/set_*` 残留；`crates/**` 中只剩测试里的负断言，不再有 production callsite/declaration。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（388 passed；仍保留两个既有失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 II 的第 2-4 项：`Array` / `MutableArray` 已成为 named intrinsic 表的真实 first user，基础访问恢复为 IR-direct emission，旧 array runtime helper surface 已被收缩，LLVM 的 LICM/CSE/BCE/向量化窗口重新打开。
+    - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface；改动仅限 array substrate 与 intrinsic lowering source-of-truth，因此无需回写 `MANAGED_ABI.md`。
 
 ## P4：string cone tracer bullet
 

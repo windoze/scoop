@@ -9232,7 +9232,17 @@ fn effect_row_param_marker_name(types: &TypeStore, ty: TypeId) -> Option<String>
 }
 
 fn is_canonical_array_member_intrinsic_fqn(fqn: &str) -> bool {
-    matches!(fqn, "scoop.core.size" | "scoop.core.get" | "scoop.core.set")
+    matches!(
+        fqn,
+        "scoop.core.size"
+            | "scoop.core.get"
+            | "scoop.core.set"
+            | "scoop.core.Array.size"
+            | "scoop.core.Array.get"
+            | "scoop.core.MutableArray.size"
+            | "scoop.core.MutableArray.get"
+            | "scoop.core.MutableArray.set"
+    )
 }
 
 fn map_call_args_to_signature_params(

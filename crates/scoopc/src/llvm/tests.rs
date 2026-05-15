@@ -5135,7 +5135,7 @@ fun main(): Int {
 }
 
 #[test]
-fn array_of_any_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+fn array_of_any_uses_ir_direct_ref_load_without_ptr_to_u64() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -5162,8 +5162,14 @@ fun main(): Int {
         "Array<Any> 的 array literal builder 应走 scoop_array_builder_push_ref"
     );
     assert!(
-        ir.contains("@scoop_array_get_ref"),
-        "Array<Any>.get 应走 scoop_array_get_ref"
+        ir.contains("array_len_gep")
+            && ir.contains("array_data_offset_gep")
+            && ir.contains("array_get_load = load ptr addrspace(1)"),
+        "Array<Any>.get 应直接 GEP/load `ScoopArray` layout，而不是回 runtime helper:\n{ir}"
+    );
+    assert!(
+        !ir.contains("@scoop_array_get_ref"),
+        "Array<Any>.get 不应再声明/调用 scoop_array_get_ref:\n{ir}"
     );
     assert!(
         !ir.contains("ptr_to_u64"),
@@ -5180,7 +5186,7 @@ fun main(): Int {
 }
 
 #[test]
-fn array_of_string_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+fn array_of_string_uses_ir_direct_ref_load_and_write_barrier_without_ptr_to_u64() {
     let source = SourceFile::new_virtual(
         "<mem>",
         r#"
@@ -5206,12 +5212,18 @@ fun main(): Int {
         "Array<String> 的 array literal builder 应走 scoop_array_builder_push_ref"
     );
     assert!(
-        ir.contains("@scoop_array_get_ref"),
-        "Array<String>.get 应走 scoop_array_get_ref"
+        ir.contains("array_len_gep")
+            && ir.contains("array_data_offset_gep")
+            && ir.contains("array_get_load = load ptr addrspace(1)"),
+        "Array<String>.get 应直接 GEP/load `ScoopArray` layout，而不是回 runtime helper:\n{ir}"
     );
     assert!(
-        ir.contains("@scoop_array_set_ref"),
-        "MutableArray<String>.set 应走 scoop_array_set_ref"
+        ir.contains("@scoop_gc_write_barrier") && ir.contains("gc_wb_slot_addr"),
+        "MutableArray<String>.set 应直接写 slot 并经 write barrier，而不是回 runtime helper:\n{ir}"
+    );
+    assert!(
+        !ir.contains("@scoop_array_get_ref") && !ir.contains("@scoop_array_set_ref"),
+        "Array<String>.get / MutableArray<String>.set 不应再声明旧 ref helper:\n{ir}"
     );
     assert!(
         !ir.contains("ptr_to_u64"),
@@ -5221,9 +5233,45 @@ fun main(): Int {
         !ir.contains("u64_to_string"),
         "String 元素路径不应从 u64 解码回 GC 字符串指针（u64_to_string）"
     );
+}
+
+#[test]
+fn array_redundant_get_o2_cses_direct_load() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/p4_t01e_array_cse_o2.scoop",
+        r#"
+package fixtures.p4t01e
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [11, 22]
+    val a: Int = xs.get(0)
+    val b: Int = xs.get(0)
+    return a + b
+}
+"#,
+    );
+
+    let context = Context::create();
+    let ir = build_minimal_main_module_with_opt_level(&session, &source, &context, OptLevel::O2)
+        .unwrap()
+        .print_to_string()
+        .to_string();
+    let main_ir = function_ir_matching(&ir, "P4-T01e O2 array CSE main", |_, function| {
+        stable_id_symbol_mentions_fqn(llvm_function_symbol_name(function), "fixtures.p4t01e.main")
+    });
+
     assert!(
-        !ir.contains("addrspacecast"),
-        "String array 路径不应引入 addrspacecast"
+        !main_ir.contains("@scoop_array_get_u64")
+            && !main_ir.contains("@__scoop_abi0_fun__scoop_core_Array_get"),
+        "redundant get O2 path 不应退回 helper/method call:\n{main_ir}"
+    );
+    assert_eq!(
+        main_ir.matches("array_get_load = load i64").count(),
+        1,
+        "redundant get O2 path 应把两次 xs.get(0) CSE 成单次 direct load:\n{main_ir}"
     );
 }
 

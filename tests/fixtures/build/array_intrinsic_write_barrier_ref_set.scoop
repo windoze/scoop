@@ -1,0 +1,15 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @scoop_gc_write_barrier
+// BUILD-LLVM-CONTAINS: gc_wb_slot_addr
+// BUILD-LLVM-NOT-CONTAINS: @scoop_array_set_ref
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<String> = ["a", "b"]
+    xs.set(0, "z")
+    return xs.get(0).byteLength()
+}
