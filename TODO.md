@@ -35,7 +35,7 @@
 | `P4-T01l2` | P4 前置 IV | [DONE] HIR / MIR 收口：让 `@Intrinsic struct/class` body method 在 builtin scalar receiver 上把 receiver 作为第 0 个 arg 注入 |
 | `P4-T01l3` | P4 前置 IV | [DONE] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
 | `P4-T01m` | P4 前置 V | [DONE] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
-| `P4-T01n` | P4 前置 V | [TODO] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
+| `P4-T01n` | P4 前置 V | [DONE] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
 | `P4-T01o` | P4 前置 V | [TODO] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
 | `P4-T01p` | P4 前置 V | [TODO] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
 | `P4-T01q` | P4 前置 V | [TODO] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
@@ -1634,7 +1634,7 @@
     - 对应 `PLAN.md` P4 前置 I / P4 前置 V 对 `@Intrinsic struct/class` 的 layout 硬约束：源码不提供可直接访问字段，编译器只负责内置 layout metadata；用户/sysroot 可见访问路径继续走 method / intrinsic / extern surface。
     - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface，也没有调整 `@Intrinsic` 类型 layout 内置识别逻辑；无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01n：验证 `@Intrinsic class/struct` 合成属性可正常落地，规范同普通 class/struct
+### [DONE] P4-T01n：验证 `@Intrinsic class/struct` 合成属性可正常落地，规范同普通 class/struct
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
@@ -1660,6 +1660,30 @@
   - `@Intrinsic class/struct` 上的合成属性在 typecheck / HIR / codegen 三层全部走与普通 class/struct 同构的路径，且至少有一组 fixture 直接锁定这一行为；
   - 后续 `P4-T01` / `P4-T02` 在 sysroot 改写时不再担心合成属性触发未覆盖路径。
 - 依赖：`P4-T01m`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/hir/lower/{mod.rs,expr.rs,stmt.rs,sugar.rs}`：无 backing field 的 computed getter/setter 统一进入 HIR callable lowering；getter 读取降为 getter call，setter 赋值降为内部 setter callable；合成 accessor 的 `this` / `value` 局部类型在 HIR lowering 内显式登记，避免 accessor body 因缺少 typecheck side table 退化到 `Any`。
+    - `crates/scoopc/src/effect_facts/builder.rs`：effect facts 对合成 property accessor callable 与 declaration-only member fallback 补 surface contract，并让 raw callable lookup 覆盖 canonical pass-view / caller-side pass candidates。
+    - `crates/scoopc/src/mir/materialize.rs`：EntryMain materialization 将 request source 的 member callable roots 纳入发布根，保证合成 accessor body 可作为普通 callable 发布。
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：同步本次 `materialize.rs` 行号位移导致的 internal-bug sentinel 行号。
+    - `tests/fixtures/typecheck/intrinsic_synthetic_property_typecheck_ok.scoop`：新增 typecheck 正向覆盖。
+    - `tests/fixtures/run-pass/intrinsic_synthetic_property_basic.scoop`：新增端到端 run-pass 覆盖纯 getter、setter 写入、struct computed getter，以及 getter 依赖 `@Intrinsic("dummy_ir")` method 的路径。
+  - 核心决策：
+    - 不为 `@Intrinsic` 类型增加专用 property 分支；实现按“无 backing field 的 computed property”这一普通语言语义统一收口，普通 class/struct 与 `@Intrinsic class/struct` 共用同一路径。
+    - setter callable 使用内部 `$set` FQN，避免与 getter/property FQN 冲突；getter 继续沿用 property FQN，与既有 struct computed getter 模型一致。
+    - 保持 `IntrinsicTypeFieldNotSupported` 的 direct-field 禁止不变；本任务只允许非 direct-field 的 synthetic/accessor property，不扩大可声明数据成员 surface。
+    - sysroot audit 结论：当前 default sysroot 的 `@Intrinsic class/struct`（`Array<T>`、`MutableArray<T>`、`Ptr<T>`、`FunPtr<F>`）未声明 synthetic property；现有访问仍全部通过 `@Intrinsic method` / 外部 intrinsic function surface。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_synthetic_property_typecheck_ok.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_synthetic_property_basic.scoop`
+    - `cargo test -p scoopc`：863 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：446 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：401 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 V：`@Intrinsic class/struct` 的 synthetic property 已按普通 property callable path 锁定，不再依赖 direct-field 或 compiler by-name 后门；为后续 P4-T01/P4-T02 sysroot 改写保留可验证的 getter/setter 通路。
+    - 本任务没有改变 `MANAGED_ABI.md` 的 callable ABI / extern ABI surface，也没有放宽 `@Intrinsic` 类型 layout 约束；无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01o：锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method
 

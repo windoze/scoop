@@ -820,8 +820,8 @@ pub(super) fn collect_object_inits(
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
-    let value_type_computed_properties =
-        super::collect_value_type_computed_property_fqns(&compilation_unit);
+    let computed_property_accessors =
+        super::collect_computed_property_accessor_fqns(&compilation_unit);
     let generic_template_symbol_suffixes =
         collect_generic_template_symbol_suffixes(index, &compilation_unit);
     let mut ctx = HirLowering::new(
@@ -835,7 +835,8 @@ pub(super) fn collect_object_inits(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_accessors.getters,
+            computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
             known_receiver_subclasses,
@@ -1011,8 +1012,8 @@ pub(super) fn collect_class_inits(
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
-    let value_type_computed_properties =
-        super::collect_value_type_computed_property_fqns(&compilation_unit);
+    let computed_property_accessors =
+        super::collect_computed_property_accessor_fqns(&compilation_unit);
     let generic_template_symbol_suffixes =
         collect_generic_template_symbol_suffixes(index, &compilation_unit);
     let mut ctx = HirLowering::new(
@@ -1026,7 +1027,8 @@ pub(super) fn collect_class_inits(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_accessors.getters,
+            computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
             known_receiver_subclasses,
@@ -4034,7 +4036,8 @@ fn with_signature_lowering_ctx<T>(
     let type_kinds = HashMap::new();
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let default_arg_structs = HashMap::new();
-    let value_type_computed_properties = HashSet::new();
+    let computed_property_getters = HashSet::new();
+    let computed_property_setters = HashSet::new();
     let generic_template_symbol_suffixes = HashMap::new();
     let known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
     let class_vtables = crate::vtable::ClassVtableIndex::new();
@@ -4053,7 +4056,8 @@ fn with_signature_lowering_ctx<T>(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_getters,
+            computed_property_setters: &computed_property_setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
             known_receiver_subclasses: &known_receiver_subclasses,

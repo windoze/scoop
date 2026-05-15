@@ -1,38 +1,21 @@
-# Execution Plan
+# Claude Execution Plan
 
-## Current Status
+## Current Invocation
 
-- Invocation started on 2026-05-16.
-- `TODO.md` has been inspected.
-- First incomplete task: `P4-T01m` - verify and lock `@Intrinsic class/struct` data-member and memory-layout constraints.
-- Added focused typecheck fixtures for intrinsic struct ctor/body fields and class `var` field surfaces.
-- Fixed the struct declaration checker so `@Intrinsic struct` direct fields are reported by the dedicated intrinsic layout diagnostic instead of ordinary struct field shape diagnostics.
-- Validation complete for `P4-T01m`.
-- `TODO.md` has been updated to mark `P4-T01m` as `[DONE]` with completion record and sysroot audit notes.
+1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Inspect the task requirements, dependencies, and validation instructions in `TODO.md`.
+4. Implement the selected task exactly as written, without narrowing scope or using workarounds.
+5. If a concrete blocker prevents correct implementation, update `TODO.md` with the minimum prerequisite task needed, keep the blocked task incomplete, commit that bookkeeping, and stop.
+6. Run the relevant tests and quality checks for the changed area; fix any task-related failures.
+7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
+8. Update this file as key steps complete or if the plan changes.
+9. Commit all relevant changes with a descriptive task-tagged message, then stop without starting the next task.
 
-## Plan
+## Progress Log
 
-1. Check working tree status and latest commit message for directly relevant unfinished `P4-T01m` context.
-2. Inspect the existing intrinsic type field diagnostic implementation and current fixtures.
-3. Add focused typecheck fixtures covering intrinsic struct primary constructor fields and body direct-field properties across `val`, `var`, initialized direct fields, and default-value surfaces. Current parser/spec inspection found no `lateinit` syntax entry, so that surface is not currently observable as a fixture input.
-4. If inspection reveals a real leak in `check_builtin_annotations_on_type_decl`, fix the diagnostic path without changing the existing diagnostic message or allowing direct fields.
-5. Audit current sysroot `@Intrinsic class/struct` declarations and record whether internal state access is exposed only through `@Intrinsic method` or `@Extern function`.
-6. Run the validation required by `P4-T01m`: `cargo test -p scoopc`, `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`, and `cargo clippy --all-targets -- -D warnings`.
-7. On success, mark `P4-T01m` as `[DONE]`, update its completion record and this plan file, commit the changes, and stop.
-
-## Validation Plan
-
-- Use the validation requirements specified by the selected `TODO.md` task as authoritative.
-- Prefer targeted tests first, then broader `cargo test`/fixture checks if the task touches shared compiler or runtime paths.
-- Run formatting or linting checks where applicable before committing.
-
-## Validation Results
-
-- `cargo fmt --all`
-- `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` initially failed on three new `@Intrinsic struct var` cases with `struct_field_must_be_val`; after fixing diagnostic ownership, rerun passed: 445 passed / 0 failed.
-- `cargo test -p scoopc`: 863 passed / 0 failed.
-- `cargo clippy --all-targets -- -D warnings`: passed.
-
-## Remaining Action
-
-- Commit the `P4-T01m` changes and stop without starting `P4-T01n`.
+- Planned initial workflow before inspecting or modifying project code.
+- Identified first incomplete task: `P4-T01n`, which verifies that synthetic properties on `@Intrinsic class/struct` work like ordinary class/struct properties.
+- Current task plan: inspect existing property fixtures and lowering/codegen paths, add focused fixtures for getter-only, getter+setter, and getter depending on an `@Intrinsic method`, run the required validations, update `TODO.md`, then commit and stop.
+- Implemented the planned direction: computed properties without backing fields are now tracked through the shared HIR lowering path, with getter reads lowered to getter calls and setter assignments lowered to synthetic setter calls. Added targeted typecheck and run-pass fixtures for intrinsic class/struct synthetic properties.
+- Validation complete for `P4-T01n`: `cargo fmt --all`, targeted intrinsic property fixtures, `cargo test -p scoopc`, full typecheck fixtures, full run-pass fixtures, and `cargo clippy --all-targets -- -D warnings` all pass. `TODO.md` is updated with `[DONE]` and the completion record; next step is commit.

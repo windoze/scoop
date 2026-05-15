@@ -615,6 +615,10 @@ impl<'a> HirLowering<'a> {
                     let ast::ResolvedMemberRef::Fun { fqn } = resolved.as_ref()? else {
                         return None;
                     };
+                    let overload = self.fun_overload_by_fqn(fqn);
+                    let member_call_ty = typechecked_call_ty
+                        .or_else(|| self.fun_overload_return_ty(overload.as_ref()))
+                        .unwrap_or(call_ty);
 
                     if fqn == "scoop.core.GC.pin"
                         || fqn == "scoop.core.GC.unpin"
@@ -723,7 +727,7 @@ impl<'a> HirLowering<'a> {
                                 receiver: Some(receiver.clone()),
                                 binding: arg_binding,
                                 plan,
-                                call_ty,
+                                call_ty: member_call_ty,
                             })
                         {
                             return Some((kind, ty));
@@ -732,12 +736,18 @@ impl<'a> HirLowering<'a> {
 
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
+                    let mut positional_index = 0usize;
                     for arg in args {
-                        lowered_args.push(self.lower_call_arg_with_expected(
-                            pkg_prefix,
+                        let expected = self.expected_expr_for_fun_call_arg(
+                            overload.as_ref(),
                             arg,
-                            ExpectedExpr::default(),
-                        ));
+                            positional_index,
+                        );
+                        if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
+                            positional_index = positional_index.saturating_add(1);
+                        }
+                        lowered_args
+                            .push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
                     }
 
                     let receiver_ty = match lowered_args.first() {
@@ -799,7 +809,7 @@ impl<'a> HirLowering<'a> {
                             callee: Box::new(callee),
                             args: lowered_args,
                         },
-                        call_ty,
+                        member_call_ty,
                     ))
                 })() {
                     (kind, ty)
@@ -2874,6 +2884,19 @@ impl<'a> HirLowering<'a> {
         let syms = self.index.by_fqn.get(fqn)?;
         let overload = syms.fun.first()?;
         Some(overload.clone())
+    }
+
+    fn fun_overload_return_ty(
+        &mut self,
+        overload: Option<&crate::resolve::FunOverload>,
+    ) -> Option<TypeId> {
+        let overload = overload?;
+        overload
+            .sig
+            .return_ty
+            .as_ref()
+            .and_then(|ty| self.type_ref_ty_in_decl_context(&overload.symbol.decl_file, ty))
+            .or(Some(self.builtins.unit))
     }
 
     /// 调用位置把 `TypeApply` 视为 callee 的透明外壳。
@@ -5341,9 +5364,9 @@ impl<'a> HirLowering<'a> {
             );
         }
 
-        // T4010b1：值类型 computed property access → getter(receiver)。
+        // Computed property access → getter(receiver)。
         if let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref()
-            && self.value_type_computed_properties.contains(fqn)
+            && self.computed_property_getters.contains(fqn)
         {
             let getter_fqn = self
                 .materialized_value_property_getter_target_fqn(fqn, receiver.ty)
@@ -5481,6 +5504,7 @@ impl<'a> HirLowering<'a> {
             let ty = self
                 .typechecked_binding_ty(decl_span)
                 .or_else(|| self.typechecked_expr_ty(id.span))
+                .or_else(|| self.synthetic_local_decl_ty(decl_span))
                 .unwrap_or(self.builtins.any);
             return (
                 ExprKind::VarRef(ValueRef::Local {
@@ -5526,6 +5550,7 @@ impl<'a> HirLowering<'a> {
             ValueRef::Local { decl_span, .. } => self
                 .typechecked_expr_ty(id.span)
                 .or_else(|| self.typechecked_binding_ty(*decl_span))
+                .or_else(|| self.synthetic_local_decl_ty(*decl_span))
                 .unwrap_or(self.builtins.any),
             ValueRef::TopLevel { .. } => self
                 .typechecked_expr_ty(id.span)

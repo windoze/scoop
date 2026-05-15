@@ -17,6 +17,46 @@ use super::super::{
 };
 
 impl<'a> HirLowering<'a> {
+    pub(super) fn try_lower_computed_property_assign(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Option<Expr> {
+        let ast::ExprKind::MemberAccess { receiver, member } = &lhs.kind else {
+            return None;
+        };
+        let resolved = self.resolved_member_for_lowering(member);
+        let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref() else {
+            return None;
+        };
+        if !self.computed_property_setters.contains(fqn) {
+            return None;
+        }
+
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        let value = self.lower_expr(pkg_prefix, rhs);
+        let setter_fqn = super::computed_property_setter_fqn(fqn);
+        let callee = Expr {
+            span: member.span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(setter_fqn.clone()),
+                fqn: setter_fqn,
+            }),
+        };
+
+        Some(Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: vec![CallArg::Positional(receiver), CallArg::Positional(value)],
+            },
+        })
+    }
+
     pub(super) fn try_lower_delegated_property_assign(
         &mut self,
         pkg_prefix: &str,

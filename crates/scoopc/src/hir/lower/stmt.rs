@@ -271,6 +271,10 @@ impl<'a> HirLowering<'a> {
                 // 赋值在 AST 中以表达式节点承载，但在 HIR 中视为语句（便于后续 MIR lowering）。
                 if let ast::ExprKind::Assign { lhs, eq_span, rhs } = &e.kind {
                     if let Some(call) =
+                        self.try_lower_computed_property_assign(pkg_prefix, e.span, lhs, rhs)
+                    {
+                        (StmtKind::Expr(call), self.builtins.unit)
+                    } else if let Some(call) =
                         self.try_lower_delegated_property_assign(pkg_prefix, e.span, lhs, rhs)
                     {
                         (StmtKind::Expr(call), self.builtins.unit)

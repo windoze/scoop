@@ -45,7 +45,7 @@ use super::{
     AccessorContract, AssignPlaceSiteIndex, Block, CallArg, CallArgBindingSiteIndex, CallSite,
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, CtorDecl, CtorParamDecl,
     Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
-    FieldDecl, FieldOrigin, File, FunDecl, Item, MemberFunDecl, NominalDecl,
+    FieldDecl, FieldOrigin, File, FunDecl, Item, MemberFunDecl, MemberRef, NominalDecl,
     NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt,
     StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl, ValDecl, ValueRef,
     WithUpdateSiteIndex,
@@ -64,6 +64,296 @@ fn collect_top_level_fun_call_sites(
         }
     }
     sites
+}
+
+fn collect_synthetic_named_intrinsic_call_sites(
+    index: &Index,
+    funs: &[FunDecl],
+) -> crate::hir::TopLevelFunCallSiteIndex {
+    let mut sites = HashMap::new();
+    for fun in funs {
+        if let Some(body) = &fun.body {
+            collect_synthetic_named_intrinsic_call_sites_in_block(
+                index,
+                &fun.source_path,
+                body,
+                &mut sites,
+            );
+        }
+    }
+    sites
+}
+
+fn collect_synthetic_named_intrinsic_call_sites_in_block(
+    index: &Index,
+    source_path: &std::path::Path,
+    block: &Block,
+    sites: &mut crate::hir::TopLevelFunCallSiteIndex,
+) {
+    for stmt in &block.stmts {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                source_path,
+                expr,
+                sites,
+            ),
+            StmtKind::Val(val) => {
+                if let Some(init) = &val.init {
+                    collect_synthetic_named_intrinsic_call_sites_in_expr(
+                        index,
+                        source_path,
+                        init,
+                        sites,
+                    );
+                }
+            }
+            StmtKind::Return { value } => {
+                if let Some(value) = value {
+                    collect_synthetic_named_intrinsic_call_sites_in_expr(
+                        index,
+                        source_path,
+                        value,
+                        sites,
+                    );
+                }
+            }
+            StmtKind::Assign { lhs, rhs, .. } => {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    lhs,
+                    sites,
+                );
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    rhs,
+                    sites,
+                );
+            }
+            StmtKind::While { cond, body } => {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    cond,
+                    sites,
+                );
+                collect_synthetic_named_intrinsic_call_sites_in_block(
+                    index,
+                    source_path,
+                    body,
+                    sites,
+                );
+            }
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => {}
+        }
+    }
+}
+
+fn collect_synthetic_named_intrinsic_call_sites_in_expr(
+    index: &Index,
+    source_path: &std::path::Path,
+    expr: &Expr,
+    sites: &mut crate::hir::TopLevelFunCallSiteIndex,
+) {
+    match &expr.kind {
+        ExprKind::Call { callee, args } => {
+            if let Some(binding) = named_intrinsic_binding_for_callee(index, callee) {
+                sites
+                    .entry(CallSite::new(source_path.to_path_buf(), expr.span))
+                    .or_insert(binding);
+            }
+            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, callee, sites);
+            for arg in args {
+                match arg {
+                    CallArg::Positional(value) | CallArg::Named { value, .. } => {
+                        collect_synthetic_named_intrinsic_call_sites_in_expr(
+                            index,
+                            source_path,
+                            value,
+                            sites,
+                        );
+                    }
+                }
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. }
+        | ExprKind::Unary { expr: receiver, .. }
+        | ExprKind::TypeCheck { expr: receiver, .. }
+        | ExprKind::Cast { expr: receiver, .. } => {
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                source_path,
+                receiver,
+                sites,
+            );
+        }
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, lhs, sites);
+            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, rhs, sites);
+        }
+        ExprKind::Block(block) => {
+            collect_synthetic_named_intrinsic_call_sites_in_block(index, source_path, block, sites)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, cond, sites);
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                source_path,
+                then_branch,
+                sites,
+            );
+            if let Some(else_branch) = else_branch {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    else_branch,
+                    sites,
+                );
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                source_path,
+                subject,
+                sites,
+            );
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_synthetic_named_intrinsic_call_sites_in_expr(
+                        index,
+                        source_path,
+                        guard,
+                        sites,
+                    );
+                }
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    &arm.body,
+                    sites,
+                );
+            }
+        }
+        ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    &field.value,
+                    sites,
+                );
+            }
+        }
+        ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    element,
+                    sites,
+                );
+            }
+        }
+        ExprKind::Closure(closure) => collect_synthetic_named_intrinsic_call_sites_in_expr(
+            index,
+            source_path,
+            &closure.body,
+            sites,
+        ),
+        ExprKind::Handle(handle) => {
+            collect_synthetic_named_intrinsic_call_sites_in_block(
+                index,
+                source_path,
+                &handle.body,
+                sites,
+            );
+            for arm in &handle.arms {
+                collect_synthetic_named_intrinsic_call_sites_in_expr(
+                    index,
+                    source_path,
+                    &arm.body,
+                    sites,
+                );
+            }
+            if let Some(finally) = &handle.finally {
+                collect_synthetic_named_intrinsic_call_sites_in_block(
+                    index,
+                    source_path,
+                    finally,
+                    sites,
+                );
+            }
+        }
+        ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    CallArg::Positional(value) | CallArg::Named { value, .. } => {
+                        collect_synthetic_named_intrinsic_call_sites_in_expr(
+                            index,
+                            source_path,
+                            value,
+                            sites,
+                        );
+                    }
+                }
+            }
+        }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let super::InterpolatedStringPart::Expr { expr } = part {
+                    collect_synthetic_named_intrinsic_call_sites_in_expr(
+                        index,
+                        source_path,
+                        expr,
+                        sites,
+                    );
+                }
+            }
+        }
+        ExprKind::Literal(_)
+        | ExprKind::VarRef(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::ClassLiteral(_)
+        | ExprKind::Missing
+        | ExprKind::Todo(_) => {}
+    }
+}
+
+fn named_intrinsic_binding_for_callee(
+    index: &Index,
+    callee: &Expr,
+) -> Option<ast::TopLevelFunCallBinding> {
+    let fqn = match &callee.kind {
+        ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => fqn,
+        ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+            MemberRef::Fun { fqn, .. } | MemberRef::ExtensionFun { fqn, .. } => fqn,
+            MemberRef::Value { .. } | MemberRef::ExtensionValue { .. } => return None,
+        },
+        _ => return None,
+    };
+    let overload = index.by_fqn.get(fqn)?.fun.iter().find(|overload| {
+        overload.sig.builtin_flags.is_intrinsic
+            && overload.sig.builtin_flags.intrinsic_entry_name.is_some()
+    })?;
+    Some(ast::TopLevelFunCallBinding {
+        fqn: fqn.clone(),
+        decl_file: overload.symbol.decl_file.clone(),
+        decl_span: overload.symbol.span,
+        is_intrinsic: true,
+        intrinsic_entry_name: overload.sig.builtin_flags.intrinsic_entry_name.clone(),
+        type_args: Vec::new(),
+        eff_args: Vec::new(),
+    })
 }
 
 fn collect_top_level_fun_call_sites_with_type_remap(
@@ -138,12 +428,16 @@ struct HirLowering<'a> {
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
     /// struct 直接字段默认值信息索引：`struct fqn -> direct field params(default)`。
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
-    /// 值类型 computed property getter 索引：`Owner.prop`。
+    /// 无 backing field 的 computed property getter 索引：`Owner.prop`。
     ///
     /// 用途：
-    /// - `struct/enum` 的 getter-only property 访问需要在 HIR 阶段降糖为 getter 调用；
+    /// - computed property 读取需要在 HIR 阶段降糖为 getter 调用；
     /// - 避免 LLVM/codegen 再把它误当作 direct field 去查 layout。
-    value_type_computed_properties: &'a HashSet<String>,
+    computed_property_getters: &'a HashSet<String>,
+    /// 无 backing field 的 computed property setter 索引：`Owner.prop`。
+    ///
+    /// 用途：`receiver.prop = value` 在 HIR 阶段降糖为合成 setter 调用。
+    computed_property_setters: &'a HashSet<String>,
     /// ctor 调用点候选集合：callee span → candidate type fqns。
     ///
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
@@ -175,6 +469,8 @@ struct HirLowering<'a> {
     /// 用途：closure capture set 需要知道捕获目标是否为 `var`，以便在后续 MIR lowering（T0714）
     /// 侧把可变捕获降为 box/alias 语义。
     local_mutability: HashMap<SymbolId, bool>,
+    /// HIR lowering 合成出来、因此没有 typecheck side table 记录的局部声明类型。
+    local_decl_tys: HashMap<Span, TypeId>,
     next_closure: u32,
     /// 当前 receiver lambda 中隐式 `this` 的合成声明 span。
     ///
@@ -237,7 +533,8 @@ struct HirLoweringSetup<'a> {
     delegated_properties: &'a DelegatedPropertyIndex<'a>,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
-    value_type_computed_properties: &'a HashSet<String>,
+    computed_property_getters: &'a HashSet<String>,
+    computed_property_setters: &'a HashSet<String>,
     builtins: BuiltinTypes,
     generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
     known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
@@ -287,7 +584,8 @@ impl<'a> HirLowering<'a> {
             delegated_properties,
             compilation_unit,
             default_arg_structs,
-            value_type_computed_properties,
+            computed_property_getters,
+            computed_property_setters,
             builtins,
             generic_template_symbol_suffixes,
             known_receiver_subclasses,
@@ -308,7 +606,8 @@ impl<'a> HirLowering<'a> {
             compilation_unit,
             default_arg_funs: HashMap::new(),
             default_arg_structs,
-            value_type_computed_properties,
+            computed_property_getters,
+            computed_property_setters,
             ctor_call_sites: HashMap::new(),
             dispatch_call_sites: HashMap::new(),
             effect_op_call_sites: HashMap::new(),
@@ -322,6 +621,7 @@ impl<'a> HirLowering<'a> {
             when_pat_binding_tys: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
+            local_decl_tys: HashMap::new(),
             next_closure: 0,
             lambda_this_decl_span: None,
             next_synthetic_local: 0,
@@ -708,17 +1008,25 @@ impl<'a> HirLowering<'a> {
 
         for member in &body.members {
             match member {
-                ast::TypeMember::Property(prop)
-                    if matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
-                        && prop.getter.is_some() =>
-                {
-                    out.push(self.lower_value_property_getter_decl(
-                        pkg_prefix,
-                        &owner_fqn,
-                        &decl.type_params,
-                        decl.name.span,
-                        prop,
-                    ));
+                ast::TypeMember::Property(prop) => {
+                    if should_lower_computed_property_getter(prop) {
+                        out.push(self.lower_value_property_getter_decl(
+                            pkg_prefix,
+                            &owner_fqn,
+                            &decl.type_params,
+                            decl.name.span,
+                            prop,
+                        ));
+                    }
+                    if should_lower_computed_property_setter(prop) {
+                        out.push(self.lower_computed_property_setter_decl(
+                            pkg_prefix,
+                            &owner_fqn,
+                            &decl.type_params,
+                            decl.name.span,
+                            prop,
+                        ));
+                    }
                 }
                 ast::TypeMember::Fun(fun) => {
                     out.push(self.lower_member_fun_decl(
@@ -738,7 +1046,6 @@ impl<'a> HirLowering<'a> {
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::InitBlock(_)
                 | ast::TypeMember::SecondaryCtor(_) => {}
-                ast::TypeMember::Property(_) => {}
             }
         }
     }
@@ -1110,6 +1417,7 @@ impl<'a> HirLowering<'a> {
             name: "this".to_string(),
             ty: this_ty,
         }];
+        let previous_this_ty = self.push_synthetic_local_decl_ty(this_decl_span, this_ty);
 
         let return_ty = prop
             .ty
@@ -1145,6 +1453,116 @@ impl<'a> HirLowering<'a> {
             }
             ast::AccessorBody::Missing => None,
         };
+
+        self.restore_synthetic_local_decl_ty(this_decl_span, previous_this_ty);
+
+        self.pop_type_params();
+
+        FunDecl {
+            span: prop.span,
+            fqn,
+            name,
+            source_path: self.source.path().to_path_buf(),
+            is_const: false,
+            ty,
+            params,
+            return_ty,
+            body,
+        }
+    }
+
+    /// 将无 backing field 的 computed property setter 降低为 HIR 函数。
+    ///
+    /// 约定：
+    /// - FQN 使用内部 setter 符号（例如 `pkg.Box.value$set`），避免与 getter/property FQN 冲突；
+    /// - 第 0 个参数为显式 `this`，第 1 个参数为 setter 的 `value`；
+    /// - body 直接来自 accessor setter body。
+    fn lower_computed_property_setter_decl(
+        &mut self,
+        pkg_prefix: &str,
+        owner_fqn: &str,
+        owner_type_params: &[ast::TypeParam],
+        this_decl_span: Span,
+        prop: &ast::PropertyDecl,
+    ) -> FunDecl {
+        let setter = prop.setter.as_ref().expect(
+            "computed property setter collection only calls this helper for setter properties",
+        );
+
+        self.push_type_params(owner_type_params);
+
+        let property_name = prop.name.text(self.source).to_string();
+        let property_fqn = format!("{owner_fqn}.{property_name}");
+        let fqn = computed_property_setter_fqn(&property_fqn);
+        let name = format!("{property_name}$set");
+
+        let this_id = self.intern_local_symbol(this_decl_span, false);
+        let this_args: Vec<TypeId> = owner_type_params
+            .iter()
+            .filter_map(|p| self.lookup_type_param(p.name.text(self.source)))
+            .collect();
+        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, None);
+
+        let value_ty = prop
+            .ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+        let (value_span, value_name) = setter
+            .param
+            .as_ref()
+            .map(|param| (param.span, param.text(self.source).to_string()))
+            .unwrap_or((prop.name.span, "value".to_string()));
+        let value_id = self.intern_local_symbol(value_span, false);
+
+        let params = vec![
+            Param {
+                span: this_decl_span,
+                id: this_id,
+                name: "this".to_string(),
+                ty: this_ty,
+            },
+            Param {
+                span: value_span,
+                id: value_id,
+                name: value_name,
+                ty: value_ty,
+            },
+        ];
+        let previous_this_ty = self.push_synthetic_local_decl_ty(this_decl_span, this_ty);
+        let previous_value_ty = self.push_synthetic_local_decl_ty(value_span, value_ty);
+
+        let return_ty = self.builtins.unit;
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            EffectRow::pure(),
+            false,
+        );
+
+        let body_expected = self.expected_expr_for_param_ty(return_ty);
+        let body = match &setter.body {
+            ast::AccessorBody::Block(b) => {
+                Some(self.lower_block_with_expected(pkg_prefix, b, body_expected))
+            }
+            ast::AccessorBody::Expr(e) => {
+                let lowered_expr = self.lower_expr_with_expected(pkg_prefix, e, body_expected);
+                Some(Block {
+                    span: e.span,
+                    ty: return_ty,
+                    stmts: vec![Stmt {
+                        span: e.span,
+                        ty: return_ty,
+                        kind: StmtKind::Expr(lowered_expr),
+                    }],
+                })
+            }
+            ast::AccessorBody::Missing => None,
+        };
+
+        self.restore_synthetic_local_decl_ty(value_span, previous_value_ty);
+        self.restore_synthetic_local_decl_ty(this_decl_span, previous_this_ty);
 
         self.pop_type_params();
 
@@ -1382,6 +1800,7 @@ impl<'a> HirLowering<'a> {
             name: "this".to_string(),
             ty: this_ty,
         }];
+        let previous_this_ty = self.push_synthetic_local_decl_ty(this_decl_span, this_ty);
 
         let return_ty = prop
             .ty
@@ -1417,6 +1836,8 @@ impl<'a> HirLowering<'a> {
             }
             ast::AccessorBody::Missing => None,
         };
+
+        self.restore_synthetic_local_decl_ty(this_decl_span, previous_this_ty);
 
         FunDecl {
             span: prop.span,
@@ -1909,6 +2330,22 @@ impl<'a> HirLowering<'a> {
             .find_map(|scope| scope.get(name).copied())
     }
 
+    fn push_synthetic_local_decl_ty(&mut self, span: Span, ty: TypeId) -> Option<TypeId> {
+        self.local_decl_tys.insert(span, ty)
+    }
+
+    fn restore_synthetic_local_decl_ty(&mut self, span: Span, previous: Option<TypeId>) {
+        if let Some(ty) = previous {
+            self.local_decl_tys.insert(span, ty);
+        } else {
+            self.local_decl_tys.remove(&span);
+        }
+    }
+
+    pub(super) fn synthetic_local_decl_ty(&self, span: Span) -> Option<TypeId> {
+        self.local_decl_tys.get(&span).copied()
+    }
+
     fn decl_ast_context(
         &self,
         decl_file: &std::path::Path,
@@ -1938,17 +2375,42 @@ fn collect_default_arg_structs(
     out
 }
 
-fn collect_value_type_computed_property_fqns(
+#[derive(Default)]
+struct ComputedPropertyAccessorFqns {
+    getters: HashSet<String>,
+    setters: HashSet<String>,
+}
+
+fn computed_property_has_backing_field(prop: &ast::PropertyDecl) -> bool {
+    prop.delegate.is_none()
+        && (prop.init.is_some()
+            || prop.getter.is_none()
+            || (matches!(prop.kind, ast::ValKind::Var) && prop.setter.is_none()))
+}
+
+fn should_lower_computed_property_getter(prop: &ast::PropertyDecl) -> bool {
+    prop.getter.is_some() && !computed_property_has_backing_field(prop)
+}
+
+fn should_lower_computed_property_setter(prop: &ast::PropertyDecl) -> bool {
+    prop.setter.is_some() && !computed_property_has_backing_field(prop)
+}
+
+fn computed_property_setter_fqn(property_fqn: &str) -> String {
+    format!("{property_fqn}$set")
+}
+
+fn collect_computed_property_accessor_fqns(
     compilation_unit: &[(&SourceFile, &ast::File)],
-) -> HashSet<String> {
-    let mut out: HashSet<String> = HashSet::new();
+) -> ComputedPropertyAccessorFqns {
+    let mut out = ComputedPropertyAccessorFqns::default();
 
     for (source, file) in compilation_unit {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             match item {
                 ast::Item::Type(ty) => {
-                    collect_value_type_computed_property_fqns_in_type_decl(
+                    collect_computed_property_accessor_fqns_in_type_decl(
                         source,
                         ty,
                         &pkg_prefix,
@@ -1956,7 +2418,7 @@ fn collect_value_type_computed_property_fqns(
                     );
                 }
                 ast::Item::Object(obj) => {
-                    collect_value_type_computed_property_fqns_in_object_decl(
+                    collect_computed_property_accessor_fqns_in_object_decl(
                         source,
                         obj,
                         &pkg_prefix,
@@ -1975,24 +2437,26 @@ fn collect_value_type_computed_property_fqns(
     out
 }
 
-fn collect_value_type_computed_property_fqns_in_type_decl(
+fn collect_computed_property_accessor_fqns_in_type_decl(
     source: &SourceFile,
     decl: &ast::TypeDecl,
     prefix: &str,
-    out: &mut HashSet<String>,
+    out: &mut ComputedPropertyAccessorFqns,
 ) {
     let local_name = decl.name.text(source).to_string();
     let type_fqn = join_prefix(prefix, &local_name);
 
-    if matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
-        && let Some(body) = &decl.body
-    {
+    if let Some(body) = &decl.body {
         for member in &body.members {
             let ast::TypeMember::Property(prop) = member else {
                 continue;
             };
-            if prop.getter.is_some() {
-                out.insert(format!("{}.{}", type_fqn, prop.name.text(source)));
+            let property_fqn = format!("{}.{}", type_fqn, prop.name.text(source));
+            if should_lower_computed_property_getter(prop) {
+                out.getters.insert(property_fqn.clone());
+            }
+            if should_lower_computed_property_setter(prop) {
+                out.setters.insert(property_fqn);
             }
         }
     }
@@ -2003,14 +2467,12 @@ fn collect_value_type_computed_property_fqns_in_type_decl(
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                collect_value_type_computed_property_fqns_in_type_decl(
+                collect_computed_property_accessor_fqns_in_type_decl(
                     source, nested, &type_fqn, out,
                 );
             }
             ast::TypeMember::Object(obj) => {
-                collect_value_type_computed_property_fqns_in_object_decl(
-                    source, obj, &type_fqn, out,
-                );
+                collect_computed_property_accessor_fqns_in_object_decl(source, obj, &type_fqn, out);
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)
@@ -2021,11 +2483,11 @@ fn collect_value_type_computed_property_fqns_in_type_decl(
     }
 }
 
-fn collect_value_type_computed_property_fqns_in_object_decl(
+fn collect_computed_property_accessor_fqns_in_object_decl(
     source: &SourceFile,
     obj: &ast::ObjectDecl,
     prefix: &str,
-    out: &mut HashSet<String>,
+    out: &mut ComputedPropertyAccessorFqns,
 ) {
     let Some(obj_name) = object_decl_name(source, obj) else {
         return;
@@ -2038,12 +2500,10 @@ fn collect_value_type_computed_property_fqns_in_object_decl(
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                collect_value_type_computed_property_fqns_in_type_decl(
-                    source, nested, &obj_fqn, out,
-                );
+                collect_computed_property_accessor_fqns_in_type_decl(source, nested, &obj_fqn, out);
             }
             ast::TypeMember::Object(nested) => {
-                collect_value_type_computed_property_fqns_in_object_decl(
+                collect_computed_property_accessor_fqns_in_object_decl(
                     source, nested, &obj_fqn, out,
                 );
             }
@@ -2334,7 +2794,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(&pairs);
     let default_arg_structs = collect_default_arg_structs(&pairs);
-    let value_type_computed_properties = collect_value_type_computed_property_fqns(&pairs);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
         crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
@@ -2387,7 +2847,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 delegated_properties: &delegated_properties,
                 compilation_unit: &pairs,
                 default_arg_structs: default_arg_structs.clone(),
-                value_type_computed_properties: &value_type_computed_properties,
+                computed_property_getters: &computed_property_accessors.getters,
+                computed_property_setters: &computed_property_accessors.setters,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 known_receiver_subclasses: &known_receiver_subclasses,
@@ -2514,7 +2975,11 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ));
         ci
     };
-    let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
+    let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+        &index,
+        &member_funs,
+    ));
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     let stable_type_param_keys =
         collect_stable_type_param_keys(&[(source, &ast)], &stable_cone_key);
@@ -2710,8 +3175,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
-    let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(compilation_unit);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
         compilation_unit,
@@ -2766,7 +3230,8 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
                 delegated_properties: &delegated_properties,
                 compilation_unit,
                 default_arg_structs: default_arg_structs.clone(),
-                value_type_computed_properties: &value_type_computed_properties,
+                computed_property_getters: &computed_property_accessors.getters,
+                computed_property_setters: &computed_property_accessors.setters,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 known_receiver_subclasses: &known_receiver_subclasses,
@@ -2868,7 +3333,11 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ));
         ci
     };
-    let top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
+    let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+        index,
+        &member_funs,
+    ));
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
 
@@ -3226,8 +3695,7 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
-    let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(compilation_unit);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = match type_env {
         Some(env) => crate::itable::collect_runtime_interfaces_and_class_itables_with_env(
@@ -3300,7 +3768,8 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
                     delegated_properties: &delegated_properties,
                     compilation_unit,
                     default_arg_structs: default_arg_structs.clone(),
-                    value_type_computed_properties: &value_type_computed_properties,
+                    computed_property_getters: &computed_property_accessors.getters,
+                    computed_property_setters: &computed_property_accessors.setters,
                     builtins,
                     generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                     known_receiver_subclasses: &known_receiver_subclasses,
@@ -3578,11 +4047,15 @@ fn lower_for_compilation_unit_multi_files_internal<'a>(
         CompilationUnitInstanceMode::GenericTemplateOnly => {}
     }
 
-    let top_level_fun_call_sites = collect_top_level_fun_call_sites_with_type_remap(
+    let mut top_level_fun_call_sites = collect_top_level_fun_call_sites_with_type_remap(
         files_to_lower,
         Some(typecheck_types),
         &mut types,
     );
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+        index,
+        &member_funs,
+    ));
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
 
@@ -3720,8 +4193,7 @@ fn lower_fun_with_bindings_and_mir_facts(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
-    let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(compilation_unit);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -3733,7 +4205,8 @@ fn lower_fun_with_bindings_and_mir_facts(
             delegated_properties: &delegated_properties,
             compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_accessors.getters,
+            computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
             known_receiver_subclasses,
@@ -3827,8 +4300,7 @@ pub(crate) fn lower_member_fun_with_bindings(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
-    let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(compilation_unit);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -3840,7 +4312,8 @@ pub(crate) fn lower_member_fun_with_bindings(
             delegated_properties: &delegated_properties,
             compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_accessors.getters,
+            computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
             known_receiver_subclasses,
@@ -3921,8 +4394,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
-    let value_type_computed_properties =
-        collect_value_type_computed_property_fqns(compilation_unit);
+    let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -3934,7 +4406,8 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             delegated_properties: &delegated_properties,
             compilation_unit,
             default_arg_structs,
-            value_type_computed_properties: &value_type_computed_properties,
+            computed_property_getters: &computed_property_accessors.getters,
+            computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
             known_receiver_subclasses,

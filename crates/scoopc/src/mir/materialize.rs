@@ -3015,6 +3015,16 @@ fn collect_request_root_fun_keys(
                     });
                 }
             }
+
+            for fun in &lowered_hir.member_funs {
+                if request_sources.contains(&fun.source_path) {
+                    out.push(RequestRootFunKey {
+                        source_path: fun.source_path.clone(),
+                        fqn: fun.fqn.clone(),
+                        span: fun.span,
+                    });
+                }
+            }
         }
     }
 

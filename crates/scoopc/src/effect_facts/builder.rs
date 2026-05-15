@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::ast;
 use crate::mir::{
-    BasicBlockId, Body as MirBody, CallArg, CallKind, ConstValue, File as MirFile,
+    BasicBlockId, Body as MirBody, CallArg, CallKind, ConstValue, DeclMemberMetadata,
     FunDecl as MirFunDecl, HandleMetadata, HandlerArm, InstanceKey, InstanceSummary,
-    Item as MirItem, MaterializedMir, Operand, PerformMetadata, ResultProvenance,
+    Item as MirItem, MaterializedMir, MetadataRoot, Operand, PerformMetadata, ResultProvenance,
     ResultProvenanceSource, ResumeMetadata, Rvalue, SiteId, StatementKind, TemplateKey,
     TerminatorKind, UnwindAction, summarize_pass_rewritten_fun,
 };
@@ -218,11 +218,17 @@ impl EffectFactsTypeContext {
         }
 
         if !has_receiver {
+            let owner_is_type = fqn
+                .rsplit_once('.')
+                .is_some_and(|(owner, _)| self.env.type_symbol(owner).is_some());
             return overloads
                 .iter()
                 .filter(|overload| {
                     overload.sig.receiver.is_some()
                         && overload.sig.params.len().saturating_add(1) == explicit_arg_count
+                        || owner_is_type
+                            && overload.sig.receiver.is_none()
+                            && overload.sig.params.len().saturating_add(1) == explicit_arg_count
                 })
                 .collect();
         }
@@ -273,6 +279,20 @@ impl EffectFactsTypeContext {
         }
         Some(SurfaceCallableContract {
             declared_row: EffectRow::new(terms),
+        })
+    }
+
+    fn computed_property_accessor_surface_contract(
+        &self,
+        fqn: &str,
+    ) -> Option<SurfaceCallableContract> {
+        let property_fqn = fqn.strip_suffix("$set").unwrap_or(fqn);
+        let (owner_fqn, _) = property_fqn.rsplit_once('.')?;
+        self.env.type_symbol(owner_fqn)?;
+        let entry = self.index.by_fqn.get(property_fqn)?;
+        entry.value.as_ref()?;
+        Some(SurfaceCallableContract {
+            declared_row: EffectRow::pure(),
         })
     }
 }
@@ -1557,6 +1577,11 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn)
             {
                 contract.declared_row
+            } else if let Some(contract) = self
+                .type_ctx
+                .computed_property_accessor_surface_contract(callable_fqn)
+            {
+                contract.declared_row
             } else {
                 match self.type_ctx.surface_callable_contract(
                     types,
@@ -1605,6 +1630,11 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
         let declared_row = if let Some(raw_fun) = self.raw_fun_by_fqn.get(callable_fqn) {
             declared_effect_row(raw_fun, types)
         } else if let Some(contract) = self.callable_value_surface_contract(types, callable_fqn) {
+            contract.declared_row
+        } else if let Some(contract) = self
+            .type_ctx
+            .computed_property_accessor_surface_contract(callable_fqn)
+        {
             contract.declared_row
         } else {
             match self.type_ctx.surface_callable_contract(
@@ -2043,11 +2073,14 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             compiler_generated_runtime_error_effect_ty,
         )?;
         let owner_by_callable_fqn = collect_callable_owner_map(self.materialized);
-        let raw_fun_by_fqn = collect_raw_fun_by_fqn(&self.materialized.file);
-        let top_level_value_surface_contracts = collect_top_level_value_surface_contracts(
+        let raw_fun_by_fqn = collect_raw_fun_by_fqn(self.materialized);
+        let mut top_level_value_surface_contracts = collect_top_level_value_surface_contracts(
             &self.materialized.types,
             self.materialized.top_level_value_tys(),
         );
+        top_level_value_surface_contracts.extend(collect_property_accessor_surface_contracts(
+            self.materialized,
+        ));
 
         let mut callable_facts = HashMap::with_capacity(callable_seeds.len());
         let mut bodies = HashMap::with_capacity(callable_seeds.len());
@@ -3175,14 +3208,28 @@ fn collect_callable_owner_map(materialized: &MaterializedMir) -> HashMap<String,
     owners
 }
 
-fn collect_raw_fun_by_fqn(file: &MirFile) -> HashMap<String, MirFunDecl> {
-    file.items
+fn collect_raw_fun_by_fqn(materialized: &MaterializedMir) -> HashMap<String, MirFunDecl> {
+    let mut out = materialized
+        .file
+        .items
         .iter()
         .filter_map(|item| match item {
             MirItem::Fun(fun) => Some((fun.fqn.clone(), fun.clone())),
             _ => None,
         })
-        .collect()
+        .collect::<HashMap<_, _>>();
+
+    for fun in materialized.caller_side_pass_candidate_bodies() {
+        out.entry(fun.fqn.clone()).or_insert_with(|| fun.clone());
+    }
+
+    for family in materialized.pass_view().instances() {
+        if let Some(fun) = family.root_body() {
+            out.entry(fun.fqn.clone()).or_insert_with(|| fun.clone());
+        }
+    }
+
+    out
 }
 
 fn collect_top_level_value_surface_contracts(
@@ -3195,6 +3242,59 @@ fn collect_top_level_value_surface_contracts(
             function_surface_contract_from_ty(types, *ty).map(|contract| (fqn.clone(), contract))
         })
         .collect()
+}
+
+fn collect_property_accessor_surface_contracts(
+    materialized: &MaterializedMir,
+) -> HashMap<String, SurfaceCallableContract> {
+    let mut out = HashMap::new();
+    for item in &materialized.file.items {
+        if let MirItem::Metadata(metadata) = item {
+            collect_property_accessor_surface_contracts_in_metadata(metadata, &mut out);
+        }
+    }
+    out
+}
+
+fn collect_property_accessor_surface_contracts_in_metadata(
+    metadata: &MetadataRoot,
+    out: &mut HashMap<String, SurfaceCallableContract>,
+) {
+    let members = match metadata {
+        MetadataRoot::Nominal(nominal) => &nominal.members,
+        MetadataRoot::Object(object) => &object.members,
+        MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => return,
+    };
+
+    for member in members {
+        match member {
+            DeclMemberMetadata::Property(prop) if !prop.has_backing_field => {
+                if let Some(getter) = &prop.getter {
+                    out.insert(
+                        getter.fqn.clone(),
+                        SurfaceCallableContract {
+                            declared_row: EffectRow::pure(),
+                        },
+                    );
+                }
+                if let Some(setter) = &prop.setter {
+                    let contract = SurfaceCallableContract {
+                        declared_row: EffectRow::pure(),
+                    };
+                    out.insert(setter.fqn.clone(), contract.clone());
+                    out.insert(format!("{}$set", prop.fqn), contract);
+                }
+            }
+            DeclMemberMetadata::Nested(nested) => {
+                collect_property_accessor_surface_contracts_in_metadata(nested, out)
+            }
+            DeclMemberMetadata::Field(_)
+            | DeclMemberMetadata::Property(_)
+            | DeclMemberMetadata::Fun(_)
+            | DeclMemberMetadata::EnumVariant(_)
+            | DeclMemberMetadata::InitBlock { .. } => {}
+        }
+    }
 }
 
 fn collect_direct_subclasses(
