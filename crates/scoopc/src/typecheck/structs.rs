@@ -19,6 +19,8 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 
+use super::builtin_annotations::BuiltinAnnotationFlags;
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum StructDeclError {
     #[error("struct 字段重复定义：{struct_fqn}.{field}")]
@@ -92,6 +94,12 @@ fn check_one_struct_fields(
     decl: &ast::TypeDecl,
     struct_fqn: &str,
 ) -> Result<(), StructDeclError> {
+    if BuiltinAnnotationFlags::from_annotations(source, &decl.annotations).is_intrinsic {
+        // Intrinsic type layouts are compiler-owned. Let the annotation pass report the
+        // dedicated layout diagnostic instead of ordinary struct field shape errors.
+        return Ok(());
+    }
+
     let mut seen: HashMap<String, Span> = HashMap::new();
 
     // 1) 主构造参数：对 struct 一律视为 direct field。

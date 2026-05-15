@@ -34,7 +34,7 @@
 | `P4-T01l1` | P4 前置 IV | [DONE] typecheck 层把 builtin scalar / `String` 的 nominal FQN 提取统一进 member-call 主线 |
 | `P4-T01l2` | P4 前置 IV | [DONE] HIR / MIR 收口：让 `@Intrinsic struct/class` body method 在 builtin scalar receiver 上把 receiver 作为第 0 个 arg 注入 |
 | `P4-T01l3` | P4 前置 IV | [DONE] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
-| `P4-T01m` | P4 前置 V | [TODO] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
+| `P4-T01m` | P4 前置 V | [DONE] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
 | `P4-T01n` | P4 前置 V | [TODO] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
 | `P4-T01o` | P4 前置 V | [TODO] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
 | `P4-T01p` | P4 前置 V | [TODO] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
@@ -1585,7 +1585,7 @@
     - 对应 `PLAN.md` P4 前置 IV / `P4-T01l3`：builtin scalar `ToString.toString` override 与 ordinary interface default body 现在能在 monomorphization / late lowering 后正确发布，`println(<scalar>)` 不再触发 missing published body；`P4-T01` 可以在保留验证 owner 的前提下继续做 sysroot 改写与旧 by-name 删除。
     - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface，也没有删除任何现有 by-name string/scalar 过渡拦截；无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01m：验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束
+### [DONE] P4-T01m：验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
@@ -1614,6 +1614,25 @@
   - `@Intrinsic class/struct` 在所有可观察 surface 上都不能声明可直接访问的数据成员；
   - sysroot 现存的 `@Intrinsic class/struct` 内部状态访问被 audit 列为"全部走 `@Intrinsic method` 或 `@Extern function`"，并在本任务回写中固化结论。
 - 依赖：`P4-T01l3`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/structs.rs`：`@Intrinsic struct` 字段形态不再先落入普通 `struct_field_must_be_val` / duplicate-field 检查，而是交给 annotation pass 的 `intrinsic_type_field_not_supported` 专属 layout 诊断。
+    - `tests/fixtures/typecheck/intrinsic_struct_*_field*_is_error.scoop`：新增 struct primary ctor `val` / `var` / default value 与 body `val` / `var` / initializer direct-field 覆盖。
+    - `tests/fixtures/typecheck/intrinsic_type_*_var_field_is_error.scoop`：新增 class primary ctor `var` 与 body `var` direct-field 覆盖。
+    - `TODO.md` / `memory/claude_plan.md`：刷新任务状态、执行记录和验证结果。
+  - 核心决策：
+    - 保留 `check_builtin_annotations_on_type_decl` 作为 `@Intrinsic class/struct` layout 约束的唯一诊断 owner；普通 struct 字段合法性检查不再抢先处理 `@Intrinsic struct`，避免同一根因在不同 surface 上暴露不同错误码。
+    - 不放宽 `IntrinsicTypeFieldNotSupported`：primary ctor `val/var`、body direct-field `val/var`、带 default value / initializer 的 direct field 均被同一诊断截住。
+    - 当前 parser/spec 中没有 `lateinit` property surface（仓库内仅 `TODO.md` 提及），因此本任务没有引入半成品语法；已覆盖当前所有可观察 direct-field surface。
+    - sysroot audit 结论：当前 default sysroot 中 `@Intrinsic class/struct` 为 `scoop.core.Array<T>`、`scoop.core.MutableArray<T>`、`scoop.unsafe.Ptr<T>`、`scoop.unsafe.FunPtr<F>`；它们均无 direct field，内部状态/底层访问只经 `@Intrinsic method` 或外部 intrinsic/extern-style function surface 暴露。默认 `Bool/Char/Int/Float32/Float64/String` 仍是 declaration-only ordinary scalar nominal，P4-T01l1/l2/l3 的 scalar `@Intrinsic` 形态仅存在于 overlay fixture 中，且 overlay 方法体也未声明 direct field。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：445 passed / 0 failed
+    - `cargo test -p scoopc`：863 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 I / P4 前置 V 对 `@Intrinsic struct/class` 的 layout 硬约束：源码不提供可直接访问字段，编译器只负责内置 layout metadata；用户/sysroot 可见访问路径继续走 method / intrinsic / extern surface。
+    - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface，也没有调整 `@Intrinsic` 类型 layout 内置识别逻辑；无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01n：验证 `@Intrinsic class/struct` 合成属性可正常落地，规范同普通 class/struct
 
