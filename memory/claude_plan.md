@@ -1,57 +1,69 @@
-## 本轮执行计划（P4-T01k）
+## 本轮执行计划（P4-T01）
 
-按照 `PROMPT.md` 规范完成 `TODO.md` 中第一个未完成任务 **P4-T01k**：修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift。
+按照 `PROMPT.md` 规范完成 `TODO.md` 中第一个未完成任务 **P4-T01**：以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判。
 
 ### 任务确认
 
-- `TODO.md` 中 `P4-T01j` 已 `[DONE]`；`P4-T01k` 是 P4 前置 IV 中最后一条 production drift 任务。
-- 最近一次提交 `[P4-T01j] Route named intrinsic runtime decl through wrapper` 已让 `cargo test -p scoopc` 只剩 1 失败，正是 `materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct`。
+- `TODO.md` 中所有 P4 前置（`P4-T01a/b/c-pre1/c/d/e/f/g/h/i/j/k`）已 [DONE]；下一条是 `P4-T01`。
+- 最近一次提交 `[P4-T01k]` 后 `cargo test -p scoopc` 已 0 failed。
 
-### 调查方向
+### 实现方案
 
-测试断言：在 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 编译出的 main 中，至少应当看到 1 个 `scoop.core.size::<Int>$overload$...` 形式的 direct-call target；当前实测是 0 个。
+将以下 6 个内建类型从 declaration-only 形式改写为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }` 形式：
+- `Int.toString` — body 调 `scoopAbiIntToString(this)` bridge（已由 P4-T01f 提供）
+- `Char.toString` — body 调 `scoopAbiCharToString(this)`
+- `Float64.toString` — body 调 `scoopAbiFloat64ToString(this)`
+- `Float32.toString` — body 调 `scoopAbiFloat32ToString(this)`
+- `Bool.toString` — body `if (this) "true" else "false"`
+- `String.toString` — body `return this`
 
-`MutableSet` / `Set` 是 `typealias MutableSet = MutableArray<Int>` / `typealias Set = Array<Int>`。`stdlib/collections_set.scoop` 提供 `fun MutableSet.len(): Int { return this.size() }`、`fun Set.len(): Int { return this.size() }` 两个扩展函数；测试关注的是 main 内部 `s.len()` 调用是否最终展开成了 size overload 的 direct call。
+清理以下 by-name 特判（删除而不是保留双轨）：
+- resolver: `crates/scoopc/src/resolve/scopes.rs` 中 Int/Bool/Char/Float `toString` allowlist
+- typecheck: `crates/scoopc/src/typecheck/expr/call.rs` 内建 `toString` synthetic 直接返回 String 的 contract
+- HIR: `crates/scoopc/src/hir/lower/expr.rs::should_keep_member_call_as_member_access` 的 `toString` keep-list
+- LLVM intrinsics: `try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext`
+- effect_lowered: `lower_builtin_to_string_call` / `lower_refactor_core_to_string_call` / `refactor_core_print_to_string`
+- mir_body: `codegen_mir_transport_to_string` 按 `CgTy` 派生 runtime helper 名字的分支
 
-预期路径：
-1. `s.len()`（s 是 `MutableSet`）resolve 为 extension fun `scoop.collections.<或 stdlib pkg>.len`，它本身是顶层 fun；
-2. monomorphization 阶段对 `Array<T>.size()` / `MutableArray<T>.size()` 有"overload-aware symbol"重写（生成 `scoop.core.size::<Int>$overload$...`）；
-3. main 中调用这条扩展函数后，inline / direct-call 选择应当让 main 里至少有一条 `scoop.core.size::<Int>$overload$` direct-call。
+`ToString.toString` interface dispatch 对用户类型仍可用（P4-T01a/b/c 已保证）。
 
-可能的 drift 原因：
-- P4-T01a/c/e 把 `Array.size()` / `MutableArray.size()` 改为 `@Intrinsic("array_size")` named intrinsic 直接 IR-emission（在 `mir_refactor/aggregate_transport.mir` 中能看到 `scoop.core.Array.get` 这种 nominal body method FQN）。如果 size 本身已经被替换为 named intrinsic（IR-emission 模式），那"overload-aware symbol"路径可能已经不生效，导致 main 里没有 `scoop.core.size::<Int>$overload$` 这种 direct-call。
-- 也可能 `MutableSet.len()` 的 inlining / overload key 本身改了，导致 size 的 monomorphized symbol 命名空间换了。
+### 顺序
 
-### 实施顺序
-
-1. 跑该 fixture，dump main 的 materialized MIR，看实际调用了哪些 `scoop.core.size`、`scoop.core.MutableArray.size` 之类的 callee FQN。
-2. 阅读 `materialize.rs` 中关于 `scoop.core.size::<Int>$overload$` 重写的逻辑，定位起源。
-3. 决定本任务的修复方向：
-   - **方案 A（恢复旧行为）**：让 `MutableSet.len()` / `Set.len()` 中 `this.size()` 的 monomorphization 重写到 overload-aware symbol；
-   - **方案 B（迁移测试断言）**：production 路径已稳定为 `@Intrinsic("array_size")` named intrinsic IR-emission，main 中根本不会再有 direct-call FQN（已被 inline 成 IR），此时该 test 的"overload-aware symbol"断言已经过时——按"不能弱化测试"原则，应当把断言迁到等价的现行 production contract，或写一条新的 owner test 替代。
-4. 选择更符合 spec 的方向落地；若发现 production 是已经稳定的"零编译器后门"路径（P4-T01c 已锁），则按方向 B 重写测试断言。
-5. 跑 `cargo test -p scoopc materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct` 与 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo clippy --all-targets -- -D warnings`。
-6. 写 `[DONE] P4-T01k` 完成记录并提交。
+1. 阅读现有 `sysroot/core.scoop` 中六个类型的 declaration-only 形式与 `sysroot/scalar_string_bridge.scoop` 的 bridge 暴露面。
+2. 改写 sysroot：把内建类型从 declaration-only 形式改为 `@Intrinsic struct/class { override fun toString(): String { ... } }`，body 用 Scoop 写出。
+3. 跑 `cargo build -p scoopc` 确认 sysroot 形态被 typecheck 接受。
+4. 跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`，看 tracer bullet 之前的旧路径是否还能 pass（保留旧路径作为过渡时期的 safety 期望，即新路径落地后旧路径会被精确删除而不是双轨）。
+5. 删除上面列出的 by-name 特判，逐一删除并验证（先验证用户类型的 `ToString.toString` 仍能 work 后再删）。
+6. 检查 `print/println` 链路。
+7. 加 fixture：scalar `toString` 端到端 run-pass。
+8. 跑 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures <fixture>`、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings`。
+9. 写 `[DONE] P4-T01` 完成记录并提交。
 
 ### 风险点
 
-- 方案 B 需要小心，不能把 test 弱化为"什么都不检查"。如果 size 已经走 named intrinsic 直接 IR emission，则 main 里只剩 IR 节点而不再是 direct-call 形态——要保留对应的可见 contract（例如 named intrinsic call 数量 / IR shape）。
-- 测试名称含 "set alias receiver overload targets distinct" — 也要保持 `MutableSet` 与 `Set` 在 overload 命名上互相区分（不引发重载歧义）的不变量。
+- 这是一个非常大的重构，可能会触及 6+ 个 codegen 文件。
+- 改 `sysroot/core.scoop` 可能引发 layout / @Intrinsic 解析的 corner case；需要从最小变化开始（先一个类型 Bool 试点），逐个加上。
+- 删除旧路径必须在新路径完整能跑之后；中间状态可能 fail。
+- 若发现某条特判路径"用户类型也走过"的证据不存在（必须实现 4 的硬约束），则不能删除该路径，需要先补 fixture/owner-test 锁定用户类型路径再删。
+- 若某个旧路径与新机制有 ABI surface 冲突（如 `@Intrinsic struct String : Hashable, ToString { ... }` 被 layout 内置识别破坏），那本任务可能需要拆出更小前置。
 
 ### 进展更新
 
-- 临时给 test 加 `eprintln!` 打印 main 中所有 direct-call callee FQN，确认 production 当前实际产出的"alias receiver overload"命名空间是 `scoop.collections.len$overload$<hash>`（来自 `MutableSet.len`），而 `scoop.core.size::<Int>$overload$...` 已不存在（`Array.size` 在 P4-T01a/c 之后是 `@Intrinsic("array_size")` body method）。
-- `Set.len()` 体只是 `return this.size()`，被 inline 成 `scoop.core.Array.size::<Int>` body method 直接调用，不再污染 `len$overload$` 命名空间，因此 `len_targets.len() == 1` 仍然为真。
-- 把测试 predicate 改为 `"scoop.collections.len$overload$"`，并在测试体里追加 owner 注释解释 P4-T01a/c 之后 `Array.size()` 的 IR-emission 路径与 `MutableSet.len()` overload-aware symbol 的现行命名空间。
-- 不修改 `materialize.rs` production 路径、`sysroot/core.scoop`、`stdlib/collections_set.scoop`；严格限定为 test predicate 调整 + owner 注释。
-- 验证：
-  - `cargo test -p scoopc materialize_for_dump_keeps_set_alias`：1 passed；
-  - `cargo test -p scoopc`：861 passed / 0 failed（P4-T01i/j/k 三条 baseline noise 全部清空）；
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`：通过；
+- 改写 sysroot：`Bool/Char/Int/Float64/Float32/String` 改为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }`，删除冗余 `fun *.toString(): String` 顶层声明。
+- 删除 typecheck 内 `Int/Bool/Char/Float*.toString` 的 synthetic 直接返回类型短路；`Int/Char/Float* hash/toInt/abs/...` 等其它 by-name 路径保留。
+- 修改 HIR `should_keep_member_call_as_member_access`：从 `Int/Bool/Char/Float*` keep-list 中移除 `toString`。
+- 引入新 helper `try_extract_member_call_receiver_fqn_and_args`，让 builtin scalar 也能进入 nominal member-call 主线。
+- **遇到阻塞**：
+  - **gap 1**：`true.toString()` 即使在 typecheck 通过后，HIR → MIR 阶段也没有把 receiver 作为第 0 个 arg 传递，触发 `pass MIR direct call arity mismatch`；本任务原定不动 HIR/MIR 的 receiver-prefix 逻辑，但实际证明 `@Intrinsic struct/class` body method 主线在 builtin scalar receiver 上还需要补齐 receiver-prefix。
+  - **gap 2**：`println(<value>)` 在 sysroot 改写后报 `LLVM stage handoff 缺少 reachable callable scoop.core.ToString.toString 的 published late-lowered body`；说明 `ToString.toString` 在 builtin scalar override 引入后没有被 monomorphization / late lowering 正确发布 callable，与既有 `try_codegen_tostring_iface_builtin` 形成"双轨互相缺失"。
+- 按 `PROMPT.md` "Missing or Incomplete Language Features" 规则，把这两条阻塞拆为新前置 `P4-T01l` ([TODO])，回退当前会话内的 sysroot / typecheck / HIR 改动，等 `P4-T01l` 完成后再启动 `P4-T01` 的删除动作。
+- 已更新 `TODO.md`：顶部任务索引追加 `P4-T01l`；P4 前置 I 顺序约束行更新为十二个前置；`P4-T01l` 任务体说明 gap 1 / gap 2 与必须实现内容；`P4-T01` 依赖项更新为 `P4-T01l`。
+- 验证当前回退状态：
+  - `cargo build -p scoopc` 通过；
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 fixtures 全过；
-  - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 工作树仅剩 `TODO.md` / `memory/claude_plan.md` 待提交。
 
 ### 完成状态
 
-- 已完成：实现、回归、`[DONE]` 完成记录、`memory/claude_plan.md` 刷新；
-- 待提交：`crates/scoopc/src/mir/materialize.rs`、`TODO.md`、`memory/claude_plan.md`。
+- 未完成：`P4-T01` 仍是 `[TODO]`；本轮提交只增加 `P4-T01l` 前置任务并回退 P4-T01 主任务的代码改动；
+- 待提交：`TODO.md`、`memory/claude_plan.md`。
