@@ -5,7 +5,7 @@
 > 设计基线：[`MANAGED_ABI.md`](./MANAGED_ABI.md)  
 > 格式参考：`docs/archive/plans/TODO-pipeline-gaps.md`、`docs/archive/plans/PLAN-pipeline-gaps.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 与 ABI-specific `unsafe` / `@NoGC` 语义；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 只完成了 `sysroot/string.scoop` 中那批普通 helper，remaining string helper 仍依赖 compiler/runtime 特判。  
+> 当前状态：`ExternAbi::Scoop` 已完成 declaration / call lowering 与 ABI-specific `unsafe` / `@NoGC` 语义；native `@Extern` 与 `FunPtr` 已通过统一 native ABI classifier + surface gate / diagnostics 对齐 declaration / direct call / indirect call / MIR path；`string cone` 已完成 `sysroot/string.scoop` 中那批普通 helper，并新增了供后续 scalar `toString` 迁移使用的 sysroot scalar String bridge，但 remaining string helper 仍依赖 compiler/runtime 特判。  
 > 重要提醒：当前 mainline 已锁住 `unsafe_funptr_aggregate_return_tuple`、`extern_fun_effectful_funptr_is_error`、`single_file_minimal_ir_includes_compilable_sysroot_string_helpers` 等行为。除非先回写 `MANAGED_ABI.md` 与相关 fixture，否则不得把这些 current behavior 直接回退掉。
 
 ## 任务索引
@@ -25,7 +25,7 @@
 | `P4-T01c` | P4 前置 I | [DONE] `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | [DONE] 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | [DONE] 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
-| `P4-T01f` | P4 前置 III | 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
+| `P4-T01f` | P4 前置 III | [DONE] 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -73,6 +73,10 @@
   - `sysroot/string.scoop`
   - `crates/scoopc/src/llvm/tests.rs::single_file_minimal_ir_includes_compilable_sysroot_string_helpers`
   - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 中移除 `substring` / `starts_with/ends_with/index_of/contains/split/trim*` runtime declarations 的注释
+- 已具备 compiled sysroot scalar String bridge：
+  - `sysroot/scalar_string_bridge.scoop`
+  - `crates/scoopc/src/intrinsics.rs` 中的 `scalar_*_to_string_bridge` audited RuntimeCall entries
+  - `crates/scoopc/src/llvm/tests.rs::compiled_sysroot_scalar_string_bridge_helpers_stay_in_module`
 - remaining string special-case 主要集中在：
   - `sysroot/core.scoop`
   - `crates/scoopc/src/resolve/scopes.rs`
@@ -1033,7 +1037,7 @@
 
 ## P4 前置 III：sysroot scalar String bridge
 
-### [TODO] P4-T01f：为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge
+### [DONE] P4-T01f：为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4 / §5 / P4
@@ -1063,6 +1067,31 @@
 - 完成条件：
   - `P4-T01` 可以直接把 scalar `toString` body 写成 sysroot ordinary code + managed wrapper，而不需要再碰 native surface contract，也不需要继续借用旧名字特判来“自举”。
 - 依赖：`P4-T01e`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/{intrinsics.rs,llvm/codegen/intrinsics/named.rs,sysroot/mod.rs,llvm/tests.rs}`
+    - `sysroot/scalar_string_bridge.scoop`
+    - `tests/fixtures/{typecheck/extern_fun_signature_with_string_return_is_error.scoop,run-pass/sysroot_scalar_string_bridge_basic.scoop}`
+    - `MANAGED_ABI.md`
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - 不放宽 native `@Extern` gate；`check_extern_fun_signature_matches_native_abi()` 保持不变，继续拒绝 `String` / managed ref 进入 C ABI。native `@Extern` 继续只表达已发布的 native surface，本任务没有向 allowlist 塞 `String` 特例。
+    - 复用 named intrinsic `RuntimeCall` 审计表，把 `scoop_char_to_string` / `scoop_int_to_string` / `scoop_float32_to_string` / `scoop_float64_to_string` 收口为四个显式 `scalar_*_to_string_bridge` entry；同时补齐共享 runtime 签名类型（`I32/I64/Float32/Float64/StringRef`），让 bridge 的 ABI 与返回 `String` 语义都能精确表达，而不是退回 word-sized / generic `GcRef` 近似。
+    - 新增 `sysroot/scalar_string_bridge.scoop` 作为始终编译的 sysroot support source，用 ordinary managed helper `scoopAbiCharToString` / `scoopAbiIntToString` / `scoopAbiFloat32ToString` / `scoopAbiFloat64ToString` 包住 audited runtime bridge；这样后续 `P4-T01` 可以直接在 bodied sysroot method 中调用这些 helper，而不必借旧 `toString` FQN intercept 自举。
+    - 在 `MANAGED_ABI.md` 明确写下 ownership：底层 `scoop_*_to_string` 仍是 runtime substrate，因为它们负责分配 managed `String`；但它们只通过已审计的 compiled sysroot bridge 暴露，不构成新的 native `@Extern` 用户态能力。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc compiled_sysroot_scalar_string_bridge_helpers_stay_in_module -- --nocapture`
+    - `cargo test -p scoopc named_intrinsic -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_string_return_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/extern_fun_signature_with_gc_ref_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_scalar_string_bridge_basic.scoop`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 仍返回 `0 passed; 861 filtered out`，因此本任务的实际 LLVM owner coverage 以上面的定向 owner test 为准）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 III：compiled sysroot 现在已有一条不放宽 native surface 的 scalar `String` bridge，后续 bodied `toString` method 可以通过 ordinary managed helper 触达现有 runtime substrate，而不需要继续借 `toString` 按名特判自举。
+    - `MANAGED_ABI.md` §9.3 已补充当前 bridge 边界：`scoop_{char,int,float32,float64}_to_string` 仍是 substrate helper，但只通过 audited sysroot bridge 暴露；native `@Extern` 仍不接受 `String` / managed ref surface。
 
 ## P4：string cone tracer bullet
 

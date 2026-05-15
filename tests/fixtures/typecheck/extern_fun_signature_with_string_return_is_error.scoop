@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_not_supported_by_native_abi
+// EXPECT-ERROR: native ABI
+// EXPECT-ERROR: String
+// 目标：P4-T01f native `@Extern` 仍不得把 `String` 作为 C ABI 返回值暴露给用户源码。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_string_helper")
+fun nativeStringHelper(value: Int): String

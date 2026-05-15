@@ -113,15 +113,19 @@ impl Sysroot {
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
 /// 当前规则：
-/// - `string.scoop`、`print.scoop` 与 `task.scoop` 一直是 support sources；
+/// - `string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop` 一直是 support sources；
 /// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
 fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
     is_always_compilable_sysroot_file(path) || has_bodied_intrinsic_nominal_method(source, ast)
 }
 
 fn is_always_compilable_sysroot_file(path: &Path) -> bool {
-    path.file_name()
-        .is_some_and(|name| name == "string.scoop" || name == "print.scoop" || name == "task.scoop")
+    path.file_name().is_some_and(|name| {
+        name == "string.scoop"
+            || name == "print.scoop"
+            || name == "scalar_string_bridge.scoop"
+            || name == "task.scoop"
+    })
 }
 
 fn has_bodied_intrinsic_nominal_method(source: &SourceFile, ast: &crate::ast::File) -> bool {

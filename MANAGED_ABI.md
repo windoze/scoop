@@ -577,6 +577,15 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
 
 不应继续把 `Int.toString` 这类公共 helper 算作 runtime 核心。
 
+当前实现对标量 `toString` 采用了更明确的 bridge 边界：
+
+- `scoop_char_to_string` / `scoop_int_to_string` / `scoop_float32_to_string` / `scoop_float64_to_string`
+  仍留在 runtime substrate，因为它们直接负责分配并返回 managed `String`；
+- 但这些 symbol 不再被视为 source-level native `@Extern` surface；native ABI 仍继续拒绝 `String` /
+  managed ref 进出边界；
+- compiled sysroot 通过一组已审计的 named intrinsic runtime-bridge entry 导入它们，再由 ordinary managed
+  helper（`scoopAbi*ToString`）对上层 sysroot body 暴露稳定落点。
+
 ### 9.4 试点实施顺序
 
 建议顺序：

@@ -1,0 +1,36 @@
+// EXPECT: pass
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun main(): Int {
+    val narrow: Float32 = 1.5
+    val wide: Float64 = 2.25
+    val intText: String = scoopAbiIntToString(42)
+    val charText: String = scoopAbiCharToString('A')
+    val narrowText: String = scoopAbiFloat32ToString(narrow)
+    val wideText: String = scoopAbiFloat64ToString(wide)
+
+    __scoop_gc_collect()
+
+    if (intText != "42") {
+        return 1
+    }
+    if (charText != "A") {
+        return 2
+    }
+    if (narrowText != "1.5") {
+        return 3
+    }
+    if (wideText != "2.25") {
+        return 4
+    }
+
+    val joined: String = intText.concat("-").concat(charText)
+    if (joined != "42-A") {
+        return 5
+    }
+
+    return 0
+}
