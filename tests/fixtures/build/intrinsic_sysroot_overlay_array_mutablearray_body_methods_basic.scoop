@@ -1,0 +1,36 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+//
+// P4-T01c：task-specific overlay `core.scoop` 可把真实 `scoop.core.Array<T>` / `MutableArray<T>`
+// 改写为 bodied `@Intrinsic class`，并沿用 generic class member path 进入 codegen。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun read(it: DummyIter): Int {
+    return it.token()
+}
+
+fun main(): Int {
+    val arrInt: Array<Int> = Array(7)
+    val arrBool: Array<Bool> = Array(false)
+    val mutInt: MutableArray<Int> = MutableArray(11)
+
+    if (read(arrInt) != 40) {
+        return 1
+    }
+    if (arrInt.echo(7) != 7) {
+        return 2
+    }
+    if (arrBool.echo(false) != false) {
+        return 3
+    }
+    if (read(mutInt) != 50) {
+        return 4
+    }
+    if (mutInt.echo(11) != 11) {
+        return 5
+    }
+    return 0
+}

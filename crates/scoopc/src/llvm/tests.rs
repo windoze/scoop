@@ -126,7 +126,7 @@ use crate::hir;
 use crate::opt::OptLevel;
 use crate::parser::parse_file;
 use crate::resolve::Index;
-use crate::session::Session;
+use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
 use crate::ty::TypeStore;
 use inkwell::context::Context;
@@ -1716,6 +1716,137 @@ fun main(): Int {
     assert!(
         !ir.contains("refactor_itable_dynamic_entry"),
         "plain value-box interface dispatch 不应为 struct receiver 发布 itable thunk shell:\n{ir}"
+    );
+}
+
+#[test]
+fn intrinsic_value_box_interface_itable_points_directly_to_struct_body_method_symbol() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/p4_t01c_intrinsic_value_box_itable.scoop",
+        r#"
+@file:AllowIntrinsic
+
+package fixtures.p4t01c
+
+import scoop.core.*
+
+interface DummyIface {
+    fun m(): Int
+}
+
+@Intrinsic
+struct Dummy() : DummyIface {
+    override fun m(): Int {
+        return 41
+    }
+}
+
+fun read(it: DummyIface): Int {
+    return it.m()
+}
+
+fun main(): Int {
+    val value: DummyIface = Dummy()
+    return read(value)
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let method_ir = function_ir_matching(
+        &ir,
+        "intrinsic value-box struct interface impl",
+        |header, _| header.contains("@__scoop_abi0_fun__fixtures_p4t01c_Dummy_m__h"),
+    );
+    let method_symbol = llvm_function_symbol_name(method_ir);
+
+    assert!(
+        ir.lines().any(|line| {
+            line.contains("@__scoop_priv0__itable_methods__h")
+                && line.contains(&format!("@{method_symbol}"))
+        }),
+        "intrinsic value-box itable method table 应直接引用 struct body method symbol，而不是额外 thunk:\n{ir}"
+    );
+    assert!(
+        !ir.contains("refactor_itable_dynamic_entry"),
+        "intrinsic value-type interface dispatch 不应要求新的 box thunk shell:\n{ir}"
+    );
+}
+
+#[test]
+fn overlay_core_intrinsic_array_methods_lower_through_ordinary_generic_class_path() {
+    let repo_root = stable_id_repo_root();
+    let fixture = repo_root.join(
+        "tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.scoop",
+    );
+    let overlay_root = repo_root.join(
+        "tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot",
+    );
+    let source = SourceFile::load(&fixture).unwrap();
+    let session =
+        Session::with_options(SessionOptions::new().with_sysroot_overlay(overlay_root.clone()))
+            .unwrap();
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let array_token_ir = function_ir_matching(&ir, "overlay Array.token body", |_, function| {
+        let symbol = llvm_function_symbol_name(function);
+        stable_id_symbol_is_exported_abi_fun(symbol)
+            && stable_id_symbol_mentions_fqn(symbol, "scoop.core.Array.token")
+    });
+    let mutable_echo_ir =
+        function_ir_matching(&ir, "overlay MutableArray.echo body", |_, function| {
+            let symbol = llvm_function_symbol_name(function);
+            stable_id_symbol_is_exported_abi_fun(symbol)
+                && stable_id_symbol_mentions_fqn(symbol, "scoop.core.MutableArray.echo")
+        });
+
+    assert!(
+        llvm_function_symbol_name(array_token_ir).contains("scoop_core_Array_token"),
+        "overlay Array.token 应作为 ordinary generic class member materialize 为 ABI fun symbol:\n{ir}"
+    );
+    assert!(
+        llvm_function_symbol_name(mutable_echo_ir).contains("scoop_core_MutableArray_echo"),
+        "overlay MutableArray.echo 应作为 ordinary generic class member materialize 为 ABI fun symbol:\n{ir}"
+    );
+    assert!(
+        overlay_root.is_dir(),
+        "overlay fixture companion dir should exist: {}",
+        overlay_root.display()
+    );
+}
+
+#[test]
+fn intrinsic_nominal_body_method_fixtures_do_not_introduce_by_name_compiler_paths() {
+    let compiler_root = stable_id_repo_root().join("crates/scoopc/src");
+    let mut files = Vec::new();
+    stable_id_collect_audit_files("crates/scoopc/src", &compiler_root, &mut files);
+
+    let forbidden_needles = ["DummyIface", "DummyIter"];
+    let mut hits = Vec::new();
+    for (_, path) in files {
+        if path.file_name().and_then(|name| name.to_str()) == Some("tests.rs") {
+            continue;
+        }
+        let Ok(contents) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (line_number, line) in contents.lines().enumerate() {
+            if forbidden_needles.iter().any(|needle| line.contains(needle)) {
+                hits.push(format!(
+                    "{}:{}: {}",
+                    stable_id_relative_repo_path(&path),
+                    line_number + 1,
+                    line.trim()
+                ));
+            }
+        }
+    }
+
+    assert!(
+        hits.is_empty(),
+        "P4-T01c 不应为 fixture interface 名字新增编译器按名分支；命中位置:\n{}",
+        hits.join("\n")
     );
 }
 

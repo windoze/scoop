@@ -398,12 +398,12 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@Intrinsic` 类型中的成员函数必须省略函数体：{type_fqn}.{fun_name}")]
-    #[diagnostic(code(scoop::typecheck::intrinsic_member_fun_must_have_no_body))]
-    IntrinsicMemberFunMustHaveNoBody {
+    #[error("`@Intrinsic` 类型不能声明字段：{type_fqn}.{field_name}（layout 仍由编译器内置）")]
+    #[diagnostic(code(scoop::typecheck::intrinsic_type_field_not_supported))]
+    IntrinsicTypeFieldNotSupported {
         type_fqn: String,
-        fun_name: String,
-        #[label("这里不应有函数体")]
+        field_name: String,
+        #[label("这里声明了字段")]
         span: miette::SourceSpan,
     },
 
@@ -3017,23 +3017,35 @@ fn check_builtin_annotations_on_type_decl(
         }
     }
 
-    // spec §15.7：intrinsic declarations have signatures but no bodies。
-    // 当前阶段只对“成员函数是否带 body”做最小门禁（不涉及 codegen lowering）。
+    // `@Intrinsic struct/class`：layout 仍由编译器内置，因此不允许声明会引入存储布局的字段。
+    // 普通成员函数 body 则按常规 nominal path 继续进入后续 lowering/codegen。
     if flags.is_intrinsic {
-        let Some(body) = &decl.body else {
-            return Ok(());
-        };
-        for m in &body.members {
-            let ast::TypeMember::Fun(fun) = m else {
-                continue;
-            };
-            if let ast::FunBody::Block(b) = &fun.body {
-                let fun_name = source.slice(fun.name.span).to_string();
-                return Err(AnnotationError::IntrinsicMemberFunMustHaveNoBody {
-                    type_fqn: type_fqn.to_string(),
-                    fun_name,
-                    span: b.span.into(),
-                });
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for param in &primary_ctor.params {
+                if param.kind.is_some() {
+                    let field_name = source.slice(param.name.span).to_string();
+                    return Err(AnnotationError::IntrinsicTypeFieldNotSupported {
+                        type_fqn: type_fqn.to_string(),
+                        field_name,
+                        span: param.name.span.into(),
+                    });
+                }
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(property) = member else {
+                    continue;
+                };
+                if property.is_direct_field() {
+                    let field_name = source.slice(property.name.span).to_string();
+                    return Err(AnnotationError::IntrinsicTypeFieldNotSupported {
+                        type_fqn: type_fqn.to_string(),
+                        field_name,
+                        span: property.name.span.into(),
+                    });
+                }
             }
         }
     }
@@ -3061,10 +3073,17 @@ fn check_intrinsic_builtin_annotation_gate(
 }
 
 fn source_is_sysroot(source: &SourceFile) -> bool {
-    source
-        .path()
-        .components()
-        .any(|component| component.as_os_str() == std::ffi::OsStr::new("sysroot"))
+    source.is_sysroot()
+        || source
+            .path()
+            .components()
+            .any(|component| component.as_os_str() == std::ffi::OsStr::new("sysroot"))
+        || source.path().components().any(|component| {
+            component
+                .as_os_str()
+                .to_str()
+                .is_some_and(|name| name.ends_with(".sysroot"))
+        })
 }
 
 fn check_builtin_annotations_on_object_decl(

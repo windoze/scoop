@@ -10,11 +10,18 @@ use miette::{Result, miette};
 
 use crate::span::Span;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceOrigin {
+    User,
+    Sysroot,
+}
+
 /// 单个源文件。
 #[derive(Debug, Clone)]
 pub struct SourceFile {
     path: PathBuf,
     text: String,
+    origin: SourceOrigin,
     /// 每一行起始的字节偏移（包含第 0 行的 0）。
     line_starts: Vec<usize>,
 }
@@ -22,6 +29,14 @@ pub struct SourceFile {
 impl SourceFile {
     /// 从磁盘读取源文件。
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
+        Self::load_with_origin(path, SourceOrigin::User)
+    }
+
+    pub fn load_sysroot(path: impl AsRef<Path>) -> Result<Self> {
+        Self::load_with_origin(path, SourceOrigin::Sysroot)
+    }
+
+    pub fn load_with_origin(path: impl AsRef<Path>, origin: SourceOrigin) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         let text = std::fs::read_to_string(&path)
             .map_err(|e| miette!("读取源文件失败：{}: {}", path.display(), e))?;
@@ -31,17 +46,27 @@ impl SourceFile {
         Ok(Self {
             path,
             text,
+            origin,
             line_starts,
         })
     }
 
     /// 创建一个“虚拟源文件”（常用于单元测试）。
     pub fn new_virtual(path: impl Into<PathBuf>, text: impl Into<String>) -> Self {
+        Self::new_virtual_with_origin(path, text, SourceOrigin::User)
+    }
+
+    pub fn new_virtual_with_origin(
+        path: impl Into<PathBuf>,
+        text: impl Into<String>,
+        origin: SourceOrigin,
+    ) -> Self {
         let text = text.into();
         let line_starts = compute_line_starts(&text);
         Self {
             path: path.into(),
             text,
+            origin,
             line_starts,
         }
     }
@@ -52,6 +77,14 @@ impl SourceFile {
 
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    pub fn origin(&self) -> SourceOrigin {
+        self.origin
+    }
+
+    pub fn is_sysroot(&self) -> bool {
+        self.origin == SourceOrigin::Sysroot
     }
 
     /// 根据 span 切片源文本。
@@ -329,6 +362,7 @@ mod tests {
         let file = SourceFile {
             path: PathBuf::from("<mem>"),
             text: "a\nbcd\nef".to_string(),
+            origin: SourceOrigin::User,
             line_starts: compute_line_starts("a\nbcd\nef"),
         };
 
@@ -344,6 +378,7 @@ mod tests {
         let file = SourceFile {
             path: PathBuf::from("<mem>"),
             text: "a中b".to_string(),
+            origin: SourceOrigin::User,
             line_starts: compute_line_starts("a中b"),
         };
 

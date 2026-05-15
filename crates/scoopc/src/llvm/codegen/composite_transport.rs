@@ -63,7 +63,7 @@ struct CompositeTransportLayoutDescriptor {
 
 impl CompositeTransportLayoutDescriptor {
     fn validate(&self, metadata: &ValueTransportMetadata) -> Result<(), &'static str> {
-        if self.size_bytes == 0 || self.align_bytes == 0 {
+        if self.align_bytes == 0 {
             return Err("composite transport layout descriptor has invalid size or alignment");
         }
         if metadata.requirements.trace && !self.trace_hook && self.gc_slot_offsets.is_empty() {

@@ -1,0 +1,25 @@
+// EXPECT: pass
+//
+// P4-T01c：`@Intrinsic class` 应允许在 body 内声明不带 `override` 的 ordinary instance method，
+// 后续为内建类型迁移非 interface method 时不应再要求 extension-only/compiler-only 路径。
+
+@file:AllowIntrinsic
+
+package fixtures.runpass
+
+import scoop.core.*
+
+@Intrinsic
+class Helper() {
+    fun value(): Int {
+        return 7
+    }
+}
+
+fun main(): Int {
+    val helper: Helper = Helper()
+    if (helper.value() != 7) {
+        return 1
+    }
+    return 0
+}

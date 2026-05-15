@@ -22,7 +22,7 @@
 | `P4-T01a` | P4 前置 I | [DONE] 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
 | `P4-T01b` | P4 前置 I | [DONE] vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
 | `P4-T01c-pre1` | P4 前置 I | [DONE] 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
-| `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
+| `P4-T01c` | P4 前置 I | [DONE] `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
@@ -752,7 +752,7 @@
     - 对应 `PLAN.md` P4 前置 I 的 sysroot overlay 前置要求：后续 `P4-T01c` 现可在不复制整份 `sysroot/` 的前提下，用真实 `scoop.core.Array` / `MutableArray` FQN 编写 task-specific overlay fixture，并同时覆盖 fixture harness、internal build path 与外部 `scoop run` CLI 路径。
     - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有提前实现 `@Intrinsic struct/class` method body；它只提供后续任务所需的测试基础设施与 compilable-sysroot gate。
 
-### [TODO] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
+### [DONE] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置"
@@ -798,6 +798,43 @@
   - P4 前置 II 可以在此基础上扩展 method-level `@Intrinsic("name")` surface；
   - P4-T01 在 P4 前置 I/II 都完成后只需"sysroot 改写 + 删旧 by-name 特判"，编译器侧不再需要为单个 non-generic interface 加任何配套改动。
 - 依赖：`P4-T01c-pre1`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/{source.rs,sysroot/mod.rs,frontend.rs}`
+    - `crates/scoopc/src/typecheck/{annotations.rs,inheritance.rs}`
+    - `crates/scoopc/src/llvm/codegen/composite_transport.rs`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `tests/fixtures/run-pass/{intrinsic_struct_interface_body_method_basic.scoop,intrinsic_class_body_method_basic.scoop,intrinsic_generic_class_body_method_basic.scoop}`
+    - `tests/fixtures/typecheck/{intrinsic_user_bodied_type_without_allow_intrinsic_is_error.scoop,intrinsic_type_body_field_is_error.scoop,intrinsic_type_ctor_field_is_error.scoop}`
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.scoop`
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot/core.scoop`
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - `@Intrinsic struct/class` 的前端门禁从“成员函数必须无 body”改为“禁止声明字段，但允许 ordinary instance method body”；字段约束同时覆盖 direct body property 与 ctor property field，从而保持 layout 仍由编译器内置决定。
+    - 为 `SourceFile` 引入显式 sysroot 来源标记，并让 sysroot/support-source 加载链路保留该身份；这样 task-specific overlay `core.scoop` 会天然通过 `@AllowIntrinsic` gate，而不会被误判成用户源码。
+    - class `override` 校验现在把 direct interface 成员也视为合法目标：没有 superclass 的 class、或 superclass 不提供该成员的 class，仍可对 direct interface method 显式写 `override`；未显式 `override` 的 interface impl 继续保持现有允许行为。
+    - zero-field intrinsic struct 继续保留 nominal value-box/type-desc/itable 身份；本任务不把它降格成 generic `BoxedUnit`，而是放宽 composite transport 对 `size_bytes == 0` 的禁令，保证 zero-sized nominal payload 能走完整 MIR/LLVM/interface-dispatch 路径。
+    - 通过 fixture + LLVM owner tests 双锁：用户态 intrinsic struct/class、generic intrinsic class，以及 overlay `Array<T>` / `MutableArray<T>` 都无需新增任何 `DummyIface`/`DummyIter` 之类的按名编译器分支。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_struct_interface_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_generic_class_body_method_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_user_bodied_type_without_allow_intrinsic_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_type_body_field_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_type_ctor_field_is_error.scoop`
+    - `cargo test -p scoopc intrinsic_value_box_interface_itable_points_directly_to_struct_body_method_symbol -- --nocapture`
+    - `cargo test -p scoopc overlay_core_intrinsic_array_methods_lower_through_ordinary_generic_class_path -- --nocapture`
+    - `cargo test -p scoopc intrinsic_nominal_body_method_fixtures_do_not_introduce_by_name_compiler_paths -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（本轮新增 intrinsic fixtures 全部通过；仍保留两个既存失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`）
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness filter 仍返回 `0 passed; 854 filtered out`，因此本任务的实际 LLVM owner coverage 以上面三条新增 test 为准）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 I：`@Intrinsic struct/class` 的 ordinary method body 现已在 parser/typecheck/HIR/MIR/codegen 全链路落地，non-generic 与 generic 两条 nominal method path 都能在不新增 by-name 编译器后门的前提下工作。
+    - sysroot overlay fixture 现在可以把真实 `scoop.core.Array<T>` / `MutableArray<T>` 改写成 bodied intrinsic generic class，并沿用现有 generic class member + interface dispatch 路径进入 codegen，为后续 `P4-T01d/P4-T01e` 的 method-level intrinsic 表机制提供稳定前置。
+    - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有提前迁移 `Int/String/Char/Float*` 的真实 sysroot 声明；这些内建类型的 body 搬迁与 by-name 删除仍按顺序留给后续 `P4-T01`。
 
 ## P4 前置 II：intrinsic 表 IR-emission 与 runtime 收缩（Array/MutableArray 起步）
 

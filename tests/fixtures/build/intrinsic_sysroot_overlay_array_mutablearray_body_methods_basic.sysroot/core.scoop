@@ -1,0 +1,283 @@
+package scoop.core
+
+interface Any
+
+interface Hashable {
+    fun hash(): Int {
+        return 0
+    }
+}
+
+interface ToString {
+    fun toString(): String {
+        return ""
+    }
+}
+
+interface DummyIter {
+    fun token(): Int
+}
+
+struct Bool : Hashable, ToString
+struct Char : Hashable, ToString
+struct Float64 : Hashable, ToString
+struct Float32 : Hashable, ToString
+class String : Hashable, ToString
+typealias Double = Float64
+
+@Intrinsic
+class Array<T>(seed: T) : DummyIter {
+    override fun token(): Int {
+        return 40
+    }
+
+    fun echo(value: T): T {
+        return value
+    }
+}
+
+@Intrinsic
+class MutableArray<T>(seed: T) : DummyIter {
+    override fun token(): Int {
+        return 50
+    }
+
+    fun echo(value: T): T {
+        return value
+    }
+}
+
+typealias List<T> = Array<T>
+typealias MutableList<T> = MutableArray<T>
+
+fun <T> Array<T>.size(): Int
+fun <T> Array<T>.get(index: Int): T
+
+fun <T> MutableArray<T>.size(): Int
+fun <T> MutableArray<T>.get(index: Int): T
+fun <T> MutableArray<T>.set(index: Int, value: T): Unit
+
+fun MutableArray<Int>.toArray(): Array<Int>
+
+class ComptimeList<T>
+struct Unit
+enum Nothing
+
+enum AnnotationTarget {
+    Function,
+    Property,
+    Field,
+    Param,
+    Type,
+    Constructor,
+    LocalVariable,
+    Expression,
+    Module,
+    TypeParam,
+    EnumVariant,
+}
+
+annotation class TailRec
+
+@Target(AnnotationTarget.Function)
+annotation class Inline
+
+annotation class AllowIntrinsic
+annotation class Deprecated(val message: String = "", val replaceWith: String = "")
+annotation class Suppress(vararg val warnings: String)
+annotation class Experimental(val feature: String)
+annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
+annotation class Target(val targets: AnnotationTarget)
+annotation class Retention(val policy: String)
+annotation class ThreadLocal
+annotation class Global
+
+fun Char.toInt(): Int
+fun Char.toString(): String
+fun Float64.toInt(): Int
+fun Float64.toString(): String
+fun Float64.hash(): Int
+fun Float64.abs(): Float64
+fun Float64.isNaN(): Bool
+fun Float64.isInfinite(): Bool
+fun Float32.toInt(): Int
+fun Float32.toString(): String
+fun Float32.hash(): Int
+fun Float32.abs(): Float32
+fun Float32.isNaN(): Bool
+fun Float32.isInfinite(): Bool
+fun Int.toString(): String
+fun Bool.toString(): String
+fun String.toString(): String
+fun Char.hash(): Int
+
+fun <T> print(value: T): Unit where T: ToString
+fun <T> println(value: T): Unit where T: ToString
+
+fun __scoop_print_string(value: String): Unit
+fun __scoop_println_string(value: String): Unit
+
+fun __scoop_gc_collect(): Unit
+fun __scoop_gc_debug_heap_object_count(): Int
+fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+fun __scoop_stackmap_statepoint_smoke(): Int
+
+@Intrinsic
+object GC {
+    @Unsafe
+    fun handleNew(obj: Any): GcHandle
+
+    @NoGC @Unsafe
+    fun handleGet(h: GcHandle): Any
+
+    @NoGC @Unsafe
+    fun handleDrop(h: GcHandle): Unit
+
+    @NoGC @Unsafe
+    fun pin(obj: Any): Pinned
+
+    @NoGC @Unsafe
+    fun unpin(pinned: Pinned): Unit
+}
+
+struct GcHandle(val raw: UIntPtr)
+struct Pinned(val value: Any)
+
+enum TypeKind {
+    Struct,
+    Enum,
+    Class,
+    Interface,
+    Effect,
+    Tuple,
+    Primitive,
+}
+
+struct TypeMeta {
+    val name: String
+    val kind: TypeKind
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct FieldMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct VariantMeta {
+    val name: String
+    val fields: ComptimeList<FieldMeta>
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct ParamMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct PropertyMeta {
+    val name: String
+    val type: TypeMeta
+    val owner: TypeMeta
+}
+
+struct FunctionMeta {
+    val name: String
+}
+
+struct AnnotationMeta {
+    val name: String
+    val args: ComptimeList<AnnotationArgMeta>
+}
+
+struct AnnotationArgMeta {
+    val name: String
+    val value: Any
+}
+
+struct Int : Hashable, ToString
+struct UInt : Hashable
+struct Int8 : Hashable
+struct Int16 : Hashable
+struct Int32 : Hashable
+struct Int64 : Hashable
+struct UInt8 : Hashable
+struct UInt16 : Hashable
+struct UInt32 : Hashable
+struct UInt64 : Hashable
+
+struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+
+typealias Byte = UInt8
+typealias Short = Int16
+typealias UShort = UInt16
+typealias Long = Int64
+typealias ULong = UInt64
+typealias UIntPtr = UInt
+
+@Intrinsic
+fun sizeOf(value: Int): Int
+@Intrinsic
+fun sizeOf(value: String): Int
+
+@Intrinsic
+const fun <T> nameOf(): String
+@Intrinsic
+const fun <T> sizeOf(): Int
+@Intrinsic
+const fun <T> alignOf(): Int
+@Intrinsic
+const fun <T> fieldsOf(): ComptimeList<FieldMeta>
+@Intrinsic
+const fun <T> variantsOf(): ComptimeList<VariantMeta>
+@Intrinsic
+const fun <T> superTypesOf(): ComptimeList<TypeMeta>
+@Intrinsic
+const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+@Intrinsic
+const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+
+struct Platform {
+    val triple: String
+    val arch: String
+    val vendor: String
+    val os: String
+    val env: String
+}
+
+@Intrinsic
+const fun getPlatform(): Platform
+
+enum Option<T> {
+    Some(val value: T),
+    None
+}
+
+fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
+fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
+fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
+fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
+
+interface Continuation<Resume, Answer, eff E = Pure> {
+    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+}
+
+fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
+fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
+
+enum RuntimeError {
+    NullAssertionFailed,
+    ClassCastFailed,
+    ContinuationAlreadyResumed,
+}
+
+fun panic(message: String): Nothing
+
+effect Raise<in E> {
+    fun raise(error: E): Nothing
+}

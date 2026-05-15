@@ -183,18 +183,20 @@ fn check_one_class(
 
     // 若没有 superclass，则任何 `override` 都应报错。
     let Some(base_fqn) = superclass_fqn else {
-        check_class_members_against_no_superclass(source, decl, class_fqn)?;
+        check_class_members_against_no_superclass(source, file, decl, class_fqn, index)?;
         return Ok(());
     };
 
-    check_class_members_against_superclass(source, decl, class_fqn, &base_fqn, index)?;
+    check_class_members_against_superclass(source, file, decl, class_fqn, &base_fqn, index)?;
     Ok(())
 }
 
 fn check_class_members_against_no_superclass(
     source: &SourceFile,
+    file: &ast::File,
     decl: &ast::TypeDecl,
     class_fqn: &str,
+    index: &Index,
 ) -> Result<(), InheritanceError> {
     let Some(body) = &decl.body else {
         return Ok(());
@@ -206,6 +208,9 @@ fn check_class_members_against_no_superclass(
                 if !p.modifiers.contains(&ast::Modifier::Override) {
                     continue;
                 }
+                if direct_interface_property_override_target_exists(source, file, decl, index, p) {
+                    continue;
+                }
                 let name = source.slice(p.name.span).to_string();
                 return Err(InheritanceError::OverrideTargetNotFound {
                     class_fqn: class_fqn.to_string(),
@@ -215,6 +220,9 @@ fn check_class_members_against_no_superclass(
             }
             ast::TypeMember::Fun(f) => {
                 if !f.modifiers.contains(&ast::Modifier::Override) {
+                    continue;
+                }
+                if direct_interface_fun_override_target_exists(source, file, decl, index, f) {
                     continue;
                 }
                 let name = source.slice(f.name.span).to_string();
@@ -237,6 +245,7 @@ fn check_class_members_against_no_superclass(
 
 fn check_class_members_against_superclass(
     source: &SourceFile,
+    file: &ast::File,
     decl: &ast::TypeDecl,
     class_fqn: &str,
     base_fqn: &str,
@@ -249,10 +258,22 @@ fn check_class_members_against_superclass(
     for member in &body.members {
         match member {
             ast::TypeMember::Property(p) => {
-                check_property_override(source, class_fqn, base_fqn, p, index)?;
+                match check_property_override(source, class_fqn, base_fqn, p, index) {
+                    Err(InheritanceError::OverrideTargetNotFound { .. })
+                        if direct_interface_property_override_target_exists(
+                            source, file, decl, index, p,
+                        ) => {}
+                    other => other?,
+                }
             }
             ast::TypeMember::Fun(f) => {
-                check_fun_override(source, class_fqn, base_fqn, f, index)?;
+                match check_fun_override(source, class_fqn, base_fqn, f, index) {
+                    Err(InheritanceError::OverrideTargetNotFound { .. })
+                        if direct_interface_fun_override_target_exists(
+                            source, file, decl, index, f,
+                        ) => {}
+                    other => other?,
+                }
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::InitBlock(_)
@@ -373,4 +394,54 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn direct_interface_property_override_target_exists(
+    source: &SourceFile,
+    file: &ast::File,
+    decl: &ast::TypeDecl,
+    index: &Index,
+    property: &ast::PropertyDecl,
+) -> bool {
+    let name = source.slice(property.name.span).to_string();
+    decl.supertypes
+        .iter()
+        .filter(|st| st.ctor_args_span.is_none())
+        .filter_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty))
+        .any(|interface_fqn| {
+            index
+                .by_fqn
+                .get(&format!("{interface_fqn}.{name}"))
+                .and_then(|syms| syms.value.as_ref())
+                .is_some()
+        })
+}
+
+fn direct_interface_fun_override_target_exists(
+    source: &SourceFile,
+    file: &ast::File,
+    decl: &ast::TypeDecl,
+    index: &Index,
+    fun: &ast::FunDecl,
+) -> bool {
+    let name = source.slice(fun.name.span).to_string();
+    let derived_param_len = fun.params.len();
+    let derived_has_receiver = fun.receiver.is_some();
+
+    decl.supertypes
+        .iter()
+        .filter(|st| st.ctor_args_span.is_none())
+        .filter_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty))
+        .any(|interface_fqn| {
+            index
+                .by_fqn
+                .get(&format!("{interface_fqn}.{name}"))
+                .map(|syms| {
+                    syms.fun.iter().any(|overload| {
+                        overload.sig.params.len() == derived_param_len
+                            && overload.sig.receiver.is_some() == derived_has_receiver
+                    })
+                })
+                .unwrap_or(false)
+        })
 }

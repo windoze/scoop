@@ -67,7 +67,7 @@ impl Sysroot {
         let mut files = Vec::new();
         let mut compilable_source_paths = Vec::new();
         for path in paths {
-            let source = SourceFile::load(&path)?;
+            let source = SourceFile::load_sysroot(&path)?;
             let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
 
@@ -169,7 +169,7 @@ pub fn collect_compilable_sysroot_files(
     out: &mut Vec<PathBuf>,
 ) -> Result<()> {
     for path in collect_merged_sysroot_paths(root, overlay_root)? {
-        let source = SourceFile::load(&path)?;
+        let source = SourceFile::load_sysroot(&path)?;
         let ast = crate::parser::parse_file(&source)
             .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
         if is_compilable_sysroot_file(&path, &source, &ast) {

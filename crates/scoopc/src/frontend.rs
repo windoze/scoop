@@ -748,24 +748,37 @@ fn load_default_support_sources(session_options: &SessionOptions) -> Result<Vec<
         .into_diagnostic()
         .wrap_err("无法定位 stdlib 目录（T1315a）")?;
 
-    let mut paths = Vec::new();
-    collect_scoop_files(&root, &mut paths)?;
+    let mut support_paths: Vec<(PathBuf, bool)> = Vec::new();
+    let mut stdlib_paths = Vec::new();
+    collect_scoop_files(&root, &mut stdlib_paths)?;
+    support_paths.extend(stdlib_paths.into_iter().map(|path| (path, false)));
 
     let sysroot_root = crate::sysroot::Sysroot::default_path()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
+    let mut compilable_sysroot_paths = Vec::new();
     crate::sysroot::collect_compilable_sysroot_files(
         &sysroot_root,
         session_options.sysroot_overlay(),
-        &mut paths,
+        &mut compilable_sysroot_paths,
     )?;
 
-    paths.sort();
+    support_paths.extend(
+        compilable_sysroot_paths
+            .into_iter()
+            .map(|path| (path, true)),
+    );
 
-    let mut out = Vec::with_capacity(paths.len());
-    for path in paths {
-        out.push(SourceFile::load(&path)?);
+    support_paths.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+
+    let mut out = Vec::with_capacity(support_paths.len());
+    for (path, is_sysroot) in support_paths {
+        out.push(if is_sysroot {
+            SourceFile::load_sysroot(&path)?
+        } else {
+            SourceFile::load(&path)?
+        });
     }
     Ok(out)
 }
