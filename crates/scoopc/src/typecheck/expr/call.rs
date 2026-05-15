@@ -2390,9 +2390,15 @@ pub(super) fn infer_call_expr_type(
                 }
 
                 // T0454/T4010b0：nominal 构造调用（class ctor / struct field constructor）重载决议。
-                if let Some(ctor_ty) =
-                    infer_nominal_constructor_call_expr_type(inputs, call_expr, id, args, lower)?
-                {
+                if let Some(ctor_ty) = infer_nominal_constructor_call_expr_type(
+                    inputs,
+                    call_expr,
+                    id,
+                    args,
+                    explicit_type_args.as_deref(),
+                    None,
+                    lower,
+                )? {
                     return Ok(ctor_ty);
                 }
 
@@ -3808,6 +3814,18 @@ struct CtorParamInstantiationRequest<'a> {
     call_args: &'a [CallArgInfo<'a>],
     builtins: BuiltinTypes,
     call_span: Span,
+    /// 显式构造器 type args（`Container<Int>(...)` 中的 `[Int]`）（P4-T01h）。
+    ///
+    /// - 若提供，长度必须与 `type_param_names` 一致；
+    /// - 优先级：显式 > arg-driven 反推 > LHS expected > `Any`；
+    /// - 与 arg-driven 反推冲突时返回 `Ok(None)`，由调用点退化为 "no match"。
+    explicit_type_args: Option<&'a [TypeId]>,
+    /// LHS expected type 的 owner-args（`val c: Container<Int> = Container()` 中的 `[Int]`）（P4-T01h）。
+    ///
+    /// - 仅当外层 expected 类型是同 FQN 的 nominal generic instantiation 时由调用点提供；
+    /// - 长度必须与 `type_param_names` 一致；
+    /// - 仅作为 arg-driven 反推未填充时的兜底候选，不主动覆盖 arg-driven 结果（与 explicit 不同）。
+    expected_owner_args: Option<&'a [TypeId]>,
 }
 
 fn is_strictly_more_specific_ctor_overload(
@@ -3879,10 +3897,25 @@ fn instantiate_ctor_param_tys(
         call_args,
         builtins,
         call_span,
+        explicit_type_args,
+        expected_owner_args,
     } = request;
 
     if type_param_names.is_empty() {
         return Ok(Some((Vec::new(), param_tys.to_vec())));
+    }
+
+    // 显式 type-args / LHS expected owner-args 的长度必须严格匹配 `type_param_names`，
+    // 否则视为不匹配（让调用点退化到 NoMatchingOverload 路径，沿用现有诊断）。
+    if let Some(explicit) = explicit_type_args
+        && explicit.len() != type_param_names.len()
+    {
+        return Ok(None);
+    }
+    if let Some(expected) = expected_owner_args
+        && expected.len() != type_param_names.len()
+    {
+        return Ok(None);
     }
 
     let fresh_type_params: Vec<TypeId> = type_param_names
@@ -3928,11 +3961,33 @@ fn instantiate_ctor_param_tys(
         }
     }
 
-    let inferred_type_args: Vec<TypeId> = fresh_type_params
-        .iter()
-        .copied()
-        .map(|param_ty| inferred.get(&param_ty).copied().unwrap_or(builtins.any))
-        .collect();
+    // P4-T01h：合并显式 type args / LHS expected owner-args。
+    //
+    // 优先级：显式 > arg-driven 反推 > LHS expected > `Any`。
+    // - 显式 type args 与 arg-driven 结果若不一致 → 视为不匹配，让调用点报 NoMatchingOverload；
+    // - LHS expected 仅在 arg-driven 没填出来时生效，不主动覆盖 arg-driven。
+    let mut inferred_type_args: Vec<TypeId> = Vec::with_capacity(fresh_type_params.len());
+    for (idx, param_ty) in fresh_type_params.iter().copied().enumerate() {
+        let arg_inferred = inferred.get(&param_ty).copied();
+        let explicit_at = explicit_type_args.and_then(|e| e.get(idx).copied());
+        let expected_at = expected_owner_args.and_then(|e| e.get(idx).copied());
+
+        let chosen = if let Some(t) = explicit_at {
+            if let Some(bound) = arg_inferred
+                && bound != t
+            {
+                return Ok(None);
+            }
+            t
+        } else if let Some(t) = arg_inferred {
+            t
+        } else if let Some(t) = expected_at {
+            t
+        } else {
+            builtins.any
+        };
+        inferred_type_args.push(chosen);
+    }
 
     let mut instantiated_param_tys = param_tys.to_vec();
     for (param_ty, arg_ty) in fresh_type_params
@@ -3949,6 +4004,7 @@ fn instantiate_ctor_param_tys(
     Ok(Some((inferred_type_args, instantiated_param_tys)))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn collect_matched_ctor_overloads_for_owner(
     inputs: ExprInferInputs<'_>,
     owner_fqn: &str,
@@ -3956,6 +4012,8 @@ pub(super) fn collect_matched_ctor_overloads_for_owner(
     callee_for_diag: &str,
     call_args: &[CallArgInfo<'_>],
     exclude_ctor_span: Option<Span>,
+    explicit_type_args: Option<&[TypeId]>,
+    expected_owner_args: Option<&[TypeId]>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Vec<MatchedCtorOverload>, ExprTypeError> {
     let builtins = inputs.builtins;
@@ -4048,6 +4106,8 @@ pub(super) fn collect_matched_ctor_overloads_for_owner(
                 call_args,
                 builtins,
                 call_span,
+                explicit_type_args,
+                expected_owner_args,
             },
             lower,
         )?
@@ -4128,6 +4188,8 @@ pub(super) fn select_ctor_overload_for_owner(
         callee_for_diag,
         call_args,
         exclude_ctor_span,
+        None,
+        None,
         lower,
     )?;
 
@@ -4154,11 +4216,77 @@ pub(super) fn select_ctor_overload_for_owner(
     Ok(matched.swap_remove(idx))
 }
 
+/// P4-T01h：在 LHS expected nominal type 已知时尝试 ctor 调用推导。
+///
+/// 形态要求：
+/// - `expr` 是 `Call`（或 `Call(TypeApply, ...)`）；
+/// - 其 callee（透明展开 `TypeApply` 后）是一个 resolver 阶段尚未绑定为顶层值的 `Ident`
+///   ——这样 [`infer_nominal_constructor_call_expr_type`] 才会接管；
+/// - `expected_ty` 是 class/struct nominal 的 generic instantiation。
+///
+/// 命中后把 LHS expected 的 type-args 作为兜底候选喂给 ctor solver；与 ctor arg 反推
+/// 结果不冲突时优先使用 arg 反推，仅在 arg 完全没填出来时才用 LHS 兜底。
+pub(super) fn try_infer_nominal_constructor_call_expr_type_with_expected(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let ast::ExprKind::Call { callee, args } = &expr.kind else {
+        return Ok(None);
+    };
+
+    // 透明展开 callee（`Container<Int>(...)` 中的显式 type-args 在外层 dispatch 已经被消费）。
+    let mut explicit_type_args: Option<Vec<TypeId>> = None;
+    let inner_callee: &ast::Expr = match &callee.kind {
+        ast::ExprKind::TypeApply {
+            callee: inner,
+            args,
+        } => {
+            let lowered = lower_explicit_type_apply_args(args, lower)?;
+            explicit_type_args = Some(lowered.type_args);
+            inner.as_ref()
+        }
+        _ => callee.as_ref(),
+    };
+
+    let ast::ExprKind::Ident(id) = &inner_callee.kind else {
+        return Ok(None);
+    };
+    if id.resolved.is_some() {
+        return Ok(None);
+    }
+
+    let (expected_fqn, expected_args) = match lower.type_kind(expected_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+        | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+        _ => return Ok(None),
+    };
+    if expected_args.is_empty() {
+        return Ok(None);
+    }
+
+    let expected_owner_args: Option<(&str, &[TypeId])> =
+        Some((expected_fqn.as_str(), expected_args.as_slice()));
+
+    infer_nominal_constructor_call_expr_type(
+        inputs,
+        expr,
+        id,
+        args,
+        explicit_type_args.as_deref(),
+        expected_owner_args,
+        lower,
+    )
+}
+
 fn infer_nominal_constructor_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::ValueIdent,
     args: &[ast::Expr],
+    explicit_type_args: Option<&[TypeId]>,
+    expected_owner_args: Option<(&str, &[TypeId])>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
@@ -4227,6 +4355,9 @@ fn infer_nominal_constructor_call_expr_type(
 
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
     for (owner_fqn, _) in &ctor_owners {
+        let owner_expected_args = expected_owner_args
+            .filter(|(fqn, _)| *fqn == owner_fqn.as_str())
+            .map(|(_, args)| args);
         matched.extend(collect_matched_ctor_overloads_for_owner(
             inputs,
             owner_fqn,
@@ -4234,6 +4365,8 @@ fn infer_nominal_constructor_call_expr_type(
             &callee_name,
             &call_args,
             None,
+            explicit_type_args,
+            owner_expected_args,
             lower,
         )?);
     }

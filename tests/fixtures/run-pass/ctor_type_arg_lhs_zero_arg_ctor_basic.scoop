@@ -1,0 +1,20 @@
+// EXPECT: pass
+//
+// P4-T01h：当 generic class 有 zero-arg ctor、且 LHS 注解了 nominal type-args 时，
+// ctor 解算应当从 LHS 反推 T，不再 silent-fallback 到 `Any`。
+
+import scoop.core.*
+
+class Container<T>() {
+    fun who(): Int { return 1 }
+}
+
+fun main(): Int {
+    val cInt: Container<Int> = Container()
+    if (cInt.who() != 1) { return 1 }
+
+    val cStr: Container<String> = Container()
+    if (cStr.who() != 1) { return 2 }
+
+    return 0
+}

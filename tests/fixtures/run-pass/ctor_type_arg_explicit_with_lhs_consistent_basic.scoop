@@ -1,0 +1,23 @@
+// EXPECT: pass
+//
+// P4-T01h：显式 ctor type-args 与 LHS 注解一致时应正常通过；ctor arg / 显式 / LHS 一致优先级一致。
+
+import scoop.core.*
+
+class Box<T>(val seed: T) {
+    fun get(): T { return this.seed }
+}
+
+class Pair<A, B>(val tag: Int) {
+    fun who(): Int { return this.tag }
+}
+
+fun main(): Int {
+    val b: Box<Int> = Box<Int>(42)
+    if (b.get() != 42) { return 1 }
+
+    val p: Pair<Int, String> = Pair<Int, String>(7)
+    if (p.who() != 7) { return 2 }
+
+    return 0
+}

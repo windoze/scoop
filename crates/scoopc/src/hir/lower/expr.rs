@@ -822,7 +822,10 @@ impl<'a> HirLowering<'a> {
                 } else {
                     // class ctor call 仍会被降低为 `UnresolvedIdent`，
                     // 但 codegen 需要知道 typecheck 已选中的 ctor 目标与参数绑定。
-                    if let ast::ExprKind::Ident(id) = &callee.kind
+                    //
+                    // P4-T01h：`Container<Int>(...)` 在 AST 中是 `Call(TypeApply(Ident, ...), ...)`，
+                    // ctor 绑定本身仍键于 `e.span`，因此识别 callee 时需要把 `TypeApply` 透明展开。
+                    if let ast::ExprKind::Ident(id) = &self.transparent_call_callee(callee).kind
                         && let Some(binding) = self
                             .typechecked_ctor_call_binding(e.span)
                             .or_else(|| self.resolver_fallback_ctor_call_binding(id, args))
@@ -2265,7 +2268,8 @@ impl<'a> HirLowering<'a> {
         args: &[ast::Expr],
         typechecked_call_ty: Option<TypeId>,
     ) -> Option<(ExprKind, TypeId)> {
-        let ast::ExprKind::Ident(id) = &callee.kind else {
+        // P4-T01h：识别 `Container<Int>(...)` 的 ctor 绑定时透明展开 `TypeApply` 外壳。
+        let ast::ExprKind::Ident(id) = &self.transparent_call_callee(callee).kind else {
             return None;
         };
         let binding = self

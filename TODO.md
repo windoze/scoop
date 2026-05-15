@@ -1182,7 +1182,7 @@
     - 对应 `PLAN.md` P4 前置 IV 第 1 项：subclass-typed receiver 现已能直接看到 inherited body member，不再需要先 cast 到 base / interface type；与 `PLAN.md` "内建类型作为一等 struct/class implementer" 的方向一致，为 P4-T01 / P4-T02 写 bodied sysroot helper 时调用 inherited helper / 字段提供了前端可见性。
     - 本任务没有修改 `MANAGED_ABI.md` 描述的 ABI surface（vtable / itable layout、interface dispatch ABI、native surface gate 等均未变），因此无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01h：完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用）
+### [DONE] P4-T01h：完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P4 前置
@@ -1216,6 +1216,42 @@
 - 完成条件：
   - sysroot / user 在写 `class Foo<T>` / `class Foo<T>(val n: Int)` 这两种"T 不出现在 ctor arg" 形态时，都能用 `val x: Foo<Int> = Foo()` / `val x: Foo<Int> = Foo(7)` / `val x = Foo<Int>()` 三种 idiom 之一无障碍构造，不再 silent-fallback 到 `Any`，也不再触发 `missing typed call-site contract`。
 - 依赖：`P4-T01g`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/typecheck/expr/call.rs`：
+      - `CtorParamInstantiationRequest` 增加 `explicit_type_args` / `expected_owner_args` 两个可选字段，分别承载"显式 ctor type-args"与"LHS expected nominal type-args"；
+      - `instantiate_ctor_param_tys` 在 arg-driven 反推之外按 **显式 > arg-driven > LHS expected > `Any`** 的优先级合并解算结果；显式与 arg-driven 冲突时返回 `None` 让调用点退化到 `NoMatchingOverload`；
+      - `collect_matched_ctor_overloads_for_owner` 与 `infer_nominal_constructor_call_expr_type` 接受同样的两个可选参数并向下传递，`select_ctor_overload_for_owner` / super-ctor `check_ctor_call_args_by_arity` 路径仍传 `None`；
+      - 新增 `try_infer_nominal_constructor_call_expr_type_with_expected`：在 expected-context 命中 `Call` 形态、callee 透明展开 `TypeApply` 后是 unresolved `Ident` 且 expected 为 nominal generic instantiation 时，把 expected owner-args 喂给 ctor solver；
+      - 现有 `infer_call_expr_type` dispatch 在普通调用入口把 `explicit_type_args` 也传给 `infer_nominal_constructor_call_expr_type`（与顶层 generic fun 同构）。
+    - `crates/scoopc/src/typecheck/expr/infer.rs`：在 `infer_expr_type_in_expected_context` 中加入新分支，命中 `Call` 形态时优先调用上面的 `try_*_with_expected` 帮助函数；命中失败时回到既有 dispatch（保留 `cannot_infer_type_arg` / `initializer_type_mismatch` 等现有诊断作为最终报错路径）。
+    - `crates/scoopc/src/hir/lower/expr.rs`：在 `lower_expr` 的 class ctor binding 识别处与 `try_lower_struct_ctor_call_expr` 入口透明展开 `TypeApply`，让 `Container<Int>(...)` 的 ctor binding 沿 `e.span` 一样能被回写到 `ctor_call_sites` / 走 struct-lit lowering，不再触发 `frontend_prepare_failed: missing typed call-site contract`。
+    - `tests/fixtures/run-pass/ctor_type_arg_lhs_zero_arg_ctor_basic.scoop` / `ctor_type_arg_lhs_non_t_ctor_arg_basic.scoop` / `ctor_type_arg_explicit_basic.scoop` / `ctor_type_arg_explicit_with_lhs_consistent_basic.scoop`：分别覆盖 zero-arg ctor + LHS、ctor arg 不暴露 T + LHS、显式 type args（含 zero-arg / 一组 / 多 generic）、显式与 LHS 一致。
+    - `tests/fixtures/typecheck/ctor_type_arg_explicit_conflicts_with_lhs_is_error.scoop` / `ctor_type_arg_explicit_conflicts_with_arg_is_error.scoop`：分别锁定"显式 vs LHS 冲突 → `initializer_type_mismatch`"、"显式 vs ctor arg 冲突 → `no_matching_overload`"两条现有错误路径，不引入新错误码。
+    - `TODO.md`：把 `P4-T01h` 标 `[DONE]`。
+    - `memory/claude_plan.md`：刷新 P4-T01h 进展记录。
+  - 核心决策：
+    - **优先级显式 > arg-driven > LHS > `Any`**：与顶层 generic fun 的"显式 type args 优先于 arg 反推"行为一致；LHS 仅作为兜底候选，避免冲击靠 ctor arg 反推 T 的既有路径（`intrinsic_generic_class_body_method_basic.scoop` / `smart_cast_any_member_access_generic_class_basic.scoop` 等保持不变）。
+    - **冲突即不匹配，不引新错误码**：显式与 arg-driven 冲突时 `instantiate_ctor_param_tys` 返回 `Ok(None)`，让调用点继续走现有 `NoMatchingOverload` 报错；显式与 LHS 冲突由现有 `initializer_type_mismatch` 兜底；与"必须遵从的约束 4"一致。
+    - **HIR 透明展开 `TypeApply`**：ctor binding 仍键于 `Call` 整体的 `e.span`（typecheck 阶段写回时已经如此），HIR 唯一缺口是识别 callee 时硬要求 `Ident`；改用既有 `transparent_call_callee` 把 `TypeApply { Ident, args }` 透明展开就能复用整条 lowering 链（class ctor `ctor_call_sites` 写入 + struct ctor `try_lower_struct_ctor_call_expr` 入口）。不引入第二条 ctor lowering path。
+    - **expected-context 仅命中 ctor**：`try_infer_nominal_constructor_call_expr_type_with_expected` 严格要求 callee 是 unresolved `Ident`（与 `infer_nominal_constructor_call_expr_type` 接管条件一致），避免误抢 enum variant ctor / top-level fun call；命中失败立即回退到既有 dispatch。
+  - 验证结果：
+    - `cargo build -p scoopc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/ctor_type_arg_lhs_zero_arg_ctor_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/ctor_type_arg_lhs_non_t_ctor_arg_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/ctor_type_arg_explicit_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/ctor_type_arg_explicit_with_lhs_consistent_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/ctor_type_arg_explicit_conflicts_with_lhs_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/ctor_type_arg_explicit_conflicts_with_arg_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_generic_class_body_method_basic.scoop`、`smart_cast_any_member_access_generic_class_basic.scoop`、`generic_class_method.scoop`、`member_call_generic_class_body_method_basic.scoop`：维持通过，靠 ctor arg 反推 T 的既有路径未受冲击。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_*.scoop`：P4-T01g 锁定的 5 个 inherited fixture 全部通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：394 passed / 2 failed（与 P4-T01g 完成时一致：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop` 仍为 P4-T01i 范畴）。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：434 passed / 1 failed（`extern_fun_gc_handle_raw_token_roundtrip_ok.scoop`，P4-T01i 范畴）。
+    - `cargo clippy --all-targets -- -D warnings`：通过（在新增字段后 `collect_matched_ctor_overloads_for_owner` 触发 `clippy::too_many_arguments`，按现有约定加 `#[allow]`，未拆分函数）。
+    - `cargo test -p scoopc`：失败 9 个，全部为 P4-T01i 范畴的 `@Unsafe @Extern` / failure-policy 行号 sentinel drift（与 P4-T01g 完成时一致）。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV 第 2 项：generic class / struct 构造器调用的 type argument 现已能从 LHS expected type 与显式 ctor type args 两条路径解算，与顶层 generic fun 行为同构；为 P4-T01 / P4-T02 在 sysroot 写 bodied helper 时使用 `class Foo<T>` / `class Foo<T>(val n: Int)` 等"T 不出现在 ctor arg"形态铺好前端通路。
+    - 本任务没有修改 `MANAGED_ABI.md` 描述的 ABI surface（`ExternAbi::Scoop` v1 的 generics 限制、native surface gate 均未变），因此无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01i：清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测
 

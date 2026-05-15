@@ -11,7 +11,8 @@ use super::call::{
     check_fn_value_to_any_erasure_gate, collect_type_arg_candidates_for_single_type_param,
     infer_call_expr_type, infer_specific_enum_variant_ctor_call_expr_type_by_expected,
     infer_top_level_fun_value_expr_type, instantiate_fun_sig_for_call, lower_effect_op_signature,
-    substitute_single_type_param, type_param_name,
+    substitute_single_type_param, try_infer_nominal_constructor_call_expr_type_with_expected,
+    type_param_name,
 };
 use super::member::{
     infer_elvis_expr_type, infer_member_access_expr_type,
@@ -2044,6 +2045,23 @@ pub(super) fn infer_expr_type_in_expected_context(
             expr,
             id,
             args,
+            expected_ty,
+            lower,
+        )?
+    {
+        return Ok(ty);
+    }
+
+    // P4-T01h：`val c: Container<Int> = Container()` / `val b: Box<Int> = Box(7)` 这类
+    // ctor 调用在 LHS 期望已知时，把 expected 的 nominal type-args 作为 ctor solver 的兜底候选。
+    //
+    // 与上方"显式 enum variant ctor"分支保持一致的形态：仅在 `Call`（含 `Call(TypeApply, ...)`）
+    // 形态命中时短路；命中失败回到既有 dispatch（保留 `cannot_infer_type_arg` /
+    // `initializer_type_mismatch` 等现有诊断作为最终报错路径）。
+    if matches!(expr.kind, ast::ExprKind::Call { .. })
+        && let Some(ty) = try_infer_nominal_constructor_call_expr_type_with_expected(
+            inputs,
+            expr,
             expected_ty,
             lower,
         )?

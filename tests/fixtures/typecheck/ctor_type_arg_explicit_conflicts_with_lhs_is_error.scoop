@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+
+// P4-T01h：显式 ctor type args 与 LHS 注解的 nominal type-args 冲突时仍应报现有
+// `initializer_type_mismatch` 错误（不引入新错误码）。
+
+import scoop.core.*
+
+class Container<T>() {
+    fun who(): Int { return 1 }
+}
+
+fun main(): Int {
+    val cInt: Container<Int> = Container<String>()
+    return 0
+}

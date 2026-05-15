@@ -1,0 +1,27 @@
+// EXPECT: pass
+//
+// P4-T01h：构造器位置的显式 type argument `Container<Int>(...)` 应与顶层 generic fun
+// `empty<Int>()` 同构，被接入 typed call-site contract，不再触发 frontend_prepare_failed。
+
+import scoop.core.*
+
+class Container<T>() {
+    fun who(): Int { return 1 }
+}
+
+class Box<T>(val seed: T) {
+    fun get(): T { return this.seed }
+}
+
+fun main(): Int {
+    val c1: Container<Int> = Container<Int>()
+    if (c1.who() != 1) { return 1 }
+
+    val c2 = Container<String>()
+    if (c2.who() != 1) { return 2 }
+
+    val b: Box<Int> = Box<Int>(42)
+    if (b.get() != 42) { return 3 }
+
+    return 0
+}

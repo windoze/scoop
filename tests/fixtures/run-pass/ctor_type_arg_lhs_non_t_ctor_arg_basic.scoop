@@ -1,0 +1,23 @@
+// EXPECT: pass
+//
+// P4-T01h：当 generic class 的 ctor 参数不暴露 `T` 时，LHS 注解的 nominal type-args 仍应能反推 T。
+
+import scoop.core.*
+
+class Box<T>(val n: Int) {
+    fun count(): Int { return this.n }
+}
+
+class Pair<A, B>(val tag: Int) {
+    fun who(): Int { return this.tag }
+}
+
+fun main(): Int {
+    val b: Box<Int> = Box(7)
+    if (b.count() != 7) { return 1 }
+
+    val p: Pair<Int, String> = Pair(42)
+    if (p.who() != 42) { return 2 }
+
+    return 0
+}
