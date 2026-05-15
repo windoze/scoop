@@ -21,7 +21,7 @@
 | `P3-T02` | P3 | [DONE] 接通 `ExternAbi::Scoop` 的 declaration / call lowering，并补 IR/run-pass 回归 |
 | `P4-T01a` | P4 前置 I | [DONE] 解锁 struct/class（含 generic class）instance method 的常规 `receiver.method()` 调用 |
 | `P4-T01b` | P4 前置 I | [DONE] vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
-| `P4-T01c-pre1` | P4 前置 I | 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
+| `P4-T01c-pre1` | P4 前置 I | [DONE] 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
 | `P4-T01c` | P4 前置 I | `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
 | `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
@@ -697,7 +697,7 @@
     - 对应 `PLAN.md` P4 前置 I 第 2 项：user struct/class/generic class 的 interface impl 现在可以通过统一的 metadata-driven itable dispatch 走完整 caller-side marshal；value type 不再依赖 thunk，generic class 的 concrete method instance 也能被发布到 fun_index / class_itables / runtime dispatch metadata。
     - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有删除 `ToString`/scalar/string 的 by-name intercept；这些删除动作仍按顺序留给后续 `P4-T01`。
 
-### [TODO] P4-T01c-pre1：为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写
+### [DONE] P4-T01c-pre1：为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写
 
 - 参考：
   - `crates/scoopc/src/sysroot/mod.rs`
@@ -727,6 +727,30 @@
 - 完成条件：
   - `P4-T01c` 可以在不复制整份 sysroot、也不缩窄 fixture 形状的前提下，为 `Array<T>` / `MutableArray<T>` 编写 task-specific overlay fixture。
 - 依赖：`P4-T01b`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/{session/mod.rs,sysroot/mod.rs,frontend.rs,llvm/frontend.rs}`
+    - `crates/scoop/src/{commands/build.rs,commands/test.rs,fixtures/mod.rs,fixtures/run_pass.rs,commands/dump_mir.rs}`
+    - `tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop`
+    - `tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/core.scoop`
+    - `TODO.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - 用 `SessionOptions` 携带可选的 sysroot overlay 路径，并让 `Session` 与 frontend support-source loader 共用同一配置，避免 fixture path 与 build path 各自维护一套注入逻辑。
+    - sysroot overlay 采用“默认 sysroot + companion overlay 目录按相对路径替换”的合并规则；fixture target 通过同伴目录 `<target>.sysroot/` 或 `<stem>.sysroot/` 声明覆盖文件，runner 会自动跳过这些目录，不把它们误当成普通 fixture/case。
+    - `core.scoop` 是否进入 compilable support sources 现在不再只靠文件名白名单：若 overlay 版本声明了 bodied `@Intrinsic struct/class`，它会自动转入 `compilable_source_paths`，从而满足 `P4-T01c` 对 `@Intrinsic class Array<T> { ... }` fixture 形状的前置要求。
+    - `scoop run`/`scoop build` 的外部 CLI 路径通过环境变量 `SCOOP_SYSROOT_OVERLAY` 继承同一 overlay；为避免 cone 可执行产物目录命中旧 fingerprint，overlay build 会自动关闭增量缓存。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc overlay_core_with_bodied_intrinsic_nominal_method_becomes_compilable_support_source -- --nocapture`
+    - `cargo test -p scoop sysroot_overlay -- --nocapture`
+    - `cargo test -p scoop run_pass_single_pipeline_propagates_sysroot_overlay_env -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 filter 仍返回 `0 passed; 851 filtered out`，因此实际 owner coverage 以上面新增的 `overlay_core_with_bodied_intrinsic_nominal_method_becomes_compilable_support_source` 为准）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 I 的 sysroot overlay 前置要求：后续 `P4-T01c` 现可在不复制整份 `sysroot/` 的前提下，用真实 `scoop.core.Array` / `MutableArray` FQN 编写 task-specific overlay fixture，并同时覆盖 fixture harness、internal build path 与外部 `scoop run` CLI 路径。
+    - 本任务没有改变 `MANAGED_ABI.md` 约定的 ABI surface，也没有提前实现 `@Intrinsic struct/class` method body；它只提供后续任务所需的测试基础设施与 compilable-sysroot gate。
 
 ### [TODO] P4-T01c：`@Intrinsic struct/class` 含 method body 完整落地（含 generic class），锁定零编译器后门
 

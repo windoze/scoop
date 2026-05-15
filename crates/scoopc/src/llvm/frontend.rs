@@ -35,8 +35,11 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
     entry_source: &SourceFile,
     opt_level: OptLevel,
 ) -> Result<SingleFileCodegenUnit, LlvmEmitError> {
-    let context = crate::frontend::prepare_virtual_cone_context(entry_source.clone())
-        .map_err(frontend_error)?;
+    let context = crate::frontend::prepare_virtual_cone_context_with_options(
+        entry_source.clone(),
+        session.options(),
+    )
+    .map_err(frontend_error)?;
     let front = crate::frontend::run_project_frontend(session, context).map_err(frontend_error)?;
     let lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
         session,

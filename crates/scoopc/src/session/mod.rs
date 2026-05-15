@@ -6,6 +6,8 @@
 //!
 //! P8 起，effect pipeline 已收口为单一路径；session 不再承载 legacy/refactor bifurcation。
 
+use std::path::{Path, PathBuf};
+
 use miette::{Context as _, Result};
 use thiserror::Error;
 
@@ -16,12 +18,34 @@ use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
 
 /// 会话构造时一次性收口的配置项。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct SessionOptions;
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SessionOptions {
+    sysroot_overlay: Option<PathBuf>,
+}
 
 impl SessionOptions {
     pub const fn new() -> Self {
-        Self
+        Self {
+            sysroot_overlay: None,
+        }
+    }
+
+    pub fn with_sysroot_overlay(mut self, overlay_root: impl Into<PathBuf>) -> Self {
+        self.sysroot_overlay = Some(overlay_root.into());
+        self
+    }
+
+    pub fn with_env_fallback(mut self) -> Self {
+        if self.sysroot_overlay.is_none() {
+            self.sysroot_overlay = std::env::var_os(crate::sysroot::SYSROOT_OVERLAY_ENV)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from);
+        }
+        self
+    }
+
+    pub fn sysroot_overlay(&self) -> Option<&Path> {
+        self.sysroot_overlay.as_deref()
     }
 }
 
@@ -56,7 +80,8 @@ impl Session {
     /// 使用显式 session options 创建会话。
     pub fn with_options(options: SessionOptions) -> Result<Self> {
         let sysroot =
-            Sysroot::load_from(Sysroot::default_path()).wrap_err("加载默认 sysroot 失败")?;
+            Sysroot::load_from_with_overlay(Sysroot::default_path(), options.sysroot_overlay())
+                .wrap_err("加载默认 sysroot 失败")?;
         Ok(Self { options, sysroot })
     }
 
@@ -74,8 +99,8 @@ impl Session {
         &self.sysroot
     }
 
-    pub const fn options(&self) -> SessionOptions {
-        self.options
+    pub fn options(&self) -> &SessionOptions {
+        &self.options
     }
 
     /// 解析一个源文件为 AST。
@@ -123,13 +148,13 @@ mod tests {
     #[test]
     fn session_new_uses_single_pipeline_defaults() {
         let sess = Session::new().unwrap();
-        assert_eq!(sess.options(), SessionOptions::new());
+        assert_eq!(sess.options(), &SessionOptions::new());
     }
 
     #[test]
     fn explicit_session_options_use_same_single_pipeline() {
         let sess = Session::with_options(SessionOptions::new()).unwrap();
-        assert_eq!(sess.options(), SessionOptions::new());
+        assert_eq!(sess.options(), &SessionOptions::new());
     }
 
     #[test]

@@ -269,7 +269,7 @@ fn build_run_mode_command(
     scoop_exe: PathBuf,
     fixture_path: &Path,
     opt_level: Option<scoopc::opt::OptLevel>,
-    _session_options: scoopc::session::SessionOptions,
+    session_options: scoopc::session::SessionOptions,
     exp: &FixtureExpectation<'_>,
     run_pass_env: &super::RunPassEnvOverrides,
 ) -> Command {
@@ -279,6 +279,7 @@ fn build_run_mode_command(
         cmd.arg("--opt-level").arg(level.as_str());
     }
     cmd.arg(fixture_path);
+    super::apply_session_options_to_command(&session_options, &mut cmd);
     run_pass_env.apply_to_command(&mut cmd);
     // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
     if !exp.args.is_empty() {
@@ -311,7 +312,7 @@ fn run_fixture_dump_stackmaps(
             fixture_path.to_path_buf(),
             Some(exe_path.clone()),
             crate::commands::build::BuildOptions {
-                session_options,
+                session_options: session_options.clone(),
                 ..crate::commands::build::BuildOptions::default()
             },
         )
@@ -1092,6 +1093,33 @@ mod tests {
         assert_eq!(args.first().map(String::as_str), Some("run"));
         assert!(!args.iter().any(|arg| arg == "--effect-pipeline"));
         assert!(args.iter().any(|arg| arg == "--program-arg"));
+    }
+
+    #[test]
+    fn run_pass_single_pipeline_propagates_sysroot_overlay_env() {
+        let exp = FixtureExpectation::from_source("// ARGS: --program-arg\n");
+        let overlay = PathBuf::from("/tmp/sysroot-overlay");
+        let cmd = build_run_mode_command(
+            PathBuf::from("scoop"),
+            Path::new("tests/fixtures/run-pass/minimal_main.scoop"),
+            None,
+            scoopc::session::SessionOptions::new().with_sysroot_overlay(overlay.clone()),
+            &exp,
+            &crate::fixtures::RunPassEnvOverrides::new(),
+        );
+
+        let propagated = cmd
+            .get_envs()
+            .find_map(|(key, value)| {
+                if key == scoopc::sysroot::SYSROOT_OVERLAY_ENV {
+                    value.map(|value| value.to_os_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        assert_eq!(propagated, overlay.into_os_string());
     }
 
     #[test]

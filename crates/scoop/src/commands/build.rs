@@ -167,6 +167,8 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         incremental,
         session_options,
     } = options;
+    let session_options = session_options.with_env_fallback();
+    let incremental = incremental && session_options.sysroot_overlay().is_none();
 
     let entry_package_for_fingerprint = entry_package.clone();
 
@@ -175,7 +177,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
 
-    let context = load_build_context(&input, entry_package)?;
+    let context = load_build_context_with_options(&input, entry_package, &session_options)?;
     let opt_level = resolve_opt_level(
         opt_level_override,
         context.input().cone_manifest().native_build.opt_level,
@@ -232,7 +234,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         computed_fingerprint = Some(fp);
     }
 
-    let session = scoopc::session::Session::with_options(session_options)?;
+    let session = scoopc::session::Session::with_options(session_options.clone())?;
 
     let warning_capture = scoopc::warnings::begin_capture();
     let front = run_frontend(&session, context)?;
@@ -335,21 +337,34 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     Ok(())
 }
 
-fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Result<BuildInput> {
+fn load_build_input_with_options(
+    input: &Path,
+    entry_package_override: Option<String>,
+    session_options: &SessionOptions,
+) -> Result<BuildInput> {
     if input.is_file() && entry_package_override.is_some() {
         return Err(EntryPackageOnlyForCone {
             input: input.display().to_string(),
         }
         .into());
     }
-    scoopc::frontend::load_project_input_from_path(input, entry_package_override)
+    scoopc::frontend::load_project_input_from_path(input, entry_package_override, session_options)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn load_build_context(
     input: &Path,
     entry_package_override: Option<String>,
 ) -> Result<BuildContext> {
-    let input = load_build_input(input, entry_package_override)?;
+    load_build_context_with_options(input, entry_package_override, &SessionOptions::new())
+}
+
+fn load_build_context_with_options(
+    input: &Path,
+    entry_package_override: Option<String>,
+    session_options: &SessionOptions,
+) -> Result<BuildContext> {
+    let input = load_build_input_with_options(input, entry_package_override, session_options)?;
     let deps = if input.is_explicit_cone() {
         deps::load_dependency_graph(input.cone_manifest(), input.cone_root())?
     } else {

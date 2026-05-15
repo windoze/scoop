@@ -1,0 +1,22 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+
+package fixtures.build
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun acceptOverlay(value: OverlayVisible): Int {
+    return 1
+}
+
+fun acceptPtr(value: Ptr<Int>): Int {
+    return 0
+}
+
+fun bridge(items: Array<Int>, ptr: Ptr<Int>): Int {
+    acceptPtr(ptr)
+    return acceptOverlay(items)
+}
+
+fun main() {}

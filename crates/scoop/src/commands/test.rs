@@ -23,7 +23,7 @@ const FIXTURE_WORKER_ENV: &str = "SCOOP_FIXTURE_WORKER";
 const FIXTURE_WORKER_OK_PREFIX: &str = "SCOOP_FIXTURE_OK=";
 const DEFAULT_FIXTURE_PROCESSES: usize = 5;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TestOptions {
     pub opt_level: Option<scoopc::opt::OptLevel>,
     pub gc_stress: bool,
@@ -122,7 +122,7 @@ pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
             && !(options.exit_on_failure && failed_targets > 0)
         {
             let target = pending.pop_front().expect("pending should not be empty");
-            if let Err(failure) = spawn_worker(&tx, &scoop_exe, target, options) {
+            if let Err(failure) = spawn_worker(&tx, &scoop_exe, target, options.clone()) {
                 completed += 1;
                 failed_targets += 1;
                 print_worker_failure(completed, total_targets, &failure.target, &failure.failure);

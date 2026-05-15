@@ -7,7 +7,7 @@ use crate::ast;
 use crate::cone::{ConeArchiveApi, ConeManifest, ConeNativeBuildConfig, ConeSection};
 use crate::opt::OptLevel;
 use crate::resolve::{ConeId, Index, IndexedFile};
-use crate::session::Session;
+use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
 use crate::typecheck::TypeEnv;
@@ -264,8 +264,9 @@ pub enum MirRequestRootMode {
 pub fn load_project_input_from_path(
     input: &Path,
     entry_package_override: Option<String>,
+    session_options: &SessionOptions,
 ) -> Result<ProjectInput> {
-    let support_sources = load_default_support_sources()?;
+    let support_sources = load_default_support_sources(session_options)?;
 
     if input.is_file() {
         let mut sources = support_sources;
@@ -320,7 +321,14 @@ pub fn load_project_input_from_path(
 }
 
 pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
-    let mut sources = load_default_support_sources()?;
+    prepare_virtual_cone_input_with_options(source, &SessionOptions::new())
+}
+
+pub fn prepare_virtual_cone_input_with_options(
+    source: SourceFile,
+    session_options: &SessionOptions,
+) -> Result<ProjectInput> {
+    let mut sources = load_default_support_sources(session_options)?;
     let main_index = sources.len();
     let virtual_root = source.path().to_path_buf();
     let manifest = default_virtual_cone_manifest(&source);
@@ -334,7 +342,15 @@ pub fn prepare_virtual_cone_input(source: SourceFile) -> Result<ProjectInput> {
 }
 
 pub fn prepare_virtual_cone_context(source: SourceFile) -> Result<ProjectContext> {
-    prepare_virtual_cone_input(source).map(|input| ProjectContext::new(input, Vec::new()))
+    prepare_virtual_cone_context_with_options(source, &SessionOptions::new())
+}
+
+pub fn prepare_virtual_cone_context_with_options(
+    source: SourceFile,
+    session_options: &SessionOptions,
+) -> Result<ProjectContext> {
+    prepare_virtual_cone_input_with_options(source, session_options)
+        .map(|input| ProjectContext::new(input, Vec::new()))
 }
 
 pub fn run_project_frontend(session: &Session, context: ProjectContext) -> Result<FrontendOutput> {
@@ -726,7 +742,7 @@ fn default_stdlib_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
 }
 
-fn load_default_support_sources() -> Result<Vec<SourceFile>> {
+fn load_default_support_sources(session_options: &SessionOptions) -> Result<Vec<SourceFile>> {
     let root = default_stdlib_path()
         .canonicalize()
         .into_diagnostic()
@@ -739,7 +755,11 @@ fn load_default_support_sources() -> Result<Vec<SourceFile>> {
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    crate::sysroot::collect_compilable_sysroot_files(&sysroot_root, &mut paths)?;
+    crate::sysroot::collect_compilable_sysroot_files(
+        &sysroot_root,
+        session_options.sysroot_overlay(),
+        &mut paths,
+    )?;
 
     paths.sort();
 

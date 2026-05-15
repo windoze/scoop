@@ -1,0 +1,498 @@
+// Scoop sysroot (early stage)
+//
+// 说明：
+// - sysroot 是编译器内建 API 的"声明源"（便于 IDE/文档/规范一致）
+// - 早期阶段这里只放最小集合，随着实现推进逐步补齐
+
+package scoop.core
+
+// Root types
+interface Any
+
+// 基础接口：Hashable（spec §2.2.2 / std v1）。
+//
+// 说明：
+// - 当前阶段 typecheck 尚未支持"普通成员函数调用"（class/interface methods），`receiver.hash()`
+//   仍主要走"扩展函数调用"的最小子集；但 `where T: Hashable` 等约束已经会被验证；
+// - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
+//   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
+interface Hashable {
+    fun hash(): Int {
+        return 0
+    }
+}
+
+// T0131: ToString 接口——统一的文本转换表面。
+//
+// 说明：
+// - 任何类型实现 `ToString` 即可被传入泛型 `print`/`println`（`where T: ToString`）。
+// - 内建类型（Int/Bool/String）通过 body-less extension function 声明 + codegen 路由实现。
+// - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
+// - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
+//   后续可收紧为抽象方法。
+interface ToString {
+    fun toString(): String {
+        return ""
+    }
+}
+
+// Fixture-only overlay marker used to prove `Array<T>` comes from this file.
+interface OverlayVisible
+
+// Built-in scalar types（声明层）。
+//
+// 说明：
+// - 这些类型的布局/语义由编译器与运行时固定；
+// - sysroot 只提供"可见声明"，用于名字解析与工具链展示。
+struct Bool : Hashable, ToString
+struct Char : Hashable, ToString
+struct Float64 : Hashable, ToString
+struct Float32 : Hashable, ToString
+class String : Hashable, ToString
+typealias Double = Float64
+// 泛型数组类型（compile-time + runtime 表面）。
+//
+// 说明：
+// - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
+// - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
+class Array<T> : OverlayVisible
+// 可变泛型数组类型（runtime 表面）。
+//
+// 说明：
+// - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
+// - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
+class MutableArray<T>
+
+// Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。
+//
+// 说明：
+// - v0 先把 `List<T>`/`MutableList<T>` 作为 `Array<T>`/`MutableArray<T>` 的类型别名，
+//   以便在不引入新布局/新 intrinsic 的前提下，先把常用 API 表面固定下来；
+// - 后续若需要更强的语义区分（例如只读视图 vs 不可变值、或更丰富的接口层级），
+//   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
+typealias List<T> = Array<T>
+typealias MutableList<T> = MutableArray<T>
+
+// Array / MutableArray：最小公开 API 声明（T1317b）。
+//
+// 说明：
+// - 当前阶段 typecheck 对 class 的实例方法调用仍有门禁（例如 `receiver.method()`），
+//   因此这里先用 extension fun 的形式提供统一的 API 表面，供 resolver/typecheck/lowering 落点；
+// - 后续若引入实例方法调用语义，可以保持这些声明不变（或在不破坏现有用例的前提下提供 member 形式别名）。
+fun <T> Array<T>.size(): Int
+fun <T> Array<T>.get(index: Int): T
+
+fun <T> MutableArray<T>.size(): Int
+fun <T> MutableArray<T>.get(index: Int): T
+fun <T> MutableArray<T>.set(index: Int, value: T): Unit
+
+// `MutableArray` → `Array`：显式桥接（T1325a）。
+//
+// 说明：
+// - 该 API 由 stdlib 提供实现（pure scoop），sysroot 在此提供声明面用于名字解析与类型检查；
+// - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
+fun MutableArray<Int>.toArray(): Array<Int>
+// 编译期列表（spec §6.4）。
+//
+// 说明：
+// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的"编译期数据结构"；
+// - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续 comptime 执行与 lowering 补齐。
+class ComptimeList<T>
+struct Unit
+enum Nothing
+
+// Built-in annotations（spec §15.5）。
+//
+// 说明：
+// - annotation 是 compile-time marker surface，不是普通 runtime nominal type；
+// - 这些注解由编译器识别并在不同子系统中被消费（typecheck/lowering/codegen/...）；
+// - sysroot 在这里提供"声明面"，用于名字解析、类型检查与工具链可见性；
+// - 当前阶段（T1013）先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
+//   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
+
+enum AnnotationTarget {
+    Function,
+    Property,
+    Field,
+    Param,
+    Type,
+    Constructor,
+    LocalVariable,
+    Expression,
+    Module,
+    TypeParam,
+    EnumVariant,
+}
+
+annotation class TailRec
+// `@Inline`：唯一的内联提示 surface。
+//
+// 说明：
+// - `inline` 关键字已移除；若用户希望表达“允许/偏好内联”，统一写作 `@Inline fun ...`；
+// - 它只是一种 compile-time marker / 优化提示，不携带 non-local return 等控制流语义。
+@Target(AnnotationTarget.Function)
+annotation class Inline
+// `@AllowIntrinsic`：文件 / 模块级 gate。
+//
+// 说明：
+// - 默认情况下，`@Intrinsic` declaration surface 由 sysroot 持有；
+// - 用户源码若确实需要声明 intrinsic surface，必须先通过 `@file:AllowIntrinsic` 显式开门。
+annotation class AllowIntrinsic
+annotation class Deprecated(val message: String = "", val replaceWith: String = "")
+// `@Suppress`：warning suppression surface。
+//
+// 说明：
+// - 支持 expression / declaration / `@file:...` 三类 surface；
+// - 当前稳定 warning code：`deprecated` / `enum-size-disparity` / `redundant-when-else`。
+annotation class Suppress(vararg val warnings: String)
+// `@Experimental(feature = "...")`：保留的 feature-gate marker surface。
+//
+// 说明：
+// - 当前只保留 built-in marker 与参数校验，不接入任何具体 experimental feature；
+// - 规范 use-site 形状固定为 `@Experimental(feature = "...")`。
+annotation class Experimental(val feature: String)
+// `@CLayout(aligned?, packed?)`（spec §15.5.2）：
+// - `aligned`：可选的结构体整体对齐（0 表示未指定）
+// - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）
+annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
+annotation class Target(val targets: AnnotationTarget)
+annotation class Retention(val policy: String)
+annotation class ThreadLocal
+annotation class Global
+
+// T0131: toString 扩展函数（body-less，codegen 路由到 runtime）。
+//
+// 说明：
+// - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
+//   `Char.toInt()` / `Char.toString()` / `Int.toString()` / `Bool.toString()` / `String.toString()` /
+//   `Float64/Float32.toInt()/toString()/hash()/abs()/isNaN()/isInfinite()` / `Char.hash()`；
+// - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy/内建类型路由到 runtime 函数；
+// - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
+fun Char.toInt(): Int
+fun Char.toString(): String
+fun Float64.toInt(): Int
+fun Float64.toString(): String
+fun Float64.hash(): Int
+fun Float64.abs(): Float64
+fun Float64.isNaN(): Bool
+fun Float64.isInfinite(): Bool
+fun Float32.toInt(): Int
+fun Float32.toString(): String
+fun Float32.hash(): Int
+fun Float32.abs(): Float32
+fun Float32.isNaN(): Bool
+fun Float32.isInfinite(): Bool
+fun Int.toString(): String
+fun Bool.toString(): String
+fun String.toString(): String
+fun Char.hash(): Int
+
+// T0131: 泛型 print/println 签名（body-less，resolver/typecheck 用）。
+//
+// 说明：
+// - 这些声明让 resolver 在所有用户代码中可以解析 `print(x)` / `println(x)`；
+// - 函数体在 sysroot/print.scoop 中提供（compilable sysroot file），monomorphization
+//   会为每个具体类型生成特化版本。
+fun <T> print(value: T): Unit where T: ToString
+fun <T> println(value: T): Unit where T: ToString
+
+// I/O（内部 runtime 映射）。
+//
+// 说明：
+// - `__scoop_print_string` / `__scoop_println_string` 是 runtime 映射的内部函数；
+// - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
+fun __scoop_print_string(value: String): Unit
+fun __scoop_println_string(value: String): Unit
+
+// GC（测试辅助）。
+//
+// 说明：
+// - 该组 API 用于回归 v0 mark-sweep（TODO T0910）；并不承诺稳定的用户态 API；
+// - `__scoop_gc_collect()` 手动触发一次 GC（仅扫描当前线程 roots）；
+// - `__scoop_gc_debug_alloc_garbage(n)` 用于制造垃圾对象（不写入 roots）；
+// - `__scoop_gc_debug_heap_object_count()` 用于验证 sweep 是否回收；
+// - `__scoop_stackmap_statepoint_smoke()` 是 stackmap registry 的端到端 smoke：
+//   它是显式 opt-in 的可选 stackmap 路径，不属于默认 explicit-root-frame correctness 主线；
+// - 编译器会仅对包含该调用点的函数恢复 statepoint GC strategy，并把它 lowering 成 ordinary
+//   managed runtime 调用，这样调用点本身会重新保留真实 statepoint/stackmap record。
+fun __scoop_gc_collect(): Unit
+fun __scoop_gc_debug_heap_object_count(): Int
+fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+fun __scoop_stackmap_statepoint_smoke(): Int
+
+// GC pinning API（spec §15.10）。
+//
+// 说明：
+// - 该 API 用于把某个 heap 对象标记为 pinned，供把对象地址交给外部系统（FFI/异步 I/O）时使用；
+// - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
+// - `Pinned` 是 Scoop 侧 pin handle，不是 ordinary `@Extern` 的长期 token surface；丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
+@Intrinsic
+object GC {
+    // Stable GC handles（spec §15.10.1）。
+    //
+    // 说明：
+    // - 用于把 heap 对象引用以"稳定 token"形式交给 native 长期持有（token 稳定，对象地址可变化）；
+    // - `GcHandle.raw` 可作为 `UIntPtr` 经 `@Extern` 往返 native state；复制 `GcHandle` / `.raw`
+    //   不会克隆底层 handle record，因此每次 `handleNew` 仍只允许一次 `handleDrop`；
+    // - stale handle 的 runtime lookup 会失败；语言级 `handleGet` / `handleDrop` 会把它视为错误；
+    // - ordinary `@Extern` / reactor / callback 的长期 round-trip 应通过 `GcHandle.raw`
+    //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
+    // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
+    @Unsafe
+    fun handleNew(obj: Any): GcHandle
+
+    @NoGC @Unsafe
+    fun handleGet(h: GcHandle): Any
+
+    @NoGC @Unsafe
+    fun handleDrop(h: GcHandle): Unit
+
+    @NoGC @Unsafe
+    fun pin(obj: Any): Pinned
+
+    @NoGC @Unsafe
+    fun unpin(pinned: Pinned): Unit
+}
+
+// Opaque token. Representation is toolchain-defined but must be stably passable to native code.
+struct GcHandle(val raw: UIntPtr)
+
+// Value type handle. Exact fields are implementation-defined (spec §15.10).
+// 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
+struct Pinned(val value: Any)
+
+// Compile-time metadata（spec §6.4 / §10.4）。
+//
+// 说明：
+// - 这些类型只在编译期可用：
+//   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
+//   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
+// - 当前阶段已实现"可回归的最小集合"（T1208/T1209/T1215）：
+//   - `TypeMeta`：类型名 + kind + 注解列表
+//   - `FieldMeta`：字段名 + 字段类型 + 字段序号 + 注解列表
+//   - `VariantMeta`：enum variant 名 + 字段列表 + 序号 + 注解列表
+//   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
+//   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
+// - 说明：注解参数值仅保证"compile-time constant"可读；更复杂表达式与导出规则后续任务补齐。
+enum TypeKind {
+    Struct,
+    Enum,
+    Class,
+    Interface,
+    Effect,
+    Tuple,
+    Primitive,
+}
+
+struct TypeMeta {
+    val name: String
+    val kind: TypeKind
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct FieldMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct VariantMeta {
+    val name: String
+    val fields: ComptimeList<FieldMeta>
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct ParamMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct PropertyMeta {
+    val name: String
+    val type: TypeMeta
+    val owner: TypeMeta
+}
+
+// Function meta（spec §6.4）。
+//
+// 说明：
+// - v0 阶段先只暴露"函数名"作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
+// - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
+//   但应保持"可用 name 构造句柄"这一能力（避免影响工具链/fixtures）。
+struct FunctionMeta {
+    val name: String
+}
+
+// Compile-time annotation metadata（spec §15.6）。
+//
+// 说明：
+// - 用于在编译期读取注解名与参数（`annotationsOf<T>()` 等）；参数值为 compile-time constant；
+// - v0 阶段先要求"注解名 + compile-time constant 参数"可回归：字面量/常量表达式/数组字面量/enum 常量/class literal；
+// - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
+struct AnnotationMeta {
+    val name: String
+    val args: ComptimeList<AnnotationArgMeta>
+}
+
+struct AnnotationArgMeta {
+    val name: String
+    val value: Any
+}
+
+// Integers（spec §2.3.4 / runtime §3）
+//
+// word-sized：随 target 指针宽度变化（Swift 约定）。
+struct Int : Hashable, ToString
+struct UInt : Hashable
+
+// fixed-width：用于 FFI/序列化等稳定布局场景。
+struct Int8 : Hashable
+struct Int16 : Hashable
+struct Int32 : Hashable
+struct Int64 : Hashable
+struct UInt8 : Hashable
+struct UInt16 : Hashable
+struct UInt32 : Hashable
+struct UInt64 : Hashable
+
+// Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
+//
+// 说明：
+// - v0 阶段先只提供 `IntProgression`（由 stdlib 提供纯 Scoop 可执行实现）；不引入更完整的 `IntRange` 等；
+// - 字段命名与 Kotlin/stdlib 对齐：`first/last/step`，并用 `increasing` 区分升序/降序迭代路径。
+struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+
+// 标准别名（Kotlin/Swift 风格）。
+typealias Byte = UInt8
+typealias Short = Int16
+typealias UShort = UInt16
+typealias Long = Int64
+typealias ULong = UInt64
+typealias UIntPtr = UInt
+
+// Compiler intrinsics（spec §15.7 / §6.4）。
+//
+// 说明：
+// - 规范中的 `sizeOf<T>()` 是隐式 `const fun` 的反射 intrinsic；
+// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
+//   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
+//   - `sizeOf(1)` / `sizeOf("s")`
+// - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
+@Intrinsic
+fun sizeOf(value: Int): Int
+@Intrinsic
+fun sizeOf(value: String): Int
+
+// Reflection intrinsics v0（spec §6.4 / TODO T1204/T1209）。
+//
+// 说明：
+// - 这些函数在规范中"隐式 const"，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
+// - 当前阶段（TODO T1208）`fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
+@Intrinsic
+const fun <T> nameOf(): String
+@Intrinsic
+const fun <T> sizeOf(): Int
+@Intrinsic
+const fun <T> alignOf(): Int
+@Intrinsic
+const fun <T> fieldsOf(): ComptimeList<FieldMeta>
+@Intrinsic
+const fun <T> variantsOf(): ComptimeList<VariantMeta>
+@Intrinsic
+const fun <T> superTypesOf(): ComptimeList<TypeMeta>
+@Intrinsic
+const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+@Intrinsic
+const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+
+// Platform Introspection（spec §6.4）。
+//
+// 说明：
+// - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
+// - `getPlatform()` 既可在 comptime 求值，也可在运行期查询当前执行环境；
+// - 当前阶段（TODO T1219）先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
+struct Platform {
+    val triple: String
+    val arch: String
+    val vendor: String
+    val os: String
+    val env: String
+}
+
+@Intrinsic
+const fun getPlatform(): Platform
+
+// Option / nullable sugar
+enum Option<T> {
+    Some(val value: T),
+    None
+}
+
+// Scope functions（spec §11）。
+//
+// 说明：
+// - 这些函数是库定义的（非编译器内建）；sysroot 仅提供"声明表面"，便于 resolver/typecheck 可见；
+// - 关键点：它们应当是 effect-polymorphic：lambda body 中 perform/raise 的 effects 会通过 `<eff E>`
+//   推断并传播到调用点的 required effects。
+//
+// 当前阶段限制（为保持 LLVM run-pass 可落地）：
+// - 仅对 `Int` 提供最小可执行落点；更完整的 `<T>` 泛型版本将在 monomorph/codegen 能力补齐后升级。
+fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
+fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
+fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
+fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
+
+// Continuation（spec §5.5）
+//
+// 说明：
+// - `Continuation<Resume, Answer, eff E>` 是源码可见的 compiler-owned interface：
+//   `Resume` 是 resume payload，`Answer` 是最近 delimiter 的结果类型，`E` 是 resumed-step
+//   的 required effects；
+// - 按 spec §5.3.1 / §5.5，源码层只保留普通方法调用 `k.resume(...)`；`resume(...): Answer`
+//   在 resumed computation 正常完成最近 delimiter 时返回该 delimiter 的 answer type；
+// - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
+// - `Continuation<Unit, Answer>` 允许 `k.resume()` 作为 `k.resume(())` 的 sugar；
+//   更一般地，单一 `Unit` 参数 callable 允许 `f()` 作为 `f(())` 的 sugar；
+// - 若 resume payload 是 tuple，应把 tuple 值作为单一实参传递，例如 `k.resume((a, b))`；
+//   不再保留 tuple payload 扁平传参或专用 resume surface。
+// - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
+//   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
+//   优化分类而不是独立 surface。
+// - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
+interface Continuation<Resume, Answer, eff E = Pure> {
+    fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+}
+
+// Continuation / 线程（内部测试辅助）。
+//
+// 说明：
+// - 该 API 用于回归"跨线程 resume"语义（spec §5.5 / TODO T0618）；
+// - 当前阶段不提供调度器：该 helper 会创建一个新线程执行 `resume` 并 join 等待结束；
+// - 仅作为 fixtures 的可执行落点，并不承诺稳定的用户态 API。
+fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
+fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
+
+// Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
+enum RuntimeError {
+    NullAssertionFailed,
+    ClassCastFailed,
+    ContinuationAlreadyResumed,
+}
+
+// Fatal trap intrinsic（T5000e3a）。
+//
+// 说明：
+// - `panic(message)` 用于表达“不应继续执行”的 fatal trap / invariant break；
+// - 它返回 `Nothing`，因此类型检查与控制流分析会把它视为 bottom；
+// - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
+//   core intrinsic / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
+fun panic(message: String): Nothing
+
+// Built-in effect: Raise
+effect Raise<in E> {
+    fun raise(error: E): Nothing
+}

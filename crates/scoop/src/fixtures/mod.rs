@@ -117,6 +117,38 @@ fn new_fixture_session(session_options: SessionOptions) -> Result<scoopc::sessio
     scoopc::session::Session::with_options(session_options).wrap_err("加载 fixtures session 失败")
 }
 
+/// 为指定 fixture target 推导同伴 sysroot overlay 目录：
+/// - `foo.scoop` -> `foo.sysroot/`
+/// - `case_dir/` -> `case_dir.sysroot/`
+fn fixture_sysroot_overlay_dir(target: &Path) -> Option<PathBuf> {
+    let parent = target.parent()?;
+    let stem = if target.is_file() {
+        target.file_stem()?
+    } else {
+        target.file_name()?
+    };
+    Some(parent.join(format!("{}.sysroot", stem.to_string_lossy())))
+}
+
+fn session_options_for_target(base: &SessionOptions, target: &Path) -> SessionOptions {
+    let mut options = base.clone();
+    if let Some(overlay_dir) = fixture_sysroot_overlay_dir(target)
+        && overlay_dir.is_dir()
+    {
+        options = options.with_sysroot_overlay(overlay_dir);
+    }
+    options
+}
+
+pub(crate) fn apply_session_options_to_command(
+    session_options: &SessionOptions,
+    cmd: &mut Command,
+) {
+    if let Some(overlay_root) = session_options.sysroot_overlay() {
+        cmd.env(scoopc::sysroot::SYSROOT_OVERLAY_ENV, overlay_root);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlannedFixtureTarget {
     pub path: PathBuf,
@@ -252,7 +284,8 @@ pub fn run_all(
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     if fixtures_root.is_file() {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let rel_root = fixtures_root.parent().unwrap_or(fixtures_root);
         run_one(&session, rel_root, fixtures_root, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", fixtures_root.display()))?;
@@ -260,31 +293,36 @@ pub fn run_all(
     }
 
     if is_resolve_multi_case_root(fixtures_root) {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_resolve_multi_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("resolve_multi case 失败：{}", fixtures_root.display()));
     }
     if is_resolve_cone_case_root(fixtures_root) {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_resolve_cone_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("resolve_cone case 失败：{}", fixtures_root.display()));
     }
     if is_typecheck_multi_case_root(fixtures_root) {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_typecheck_multi_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
     }
     if is_typecheck_cone_case_root(fixtures_root) {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_typecheck_cone_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_cone case 失败：{}", fixtures_root.display()));
     }
     if is_typecheck_cone_archive_case_root(fixtures_root) {
-        let session = new_fixture_session(session_options)?;
+        let session =
+            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
         let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_typecheck_cone_archive_case(&session, case_root, fixtures_root).wrap_err_with(
             || {
@@ -309,8 +347,13 @@ pub fn run_all(
 
     let mut ok = 0usize;
     for target in plan_targets(fixtures_root)? {
-        ok += run_all(&target.path, opt_level, session_options, run_pass_env)
-            .wrap_err_with(|| format!("fixture 失败：{}", target.display.display()))?;
+        ok += run_all(
+            &target.path,
+            opt_level,
+            session_options.clone(),
+            run_pass_env,
+        )
+        .wrap_err_with(|| format!("fixture 失败：{}", target.display.display()))?;
     }
 
     Ok(ok)
@@ -528,7 +571,7 @@ fn build_run_pass_cone_run_command(
     scoop_exe: &Path,
     case_dir: &Path,
     opt_level: Option<OptLevel>,
-    _session_options: SessionOptions,
+    session_options: SessionOptions,
     run_pass_env: &RunPassEnvOverrides,
     exp: &FixtureExpectation<'_>,
 ) -> Command {
@@ -548,6 +591,7 @@ fn build_run_pass_cone_run_command(
         cmd.args(&exp.args);
     }
     cmd.current_dir(case_dir);
+    apply_session_options_to_command(&session_options, &mut cmd);
     run_pass_env.apply_to_command(&mut cmd);
     cmd
 }
@@ -641,9 +685,14 @@ fn run_one(
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
         FixturePhase::Comptime => comptime_fixture(session, &source, path),
-        FixturePhase::RunPass => {
-            run_pass::run_fixture(rel, path, opt_level, session.options(), &exp, run_pass_env)
-        }
+        FixturePhase::RunPass => run_pass::run_fixture(
+            rel,
+            path,
+            opt_level,
+            session.options().clone(),
+            &exp,
+            run_pass_env,
+        ),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
@@ -1188,7 +1237,7 @@ fn build_fixture(
         crate::commands::build::BuildOptions {
             emit,
             opt_level,
-            session_options: session.options(),
+            session_options: session.options().clone(),
             ..crate::commands::build::BuildOptions::default()
         },
     )
@@ -1980,8 +2029,9 @@ fn run_resolve_cone_case(
         .wrap_err_with(|| format!("无法读取目录：{}", case_dir.display()))?
     {
         let entry = entry.into_diagnostic()?;
-        if entry.file_type().into_diagnostic()?.is_dir() {
-            cone_dirs.push(entry.path());
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
+            cone_dirs.push(path);
         }
     }
 
@@ -2125,8 +2175,9 @@ fn run_typecheck_cone_case(
         .wrap_err_with(|| format!("无法读取目录：{}", case_dir.display()))?
     {
         let entry = entry.into_diagnostic()?;
-        if entry.file_type().into_diagnostic()?.is_dir() {
-            cone_dirs.push(entry.path());
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
+            cone_dirs.push(path);
         }
     }
 
@@ -2368,8 +2419,9 @@ fn run_typecheck_cone_archive_case(
         .wrap_err_with(|| format!("无法读取目录：{}", case_dir.display()))?
     {
         let entry = entry.into_diagnostic()?;
-        if entry.file_type().into_diagnostic()?.is_dir() {
-            pkg_dirs.push(entry.path());
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
+            pkg_dirs.push(path);
         }
     }
 
@@ -3029,6 +3081,12 @@ fn primary_label_line_col(
     source.offset_to_line_col(offset)
 }
 
+fn is_fixture_sysroot_overlay_dir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with(".sysroot"))
+}
+
 fn collect_scoop_files_inner(
     dir: &Path,
     out: &mut Vec<PathBuf>,
@@ -3047,6 +3105,9 @@ fn collect_scoop_files_inner(
         let ty = entry.file_type().into_diagnostic()?;
 
         if ty.is_dir() {
+            if is_fixture_sysroot_overlay_dir(&path) {
+                continue;
+            }
             collect_scoop_files_inner(&path, out, skip_dirs)?;
             continue;
         }
@@ -3074,7 +3135,7 @@ fn collect_resolve_multi_cases(resolve_multi_root: &Path) -> Result<Vec<PathBuf>
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3096,7 +3157,7 @@ fn collect_resolve_cone_cases(resolve_cone_root: &Path) -> Result<Vec<PathBuf>> 
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3117,7 +3178,7 @@ fn collect_typecheck_multi_cases(typecheck_multi_root: &Path) -> Result<Vec<Path
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3138,7 +3199,7 @@ fn collect_typecheck_cone_cases(typecheck_cone_root: &Path) -> Result<Vec<PathBu
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3161,7 +3222,7 @@ fn collect_typecheck_cone_archive_cases(
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3182,7 +3243,7 @@ fn collect_run_pass_cone_cases(run_pass_cone_root: &Path) -> Result<Vec<PathBuf>
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() {
+        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
             cases.push(path);
         }
     }
@@ -3429,6 +3490,52 @@ mod tests {
                 PathBuf::from("typecheck_multi/cross_file_box_case"),
             ]
         );
+    }
+
+    #[test]
+    fn plan_targets_ignores_companion_sysroot_overlay_dirs() {
+        let dir = tempdir().unwrap();
+        let fixtures_root = dir.path().join("fixtures").join("build");
+        let overlay_dir = fixtures_root.join("sysroot_overlay_demo.sysroot");
+        fs::create_dir_all(&overlay_dir).unwrap();
+        fs::write(
+            fixtures_root.join("sysroot_overlay_demo.scoop"),
+            "// EXPECT: pass\npackage fixtures.build\nfun main() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            overlay_dir.join("core.scoop"),
+            "package scoop.core\ninterface Any\n",
+        )
+        .unwrap();
+
+        let targets = plan_targets(&fixtures_root).unwrap();
+        let displays = targets
+            .iter()
+            .map(|target| target.display.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(displays, vec![PathBuf::from("sysroot_overlay_demo.scoop")]);
+    }
+
+    #[test]
+    fn session_options_for_target_picks_companion_sysroot_overlay_dir() {
+        let dir = tempdir().unwrap();
+        let build_dir = dir.path().join("build");
+        fs::create_dir_all(&build_dir).unwrap();
+        let fixture = build_dir.join("overlay_target.scoop");
+        let overlay_dir = build_dir.join("overlay_target.sysroot");
+        fs::write(
+            &fixture,
+            "// EXPECT: pass\npackage fixtures.build\nfun main() {}\n",
+        )
+        .unwrap();
+        fs::create_dir_all(&overlay_dir).unwrap();
+
+        let options =
+            super::session_options_for_target(&scoopc::session::SessionOptions::new(), &fixture);
+
+        assert_eq!(options.sysroot_overlay(), Some(overlay_dir.as_path()));
     }
 
     #[test]

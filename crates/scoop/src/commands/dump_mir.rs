@@ -67,7 +67,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let source = SourceFile::load(&fixture).unwrap();
-        let session = Session::with_options(session_options).unwrap();
+        let session = Session::with_options(session_options.clone()).unwrap();
 
         let expected =
             scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(&session, &source)
