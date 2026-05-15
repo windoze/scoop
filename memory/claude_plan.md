@@ -57,8 +57,12 @@
 
 ### 完成状态
 
-- 未完成：P4-T01l 仍为 `[TODO]`；本轮提交内容仅包括 helper（typecheck FQN 提取）与对应 typecheck 主线接通，加 plan 与执行记录更新。Gap 1 / gap 2 留给下次会话承接。
+- 第一轮提交 `21bbf5e7`：helper 与 typecheck 主线接通已落地。
+- 第二轮提交（用户指令"如有未完成则按 l1/l2/l3... 拆分"后）：把原 `P4-T01l` 拆分为：
+  - `P4-T01l1`：typecheck FQN 提取——本轮已完成，`[DONE]`。
+  - `P4-T01l2`：HIR / MIR 收口（gap 1：builtin scalar receiver 注入第 0 个 arg），`[TODO]`。
+  - `P4-T01l3`：LLVM 发布（gap 2：`ToString.toString` published late-lowered body）+ owner test 端到端，`[TODO]`。
+  并相应更新顶部任务索引 / 顺序约束 / `P4-T01m` 与 `P4-T01n` 的依赖 / `P4-T01o` 起因 / `P4-T01` 依赖说明。
 - 待提交：
-  - `crates/scoopc/src/typecheck/expr/ops.rs`（新 helper）
-  - `crates/scoopc/src/typecheck/expr/call.rs`（接通 helper 到两个调用点）
-  - `memory/claude_plan.md`
+  - `TODO.md`（拆分与依赖更新）
+  - `memory/claude_plan.md`（本节更新）
