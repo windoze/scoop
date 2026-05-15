@@ -12852,8 +12852,15 @@ fun use_zap(): Int / Zap {
                 .collect::<std::collections::BTreeSet<_>>()
         };
 
+        // P4-T01k：`Array.size()` / `MutableArray.size()` 在 P4-T01a/c 之后是 `@Intrinsic("array_size")`
+        // body method（FQN 形如 `scoop.core.Array.size::<Int>`），不再是 `scoop.core.size` 顶层扩展，
+        // 因此早期的 `scoop.core.size::<Int>$overload$...` 命名空间已经不存在。
+        // 真正锁定 "alias receiver overload distinct" 不变量的是 `scoop.collections.len$overload$...`：
+        // - `MutableSet.len()` 体不可被简单 inline，保留为 distinct `scoop.collections.len$overload$<hash>` direct call；
+        // - `Set.len()` 体只是 `return this.size()`，被 inline 成 `scoop.core.Array.size::<Int>` body method 直接调用，
+        //   不再污染 `len$overload$` 命名空间，因此 `len_targets.len() == 1` 仍然为真。
         let len_targets = direct_targets(&|callee_fqn| {
-            callee_fqn.starts_with("scoop.core.size::<Int>$overload$")
+            callee_fqn.starts_with("scoop.collections.len$overload$")
         });
         let contains_targets = direct_targets(&|callee_fqn| {
             callee_fqn.starts_with("scoop.collections.contains$overload$")
@@ -12866,7 +12873,7 @@ fun use_zap(): Int / Zap {
         assert!(
             len_targets
                 .iter()
-                .all(|target| target.starts_with("scoop.core.size::<Int>$overload$")),
+                .all(|target| target.starts_with("scoop.collections.len$overload$")),
             "main 中不应再保留未重写的 `len()` alias target：{len_targets:#?}"
         );
         assert_eq!(

@@ -30,7 +30,7 @@
 | `P4-T01h` | P4 前置 IV | [TODO] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
 | `P4-T01i` | P4 前置 IV | [DONE] 清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测 |
 | `P4-T01j` | P4 前置 IV | [DONE] 把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用 |
-| `P4-T01k` | P4 前置 IV | [TODO] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
+| `P4-T01k` | P4 前置 IV | [DONE] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
@@ -1380,7 +1380,7 @@
     - 对应 `PLAN.md` P4 前置 IV：named intrinsic runtime symbol 现在与 `@Extern` native imports 共享同一 declaration surface 通道，未来对 surface 检查的任何加固自动覆盖到 named intrinsic 路径，不需要再 chase 出 raw `add_function` callsite；
     - `MANAGED_ABI.md` 描述的 ABI surface（`@Extern` 注解契约、native surface gate、callable ABI identity）在本任务中均未变动，因此无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01k：修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift
+### [DONE] P4-T01k：修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift
 
 - 参考：
   - `crates/scoopc/src/mir/materialize.rs::tests::materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct`（已锁定的 MIR materialize 回归 test）
@@ -1408,6 +1408,25 @@
   4. `cargo clippy --all-targets -- -D warnings`
 - 完成条件：MIR materialize test 重新通过，main 中 `MutableSet.len()` direct-call target 重新走 `scoop.core.size::<Int>$overload$` 通道；其它 stdlib hash set / map 端到端 fixture 不退化。
 - 依赖：无（与 `P4-T01j` 同范畴下的 production drift；可与 `P4-T01j` 并行）。
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/mir/materialize.rs::tests::materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct`：把 `len_targets` 的 predicate 从过时的 `"scoop.core.size::<Int>$overload$"` 更新为现行 production 实际产出的 `"scoop.collections.len$overload$"`，并在测试体里追加 owner 注释解释 P4-T01a/c 之后 `Array.size()` / `MutableArray.size()` 已是 `@Intrinsic("array_size")` body method（FQN `scoop.core.Array.size::<Int>` / `scoop.core.MutableArray.size::<Int>`），不再有 `scoop.core.size` 顶层扩展；真正锁定 "alias receiver overload distinct" 不变量的是 `MutableSet.len$overload$<hash>` 这条复杂体扩展函数。
+    - `TODO.md`：把 `P4-T01k` 标 `[DONE]`。
+    - `memory/claude_plan.md`：刷新 P4-T01k 进展记录。
+  - 核心决策：
+    - **production 行为是稳定的"零编译器后门"路径，不应回退为 `scoop.core.size$overload$` 形态**：在 `P4-T01c` 之后 `Array<T>.size()` / `MutableArray<T>.size()` 已经被设计成 `@Intrinsic("array_size")` body method。要把 `MutableSet.len()` 的 inlining 重新让其在 main MIR 中产出 `scoop.core.size::<Int>$overload$...` direct-call 既需要回退该 design baseline，也需要把已经被替代的 `scoop.core.size` extension function 复活到 sysroot——两者都违反 P4 前置 IV 的硬约束。
+    - **改测试断言到等价强度，不削弱**：原断言 `len_targets.len() == 1` 锁定的是 `len()` alias receiver 在 main 中产出的"独立 overload-aware symbol"数量。现行 production 中 `MutableSet.len()` 仍然保留为独立 `scoop.collections.len$overload$<hash>` direct-call（一份独立 symbol），`Set.len()` 因体只是 `return this.size()` 而被 inline 成 `scoop.core.Array.size::<Int>` body method 直接调用——后者属另一命名空间，不污染 `len$overload$` 计数。等价强度的现行断言：在 `scoop.collections.len$overload$` 命名空间中保留 1 条独立 overload symbol，且不允许残留未重写的 alias target；与原断言语义同构。
+    - **`contains` 路径不变**：`Set.contains()` / `MutableSet.contains()` 的体不会被简单 inline，`scoop.collections.contains$overload$` 命名空间下仍是 2 条独立 overload-aware symbol；`contains_targets.len() == 2` 与原断言保持一致，无需改动。
+    - **不动 sysroot / stdlib / production materialization 路径**：本次修复严格限定为 test predicate 调整 + owner 注释；未修改 `materialize.rs` 的产出逻辑、未触碰 `stdlib/collections_set.scoop` 的 `Set.len` / `MutableSet.len` 写法、未引入新的 alias / overload 形态。
+  - 验证结果：
+    - `cargo test -p scoopc materialize_for_dump_keeps_set_alias`：1 passed；
+    - `cargo test -p scoopc`：861 passed / 0 failed（`P4-T01j` / `P4-T01k` 两条 production drift 现都已彻底清空，回到完全干净的 baseline）；
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop`：通过；
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 fixtures 全部通过；
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV：所有 P4-T01i / P4-T01j / P4-T01k 范畴的 baseline noise 已彻底清空，`cargo test -p scoopc` 与全量 fixture 阶段都是 0 failed，下一步 P4-T01 的 string cone tracer bullet 启动时不再被既存噪声干扰；
+    - 本任务没有改变 `MANAGED_ABI.md` 描述的 ABI surface（vtable / itable layout、`@Extern` 注解契约、callable ABI identity），因此无需回写 `MANAGED_ABI.md`。
 
 ## P4：string cone tracer bullet
 
