@@ -1817,6 +1817,44 @@ fn overlay_core_intrinsic_array_methods_lower_through_ordinary_generic_class_pat
 }
 
 #[test]
+fn overlay_core_intrinsic_scalar_body_method_call_keeps_receiver_arg() {
+    let repo_root = stable_id_repo_root();
+    let fixture =
+        repo_root.join("tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.scoop");
+    let overlay_root = repo_root
+        .join("tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.sysroot");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session =
+        Session::with_options(SessionOptions::new().with_sysroot_overlay(overlay_root.clone()))
+            .unwrap();
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let negate_ir = function_ir_matching(&ir, "overlay Bool.negate body", |_, function| {
+        let symbol = llvm_function_symbol_name(function);
+        stable_id_symbol_is_exported_abi_fun(symbol)
+            && stable_id_symbol_mentions_fqn(symbol, "scoop.core.Bool.negate")
+    });
+    let negate_symbol = llvm_function_symbol_name(negate_ir);
+    let main_ir = function_ir_matching(&ir, "fixture Scoop main body", |_, function| {
+        let symbol = llvm_function_symbol_name(function);
+        stable_id_symbol_is_exported_abi_fun(symbol)
+            && stable_id_symbol_mentions_fqn(symbol, "fixtures.build.main")
+    });
+
+    assert!(
+        main_ir.lines().any(|line| {
+            line.contains(" call ") && line.contains(negate_symbol) && line.contains("i1 ")
+        }),
+        "Bool.negate direct call should pass the builtin Bool receiver as arg 0:\n{main_ir}"
+    );
+    assert!(
+        overlay_root.is_dir(),
+        "overlay fixture companion dir should exist: {}",
+        overlay_root.display()
+    );
+}
+
+#[test]
 fn named_intrinsic_dummy_ir_method_call_does_not_materialize_method_symbol() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

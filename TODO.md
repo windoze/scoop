@@ -26,13 +26,13 @@
 | `P4-T01d` | P4 前置 II | [DONE] 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | [DONE] 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
 | `P4-T01f` | P4 前置 III | [DONE] 为 sysroot 标量 `String`-return helper 暴露不放宽 native surface 的 runtime bridge |
-| `P4-T01g` | P4 前置 IV | [TODO] 解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段 |
-| `P4-T01h` | P4 前置 IV | [TODO] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
+| `P4-T01g` | P4 前置 IV | [DONE] 解锁 subclass-typed receiver 调用 inherited body method 与访问 inherited 字段 |
+| `P4-T01h` | P4 前置 IV | [DONE] 完整支持构造器 type argument（LHS expected type 反推 + 显式 type argument 调用） |
 | `P4-T01i` | P4 前置 IV | [DONE] 清理 P2-T02 之后仍残留 `@Unsafe @Extern` 旧写法的 baseline fixture / 单测，并刷新依赖于 production 行号的 failure-policy 单测 |
 | `P4-T01j` | P4 前置 IV | [DONE] 把 `declare_named_intrinsic_runtime_symbol` 接入 `declare_runtime_or_native_import_function` 通道，消除 `add_function(..., None)` raw 调用 |
 | `P4-T01k` | P4 前置 IV | [DONE] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
 | `P4-T01l1` | P4 前置 IV | [DONE] typecheck 层把 builtin scalar / `String` 的 nominal FQN 提取统一进 member-call 主线 |
-| `P4-T01l2` | P4 前置 IV | [TODO] HIR / MIR 收口：让 `@Intrinsic struct/class` body method 在 builtin scalar receiver 上把 receiver 作为第 0 个 arg 注入 |
+| `P4-T01l2` | P4 前置 IV | [DONE] HIR / MIR 收口：让 `@Intrinsic struct/class` body method 在 builtin scalar receiver 上把 receiver 作为第 0 个 arg 注入 |
 | `P4-T01l3` | P4 前置 IV | [TODO] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
 | `P4-T01m` | P4 前置 V | [TODO] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
 | `P4-T01n` | P4 前置 V | [TODO] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
@@ -1472,7 +1472,7 @@
       - `memory/claude_plan.md`：记录拆分原因与下一步承接。
 - 依赖：`P4-T01k`
 
-### [TODO] P4-T01l2：HIR / MIR 收口——builtin scalar receiver 调用 `@Intrinsic` body method 时把 receiver 作为第 0 个 arg 注入
+### [DONE] P4-T01l2：HIR / MIR 收口——builtin scalar receiver 调用 `@Intrinsic` body method 时把 receiver 作为第 0 个 arg 注入
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 I"
@@ -1503,6 +1503,28 @@
   - HIR / MIR 在 builtin scalar receiver 的 direct member-call 上不再 drop receiver；
   - `P4-T01l3` 在补完 LLVM 发布之后，可以基于本子任务铺好的 receiver-prefix 通道继续验证 `<scalar>.toString()` 的 dual-track 端到端。
 - 依赖：`P4-T01l1`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/hir/lower/expr.rs`：fallback canonical call lowering 在 `CallArgBinding` 含 `Receiver` 时，会从 `MemberAccess` callee 重建 receiver 并传给 `lower_canonical_call_expr`，避免 receiver slot 被静默吞掉后继续落到无参 direct-call fallback。
+    - `crates/scoopc/src/llvm/tests.rs`：新增 `overlay_core_intrinsic_scalar_body_method_call_keeps_receiver_arg` owner test，验证 overlay `Bool.negate` 的 direct call 在 IR 中携带 builtin `Bool` receiver。
+    - `crates/scoopc/src/{mir/materialize.rs,resolve/scopes.rs}`：`cargo fmt --all` 对既有长行做了格式化归一，无行为变更。
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.scoop` 与配套 `.sysroot/core.scoop`：新增 sysroot overlay fixture，把 `Bool` 改写为 bodied `@Intrinsic struct`，覆盖 `true.negate()` / `false.negate()`。
+    - `TODO.md` / `memory/claude_plan.md`：刷新任务状态与执行记录。
+  - 核心决策：
+    - 保留 P4-T01a/c 已有 direct member-call 主线，不新增 builtin-only lowering path；本任务只修补 fallback canonical lowering 对既有 typecheck receiver binding 的消费，确保 `Receiver` binding 必须有真实 lowered receiver。
+    - `collect_type_decl_kinds` 继续消费完整 compilation unit；overlay `core.scoop` 因 bodied `@Intrinsic struct Bool` 已通过既有 sysroot support-source 机制进入 HIR pipeline，无需新增 sysroot FQN 白名单。
+    - 既有 `toString` / string / scalar by-name 拦截全部保留；本任务没有删除或重排 vtable / itable / dispatch ABI，只为后续 `P4-T01l3` 和 `P4-T01` 铺好 receiver-prefix 通道。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.scoop`
+    - `cargo test -p scoopc overlay_core_intrinsic_scalar_body_method_call_keeps_receiver_arg -- --nocapture`
+    - `cargo test -p scoopc`：862 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：437 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV / `P4-T01l2`：builtin scalar receiver 的 direct member-call 现在能在 HIR/MIR 中保留 receiver 作为第 0 个 arg，不再触发 `pass MIR direct call arity mismatch`。
+    - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface；所有 existing by-name transition path 仍保留，删除动作继续留给 `P4-T01`。
 
 ### [TODO] P4-T01l3：LLVM 发布——`ToString.toString` interface dispatch 在 builtin scalar override 引入后被 monomorphization / late lowering 正确收集，并新增 owner test 端到端验证 dual-track
 

@@ -12859,9 +12859,8 @@ fun use_zap(): Int / Zap {
         // - `MutableSet.len()` 体不可被简单 inline，保留为 distinct `scoop.collections.len$overload$<hash>` direct call；
         // - `Set.len()` 体只是 `return this.size()`，被 inline 成 `scoop.core.Array.size::<Int>` body method 直接调用，
         //   不再污染 `len$overload$` 命名空间，因此 `len_targets.len() == 1` 仍然为真。
-        let len_targets = direct_targets(&|callee_fqn| {
-            callee_fqn.starts_with("scoop.collections.len$overload$")
-        });
+        let len_targets =
+            direct_targets(&|callee_fqn| callee_fqn.starts_with("scoop.collections.len$overload$"));
         let contains_targets = direct_targets(&|callee_fqn| {
             callee_fqn.starts_with("scoop.collections.contains$overload$")
         });

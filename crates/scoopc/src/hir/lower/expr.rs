@@ -874,6 +874,15 @@ impl<'a> HirLowering<'a> {
                     if let Some(arg_binding) = arg_binding {
                         let ctor_binding = self.typechecked_ctor_call_binding(e.span);
                         let canonical_param_count = arg_binding.params.len();
+                        let receiver = self
+                            .call_arg_binding_has_receiver(&arg_binding)
+                            .then(|| {
+                                self.lower_canonical_receiver_from_member_callee(
+                                    pkg_prefix,
+                                    callee_expr,
+                                )
+                            })
+                            .flatten();
                         let plan = if let Some(fun_binding) =
                             self.typechecked_top_level_fun_call_binding(e.span)
                         {
@@ -889,7 +898,7 @@ impl<'a> HirLowering<'a> {
                                 call_span: e.span,
                                 callee: callee.as_ref().clone(),
                                 source_args: args,
-                                receiver: None,
+                                receiver,
                                 binding: arg_binding,
                                 plan,
                                 call_ty,
@@ -3102,6 +3111,42 @@ impl<'a> HirLowering<'a> {
             }
         }
         false
+    }
+
+    fn call_arg_binding_has_receiver(&self, binding: &crate::ast::CallArgBinding) -> bool {
+        binding
+            .params
+            .iter()
+            .any(|param| matches!(param, crate::ast::CallArgParamBinding::Receiver))
+    }
+
+    fn lower_canonical_receiver_from_member_callee(
+        &mut self,
+        pkg_prefix: &str,
+        callee: &ast::Expr,
+    ) -> Option<Expr> {
+        let callee = self.transparent_call_callee(callee);
+        let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+            return None;
+        };
+        match self.resolved_member_for_lowering(member)? {
+            ast::ResolvedMemberRef::Fun { fqn } => {
+                let (owner_fqn, _) = fqn.rsplit_once('.')?;
+                if let ast::ExprKind::Ident(id) = &receiver.kind
+                    && id.resolved.is_none()
+                    && self.source.slice(id.span) != "this"
+                    && self.index.object_types.contains(owner_fqn)
+                {
+                    Some(self.synth_object_singleton_value_expr(owner_fqn, receiver.span))
+                } else {
+                    Some(self.lower_expr(pkg_prefix, receiver))
+                }
+            }
+            ast::ResolvedMemberRef::ExtensionFun { .. } => {
+                Some(self.lower_expr(pkg_prefix, receiver))
+            }
+            _ => None,
+        }
     }
 
     fn plan_param_for_slot<'b>(

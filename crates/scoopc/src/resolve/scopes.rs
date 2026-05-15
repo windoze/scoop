@@ -1938,11 +1938,9 @@ impl<'a> BlockScopeChecker<'a> {
 
             let candidate = format!("{super_norm}.{member_name}");
             if let Some(syms) = self.index.by_fqn.get(&candidate) {
-                if syms
-                    .fun
-                    .iter()
-                    .any(|o| o.has_body && is_symbol_visible_from(self.use_cone, self.source, &o.symbol))
-                {
+                if syms.fun.iter().any(|o| {
+                    o.has_body && is_symbol_visible_from(self.use_cone, self.source, &o.symbol)
+                }) {
                     return Some(ast::ResolvedMemberRef::Fun { fqn: candidate });
                 }
                 if value_hit.is_none()

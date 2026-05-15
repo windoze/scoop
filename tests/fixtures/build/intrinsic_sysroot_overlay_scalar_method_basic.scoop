@@ -1,0 +1,19 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+//
+// P4-T01l2: builtin scalar receiver calls to sysroot `@Intrinsic` body methods must keep
+// the receiver as canonical arg 0 instead of lowering `true.negate()` to a zero-arg direct call.
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    if (true.negate() != false) {
+        return 1
+    }
+    if (false.negate() != true) {
+        return 2
+    }
+    return 0
+}
