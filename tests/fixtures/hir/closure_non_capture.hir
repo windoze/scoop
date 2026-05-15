@@ -126,6 +126,7 @@ TypedHirEffectContracts {
             kind: FunValue,
             callee_ty: (Int) -> Int / Pure,
             return_ty: Int,
+            abi_identity: ManagedOrdinary,
             arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],

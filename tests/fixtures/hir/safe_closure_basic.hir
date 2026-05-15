@@ -107,6 +107,7 @@ TypedHirEffectContracts {
             kind: FunValue,
             callee_ty: () -> Int / Pure,
             return_ty: Int,
+            abi_identity: ManagedOrdinary,
             arg_binding: [],
         },
     ],

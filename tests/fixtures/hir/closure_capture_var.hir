@@ -363,6 +363,7 @@ TypedHirEffectContracts {
             kind: FunValue,
             callee_ty: () -> Any / Pure,
             return_ty: Any,
+            abi_identity: ManagedOrdinary,
             arg_binding: [],
         },
         CallSiteContract {
@@ -370,6 +371,7 @@ TypedHirEffectContracts {
             kind: FunValue,
             callee_ty: () -> Any / Pure,
             return_ty: Any,
+            abi_identity: ManagedOrdinary,
             arg_binding: [],
         },
     ],

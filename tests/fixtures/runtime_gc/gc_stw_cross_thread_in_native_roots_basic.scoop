@@ -16,15 +16,12 @@ package fixtures.codegen
 import scoop.core.*
 import scoop.thread.*
 
-@Unsafe
 @Extern("scoop_test_gc_native_sleep_reset")
 fun nativeSleepReset(): Unit
 
-@Unsafe
 @Extern("scoop_test_gc_native_sleep_entered")
 fun nativeSleepEntered(): Int
 
-@Unsafe
 @Extern("scoop_test_gc_sleep_in_native_ms")
 fun sleepInNativeMillis(ms: Int): Unit
 

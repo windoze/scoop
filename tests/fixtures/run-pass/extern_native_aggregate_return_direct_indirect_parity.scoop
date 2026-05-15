@@ -9,7 +9,6 @@ package fixtures.runpass
 import scoop.core.*
 import scoop.unsafe.*
 
-@Unsafe
 @Extern("scoop_test_make_int_pair")
 fun make_int_pair(seed: Int): (Int, Int)
 

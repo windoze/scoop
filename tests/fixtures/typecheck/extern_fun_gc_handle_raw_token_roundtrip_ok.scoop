@@ -6,11 +6,9 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-@Unsafe
 @Extern("scoop_test_handle_token_slot_store")
 fun storeHandleToken(raw: UIntPtr): Unit
 
-@Unsafe
 @Extern("scoop_test_handle_token_slot_take")
 fun takeHandleToken(): UIntPtr
 

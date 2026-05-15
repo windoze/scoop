@@ -4008,7 +4008,6 @@ package a
 
 import scoop.core.*
 
-@Unsafe
 @Extern("scoop_test_gc_collect_in_native")
 fun gcCollectInNative(): Unit
 
@@ -4193,7 +4192,6 @@ package a
 import scoop.core.*
 import scoop.unsafe.*
 
-@Unsafe
 @Extern("scoop_test_make_int_pair")
 fun make_int_pair(seed: Int): (Int, Int)
 

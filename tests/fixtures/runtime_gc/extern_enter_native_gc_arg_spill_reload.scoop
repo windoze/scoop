@@ -7,7 +7,6 @@ package fixtures.runtime_gc
 
 import scoop.core.*
 
-@Unsafe
 @Extern("scoop_test_gc_collect_in_native")
 fun gcCollectInNative(): Unit
 

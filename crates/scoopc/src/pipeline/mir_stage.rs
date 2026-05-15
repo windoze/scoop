@@ -2063,11 +2063,9 @@ fun main(): Unit {
 
 import scoop.core.*
 
-@Unsafe
 @Extern("scoop_test_handle_token_slot_store")
 fun handleTokenSlotStore(raw: UIntPtr): Unit
 
-@Unsafe
 @Extern("scoop_test_handle_token_slot_take")
 fun handleTokenSlotTake(): UIntPtr
 

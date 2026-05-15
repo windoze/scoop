@@ -12,19 +12,15 @@
 import scoop.core.*
 import scoop.sync.*
 
-@Unsafe
 @Extern("scoop_test_sync_destroy_counts_reset")
 fun syncDestroyCountsReset(): Unit
 
-@Unsafe
 @Extern("scoop_test_sync_mutex_destroy_count")
 fun syncMutexDestroyCount(): Int
 
-@Unsafe
 @Extern("scoop_test_sync_condvar_destroy_count")
 fun syncCondVarDestroyCount(): Int
 
-@Unsafe
 @Extern("scoop_test_sync_once_destroy_count")
 fun syncOnceDestroyCount(): Int
 

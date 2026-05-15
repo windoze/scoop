@@ -77,7 +77,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body.rs",
-        expected_count: 314,
+        expected_count: 317,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs",
@@ -85,7 +85,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 210,
+        expected_count: 193,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mod.rs",
@@ -243,27 +243,27 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body.rs:5528:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4407:                    _ => unreachable!(\"receiver_cg matched float above\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2942:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2990:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3002:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3518:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5459:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5540:                    _ => unreachable!(\"value.ty matched float above\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8306:                    _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8325:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8385:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8402:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8436:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8468:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8947:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
-    "crates/scoopc/src/mir/materialize.rs:6216:                    panic!(",
-    "crates/scoopc/src/mir/materialize.rs:8830:            panic!(",
-    "crates/scoopc/src/typecheck/lower.rs:1181:                unreachable!(",
-    "crates/scoopc/src/typecheck/lower.rs:2363:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:2965:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3210:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/llvm/codegen/mir_body.rs:5498:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body.rs:4408:                    _ => unreachable!(\"receiver_cg matched float above\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2966:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3014:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3026:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3209:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5015:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:5096:                    _ => unreachable!(\"value.ty matched float above\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8510:                    _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8529:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8589:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8606:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8640:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:8672:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/mod.rs:9151:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
+    "crates/scoopc/src/mir/materialize.rs:6304:                    panic!(",
+    "crates/scoopc/src/mir/materialize.rs:8920:            panic!(",
+    "crates/scoopc/src/typecheck/lower.rs:1212:                unreachable!(",
+    "crates/scoopc/src/typecheck/lower.rs:2395:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3281:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3526:                unreachable!(\"is_value_only_enum implies first_super exists\");",
     "crates/scoopc/src/typecheck/when_pat.rs:209:                    unreachable!(",
     "crates/scoopc/src/typecheck/when_pat.rs:258:                unreachable!(",
 ];
@@ -369,7 +369,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 802);
+    assert_eq!(total, 788);
 }
 
 #[test]
