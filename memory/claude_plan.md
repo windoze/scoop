@@ -1,26 +1,34 @@
-# 执行计划
+# 当前执行计划
 
-说明：按要求先记录执行计划；不会记录私有推理细节，只记录可核查的步骤、决策与进度。
+说明：本文件记录可审计的执行计划与进度更新，不记录私有推理链。
 
-1. 读取 `TODO.md`，按标题是否含 `[DONE]` 找出第一个未完成任务。
-2. 查看该任务的依赖、验证要求和完成记录；必要时查看最新提交是否与该任务直接相关。
-3. 针对该任务检查相关代码、测试与 fixtures，确认实现范围。
-4. 完成该任务；若发现阻塞当前任务的真实缺口，则只新增最小必要前置任务并停止。
-5. 运行相关测试；若失败，修复后重测。
-6. 更新 `TODO.md`，将完成任务标题加 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 提交本次任务相关全部变更，并在提交后停止。
+## 初始计划
 
-当前状态：已定位首个未完成任务为 `P4-T01o`。最新提交 `4b2a5c79 [P4-T01n] Support intrinsic synthetic properties` 与当前任务顺序相邻但未声明未完成阻塞项。
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成事项；仅在其阻塞当前任务时纳入范围。
+3. 阅读当前任务要求、依赖、验证命令和完成记录，确定是否可以按原任务执行。
+4. 若遇到必须先修复的具体阻塞项，更新 `TODO.md` 插入最小前置任务，记录阻塞原因，提交后停止。
+5. 若无阻塞，实施当前任务的最小正确变更，避免绕过规格或削弱测试。
+6. 运行当前任务要求的验证命令及相关测试；若失败，修复后重新验证。
+7. 将当前任务标题加上 `[DONE]`，更新其 completion record；仅在阶段计划变化时更新 `PLAN.md`。
+8. 提交所有本次任务相关变更，提交信息包含任务编号与简要说明。
+9. 完成一个任务后停止，不继续处理下一个任务。
 
-本任务执行步骤：
+## 进度
 
-1. 检查 `@Intrinsic` / `@Extern` method body 诊断、interface override 检查和现有 fixture 约定。
-2. 补齐或修正前端约束：`@Intrinsic class/struct` 作为 interface implementer 时，显式实现/override 的 method 必须是普通 method 且有 body。
-3. 新增 typecheck fixture 覆盖 `@Intrinsic override`、`@Extern override`、无 body override 报错，以及带 body 普通 override 通过。
-4. 审计 sysroot 当前 `@Intrinsic class/struct` 的 interface impl 形态，并写入 `TODO.md` 完成记录。
-5. 运行指定验证：相关 fixture、完整 typecheck fixture、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings`。
-6. 标记 `TODO.md` 中 `P4-T01o` 为 `[DONE]`，提交本任务相关变更后停止。
+- 已创建初始执行计划；下一步读取 `TODO.md` 定位第一个未完成任务。
+- 已读取 `TODO.md`，第一个未完成任务为 `P4-T01p：锁定 @Intrinsic method 在类型成员位置同样必须省略方法体`。
+- 最近提交为 `7f4b2fbb [P4-T01o] Lock intrinsic interface override bodies`，与当前任务相邻但未明确声明未完成问题；当前任务按 `TODO.md` 原条目执行。
+- 已确认 `check_builtin_annotations_on_fun_decl` 已在 top-level、type member 与 object member 入口调用；本任务预计无需 production code 变更。
+- 已新增 P4-T01p fixture，覆盖 class / struct / object 成员、override、generic member、`@Intrinsic("name")` member body 失败，以及成员 `@Intrinsic` 无 body 正向用例。
+- 验证已通过：`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（461/0）、`cargo test -p scoopc`（863/0）、`cargo clippy --all-targets -- -D warnings`。
+- 已将 `TODO.md` 中 `P4-T01p` 标记为 `[DONE]` 并写入完成记录；下一步提交本任务相关变更。
 
-进度更新：已在 `typecheck/interfaces.rs` 增加 `@Intrinsic` class/struct interface implementation shape 诊断，并新增 class/struct 的 `@Intrinsic` override、`@Extern` override、无 body override 失败 fixture 与带 body 普通 method 正向 fixture。已运行 `cargo fmt --all`、正向 fixture 和一条 `@Intrinsic` class 失败 fixture，均通过。
+## P4-T01p 执行步骤
 
-进度更新：完整验证已通过：`tests/fixtures/typecheck` 为 453 passed / 0 failed，`cargo test -p scoopc` 为 863 passed / 0 failed，`cargo clippy --all-targets -- -D warnings` clean。已把 `TODO.md` 中 `P4-T01o` 标记为 `[DONE]` 并写入完成记录；下一步检查 git diff 并提交本任务变更。
+1. 检查 `crates/scoopc/src/typecheck/annotations.rs` 中 `IntrinsicFunMustHaveNoBody` 的覆盖入口，确认它是否已覆盖 class / struct / object member、override、generic method 和 `@Intrinsic("name")` 形态。
+2. 检查既有 typecheck fixture 命名、诊断写法和 `@Intrinsic` member 语法惯例，新增最小 fixture 覆盖当前任务列出的正反用例。
+3. 若现有检查没有覆盖类型成员位置，扩展相同检查链路到 method declaration 入口，复用 `intrinsic_fun_must_have_no_body` 诊断，不新增诊断 code。
+4. 运行新增 fixture 和任务要求的 `cargo test -p scoopc`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo clippy --all-targets -- -D warnings`。
+5. 若验证通过，将 `P4-T01p` 标记为 `[DONE]`，写入改动范围、核心决策、验证结果和计划闭合记录。
+6. 提交本任务相关变更后停止。

@@ -37,7 +37,7 @@
 | `P4-T01m` | P4 前置 V | [DONE] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
 | `P4-T01n` | P4 前置 V | [DONE] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
 | `P4-T01o` | P4 前置 V | [DONE] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
-| `P4-T01p` | P4 前置 V | [TODO] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
+| `P4-T01p` | P4 前置 V | [DONE] 锁定 `@Intrinsic` method 在类型成员位置（含 override 形态）同样必须省略方法体 |
 | `P4-T01q` | P4 前置 V | [TODO] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
@@ -1735,7 +1735,7 @@
     - 对应 `PLAN.md` P4 前置 V：`@Intrinsic class/struct` 作为 interface implementer 时现在只能用普通 bodied method 落到用户/sysroot 可见 body，不再允许通过 `@Intrinsic` / `@Extern` / declaration-only method 形成 interface dispatch 空洞。
     - 本任务没有改变 callable ABI / extern ABI surface，也没有调整 string cone substrate 边界；无需回写 `MANAGED_ABI.md`。
 
-### [TODO] P4-T01p：锁定 `@Intrinsic` method 在类型成员位置同样必须省略方法体
+### [DONE] P4-T01p：锁定 `@Intrinsic` method 在类型成员位置同样必须省略方法体
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 V"
@@ -1762,6 +1762,25 @@
   - `@Intrinsic` method 在所有声明位置（top-level fun、class / struct / object member、generic 形态、`@Intrinsic("name")` 命名形态）上都被前端要求省略 body；
   - 既有 `intrinsic_named_fun_body_is_error.scoop` fixture 与本任务新增 fixture 共同锁定上述行为。
 - 依赖：`P4-T01o`
+- 完成记录：
+  - 改动范围：
+    - `tests/fixtures/typecheck/intrinsic_member_body_{class,struct,object}_is_error.scoop`：新增普通 class / struct / object 成员 `@Intrinsic` method 带 body 失败 fixture，复用 `scoop::typecheck::intrinsic_fun_must_have_no_body`。
+    - `tests/fixtures/typecheck/intrinsic_member_generic_{class,struct}_body_is_error.scoop`：新增 generic class / struct 上 generic `@Intrinsic` member method 带 body 失败 fixture。
+    - `tests/fixtures/typecheck/intrinsic_member_named_body_is_error.scoop`：新增 member-position `@Intrinsic("dummy_ir")` 命名形态带 body 失败 fixture。
+    - `tests/fixtures/typecheck/intrinsic_member_override_body_is_error.scoop`：新增 override method 上 `@Intrinsic` 带 body 失败 fixture，覆盖非 interface-override 重叠路径。
+    - `tests/fixtures/typecheck/intrinsic_member_without_body_ok.scoop`：新增 class / struct / object 成员 `@Intrinsic` declaration-only 正向 fixture。
+    - `TODO.md` / `memory/claude_plan.md`：刷新任务状态与验证记录。
+  - 核心决策：
+    - 不修改 production code：审计确认 `check_builtin_annotations_on_fun_decl` 已在 top-level fun、type member fun 与 object member fun 三类入口调用，`IntrinsicFunMustHaveNoBody` 已天然覆盖成员位置、override、generic method 与 `@Intrinsic("name")` 命名形态。
+    - 用 fixture 锁定而不是新增诊断：所有失败用例继续复用既有 `intrinsic_fun_must_have_no_body` code/message，符合本任务“不新增诊断 code、不改变现有诊断 message”的约束。
+    - 与 `P4-T01o` 保持边界：interface implementer 上 `@Intrinsic override` 的 shape 约束仍由 `P4-T01o` 专属诊断覆盖；本任务新增非 interface base-class override 用例，专门锁定“只要 `@Intrinsic` method 有 body 就报同一 body 诊断”。
+  - 验证结果：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：461 passed / 0 failed。
+    - `cargo test -p scoopc`：863 passed / 0 failed。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 V：`@Intrinsic` method 在 top-level 与类型成员位置的“必须无 body”规范现在由既有 top-level fixture 与新增 member-position fixture 矩阵共同锁住，为后续 P4-T01 sysroot 改写避免成员 intrinsic body 漏检。
+    - 本任务没有改变 callable ABI / extern ABI surface，也没有调整 `@Intrinsic` 表机制或 runtime substrate；无需回写 `MANAGED_ABI.md` / `PLAN.md`。
 
 ### [TODO] P4-T01q：收口前端通用约束——所有 method/function 必须有完整定义与实现（仅三类例外）
 

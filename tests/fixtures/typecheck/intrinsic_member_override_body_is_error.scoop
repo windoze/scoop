@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_fun_must_have_no_body
+// EXPECT-ERROR: `@Intrinsic` 函数必须省略函数体
+
+@file:AllowIntrinsic
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun seed(): Int {
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    @Intrinsic
+    override fun seed(): Int {
+        return 0
+    }
+}
