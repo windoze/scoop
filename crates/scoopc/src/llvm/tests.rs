@@ -1855,6 +1855,41 @@ fn overlay_core_intrinsic_scalar_body_method_call_keeps_receiver_arg() {
 }
 
 #[test]
+fn overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override_and_default_bodies() {
+    let repo_root = stable_id_repo_root();
+    let fixture = repo_root
+        .join("tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop");
+    let overlay_root = repo_root
+        .join("tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.sysroot");
+    let source = SourceFile::load(&fixture).unwrap();
+    let session =
+        Session::with_options(SessionOptions::new().with_sysroot_overlay(overlay_root.clone()))
+            .unwrap();
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    for fqn in [
+        "scoop.core.Bool.toString",
+        "scoop.core.Char.toString",
+        "scoop.core.Float32.toString",
+        "scoop.core.Float64.toString",
+        "scoop.core.Int.toString",
+        "scoop.core.String.toString",
+        "scoop.core.ToString.toString",
+    ] {
+        function_ir_matching(&ir, fqn, |_, function| {
+            let symbol = llvm_function_symbol_name(function);
+            stable_id_symbol_is_exported_abi_fun(symbol)
+                && stable_id_symbol_mentions_fqn(symbol, fqn)
+        });
+    }
+    assert!(
+        overlay_root.is_dir(),
+        "overlay fixture companion dir should exist: {}",
+        overlay_root.display()
+    );
+}
+
+#[test]
 fn named_intrinsic_dummy_ir_method_call_does_not_materialize_method_symbol() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(

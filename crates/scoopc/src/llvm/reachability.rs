@@ -4,17 +4,19 @@
 //! 顶层函数 / ctor / class init 相关实现成员”整理出来，避免在 emit API 或
 //! `llvm/mod.rs` 根模块里混放大段 HIR 扫描逻辑。
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use crate::ast;
 use crate::hir;
 use crate::mir;
 use crate::span::Span;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 pub(super) struct ReachabilityInputs<'a> {
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
+    pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
@@ -33,6 +35,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
     let ReachabilityInputs {
         class_inits,
         class_vtables,
+        interfaces,
         class_itables,
         ctor_call_sites,
         top_level_vars,
@@ -45,6 +48,7 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         fun_index,
         class_inits,
         class_vtables,
+        interfaces,
         class_itables,
         ctor_call_sites,
         top_level_vars,
@@ -110,6 +114,7 @@ struct ReachabilityCollector<'a> {
     materialized_pass_view: Option<&'a mir::MaterializedMirPassView<'a>>,
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
+    interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
@@ -573,22 +578,18 @@ impl<'a> ReachabilityCollector<'a> {
 
     fn mir_call_kind_requires_hir_compat_scan(&self, kind: &mir::CallKind) -> bool {
         match kind {
-            mir::CallKind::Direct { callee_fqn } => self
-                .fun_index
-                .get(callee_fqn)
-                .is_some_and(|fun| fun.body.is_none()),
+            mir::CallKind::Direct { .. } => false,
             mir::CallKind::Closure { .. } => false,
             mir::CallKind::FunValue { .. } => false,
             mir::CallKind::FunPtr { .. } => false,
-            mir::CallKind::Virtual { .. }
-            | mir::CallKind::Interface { .. }
-            | mir::CallKind::Resume { .. } => true,
+            mir::CallKind::Interface { .. } => false,
+            mir::CallKind::Virtual { .. } | mir::CallKind::Resume { .. } => true,
         }
     }
 
     fn mir_terminator_requires_hir_compat_scan(&self, kind: &mir::TerminatorKind) -> bool {
         match kind {
-            mir::TerminatorKind::Return { value } => value.is_none(),
+            mir::TerminatorKind::Return { .. } => false,
             mir::TerminatorKind::Goto { .. } | mir::TerminatorKind::Unreachable => false,
             mir::TerminatorKind::CondBr { cond, .. } => {
                 !matches!(cond, mir::Operand::Local(_) | mir::Operand::Const(_))
@@ -640,6 +641,55 @@ impl<'a> ReachabilityCollector<'a> {
         // represented by earlier statements and scanned through their rvalues.
     }
 
+    fn mir_types(&self) -> Option<&TypeStore> {
+        Some(&self.materialized_pass_view?.materialized().types)
+    }
+
+    fn interface_dispatch_candidate_fqns(
+        &self,
+        receiver_ty: TypeId,
+        owner_fqn: &str,
+        member_name: &str,
+        explicit_arg_count: usize,
+    ) -> Vec<String> {
+        let Some(interface) = self.interfaces.get(owner_fqn) else {
+            return Vec::new();
+        };
+        let mut matching_slots = interface.method_slots.iter().filter(|slot| {
+            slot.name == member_name && slot.params_len == explicit_arg_count as u32
+        });
+        let Some(slot) = matching_slots.next() else {
+            return Vec::new();
+        };
+        if matching_slots.next().is_some() {
+            return Vec::new();
+        }
+
+        let mut targets = BTreeSet::new();
+        if let Some(types) = self.mir_types()
+            && let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty)
+            && let Some(entries) = self.class_itables.get(receiver_fqn)
+        {
+            collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
+        }
+        if targets.is_empty() {
+            for entries in self.class_itables.values() {
+                collect_interface_slot_targets(
+                    entries,
+                    owner_fqn,
+                    slot.slot as usize,
+                    &mut targets,
+                );
+            }
+        }
+        if let Some(types) = self.mir_types()
+            && is_builtin_scalar_or_string_type(types, receiver_ty)
+        {
+            targets.remove(&format!("{owner_fqn}.{member_name}"));
+        }
+        targets.into_iter().collect()
+    }
+
     fn scan_mir_rvalue(&mut self, value: &mir::Rvalue) {
         match value {
             mir::Rvalue::Use(operand)
@@ -677,7 +727,7 @@ impl<'a> ReachabilityCollector<'a> {
                 self.scan_mir_operand(receiver);
             }
             mir::Rvalue::Call { kind, args, .. } => {
-                self.scan_mir_call_kind(kind);
+                self.scan_mir_call_kind(kind, args.len());
                 for arg in args {
                     self.scan_mir_operand(&arg.value);
                 }
@@ -731,7 +781,7 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
-    fn scan_mir_call_kind(&mut self, kind: &mir::CallKind) {
+    fn scan_mir_call_kind(&mut self, kind: &mir::CallKind, explicit_arg_count: usize) {
         match kind {
             mir::CallKind::Direct { callee_fqn } => self.enqueue_fun(callee_fqn.clone()),
             mir::CallKind::Closure { callee, fn_ptr } => {
@@ -741,8 +791,17 @@ impl<'a> ReachabilityCollector<'a> {
             mir::CallKind::FunValue { callee } | mir::CallKind::FunPtr { callee } => {
                 self.scan_mir_operand(callee)
             }
-            mir::CallKind::Virtual { receiver, .. } | mir::CallKind::Interface { receiver, .. } => {
+            mir::CallKind::Virtual { receiver, .. } => self.scan_mir_operand(receiver),
+            mir::CallKind::Interface { receiver, dispatch } => {
                 self.scan_mir_operand(receiver);
+                for candidate in self.interface_dispatch_candidate_fqns(
+                    dispatch.receiver_ty,
+                    &dispatch.owner_fqn,
+                    &dispatch.member_name,
+                    explicit_arg_count,
+                ) {
+                    self.enqueue_fun(candidate);
+                }
             }
             mir::CallKind::Resume { continuation, .. } => self.scan_mir_operand(continuation),
         }
@@ -972,5 +1031,52 @@ impl<'a> ReachabilityCollector<'a> {
                 }
             }
         });
+    }
+}
+
+fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool"),
+        TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char"),
+        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int"),
+        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt"),
+        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32"),
+        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
+        TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
+        _ => None,
+    }
+}
+
+fn is_builtin_scalar_or_string_type(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(
+        types.kind(ty),
+        TypeKind::Value(
+            ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Float64
+        ) | TypeKind::Ref(RefTypeKind::String)
+    )
+}
+
+fn collect_interface_slot_targets(
+    entries: &[crate::itable::ClassItableEntry],
+    owner_fqn: &str,
+    slot_index: usize,
+    targets: &mut BTreeSet<String>,
+) {
+    for entry in entries {
+        if entry.interface_fqn != owner_fqn {
+            continue;
+        }
+        if let Some(fqn) = entry.method_impl_fqns.get(slot_index)
+            && !fqn.is_empty()
+        {
+            targets.insert(fqn.clone());
+        }
     }
 }

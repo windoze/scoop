@@ -33,7 +33,7 @@
 | `P4-T01k` | P4 前置 IV | [DONE] 修复 `MutableSet` / `Set` 的 `.len()` direct-call 不再重写到 overload-aware symbol 的 production drift |
 | `P4-T01l1` | P4 前置 IV | [DONE] typecheck 层把 builtin scalar / `String` 的 nominal FQN 提取统一进 member-call 主线 |
 | `P4-T01l2` | P4 前置 IV | [DONE] HIR / MIR 收口：让 `@Intrinsic struct/class` body method 在 builtin scalar receiver 上把 receiver 作为第 0 个 arg 注入 |
-| `P4-T01l3` | P4 前置 IV | [TODO] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
+| `P4-T01l3` | P4 前置 IV | [DONE] LLVM 发布：让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 monomorphization / late lowering 下被正确发布，并新增 owner test 端到端验证 dual-track |
 | `P4-T01m` | P4 前置 V | [TODO] 验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束（无可直接访问字段，访问只走 `@Intrinsic method` / `@Extern function`） |
 | `P4-T01n` | P4 前置 V | [TODO] 验证 `@Intrinsic class/struct` 合成属性（getter / setter）可正常落地，规范同普通 class/struct |
 | `P4-T01o` | P4 前置 V | [TODO] 锁定 `@Intrinsic class/struct` 实现 interface 时 method 必须为带 body 的普通 method（不允许 `@Intrinsic` / `@Extern` / 无 body） |
@@ -1526,7 +1526,7 @@
     - 对应 `PLAN.md` P4 前置 IV / `P4-T01l2`：builtin scalar receiver 的 direct member-call 现在能在 HIR/MIR 中保留 receiver 作为第 0 个 arg，不再触发 `pass MIR direct call arity mismatch`。
     - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface；所有 existing by-name transition path 仍保留，删除动作继续留给 `P4-T01`。
 
-### [TODO] P4-T01l3：LLVM 发布——`ToString.toString` interface dispatch 在 builtin scalar override 引入后被 monomorphization / late lowering 正确收集，并新增 owner test 端到端验证 dual-track
+### [DONE] P4-T01l3：LLVM 发布——`ToString.toString` interface dispatch 在 builtin scalar override 引入后被 monomorphization / late lowering 正确收集，并新增 owner test 端到端验证 dual-track
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 I"
@@ -1561,6 +1561,29 @@
   - sysroot overlay 把 `Bool/Char/Int/Float32/Float64/String` 写成 `@Intrinsic struct/class with body methods` 时，`<value>.toString()` 直接调用与 `println(<value>)` interface dispatch 都不再触发 `direct call arity mismatch` / `published late-lowered body` 缺失，并且既有 by-name 拦截照常承接；
   - 后续 `P4-T01` 在删除 by-name 拦截时不再被这两条可达性 gap 卡住，可以走"先验证新机制，再逐条删除"的明确流程。
 - 依赖：`P4-T01l2`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/mir/materialize.rs`：materialized generic instance body 现在会继续扫描 direct/interface dispatch reachability，把实例体内触达的 generic instance 与 non-generic dispatch target 发布进 pass view / late-lowered handoff；builtin scalar / `String` receiver FQN 提取与 default `ToString` 过滤同步补齐，避免默认 sysroot 的旧 by-name 过渡路径误发布 signature-only `ToString.toString`。
+    - `crates/scoopc/src/llvm/reachability.rs`：LLVM reachability 扫描 pass-view MIR interface call 时按 itable metadata 收集 concrete/default dispatch target，不再因 interface call / Unit return / declaration-only direct call 回退到 HIR 模板扫描而误报 missing published body。
+    - `crates/scoopc/src/llvm/tests.rs`：新增 `overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override_and_default_bodies` owner test，锁定 builtin scalar override 与 interface default body 都能被发布。
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop` 与配套 `.sysroot/core.scoop`：新增 sysroot overlay fixture，覆盖 `<scalar>.toString()` 直连过渡路径、`println(<scalar>)` interface dispatch、以及普通 class 走 `ToString` default body。
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：刷新 `materialize.rs` 行号型 internal-bug sentinel baseline（由本任务新增 materialization 扫描逻辑引起）。
+    - `TODO.md` / `memory/claude_plan.md`：刷新任务状态与执行记录。
+  - 核心决策：
+    - 修复点放在 materialization / LLVM reachability 的发布链路，而不是删改 `try_codegen_tostring_iface_builtin`、`codegen_sysroot_to_string_ext`、effect-lowered `ToString.toString` 拦截或 `codegen_mir_transport_to_string`；所有既有 by-name 过渡 surface 保留给后续 `P4-T01` 删除。
+    - recursive materialized-body scan 解决的是一类问题：generic instance body 内新出现的 interface dispatch / direct call target 也必须继续进入发布闭包，否则 late-lowered program 只包含第一层 monomorphized instance，LLVM emit 会看到 reachable callable 却缺少 published body。
+    - builtin scalar / `String` receiver 在 reachability/materialization 层与 typecheck 的 FQN 映射保持一致；默认 sysroot 中 signature-only `ToString.toString` 仍由旧 by-name 拦截承接，不被误发布为 body，overlay 中真实 bodied override/default body 则会正常发布。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop`
+    - `cargo test -p scoopc overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override_and_default_bodies -- --nocapture`
+    - `cargo test -p scoopc`：863 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：400 passed / 0 failed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：437 passed / 0 failed
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 IV / `P4-T01l3`：builtin scalar `ToString.toString` override 与 ordinary interface default body 现在能在 monomorphization / late lowering 后正确发布，`println(<scalar>)` 不再触发 missing published body；`P4-T01` 可以在保留验证 owner 的前提下继续做 sysroot 改写与旧 by-name 删除。
+    - 本任务没有改变 `MANAGED_ABI.md` 的 ABI surface，也没有删除任何现有 by-name string/scalar 过渡拦截；无需回写 `MANAGED_ABI.md`。
 
 ### [TODO] P4-T01m：验证并锁定 `@Intrinsic class/struct` 数据成员 / 内存布局约束
 

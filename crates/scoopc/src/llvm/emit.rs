@@ -542,6 +542,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         ReachabilityInputs {
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
             top_level_vars: &lowered.top_level_vars,

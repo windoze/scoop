@@ -1,0 +1,29 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+//
+// P4-T01l3: builtin scalar ToString overrides in an intrinsic sysroot overlay must work through
+// both direct member calls and generic println<T: ToString> interface dispatch.
+
+package fixtures.build
+
+import scoop.core.*
+
+class DefaultText() : ToString
+
+fun main(): Int {
+    println(true.toString())
+    println('a'.toString())
+    println(123.toString())
+    println(1.5.toString())
+    println(1.5f.toString())
+    println("hi".toString())
+
+    println(true)
+    println('a')
+    println(123)
+    println(1.5)
+    println(1.5f)
+    println("hi")
+    println(DefaultText())
+    return 0
+}

@@ -4955,8 +4955,29 @@ fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
     match types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(nominal))
         | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool"),
+        TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char"),
+        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int"),
+        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt"),
+        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32"),
+        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
+        TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
         _ => None,
     }
+}
+
+fn is_builtin_scalar_or_string_type(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(
+        types.kind(ty),
+        TypeKind::Value(
+            ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Float64
+        ) | TypeKind::Ref(RefTypeKind::String)
+    )
 }
 
 fn collect_interface_slot_targets(
@@ -5642,6 +5663,44 @@ impl MirInstanceMaterializer {
         Ok(out)
     }
 
+    fn scan_materialized_family_reachable_calls(
+        &mut self,
+        instance: &InstanceKey,
+        family: &[FunDecl],
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        let substitution = InstanceSubstitution::default();
+        for fun in family {
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let locals = &body.locals;
+            for block_idx in reachable_body_block_indices(body) {
+                let Some(block) = body.blocks.get(block_idx) else {
+                    continue;
+                };
+                for stmt in &block.stmts {
+                    let StatementKind::Assign { target, value } = &stmt.kind else {
+                        continue;
+                    };
+                    let result_ty = locals.get(target.as_u32() as usize).map(|local| local.ty);
+                    self.collect_reachable_instances_from_rvalue(
+                        value,
+                        ReachableRvalueScanContext {
+                            span: stmt.span,
+                            result_ty,
+                            template_source_path: instance.template.source_path.as_path(),
+                            locals,
+                            substitution: &substitution,
+                        },
+                        out,
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn scan_reachable_non_generic_fun(
         &mut self,
         reachable_fun: &ReachableMirFun,
@@ -6242,6 +6301,9 @@ impl MirInstanceMaterializer {
                 );
             }
         }
+        if is_builtin_scalar_or_string_type(&self.types, receiver_ty) {
+            targets.remove(&format!("{owner_fqn}.{member_name}"));
+        }
         targets.into_iter().collect()
     }
 
@@ -6455,6 +6517,15 @@ impl MirInstanceMaterializer {
                 continue;
             }
             let family = self.materialize_instance(&instance)?;
+            let mut discovered_requests = Vec::new();
+            self.scan_materialized_family_reachable_calls(
+                &instance,
+                &family,
+                &mut discovered_requests,
+            )?;
+            for request in discovered_requests {
+                self.enqueue(request);
+            }
             self.materialized.insert(instance, family);
         }
 
