@@ -115,6 +115,8 @@ struct FunSigOwned {
     /// 说明：当前阶段仅记录该标记，供后续 lowering/codegen 使用。
     #[allow(dead_code)]
     is_intrinsic: bool,
+    /// 若函数声明为 `@Intrinsic("name")`，这里记录该表项名；legacy `@Intrinsic` 为 `None`。
+    intrinsic_entry_name: Option<String>,
     /// 形参名列表（与 `params` 对齐）。
     ///
     /// 用途：

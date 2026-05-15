@@ -9303,6 +9303,7 @@ fn same_top_level_fun_call_binding(
         && lhs.decl_file == rhs.decl_file
         && lhs.decl_span == rhs.decl_span
         && lhs.is_intrinsic == rhs.is_intrinsic
+        && lhs.intrinsic_entry_name == rhs.intrinsic_entry_name
         && lhs.type_args == rhs.type_args
         && lhs.eff_args == rhs.eff_args
 }
@@ -10565,6 +10566,7 @@ fun main(): Int {
                         decl_file: test_source_path(),
                         decl_span: test_span(),
                         is_intrinsic: false,
+                        intrinsic_entry_name: None,
                         type_args: vec![typecheck_builtins.int],
                         eff_args: Vec::new(),
                     },

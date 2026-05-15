@@ -224,6 +224,18 @@ ScoopTestIntPair scoop_test_make_int_pair(intptr_t seed) {
   return out;
 }
 
+// test-only named intrinsic runtime entry：返回并递增一个 C 侧计数器。
+//
+// 说明：
+// - P4-T01d 需要一条可审计的 RuntimeCall dummy entry；
+// - 这里故意让行为依赖外部可变状态，避免编译器把它伪装成纯 IR 常量。
+static intptr_t scoop_test_named_intrinsic_dummy_runtime_counter = 700;
+
+intptr_t scoop_test_named_intrinsic_dummy_runtime(void) {
+  scoop_test_named_intrinsic_dummy_runtime_counter += 1;
+  return scoop_test_named_intrinsic_dummy_runtime_counter;
+}
+
 // 返回 `scoop_test_add_int` 的函数地址，作为 `FunPtr<(Int, Int) -> Int>` 的 runtime 落点。
 //
 // 说明：

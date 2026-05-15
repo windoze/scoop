@@ -1817,6 +1817,98 @@ fn overlay_core_intrinsic_array_methods_lower_through_ordinary_generic_class_pat
 }
 
 #[test]
+fn named_intrinsic_dummy_ir_method_call_does_not_materialize_method_symbol() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/p4_t01d_named_intrinsic_dummy_ir.scoop",
+        r#"
+@file:AllowIntrinsic
+
+package fixtures.p4t01d
+
+import scoop.core.*
+
+@Intrinsic
+class Vec<T>(seed: T) {
+    @Intrinsic("dummy_ir")
+    fun foo(): Int
+}
+
+fun main(): Int {
+    val vec: Vec<Int> = Vec(1)
+    return vec.foo()
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let main_ir = function_ir_matching(
+        &ir,
+        "P4-T01d named intrinsic dummy_ir main",
+        |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "fixtures.p4t01d.main",
+            )
+        },
+    );
+
+    assert!(
+        maybe_function_ir_matching(&ir, |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "fixtures.p4t01d.Vec.foo",
+            )
+        })
+        .is_none(),
+        "dummy_ir method call 不应物化 declaration-only method symbol；应直接按 intrinsic 表发 IR:\n{ir}"
+    );
+    assert!(
+        main_ir.contains("41"),
+        "dummy_ir method call 应直接在调用点发出常量 IR，而不是保留 method call:\n{main_ir}"
+    );
+}
+
+#[test]
+fn named_intrinsic_dummy_runtime_fun_call_lowers_to_runtime_symbol() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/p4_t01d_named_intrinsic_dummy_runtime.scoop",
+        r#"
+@file:AllowIntrinsic
+
+package fixtures.p4t01d
+
+import scoop.core.*
+
+@Intrinsic("dummy_runtime")
+fun bar(): Int
+
+fun main(): Int {
+    return bar()
+}
+"#,
+    );
+
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    assert!(
+        ir.contains("@scoop_test_named_intrinsic_dummy_runtime"),
+        "dummy_runtime 应直接声明/调用测试 runtime 符号:\n{ir}"
+    );
+    assert!(
+        maybe_function_ir_matching(&ir, |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "fixtures.p4t01d.bar",
+            )
+        })
+        .is_none(),
+        "dummy_runtime 不应物化 declaration-only Scoop 函数符号:\n{ir}"
+    );
+}
+
+#[test]
 fn intrinsic_nominal_body_method_fixtures_do_not_introduce_by_name_compiler_paths() {
     let compiler_root = stable_id_repo_root().join("crates/scoopc/src");
     let mut files = Vec::new();

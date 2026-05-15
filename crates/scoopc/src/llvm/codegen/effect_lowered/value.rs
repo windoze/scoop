@@ -1826,6 +1826,21 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )));
             }
         };
+        if let Some(entry_name) = self
+            .codegen
+            .current_top_level_fun_call_binding(span)?
+            .and_then(|binding| binding.intrinsic_entry_name.clone())
+            && let Some(value) = self.codegen.try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                &entry_name,
+                args,
+                self.body,
+                self.source_types,
+                self.slots,
+            )?
+        {
+            return Ok(value);
+        }
         if sig_fun.body.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "refactor pure statement declaration-only direct call",

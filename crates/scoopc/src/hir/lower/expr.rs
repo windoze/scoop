@@ -1693,6 +1693,7 @@ impl<'a> HirLowering<'a> {
             decl_file: binding.decl_file,
             decl_span: binding.decl_span,
             is_intrinsic: binding.is_intrinsic,
+            intrinsic_entry_name: binding.intrinsic_entry_name,
             type_args,
             eff_args,
         })

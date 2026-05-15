@@ -400,6 +400,7 @@ pub struct TopLevelFunCallBinding {
     pub decl_file: std::path::PathBuf,
     pub decl_span: Span,
     pub is_intrinsic: bool,
+    pub intrinsic_entry_name: Option<String>,
     pub type_args: Vec<TypeId>,
     pub eff_args: Vec<EffectRow>,
 }

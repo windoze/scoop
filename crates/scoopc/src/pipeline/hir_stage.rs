@@ -9,6 +9,7 @@ use crate::hir::{
     DispatchCallKind, Expr, ExprKind, FunDecl, HandleArmKind, HirLowerError, HirStageError, Item,
     LoweredHir, Stmt, StmtKind, ValDecl, ValueRef,
 };
+use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -486,11 +487,25 @@ pub enum TypedCallSiteKind {
 /// 编译器/运行时 intrinsic 在 typed HIR call contract 中的稳定分类。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypedIntrinsicKind {
-    Reflection { name: String },
-    Platform { name: String },
-    Gc { name: String },
-    Runtime { name: String },
-    Compiler { name: String },
+    Reflection {
+        name: String,
+    },
+    Platform {
+        name: String,
+    },
+    Gc {
+        name: String,
+    },
+    Runtime {
+        name: String,
+    },
+    Compiler {
+        name: String,
+    },
+    NamedTable {
+        entry_name: String,
+        uses_runtime_call: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -508,6 +523,21 @@ pub enum IntrinsicRuntimeFallback {
 }
 
 impl TypedIntrinsicKind {
+    fn from_call_binding(binding: &ast::TopLevelFunCallBinding) -> Self {
+        let Some(entry_name) = binding.intrinsic_entry_name.as_deref() else {
+            return Self::from_fqn(&binding.fqn);
+        };
+        let entry = named_intrinsic_audit_entry(entry_name)
+            .expect("typecheck should only publish named intrinsic entries from the shared table");
+        Self::NamedTable {
+            entry_name: entry_name.to_string(),
+            uses_runtime_call: matches!(
+                entry.lowering_mode,
+                NamedIntrinsicLoweringMode::RuntimeCall
+            ),
+        }
+    }
+
     fn from_fqn(fqn: &str) -> Self {
         let name = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
         match fqn {
@@ -534,9 +564,10 @@ impl TypedIntrinsicKind {
             Self::Reflection { .. } | Self::Platform { .. } => {
                 IntrinsicAllowedContext::ComptimeAndRuntime
             }
-            Self::Gc { .. } | Self::Runtime { .. } | Self::Compiler { .. } => {
-                IntrinsicAllowedContext::RuntimeOnly
-            }
+            Self::Gc { .. }
+            | Self::Runtime { .. }
+            | Self::Compiler { .. }
+            | Self::NamedTable { .. } => IntrinsicAllowedContext::RuntimeOnly,
         }
     }
 
@@ -546,6 +577,15 @@ impl TypedIntrinsicKind {
             Self::Platform { .. } => IntrinsicRuntimeFallback::PlatformQuery,
             Self::Gc { .. } | Self::Runtime { .. } => IntrinsicRuntimeFallback::RuntimeIntrinsic,
             Self::Compiler { .. } => IntrinsicRuntimeFallback::CompilerLowered,
+            Self::NamedTable {
+                uses_runtime_call, ..
+            } => {
+                if *uses_runtime_call {
+                    IntrinsicRuntimeFallback::RuntimeIntrinsic
+                } else {
+                    IntrinsicRuntimeFallback::CompilerLowered
+                }
+            }
         }
     }
 }
@@ -1603,7 +1643,7 @@ impl<'a> ContractCollector<'a> {
 
             let contract = if binding.is_intrinsic {
                 TypedCallSiteContract::Intrinsic {
-                    kind: TypedIntrinsicKind::from_fqn(&binding.fqn),
+                    kind: TypedIntrinsicKind::from_call_binding(binding),
                     function,
                 }
             } else if let Some((dispatch_kind, receiver_ty)) =

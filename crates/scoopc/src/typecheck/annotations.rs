@@ -22,6 +22,9 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::hir::ExternAbi;
+use crate::intrinsics::{
+    IntrinsicAnnotationParseError, named_intrinsic_audit_entry, parse_intrinsic_annotation_args,
+};
 use crate::resolve::ImportTable;
 use crate::resolve::Index;
 use crate::source::SourceFile;
@@ -395,6 +398,30 @@ pub enum AnnotationError {
     IntrinsicFunMustHaveNoBody {
         fun_name: String,
         #[label("这里不应有函数体")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "函数上的 `@Intrinsic` 只支持零参数或单个字符串位置参数：`@Intrinsic` / `@Intrinsic(\"dummy_ir\")`"
+    )]
+    #[diagnostic(code(scoop::typecheck::intrinsic_annotation_invalid_arg_shape))]
+    IntrinsicAnnotationInvalidArgShape {
+        #[label("这里的 `@Intrinsic` 参数形状不受支持")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Intrinsic(\"name\")` 的参数必须是字符串字面量")]
+    #[diagnostic(code(scoop::typecheck::intrinsic_annotation_arg_must_be_string))]
+    IntrinsicAnnotationArgMustBeString {
+        #[label("这里需要字符串字面量")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Intrinsic(\"{name}\")` 未命中编译器 intrinsic 表")]
+    #[diagnostic(code(scoop::typecheck::unknown_intrinsic_table_entry))]
+    UnknownIntrinsicTableEntry {
+        name: String,
+        #[label("这里的 intrinsic name 不在编译器表中")]
         span: miette::SourceSpan,
     },
 
@@ -2141,7 +2168,8 @@ fn check_builtin_annotations_on_fun_decl(
     let mut extern_abi = None;
     let mut calling_convention_span = None;
 
-    // 1) `@Unsafe/@NoGC/@Intrinsic` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数（见 TODO T1020）。
+    // 1) `@Unsafe/@NoGC` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数；
+    //    `@Intrinsic` 继续支持 legacy 零参数形态，并新增 `@Intrinsic("name")`。
     for ann in &fun.annotations {
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
@@ -2171,20 +2199,20 @@ fn check_builtin_annotations_on_fun_decl(
                     span: name_span.into(),
                 });
             }
+            BuiltinAnnotationKind::Intrinsic => {
+                check_intrinsic_builtin_annotation_gate(
+                    source,
+                    file_allows_intrinsic,
+                    ann,
+                    "函数",
+                    &fun_name,
+                )?;
+                check_intrinsic_builtin_annotation_args(source, ann)?;
+            }
             BuiltinAnnotationKind::Unsafe
             | BuiltinAnnotationKind::Safe
             | BuiltinAnnotationKind::NoGC
-            | BuiltinAnnotationKind::Intrinsic
             | BuiltinAnnotationKind::Inline => {
-                if kind == BuiltinAnnotationKind::Intrinsic {
-                    check_intrinsic_builtin_annotation_gate(
-                        source,
-                        file_allows_intrinsic,
-                        ann,
-                        "函数",
-                        &fun_name,
-                    )?;
-                }
                 if !ann.args.is_empty() {
                     let (_, name_span) = annotation_name_and_span(source, ann);
                     return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
@@ -2257,6 +2285,35 @@ fn check_builtin_annotations_on_fun_decl(
         }
     }
 
+    Ok(())
+}
+
+fn check_intrinsic_builtin_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    let parsed = parse_intrinsic_annotation_args(source, ann).map_err(|error| match error {
+        IntrinsicAnnotationParseError::InvalidShape { span } => {
+            AnnotationError::IntrinsicAnnotationInvalidArgShape { span: span.into() }
+        }
+        IntrinsicAnnotationParseError::ArgMustBeString { span } => {
+            AnnotationError::IntrinsicAnnotationArgMustBeString { span: span.into() }
+        }
+    })?;
+    let Some(entry_name) = parsed.entry_name() else {
+        return Ok(());
+    };
+    let entry_span = ann
+        .args
+        .first()
+        .map(|arg| arg.value.span)
+        .unwrap_or(ann.span);
+    if named_intrinsic_audit_entry(entry_name).is_none() {
+        return Err(AnnotationError::UnknownIntrinsicTableEntry {
+            name: entry_name.to_string(),
+            span: entry_span.into(),
+        });
+    }
     Ok(())
 }
 

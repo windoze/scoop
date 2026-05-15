@@ -9,6 +9,7 @@
 //! - feature gating framework 仍未接入；`@Experimental` 当前只保留 surface 与参数校验。
 
 use crate::ast;
+use crate::intrinsics::best_effort_intrinsic_entry_name;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
@@ -141,17 +142,19 @@ pub(crate) fn file_allows_intrinsic(source: &SourceFile, anns: &[ast::Annotation
 /// 从一组注解使用中提取“内建注解标记位”。
 ///
 /// 说明：
-/// - 该结构只表达“出现过与否”，不携带参数（例如 `@Extern("puts")` 的符号名）；
+/// - 大部分字段只表达“出现过与否”；
+/// - `intrinsic_entry_name` 额外承载 `@Intrinsic("name")` 的共享表项名；
 /// - `@Extern` 是否能在 `@NoGC` 上下文中调用，当前需要结合 ABI 判断：native `@Extern`
 ///   仍可视为 leaf，但 `abi = "scoop"` 走 ordinary managed call，不能在这里只靠布尔折叠成
 ///   `is_nogc = true`。
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct BuiltinAnnotationFlags {
     pub(crate) is_unsafe: bool,
     pub(crate) is_safe: bool,
     pub(crate) is_nogc: bool,
     pub(crate) is_extern: bool,
     pub(crate) is_intrinsic: bool,
+    pub(crate) intrinsic_entry_name: Option<String>,
 }
 
 impl BuiltinAnnotationFlags {
@@ -163,7 +166,12 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::Safe) => out.is_safe = true,
                 Some(BuiltinAnnotationKind::NoGC) => out.is_nogc = true,
                 Some(BuiltinAnnotationKind::Extern) => out.is_extern = true,
-                Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,
+                Some(BuiltinAnnotationKind::Intrinsic) => {
+                    out.is_intrinsic = true;
+                    if out.intrinsic_entry_name.is_none() {
+                        out.intrinsic_entry_name = best_effort_intrinsic_entry_name(source, ann);
+                    }
+                }
                 Some(BuiltinAnnotationKind::Inline) => {}
                 Some(BuiltinAnnotationKind::AllowIntrinsic) => {}
                 Some(BuiltinAnnotationKind::Deprecated) => {}

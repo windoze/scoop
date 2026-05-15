@@ -4870,6 +4870,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             concrete_fqn = inferred_fqn;
         }
+        if let Some(entry_name) = self
+            .current_top_level_fun_call_binding(span)?
+            .and_then(|binding| binding.intrinsic_entry_name.clone())
+            && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
+                span,
+                &entry_name,
+                args,
+                body,
+                mir_types,
+                slots,
+            )?
+        {
+            return Ok(value);
+        }
         let callable_abi = self.direct_call_abi_identity(&concrete_fqn);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         let dispatch_fqn = mir_direct_call_base_fqn(&concrete_fqn);
@@ -6653,7 +6667,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|local| local.ty)
     }
 
-    fn mir_operand_type_id(
+    pub(super) fn mir_operand_type_id(
         &self,
         body: &crate::mir::Body,
         operand: &crate::mir::Operand,

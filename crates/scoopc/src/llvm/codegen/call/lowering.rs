@@ -64,6 +64,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
+        if let Some(entry_name) = self
+            .current_top_level_fun_call_binding(span)?
+            .and_then(|binding| binding.intrinsic_entry_name.clone())
+        {
+            return self.try_codegen_named_intrinsic_hir_call(
+                span,
+                callee.span,
+                callee,
+                args,
+                &entry_name,
+            );
+        }
+
         if member.name == "trimIndent" {
             return self
                 .codegen_string_trim_indent(span, receiver, args)
@@ -1410,6 +1423,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            if let Some(entry_name) = self
+                .current_top_level_fun_call_binding(span)?
+                .and_then(|binding| binding.intrinsic_entry_name.clone())
+                && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
+                    span,
+                    callee.span,
+                    callee,
+                    args,
+                    &entry_name,
+                )?
+            {
+                return Ok(value);
+            }
+
             let concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
             let dispatch_fqn = direct_call_dispatch_fqn(&concrete_fqn);
 

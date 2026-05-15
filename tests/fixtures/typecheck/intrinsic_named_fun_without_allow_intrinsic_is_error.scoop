@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_user_decl_requires_allow_intrinsic
+// EXPECT-ERROR: 用户源码中的 函数 不能直接声明 `@Intrinsic`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Intrinsic("dummy_ir")
+fun foo(): Int

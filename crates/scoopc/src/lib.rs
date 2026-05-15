@@ -21,6 +21,7 @@ pub(crate) mod expr_facts;
 pub mod frontend;
 pub mod hir;
 pub mod infer;
+pub(crate) mod intrinsics;
 pub mod itable;
 pub mod mir;
 pub mod monomorph;

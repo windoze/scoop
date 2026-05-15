@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::{ast, source::SourceFile, span::Span};
+use crate::{ast, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile, span::Span};
 
 pub use imports::{ImportNamespace, ImportTable};
 use scopes::check_block_scopes;
@@ -311,15 +311,17 @@ pub struct TypeParamSig {
 ///
 /// 说明：
 /// - 仅覆盖 `@Unsafe/@NoGC/@Extern/@Intrinsic` 四个会影响早期 typecheck 的注解；
+/// - `@Intrinsic("name")` 会把共享 intrinsic 表项名记录到 `intrinsic_entry_name`；
 /// - `@Extern` 是否可视为 `@NoGC` 需要结合 ABI 判断：native `@Extern` 仍可按 leaf 处理，
 ///   但 `abi = "scoop"` 走 ordinary managed call，因此这里不再把两者统一折叠到
 ///   `is_nogc = true`。
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BuiltinFunFlags {
     pub is_unsafe: bool,
     pub is_nogc: bool,
     pub is_extern: bool,
     pub is_intrinsic: bool,
+    pub intrinsic_entry_name: Option<String>,
 }
 
 fn builtin_fun_flags_from_annotations(
@@ -339,7 +341,12 @@ fn builtin_fun_flags_from_annotations(
             ["Unsafe"] | ["scoop", "core", "Unsafe"] => out.is_unsafe = true,
             ["NoGC"] | ["scoop", "core", "NoGC"] => out.is_nogc = true,
             ["Extern"] | ["scoop", "core", "Extern"] => out.is_extern = true,
-            ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => out.is_intrinsic = true,
+            ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => {
+                out.is_intrinsic = true;
+                if out.intrinsic_entry_name.is_none() {
+                    out.intrinsic_entry_name = best_effort_intrinsic_entry_name(source, ann);
+                }
+            }
             _ => {}
         }
     }

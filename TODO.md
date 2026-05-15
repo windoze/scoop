@@ -23,7 +23,7 @@
 | `P4-T01b` | P4 前置 I | [DONE] vtable / itable 收集统一从 struct/class body method 抽，interface call ABI 收口为 metadata-driven marshal |
 | `P4-T01c-pre1` | P4 前置 I | [DONE] 为 P4-T01c 引入 sysroot overlay fixture 能力，允许 task-specific `core.scoop` 改写 |
 | `P4-T01c` | P4 前置 I | [DONE] `@Intrinsic struct/class` 含 method body 完整落地（含 generic class），并锁定 non-generic 维度零编译器后门 |
-| `P4-T01d` | P4 前置 II | 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
+| `P4-T01d` | P4 前置 II | [DONE] 引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制（IR-emission / RuntimeCall 双模，默认 IR-emission） |
 | `P4-T01e` | P4 前置 II | 用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper |
 | `P4-T01` | P4 | 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
@@ -846,7 +846,7 @@
 >
 > **长期方向（仅作背景）**：runtime 最终只保留 GC 实现与 GC-adjacent 功能（GC handle / pin、thread registration / cleanup），便于移植到 WASM / JVM 或切换 GC（如 BoehmGC）。其它内容（`exit(3)` / `print/println` / scalar helper 等）作为 v2+ backlog 逐步以 IR / Scoop ABI FFI 形式迁出，本阶段只处理 Array / MutableArray。
 
-### [TODO] P4-T01d：引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制
+### [DONE] P4-T01d：引入 method-level `@Intrinsic("name")` 与可枚举 intrinsic 表机制
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / "P4 前置 II"
@@ -894,6 +894,41 @@
   - intrinsic 表数据结构落地，IrEmission / RuntimeCall 双通路验证通过；
   - 表内每条 entry 都可被外部审计（含 lowering 模式、runtime 理由）。
 - 依赖：`P4-T01c`
+- 完成记录：
+  - 改动范围：
+    - `crates/scoopc/src/{ast/mod.rs,lib.rs,intrinsics.rs}`
+    - `crates/scoopc/src/resolve/mod.rs`
+    - `crates/scoopc/src/typecheck/{annotations.rs,builtin_annotations.rs,expr/{mod.rs,collect.rs,call.rs,ops.rs}}`
+    - `crates/scoopc/src/hir/lower/expr.rs`
+    - `crates/scoopc/src/pipeline/hir_stage.rs`
+    - `crates/scoopc/src/mir/materialize.rs`
+    - `crates/scoopc/src/llvm/codegen/{call/lowering.rs,mir_body.rs,effect_lowered/value.rs,intrinsics/{mod.rs,named.rs}}`
+    - `crates/scoopc/src/llvm/tests.rs`
+    - `runtime/c/scoop_test.c`
+    - `tests/fixtures/run-pass/{intrinsic_named_method_dummy_ir_basic.scoop,intrinsic_named_runtime_fun_basic.scoop}`
+    - `tests/fixtures/typecheck/{intrinsic_named_fun_body_is_error.scoop,intrinsic_named_fun_unknown_table_entry_is_error.scoop,intrinsic_named_fun_without_allow_intrinsic_is_error.scoop}`
+    - `TODO.md`
+  - 核心决策：
+    - 新增共享模块 `crates/scoopc/src/intrinsics.rs`，集中声明 named intrinsic 表、`@Intrinsic("name")` 参数解析、lowering 模式以及 RuntimeCall entry 的 symbol/signature/reason 审计元数据；表的初始版本只发布 `dummy_ir` 与 `dummy_runtime` 两个测试条目，分别锁住 IR-emission 与 RuntimeCall 通路。
+    - 前端继续保留 legacy 零参数 `@Intrinsic`，同时把 `@Intrinsic("name")` 的 entry name 透传进 `resolve` / typecheck call binding / HIR / MIR；未知表项在前端直接报错，且 method-level / top-level intrinsic 都继续受 `@file:AllowIntrinsic` gate 约束。
+    - codegen 在 direct HIR call、MIR direct call 与 effect-lowered direct call 三条通路上统一按 call binding 的 `intrinsic_entry_name` 查共享表；IR-emission entry 直接在调用点发 IR，RuntimeCall entry 则按表内 runtime metadata 声明/调用测试符号，不再物化 declaration-only Scoop body。
+    - type-level `@Intrinsic` 与 method-level `@Intrinsic("name")` 语义解耦：前者仍只负责 nominal layout / field gate，后者单独决定具体 method lowering；因此同一个 intrinsic type 现在可以混合 ordinary bodied method 与 body-less named intrinsic method。
+    - 为满足 `cargo clippy --all-targets -- -D warnings`，顺手把 named intrinsic MIR lowering 中未使用的 `expected` / 冗余 span 参数删掉，避免把质量门豁免成 `allow`。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test -p scoopc named_intrinsic -- --nocapture`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_named_method_dummy_ir_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/intrinsic_named_runtime_fun_basic.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_named_fun_body_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_named_fun_unknown_table_entry_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/intrinsic_named_fun_without_allow_intrinsic_is_error.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（当前仍有两个既存失败：`extern_native_aggregate_return_direct_indirect_parity.scoop`、`sync_gc_release_task_like_object_basic.scoop`；本任务新增 named intrinsic fixtures 未引入新的 run-pass 回退）
+    - `cargo test -p scoopc llvm_tests -- --nocapture`（当前 harness 仍返回 `0 passed; 859 filtered out`，因此本任务的实际 LLVM owner coverage 以上面的 `cargo test -p scoopc named_intrinsic -- --nocapture` 为准）
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P4 前置 II 的第 1-2 项：method-level `@Intrinsic("name")` surface 与可枚举 intrinsic 表机制已落地，且默认 IR-emission、RuntimeCall 必须附带理由的约束已经通过共享表结构与单测固定下来。
+    - 对应 `PLAN.md` P4 前置 II 的“先做机制层”要求：本任务只交付 dummy IR / dummy runtime 双通路与 callsite 查表机制，没有提前把 `Array` / `MutableArray` 迁进表，也没有新增其它 by-name 内建特判；`P4-T01e` 将继续在这套机制上填充真实 array entries。
+    - 本任务不改变 `MANAGED_ABI.md` 中的 ABI surface，因此无需回写 `MANAGED_ABI.md`；相关变更仅限 intrinsic 表机制与编译器内部 lowering source-of-truth。
 
 ### [TODO] P4-T01e：用 `Array` / `MutableArray` 填充 intrinsic 表（IR-direct），删除已被替代的 array runtime helper
 
