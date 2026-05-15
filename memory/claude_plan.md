@@ -50,6 +50,13 @@
 2. 评估是否需要同步 `MANAGED_ABI.md` 的 bridge 叙事；若需要则补最小文档回写。
 3. 检查 `git status`，按任务约定提交本轮结果并停止。
 
+## 完成状态
+
+- 已完成：`TODO.md` 已将 `P4-T01f` 标记为 `[DONE]`，并补齐改动范围、核心决策、验证结果与文档闭合记录。
+- 已完成：`MANAGED_ABI.md` 已补充 scalar `toString` substrate bridge 的 ownership/why-runtime 叙事。
+- 已完成：所有本轮改动已提交，提交为 `3e5b9fa5` / `[P4-T01f] Bridge scalar String helpers through compiled sysroot`。
+- 已完成：提交后 `git status --short` 无输出，工作树保持干净。
+
 ## 执行约束
 
 - 只处理 `TODO.md` 中顺序上的第一个未完成任务。
