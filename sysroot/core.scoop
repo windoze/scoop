@@ -236,12 +236,13 @@ annotation class Retention(val policy: String)
 annotation class ThreadLocal
 annotation class Global
 
-// Built-in scalar/string extension functions that still belong to compiler/runtime substrate.
+// Built-in numeric scalar extension functions that still belong to compiler/runtime substrate.
 //
 // 说明：
 // - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
 //   `Char.toInt()` / `Float64/Float32.toInt()/hash()/abs()/isNaN()/isInfinite()` /
 //   `Char.hash()`；
+// - public `String.*` helper 与 scalar `toString` 已迁到 intrinsic type body / sysroot helper；
 // - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
 @Intrinsic
 fun Char.toInt(): Int

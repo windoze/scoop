@@ -20,7 +20,7 @@ fun __scoop_array_builder_build_array_string(builder: Any): Array<String>
 @Intrinsic("string_concat_bridge")
 fun __scoop_runtime_string_concat_bridge(a: String, b: String): String
 
-// --- 内部：remaining String helper implementations ---
+// --- 内部：migrated public String helper implementations ---
 
 fun __scoop_string_length(value: String): Int {
     return value.byteLength()

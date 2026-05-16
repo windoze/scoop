@@ -863,8 +863,9 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
 
 // --- std v2：Text 基础（T1810）---
 //
-// 说明：runtime 只保留 String allocation/copy/equality/slice 等 byte-level substrate；
-// public `String.*` helper 归属 sysroot body，不再在这里作为整批 helper 实现。
+// 说明：runtime 只保留 String allocation/copy/equality/slice 与少量 compiler-synthesis
+// formatting substrate；public `String.*` helper 归属 sysroot body，不再在这里作为整批
+// helper 实现。
 
 // T0122: substring/starts_with/ends_with/index_of/contains/split
 // 已迁移到 sysroot/string.scoop（纯 Scoop 实现）。
@@ -873,8 +874,10 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
 // T1812: 数値↔文本 変換 (Int.toString)
 // ---------------------------------------------------------------------------
 
-// T0114: scoop_bool_to_string：将布尔值转换为 "true" 或 "false"。
-// 返回 GC-managed ScoopString*。
+// scoop_bool_to_string：将布尔值转换为 "true" 或 "false"。
+//
+// 当前只服务 f-string synthesis 的 bool formatting。public `Bool.toString` 已由
+// `sysroot/core.scoop` 中的 `Bool` body method 纯 Scoop 实现，不再依赖该 symbol。
 const ScoopString *scoop_bool_to_string(int64_t value) {
   static const uint8_t TRUE_BYTES[]  = { 't', 'r', 'u', 'e' };
   static const uint8_t FALSE_BYTES[] = { 'f', 'a', 'l', 's', 'e' };

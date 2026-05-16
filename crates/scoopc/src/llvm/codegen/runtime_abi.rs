@@ -238,9 +238,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
     // 已移除（迁移到 sysroot/string.scoop）
 
-    // T0114: Bool→String conversion.
-
     /// `const ScoopString* scoop_bool_to_string(int64_t value)`
+    ///
+    /// Only f-string synthesis uses this runtime symbol. Public `Bool.toString`
+    /// is a sysroot body method and must not regress to this by-name bridge.
     pub(super) fn declare_runtime_bool_to_string(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_BOOL_TO_STRING;
         if let Some(existing) = self.module.get_function(NAME) {

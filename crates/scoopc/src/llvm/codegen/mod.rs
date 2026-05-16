@@ -6152,6 +6152,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 目前支持 `{Bool}` / `{Char}` / `{Int}` / `{String}` / `{Float}`；
         // - 先不支持 format spec / locale；
         // - 当前阶段不接入 type descriptor/release：`data` 的释放留给后续任务补齐（T1507/T1514）。
+        // - 这是 compiler-synthesis formatting path，不是 public `String.*` helper surface；
+        //   public scalar/string `toString` 已走 sysroot body / audited bridge。
 
         #[derive(Clone, Copy)]
         struct Segment<'ctx> {

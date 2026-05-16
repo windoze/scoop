@@ -2,7 +2,7 @@
 //
 // 说明：
 // - 本文件仅提供“声明表面”，用于名字解析与类型检查；
-// - 具体 lowering/ABI/运行期语义由后续 codegen/runtime 任务补齐；
+// - 具体 lowering/ABI/运行期语义由编译器、LLVM 后端与 runtime substrate 共同固定；
 // - 模块名固定为 `scoop.unsafe`，便于审计所有 unsafe primitive 的来源。
 
 package scoop.unsafe

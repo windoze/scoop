@@ -42,7 +42,7 @@
 | `P4-T01` | P4 | [DONE] 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | [DONE] 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
 | `P5-T00` | P5 前置 | [DONE] 补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境 |
-| `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
+| `P5-T01` | P5 | [DONE] 做全量稳定化、跨平台矩阵与文档收尾 |
 
 ## 全局约束
 
@@ -2051,7 +2051,7 @@
     - 对应 `PLAN.md` P5 cross-platform matrix：`linux/amd64` 现在已有带 LLVM 21、platform diagnostics、完整 suite、ABI targeted matrix 与 Clippy 的可审计 CI runner；`macos/aarch64` 本机记录已保留在 `P5-T01` 当前记录中。
     - `MANAGED_ABI.md` §10 已新增 Linux/amd64 P5-T00 矩阵记录，明确该 run 覆盖 native callable ABI parity 与 managed external ABI contract，不再把 Docker emulation 当作验收路径。
 
-### [TODO] P5-T01：做全量稳定化、跨平台矩阵与文档收尾
+### [DONE] P5-T01：做全量稳定化、跨平台矩阵与文档收尾
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5 / P5
@@ -2097,23 +2097,36 @@
 - 完成条件：
   - native callable ABI 与 managed external ABI 都已经成为明确、可回归、跨平台可审计的 contract。
 - 依赖：`P5-T00`
-- 当前记录（未完成）：
-  - 本轮已完成 macOS/aarch64 稳定化预备工作：
-    - 修复 compilable sysroot (`core.scoop` / string / scalar bridge / print 等) 在 dump、package export、typecheck-cone、materialize、effect-facts 与 direct-test 路径中的 signature/support-source 分层问题。
-    - 将遗漏的 infer fixture 普通 declaration-only helper 改为真实 body，符合 `fun_must_have_body` 约束。
-    - 补齐 runtime ABI allowlist 中当前真实导出的 array allocation / builder grow / test helper symbols，并移除已删除 array get/set/len helper 的 allowlist 残留。
-    - 修复 f-string interpolated expressions 的 typecheck 递归，使非入口文件中的直接成员调用也发布 typed call-site contract。
-  - 本机验证结果：
-    - `cargo test --all --all-targets`：通过。
-    - `cargo run -p scoop -- test`：通过（1367 checks）。
-    - `cargo test -p scoopc llvm_tests -- --nocapture`：当前 filter 为 `0 passed; 864 filtered out`。
-    - `cargo test -p scoopc native_callable -- --nocapture`：2 passed。
-    - `cargo test -p scoopc managed_extern_ -- --nocapture`：2 passed。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`：通过。
-    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`：通过。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 阻塞：Linux/amd64 完整 LLVM ABI matrix 尚未完成，已拆为 `P5-T00`；因此本任务不得标 `[DONE]`。
+- 完成记录：
+  - 改动范围：
+    - `PLAN.md`：刷新当前状态、gap 矩阵、代码入口总表、P5 执行备注与预期收口状态；明确 native / managed external ABI 已闭环，public string helper 已迁入 compiled sysroot / audited bridge，剩余 runtime/compiler 路径已归类为 substrate 或 v2+ cleanup。
+    - `MANAGED_ABI.md`：把文档状态从设计草案刷新为已落地 v1 ABI contract；补充 `scoop_bool_to_string`、`scoop_format_i64/u64` 与 numeric scalar intrinsic 的 v2+ 边界；保留 P5-T00 Linux/amd64 runner 记录作为跨平台矩阵来源。
+    - `sysroot/core.scoop`、`sysroot/string.scoop`、`sysroot/unsafe.scoop`：更新注释，去掉已过时的 scalar/string body-less runtime-route 表述，明确 public `String.*` helper 与 scalar `toString` 已归属 sysroot body / ordinary helper，unsafe primitives 的 ABI/运行期语义已由编译器、LLVM 后端与 runtime substrate 固定。
+    - `runtime/c/scoop_runtime.c`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`：补充 runtime/string/f-string formatting 注释，说明 remaining symbol 是 string layout/allocation/equality/slice/concat bridge 或 compiler-synthesis formatting substrate，不是 public `String.*` / scalar `toString` by-name fallback。
+    - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：同步注释行号漂移导致的 internal-bug sentinel 行号。
+    - `TODO.md`、`memory/claude_plan.md`：记录 P5-T01 完成、验证结果与跨平台闭合。
+  - 核心决策：
+    - P5 不再新增 ABI surface；本任务只做最终稳定化、审计和文档/注释同步，保持 P0-P4 已锁定的 native classifier、managed extern lowering、string cone 与 substrate 边界不变。
+    - `linux/amd64` 验收引用 `P5-T00` 已固化的 GitHub Actions `CI` runner：run `25952815819`、commit `10df6e1aff76351156dbf3924b2eb20d324b0394`、`x86_64-unknown-linux-gnu`、LLVM `21.1.8`，该 runner 已通过完整 Rust / fixture / ABI targeted matrix / Clippy。
+    - 本机 `macos/aarch64` 重新跑 P5 全量与 targeted matrix；两侧共同作为 native callable ABI 与 managed external ABI 的跨平台可审计记录。
+    - remaining public string helper special-case audit 结论：compiler/runtime 中未发现 `scoop_string_length/to_int/hash/is_empty/replace/char_at/repeat/compare_to/trim_indent` production callsite/declaration 残留；保留的 `byteLength/getByte/unsafeSliceBytes`、`scoop_string_concat`、`scoop_string_equals`、scalar formatting bridge 与 f-string formatting helper 均已被文档归类为 substrate 或 v2+ cleanup，而不是 v1 ABI 缺口。
+    - v2+ 边界明确保留为 dedicated managed import/export surface、泛型导入/导出、closure/function-value crossing、outward effect / continuation ABI、ABI version / feature bitmap、f-string formatting helper 迁移与 numeric scalar intrinsic cone 化；这些不阻塞 v1 contract。
+  - 验证结果：
+    - `cargo fmt --all`
+    - `cargo test --all --all-targets`：通过（`scoopc` 主测试 864 passed / 0 failed）
+    - `cargo run -p scoop -- test`：`fixtures: ok (1367)`
+    - `cargo test -p scoopc llvm_tests -- --nocapture`：当前 filter 返回 `0 passed; 864 filtered out`
+    - `cargo test -p scoopc native_callable -- --nocapture`：2 passed
+    - `cargo test -p scoopc managed_extern_ -- --nocapture`：2 passed
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc`
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P5：native callable ABI 与 managed external ABI 已有完整 regression matrix、跨平台记录、sysroot/runtime 注释和 v2+ 边界；remaining backlog 不再混入 v1 主线未闭环项。
+    - `MANAGED_ABI.md` §9-§12 已与当前实现对齐：native surface 是 explicit ABI-safe contract，managed extern 是 ordinary managed external ABI，public string helper 不再依赖 compiler/runtime 名字特判，authoritative substrate 与 v2+ cleanup 已明确列出。

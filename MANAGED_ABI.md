@@ -1,7 +1,7 @@
 # Managed ABI 设计（runtime 切分 / cone 化 / ABI 驱动的 helper lowering）
 
 > 生成时间：2026-04-26  
-> 状态：设计草案，面向当前仓库重构；不承诺对外兼容性。  
+> 状态：v1 ABI contract 已在当前仓库落地；不承诺对外稳定二进制兼容性。
 > 目的：引入一个正式的 managed ABI，使编译器能够按 ABI 而不是按特定 FQN 生成必要的调用框架，从而把所有非核心 helper 从 runtime/compiler special-case 中移出，并交给 cone 承接。
 
 ## 0. 设计目标与非目标
@@ -40,25 +40,25 @@
 1. **ordinary 函数路径**  
    编译器会为它生成 ordinary 参数 ABI、ordinary 返回值/hidden sret、caller side root spill，并让 LLVM statepoint pipeline 处理 safepoint。
 
-2. **`@Extern` 路径**  
-   当前 `@Extern` 从 typecheck 到 codegen 都被定义成 **C ABI native leaf**：
+2. **`@Extern(abi = "c")` 路径**
+   默认 / `abi = "c"` 的 `@Extern` 从 typecheck 到 codegen 都被定义成 **C ABI native leaf**：
    - ABI 签名必须满足 explicit native value contract
    - 必须是 `Pure`
    - 调用点走 `enter_native/leave_native`
    - callee 被视作 `gc-leaf-function`
    - 不允许 ordinary managed return / hidden sret / GC ref 进出
 
-这使得一大批“不是 intrinsic，但需要 managed call 框架”的 helper 没有正式出口。
+本轮引入 `@Extern(abi = "scoop")` 前，这使得一大批“不是 intrinsic，但需要 managed call 框架”的 helper 没有正式出口。
 
 ### 1.2 结果：helper 被迫进入 runtime / compiler special-case
 
-于是当前仓库出现了大量这类现象：
+本轮开始时，仓库出现了大量这类现象：
 
 - runtime 中承载了大量并非 substrate 的 helper。
 - sysroot 中只是写了声明，真正行为却由 compiler dispatch 按 FQN special-case。
 - resolver/typecheck/codegen 三层都维护一份同名 special-case 列表。
 
-当前热点主要集中在：
+当时热点主要集中在：
 
 - `crates/scoopc/src/llvm/codegen/call/dispatch.rs`
 - `crates/scoopc/src/resolve/scopes.rs`
@@ -583,11 +583,14 @@ Managed ABI 的最终目标不是让手写 C 更舒服，而是让 cone 承接 h
 当前实现对标量 `toString` 采用了更明确的 bridge 边界：
 
 - `scoop_char_to_string` / `scoop_int_to_string` / `scoop_float32_to_string` / `scoop_float64_to_string`
-  仍留在 runtime substrate，因为它们直接负责分配并返回 managed `String`；
+  仍留在 runtime substrate，因为它们直接负责格式化、分配并返回 managed `String`；
 - 但这些 symbol 不再被视为 source-level native `@Extern` surface；native ABI 仍继续拒绝 `String` /
   managed ref 进出边界；
 - compiled sysroot 通过一组已审计的 named intrinsic runtime-bridge entry 导入它们，再由 ordinary managed
   helper（`scoopAbi*ToString`）对上层 sysroot body 暴露稳定落点。
+- `scoop_bool_to_string` 不再承接 public `Bool.toString`（该方法已是纯 Scoop body），当前只服务
+  f-string synthesis 中的 bool formatting；后续若 f-string 降到 ordinary `ToString` / cone helper，这个
+  symbol 可作为 v2+ compiler synthesis cleanup 删除。
 
 P4-T02 后 string helper 边界进一步收口：
 
@@ -602,6 +605,8 @@ P4-T02 后 string helper 边界进一步收口：
   调用 `scoop_string_concat`，该 symbol 的剩余职责是分配并复制两个 byte buffer 形成新的 managed `String`；
 - `scoop_string_equals` 仍是 equality operator 的 byte-level runtime substrate；`scoop_string_to_float64`
   是后续 surface 的预留 runtime symbol，不属于本轮 public `String` helper 迁移结果。
+- `scoop_format_i64` / `scoop_format_u64` 是 f-string synthesis 的最小 formatting substrate，不属于
+  public `String.*` helper surface；它们的迁移归入 v2+ compiler synthesis cleanup，而非 v1 ABI blocker。
 
 ### 9.4 试点实施顺序
 
@@ -714,6 +719,10 @@ v1 稳定后，可以再考虑：
 - 支持 outward effect / continuation ABI
 - 给 Managed ABI 增加版本号 / feature bitmap
 - 在 cone 之间建立更正式的 import/export 工具链（例如 `import function` / `import interface`）
+- 把 f-string synthesis 的 bool/int formatting helper 迁到 ordinary `ToString` / cone helper，删除
+  `scoop_bool_to_string`、`scoop_format_i64`、`scoop_format_u64` 这类 compiler-synthesis-only runtime 辅助
+- 继续把 numeric scalar intrinsic（如 `Char.toInt/hash`、`Float*.toInt/hash/abs/isNaN/isInfinite`）迁出
+  零散 by-name lowering，收敛到 sysroot body 或 named intrinsic 表
 
 这些都不是 v1 的前置条件。
 
