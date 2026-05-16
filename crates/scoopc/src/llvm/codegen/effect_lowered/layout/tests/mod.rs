@@ -1,0 +1,1206 @@
+use std::cell::RefCell;
+use std::collections::{BTreeSet, HashMap};
+use std::rc::Rc;
+
+use super::surface_resume::surface_resume_publication_owner_identity;
+use super::*;
+use crate::effect_facts::{
+    CallSiteEffectFacts, CallSiteTarget, CallTargetMode, CaseTag, ImplPlan, SiteEffectFacts,
+};
+use crate::effect_lowered::ir::{
+    BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundary,
+    LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySource,
+    LateLoweredBoundarySourceConsumption, LateLoweredCallBoundaryLowering,
+    LateLoweredCallBoundaryOperandContract, LateLoweredCallable,
+    LateLoweredCompletionPayloadBinding, LateLoweredCompletionPayloadSource,
+    LateLoweredConsumedRuntimeErrorCase, LateLoweredContinuationObject,
+    LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
+    LateLoweredFrameSlotKind, LateLoweredHandleDispatchContract,
+    LateLoweredHandlePendingCompletion, LateLoweredOperandValueSource, LateLoweredPlainCallable,
+    LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeInterface,
+    LateLoweredResumeMethod, LateLoweredResumePayloadBinding,
+    LateLoweredSourceStatementClassification, LateLoweredStateGraph, LateLoweredStateTerminator,
+    LateLoweredStepType, LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
+};
+use crate::effect_lowered::{
+    LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
+};
+use crate::llvm::codegen::effect_lowered::types::RefactorCallTargetQuery;
+use crate::llvm::codegen::{
+    CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
+};
+use crate::llvm::target;
+use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
+use crate::pipeline::{
+    MirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
+    load_typed_hir_stage_output_for_dump,
+};
+use crate::program_facts::ProgramFacts;
+use crate::session::{Session, SessionOptions};
+use crate::source::{SourceFile, SourceMap};
+use crate::ty::{TypeParamType, TypeStore};
+use inkwell::context::Context;
+
+struct FixtureAbiInputs {
+    source_map: SourceMap,
+    entry_source_id: crate::source::SourceId,
+    hir_compat_scaffold: crate::hir::LoweredHir,
+    effect_lowered_stage_output: crate::pipeline::EffectLoweredStageOutput,
+    abi_visibility_program: LateLoweredProgram,
+}
+
+fn refactor_session() -> Session {
+    Session::with_options(SessionOptions::new()).unwrap()
+}
+
+fn load_fixture(phase: &str, name: &str) -> SourceFile {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures")
+        .join(phase)
+        .join(name);
+    SourceFile::load(&path).expect("fixture 应可加载")
+}
+
+fn load_build_fixture(name: &str) -> SourceFile {
+    load_fixture("build", name)
+}
+
+fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
+    let session = refactor_session();
+    let typed_hir_output =
+        load_typed_hir_stage_output_for_dump(&session, &source).expect("typed HIR stage 应成功");
+    let hir_compat_scaffold = typed_hir_output
+        .lowered_hir()
+        .clone_hir_compat_scaffold_without_materialized_mir();
+    let facts = MirLoweringFacts::from_refactor_typed_handoff(
+        typed_hir_output.lowered_hir(),
+        typed_hir_output.effect_contracts(),
+    );
+    let effect_contracts = typed_hir_output.effect_contracts().clone();
+    let mut lowered_hir = typed_hir_output.into_lowered_hir();
+    let builtins = lowered_hir.types.intern_builtins();
+    let file = lower_hir_file_for_dump_with_facts(
+        builtins,
+        &mut lowered_hir.types,
+        &lowered_hir.file,
+        &lowered_hir.member_funs,
+        &facts,
+    );
+    let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
+    let materialized_mir = lowered_hir.into_materialized_mir();
+    let mir_stage_output = MirStageOutput::new(
+        LoweredMir { file, types },
+        effect_contracts,
+        materialized_mir,
+    );
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(&session, &source, mir_stage_output)
+            .expect("effect facts stage 应成功");
+    let effect_lowered_stage_output =
+        build_effect_lowered_stage_output(&session, effect_facts_stage_output)
+            .expect("effect lowered stage 应成功");
+    // ABI materializer 必须消费与真实 refactor LLVM stage 相同的 shell-preserving handoff，
+    // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
+    let abi_visibility_program = optimize_program_with_options(
+        LateLoweredProgramBuilder::from_canonical_inputs(
+            effect_lowered_stage_output.materialized_pass_view(),
+            effect_lowered_stage_output.effect_facts(),
+            effect_lowered_stage_output.types(),
+        )
+        .build()
+        .expect("ABI visibility late-lowered program 应成功"),
+        LateLoweredOptOptions::preserve_published_resume_shells(),
+    );
+    let input_sources = vec![source.clone()];
+    let (source_map, entry_source_id) =
+        crate::llvm::frontend::build_source_map_with_extra_sources(&session, &input_sources, 0);
+    FixtureAbiInputs {
+        source_map,
+        entry_source_id,
+        hir_compat_scaffold,
+        effect_lowered_stage_output,
+        abi_visibility_program,
+    }
+}
+
+fn build_fixture_inputs(name: &str) -> FixtureAbiInputs {
+    build_fixture_inputs_from_source(load_build_fixture(name))
+}
+
+fn with_inputs_query_result(
+    inputs: FixtureAbiInputs,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    let program = rewrite_program(&inputs);
+    let context = Context::create();
+    let module = context.create_module("refactor_abi_test");
+    let builder = context.create_builder();
+    let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+    let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+    let lowered = &inputs.hir_compat_scaffold;
+    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered.member_funs.iter())
+        .map(|fun| (fun.fqn.clone(), fun))
+        .collect();
+    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+        context: &context,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
+        source_map: &inputs.source_map,
+        entry_source_id: inputs.entry_source_id,
+        stable_cone_key: &lowered.stable_cone_key,
+        stable_type_param_keys: &lowered.stable_type_param_keys,
+        types: &lowered.types,
+        struct_layouts: &lowered.struct_layouts,
+        enum_layouts: &lowered.enum_layouts,
+        top_level_vars: &lowered.top_level_vars,
+        top_level_consts: &lowered.top_level_consts,
+        top_level_immutable_values: &lowered.top_level_immutable_values,
+        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
+        extern_globals: &lowered.extern_globals,
+        object_inits: &lowered.object_inits,
+        class_inits: &lowered.class_inits,
+        class_vtables: &lowered.class_vtables,
+        interfaces: &lowered.interfaces,
+        class_itables: &lowered.class_itables,
+        ctor_call_sites: &lowered.ctor_call_sites,
+        dispatch_call_sites: &lowered.dispatch_call_sites,
+        effect_op_call_sites: &lowered.effect_op_call_sites,
+        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        when_pat_binding_tys: &lowered.when_pat_binding_tys,
+        nominal_kinds: &lowered.nominal_kinds,
+        direct_supertypes: &lowered.direct_supertypes,
+        builtins: lowered.builtins,
+        extern_funs: &lowered.extern_funs,
+        fun_index: &fun_index,
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        published_late_lowered_program: Some(&program),
+        program_facts,
+        effect_op_tags,
+    });
+    let mut codegen = unit_codegen.fresh_main_codegen();
+    let result = codegen.materialize_program_abi(
+        &program,
+        inputs.effect_lowered_stage_output.types(),
+        &inputs.effect_lowered_stage_output.materialized_pass_view(),
+        inputs.effect_lowered_stage_output.effect_facts(),
+    );
+    check(&inputs, result, &module);
+}
+
+fn with_inputs_query_result_for_source_types(
+    inputs: FixtureAbiInputs,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    rewrite_source_types: impl FnOnce(&FixtureAbiInputs) -> TypeStore,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    let program = rewrite_program(&inputs);
+    let source_types = rewrite_source_types(&inputs);
+    let context = Context::create();
+    let module = context.create_module("refactor_abi_test");
+    let builder = context.create_builder();
+    let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+    let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+    let lowered = &inputs.hir_compat_scaffold;
+    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered.member_funs.iter())
+        .map(|fun| (fun.fqn.clone(), fun))
+        .collect();
+    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+        context: &context,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
+        source_map: &inputs.source_map,
+        entry_source_id: inputs.entry_source_id,
+        stable_cone_key: &lowered.stable_cone_key,
+        stable_type_param_keys: &lowered.stable_type_param_keys,
+        types: &lowered.types,
+        struct_layouts: &lowered.struct_layouts,
+        enum_layouts: &lowered.enum_layouts,
+        top_level_vars: &lowered.top_level_vars,
+        top_level_consts: &lowered.top_level_consts,
+        top_level_immutable_values: &lowered.top_level_immutable_values,
+        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
+        extern_globals: &lowered.extern_globals,
+        object_inits: &lowered.object_inits,
+        class_inits: &lowered.class_inits,
+        class_vtables: &lowered.class_vtables,
+        interfaces: &lowered.interfaces,
+        class_itables: &lowered.class_itables,
+        ctor_call_sites: &lowered.ctor_call_sites,
+        dispatch_call_sites: &lowered.dispatch_call_sites,
+        effect_op_call_sites: &lowered.effect_op_call_sites,
+        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        when_pat_binding_tys: &lowered.when_pat_binding_tys,
+        nominal_kinds: &lowered.nominal_kinds,
+        direct_supertypes: &lowered.direct_supertypes,
+        builtins: lowered.builtins,
+        extern_funs: &lowered.extern_funs,
+        fun_index: &fun_index,
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        published_late_lowered_program: Some(&program),
+        program_facts,
+        effect_op_tags,
+    });
+    let mut codegen = unit_codegen.fresh_main_codegen();
+    let result = codegen.materialize_program_abi(
+        &program,
+        &source_types,
+        &inputs.effect_lowered_stage_output.materialized_pass_view(),
+        inputs.effect_lowered_stage_output.effect_facts(),
+    );
+    check(&inputs, result, &module);
+}
+
+fn with_inputs_query_result_and_codegen(
+    inputs: FixtureAbiInputs,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        &mut MainCodegen<'_, 'ctx>,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    let program = rewrite_program(&inputs);
+    let context = Context::create();
+    let module = context.create_module("refactor_abi_test");
+    let builder = context.create_builder();
+    let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
+    let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
+    let lowered = &inputs.hir_compat_scaffold;
+    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(lowered.member_funs.iter())
+        .map(|fun| (fun.fqn.clone(), fun))
+        .collect();
+    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
+        context: &context,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
+        source_map: &inputs.source_map,
+        entry_source_id: inputs.entry_source_id,
+        stable_cone_key: &lowered.stable_cone_key,
+        stable_type_param_keys: &lowered.stable_type_param_keys,
+        types: &lowered.types,
+        struct_layouts: &lowered.struct_layouts,
+        enum_layouts: &lowered.enum_layouts,
+        top_level_vars: &lowered.top_level_vars,
+        top_level_consts: &lowered.top_level_consts,
+        top_level_immutable_values: &lowered.top_level_immutable_values,
+        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
+        extern_globals: &lowered.extern_globals,
+        object_inits: &lowered.object_inits,
+        class_inits: &lowered.class_inits,
+        class_vtables: &lowered.class_vtables,
+        interfaces: &lowered.interfaces,
+        class_itables: &lowered.class_itables,
+        ctor_call_sites: &lowered.ctor_call_sites,
+        dispatch_call_sites: &lowered.dispatch_call_sites,
+        effect_op_call_sites: &lowered.effect_op_call_sites,
+        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        when_pat_binding_tys: &lowered.when_pat_binding_tys,
+        nominal_kinds: &lowered.nominal_kinds,
+        direct_supertypes: &lowered.direct_supertypes,
+        builtins: lowered.builtins,
+        extern_funs: &lowered.extern_funs,
+        fun_index: &fun_index,
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        published_late_lowered_program: Some(&program),
+        program_facts,
+        effect_op_tags,
+    });
+    let mut codegen = unit_codegen.fresh_main_codegen();
+    let pass_view = inputs.effect_lowered_stage_output.materialized_pass_view();
+    let result = codegen.materialize_program_abi(
+        &program,
+        inputs.effect_lowered_stage_output.types(),
+        &pass_view,
+        inputs.effect_lowered_stage_output.effect_facts(),
+    );
+    check(&inputs, &mut codegen, result, &module);
+}
+
+fn with_fixture_query_result(
+    name: &str,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    with_inputs_query_result(build_fixture_inputs(name), rewrite_program, check);
+}
+
+fn with_phase_fixture_query_result(
+    phase: &str,
+    name: &str,
+    rewrite_program: impl FnOnce(&FixtureAbiInputs) -> LateLoweredProgram,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        Result<ProgramAbiQuery<'ctx>, LlvmEmitError>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    with_inputs_query_result(
+        build_fixture_inputs_from_source(load_fixture(phase, name)),
+        rewrite_program,
+        check,
+    );
+}
+
+fn with_fixture_query(
+    name: &str,
+    check: impl for<'ctx> FnOnce(
+        &FixtureAbiInputs,
+        &ProgramAbiQuery<'ctx>,
+        &inkwell::module::Module<'ctx>,
+    ),
+) {
+    with_fixture_query_result(
+        name,
+        |inputs| inputs.abi_visibility_program.clone(),
+        |inputs, result, module| {
+            let query = result.expect("refactor ABI materialization 应成功");
+            check(inputs, &query, module);
+        },
+    );
+}
+
+fn clone_callable_with_interfaces(
+    callable: &LateLoweredCallable,
+    resume_interfaces: Vec<ResumeInterfaceId>,
+) -> LateLoweredCallable {
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        callable.dynamic_invoke_entry().clone(),
+        callable.state_graph().clone(),
+        callable.frame_schema().clone(),
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        resume_interfaces,
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+}
+
+fn clone_continuation_object_with_interfaces(
+    object: &LateLoweredContinuationObject,
+    implemented_interfaces: Vec<ResumeInterfaceId>,
+) -> LateLoweredContinuationObject {
+    LateLoweredContinuationObject::new(
+        object.object_id(),
+        object.owner_version_key().clone(),
+        object.continuation_obj_ty(),
+        implemented_interfaces,
+        object.captures().to_vec(),
+        object.surface_resumes().to_vec(),
+        object.methods().to_vec(),
+    )
+}
+
+fn clone_continuation_object_with_surface_resumes(
+    object: &LateLoweredContinuationObject,
+    surface_resumes: Vec<LateLoweredContinuationSurfaceResume>,
+) -> LateLoweredContinuationObject {
+    LateLoweredContinuationObject::new(
+        object.object_id(),
+        object.owner_version_key().clone(),
+        object.continuation_obj_ty(),
+        object.implemented_packings().to_vec(),
+        object.captures().to_vec(),
+        surface_resumes,
+        object.methods().to_vec(),
+    )
+}
+
+fn clone_continuation_object_with_methods(
+    object: &LateLoweredContinuationObject,
+    methods: Vec<crate::effect_lowered::ir::LateLoweredContinuationMethod>,
+) -> LateLoweredContinuationObject {
+    LateLoweredContinuationObject::new(
+        object.object_id(),
+        object.owner_version_key().clone(),
+        object.continuation_obj_ty(),
+        object.implemented_packings().to_vec(),
+        object.captures().to_vec(),
+        object.surface_resumes().to_vec(),
+        methods,
+    )
+}
+
+fn clone_continuation_object_with_id(
+    object: &LateLoweredContinuationObject,
+    object_id: ContinuationObjectId,
+) -> LateLoweredContinuationObject {
+    LateLoweredContinuationObject::new(
+        object_id,
+        object.owner_version_key().clone(),
+        object.continuation_obj_ty(),
+        object.implemented_packings().to_vec(),
+        object.captures().to_vec(),
+        object.surface_resumes().to_vec(),
+        object.methods().to_vec(),
+    )
+}
+
+fn clone_callable_with_boundary_map(
+    callable: &LateLoweredCallable,
+    boundary_map: LateLoweredBoundaryMap,
+) -> LateLoweredCallable {
+    if let Some(plain) = callable.plain_abi() {
+        let local = callable
+            .plain_local_effect_control()
+            .expect("plain callable 应发布 local effect/control 才能替换 boundary map");
+        return clone_plain_callable_with_local_control(
+            callable,
+            plain,
+            LateLoweredPlainLocalEffectControl::new(
+                local.step_schema(),
+                local.state_graph().clone(),
+                local.frame_schema().clone(),
+                boundary_map,
+                local.resume_state_map().clone(),
+                local.source_statement_classifications().to_vec(),
+                local.continuation_object(),
+                local.resume_packings().to_vec(),
+            ),
+        );
+    }
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        callable.dynamic_invoke_entry().clone(),
+        callable.state_graph().clone(),
+        callable.frame_schema().clone(),
+        boundary_map,
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        callable.resume_packings().to_vec(),
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+}
+
+fn clone_callable_with_state_graph(
+    callable: &LateLoweredCallable,
+    state_graph: LateLoweredStateGraph,
+) -> LateLoweredCallable {
+    if let Some(plain) = callable.plain_abi() {
+        let local = callable
+            .plain_local_effect_control()
+            .expect("plain callable 应发布 local effect/control 才能替换 state graph");
+        return clone_plain_callable_with_local_control(
+            callable,
+            plain,
+            LateLoweredPlainLocalEffectControl::new(
+                local.step_schema(),
+                state_graph,
+                local.frame_schema().clone(),
+                local.boundary_map().clone(),
+                local.resume_state_map().clone(),
+                local.source_statement_classifications().to_vec(),
+                local.continuation_object(),
+                local.resume_packings().to_vec(),
+            ),
+        );
+    }
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        callable.dynamic_invoke_entry().clone(),
+        state_graph,
+        callable.frame_schema().clone(),
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        callable.resume_packings().to_vec(),
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+}
+
+fn clone_callable_with_frame_schema(
+    callable: &LateLoweredCallable,
+    frame_schema: LateLoweredFrameSchema,
+) -> LateLoweredCallable {
+    if let Some(plain) = callable.plain_abi() {
+        let local = callable
+            .plain_local_effect_control()
+            .expect("plain callable 应发布 local effect/control 才能替换 frame schema");
+        return clone_plain_callable_with_local_control(
+            callable,
+            plain,
+            LateLoweredPlainLocalEffectControl::new(
+                local.step_schema(),
+                local.state_graph().clone(),
+                frame_schema,
+                local.boundary_map().clone(),
+                local.resume_state_map().clone(),
+                local.source_statement_classifications().to_vec(),
+                local.continuation_object(),
+                local.resume_packings().to_vec(),
+            ),
+        );
+    }
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        callable.dynamic_invoke_entry().clone(),
+        callable.state_graph().clone(),
+        frame_schema,
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        callable.resume_packings().to_vec(),
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+}
+
+fn clone_plain_callable_with_local_control(
+    callable: &LateLoweredCallable,
+    plain: &LateLoweredPlainCallable,
+    local: LateLoweredPlainLocalEffectControl,
+) -> LateLoweredCallable {
+    LateLoweredCallable::new_plain(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.resolved_outward_cases().to_vec(),
+        LateLoweredPlainCallable::new(
+            plain.function_ty(),
+            plain.param_tys().to_vec(),
+            plain.return_ty(),
+            plain.body_slices().to_vec(),
+            plain.call_sites().to_vec(),
+            Some(local),
+        ),
+    )
+}
+
+fn clone_callable_with_source_statement_classifications(
+    callable: &LateLoweredCallable,
+    classifications: Vec<LateLoweredSourceStatementClassification>,
+) -> LateLoweredCallable {
+    if let Some(plain) = callable.plain_abi() {
+        let local = callable
+            .plain_local_effect_control()
+            .expect("plain callable 应发布 local effect/control 才能替换 classifications");
+        return clone_plain_callable_with_local_control(
+            callable,
+            plain,
+            LateLoweredPlainLocalEffectControl::new(
+                local.step_schema(),
+                local.state_graph().clone(),
+                local.frame_schema().clone(),
+                local.boundary_map().clone(),
+                local.resume_state_map().clone(),
+                classifications,
+                local.continuation_object(),
+                local.resume_packings().to_vec(),
+            ),
+        );
+    }
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        callable.dynamic_invoke_entry().clone(),
+        callable.state_graph().clone(),
+        callable.frame_schema().clone(),
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        callable.resume_packings().to_vec(),
+    )
+    .with_source_statement_classifications(classifications)
+}
+
+fn clone_state_graph_with_handle_contract(
+    state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
+    site_id: SiteId,
+    new_contract: LateLoweredHandleDispatchContract,
+) -> crate::effect_lowered::ir::LateLoweredStateGraph {
+    let states = state_graph
+        .states()
+        .iter()
+        .map(|state| match state.terminator() {
+            crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                site_id: state_site,
+                body_state,
+                arm_states,
+                finally_state,
+                exit_state,
+                boundary_ids,
+                drop_state,
+                ..
+            } if *state_site == site_id => crate::effect_lowered::ir::LateLoweredState::new(
+                state.state_id(),
+                state.role(),
+                state.source_slices().to_vec(),
+                crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                    site_id: *state_site,
+                    body_state: *body_state,
+                    arm_states: arm_states.clone(),
+                    finally_state: *finally_state,
+                    exit_state: *exit_state,
+                    contract: new_contract.clone(),
+                    boundary_ids: boundary_ids.clone(),
+                    drop_state: *drop_state,
+                },
+            ),
+            _ => state.clone(),
+        })
+        .collect();
+    crate::effect_lowered::ir::LateLoweredStateGraph::new(
+        state_graph.entry_state(),
+        state_graph.complete_state(),
+        state_graph.cleanup_state(),
+        state_graph.drop_state(),
+        states,
+    )
+}
+
+fn handle_dispatch_contract(
+    callable: &LateLoweredCallable,
+    site_id: SiteId,
+) -> &LateLoweredHandleDispatchContract {
+    callable
+        .state_graph()
+        .states()
+        .iter()
+        .find_map(|state| match state.terminator() {
+            crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                site_id: state_site,
+                contract,
+                ..
+            } if *state_site == site_id => Some(contract),
+            _ => None,
+        })
+        .expect("应找到指定 site 的 HandleDispatch contract")
+}
+
+fn first_handle_dispatch(
+    callable: &LateLoweredCallable,
+) -> (SiteId, &LateLoweredHandleDispatchContract) {
+    callable
+        .state_graph()
+        .states()
+        .iter()
+        .find_map(|state| match state.terminator() {
+            crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                site_id,
+                contract,
+                ..
+            } => Some((*site_id, contract)),
+            _ => None,
+        })
+        .expect("应找到至少一个 HandleDispatch contract")
+}
+
+fn handle_dispatch_with_pending_outward(
+    callable: &LateLoweredCallable,
+) -> (SiteId, &LateLoweredHandleDispatchContract) {
+    callable
+        .state_graph()
+        .states()
+        .iter()
+        .find_map(|state| match state.terminator() {
+            crate::effect_lowered::ir::LateLoweredStateTerminator::HandleDispatch {
+                site_id,
+                contract,
+                ..
+            } if contract.pending_completions().iter().any(|completion| {
+                matches!(
+                    completion,
+                    LateLoweredHandlePendingCompletion::PropagateOutward(_)
+                )
+            }) =>
+            {
+                Some((*site_id, contract))
+            }
+            _ => None,
+        })
+        .expect("应找到带 pending outward completion 的 HandleDispatch contract")
+}
+
+fn clone_handle_dispatch_contract_with_handled_arms(
+    contract: &LateLoweredHandleDispatchContract,
+    handled_arms: Vec<crate::effect_lowered::ir::LateLoweredHandleArmDispatch>,
+) -> LateLoweredHandleDispatchContract {
+    LateLoweredHandleDispatchContract::new(
+        contract.carrier(),
+        contract.body_complete_target(),
+        contract.arm_complete_target(),
+        contract.finally_complete_target(),
+        contract.body_completion_payload_source().cloned(),
+        handled_arms,
+        contract.body_outward_cases().to_vec(),
+        contract.finally_outward_cases().to_vec(),
+        contract.outward_emissions().to_vec(),
+        contract.pending_completions().to_vec(),
+        contract.pending_completion_origins().to_vec(),
+        contract.pending_payload_transports().to_vec(),
+        contract.state_regions().to_vec(),
+        contract.boundary_routings().to_vec(),
+        contract.abandon_target(),
+    )
+}
+
+fn clone_handle_dispatch_contract_with_regions_and_routes(
+    contract: &LateLoweredHandleDispatchContract,
+    state_regions: Vec<crate::effect_lowered::ir::LateLoweredHandleStateRegionEntry>,
+    boundary_routings: Vec<crate::effect_lowered::ir::LateLoweredHandleBoundaryRouting>,
+) -> LateLoweredHandleDispatchContract {
+    LateLoweredHandleDispatchContract::new(
+        contract.carrier(),
+        contract.body_complete_target(),
+        contract.arm_complete_target(),
+        contract.finally_complete_target(),
+        contract.body_completion_payload_source().cloned(),
+        contract.handled_arms().to_vec(),
+        contract.body_outward_cases().to_vec(),
+        contract.finally_outward_cases().to_vec(),
+        contract.outward_emissions().to_vec(),
+        contract.pending_completions().to_vec(),
+        contract.pending_completion_origins().to_vec(),
+        contract.pending_payload_transports().to_vec(),
+        state_regions,
+        boundary_routings,
+        contract.abandon_target(),
+    )
+}
+
+fn clone_callable_with_dynamic_invoke_entry(
+    callable: &LateLoweredCallable,
+    dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
+) -> LateLoweredCallable {
+    LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        dynamic_invoke_entry,
+        callable.state_graph().clone(),
+        callable.frame_schema().clone(),
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.continuation_object(),
+        callable.resume_packings().to_vec(),
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+}
+
+fn duplicate_no_outward_callable_version(
+    program: &LateLoweredProgram,
+    root_fqn: &str,
+) -> LateLoweredProgram {
+    let callable = program
+        .callables()
+        .iter()
+        .find(|callable| callable.root_fqn() == root_fqn)
+        .unwrap_or_else(|| panic!("应存在 callable `{root_fqn}`"));
+    assert_eq!(
+        callable.impl_plan(),
+        ImplPlan::NoOutward,
+        "当前 helper 只支持 NoOutward callable version"
+    );
+    let plain = callable
+        .plain_abi()
+        .expect("NoOutward callable 应保持 plain ABI")
+        .clone();
+    let cloned_version_key = LateLoweredBodyVersionKey::new(
+        callable.instance_key().clone(),
+        callable.allowed_row().clone(),
+        callable.impl_plan(),
+        !callable.needs_reentry(),
+    );
+
+    let mut callables = program.callables().to_vec();
+    callables.push(LateLoweredCallable::new_plain(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        cloned_version_key,
+        callable.resolved_outward_cases().to_vec(),
+        plain,
+    ));
+
+    LateLoweredProgram::new(
+        program.step_types().to_vec(),
+        program.resume_packings().to_vec(),
+        program.continuation_objects().to_vec(),
+        callables,
+    )
+    .with_stable_instance_keys(program.stable_instance_keys().clone())
+}
+
+fn site_boundary(callable: &LateLoweredCallable, kind: BoundarySiteKind) -> &LateLoweredBoundary {
+    callable
+        .boundary_map()
+        .entries()
+        .iter()
+        .find(|boundary| {
+            matches!(
+                boundary.source(),
+                LateLoweredBoundarySource::Site {
+                    kind: boundary_kind,
+                    ..
+                } if boundary_kind == kind
+            )
+        })
+        .expect("应找到指定 kind 的 boundary")
+}
+
+fn call_boundary_lowering(boundary: &LateLoweredBoundary) -> &LateLoweredCallBoundaryLowering {
+    let Some(LateLoweredBoundaryLowering::Call(lowering)) = boundary.lowering() else {
+        panic!("boundary 应物化成 Call lowering");
+    };
+    lowering
+}
+
+fn perform_boundary_lowering(
+    boundary: &LateLoweredBoundary,
+) -> &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering {
+    let Some(LateLoweredBoundaryLowering::Perform(lowering)) = boundary.lowering() else {
+        panic!("boundary 应物化成 Perform lowering");
+    };
+    lowering
+}
+
+fn resume_boundary_lowering(
+    boundary: &LateLoweredBoundary,
+) -> &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering {
+    let Some(LateLoweredBoundaryLowering::Resume(lowering)) = boundary.lowering() else {
+        panic!("boundary 应物化成 Resume lowering");
+    };
+    lowering
+}
+
+fn boundary_site_id(boundary: &LateLoweredBoundary) -> crate::mir::SiteId {
+    let LateLoweredBoundarySource::Site { site_id, .. } = boundary.source() else {
+        panic!("boundary 应带 site source");
+    };
+    site_id
+}
+
+fn handle_dispatch_state(
+    callable: &LateLoweredCallable,
+    site_id: SiteId,
+) -> &crate::effect_lowered::ir::LateLoweredState {
+    callable
+        .state_graph()
+        .states()
+        .iter()
+        .find(|state| {
+            matches!(
+                state.terminator(),
+                LateLoweredStateTerminator::HandleDispatch { site_id: state_site, .. }
+                    if *state_site == site_id
+            )
+        })
+        .expect("应找到指定 site 的 HandleDispatch state")
+}
+
+fn source_slice_non_boundary_dynamic_call_site(
+    inputs: &FixtureAbiInputs,
+    callable: &LateLoweredCallable,
+) -> (crate::mir::SiteId, CallSiteEffectFacts) {
+    if let Some(plain) = callable.plain_abi() {
+        return plain
+            .call_sites()
+            .iter()
+            .find_map(|site| {
+                (site.facts().target_mode() != CallTargetMode::KnownInstance)
+                    .then(|| (site.site_id(), site.facts().clone()))
+            })
+            .expect("plain callable 应发布一个 non-boundary source-slice dynamic call site");
+    }
+
+    let body = inputs
+        .effect_lowered_stage_output
+        .materialized_pass_view()
+        .callable(callable.root_fqn())
+        .expect("callable 的 canonical MIR body 应存在")
+        .body
+        .as_ref()
+        .expect("callable 的 canonical MIR body 内容应存在");
+    let body_facts = inputs
+        .effect_lowered_stage_output
+        .effect_facts()
+        .body(callable.instance_key())
+        .expect("callable 的 BodyEffectFacts 应存在");
+    let boundary_call_sites = callable
+        .boundary_map()
+        .entries()
+        .iter()
+        .filter_map(|boundary| match boundary.source() {
+            LateLoweredBoundarySource::Site {
+                site_id,
+                kind: BoundarySiteKind::Call,
+            } => Some(site_id),
+            LateLoweredBoundarySource::RuntimeError { .. }
+            | LateLoweredBoundarySource::Site { .. } => None,
+        })
+        .collect::<BTreeSet<_>>();
+
+    for state in callable.state_graph().states() {
+        for slice in state.source_slices() {
+            let block = &body.blocks[slice.block_id().as_u32() as usize];
+            let start = slice.start_statement_index() as usize;
+            let end = slice.end_statement_index() as usize;
+            for stmt in &block.stmts[start..end] {
+                let MirStatementKind::Assign {
+                    value: MirRvalue::Call { site_id, kind, .. },
+                    ..
+                } = &stmt.kind
+                else {
+                    continue;
+                };
+                if boundary_call_sites.contains(site_id)
+                    || !matches!(
+                        kind,
+                        MirCallKind::FunValue { .. }
+                            | MirCallKind::FunPtr { .. }
+                            | MirCallKind::Closure { .. }
+                            | MirCallKind::Virtual { .. }
+                            | MirCallKind::Interface { .. }
+                    )
+                {
+                    continue;
+                }
+                let SiteEffectFacts::Call(facts) = body_facts
+                    .site(*site_id)
+                    .expect("source-slice dynamic call site 应带 published Call facts")
+                else {
+                    panic!("source-slice dynamic call site 必须对应 Call facts");
+                };
+                if facts.target_mode() == CallTargetMode::KnownInstance {
+                    continue;
+                }
+                return (*site_id, facts.clone());
+            }
+        }
+    }
+
+    panic!("应找到一个 non-boundary source-slice dynamic call site");
+}
+
+fn clone_resume_interface_with_methods(
+    interface: &LateLoweredResumeInterface,
+    methods: Vec<LateLoweredResumeMethod>,
+) -> LateLoweredResumeInterface {
+    LateLoweredResumeInterface::new(
+        interface.interface_id(),
+        interface.effect_family().clone(),
+        interface.return_step_schema(),
+        methods,
+    )
+}
+
+fn single_case_worker_program_with_ping_method_order(
+    inputs: &FixtureAbiInputs,
+    method_case_order: &[CaseTag],
+) -> LateLoweredProgram {
+    let program = &inputs.abi_visibility_program;
+    let callable = program
+        .callable("fixtures.build.singleCaseWorker")
+        .expect("callable 应存在");
+    let step_type = program
+        .step_type(callable.step_schema())
+        .expect("step type 应存在");
+    let ping_interface = program
+        .resume_packings()
+        .iter()
+        .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+        .expect("应存在 Ping resume packing");
+    let methods = method_case_order
+        .iter()
+        .map(|case_tag| {
+            ping_interface
+                .methods()
+                .iter()
+                .find(|method| method.case_tag() == *case_tag)
+                .cloned()
+                .unwrap_or_else(|| {
+                    let step_case = step_type
+                        .case(*case_tag)
+                        .expect("method case 应可回查 step shell");
+                    LateLoweredResumeMethod::new(
+                        step_case.case_tag(),
+                        step_case.concrete_op_key().clone(),
+                        step_case.continuation_contract(),
+                    )
+                })
+        })
+        .collect::<Vec<_>>();
+    let resume_interfaces = program
+        .resume_packings()
+        .iter()
+        .map(|candidate| {
+            if candidate.interface_id() == ping_interface.interface_id() {
+                clone_resume_interface_with_methods(candidate, methods.clone())
+            } else {
+                candidate.clone()
+            }
+        })
+        .collect();
+
+    LateLoweredProgram::new(
+        program.step_types().to_vec(),
+        resume_interfaces,
+        program.continuation_objects().to_vec(),
+        program.callables().to_vec(),
+    )
+    .with_stable_instance_keys(program.stable_instance_keys().clone())
+}
+
+fn resume_method_for_case(
+    step_type: &LateLoweredStepType,
+    case_tag: CaseTag,
+) -> LateLoweredResumeMethod {
+    let step_case = step_type
+        .case(case_tag)
+        .expect("method case 应可回查 step shell");
+    LateLoweredResumeMethod::new(
+        step_case.case_tag(),
+        step_case.concrete_op_key().clone(),
+        step_case.continuation_contract(),
+    )
+}
+
+fn next_resume_interface_id(program: &LateLoweredProgram) -> ResumeInterfaceId {
+    let next = program
+        .resume_packings()
+        .iter()
+        .map(|interface| interface.interface_id().as_u32())
+        .max()
+        .map(|raw| raw.saturating_add(1))
+        .unwrap_or(0);
+    ResumeInterfaceId::new(next)
+}
+
+fn unit_worker_program_with_ping_interface(inputs: &FixtureAbiInputs) -> LateLoweredProgram {
+    let program = &inputs.abi_visibility_program;
+    let callable = program
+        .callable("fixtures.build.unitWorker")
+        .expect("callable 应存在");
+    let step_type = program
+        .step_type(callable.step_schema())
+        .expect("step type 应存在");
+    let ping_method = resume_method_for_case(step_type, CaseTag::new(0));
+    let ping_interface_id = program
+        .resume_packings()
+        .iter()
+        .find(|interface| interface.effect_family().effect_fqn() == "fixtures.build.Ping")
+        .map(LateLoweredResumeInterface::interface_id)
+        .unwrap_or_else(|| next_resume_interface_id(program));
+    let ping_interface = LateLoweredResumeInterface::new(
+        ping_interface_id,
+        ping_method.concrete_op_key().effect_family().clone(),
+        callable.step_schema(),
+        vec![ping_method],
+    );
+
+    let resume_interfaces = program
+        .resume_packings()
+        .iter()
+        .filter(|interface| interface.interface_id() != ping_interface_id)
+        .cloned()
+        .chain(std::iter::once(ping_interface))
+        .collect();
+    let callables = program
+        .callables()
+        .iter()
+        .map(|candidate| {
+            if candidate.body_step_schema() == Some(callable.step_schema()) {
+                clone_callable_with_interfaces(candidate, vec![ping_interface_id])
+            } else {
+                candidate.clone()
+            }
+        })
+        .collect();
+    let continuation_objects = program
+        .continuation_objects()
+        .iter()
+        .map(|candidate| {
+            if candidate.object_id() == callable.continuation_object() {
+                clone_continuation_object_with_interfaces(candidate, vec![ping_interface_id])
+            } else {
+                candidate.clone()
+            }
+        })
+        .collect();
+
+    LateLoweredProgram::new(
+        program.step_types().to_vec(),
+        resume_interfaces,
+        continuation_objects,
+        callables,
+    )
+    .with_stable_instance_keys(program.stable_instance_keys().clone())
+}
+
+mod abi_layout;
+mod classification;
+mod dispatch;
+mod handle_dispatch;
+mod surface_resume;
+
+#[allow(unused_imports)]
+use {abi_layout::*, classification::*, dispatch::*, handle_dispatch::*, surface_resume::*};

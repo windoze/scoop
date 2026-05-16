@@ -9,7 +9,22 @@ use std::fs;
 use std::path::PathBuf;
 
 const FAILURE_POLICY_AUDIT_FILES: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/op.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/operand.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
+    "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/class_ctor.rs",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs",
@@ -35,6 +50,24 @@ const FAILURE_POLICY_AUDIT_FILES: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/verification.rs",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/wrapper.rs",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
+    "crates/scoopc/src/llvm/codegen/main/alloca.rs",
+    "crates/scoopc/src/llvm/codegen/main/boxing.rs",
+    "crates/scoopc/src/llvm/codegen/main/call.rs",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs",
+    "crates/scoopc/src/llvm/codegen/main/const_eval.rs",
+    "crates/scoopc/src/llvm/codegen/main/context.rs",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs",
+    "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs",
+    "crates/scoopc/src/llvm/codegen/main/function.rs",
+    "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs",
+    "crates/scoopc/src/llvm/codegen/main/identity.rs",
+    "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
+    "crates/scoopc/src/llvm/codegen/main/literal.rs",
+    "crates/scoopc/src/llvm/codegen/main/numeric.rs",
+    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
     "crates/scoopc/src/llvm/codegen/mod.rs",
     "crates/scoopc/src/mir/materialize/dispatch.rs",
     "crates/scoopc/src/mir/materialize/entry.rs",
@@ -113,8 +146,68 @@ struct UnsupportedMainBodyCount {
 
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body.rs",
-        expected_count: 317,
+        path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
+        expected_count: 39,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
+        expected_count: 15,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
+        expected_count: 28,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
+        expected_count: 21,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/cast.rs",
+        expected_count: 28,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
+        expected_count: 38,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
+        expected_count: 16,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
+        expected_count: 50,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
+        expected_count: 6,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/op.rs",
+        expected_count: 12,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/operand.rs",
+        expected_count: 8,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
+        expected_count: 19,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
+        expected_count: 17,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
+        expected_count: 10,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
+        expected_count: 4,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs",
+        expected_count: 6,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs",
@@ -153,8 +246,72 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
         expected_count: 158,
     },
     UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mod.rs",
-        expected_count: 237,
+        path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
+        expected_count: 7,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/boxing.rs",
+        expected_count: 6,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/call.rs",
+        expected_count: 12,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/coerce.rs",
+        expected_count: 31,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/context.rs",
+        expected_count: 4,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
+        expected_count: 8,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
+        expected_count: 39,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
+        expected_count: 19,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
+        expected_count: 12,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/function.rs",
+        expected_count: 3,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
+        expected_count: 11,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
+        expected_count: 11,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
+        expected_count: 6,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
+        expected_count: 18,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
+        expected_count: 25,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/numeric.rs",
+        expected_count: 21,
+    },
+    UnsupportedMainBodyCount {
+        path: "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
+        expected_count: 4,
     },
 ];
 
@@ -308,19 +465,19 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body.rs:5383:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:721:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2887:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2935:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2947:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3130:                    _ => unreachable!(\"filtered by match\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:4239:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8512:                    _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8531:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8591:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8608:                _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8642:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:8674:            _ => unreachable!(\"filtered by caller\"),",
-    "crates/scoopc/src/llvm/codegen/mod.rs:9176:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
+    "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:93:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:153:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:170:                _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:204:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/coerce.rs:236:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1212:                unreachable!(",

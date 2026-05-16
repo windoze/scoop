@@ -1,0 +1,182 @@
+//! Cast helpers (cast_int / cast_float), int_type, global-bytes cache, entry alloca primitives.
+
+#![allow(dead_code)]
+
+use super::*;
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn cast_int(
+        &mut self,
+        value: IntValue<'ctx>,
+        from: IntTy,
+        to: IntTy,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        if from.bits == to.bits {
+            return Ok(value);
+        }
+
+        let to_ty = self.int_type(to);
+        if to.bits > from.bits {
+            if from.signed {
+                Ok(self.builder.build_int_s_extend(value, to_ty, "sext")?)
+            } else {
+                Ok(self.builder.build_int_z_extend(value, to_ty, "zext")?)
+            }
+        } else {
+            Ok(self.builder.build_int_truncate(value, to_ty, "trunc")?)
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn cast_float(
+        &mut self,
+        value: FloatValue<'ctx>,
+        from: CgTy,
+        to: CgTy,
+    ) -> Result<FloatValue<'ctx>, LlvmEmitError> {
+        match (from, to) {
+            (CgTy::Float64, CgTy::Float64) | (CgTy::Float32, CgTy::Float32) => Ok(value),
+            (CgTy::Float32, CgTy::Float64) => {
+                Ok(self
+                    .builder
+                    .build_float_ext(value, self.context.f64_type(), "fpext")?)
+            }
+            (CgTy::Float64, CgTy::Float32) => {
+                Ok(self
+                    .builder
+                    .build_float_trunc(value, self.context.f32_type(), "fptrunc")?)
+            }
+            _ => unreachable!("cast_float only accepts Float64/Float32"),
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn int_type(&self, ty: IntTy) -> IntType<'ctx> {
+        self.context.custom_width_int_type(ty.bits)
+    }
+
+    pub(in crate::llvm::codegen) fn get_or_create_global_bytes(
+        &self,
+        span: crate::span::Span,
+        bytes: &[u8],
+    ) -> GlobalValue<'ctx> {
+        let name = format!("__scoop_str_data_{}_{}", span.start, span.end);
+        if let Some(existing) = self.module.get_global(&name) {
+            return existing;
+        }
+
+        let arr_ty = self.context.i8_type().array_type(bytes.len() as u32);
+        let gv = self.module.add_global(arr_ty, None, &name);
+        let init = self.context.const_string(bytes, false);
+        gv.set_initializer(&init);
+        gv.set_constant(true);
+        gv
+    }
+
+    pub(in crate::llvm::codegen) fn create_entry_alloca(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        ty: CgTy,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let alloca_ty = self.llvm_basic_type_of(at, ty)?;
+        let ptr = self.create_entry_alloca_raw(at, name, alloca_ty)?;
+        self.apply_alloca_alignment_for_ty(at, ptr, ty)?;
+        Ok(ptr)
+    }
+
+    pub(in crate::llvm::codegen) fn create_entry_alloca_raw(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        alloca_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let frame_slots = self.reserve_explicit_frame_leaf_slots_for_storage_type(at, alloca_ty)?;
+        let alloca_builder = self.context.create_builder();
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let entry = func
+            .get_first_basic_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function has no entry block",
+                at: at.into(),
+            })?;
+
+        match entry.get_first_instruction() {
+            Some(inst) => alloca_builder.position_before(&inst),
+            None => alloca_builder.position_at_end(entry),
+        }
+
+        let slot = alloca_builder.build_alloca(alloca_ty, name)?;
+        self.record_explicit_frame_slot_mirrors(slot, frame_slots);
+        Ok(slot)
+    }
+
+    pub(in crate::llvm::codegen) fn create_entry_scratch_alloca_raw(
+        &self,
+        at: crate::span::Span,
+        name: &str,
+        alloca_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let alloca_builder = self.context.create_builder();
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let entry = func
+            .get_first_basic_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function has no entry block",
+                at: at.into(),
+            })?;
+
+        match entry.get_first_instruction() {
+            Some(inst) => alloca_builder.position_before(&inst),
+            None => alloca_builder.position_at_end(entry),
+        }
+
+        Ok(alloca_builder.build_alloca(alloca_ty, name)?)
+    }
+
+    pub(in crate::llvm::codegen) fn apply_alloca_alignment_for_ty(
+        &self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        // `@CLayout(aligned = N)`：显式对齐仅对 struct 有意义，其它类型保持默认 ABI 对齐。
+        let CgTy::Struct(struct_ty) = ty else {
+            return Ok(());
+        };
+        let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned) else {
+            return Ok(());
+        };
+
+        let inst = ptr
+            .as_instruction_value()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "alloca instruction value",
+                at: at.into(),
+            })?;
+        inst.set_alignment(aligned)?;
+        Ok(())
+    }
+}
