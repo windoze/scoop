@@ -17,16 +17,23 @@ use crate::source::SourceFile;
 pub const SYSROOT_OVERLAY_ENV: &str = "SCOOP_SYSROOT_OVERLAY";
 
 /// T0143：sysroot 文件分为两类：
-/// - `files`：签名文件（仅声明，不编译函数体）。用于 Index 与类型检查。
+/// - `files`：签名文件（仅声明，不作为 support source 编译）。用于 production Index 起点。
 /// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `string.scoop`），
 ///   需作为编译单元的一部分参与完整的 resolve → typecheck → HIR lowering → codegen 管线。
-///   这些文件不重复加入 `files`，以避免 Index 中出现双重声明。
+/// - `compilable_files`：已解析的 compilable sysroot 文件，供 dump / package API export / 单测
+///   这类不经 support-source 输入的路径参与索引。
 #[derive(Debug)]
 pub struct Sysroot {
     pub root: PathBuf,
     pub files: Vec<SysrootFile>,
     /// T0143：需要被编译（而非仅作为签名索引）的 sysroot 源文件路径。
     pub compilable_source_paths: Vec<PathBuf>,
+    /// 与 `compilable_source_paths` 对应的已解析 sysroot 文件。
+    ///
+    /// 说明：这些文件不放入 `files`，以避免 production frontend 在 support-source
+    /// 输入中再次加入同一文件时形成重复声明；需要完整 sysroot 索引的路径应使用
+    /// `index_files()`。
+    pub compilable_files: Vec<SysrootFile>,
 }
 
 #[derive(Debug)]
@@ -66,6 +73,7 @@ impl Sysroot {
 
         let mut files = Vec::new();
         let mut compilable_source_paths = Vec::new();
+        let mut compilable_files = Vec::new();
         for path in paths {
             let source = SourceFile::load_sysroot(&path)?;
             let ast = crate::parser::parse_file(&source)
@@ -75,7 +83,19 @@ impl Sysroot {
             // 除了既有的 `string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
             // bodied `@Intrinsic struct/class` 也必须进入 compilable support sources。
             if is_compilable_sysroot_file(&path, &source, &ast) {
-                compilable_source_paths.push(path);
+                compilable_source_paths.push(path.clone());
+                compilable_files.push(SysrootFile {
+                    path: path.clone(),
+                    source: source.clone(),
+                    ast: ast.clone(),
+                });
+                if path.file_name().is_some_and(|name| name == "core.scoop") {
+                    files.push(SysrootFile {
+                        path,
+                        source,
+                        ast: signature_only_sysroot_ast(ast),
+                    });
+                }
                 continue;
             }
 
@@ -83,10 +103,11 @@ impl Sysroot {
         }
 
         {
-            let source_clones = files
+            let mut source_clones = files
                 .iter()
                 .map(|file| file.source.clone())
                 .collect::<Vec<_>>();
+            source_clones.extend(compilable_files.iter().map(|file| file.source.clone()));
             let indexed_sources = source_clones
                 .iter()
                 .map(|source| (crate::resolve::ConeId::DEFAULT, source))
@@ -95,6 +116,7 @@ impl Sysroot {
                 .iter_mut()
                 .map(|file| &mut file.ast)
                 .collect::<Vec<_>>();
+            ast_refs.extend(compilable_files.iter_mut().map(|file| &mut file.ast));
             crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
                 &[],
                 &indexed_sources,
@@ -107,13 +129,19 @@ impl Sysroot {
             root,
             files,
             compilable_source_paths,
+            compilable_files,
         })
+    }
+
+    pub fn index_files(&self) -> impl Iterator<Item = &SysrootFile> {
+        self.files.iter()
     }
 }
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
 /// 当前规则：
-/// - `string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop` 一直是 support sources；
+/// - `core.scoop`、`string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop`
+///   一直是 support sources；
 /// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
 fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
     is_always_compilable_sysroot_file(path) || has_bodied_intrinsic_nominal_method(source, ast)
@@ -122,6 +150,7 @@ fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast
 fn is_always_compilable_sysroot_file(path: &Path) -> bool {
     path.file_name().is_some_and(|name| {
         name == "string.scoop"
+            || name == "core.scoop"
             || name == "print.scoop"
             || name == "scalar_string_bridge.scoop"
             || name == "task.scoop"
@@ -163,6 +192,87 @@ fn has_intrinsic_annotation(
             ["Intrinsic"] | ["scoop", "core", "Intrinsic"]
         )
     })
+}
+
+pub(crate) fn signature_only_sysroot_ast(mut ast: crate::ast::File) -> crate::ast::File {
+    for item in &mut ast.items {
+        strip_item_bodies(item);
+    }
+    ast
+}
+
+fn strip_item_bodies(item: &mut crate::ast::Item) {
+    match item {
+        crate::ast::Item::Fun(fun) => {
+            fun.body = crate::ast::FunBody::Missing;
+        }
+        crate::ast::Item::Type(decl) => strip_type_decl_bodies(decl),
+        crate::ast::Item::Object(object) => strip_object_decl_bodies(object),
+        crate::ast::Item::ComptimeIf(item) => {
+            for nested in &mut item.then_branch.items {
+                strip_item_bodies(nested);
+            }
+            if let Some(else_branch) = item.else_branch.as_deref_mut() {
+                strip_comptime_else_bodies(else_branch);
+            }
+        }
+        crate::ast::Item::TypeAlias(_)
+        | crate::ast::Item::ExtensionProperty(_)
+        | crate::ast::Item::Val(_) => {}
+    }
+}
+
+fn strip_comptime_else_bodies(else_branch: &mut crate::ast::ComptimeIfItemElse) {
+    match else_branch {
+        crate::ast::ComptimeIfItemElse::Block(block) => {
+            for nested in &mut block.items {
+                strip_item_bodies(nested);
+            }
+        }
+        crate::ast::ComptimeIfItemElse::If(item) => {
+            for nested in &mut item.then_branch.items {
+                strip_item_bodies(nested);
+            }
+            if let Some(next) = item.else_branch.as_deref_mut() {
+                strip_comptime_else_bodies(next);
+            }
+        }
+    }
+}
+
+fn strip_type_decl_bodies(decl: &mut crate::ast::TypeDecl) {
+    if decl.kind == crate::ast::TypeKind::Interface {
+        return;
+    }
+    let Some(body) = &mut decl.body else {
+        return;
+    };
+    for member in &mut body.members {
+        strip_type_member_bodies(member);
+    }
+}
+
+fn strip_object_decl_bodies(object: &mut crate::ast::ObjectDecl) {
+    let Some(body) = &mut object.body else {
+        return;
+    };
+    for member in &mut body.members {
+        strip_type_member_bodies(member);
+    }
+}
+
+fn strip_type_member_bodies(member: &mut crate::ast::TypeMember) {
+    match member {
+        crate::ast::TypeMember::Fun(fun) => {
+            fun.body = crate::ast::FunBody::Missing;
+        }
+        crate::ast::TypeMember::Type(decl) => strip_type_decl_bodies(decl),
+        crate::ast::TypeMember::Object(object) => strip_object_decl_bodies(object),
+        crate::ast::TypeMember::EnumVariant(_)
+        | crate::ast::TypeMember::Property(_)
+        | crate::ast::TypeMember::InitBlock(_)
+        | crate::ast::TypeMember::SecondaryCtor(_) => {}
+    }
 }
 
 /// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
@@ -345,13 +455,48 @@ mod tests {
         let unsafe_file = unsafe_file.canonicalize().unwrap();
 
         assert_eq!(sysroot.compilable_source_paths, vec![overlay_core.clone()]);
-        assert_eq!(sysroot.files.len(), 1);
-        assert_eq!(sysroot.files[0].path, unsafe_file);
+        assert_eq!(sysroot.files.len(), 2);
+        assert!(sysroot.files.iter().any(|file| file.path == unsafe_file));
+        assert!(sysroot.files.iter().any(|file| file.path == overlay_core));
 
         let mut support_sources = Vec::new();
         collect_compilable_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources)
             .unwrap();
         assert_eq!(support_sources, vec![overlay_core]);
+    }
+
+    #[test]
+    fn default_core_is_compilable_support_source_and_index_file() {
+        let sysroot = Sysroot::load_from(Sysroot::default_path()).unwrap();
+
+        assert!(
+            sysroot
+                .compilable_source_paths
+                .iter()
+                .any(|path| path.file_name().is_some_and(|name| name == "core.scoop")),
+            "default core.scoop must be compiled as a support source"
+        );
+        assert!(
+            sysroot.compilable_files.iter().any(|file| file
+                .path
+                .file_name()
+                .is_some_and(|name| name == "core.scoop")),
+            "default core.scoop must still be available for direct dump/package indexing"
+        );
+        assert!(
+            sysroot.files.iter().any(|file| file
+                .path
+                .file_name()
+                .is_some_and(|name| name == "core.scoop")),
+            "default core.scoop signature must remain visible through sysroot.files"
+        );
+        assert!(
+            sysroot.index_files().any(|file| file
+                .path
+                .file_name()
+                .is_some_and(|name| name == "core.scoop")),
+            "default core.scoop must remain visible through Sysroot::index_files()"
+        );
     }
 
     fn audit_file_for_declaration_only_regular_funs(

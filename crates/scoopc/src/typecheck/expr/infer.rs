@@ -70,7 +70,15 @@ pub(super) fn infer_expr_type(
             }
         }
         ast::ExprKind::CharLit => Ok(builtins.char_),
-        ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
+        ast::ExprKind::StringLit => Ok(builtins.string),
+        ast::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let ast::InterpolatedStringPart::Expr { expr } = part {
+                    inputs.infer(lower, expr)?;
+                }
+            }
+            Ok(builtins.string)
+        }
         ast::ExprKind::UnitLit => Ok(builtins.unit),
         ast::ExprKind::Block(b) => infer_block_value_type(inputs, b, lower),
         ast::ExprKind::DoBlock { body, .. } => infer_block_value_type(inputs, body, lower),
@@ -3291,7 +3299,7 @@ mod tests {
 
         let index = {
             let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
-            for file in &session.sysroot().files {
+            for file in session.sysroot().index_files() {
                 pairs.push((&file.source, &file.ast));
             }
             pairs.push((&source, &ast));

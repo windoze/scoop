@@ -1,12 +1,16 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
 // EXPECT-ERROR: 缺少效果声明
-// EXPECT-ERROR-AT: 13:18
+// EXPECT-ERROR-AT: 17:18
 // 目标：T1213 scope functions：`x.run { ... }` 的 lambda body effects 需通过 `<eff E>` 传播到调用点。
 
 package fixtures.typecheck
 
 import scoop.core.*
+
+fun <eff E = Pure> Int.run(block: Int.() -> Any / E): Any / E {
+    return block(this)
+}
 
 fun bad() {
     val x: Int = 1

@@ -3594,7 +3594,7 @@ import scoop.core.*
 fun choose<T>(value: T, count: Int = 1): T { return value }
 
 class Box(val base: Int) {
-    fun add(x: Int = 1, y: Int): Int { return x + y }
+    fun combine(x: Int = 1, y: Int): Int { return x + y }
 }
 
 class Pair(val x: Int = 1, val y: Int)
@@ -3605,7 +3605,7 @@ fun sum(prefix: Int, vararg xs: Int): Int { return prefix }
 
 fun main(): Int {
     val a: Int = choose<Int>(count = 2, value = 1)
-    val b: Int = Box(10).add(y = 2)
+    val b: Int = Box(10).combine(y = 2)
     val p: Pair = Pair(y = 2)
     val c: Int = 1.bump()
     val xs: Array<Int> = [1, 2]

@@ -26,21 +26,16 @@
   X(__scoop_explicit_root_frame_top) \
   X(scoop_alloc) \
   X(scoop_alloc_typed) \
+  X(scoop_array_alloc) \
   X(scoop_array_builder_build_array) \
   X(scoop_array_builder_build_array_composite) \
   X(scoop_array_builder_build_mutable_array) \
   X(scoop_array_builder_build_mutable_array_composite) \
+  X(scoop_array_builder_grow) \
   X(scoop_array_builder_new) \
   X(scoop_array_builder_push_composite) \
   X(scoop_array_builder_push_ref) \
   X(scoop_array_builder_push_u64) \
-  X(scoop_array_get_composite) \
-  X(scoop_array_get_ref) \
-  X(scoop_array_get_u64) \
-  X(scoop_array_len) \
-  X(scoop_array_set_composite) \
-  X(scoop_array_set_ref) \
-  X(scoop_array_set_u64) \
   X(scoop_enter_native) \
   X(scoop_float32_to_int) \
   X(scoop_float32_to_string) \
@@ -128,11 +123,14 @@
   X(scoop_test_gc_stack_walking_ctx_smoke) \
   X(scoop_test_gc_stack_walking_unwind_smoke) \
   X(scoop_test_get_add_int_funptr) \
+  X(scoop_test_get_gc_collect_in_native_funptr) \
   X(scoop_test_get_make_int_pair_funptr) \
   X(scoop_test_handle_token_slot_reset) \
   X(scoop_test_handle_token_slot_store) \
   X(scoop_test_handle_token_slot_take) \
   X(scoop_test_handle_get_object_addr) \
+  X(scoop_test_make_int_pair) \
+  X(scoop_test_named_intrinsic_dummy_runtime) \
   X(scoop_test_sync_condvar_destroy_count) \
   X(scoop_test_sync_destroy_counts_reset) \
   X(scoop_test_sync_mutex_destroy_count) \

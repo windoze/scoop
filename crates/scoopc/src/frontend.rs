@@ -393,6 +393,13 @@ pub fn run_frontend(
 
     let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {
+        if input
+            .sources
+            .iter()
+            .any(|source| source.path() == f.source.path())
+        {
+            continue;
+        }
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             source: &f.source,
@@ -538,6 +545,14 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
 ) -> Result<hir::LoweredHir> {
     let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {
+        if front
+            .input
+            .sources
+            .iter()
+            .any(|source| source.path() == f.source.path())
+        {
+            continue;
+        }
         unit.push((&f.source, &f.ast));
     }
     for (source, ast) in front.input.sources.iter().zip(front.asts.iter()) {
@@ -587,6 +602,13 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
 pub fn build_source_map(session: &Session, input: &ProjectInput) -> (SourceMap, SourceId) {
     let mut source_map = SourceMap::new();
     for file in &session.sysroot().files {
+        if input
+            .sources
+            .iter()
+            .any(|source| source.path() == file.source.path())
+        {
+            continue;
+        }
         let _ = source_map.add_source_clone(&file.source);
     }
 
@@ -742,7 +764,9 @@ fn default_stdlib_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
 }
 
-fn load_default_support_sources(session_options: &SessionOptions) -> Result<Vec<SourceFile>> {
+pub(crate) fn load_default_support_sources(
+    session_options: &SessionOptions,
+) -> Result<Vec<SourceFile>> {
     let root = default_stdlib_path()
         .canonicalize()
         .into_diagnostic()

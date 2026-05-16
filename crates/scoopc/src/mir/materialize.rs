@@ -3826,6 +3826,17 @@ fn collect_dump_materialization_inputs(
     }
 
     for support_source in load_dump_support_sources(session)? {
+        if support_source.path() == source.path() {
+            continue;
+        }
+        if session
+            .sysroot()
+            .files
+            .iter()
+            .any(|file| file.source.path() == support_source.path())
+        {
+            continue;
+        }
         let ast = parse_file(&support_source)?;
         prepared_files.push(PreparedDumpFile {
             source: support_source,
@@ -4510,54 +4521,8 @@ fn collect_callable_body_infos(
 }
 
 fn load_dump_support_sources(session: &Session) -> MaterializeResult<Vec<SourceFile>> {
-    let stdlib_root = default_stdlib_path();
-    let stdlib_root = stdlib_root.canonicalize().map_err(|error| {
-        frontend_err(format!(
-            "dump-ir 无法定位 stdlib 目录：{}: {error}",
-            stdlib_root.display()
-        ))
-    })?;
-
-    let mut paths = Vec::new();
-    collect_scoop_files(&stdlib_root, &mut paths)?;
-    paths.extend(session.sysroot().compilable_source_paths.iter().cloned());
-    paths.sort();
-
-    let mut sources = Vec::with_capacity(paths.len());
-    for path in paths {
-        let source = SourceFile::load(&path).map_err(|error| {
-            frontend_err(format!(
-                "dump-ir 无法读取 sysroot support source：{}: {error}",
-                path.display()
-            ))
-        })?;
-        sources.push(source);
-    }
-    Ok(sources)
-}
-
-fn default_stdlib_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
-}
-
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> MaterializeResult<()> {
-    for entry in std::fs::read_dir(dir).map_err(|error| {
-        frontend_err(format!("dump-ir 无法读取目录：{}: {error}", dir.display()))
-    })? {
-        let entry = entry.map_err(|error| frontend_err(error.to_string()))?;
-        let path = entry.path();
-        let ty = entry
-            .file_type()
-            .map_err(|error| frontend_err(error.to_string()))?;
-        if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
-            continue;
-        }
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
-    Ok(())
+    crate::frontend::load_default_support_sources(session.options())
+        .map_err(|error| frontend_err(format!("dump-ir 无法加载默认 support sources：{error}")))
 }
 
 fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {
@@ -9878,7 +9843,7 @@ mod tests {
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> =
                 Vec::with_capacity(session.sysroot().files.len() + files.len());
-            for file in &session.sysroot().files {
+            for file in session.sysroot().index_files() {
                 unit.push((&file.source, &file.ast));
             }
             for (source, ast) in &files {
@@ -10747,7 +10712,7 @@ fun support(): Int {
 
         let mut compilation_unit: Vec<(&SourceFile, &ast::File)> =
             Vec::with_capacity(sess.sysroot().files.len() + files.len());
-        for file in &sess.sysroot().files {
+        for file in sess.sysroot().index_files() {
             compilation_unit.push((&file.source, &file.ast));
         }
         for (source, ast) in &files {

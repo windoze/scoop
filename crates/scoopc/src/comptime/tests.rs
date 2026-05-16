@@ -70,10 +70,18 @@ fn mk_type_kind(variant: &str) -> ConstValue {
 }
 
 fn mk_type_meta(name: &str, kind: &str) -> ConstValue {
+    let annotations = if matches!(
+        name,
+        "String" | "Bool" | "Char" | "Float32" | "Float64" | "Int"
+    ) {
+        vec![mk_annotation_meta("Intrinsic", Vec::new())]
+    } else {
+        Vec::new()
+    };
     ConstValue::Struct(ConstStruct {
         ty: "TypeMeta".to_string(),
         fields: BTreeMap::from([
-            ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
+            ("annotations".to_string(), ConstValue::Tuple(annotations)),
             ("kind".to_string(), mk_type_kind(kind)),
             ("name".to_string(), ConstValue::String(name.to_string())),
         ]),

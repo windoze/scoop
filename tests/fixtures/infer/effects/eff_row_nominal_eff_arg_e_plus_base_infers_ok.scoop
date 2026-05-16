@@ -10,7 +10,7 @@ effect Async
 
 interface Disposable<eff E = Pure>
 
-fun <eff E = Pure> takes(d: Disposable<eff (IO + E)>): Unit
+fun <eff E = Pure> takes(d: Disposable<eff (IO + E)>): Unit {}
 
 fun ok(d: Disposable<eff Async + IO>) {
     takes(d)

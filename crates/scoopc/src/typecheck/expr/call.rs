@@ -2238,6 +2238,7 @@ fn is_const_eval_builtin_fun(callee_fqn: &str) -> bool {
     matches!(
         callee_fqn,
         "scoop.core.substring"
+            | "scoop.core.String.trimIndent"
             | "scoop.core.indexOf"
             | "scoop.core.contains"
             | "scoop.core.startsWith"

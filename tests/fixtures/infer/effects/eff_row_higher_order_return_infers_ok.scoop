@@ -7,7 +7,7 @@ package fixtures.infer
 import scoop.core.*
 
 // 期望：`wants` 要求一个“可能 raise”的函数值。
-fun wants(block: () -> Unit / Raise<Int>): Unit
+fun wants(block: () -> Unit / Raise<Int>): Unit {}
 
 // 高阶：把 `E` 透传到返回函数类型。
 fun <eff E = Pure> wrap(block: () -> Unit / E): () -> Unit / E {
@@ -19,4 +19,3 @@ fun ok() {
         Raise.raise(1)
     })
 }
-

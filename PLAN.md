@@ -710,6 +710,8 @@ runtime 的最终目标是只包含 GC 实现与 GC-adjacent 功能（GC handle 
    - `linux/amd64`
    - `macos/aarch64`
 
+当前执行备注（P5-T00）：`macos/aarch64` 可在本机完成；`linux/amd64` 需要带 LLVM 21 的可复现 runner（CI 或专用 Docker image）。本地 Docker emulation 只能确认 `x86_64` 容器可启动，不能作为完整 ABI matrix 验收。
+
 完成条件：
 
 - native callable ABI 与 managed external ABI 都已成为明确、可回归、跨平台可审计的 contract；

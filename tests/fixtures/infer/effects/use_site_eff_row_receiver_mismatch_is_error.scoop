@@ -13,9 +13,9 @@ effect Async
 
 interface Disposable<eff E = Pure>
 
-fun Disposable<eff Pure>.pureOnly(): Unit
+fun Disposable<eff Pure>.pureOnly(): Unit {}
 
-fun asyncDisposable(): Disposable<eff Async>
+fun asyncDisposable(): Disposable<eff Async> { return asyncDisposable() }
 
 fun bad() {
     asyncDisposable().pureOnly()

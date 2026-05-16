@@ -246,7 +246,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
 
     // 2) index：sysroot cone=0，当前 cone=1（与 build/scoopir 导出保持一致）。
     let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             source: &f.source,
@@ -276,7 +276,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
 
     // 4) type_kinds：用于把名义类型区分为 value/ref nominal（struct/enum vs class/interface/effect）。
     let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         compilation_unit.push((&f.source, &f.ast));
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {

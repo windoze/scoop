@@ -5,6 +5,10 @@ package fixtures.typecheck
 
 import scoop.core.*
 
+fun <T> MutableArray<T>.toArray(): Array<T> {
+    return []
+}
+
 fun sum(vararg xs: Int): Int {
     // 当前阶段只回归“调用点语义”，不要求在函数体内访问 `xs`。
     return 0

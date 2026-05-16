@@ -2277,7 +2277,7 @@ mod tests {
 
         let sess = Session::new().unwrap();
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         pairs.push((&src, &ast));
@@ -2299,7 +2299,7 @@ mod tests {
         let mut ast = parse_file(&src).unwrap();
 
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         pairs.push((&src, &ast));
@@ -2324,7 +2324,7 @@ mod tests {
         let mut ast = parse_file(&src).unwrap();
 
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         pairs.push((&src, &ast));

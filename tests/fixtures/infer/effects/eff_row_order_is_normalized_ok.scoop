@@ -8,9 +8,8 @@ effect Bar
 
 interface Disposable<eff E = Pure>
 
-fun takes(d: Disposable<eff Foo + Bar>): Unit
+fun takes(d: Disposable<eff Foo + Bar>): Unit {}
 
 fun ok(d: Disposable<eff Bar + Foo>) {
     takes(d)
 }
-

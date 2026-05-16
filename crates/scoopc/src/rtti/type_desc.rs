@@ -366,7 +366,7 @@ fn collect_precise_runtime_class_itables(
     }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     pairs.push((source, &ast));
@@ -441,7 +441,7 @@ fn collect_precise_runtime_class_itables(
     crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)?;
 
     let mut resolved_pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         resolved_pairs.push((&f.source, &f.ast));
     }
     resolved_pairs.push((source, &ast));
@@ -477,7 +477,7 @@ fn collect_interface_descs_and_class_vtables(
     }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     pairs.push((source, &ast));

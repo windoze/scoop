@@ -9541,7 +9541,7 @@ fun demo(): Int / (Boom) {
 
         let index = {
             let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
-            for file in &session.sysroot().files {
+            for file in session.sysroot().index_files() {
                 pairs.push((&file.source, &file.ast));
             }
             pairs.push((&source, &ast));
@@ -9591,7 +9591,7 @@ fun demo(): Int / (Boom) {
         .expect("check exprs");
 
         let mut unit: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
-        for file in &session.sysroot().files {
+        for file in session.sysroot().index_files() {
             unit.push((&file.source, &file.ast));
         }
         unit.push((&source, &ast));

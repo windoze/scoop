@@ -1,42 +1,26 @@
 # 当前执行计划
 
-## 约束
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
+2. 查看最近提交信息，只判断是否有与该任务直接相关的未完成事项或前置问题。
+3. 阅读当前任务要求、依赖和验证要求；必要时查看相关源码、测试和规格文档。
+4. 若任务可直接完成，则实现最小且完整的修复或功能；若发现阻塞该任务的真实前置问题，则更新 `TODO.md` 记录前置任务并停止。
+5. 运行与任务相关的测试和必要的格式/检查命令，修复发现的问题。
+6. 将已完成任务标题加上 `[DONE]`，更新完成记录；只有阶段级计划改变时才更新 `PLAN.md`。
+7. 提交本次任务相关全部变更，提交后停止，不进入下一个任务。
 
-- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
-- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 如遇到阻塞当前任务的规格不匹配、缺失语言特性、回归或实现边界，先修复；若无法在当前任务中正确修复，则在 `TODO.md` 中插入最小必要前置任务并停止。
-- 不使用 workaround、fixture-only hack 或弱化测试形状来绕过问题。
-- 完成后必须更新 `TODO.md`，运行相关验证，提交 Git commit。
+## 进度记录
 
-## 步骤计划
-
-1. 阅读 `TODO.md`，按标题 `[DONE]` 前缀识别第一个未完成任务。
-2. 查看该任务的依赖、验收标准、完成记录和相关说明。
-3. 根据任务范围检查最小必要代码上下文，不进行开放式历史问题扫描。
-4. 实现当前任务或处理直接阻塞该任务的前置问题。
-5. 添加或更新最小相关测试、fixture 或文档。
-6. 运行任务指定验证和必要的相关测试；如失败，定位并修复。
-7. 将当前任务标题标记为 `[DONE]`，更新 completion record。
-8. 更新本文件记录关键进展、验证结果和最终状态。
-9. 检查 Git 状态和 diff，提交本次任务全部相关改动。
-10. 停止，不继续处理下一个任务。
-
-## 进度
-
-- 已创建初始执行计划。
-- 已读取 `TODO.md`，第一个未完成任务为 `P4-T02：迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface`。
-- 最新提交为 `[P4-T01] Migrate scalar toString to sysroot methods`，与当前任务顺序相邻但未明确留下未完成 blocker；继续执行 `P4-T02`。
-- 已将 public `String.length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent` 接入 sysroot body；`String.concat` 通过 audited named intrinsic runtime bridge 触达 allocation/copy substrate。
-- 已清理 resolver/typecheck/HIR/LLVM/effect-lowered 中上述 public helper 的按名 intercept；保留 `byteLength/getByte/unsafeSliceBytes` 作为 byte-level substrate。
-- 已从 runtime direct API/ABI 中移除 `length/toInt/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent` 等 public helper；`scoop_string_concat` 暂作为 concat bridge 的 substrate symbol 保留。
-- 已完成主要验证：`cargo check -p scoopc`、`cargo test -p scoopc llvm::tests -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`、`cargo clippy --all-targets -- -D warnings` 均通过。
-
-## 当前任务执行细化
-
-1. 检查 string helper 当前声明、typecheck/resolver/HIR/LLVM/runtime intercept 分布。
-2. 判断 `length` / `byteLength` / `getByte` / `unsafeSliceBytes` 是否为 runtime substrate，并把结论写入 sysroot/runtime 文档注释。
-3. 将非 substrate helper 迁移到 `sysroot/string.scoop` 或 `sysroot/core.scoop` 的普通/managed ABI helper 实现。
-4. 删除对应 resolver/typecheck/HIR/LLVM/runtime 的名字特判与 runtime symbol 暴露。
-5. 增加覆盖 migrated helper 的 build/run-pass/GC-stress fixture。
-6. 运行任务要求验证与 clippy；修复失败。
-7. 更新 `TODO.md` 的 `[DONE]` 标记和完成记录，提交改动。
+- 已创建本执行计划；下一步读取 `TODO.md` 定位首个未完成任务。
+- 已读取 `TODO.md`；首个未完成任务为 `P5-T01：做全量稳定化、跨平台矩阵与文档收尾`。下一步核对最新提交是否包含与该任务直接相关的未完成事项。
+- 最新提交为 `[P4-T02] Migrate remaining string helpers`，未显式记录与 `P5-T01` 直接相关的未完成事项。下一步阅读 `PLAN.md` / `MANAGED_ABI.md` 相关章节，确认文档收尾范围并开始验证。
+- 已确认本机为 `Darwin/arm64`，Docker 可用但服务端为 `linux/arm64`；`llvm-config` 不在本机 PATH。下一步先执行 macOS/aarch64 全量验证，并评估是否能用 Docker 补跑 Linux/amd64 矩阵。
+- 开始执行 macOS/aarch64 全量 Rust 测试：`cargo test --all --all-targets`。
+- `cargo test --all --all-targets` 失败：主要是 `scoop` crate 单测/fixture harness 中临时工程没有加载默认 sysroot，导致 `scoop.core.*` unresolved；另有旧测试输入仍声明无 body 普通 helper，触发 `fun_must_have_body`。下一步修复测试 harness / test resources，使 P5 全量验证可执行。
+- 已修复 dump/materialize/package/typecheck-cone 路径对 compilable sysroot support sources 的索引与类型环境注入，并把遗漏的 infer fixture 普通无 body helper 改为真实 body；`cargo test -p scoop --bin scoop` 现为 116 passed / 0 failed。
+- 重跑 `cargo test --all --all-targets` 后，`scoop` 相关测试已通过；当前阻塞为 `scoop_runtime` export allowlist 漏登记 `scoop_array_alloc` / `scoop_array_builder_grow` / 三个测试 helper。下一步按 runtime API 头的分类补登记，保持 allowlist 测试不放宽。
+- runtime export allowlist 已补齐并通过定向验证；随后 `cargo test --all --all-targets` 在 `gc_stop_the_world` 集成测试处超过 20 分钟超时，违反单测 <1 分钟要求。下一步定位 STW 测试/运行时挂起并修复。
+- 定向运行 `cargo test -p scoop_runtime --test gc_stop_the_world -- --nocapture` 0 秒通过，说明前一次是全量命令总时限不足而非该单测卡死。下一步用更长超时重跑完整 `cargo test --all --all-targets`。
+- 已完成 `scoopc` direct-test/sysroot support-source 修复：为 compilable sysroot 生成 signature-only index AST，补齐 dump/materialize/effect-facts support source 去重，并刷新相关 owner tests / failure-policy sentinel；`cargo test -p scoopc --lib` 现为 864 passed / 0 failed。
+- `cargo test --all --all-targets` 已通过完整 Rust workspace 矩阵。下一步运行 `cargo run -p scoop -- test` 完整 fixture suite。
+- `cargo run -p scoop -- test` 已通过完整 fixture suite（1367 checks）。下一步补跑 `llvm_tests` / native direct-indirect parity / managed ABI 定向验证、`clippy`，并评估 Linux/amd64 Docker 矩阵。
+- 本机 `macos/aarch64` 验证完成：`cargo test --all --all-targets`、完整 fixture suite、native/managed ABI 定向套件、GC stress string helper 与 `cargo clippy --all-targets -- -D warnings` 均通过。Linux/amd64 Docker 可启动到 `x86_64`，但完整 Rust/LLVM 矩阵在 emulation 下未能在 30 分钟内完成，已停止超时容器；后续文档需明确该矩阵限制。

@@ -1842,7 +1842,7 @@ mod tests {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for file in &session.sysroot().files {
+            for file in session.sysroot().index_files() {
                 unit.push((&file.source, &file.ast));
             }
             unit.push((&source, &ast));

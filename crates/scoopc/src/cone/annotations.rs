@@ -109,7 +109,7 @@ pub fn collect_cone_preserved_annotation_classes_for_cone_sources(
 
     // 2) build index：sysroot cone=0，当前 cone=1（与 ScoopIR 导出保持一致）。
     let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
             source: &f.source,

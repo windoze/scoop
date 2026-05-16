@@ -59,6 +59,9 @@ pub enum EffectFactsError {
     #[error("refactor effect-facts stage requires a canonical materialized MIR snapshot from P3")]
     MissingMaterializedMirSnapshot,
 
+    #[error("refactor effect-facts stage frontend setup failed: {message}")]
+    Frontend { message: String },
+
     #[error("refactor effect-facts stage 找不到 callable root `{fqn}` 的 MIR 声明头")]
     MissingCallableRoot { fqn: String },
 

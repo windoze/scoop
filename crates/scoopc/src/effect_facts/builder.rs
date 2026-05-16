@@ -2156,6 +2156,26 @@ impl EffectFactsTypeContext {
         stable_cone_key: StableConeKey,
     ) -> Result<Self, EffectFactsError> {
         let mut sources = compilation_sources.to_vec();
+        for support_source in crate::frontend::load_default_support_sources(session.options())
+            .map_err(|error| EffectFactsError::Frontend {
+                message: error.to_string(),
+            })?
+        {
+            let is_effect_facts_signature_support = support_source
+                .path()
+                .file_name()
+                .is_some_and(|name| name == "scalar_string_bridge.scoop" || name == "string.scoop");
+            if !is_effect_facts_signature_support {
+                continue;
+            }
+            if sources
+                .iter()
+                .any(|source| source.path() == support_source.path())
+            {
+                continue;
+            }
+            sources.push(support_source);
+        }
         if !sources
             .iter()
             .any(|candidate| candidate.path() == source.path())

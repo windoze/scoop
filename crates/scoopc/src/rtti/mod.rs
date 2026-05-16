@@ -215,7 +215,7 @@ impl RttiContext {
         // 2) build index（sysroot + 当前文件）。
         let index = {
             let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for f in &session.sysroot().files {
+            for f in session.sysroot().index_files() {
                 pairs.push((&f.source, &f.ast));
             }
             pairs.push((source, &file));
@@ -235,7 +235,7 @@ impl RttiContext {
         let builtins = types.intern_builtins();
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         let mut all_pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &session.sysroot().files {
+        for f in session.sysroot().index_files() {
             all_pairs.push((&f.source, &f.ast));
         }
         all_pairs.push((source, &file));

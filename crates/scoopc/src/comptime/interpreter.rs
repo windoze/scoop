@@ -158,7 +158,8 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let mut prepared_stdlib: Vec<OwnedPreparedConstEvalFile> =
         Vec::with_capacity(stdlib_source_paths.len());
     for path in stdlib_source_paths {
-        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
+        let source =
+            SourceFile::load_sysroot(&path).map_err(|err| frontend_message(err.to_string()))?;
         let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
         prepared_stdlib.push(OwnedPreparedConstEvalFile { source, ast });
     }
@@ -169,8 +170,13 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let mut prepared_compilable_sysroot: Vec<OwnedPreparedConstEvalFile> =
         Vec::with_capacity(compilable_sysroot_paths.len());
     for path in compilable_sysroot_paths {
-        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
+        if sysroot.files.iter().any(|file| file.path == path) {
+            continue;
+        }
+        let source =
+            SourceFile::load_sysroot(&path).map_err(|err| frontend_message(err.to_string()))?;
         let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
+        let ast = crate::sysroot::signature_only_sysroot_ast(ast);
         prepared_compilable_sysroot.push(OwnedPreparedConstEvalFile { source, ast });
     }
 
@@ -327,13 +333,7 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
             Ok(())
         };
 
-    for f in &mut prepared_sysroot {
-        run_frontend_pipeline(f.source, &mut f.ast)?;
-    }
     for f in &mut prepared_stdlib {
-        run_frontend_pipeline(&f.source, &mut f.ast)?;
-    }
-    for f in &mut prepared_compilable_sysroot {
         run_frontend_pipeline(&f.source, &mut f.ast)?;
     }
     for f in &mut prepared {
@@ -398,8 +398,12 @@ pub fn trim_package_level_comptime_ifs_in_compilation_unit(
     files: &mut [&mut ast::File],
 ) -> Result<(), ConstEvalError> {
     let ambient_files = sysroot
-        .files
-        .iter()
+        .index_files()
+        .filter(|file| {
+            !sources
+                .iter()
+                .any(|source| source.path() == file.source.path())
+        })
         .map(|file| crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::DEFAULT,
             source: &file.source,

@@ -29,8 +29,8 @@ fun defaulted(x: String): Int {
 }
 
 // --- effect row：lambda body perform Raise，但固定 `/ Foo` 候选应被剔除；`<eff E>` 候选应能从 lambda 推断出 `E = Raise<Int>`。
-fun effFixed(block: () -> Unit / Foo): Unit
-fun <eff E = Pure> effFixed(block: () -> Unit / E): Unit
+fun effFixed(block: () -> Unit / Foo): Unit {}
+fun <eff E = Pure> effFixed(block: () -> Unit / E): Unit {}
 
 fun ok() {
     val a: Int = choose(1, 2)

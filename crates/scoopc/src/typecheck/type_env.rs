@@ -338,7 +338,7 @@ impl TypeEnv {
     /// - 当前阶段仅收集声明头信息，不解析函数体/方法体。
     pub fn from_sysroot(sysroot: &Sysroot, index: &Index) -> Result<Self, TypeEnvError> {
         let mut env = Self::default();
-        for f in &sysroot.files {
+        for f in sysroot.index_files() {
             env.collect_from_file(&f.source, &f.ast, index)?;
         }
         Ok(env)
@@ -557,6 +557,10 @@ impl TypeEnv {
         file: &ast::File,
         index: &Index,
     ) -> Result<(), TypeEnvError> {
+        if self.files.contains_key(source.path()) {
+            return Ok(());
+        }
+
         // 记录源文件内容，供后续 typecheck 在跨文件引用（例如 sysroot enum variants）时
         // 通过 span 反查标识符文本。
         self.sources
@@ -1335,7 +1339,7 @@ mod tests {
     fn sysroot_type_env_contains_option_arity() {
         let sess = Session::new().unwrap();
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         let index = Index::build(&pairs).unwrap();
@@ -1348,7 +1352,7 @@ mod tests {
     fn sysroot_type_env_collects_option_variants() {
         let sess = Session::new().unwrap();
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         let index = Index::build(&pairs).unwrap();
@@ -1401,7 +1405,7 @@ class Box<T> where T: Show {}
         let ast = sess.parse(&src).unwrap();
 
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             pairs.push((&f.source, &f.ast));
         }
         pairs.push((&src, &ast));

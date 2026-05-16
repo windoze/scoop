@@ -41,6 +41,7 @@
 | `P4-T01q` | P4 前置 V | [DONE] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | [DONE] 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | [DONE] 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
+| `P5-T00` | P5 前置 | 补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境 |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
 
 ## 全局约束
@@ -2001,6 +2002,34 @@
 
 ## P5：稳定化与收尾
 
+### [TODO] P5-T00：补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境
+
+- 起因 / 阻塞说明：
+  - `P5-T01` 要求至少覆盖 `linux/amd64` 与 `macos/aarch64` matrix。
+  - 本轮已在本机 `macos/aarch64` 完成全量 Rust / fixture / ABI 定向验证。
+  - Docker 可启动 `linux/amd64` 容器并确认 `uname -m == x86_64`，但当前本地 Docker 环境没有预装 Scoop 所需 LLVM 21 工具链；`rust:bookworm` 容器在 emulation 下尝试编译 no-default Rust 矩阵超过 30 分钟仍未完成，且完整 native/managed ABI LLVM suite 无法在该容器中可复现执行。
+- 目标：
+  - 提供一个可复现的 `linux/amd64` runner（CI job 或 Docker image 均可），包含 Rust stable、clang 与匹配当前 `inkwell`/`llvm-sys` 的 LLVM 21 工具链。
+  - 在该 runner 上补跑 P5 要求的 Linux/amd64 matrix，并把命令与结果回写到 `TODO.md` / `MANAGED_ABI.md`（必要时 `PLAN.md`）。
+- 必须实现的内容：
+  1. 固化 Linux/amd64 执行环境，避免依赖本机 Docker emulation 的临时拉取 / 超时行为。
+  2. 在 Linux/amd64 上至少运行：
+     - `cargo test --all --all-targets`
+     - `cargo run -p scoop -- test`
+     - native direct/indirect parity suite（含 `extern_native_aggregate_return_direct_indirect_parity.scoop`）
+     - `ExternAbi::Scoop` build/run-pass suite
+     - `cargo clippy --all-targets -- -D warnings`
+  3. 若 Linux/amd64 暴露 ABI drift，必须修复实现或新增更具体的前置任务，不得把失败降级为文档说明。
+- 验证：
+  1. Linux/amd64 runner 上的完整命令日志。
+  2. `uname -m` / target triple / LLVM version 记录。
+- 完成条件：
+  - Linux/amd64 与 macOS/aarch64 两侧都具备可审计的 P5 验证记录。
+- 依赖：`P4-T02`
+- 当前记录：
+  - 本机 Docker smoke：`docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm uname -m` 输出 `x86_64`。
+  - 本机 Docker no-default Rust 矩阵尝试：`cargo test --all --all-targets --no-default-features` 在 emulation 下超过 30 分钟未完成；已停止超时容器，未把该结果视为 Linux/amd64 验收。
+
 ### [TODO] P5-T01：做全量稳定化、跨平台矩阵与文档收尾
 
 - 参考：
@@ -2046,4 +2075,24 @@
   4. CI / 手工跨平台矩阵
 - 完成条件：
   - native callable ABI 与 managed external ABI 都已经成为明确、可回归、跨平台可审计的 contract。
-- 依赖：`P4-T02`
+- 依赖：`P5-T00`
+- 当前记录（未完成）：
+  - 本轮已完成 macOS/aarch64 稳定化预备工作：
+    - 修复 compilable sysroot (`core.scoop` / string / scalar bridge / print 等) 在 dump、package export、typecheck-cone、materialize、effect-facts 与 direct-test 路径中的 signature/support-source 分层问题。
+    - 将遗漏的 infer fixture 普通 declaration-only helper 改为真实 body，符合 `fun_must_have_body` 约束。
+    - 补齐 runtime ABI allowlist 中当前真实导出的 array allocation / builder grow / test helper symbols，并移除已删除 array get/set/len helper 的 allowlist 残留。
+    - 修复 f-string interpolated expressions 的 typecheck 递归，使非入口文件中的直接成员调用也发布 typed call-site contract。
+  - 本机验证结果：
+    - `cargo test --all --all-targets`：通过。
+    - `cargo run -p scoop -- test`：通过（1367 checks）。
+    - `cargo test -p scoopc llvm_tests -- --nocapture`：当前 filter 为 `0 passed; 864 filtered out`。
+    - `cargo test -p scoopc native_callable -- --nocapture`：2 passed。
+    - `cargo test -p scoopc managed_extern_ -- --nocapture`：2 passed。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`：通过。
+    - `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1 cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 阻塞：Linux/amd64 完整 LLVM ABI matrix 尚未完成，已拆为 `P5-T00`；因此本任务不得标 `[DONE]`。

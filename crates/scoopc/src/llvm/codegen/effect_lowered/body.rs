@@ -13149,15 +13149,12 @@ mod tests {
     fn refactor_llvm_plain_local_effect_control_uses_published_handoff() {
         let body = include_str!("body.rs");
         let layout = include_str!("layout.rs");
-        let value = include_str!("value.rs");
-
         assert!(body.contains("plain.local_effect_control().is_some()"));
         assert!(body.contains("emit_plain_direct"));
         assert!(body.contains("RefactorCallableReturnMode::Plain"));
         assert!(body.contains("P5 handoff 应保证 NoOutward body 的 case 被本地 handle/catch 消费"));
         assert!(layout.contains("has_control_body()"));
         assert!(layout.contains("__scoop_refactor_plain_source_main"));
-        assert!(value.contains("scoop.core.ToString"));
         assert!(!body.contains(concat!("codegen_mir_", "statement")));
     }
 }

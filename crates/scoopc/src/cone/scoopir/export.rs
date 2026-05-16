@@ -124,6 +124,21 @@ pub fn export_public_api_for_cone_sources(
         let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
         asts.push(ast);
     }
+    let support_sources = crate::frontend::load_default_support_sources(session.options())?
+        .into_iter()
+        .filter(|source| {
+            !session
+                .sysroot()
+                .files
+                .iter()
+                .any(|file| file.source.path() == source.path())
+        })
+        .collect::<Vec<_>>();
+    let mut support_asts = Vec::with_capacity(support_sources.len());
+    for source in &support_sources {
+        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        support_asts.push(ast);
+    }
     {
         let ambient_files = session
             .sysroot()
@@ -135,11 +150,17 @@ pub fn export_public_api_for_cone_sources(
                 file: &file.ast,
             })
             .collect::<Vec<_>>();
-        let indexed_sources = sources
+        let mut indexed_sources = support_sources
             .iter()
             .map(|source| (crate::resolve::ConeId::new(1), source))
             .collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
+        indexed_sources.extend(
+            sources
+                .iter()
+                .map(|source| (crate::resolve::ConeId::new(1), source)),
+        );
+        let mut ast_refs = support_asts.iter_mut().collect::<Vec<_>>();
+        ast_refs.extend(asts.iter_mut());
         crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
             &ambient_files,
             &indexed_sources,
@@ -157,6 +178,13 @@ pub fn export_public_api_for_cone_sources(
             file: &f.ast,
         });
     }
+    for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
+        indexed.push(crate::resolve::IndexedFile {
+            cone: crate::resolve::ConeId::new(1),
+            source,
+            file: ast,
+        });
+    }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::new(1),
@@ -168,11 +196,24 @@ pub fn export_public_api_for_cone_sources(
     let index = crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
 
     // 3) resolver：headers + bodies，把绑定结果写回 AST（供 HIR lowering 使用）。
+    let mut support_headers = Vec::with_capacity(support_sources.len());
+    for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
+        let h = crate::resolve::check_file_headers(source, ast, &index)
+            .map_err(miette::Report::from)?;
+        support_headers.push(h);
+    }
     let mut headers = Vec::with_capacity(sources.len());
     for (source, ast) in sources.iter().zip(asts.iter()) {
         let h = crate::resolve::check_file_headers(source, ast, &index)
             .map_err(miette::Report::from)?;
         headers.push(h);
+    }
+    for ((source, ast), h) in support_sources
+        .iter()
+        .zip(support_asts.iter_mut())
+        .zip(support_headers.iter())
+    {
+        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
     }
     for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
         crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
@@ -181,6 +222,10 @@ pub fn export_public_api_for_cone_sources(
     // 4) type env：用于导出 public type 的声明头信息。
     let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
+    for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::from)?;
+    }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         env.extend_from_file(source, ast, &index)
             .map_err(miette::Report::from)?;
@@ -190,6 +235,9 @@ pub fn export_public_api_for_cone_sources(
     let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         pairs.push((&f.source, &f.ast));
+    }
+    for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
+        pairs.push((source, ast));
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         pairs.push((source, ast));

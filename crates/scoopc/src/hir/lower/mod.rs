@@ -2748,6 +2748,41 @@ enum ValScope {
     Local,
 }
 
+fn load_dump_support_asts(
+    session: &Session,
+    entry_source: &SourceFile,
+) -> Result<Vec<(SourceFile, ast::File)>, HirLowerError> {
+    let support_sources = crate::frontend::load_default_support_sources(session.options())
+        .map_err(|err| HirLowerError::Frontend {
+            message: format!("加载 dump support sources 失败：{err}"),
+        })?;
+
+    let mut out = Vec::new();
+    for support_source in support_sources {
+        if support_source.path() == entry_source.path() {
+            continue;
+        }
+        if support_source
+            .path()
+            .file_name()
+            .is_some_and(|name| name == "print.scoop")
+        {
+            continue;
+        }
+        if session
+            .sysroot()
+            .files
+            .iter()
+            .any(|file| file.source.path() == support_source.path())
+        {
+            continue;
+        }
+        let ast = parse_file(&support_source)?;
+        out.push((support_source, ast));
+    }
+    Ok(out)
+}
+
 /// 为 `scoop dump-hir` 生成 HIR（最小实现）。
 ///
 /// 流程：
@@ -2758,9 +2793,19 @@ enum ValScope {
 ///    （未覆盖节点用 `Any` 占位）。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
+    let mut support_asts = load_dump_support_asts(session, source)?;
     {
-        let sources = [source];
-        let mut files = [&mut ast];
+        let support_sources = support_asts
+            .iter()
+            .map(|(source, _)| source.clone())
+            .collect::<Vec<_>>();
+        let mut sources = support_sources.iter().collect::<Vec<_>>();
+        sources.push(source);
+        let mut files = support_asts
+            .iter_mut()
+            .map(|(_, ast)| ast)
+            .collect::<Vec<_>>();
+        files.push(&mut ast);
         crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
             session.sysroot(),
             &sources,
@@ -2775,16 +2820,35 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         for f in &session.sysroot().files {
             pairs.push((&f.source, &f.ast));
         }
+        for (support_source, support_ast) in &support_asts {
+            pairs.push((support_source, support_ast));
+        }
         pairs.push((source, &ast));
         Index::build(&pairs)?
     };
 
+    let mut support_headers = Vec::with_capacity(support_asts.len());
+    for (support_source, support_ast) in &support_asts {
+        support_headers.push(crate::resolve::check_file_headers(
+            support_source,
+            support_ast,
+            &index,
+        )?);
+    }
+    for ((support_source, support_ast), headers) in
+        support_asts.iter_mut().zip(support_headers.iter())
+    {
+        crate::resolve::check_file_bodies(support_source, support_ast, &index, headers)?;
+    }
     let headers = crate::resolve::check_file_headers(source, &ast, &index)?;
     crate::resolve::check_file_bodies(source, &mut ast, &index, &headers)?;
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         pairs.push((&f.source, &f.ast));
+    }
+    for (support_source, support_ast) in &support_asts {
+        pairs.push((support_source, support_ast));
     }
     pairs.push((source, &ast));
     let type_kinds = collect_type_decl_kinds(&pairs);
@@ -3034,9 +3098,19 @@ pub fn lower_typed_for_dump(
     source: &SourceFile,
 ) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
+    let mut support_asts = load_dump_support_asts(session, source)?;
     {
-        let sources = [source];
-        let mut files = [&mut ast];
+        let support_sources = support_asts
+            .iter()
+            .map(|(source, _)| source.clone())
+            .collect::<Vec<_>>();
+        let mut sources = support_sources.iter().collect::<Vec<_>>();
+        sources.push(source);
+        let mut files = support_asts
+            .iter_mut()
+            .map(|(_, ast)| ast)
+            .collect::<Vec<_>>();
+        files.push(&mut ast);
         crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
             session.sysroot(),
             &sources,
@@ -3044,6 +3118,10 @@ pub fn lower_typed_for_dump(
         )?;
     }
 
+    for (support_source, support_ast) in &support_asts {
+        crate::typecheck::check_file_headers(support_source, support_ast)?;
+        crate::typecheck::check_file_struct_decls(support_source, support_ast)?;
+    }
     crate::typecheck::check_file_headers(source, &ast)?;
     crate::typecheck::check_file_struct_decls(source, &ast)?;
 
@@ -3052,14 +3130,33 @@ pub fn lower_typed_for_dump(
         for file in &session.sysroot().files {
             compilation_unit.push((&file.source, &file.ast));
         }
+        for (support_source, support_ast) in &support_asts {
+            compilation_unit.push((support_source, support_ast));
+        }
         compilation_unit.push((source, &ast));
         Index::build(&compilation_unit)?
     };
 
+    let mut support_headers = Vec::with_capacity(support_asts.len());
+    for (support_source, support_ast) in &support_asts {
+        support_headers.push(crate::resolve::check_file_headers(
+            support_source,
+            support_ast,
+            &index,
+        )?);
+    }
+    for ((support_source, support_ast), headers) in
+        support_asts.iter_mut().zip(support_headers.iter())
+    {
+        crate::resolve::check_file_bodies(support_source, support_ast, &index, headers)?;
+    }
     let headers = crate::resolve::check_file_headers(source, &ast, &index)?;
     crate::resolve::check_file_bodies(source, &mut ast, &index, &headers)?;
 
     let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)?;
+    for (support_source, support_ast) in &support_asts {
+        env.extend_from_file(support_source, support_ast, &index)?;
+    }
     env.extend_from_file(source, &ast, &index)?;
 
     let mut typecheck_types = TypeStore::new();
@@ -3096,6 +3193,9 @@ pub fn lower_typed_for_dump(
     let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for file in &session.sysroot().files {
         compilation_unit.push((&file.source, &file.ast));
+    }
+    for (support_source, support_ast) in &support_asts {
+        compilation_unit.push((support_source, support_ast));
     }
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
@@ -4893,7 +4993,7 @@ mod tests {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for file in &sess.sysroot().files {
+            for file in sess.sysroot().index_files() {
                 unit.push((&file.source, &file.ast));
             }
             unit.push((source, &ast));
@@ -4974,7 +5074,7 @@ mod tests {
         typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in &sess.sysroot().files {
+        for file in sess.sysroot().index_files() {
             unit.push((&file.source, &file.ast));
         }
         unit.push((source, &ast));
@@ -5248,7 +5348,7 @@ fun main(): Int {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for file in &sess.sysroot().files {
+            for file in sess.sysroot().index_files() {
                 unit.push((&file.source, &file.ast));
             }
             unit.push((source, &ast));
@@ -5329,7 +5429,7 @@ fun main(): Int {
         typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in &sess.sysroot().files {
+        for file in sess.sysroot().index_files() {
             unit.push((&file.source, &file.ast));
         }
         unit.push((source, &ast));
@@ -6175,7 +6275,7 @@ fun main(): Int { return id(1) }
 
         let index = {
             let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for f in &sess.sysroot().files {
+            for f in sess.sysroot().index_files() {
                 pairs.push((&f.source, &f.ast));
             }
             pairs.push((&src_lib, &ast_lib));
@@ -6190,7 +6290,7 @@ fun main(): Int { return id(1) }
         crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &h_main).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             unit.push((&f.source, &f.ast));
         }
         unit.push((&src_lib, &ast_lib));
@@ -6268,7 +6368,7 @@ fun main(): Int {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for f in &sess.sysroot().files {
+            for f in sess.sysroot().index_files() {
                 unit.push((&f.source, &f.ast));
             }
             unit.push((&src_helper, &ast_helper));
@@ -6365,7 +6465,7 @@ fun main(): Int {
         typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             unit.push((&f.source, &f.ast));
         }
         unit.push((&src_helper, &ast_helper));
@@ -6480,7 +6580,7 @@ fun main(): Int {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for f in &sess.sysroot().files {
+            for f in sess.sysroot().index_files() {
                 unit.push((&f.source, &f.ast));
             }
             unit.push((&source, &ast));
@@ -6566,7 +6666,7 @@ fun main(): Int {
         assert!(safe_debug.contains("doubleScore"), "{safe_debug}");
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             unit.push((&f.source, &f.ast));
         }
         unit.push((&source, &ast));
@@ -7251,7 +7351,7 @@ fun main(): Int {
 
         let index = {
             let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-            for f in &sess.sysroot().files {
+            for f in sess.sysroot().index_files() {
                 unit.push((&f.source, &f.ast));
             }
             unit.push((&src_model, &ast_model));
@@ -7341,7 +7441,7 @@ fun main(): Int {
         typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &sess.sysroot().files {
+        for f in sess.sysroot().index_files() {
             unit.push((&f.source, &f.ast));
         }
         unit.push((&src_model, &ast_model));
@@ -7698,22 +7798,19 @@ val topNamed: String.(Int) -> Int = { n: Int -> this.length() + n }
         let ExprKind::Call { callee, args } = &lhs.kind else {
             panic!("length 调用应保留为 Call，实际为 {:?}", lhs.kind);
         };
-        assert!(args.is_empty(), "String.length() 不应携带实参: {args:?}");
-        let ExprKind::MemberAccess { member, .. } = &callee.kind else {
+        assert_eq!(
+            args.len(),
+            1,
+            "String.length() 作为 body method 应携带 receiver 实参: {args:?}"
+        );
+        let ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
             panic!(
-                "length 调用 callee 应为 MemberAccess，实际为 {:?}",
+                "length 调用 callee 应为 direct body method，实际为 {:?}",
                 callee.kind
             );
         };
-        assert_eq!(member.name, "length");
-        assert!(
-            matches!(
-                lowered.types.kind(callee.ty),
-                TypeKind::Ref(RefTypeKind::Function(_))
-            ),
-            "length callee 在 side table 中应是函数类型，实际为 {}",
-            lowered.types.display(callee.ty)
-        );
+        assert_eq!(fqn, "scoop.core.String.length");
+        assert_eq!(lowered.types.display(lhs.ty).to_string(), "Int");
     }
 
     #[test]

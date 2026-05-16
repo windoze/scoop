@@ -130,7 +130,13 @@ impl Session {
         }
 
         let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
-        for f in &self.sysroot.files {
+        for f in self.sysroot.index_files() {
+            if sources
+                .iter()
+                .any(|source| source.path() == f.source.path())
+            {
+                continue;
+            }
             pairs.push((&f.source, &f.ast));
         }
         for (s, a) in sources.iter().zip(asts.iter()) {
