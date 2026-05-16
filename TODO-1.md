@@ -111,7 +111,7 @@
 
 ## P1：自动 prelude
 
-### P1-T01：`scoop.lang.string` 空 cone 落地（package + sysroot file + loader 接入）
+### [DONE] P1-T01：`scoop.lang.string` 空 cone 落地（package + sysroot file + loader 接入）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.1 / §9 / P1
@@ -148,6 +148,14 @@
 - 完成条件：
   - `scoop.lang.string` 是一个 well-formed empty cone；后续 P1-T02 / P5 任务可以把 import 与符号往里加。
 - 依赖：P0-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：新增 `sysroot/lang_string.scoop`；在 `crates/scoopc/src/sysroot/mod.rs` 增加 owner test `lang_string_cone_visible_in_sysroot`；更新 `TODO.md` 索引与本任务完成记录；`PLAN.md` 阶段计划未变化。
+- 核心决策：按任务要求使用 sysroot 顶层文件 `lang_string.scoop`，只声明 `package scoop.lang.string` 与 `import scoop.core.*`；不改 ImportTable，不引入 `StringBuilder`、string-from-array helper、`@Intrinsic` 或 `@Extern` 声明。
+- 验证结果：`cargo test -p scoopc lang_string_cone_visible_in_sysroot -- --nocapture` 通过；`rustfmt --edition 2024 --check crates/scoopc/src/sysroot/mod.rs` 通过；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1367)` 且 baseline pass target 数仍为 1330；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P1 前置的 `scoop.lang.string` cone 物理落点与默认 sysroot 可见性，P1-T02 后续可安全注入 `import scoop.lang.string.*`。
+- 暂时性 failing fixture：无。
 
 ### P1-T02：自动 prelude——`scoop.core.*` + `scoop.lang.string.*` 注入 ImportTable
 

@@ -401,6 +401,27 @@ mod tests {
     }
 
     #[test]
+    fn lang_string_cone_visible_in_sysroot() {
+        let sysroot = Sysroot::load_from(Sysroot::default_path()).unwrap();
+        let entries = sysroot
+            .index_files()
+            .filter(|file| {
+                has_package(&file.source, file.ast.package.as_ref(), "scoop.lang.string")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            entries.len(),
+            1,
+            "default sysroot must index exactly one scoop.lang.string file"
+        );
+        assert!(
+            entries[0].ast.items.is_empty(),
+            "scoop.lang.string placeholder must not export types or functions"
+        );
+    }
+
+    #[test]
     fn sysroot_declaration_only_regular_funs_are_explicitly_exempted() {
         let root = canonicalize_sysroot_root(&Sysroot::default_path(), "sysroot").unwrap();
         let mut parsed_files = Vec::new();
@@ -738,5 +759,22 @@ mod tests {
         } else {
             format!("{prefix}.{name}")
         }
+    }
+
+    fn has_package(
+        source: &SourceFile,
+        package: Option<&ast::PackageDecl>,
+        expected: &str,
+    ) -> bool {
+        let Some(package) = package else {
+            return expected.is_empty();
+        };
+        let actual = package
+            .path
+            .iter()
+            .map(|segment| segment.text(source))
+            .collect::<Vec<_>>()
+            .join(".");
+        actual == expected
     }
 }

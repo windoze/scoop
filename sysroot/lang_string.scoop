@@ -1,0 +1,7 @@
+// Scoop sysroot: scoop.lang.string cone (placeholder)
+//
+// 说明：本文件目前只声明 package；StringBuilder / string-from-... helper 由 P5 阶段补齐。
+
+package scoop.lang.string
+
+import scoop.core.*
