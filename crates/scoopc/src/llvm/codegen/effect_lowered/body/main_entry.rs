@@ -3,6 +3,7 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn codegen_program_bodies(
         &mut self,
         program: &'a LateLoweredProgram,

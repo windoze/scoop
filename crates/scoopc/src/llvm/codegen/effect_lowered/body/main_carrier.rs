@@ -136,7 +136,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(crate) fn project_refactor_step_to_schema(
+    pub(in crate::llvm::codegen::effect_lowered) fn project_refactor_step_to_schema(
         &mut self,
         abi: &ProgramAbiQuery<'ctx>,
         owner_step: BasicValueEnum<'ctx>,

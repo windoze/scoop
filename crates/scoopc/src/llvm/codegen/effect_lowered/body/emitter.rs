@@ -38,6 +38,7 @@ pub(super) struct ComposedBoundaryDispatchContext<'a> {
 }
 
 impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
         program: &'a LateLoweredProgram,

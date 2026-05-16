@@ -128,7 +128,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_int_value())
     }
 
-    pub(crate) fn refactor_extract_step_payload(
+    pub(in crate::llvm::codegen::effect_lowered) fn refactor_extract_step_payload(
         &mut self,
         step_layout: &RefactorStepLayout<'ctx>,
         step: BasicValueEnum<'ctx>,

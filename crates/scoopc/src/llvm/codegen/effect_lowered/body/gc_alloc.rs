@@ -267,7 +267,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(crate) fn refactor_cast_ptr(
+    pub(in crate::llvm::codegen::effect_lowered) fn refactor_cast_ptr(
         &self,
         ptr: PointerValue<'ctx>,
         target_ty: inkwell::types::PointerType<'ctx>,
@@ -282,7 +282,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(crate) fn refactor_build_step_complete(
+    pub(in crate::llvm::codegen::effect_lowered) fn refactor_build_step_complete(
         &mut self,
         step_layout: &RefactorStepLayout<'ctx>,
         payload: Option<BasicValueEnum<'ctx>>,

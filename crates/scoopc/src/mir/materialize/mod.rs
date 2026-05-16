@@ -60,7 +60,6 @@ use super::{
 /// 说明：
 /// - `fqn` 给出语言级声明身份；
 /// - `source_path + decl_span` 只用于当前 materialization 过程内定位 AST/HIR 根；
-
 /// - exported identity 必须改走 `stable_id::StableTemplateKey`，而不是直接复用这里的 path/span。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TemplateKey {
