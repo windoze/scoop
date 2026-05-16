@@ -170,8 +170,24 @@ fn scan_refactor_mir_placeholder_surfaces() -> BTreeSet<PlaceholderKey> {
 }
 
 fn scan_mir_lower_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<PlaceholderKey>) {
-    let path = manifest_dir.join("src/mir/lower.rs");
-    let source = read_non_test_source(&path);
+    let dir = manifest_dir.join("src/mir/lower");
+    let mut entries = fs::read_dir(&dir)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", dir.display()))
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name != "tests.rs")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    let source: String = entries
+        .iter()
+        .map(|path| read_non_test_source(path))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     collect_item_todo_constructors(&source, PlaceholderSurface::Item, observed);
     collect_string_reason_constructors(
