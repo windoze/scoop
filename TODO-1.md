@@ -44,7 +44,7 @@
 
 ## P0：冻结 reshape baseline
 
-### P0-T01：冻结 reshape baseline 与 fixture 三分类清单
+### [DONE] P0-T01：冻结 reshape baseline 与 fixture 三分类清单
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P0
@@ -96,6 +96,18 @@
 - 完成条件：
   - 三份清单产出且各自标注了清晰的分类规则；后续任务不需要再扫描 fixture 全集。
 - 依赖：无
+
+完成记录（2026-05-17）：
+
+- 改动范围：生成 `target/reshape-baseline/baseline-pass.txt`、`target/reshape-baseline/stdlib-fixtures.txt`、`target/reshape-baseline/fstring-fixtures.txt`；更新 `TODO.md` 索引与本任务完成记录；`PLAN.md` 阶段计划未变化。
+- baseline：`cargo run -p scoop -- test` 全量通过，`baseline-pass.txt` 记录 1330 个 pass target；raw summary 为 `fixtures: ok (1367)`。
+- stdlib fixtures 三分类：共 21 条；`KEEP-RENAME` 8，`MERGE-INTO` 0，`DELETE` 13。14 个 `tests/fixtures/run-pass/stdlib_*.scoop` 已全部覆盖；额外纳入旧 stdlib 注入相关的 range/progression、precondition、scope function、MutableArray/MutableList fixture。
+- 核心分类决策：range/progression、String/hash/toString 类行为保留并在后续阶段改名/改 import；`require/check/requireLazy/checkLazy/let/run/also/apply`、旧 MutableArray/List helper、Set/Map、collection algorithm、`joinToString`、`min/max` 等随 `stdlib/` 删除。
+- f-string fixtures：实际 f-string fixture 文件 61 个；原始 `f"` 扫描有 72 个命中，其中 11 个是普通字符串或注释中的假阳性，未纳入 `fstring-fixtures.txt`。
+- f-string 覆盖度：spot check 覆盖单 expr（`parse/f_string_interpolation.scoop`、`println_string_statepoint_basic.scoop`）、多 expr（`codegen/f_string_interpolation.scoop`、`run_pass_cone/literal_multi_file_interpolation_direct_basic`）、`Bool`/`Int`/`Char`/`Float`/`String`、raw f-string（`parse/f_string_interpolation.scoop`、`string_trim_indent_basic.scoop`）。当前 baseline 没有 `{{` / `}}` 转义 fixture；`P6-T01` 的 owner test 已明确要求新增含转义的 `fstring_desugar_basic.scoop`，该缺口由 P6 接手。
+- 验证结果：`wc -l target/reshape-baseline/{baseline-pass,stdlib-fixtures,fstring-fixtures}.txt` 输出 1330 / 32 / 61；stdlib coverage check 输出 `listed=21`、`required_stdlib=14`、`missing_stdlib=0`；抽样核对 `kotlin_require_check_basic.scoop`、`stdlib_math_basic.scoop`、`kotlin_require_check_lazy_message_basic.scoop` 分类合理；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：覆盖 P0 的 T0-1 baseline、T0-2 stdlib/import 分类、T0-3 f-string 扫描；TODO 指定清单落点为 `target/reshape-baseline/` 且不进入 git，因此未执行 PLAN 草案中旧的 `docs/reshape-baseline/` 落点。
+- 暂时性 failing fixture：无。
 
 ## P1：自动 prelude
 
@@ -451,4 +463,3 @@
   - 用户 / sysroot 代码可以写 `val xs = mutableArrayNew<String>(capacity = 8); xs.push("a"); xs.push("b"); val arr = xs.freeze()`。
   - `__scoop_array_builder_*` 旧路径仍存在（数组字面量不变），与新 wrapper 并存。
 - 依赖：P2-T01、P3-T01、P3-T02。
-

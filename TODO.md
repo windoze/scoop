@@ -13,7 +13,7 @@
 
 | ID | 状态 | 阶段 | 标题 | 详情 |
 | --- | --- | --- | --- | --- |
-| `P0-T01` | [TODO] | P0 | 冻结 reshape baseline 与 fixture 三分类清单 | [TODO-1.md](./TODO-1.md) |
+| `P0-T01` | [DONE] | P0 | [DONE] 冻结 reshape baseline 与 fixture 三分类清单 | [TODO-1.md](./TODO-1.md) |
 | `P1-T01` | [TODO] | P1 | `scoop.lang.string` 空 cone 落地（package + sysroot file + loader 接入） | [TODO-1.md](./TODO-1.md) |
 | `P1-T02` | [TODO] | P1 | 自动 prelude：`scoop.core.*` + `scoop.lang.string.*` 注入 ImportTable | [TODO-1.md](./TODO-1.md) |
 | `P2-T01` | [TODO] | P2 | 反射 const fun 补全 `kindOf<T>` / `descOf<T>` + `ARRAY_ELEM_KIND_*` 常量 | [TODO-1.md](./TODO-1.md) |
