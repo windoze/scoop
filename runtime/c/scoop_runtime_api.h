@@ -69,6 +69,12 @@
   X(scoop_handle_get) \
   X(scoop_handle_new) \
   X(scoop_leave_native) \
+  X(scoop_mutable_array_freeze) \
+  X(scoop_mutable_array_new) \
+  X(scoop_mutable_array_push_composite) \
+  X(scoop_mutable_array_push_ref) \
+  X(scoop_mutable_array_push_word) \
+  X(scoop_mutable_array_to_array_data) \
   X(scoop_once_begin) \
   X(scoop_once_end) \
   X(scoop_once_guard_canonicalize) \

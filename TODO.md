@@ -17,7 +17,7 @@
 | `P1-T01` | [DONE] | P1 | [DONE] `scoop.lang.string` 空 cone 落地（package + sysroot file + loader 接入） | [TODO-1.md](./TODO-1.md) |
 | `P1-T02` | [DONE] | P1 | [DONE] 自动 prelude：`scoop.core.*` + `scoop.lang.string.*` 注入 ImportTable | [TODO-1.md](./TODO-1.md) |
 | `P2-T01` | [DONE] | P2 | [DONE] 反射 const fun 补全 `kindOf<T>` / `descOf<T>` + `ARRAY_ELEM_KIND_*` 常量 | [TODO-1.md](./TODO-1.md) |
-| `P3-T01` | [TODO] | P3 | runtime 端：`ScoopMutableArray` out-of-line layout + 单态 new/push/freeze 入口 | [TODO-1.md](./TODO-1.md) |
+| `P3-T01` | [DONE] | P3 | [DONE] runtime 端：`ScoopMutableArray` out-of-line layout + 单态 new/push/freeze 入口 | [TODO-1.md](./TODO-1.md) |
 | `P3-T02` | [TODO] | P3 | 编译器端：`array_size/get/set/data_ptr` 按 receiver layout 分流 | [TODO-1.md](./TODO-1.md) |
 | `P3-T03` | [TODO] | P3 | sysroot 泛型 wrapper：`mutableArrayNew<T>` / `MutableArray<T>.push` / `MutableArray<T>.freeze` | [TODO-1.md](./TODO-1.md) |
 | `P4-T01` | [TODO] | P4 | 数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径 | [TODO-2.md](./TODO-2.md) |

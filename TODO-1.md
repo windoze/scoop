@@ -282,7 +282,7 @@
 
 ## P3：MutableArray layout 升级
 
-### P3-T01：runtime 端——`ScoopMutableArray` out-of-line layout + 单态 new/push/freeze 入口
+### [DONE] P3-T01：runtime 端——`ScoopMutableArray` out-of-line layout + 单态 new/push/freeze 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6.1 / §6.3 / §9 / P3
@@ -345,6 +345,16 @@
   - 6 个新 runtime 符号在 `scoop_runtime_api.h` 中可见、编译通过。
   - `ScoopArrayBuilder` 仍然工作（数组字面量与 stdlib `MutableArray.push` 等都不变）。
 - 依赖：P0-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：更新 `runtime/c/scoop_array.c`、`runtime/c/scoop_gc_backend_immix.c`、`runtime/c/scoop_runtime_api.h`；新增 `crates/scoop_runtime/tests/mutable_array_runtime.rs`；更新 `TODO.md` 索引与本任务完成记录；`PLAN.md` 阶段计划未变化。
+- 核心决策：新增 `ScoopMutableArray` out-of-line layout，字段顺序与 P3-T02 所需 len/cap/elem metadata/data 指针对齐，并用 `_Static_assert` 固定关键 offset；`ScoopArrayBuilder` 保持原路径并继续并存。`scoop_mutable_array_new` 对 WORD/REF 统一使用现有 Array runtime 的 word-sized storage，对 COMPOSITE 要求真实 transport descriptor。
+- runtime surface：导出并 allowlist 6 个符号：`scoop_mutable_array_new`、`scoop_mutable_array_push_word`、`scoop_mutable_array_push_ref`、`scoop_mutable_array_push_composite`、`scoop_mutable_array_freeze`、`scoop_mutable_array_to_array_data`。`freeze` 拷贝到新的 inline `ScoopArray`，不修改源 `MutableArray`。
+- GC 决策：`ScoopMutableArray` type descriptor 使用自定义 trace/release，trace 只访问 `[0, len)` 中的 ref / composite 内嵌 ref，release 释放 out-of-line data 并 drop composite 元素。由于元素 slot 位于 malloc buffer，Immix `scoop_gc_write_barrier(NULL, value)` 增加 promotion-only 路径，供 ref/composite push 在元素已写入且 len 可见后提升 nursery ref，再执行 safepoint poll；baseline/minimal/hosted backend 语义不变。
+- 验证结果：`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture` 通过（4 tests）；`cargo build` 通过；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1369)`；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop_runtime --all-targets` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P3 runtime 侧 `MutableArray` out-of-line layout、倍增扩容、freeze 到 inline `Array`、runtime ABI 符号登记与 GC trace/release 基础；P3-T02 后续可在编译器 lowering 中按 receiver layout 分流。
+- 暂时性 failing fixture：无。
 
 ### P3-T02：编译器端——`array_size/get/set/data_ptr` 按 receiver layout 分流
 

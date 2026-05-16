@@ -1878,6 +1878,31 @@ static void scoop_gc_immix_nursery_promote_block_to_old_unlocked(ScoopGcImmixSta
 
 void *scoop_gc_write_barrier(void *slot_addr, void *value) {
   if (slot_addr == 0) {
+    // Out-of-line C-heap containers have no heap slot address for the element
+    // store.  Promote nursery refs before polling so the visible C-heap slot can
+    // safely be traced through its owning object after this barrier returns.
+    void scoop_thread_register(void);
+    void scoop_gc_safepoint_poll(void);
+    scoop_thread_register();
+
+    ScoopGcImmixState *state = scoop_gc_immix_state();
+    if (state == 0 || !state->lock_inited) {
+      scoop_gc_safepoint_poll();
+      return value;
+    }
+
+    ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
+    const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+    if (value_block != 0 && value_block->generation == nursery) {
+      scoop_gc_immix_lock(state);
+      value_block = scoop_gc_immix_block_from_object(value);
+      if (value_block != 0 && value_block->generation == nursery) {
+        scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, value_block);
+      }
+      scoop_gc_immix_unlock(state);
+    }
+
+    scoop_gc_safepoint_poll();
     return value;
   }
 
