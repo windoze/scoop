@@ -22,4 +22,6 @@
 - 当前执行策略：等待该 CI run 完成，检查 `Platform diagnostics`、完整 cargo/fixture、P5 targeted matrix 与 Clippy 步骤；成功后回写 `TODO.md` / `MANAGED_ABI.md`，失败则按真实失败修复或记录新的前置任务。
 - CI run `25952815819` 已成功：`ubuntu-24.04` / `x86_64` / Rust `1.95.0` / LLVM `21.1.8`；完整 Rust suite、fixture smoke、P5 ABI targeted matrix 与 `cargo clippy --all-targets -- -D warnings` 均通过。
 - 已把 `P5-T00` 标记为 `[DONE]`，并更新 `TODO.md`、`MANAGED_ABI.md`、`PLAN.md` 记录 Linux/amd64 runner、命令日志 URL、平台诊断与验证结果。
-- 下一步运行轻量文档差异检查并提交本次完成记录。
+- 已运行 `git diff --check`，无 whitespace error。
+- 已提交完成记录：`a1b3bc46 [P5-T00] Record Linux ABI matrix completion`。
+- 当前任务已完成；按要求停止，不继续 `P5-T01`。
